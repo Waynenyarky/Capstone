@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'signup_page.dart';
+import 'mongodb_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -14,6 +15,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -22,12 +24,54 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _login() {
+  Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
-      // Implement login logic here
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login Successful!')),
-      );
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        final result = await MongoDBService.login(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+
+        setState(() {
+          _isLoading = false;
+        });
+
+        if (result['success']) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Welcome back, ${result['user']['firstName']}!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          
+          // Navigate to home screen or dashboard
+          // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomeScreen(user: result['user'])));
+        } else {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message']),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Connection error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -37,16 +81,11 @@ class _LoginScreenState extends State<LoginScreen> {
     final isSmallScreen = size.width < 360;
     final isMediumScreen = size.width >= 360 && size.width < 600;
     
-    // Responsive padding
     final horizontalPadding = isSmallScreen ? 16.0 : (isMediumScreen ? 24.0 : 32.0);
     final verticalPadding = isSmallScreen ? 16.0 : 24.0;
-    
-    // Responsive font sizes
     final titleFontSize = isSmallScreen ? 24.0 : 28.0;
     final subtitleFontSize = isSmallScreen ? 14.0 : 16.0;
     final iconSize = isSmallScreen ? 60.0 : 80.0;
-    
-    // Responsive spacing
     final spacing = isSmallScreen ? 12.0 : 16.0;
     final largeSpacing = isSmallScreen ? 20.0 : 24.0;
     final extraLargeSpacing = isSmallScreen ? 24.0 : 32.0;
@@ -99,6 +138,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
+                          enabled: !_isLoading,
                           decoration: const InputDecoration(
                             labelText: 'Email',
                             prefixIcon: Icon(Icons.email_outlined),
@@ -117,6 +157,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextFormField(
                           controller: _passwordController,
                           obscureText: _obscurePassword,
+                          enabled: !_isLoading,
                           decoration: InputDecoration(
                             labelText: 'Password',
                             prefixIcon: const Icon(Icons.lock_outlined),
@@ -143,7 +184,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           children: [
                             Checkbox(
                               value: _rememberMe,
-                              onChanged: (value) {
+                              onChanged: _isLoading ? null : (value) {
                                 setState(() {
                                   _rememberMe = value ?? false;
                                 });
@@ -159,7 +200,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         SizedBox(height: largeSpacing),
                         ElevatedButton(
-                          onPressed: _login,
+                          onPressed: _isLoading ? null : _login,
                           style: ElevatedButton.styleFrom(
                             padding: EdgeInsets.symmetric(
                               vertical: isSmallScreen ? 12 : 16,
@@ -168,10 +209,19 @@ class _LoginScreenState extends State<LoginScreen> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          child: Text(
-                            'Login',
-                            style: TextStyle(fontSize: subtitleFontSize),
-                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : Text(
+                                  'Login',
+                                  style: TextStyle(fontSize: subtitleFontSize),
+                                ),
                         ),
                         SizedBox(height: spacing),
                         Wrap(
@@ -183,7 +233,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: TextStyle(fontSize: subtitleFontSize),
                             ),
                             TextButton(
-                              onPressed: () {
+                              onPressed: _isLoading ? null : () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
