@@ -1,9 +1,9 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 
 class MongoDBService {
-  // Ensure the baseUrl points to the correct backend server
-  static const String baseUrl = 'http://192.168.1.38:5000'; // Update with your backend URL
+  static const String baseUrl = 'http://192.168.1.38:3000';
 
   static Future<Map<String, dynamic>> signUp({
     required String firstName,
@@ -14,6 +14,7 @@ class MongoDBService {
     required String confirmPassword,
   }) async {
     try {
+      print('Posting to: $baseUrl/api/auth/signup');
       final body = {
         'firstName': firstName,
         'lastName': lastName,
@@ -25,11 +26,13 @@ class MongoDBService {
 
       print('Sending signup request: $body');
 
-      final response = await http.post(
+      final response = await http
+          .post(
         Uri.parse('$baseUrl/api/auth/signup'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(body),
-      );
+      )
+          .timeout(const Duration(seconds: 12));
 
       print('Signup response status: ${response.statusCode}');
       print('Signup response body: ${response.body}');
@@ -50,6 +53,11 @@ class MongoDBService {
           'message': data['message'] ?? 'Signup failed',
         };
       }
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': 'Request timeout. Check network and server availability.',
+      };
     } catch (e) {
       print('Signup error: $e');
       return {
@@ -64,6 +72,7 @@ class MongoDBService {
     required String password,
   }) async {
     try {
+      print('Posting to: $baseUrl/api/auth/login');
       final body = {
         'email': email,
         'password': password,
@@ -71,11 +80,13 @@ class MongoDBService {
 
       print('Sending login request: $body');
 
-      final response = await http.post(
+      final response = await http
+          .post(
         Uri.parse('$baseUrl/api/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(body),
-      );
+      )
+          .timeout(const Duration(seconds: 12));
 
       print('Login response status: ${response.statusCode}');
       print('Login response body: ${response.body}');
@@ -97,8 +108,152 @@ class MongoDBService {
           'message': data['message'] ?? 'Login failed',
         };
       }
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': 'Request timeout. Check network and server availability.',
+      };
     } catch (e) {
       print('Login error: $e');
+      return {
+        'success': false,
+        'message': 'Connection error: ${e.toString()}',
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateProfile({
+    required String token,
+    required String firstName,
+    required String lastName,
+    required String phoneNumber,
+  }) async {
+    try {
+      final body = {
+        'firstName': firstName,
+        'lastName': lastName,
+        'phoneNumber': phoneNumber,
+      };
+      final response = await http
+          .put(
+        Uri.parse('$baseUrl/api/user/profile'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode(body),
+      )
+          .timeout(const Duration(seconds: 12));
+
+      final data = json.decode(response.body);
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Profile updated',
+          'user': data['user'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Update failed',
+        };
+      }
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': 'Request timeout. Check network and server availability.',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error: ${e.toString()}',
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> updatePassword({
+    required String token,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final body = {
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      };
+      final response = await http
+          .put(
+        Uri.parse('$baseUrl/api/user/password'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode(body),
+      )
+          .timeout(const Duration(seconds: 12));
+
+      final data = json.decode(response.body);
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Password updated successfully',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Password update failed',
+        };
+      }
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': 'Request timeout. Check network and server availability.',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error: ${e.toString()}',
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> deleteAccount({
+    required String token,
+    required String password,
+  }) async {
+    try {
+      final body = {
+        'password': password,
+      };
+      final response = await http
+          .delete(
+        Uri.parse('$baseUrl/api/user/account'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode(body),
+      )
+          .timeout(const Duration(seconds: 12));
+
+      final data = json.decode(response.body);
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Account deleted',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Delete failed',
+        };
+      }
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': 'Request timeout. Check network and server availability.',
+      };
+    } catch (e) {
       return {
         'success': false,
         'message': 'Connection error: ${e.toString()}',

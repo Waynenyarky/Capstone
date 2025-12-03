@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'mongodb_service.dart';
 
 class SignUpScreen extends StatefulWidget {
-  const SignUpScreen({Key? key}) : super(key: key);
+  const SignUpScreen({super.key});
 
   @override
   State<SignUpScreen> createState() => _SignUpScreenState();
@@ -20,6 +21,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+
+  bool _isValidName(String v) {
+    final s = v.trim();
+    if (s.length < 2 || s.length > 50) return false;
+    return RegExp(r'^[A-Za-z][A-Za-z\-\s]*$').hasMatch(s);
+  }
+
+  bool _isValidEmail(String v) {
+    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim());
+  }
+
+  bool _isValidPhone(String v) {
+    return RegExp(r'^\d{11}$').hasMatch(v);
+  }
+
+  bool _hasLower(String v) => RegExp(r'[a-z]').hasMatch(v);
+  bool _hasUpper(String v) => RegExp(r'[A-Z]').hasMatch(v);
+  bool _hasNumber(String v) => RegExp(r'\d').hasMatch(v);
+  bool _hasSpecial(String v) => RegExp(r'[^A-Za-z0-9]').hasMatch(v);
+  bool _passwordLengthOk(String v) => v.length >= 8;
 
   @override
   void dispose() {
@@ -112,6 +133,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final largeSpacing = isSmallScreen ? 20.0 : 24.0;
     final extraLargeSpacing = isSmallScreen ? 24.0 : 32.0;
 
+    final firstValid = _isValidName(_firstNameController.text);
+    final lastValid = _isValidName(_lastNameController.text);
+    final emailValid = _isValidEmail(_emailController.text);
+    final phoneValid = _isValidPhone(_phoneController.text);
+    final pwd = _passwordController.text;
+    final pwdLen = _passwordLengthOk(pwd);
+    final pwdNum = _hasNumber(pwd);
+    final pwdLow = _hasLower(pwd);
+    final pwdUp = _hasUpper(pwd);
+    final pwdSpec = _hasSpecial(pwd);
+    final passwordAllOk = pwdLen && pwdNum && pwdLow && pwdUp && pwdSpec;
+    final confirmText = _confirmPasswordController.text;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -133,6 +167,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   constraints: const BoxConstraints(maxWidth: 500),
                   child: Form(
                     key: _formKey,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -158,13 +193,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           controller: _firstNameController,
                           textCapitalization: TextCapitalization.words,
                           enabled: !_isLoading,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'First Name',
-                            prefixIcon: Icon(Icons.person_outline),
+                            prefixIcon: const Icon(Icons.person_outline),
+                            suffixIcon: Icon(
+                              firstValid ? Icons.check_circle : Icons.error_outline,
+                              color: firstValid ? Colors.green : Colors.red,
+                            ),
                           ),
+                          onChanged: (_) => setState(() {}),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Please enter your first name';
+                            }
+                            if (!_isValidName(value)) {
+                              return '2-50 letters, spaces or hyphen';
                             }
                             return null;
                           },
@@ -174,13 +217,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           controller: _lastNameController,
                           textCapitalization: TextCapitalization.words,
                           enabled: !_isLoading,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Last Name',
-                            prefixIcon: Icon(Icons.person_outline),
+                            prefixIcon: const Icon(Icons.person_outline),
+                            suffixIcon: Icon(
+                              lastValid ? Icons.check_circle : Icons.error_outline,
+                              color: lastValid ? Colors.green : Colors.red,
+                            ),
                           ),
+                          onChanged: (_) => setState(() {}),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Please enter your last name';
+                            }
+                            if (!_isValidName(value)) {
+                              return '2-50 letters, spaces or hyphen';
                             }
                             return null;
                           },
@@ -190,16 +241,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           enabled: !_isLoading,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Email',
-                            prefixIcon: Icon(Icons.email_outlined),
+                            prefixIcon: const Icon(Icons.email_outlined),
+                            suffixIcon: Icon(
+                              emailValid ? Icons.check_circle : Icons.error_outline,
+                              color: emailValid ? Colors.green : Colors.red,
+                            ),
                           ),
+                          onChanged: (_) => setState(() {}),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Please enter your email';
                             }
-                            if (!value.contains('@')) {
-                              return 'Please enter a valid email';
+                            if (!_isValidEmail(value)) {
+                              return 'Enter a valid email';
                             }
                             return null;
                           },
@@ -209,16 +265,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           controller: _phoneController,
                           keyboardType: TextInputType.phone,
                           enabled: !_isLoading,
-                          decoration: const InputDecoration(
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(11),
+                          ],
+                          decoration: InputDecoration(
                             labelText: 'Phone Number',
-                            prefixIcon: Icon(Icons.phone_outlined),
+                            prefixIcon: const Icon(Icons.phone_outlined),
+                            suffixIcon: Icon(
+                              phoneValid ? Icons.check_circle : Icons.error_outline,
+                              color: phoneValid ? Colors.green : Colors.red,
+                            ),
                           ),
+                          onChanged: (_) => setState(() {}),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Please enter your phone number';
                             }
-                            if (value.length < 10) {
-                              return 'Please enter a valid phone number';
+                            if (!_isValidPhone(value)) {
+                              return 'Phone number must be 11 digits';
                             }
                             return null;
                           },
@@ -231,27 +296,77 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           decoration: InputDecoration(
                             labelText: 'Password',
                             prefixIcon: const Icon(Icons.lock_outlined),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscurePassword = !_obscurePassword;
-                                });
-                              },
-                            ),
+                            suffixIcon: pwd.isNotEmpty
+                                ? IconButton(
+                                    icon: Icon(
+                                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _obscurePassword = !_obscurePassword;
+                                      });
+                                    },
+                                  )
+                                : null,
                           ),
+                          onChanged: (_) => setState(() {}),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Please enter a password';
                             }
-                            if (value.length < 6) {
-                              return 'Password must be at least 6 characters';
+                            if (!(value.length >= 8 && _hasNumber(value) && _hasLower(value) && _hasUpper(value) && _hasSpecial(value))) {
+                              return 'Password does not meet requirements';
                             }
                             return null;
                           },
                         ),
+                        SizedBox(height: 8),
+                        pwd.isNotEmpty
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(pwdLen ? Icons.check_circle : Icons.cancel, color: pwdLen ? Colors.green : Colors.red, size: 18),
+                                      const SizedBox(width: 6),
+                                      const Text('At least 8 characters'),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(pwdNum ? Icons.check_circle : Icons.cancel, color: pwdNum ? Colors.green : Colors.red, size: 18),
+                                      const SizedBox(width: 6),
+                                      const Text('At least 1 number'),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(pwdLow ? Icons.check_circle : Icons.cancel, color: pwdLow ? Colors.green : Colors.red, size: 18),
+                                      const SizedBox(width: 6),
+                                      const Text('At least 1 lowercase'),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(pwdUp ? Icons.check_circle : Icons.cancel, color: pwdUp ? Colors.green : Colors.red, size: 18),
+                                      const SizedBox(width: 6),
+                                      const Text('At least 1 uppercase'),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(pwdSpec ? Icons.check_circle : Icons.cancel, color: pwdSpec ? Colors.green : Colors.red, size: 18),
+                                      const SizedBox(width: 6),
+                                      const Text('At least 1 special character'),
+                                    ],
+                                  ),
+                                ],
+                              )
+                            : const SizedBox.shrink(),
                         SizedBox(height: spacing),
                         TextFormField(
                           controller: _confirmPasswordController,
@@ -260,17 +375,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           decoration: InputDecoration(
                             labelText: 'Confirm Password',
                             prefixIcon: const Icon(Icons.lock_outlined),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscureConfirmPassword = !_obscureConfirmPassword;
-                                });
-                              },
-                            ),
+                            suffixIcon: confirmText.isNotEmpty
+                                ? IconButton(
+                                    icon: Icon(
+                                      _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _obscureConfirmPassword = !_obscureConfirmPassword;
+                                      });
+                                    },
+                                  )
+                                : null,
                           ),
+                          onChanged: (_) => setState(() {}),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Please confirm your password';

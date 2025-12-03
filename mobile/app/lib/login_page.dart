@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'signup_page.dart';
 import 'mongodb_service.dart';
+import 'profile.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -48,9 +49,18 @@ class _LoginScreenState extends State<LoginScreen> {
               backgroundColor: Colors.green,
             ),
           );
-          
-          // Navigate to home screen or dashboard
-          // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomeScreen(user: result['user'])));
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProfilePage(
+                email: result['user']['email'],
+                firstName: result['user']['firstName'],
+                lastName: result['user']['lastName'],
+                phoneNumber: result['user']['phoneNumber'],
+                token: result['token'],
+              ),
+            ),
+          );
         } else {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
@@ -89,6 +99,8 @@ class _LoginScreenState extends State<LoginScreen> {
     final spacing = isSmallScreen ? 12.0 : 16.0;
     final largeSpacing = isSmallScreen ? 20.0 : 24.0;
     final extraLargeSpacing = isSmallScreen ? 24.0 : 32.0;
+
+    final loginPwd = _passwordController.text;
 
     return Scaffold(
       body: SafeArea(
@@ -161,17 +173,20 @@ class _LoginScreenState extends State<LoginScreen> {
                           decoration: InputDecoration(
                             labelText: 'Password',
                             prefixIcon: const Icon(Icons.lock_outlined),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscurePassword = !_obscurePassword;
-                                });
-                              },
-                            ),
+                            suffixIcon: loginPwd.isNotEmpty
+                                ? IconButton(
+                                    icon: Icon(
+                                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _obscurePassword = !_obscurePassword;
+                                      });
+                                    },
+                                  )
+                                : null,
                           ),
+                          onChanged: (_) => setState(() {}),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Please enter your password';

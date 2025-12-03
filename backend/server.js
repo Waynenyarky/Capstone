@@ -10,6 +10,8 @@ const app = express();
 // Middleware
 app.use(cors({ origin: '*' })); // Allow all origins during development
 app.use(express.json());
+// Server Port
+const PORT = process.env.PORT || 3000;
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI, {
@@ -210,6 +212,113 @@ app.get('/api/user/profile', authenticateToken, async (req, res) => {
 	}
 });
 
+app.put('/api/user/profile', authenticateToken, async (req, res) => {
+  try {
+    const { firstName, lastName, phoneNumber } = req.body;
+    if (!firstName || !lastName || !phoneNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'All fields are required',
+      });
+    }
+    const user = await User.findByIdAndUpdate(
+      req.user.userId,
+      { firstName, lastName, phoneNumber },
+      { new: true }
+    ).select('-password');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+    res.json({
+      success: true,
+      message: 'Profile updated',
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
+  }
+});
+
+app.put('/api/user/password', authenticateToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current and new password are required',
+      });
+    }
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+    const ok = await bcrypt.compare(currentPassword, user.password);
+    if (!ok) {
+      return res.status(401).json({
+        success: false,
+        message: 'Current password is incorrect',
+      });
+    }
+    const hashed = await bcrypt.hash(newPassword, 10);
+    user.password = hashed;
+    await user.save();
+    return res.json({
+      success: true,
+      message: 'Password updated successfully',
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
+  }
+});
+
+app.delete('/api/user/account', authenticateToken, async (req, res) => {
+  try {
+    const { password } = req.body || {};
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password is required',
+      });
+    }
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid password',
+      });
+    }
+    await User.findByIdAndDelete(user._id);
+    return res.json({ success: true, message: 'Account deleted' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // Middleware to verify JWT token
 function authenticateToken(req, res, next) {
 	const authHeader = req.headers['authorization'];
@@ -236,5 +345,5 @@ function authenticateToken(req, res, next) {
 
 // Start server
 app.listen(PORT, "0.0.0.0", () => {
-	console.log(`🚀 Server is running on http://0.0.0.0:${PORT}`);
+  console.log(`🚀 Server is running on http://0.0.0.0:${PORT}`);
 });
