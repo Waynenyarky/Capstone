@@ -8,7 +8,7 @@ class ProfilePage extends StatefulWidget {
   final String lastName;
   final String phoneNumber;
   final String token;
-  const ProfilePage({Key? key, required this.email, required this.firstName, required this.lastName, required this.phoneNumber, required this.token}) : super(key: key);
+  const ProfilePage({super.key, required this.email, required this.firstName, required this.lastName, required this.phoneNumber, required this.token});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();

@@ -3,7 +3,10 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 
 class MongoDBService {
-  static const String baseUrl = 'http://192.168.1.38:3000';
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://192.168.0.3:3000',
+  );
 
   static Future<Map<String, dynamic>> signUp({
     required String firstName,
