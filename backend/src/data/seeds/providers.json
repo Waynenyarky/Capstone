@@ -1,0 +1,12 @@
+[
+  {
+    "userEmail": "mario.provider@example.com",
+    "businessName": "Mario Care Services",
+    "servicesCategories": ["elderly-care", "home-cleaning"],
+    "streetAddress": "123 Care St",
+    "city": "Manila",
+    "province": "Metro Manila",
+    "zipCode": "1000",
+    "status": "pending"
+  }
+]
