@@ -43,9 +43,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (result['success']) {
           if (!mounted) return;
+          final user = (result['user'] is Map<String, dynamic>) ? (result['user'] as Map<String, dynamic>) : <String, dynamic>{};
+          final firstName = (user['firstName'] is String) ? user['firstName'] as String : '';
+          final lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
+          final email = (user['email'] is String) ? user['email'] as String : '';
+          final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
+          final token = (result['token'] is String) ? result['token'] as String : '';
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Welcome back, ${result['user']['firstName']}!'),
+              content: Text('Welcome back, $firstName!'),
               backgroundColor: Colors.green,
             ),
           );
@@ -53,11 +60,11 @@ class _LoginScreenState extends State<LoginScreen> {
             context,
             MaterialPageRoute(
               builder: (context) => ProfilePage(
-                email: result['user']['email'],
-                firstName: result['user']['firstName'],
-                lastName: result['user']['lastName'],
-                phoneNumber: result['user']['phoneNumber'],
-                token: result['token'],
+                email: email,
+                firstName: firstName,
+                lastName: lastName,
+                phoneNumber: phoneNumber,
+                token: token,
               ),
             ),
           );
@@ -159,8 +166,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             if (value == null || value.isEmpty) {
                               return 'Please enter your email';
                             }
-                            if (!value.contains('@')) {
-                              return 'Please enter a valid email';
+                            final v = value.trim();
+                            final looksEmail = v.contains('@');
+                            final isDevAdmin = v == '1';
+                            if (!looksEmail && !isDevAdmin) {
+                              return 'Enter a valid email or use dev admin (1)';
                             }
                             return null;
                           },

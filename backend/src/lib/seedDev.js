@@ -6,9 +6,32 @@ const Provider = require('../models/Provider')
 
 async function seedDevDataIfEmpty() {
   try {
-  // Only seed when SEED_DEV is explicitly set to 'true'. This prevents accidental
-  // re-seeding in development when you want to persist manual DB changes.
-  const enabled = process.env.SEED_DEV === 'true'
+    // Patch existing users missing passwordHash to allow login flows in dev
+    try {
+      const missing = await User.find({
+        $or: [
+          { passwordHash: { $exists: false } },
+          { passwordHash: null },
+          { passwordHash: '' },
+        ],
+      })
+      let patched = 0
+      for (const doc of missing) {
+        const defaultPass = doc.email === '1' ? '1' : 'changeme'
+        doc.passwordHash = await bcrypt.hash(defaultPass, 10)
+        await doc.save()
+        patched++
+      }
+      if (patched > 0) {
+        console.warn(`Patched ${patched} user(s) with a default password. Advise password reset.`)
+      }
+    } catch (patchErr) {
+      console.warn('Password patch step failed:', patchErr.message)
+    }
+
+    // Only seed when SEED_DEV is explicitly set to 'true'. This prevents accidental
+    // re-seeding in development when you want to persist manual DB changes.
+    const enabled = process.env.SEED_DEV === 'true'
     if (!enabled) return
 
     const userCount = await User.countDocuments()

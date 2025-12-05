@@ -90,6 +90,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 _saving = true;
               });
               final result = await MongoDBService.updateProfile(
+                email: email,
                 token: widget.token,
                 firstName: f,
                 lastName: l,
@@ -99,18 +100,22 @@ class _ProfilePageState extends State<ProfilePage> {
                 _saving = false;
               });
               if (result['success'] == true) {
+                final user = (result['user'] is Map<String, dynamic>) ? (result['user'] as Map<String, dynamic>) : <String, dynamic>{};
+                final nextFirst = (user['firstName'] is String) ? user['firstName'] as String : firstName;
+                final nextLast = (user['lastName'] is String) ? user['lastName'] as String : lastName;
+                final nextPhone = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : phoneNumber;
                 setState(() {
-                  firstName = result['user']['firstName'];
-                  lastName = result['user']['lastName'];
-                  phoneNumber = result['user']['phoneNumber'];
+                  firstName = nextFirst;
+                  lastName = nextLast;
+                  phoneNumber = nextPhone;
                 });
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Profile updated successfully')),
+                  SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Profile updated successfully')),
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(result['message'] ?? 'Update failed')),
+                  SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Update failed')),
                 );
               }
             },
@@ -186,6 +191,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 return;
               }
               final result = await MongoDBService.updatePassword(
+                email: email,
                 token: widget.token,
                 currentPassword: current,
                 newPassword: next,
@@ -193,11 +199,11 @@ class _ProfilePageState extends State<ProfilePage> {
               if (result['success'] == true) {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(result['message'] ?? 'Password changed successfully')),
+                  SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Password changed successfully')),
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(result['message'] ?? 'Password update failed')),
+                  SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Password update failed')),
                 );
               }
             },
@@ -248,6 +254,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 return;
               }
               final result = await MongoDBService.deleteAccount(
+                email: email,
                 token: widget.token,
                 password: pwd,
               );
@@ -259,11 +266,11 @@ class _ProfilePageState extends State<ProfilePage> {
                   (route) => false,
                 );
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(result['message'] ?? 'Account deleted')),
+                  SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Account deleted')),
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(result['message'] ?? 'Delete failed')),
+                  SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Delete failed')),
                 );
               }
             },

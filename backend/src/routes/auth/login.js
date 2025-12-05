@@ -74,8 +74,25 @@ router.post('/login', validateBody(loginCredentialsSchema), async (req, res) => 
     }
 
     const doc = await User.findOne({ email }).lean()
-    if (!doc) return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
-    const match = await bcrypt.compare(password, doc.passwordHash)
+    if (!doc || typeof doc.passwordHash !== 'string' || !doc.passwordHash) {
+      return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
+    }
+    let match = false
+    const isBcrypt = /^\$2[aby]\$/.test(String(doc.passwordHash))
+    if (isBcrypt) {
+      match = await bcrypt.compare(password, doc.passwordHash)
+    } else {
+      match = String(password) === String(doc.passwordHash)
+      if (match) {
+        try {
+          const dbDoc = await User.findById(doc._id)
+          if (dbDoc) {
+            dbDoc.passwordHash = await bcrypt.hash(password, 10)
+            await dbDoc.save()
+          }
+        } catch (_) {}
+      }
+    }
     if (!match) return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
     const safe = {
       id: String(doc._id),
@@ -123,8 +140,22 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     }
 
     const doc = await User.findOne({ email })
-    if (!doc) return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
-    const match = await bcrypt.compare(password, doc.passwordHash)
+    if (!doc || typeof doc.passwordHash !== 'string' || !doc.passwordHash) {
+      return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
+    }
+    let match = false
+    const isBcrypt = /^\$2[aby]\$/.test(String(doc.passwordHash))
+    if (isBcrypt) {
+      match = await bcrypt.compare(password, doc.passwordHash)
+    } else {
+      match = String(password) === String(doc.passwordHash)
+      if (match) {
+        try {
+          doc.passwordHash = await bcrypt.hash(password, 10)
+          await doc.save()
+        } catch (_) {}
+      }
+    }
     if (!match) return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
 
     const code = generateCode()
