@@ -16,4 +16,4 @@ export { default as SendDeleteCodeForCurrentUser } from './SendDeleteCodeForCurr
 export { default as DeletionScheduledBanner } from './DeletionScheduledBanner.jsx'
 
 // Nested provider components
-export * from './provider'
+export * from './provider/index.js'
