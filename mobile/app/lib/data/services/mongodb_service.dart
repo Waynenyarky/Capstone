@@ -1,12 +1,11 @@
 import 'dart:convert';
 import 'dart:async';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class MongoDBService {
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://192.168.0.3:3000',
-  );
+    static final String baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:3000';
+
 
   static Future<Map<String, dynamic>> signUp({
     required String firstName,
@@ -40,10 +39,7 @@ class MongoDBService {
       print('Signup response status: ${response.statusCode}');
       print('Signup response body: ${response.body}');
 
-      // Decode the response body
       final data = json.decode(response.body);
-
-      // Check if the response status code indicates success
       if (response.statusCode == 201) {
         return {
           'success': true,
@@ -94,10 +90,7 @@ class MongoDBService {
       print('Login response status: ${response.statusCode}');
       print('Login response body: ${response.body}');
 
-      // Decode the response body
       final data = json.decode(response.body);
-
-      // Check if the response status code indicates success
       if (response.statusCode == 200) {
         return {
           'success': true,
