@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'mongodb_service.dart';
+import 'package:app/data/services/mongodb_service.dart';
 import 'login_page.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -120,8 +120,6 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
-
-  // Email is intentionally non-editable; remove email change UI
 
   void _showChangePasswordDialog() {
     final currentPasswordController = TextEditingController();
