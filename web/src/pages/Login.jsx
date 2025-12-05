@@ -6,9 +6,9 @@ import { useNavigate } from 'react-router-dom'
 export default function Login() {
   const navigate = useNavigate()
 
-  const handleLoginSuccess = React.useCallback((user) => {
-    // Navigate to the main page after a successful login/verification
-    navigate('/main')
+  const handleLoginSuccess = React.useCallback(() => {
+    // Navigate to the dashboard after a successful login/verification
+    navigate('/dashboard')
   }, [navigate])
 
   return (
