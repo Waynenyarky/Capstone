@@ -441,7 +441,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       validator: (value) {
                         if (!_phoneTouched) return null;
                         if (value == null || value.isEmpty) {
-                          return 'Please enter your phone number';
+                          return null;
                         }
                         if (!_isValidPhone(value)) {
                           return 'Phone number must be 11 digits';

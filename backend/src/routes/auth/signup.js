@@ -19,7 +19,7 @@ const signupPayloadSchema = Joi.object({
   email: Joi.string().email().required(),
   phoneNumber: Joi.string().allow('', null),
   password: Joi.string().min(6).max(200).required(),
-  termsAccepted: Joi.boolean().valid(true).required(),
+  termsAccepted: Joi.boolean().truthy('true', 'TRUE', 'True', 1, '1').valid(true).required(),
   role: Joi.string().valid('customer', 'provider').default('customer'),
   businessName: Joi.string().allow('', null),
   businessType: Joi.string().allow('', null),
