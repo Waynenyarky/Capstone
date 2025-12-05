@@ -102,7 +102,10 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 10)
 
-    const existing = await User.findOne({ email }).lean()
+    let existing = null
+    if (mongoose.connection && mongoose.connection.readyState === 1) {
+      existing = await User.findOne({ email }).lean()
+    }
     if (existing) return respond.error(res, 409, 'email_exists', 'Email already exists')
 
     const doc = await User.create({
@@ -244,7 +247,10 @@ router.post('/signup/start', signupStartLimiter, validateBody(signupPayloadSchem
     } = req.body || {}
 
     // Prevent duplicates prior to verification
-    const existing = await User.findOne({ email }).lean()
+    let existing = null
+    if (mongoose.connection && mongoose.connection.readyState === 1) {
+      existing = await User.findOne({ email }).lean()
+    }
     if (existing) return respond.error(res, 409, 'email_exists', 'Email already exists')
 
     const payload = {
