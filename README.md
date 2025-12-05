@@ -25,10 +25,12 @@
   - `cd backend`
   - `npm install`
 - Environment config:
-  - `backend/.env` contains:
+  - `backend/.env` is required.
+  - Local development (preferred):
     - `MONGODB_URI=mongodb://localhost:27017/capstone_project`
     - `JWT_SECRET=<any strong secret>`
     - `PORT=3000`
+  - Hosting/production: ask Pen for `.env` details (Atlas connection string and production secrets).
 - Start dev server:
   - `npm run dev`
   - Expected logs: `🚀 Server is running on http://0.0.0.0:3000` and `✅ Connected to MongoDB`
@@ -69,7 +71,43 @@
     - `JWT_SECRET=<any strong secret>`
     - `PORT=3000`
   - Run dev server: `npm run dev`
-  - Verify: open `http://localhost:3000/` and expect JSON health message
+- Verify: open `http://localhost:3000/` and expect JSON health message
+
+## Local Web Frontend (Vite React)
+
+- Prerequisites:
+  - Node.js 18+ and npm
+- Install and run:
+  - `cd web`
+  - `npm install`
+  - Create `.env.local` and set:
+    - `VITE_BACKEND_ORIGIN=http://localhost:3000` (or use the hosted backend URL)
+  - `npm run dev`
+- How requests work:
+  - The frontend calls relative paths first; if the request fails, it falls back to `VITE_BACKEND_ORIGIN` (`web/src/lib/http.js`).
+  - For local dev, ensure the backend dev server is running on `3000`.
+
+## Hosted Environment (Render + Atlas + Vercel)
+
+- Backend (Render):
+  - Web Service: root directory `backend`, start command `npm run start`.
+  - Environment: set `MONGODB_URI` (Atlas), `JWT_SECRET` (ask Pen), `PORT` optional.
+  - Health: `GET /` returns JSON; logs show `✅ Connected to MongoDB`.
+- Frontend (Vercel):
+  - Project root: `web`, build command `npm run build`, output `dist`.
+  - Environment: set `VITE_BACKEND_ORIGIN=https://<render-backend-url>`.
+  - Visit the Vercel URL and verify login/profile flows.
+- CORS:
+  - During initial testing, backend allows all origins.
+  - After frontend is live, restrict backend CORS to your Vercel domain.
+
+## Quick Smoke Tests
+
+- Backend (hosted):
+  - Health: `curl -s https://<render-backend-url>/ | jq`
+  - Signup: `curl -sX POST https://<render-backend-url>/api/auth/signup -H "Content-Type: application/json" -d '{"firstName":"Test","lastName":"User","email":"test@example.com","phoneNumber":"+1-555-0000","password":"password123","confirmPassword":"password123"}' | jq`
+  - Login: `TOKEN=$(curl -sX POST https://<render-backend-url>/api/auth/login -H "Content-Type: application/json" -d '{"email":"test@example.com","password":"password123"}' | jq -r '.token')`
+  - Profile: `curl -s https://<render-backend-url>/api/user/profile -H "Authorization: Bearer $TOKEN" | jq` (no angle brackets around the token)
 
 - Find your Mac’s LAN IP (for physical devices):
   - `ipconfig getifaddr en0` (Wi‑Fi) or `ipconfig getifaddr en1` depending on interface
@@ -86,10 +124,6 @@
   - iOS simulator: `flutter run -d ios`
   - Android emulator: `flutter run -d android`
   - Physical iOS device:
-    - Open `ios/Runner.xcworkspace` in Xcode, set signing, select your device
-    - iOS blocks cleartext HTTP by default; add ATS exception in `ios/Runner/Info.plist`:
-      - `NSAppTransportSecurity` → `NSAllowsArbitraryLoads=true` (development only)
-      - Or add `NSExceptionDomains` for your LAN IP and `NSIncludesSubdomains` + `NSExceptionAllowsInsecureHTTPLoads=true`
     - Build and run from Xcode or `flutter run -d ios`
   - Physical Android device:
     - Ensure device and Mac are on the same Wi‑Fi, USB debugging enabled
