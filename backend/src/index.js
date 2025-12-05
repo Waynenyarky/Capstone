@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const morgan = require('morgan');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const { seedDevDataIfEmpty } = require('./lib/seedDev');
@@ -16,7 +15,9 @@ app.use(cors());
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 if (process.env.NODE_ENV !== 'production') {
-  app.use(morgan('dev'));
+  let morgan
+  try { morgan = require('morgan') } catch (_) { morgan = null }
+  if (morgan) app.use(morgan('dev'))
 }
 
 // Health check route
@@ -66,10 +67,10 @@ async function start() {
   try {
     // Print the resolved MONGO_URI for debugging (useful to confirm which DB is being used)
     // NOTE: avoid logging credentials in production. This is a development debug statement.
-    console.log('Using MONGO_URI:', process.env.MONGO_URI || '<not-set>');
+    const uri = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URL || ''
+    console.log('Using Mongo URI:', uri ? '<set>' : '<not-set>');
 
-    // Attempt DB connection if URI is provided
-    await connectDB(process.env.MONGO_URI);
+    await connectDB(uri);
 
     // Optionally seed development data from JSON files when enabled
     await seedDevDataIfEmpty();
