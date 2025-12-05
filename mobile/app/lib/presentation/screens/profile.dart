@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'login_page.dart';
 
@@ -20,6 +21,16 @@ class _ProfilePageState extends State<ProfilePage> {
   String lastName = '';
   String phoneNumber = '';
   bool _saving = false;
+
+  bool _isValidName(String v) {
+    final s = v.trim();
+    if (s.length < 2 || s.length > 50) return false;
+    return RegExp(r'^[A-Za-z][A-Za-z\-\s]*$').hasMatch(s);
+  }
+
+  bool _isValidPhone(String v) {
+    return RegExp(r'^09\d{9}$').hasMatch(v);
+  }
 
   @override
   void initState() {
@@ -66,6 +77,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.phone,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(11),
+                ],
               ),
             ],
           ),
@@ -80,9 +95,23 @@ class _ProfilePageState extends State<ProfilePage> {
               final f = firstNameController.text.trim();
               final l = lastNameController.text.trim();
               final p = phoneController.text.trim();
-              if (f.isEmpty || l.isEmpty || p.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('All fields are required')),
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
+              if (!_isValidName(f)) {
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('First Name must be 2-50 letters, spaces or hyphen')),
+                );
+                return;
+              }
+              if (!_isValidName(l)) {
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Last Name must be 2-50 letters, spaces or hyphen')),
+                );
+                return;
+              }
+              if (!_isValidPhone(p)) {
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Phone must be 11 digits starting with 09')),
                 );
                 return;
               }
@@ -109,12 +138,12 @@ class _ProfilePageState extends State<ProfilePage> {
                   lastName = nextLast;
                   phoneNumber = nextPhone;
                 });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
+                navigator.pop();
+                messenger.showSnackBar(
                   SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Profile updated successfully')),
                 );
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(
+                messenger.showSnackBar(
                   SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Update failed')),
                 );
               }
@@ -133,84 +162,114 @@ class _ProfilePageState extends State<ProfilePage> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Change Password'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: currentPasswordController,
-                decoration: const InputDecoration(
-                  labelText: 'Current Password',
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
+      builder: (context) {
+        bool obscureNew = true;
+        bool obscureConfirm = true;
+        return StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            title: const Text('Change Password'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: currentPasswordController,
+                    decoration: const InputDecoration(
+                      labelText: 'Current Password',
+                      border: OutlineInputBorder(),
+                    ),
+                    obscureText: true,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: newPasswordController,
+                    decoration: InputDecoration(
+                      labelText: 'New Password',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: newPasswordController.text.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(obscureNew ? Icons.visibility_off : Icons.visibility),
+                              onPressed: () {
+                                setState(() {
+                                  obscureNew = !obscureNew;
+                                });
+                              },
+                            )
+                          : null,
+                    ),
+                    obscureText: obscureNew,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: confirmPasswordController,
+                    decoration: InputDecoration(
+                      labelText: 'Confirm New Password',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: confirmPasswordController.text.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(obscureConfirm ? Icons.visibility_off : Icons.visibility),
+                              onPressed: () {
+                                setState(() {
+                                  obscureConfirm = !obscureConfirm;
+                                });
+                              },
+                            )
+                          : null,
+                    ),
+                    obscureText: obscureConfirm,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: newPasswordController,
-                decoration: const InputDecoration(
-                  labelText: 'New Password',
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: confirmPasswordController,
-                decoration: const InputDecoration(
-                  labelText: 'Confirm New Password',
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
+              ElevatedButton(
+                onPressed: () async {
+                  final current = currentPasswordController.text;
+                  final next = newPasswordController.text;
+                  final confirm = confirmPasswordController.text;
+                  final navigator = Navigator.of(context);
+                  final messenger = ScaffoldMessenger.of(context);
+                  if (current.isEmpty || next.isEmpty || confirm.isEmpty) {
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('All fields are required')),
+                    );
+                    return;
+                  }
+                  if (next != confirm) {
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('Passwords do not match')),
+                    );
+                    return;
+                  }
+                  final result = await MongoDBService.updatePassword(
+                    email: email,
+                    token: widget.token,
+                    currentPassword: current,
+                    newPassword: next,
+                  );
+                  if (result['success'] == true) {
+                    navigator.pop();
+                    messenger.showSnackBar(
+                      SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Password changed successfully')),
+                    );
+                  } else {
+                    messenger.showSnackBar(
+                      SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Password update failed')),
+                    );
+                  }
+                },
+                child: const Text('Change'),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final current = currentPasswordController.text;
-              final next = newPasswordController.text;
-              final confirm = confirmPasswordController.text;
-              if (current.isEmpty || next.isEmpty || confirm.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('All fields are required')),
-                );
-                return;
-              }
-              if (next != confirm) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Passwords do not match')),
-                );
-                return;
-              }
-              final result = await MongoDBService.updatePassword(
-                email: email,
-                token: widget.token,
-                currentPassword: current,
-                newPassword: next,
-              );
-              if (result['success'] == true) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Password changed successfully')),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Password update failed')),
-                );
-              }
-            },
-            child: const Text('Change'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -244,41 +303,42 @@ class _ProfilePageState extends State<ProfilePage> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              final pwd = passwordController.text;
-              if (pwd.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Password is required')),
-                );
-                return;
-              }
-              final result = await MongoDBService.deleteAccount(
-                email: email,
-                token: widget.token,
-                password: pwd,
-              );
-              if (result['success'] == true) {
-                Navigator.pop(context);
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                  (route) => false,
-                );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Account deleted')),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Delete failed')),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            child: const Text('Delete'),
-          ),
+              ElevatedButton(
+                onPressed: () async {
+                  final pwd = passwordController.text;
+                  final navigator = Navigator.of(context);
+                  final messenger = ScaffoldMessenger.of(context);
+                  if (pwd.isEmpty) {
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('Password is required')),
+                    );
+                    return;
+                  }
+                  final result = await MongoDBService.deleteAccount(
+                    email: email,
+                    token: widget.token,
+                    password: pwd,
+                  );
+                  if (result['success'] == true) {
+                    navigator.pop();
+                    navigator.pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                      (route) => false,
+                    );
+                    messenger.showSnackBar(
+                      SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Account deleted')),
+                    );
+                  } else {
+                    messenger.showSnackBar(
+                      SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Delete failed')),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                ),
+                child: const Text('Delete'),
+              ),
         ],
       ),
     );
@@ -375,7 +435,7 @@ class _ProfilePageState extends State<ProfilePage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 10,
           ),
@@ -441,7 +501,7 @@ class _ProfilePageState extends State<ProfilePage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 10,
           ),
@@ -480,7 +540,7 @@ class _ProfilePageState extends State<ProfilePage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 10,
           ),
