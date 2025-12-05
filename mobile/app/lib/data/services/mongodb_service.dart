@@ -59,6 +59,41 @@ class MongoDBService {
     throw TimeoutException('All endpoints unreachable for $path');
   }
 
+  static Future<http.Response> _postJsonWithFallbackH(
+    String path,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+    Duration timeout = const Duration(seconds: 12),
+  }) async {
+    final candidates = _candidateBaseUrls();
+    final payload = json.encode(body);
+    final baseHeaders = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...?headers,
+    };
+    for (final origin in candidates) {
+      final uri = Uri.parse('$origin$path');
+      try {
+        final res = await http
+            .post(
+          uri,
+          headers: baseHeaders,
+          body: payload,
+        )
+            .timeout(timeout);
+        return res;
+      } on TimeoutException catch (_) {
+        continue;
+      } on SocketException catch (_) {
+        continue;
+      } catch (_) {
+        continue;
+      }
+    }
+    throw TimeoutException('All endpoints unreachable for $path');
+  }
+
 
   static Future<Map<String, dynamic>> signUp({
     required String firstName,
@@ -306,83 +341,80 @@ class MongoDBService {
     required String password,
   }) async {
     try {
-      // Initiate delete: send code
-      final sendRes = await http.post(
-        Uri.parse('$baseUrl/api/auth/delete-account/send-code'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'x-user-email': email,
-        },
-        body: json.encode({'email': email}),
-      ).timeout(const Duration(seconds: 12));
+      final hardRes = await _postJsonWithFallbackH(
+        '/api/auth/delete-account/authenticated',
+        { 'password': password },
+        headers: { 'x-user-email': email },
+      );
+      final hardCt = (hardRes.headers['content-type'] ?? '').toLowerCase();
+      final hardJson = hardCt.contains('application/json');
+      final hardData = hardJson ? json.decode(hardRes.body) : {};
+      if (hardRes.statusCode == 200 && (hardData is Map) && (hardData['deleted'] == true)) {
+        return { 'success': true, 'message': 'Account deleted' };
+      }
+      if (hardRes.statusCode != 404) {
+        final msg = (hardData is Map && hardData['message'] is String)
+            ? hardData['message']
+            : 'Delete failed';
+        return { 'success': false, 'message': msg };
+      }
 
+      final loginRes = await _postJsonWithFallbackH('/api/auth/login', {
+        'email': email,
+        'password': password,
+      }, headers: { 'x-user-email': email });
+      final loginCt = (loginRes.headers['content-type'] ?? '').toLowerCase();
+      final loginJson = loginCt.contains('application/json');
+      final loginData = loginJson ? json.decode(loginRes.body) : {};
+      if (loginRes.statusCode != 200) {
+        final msg = (loginData is Map && loginData['message'] is String)
+            ? loginData['message']
+            : 'Invalid email or password';
+        return { 'success': false, 'message': msg };
+      }
+
+      // Attempt to schedule deletion automatically in dev using verification shortcut
+      final sendRes = await _postJsonWithFallbackH('/api/auth/delete-account/send-code', {
+        'email': email,
+      }, headers: { 'x-user-email': email });
       final sendCt = (sendRes.headers['content-type'] ?? '').toLowerCase();
       final sendJson = sendCt.contains('application/json');
       final sendData = sendJson ? json.decode(sendRes.body) : {};
-      if (sendRes.statusCode != 200 || sendData == null || sendData['sent'] != true) {
-        return {
-          'success': false,
-          'message': (sendData is Map && sendData['message'] is String)
-              ? sendData['message']
-              : 'Failed to initiate delete request',
-        };
-      }
+      final devCode = (sendData is Map && sendData['devCode'] is String) ? sendData['devCode'] as String : '';
 
-      // In development, devCode is provided; use it to verify
-      final code = (sendData is Map && sendData['devCode'] is String) ? sendData['devCode'] as String : '';
-      if (code.isEmpty) {
-        return {
-          'success': false,
-          'message': 'Verification code sent to email. Please implement code entry to proceed.',
-        };
-      }
-
-      final verifyRes = await http.post(
-        Uri.parse('$baseUrl/api/auth/delete-account/verify-code'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: json.encode({'email': email, 'code': code}),
-      ).timeout(const Duration(seconds: 12));
-      final verifyCt = (verifyRes.headers['content-type'] ?? '').toLowerCase();
-      final verifyJson = verifyCt.contains('application/json');
-      final verifyData = verifyJson ? json.decode(verifyRes.body) : {};
-      final deleteToken = (verifyData is Map && verifyData['deleteToken'] is String) ? verifyData['deleteToken'] as String : '';
-      if (verifyRes.statusCode != 200 || deleteToken.isEmpty) {
-        return {
-          'success': false,
-          'message': (verifyData is Map && verifyData['message'] is String)
-              ? verifyData['message']
-              : 'Failed to verify delete code',
-        };
-      }
-
-      final confirmRes = await http.post(
-        Uri.parse('$baseUrl/api/auth/delete-account/confirm'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: json.encode({'email': email, 'deleteToken': deleteToken}),
-      ).timeout(const Duration(seconds: 12));
-      final confirmCt = (confirmRes.headers['content-type'] ?? '').toLowerCase();
-      final confirmJson = confirmCt.contains('application/json');
-      final confirmData = confirmJson ? json.decode(confirmRes.body) : {};
-
-      if (confirmRes.statusCode == 200) {
-        return {
-          'success': true,
-          'message': 'Account deleted',
-        };
+      if (sendRes.statusCode == 200 && devCode.isNotEmpty) {
+        final verifyRes = await _postJsonWithFallbackH('/api/auth/delete-account/verify-code', {
+          'email': email,
+          'code': devCode,
+        }, headers: { 'x-user-email': email });
+        final verifyCt = (verifyRes.headers['content-type'] ?? '').toLowerCase();
+        final verifyJson = verifyCt.contains('application/json');
+        final verifyData = verifyJson ? json.decode(verifyRes.body) : {};
+        final deleteToken = (verifyData is Map && verifyData['deleteToken'] is String) ? verifyData['deleteToken'] as String : '';
+        if (verifyRes.statusCode == 200 && deleteToken.isNotEmpty) {
+          final confirmRes = await _postJsonWithFallbackH('/api/auth/delete-account/confirm', {
+            'email': email,
+            'deleteToken': deleteToken,
+          }, headers: { 'x-user-email': email });
+          final ok = confirmRes.statusCode == 200;
+          if (ok) {
+            return { 'success': true, 'message': 'Account deleted' };
+          }
+          final confirmCt = (confirmRes.headers['content-type'] ?? '').toLowerCase();
+          final confirmJson = confirmCt.contains('application/json');
+          final confirmData = confirmJson ? json.decode(confirmRes.body) : {};
+          return {
+            'success': false,
+            'message': (confirmData is Map && confirmData['message'] is String)
+                ? confirmData['message']
+                : 'Delete failed',
+          };
+        }
       }
 
       return {
         'success': false,
-        'message': (confirmData is Map && confirmData['message'] is String)
-            ? confirmData['message']
-            : 'Delete failed',
+        'message': 'Delete requires email verification; check your inbox for a code.',
       };
     } on TimeoutException {
       return {

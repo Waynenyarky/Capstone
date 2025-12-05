@@ -1,4 +1,5 @@
 const express = require('express')
+const bcrypt = require('bcryptjs')
 const mongoose = require('mongoose')
 const User = require('../../models/User')
 const Provider = require('../../models/Provider')
@@ -25,6 +26,10 @@ const confirmDeleteSchema = Joi.object({
   deleteToken: Joi.string().required(),
 })
 
+const passwordOnlySchema = Joi.object({
+  password: Joi.string().min(1).max(200).required(),
+})
+
 const sendCodeLimiter = perEmailRateLimit({
   windowMs: 10 * 60 * 1000,
   max: 5,
@@ -40,6 +45,46 @@ const verifyLimiter = perEmailRateLimit({
 })
 
 // --- Delete Account (30-day waiting period) ---
+
+router.post('/delete-account/authenticated', validateBody(passwordOnlySchema), async (req, res) => {
+  try {
+    const { password } = req.body || {}
+    const idHeader = req.headers['x-user-id']
+    const emailHeader = req.headers['x-user-email']
+
+    let doc = null
+    if (idHeader) {
+      try { doc = await User.findById(idHeader) } catch (_) { doc = null }
+    }
+    if (!doc && emailHeader) {
+      doc = await User.findOne({ email: emailHeader })
+    }
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const ok = await bcrypt.compare(String(password || ''), String(doc.passwordHash || ''))
+    if (!ok) return respond.error(res, 401, 'invalid_current_password', 'Invalid current password')
+
+    try {
+      if (doc.role === 'provider') {
+        await Provider.deleteOne({ userId: doc._id })
+      }
+    } catch (providerErr) {
+      console.warn('Provider hard delete warning:', providerErr)
+    }
+
+    try {
+      await User.deleteOne({ _id: doc._id })
+    } catch (userErr) {
+      console.error('User hard delete error:', userErr)
+      return respond.error(res, 500, 'delete_failed', 'Failed to delete account')
+    }
+
+    return res.json({ deleted: true })
+  } catch (err) {
+    console.error('POST /api/auth/delete-account/authenticated error:', err)
+    return respond.error(res, 500, 'delete_failed', 'Failed to delete account')
+  }
+})
 
 // POST /api/auth/delete-account/send-code
 // Sends a verification code to the current user's email to initiate deletion
