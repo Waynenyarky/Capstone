@@ -25,10 +25,11 @@
   - `cd backend`
   - `npm install`
 - Environment config:
-  - `backend/.env` contains:
-    - `MONGODB_URI=mongodb://localhost:27017/capstone_project`
-    - `JWT_SECRET=<any strong secret>`
-    - `PORT=3000`
+  - `backend/.env` is required. Ask Pen for `.env` details.
+  - Required variables:
+    - `MONGODB_URI` (MongoDB Atlas connection string for `capstone_project`)
+    - `JWT_SECRET` (strong secret)
+    - `PORT` (default `3000`)
 - Start dev server:
   - `npm run dev`
   - Expected logs: `🚀 Server is running on http://0.0.0.0:3000` and `✅ Connected to MongoDB`
