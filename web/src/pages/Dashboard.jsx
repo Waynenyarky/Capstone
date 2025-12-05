@@ -1,37 +1,23 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Row, Col, Layout } from 'antd'
-import { LoginForm, CustomerSignUpForm, ProviderSignUpForm, LogoutForm, PasswordResetFlow } from "@/features/authentication"
-import { useAuthSession } from "@/features/authentication"
+import { LogoutForm, DeletionScheduledBanner, useAuthSession } from "@/features/authentication"
 import { ProviderWorkspaceGate } from "@/features/provider"
-import { DeletionScheduledBanner } from "@/features/authentication"
 import { CustomerWorkspaceGate } from "@/features/customer"
 import { AdminWorkspaceGate } from "@/features/admin"
 
 
 export default function Dashboard() {
   const { currentUser, role } = useAuthSession()
+  const navigate = useNavigate()
+
+  React.useEffect(() => {
+    if (!currentUser) navigate('/login')
+  }, [currentUser, navigate])
 
 
   return (
     <Layout>
-      {!currentUser && (
-        <>
-          <Row gutter={[12, 12]} style={{ padding: 24 }}>
-            <Col span={8}>
-              <LoginForm />
-            </Col>
-            <Col span={8}>
-              <CustomerSignUpForm />
-            </Col>
-            <Col span={8}>
-              <ProviderSignUpForm />
-            </Col>
-          </Row>
-          <PasswordResetFlow />
-        </>
-      )}
-
-
       {currentUser && currentUser.deletionPending && (
         <>
           <Row gutter={[12, 12]} style={{ padding: 24 }}>

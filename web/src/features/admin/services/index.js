@@ -1,8 +1,6 @@
 // Admin Services barrel — prefer importing from here.
 // Components
-export { default as CreateCategoryForm } from './components/CreateCategoryForm.jsx'
-export { default as EditCategoryForm } from './components/EditCategoryForm.jsx'
-export { default as CategoryTable } from './components/CategoryTable.jsx'
+// Category-related components removed: CreateCategoryForm, EditCategoryForm, CategoryTable
 
 export { default as CreateServiceForm } from './components/CreateServiceForm.jsx'
 export { default as EditServiceForm } from './components/EditServiceForm.jsx'
@@ -11,7 +9,7 @@ export { default as ServiceTable } from './components/ServiceTable.jsx'
 // Modals
 export { default as ConfirmCreateServiceModal } from './components/ConfirmCreateServiceModal.jsx'
 export { default as ConfirmEditServiceModal } from './components/ConfirmEditServiceModal.jsx'
-export { default as ConfirmCreateCategoryModal } from './components/ConfirmCreateCategoryModal.jsx'
+// ConfirmCreateCategoryModal removed; hook now uses Ant Design Modal.confirm
 export { default as ConfirmEditCategoryModal } from './components/ConfirmEditCategoryModal.jsx'
 
 // Hooks
