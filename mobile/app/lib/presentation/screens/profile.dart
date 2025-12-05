@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'mongodb_service.dart';
+import 'package:app/data/services/mongodb_service.dart';
 import 'login_page.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -8,7 +8,7 @@ class ProfilePage extends StatefulWidget {
   final String lastName;
   final String phoneNumber;
   final String token;
-  const ProfilePage({Key? key, required this.email, required this.firstName, required this.lastName, required this.phoneNumber, required this.token}) : super(key: key);
+  const ProfilePage({super.key, required this.email, required this.firstName, required this.lastName, required this.phoneNumber, required this.token});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -120,8 +120,6 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
-
-  // Email is intentionally non-editable; remove email change UI
 
   void _showChangePasswordDialog() {
     final currentPasswordController = TextEditingController();

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'signup_page.dart';
-import 'mongodb_service.dart';
+import 'package:app/data/services/mongodb_service.dart';
 import 'profile.dart';
 
 class LoginScreen extends StatefulWidget {
