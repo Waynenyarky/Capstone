@@ -3,7 +3,7 @@ import path from 'node:path'
 import fs from 'node:fs/promises'
 import { globby } from 'globby'
 import recast from 'recast'
-import * as babelParser from 'recast/parsers/babel.js'
+import * as babelParser from 'recast/parsers/babel'
 
 // Simple codemod: convert relative imports within src/ to use the '@' alias.
 // Usage: node scripts/codemods/convert-imports-to-alias.mjs
