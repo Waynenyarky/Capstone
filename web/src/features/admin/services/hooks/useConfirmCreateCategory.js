@@ -1,39 +1,22 @@
 import React from 'react'
-import { ConfirmCreateCategoryModal } from "@/features/admin/services"
+import { Modal } from 'antd'
 
 export function useConfirmCreateCategory() {
-  const [open, setOpen] = React.useState(false)
-  const [values, setValues] = React.useState(null)
-  const resolverRef = React.useRef(null)
-
   const confirm = (vals) => {
-    setValues(vals || {})
-    setOpen(true)
     return new Promise((resolve) => {
-      resolverRef.current = resolve
+      Modal.confirm({
+        title: 'Create category',
+        content: React.createElement(
+          'div',
+          null,
+          React.createElement('div', null, React.createElement('strong', null, 'Name:'), ` ${vals?.name || ''}`),
+          React.createElement('div', null, React.createElement('strong', null, 'Description:'), ` ${vals?.description || ''}`)
+        ),
+        onOk() { resolve(true) },
+        onCancel() { resolve(false) },
+      })
     })
   }
 
-  const handleOk = () => {
-    setOpen(false)
-    if (resolverRef.current) resolverRef.current(true)
-    resolverRef.current = null
-  }
-
-  const handleCancel = () => {
-    setOpen(false)
-    if (resolverRef.current) resolverRef.current(false)
-    resolverRef.current = null
-  }
-
-  const ModalPortal = () => (
-    React.createElement(ConfirmCreateCategoryModal, {
-      open,
-      values,
-      onOk: handleOk,
-      onCancel: handleCancel,
-    })
-  )
-
-  return { confirm, ConfirmModal: ModalPortal }
+  return { confirm }
 }

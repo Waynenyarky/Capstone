@@ -3,9 +3,11 @@ import { loginEmailRules, loginPasswordRules } from "@/features/authentication/v
 import { useLoginFlow } from "@/features/authentication/hooks"
 import { LoginVerificationForm } from "@/features/authentication"
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 
 
 export default function LoginForm({ onSubmit } = {}) {
+  const navigate = useNavigate()
   const {
     step,
     form,
@@ -63,6 +65,7 @@ export default function LoginForm({ onSubmit } = {}) {
           <Checkbox>Remember me</Checkbox>
         </Form.Item>
         <Flex justify="end" gap="small">
+          <Button type="link" onClick={() => navigate('/forgot-password')}>Forgot password?</Button>
           <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting}>Continue</Button>
         </Flex>
       </Form>
