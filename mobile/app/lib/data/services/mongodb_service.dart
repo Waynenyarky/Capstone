@@ -94,6 +94,41 @@ class MongoDBService {
     throw TimeoutException('All endpoints unreachable for $path');
   }
 
+  static Future<http.Response> _patchJsonWithFallbackH(
+    String path,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+    Duration timeout = const Duration(seconds: 12),
+  }) async {
+    final candidates = _candidateBaseUrls();
+    final payload = json.encode(body);
+    final baseHeaders = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...?headers,
+    };
+    for (final origin in candidates) {
+      final uri = Uri.parse('$origin$path');
+      try {
+        final res = await http
+            .patch(
+          uri,
+          headers: baseHeaders,
+          body: payload,
+        )
+            .timeout(timeout);
+        return res;
+      } on TimeoutException catch (_) {
+        continue;
+      } on SocketException catch (_) {
+        continue;
+      } catch (_) {
+        continue;
+      }
+    }
+    throw TimeoutException('All endpoints unreachable for $path');
+  }
+
 
   static Future<Map<String, dynamic>> signUp({
     required String firstName,
@@ -220,6 +255,51 @@ class MongoDBService {
     }
   }
 
+  static Future<Map<String, dynamic>> setFaceUnlockEnabled({
+    required String email,
+    required bool enabled,
+  }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/mfa/face/${enabled ? 'enable' : 'disable'}',
+        { 'email': email },
+        headers: { 'x-user-email': email },
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200) {
+        return { 'success': true, 'message': 'Face unlock ${enabled ? 'enabled' : 'disabled'}' };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Request failed';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}'};
+    }
+  }
+
+  static Future<bool> getFaceUnlockStatus({ required String email }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/mfa/status',
+        { 'email': email },
+        headers: { 'x-user-email': email },
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map) {
+        final flag = data['isFaceUnlockEnabled'];
+        return flag is bool ? flag : false;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static Future<Map<String, dynamic>> updateProfile({
     required String email,
     required String token,
@@ -233,17 +313,12 @@ class MongoDBService {
         'lastName': lastName,
         'phoneNumber': phoneNumber,
       };
-      final response = await http
-          .patch(
-        Uri.parse('$baseUrl/api/auth/profile'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'x-user-email': email,
-        },
-        body: json.encode(body),
-      )
-          .timeout(const Duration(seconds: 12));
+      final response = await _patchJsonWithFallbackH(
+        '/api/auth/profile',
+        body,
+        headers: { 'x-user-email': email },
+        timeout: const Duration(seconds: 12),
+      );
       final ct = (response.headers['content-type'] ?? '').toLowerCase();
       final bool isJson = ct.contains('application/json');
       final dynamic parsed = isJson ? json.decode(response.body) : null;
@@ -316,6 +391,57 @@ class MongoDBService {
           'message': data['message'] ?? (
             isJson
               ? 'Password update failed'
+              : (response.statusCode == 401
+                  ? 'Unauthorized: invalid or expired token'
+                  : 'Server returned non-JSON (status ${response.statusCode})')
+          ),
+        };
+      }
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': 'Request timeout. Check network and server availability.',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error: ${e.toString()}',
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateEmail({
+    required String email,
+    required String password,
+    required String newEmail,
+  }) async {
+    try {
+      final body = {
+        'password': password,
+        'newEmail': newEmail,
+      };
+      final response = await _postJsonWithFallbackH(
+        '/api/auth/change-email-authenticated',
+        body,
+        headers: { 'x-user-email': email },
+        timeout: const Duration(seconds: 12),
+      );
+      final ct = (response.headers['content-type'] ?? '').toLowerCase();
+      final bool isJson = ct.contains('application/json');
+      final dynamic parsed = isJson ? json.decode(response.body) : null;
+      final Map<String, dynamic> data = (parsed is Map<String, dynamic>) ? parsed : <String, dynamic>{};
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': (data['message'] ?? 'Email updated successfully').toString(),
+          'email': data['email'] ?? newEmail,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? (
+            isJson
+              ? 'Email update failed'
               : (response.statusCode == 401
                   ? 'Unauthorized: invalid or expired token'
                   : 'Server returned non-JSON (status ${response.statusCode})')

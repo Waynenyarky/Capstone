@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'signup_page.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'profile.dart';
+// Face Unlock reverted: remove integration imports
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -276,10 +277,11 @@ class _LoginScreenState extends State<LoginScreen> {
               behavior: SnackBarBehavior.floating,
             ),
           );
-          Navigator.pushReplacement(
+
+          Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(
-              builder: (context) => ProfilePage(
+              builder: (_) => ProfilePage(
                 email: email,
                 firstName: firstName,
                 lastName: lastName,
@@ -287,12 +289,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 token: token,
               ),
             ),
+            (route) => false,
           );
         } else {
           if (!mounted) return;
+          final msg = (result['message'] is String && (result['message'] as String).trim().isNotEmpty)
+              ? result['message'] as String
+              : 'Incorrect email or password';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(result['message']),
+              content: Text(msg),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating,
             ),
@@ -323,6 +329,8 @@ class _LoginScreenState extends State<LoginScreen> {
       size: 20,
     );
   }
+
+  
 
   InputDecoration _buildInputDecoration({
     required String label,

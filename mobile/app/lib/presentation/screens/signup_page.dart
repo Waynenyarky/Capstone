@@ -168,9 +168,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
           Navigator.pop(context);
         } else {
           if (!mounted) return;
+          final raw = result['message'];
+          final msg = (raw is String && raw.trim().isNotEmpty)
+              ? raw
+              : 'Sign up failed. Please check your details.';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(result['message']),
+              content: Text(msg),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating,
             ),
