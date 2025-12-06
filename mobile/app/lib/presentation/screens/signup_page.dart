@@ -49,7 +49,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   bool _isValidPhone(String v) {
-    return RegExp(r'^\d{11}$').hasMatch(v);
+    return RegExp(r'^09\d{9}$').hasMatch(v);
   }
 
   bool _hasLower(String v) => RegExp(r'[a-z]').hasMatch(v);
@@ -444,7 +444,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           return null;
                         }
                         if (!_isValidPhone(value)) {
-                          return 'Phone number must be 11 digits';
+                          return 'Phone must be 11 digits starting with 09';
                         }
                         return null;
                       },
