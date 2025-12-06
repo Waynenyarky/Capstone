@@ -17,6 +17,11 @@ const updateProfileSchema = Joi.object({
   phoneNumber: Joi.string().optional(),
 })
 
+const changeEmailAuthenticatedSchema = Joi.object({
+  password: Joi.string().min(6).max(200).required(),
+  newEmail: Joi.string().email().required(),
+})
+
 // POST /api/auth/change-password-authenticated
 // Change password for a logged-in user by verifying current password.
 router.post('/change-password-authenticated', validateBody(changePasswordAuthenticatedSchema), async (req, res) => {
@@ -62,6 +67,49 @@ router.post('/change-password-authenticated', validateBody(changePasswordAuthent
   } catch (err) {
     console.error('POST /api/auth/change-password-authenticated error:', err)
     return respond.error(res, 500, 'change_password_failed', 'Failed to change password')
+  }
+})
+
+// POST /api/auth/change-email-authenticated
+// Change email for a logged-in user by verifying current password.
+router.post('/change-email-authenticated', validateBody(changeEmailAuthenticatedSchema), async (req, res) => {
+  try {
+    const { password, newEmail } = req.body || {}
+
+    const idHeader = req.headers['x-user-id']
+    const emailHeader = req.headers['x-user-email']
+
+    let doc = null
+    if (idHeader) {
+      try {
+        doc = await User.findById(idHeader)
+      } catch (_) {
+        doc = null
+      }
+    }
+    if (!doc && emailHeader) {
+      doc = await User.findOne({ email: emailHeader })
+    }
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const ok = await bcrypt.compare(password, doc.passwordHash)
+    if (!ok) return respond.error(res, 401, 'invalid_password', 'Invalid password')
+
+    const normalized = String(newEmail || '').trim().toLowerCase()
+    if (!normalized) return respond.error(res, 400, 'invalid_email', 'Invalid email')
+    if (normalized === String(doc.email || '').toLowerCase()) {
+      return respond.error(res, 400, 'same_email', 'New email must be different from current')
+    }
+    const exists = await User.findOne({ email: normalized }).lean()
+    if (exists) return respond.error(res, 409, 'email_in_use', 'Email already in use')
+
+    doc.email = normalized
+    await doc.save()
+
+    return res.json({ message: 'Email updated successfully', email: doc.email })
+  } catch (err) {
+    console.error('POST /api/auth/change-email-authenticated error:', err)
+    return respond.error(res, 500, 'change_email_failed', 'Failed to change email')
   }
 })
 

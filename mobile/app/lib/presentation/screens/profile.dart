@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'login_page.dart';
+import 'security/mfa_settings_screen.dart';
 
 class ProfilePage extends StatefulWidget {
   final String email;
@@ -30,6 +31,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
   bool _isValidPhone(String v) {
     return RegExp(r'^09\d{9}$').hasMatch(v);
+  }
+
+  bool _isValidEmail(String v) {
+    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim());
   }
 
   @override
@@ -171,21 +176,21 @@ class _ProfilePageState extends State<ProfilePage> {
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: currentPasswordController,
-                    decoration: const InputDecoration(
-                      labelText: 'Current Password',
-                      border: OutlineInputBorder(),
-                    ),
-                    obscureText: true,
+              children: [
+                TextField(
+                  controller: currentPasswordController,
+                  decoration: const InputDecoration(
+                    labelText: 'Current Password',
+                    border: OutlineInputBorder(),
                   ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: newPasswordController,
-                    decoration: InputDecoration(
-                      labelText: 'New Password',
-                      border: const OutlineInputBorder(),
+                  obscureText: true,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: newPasswordController,
+                  decoration: InputDecoration(
+                    labelText: 'New Password',
+                    border: const OutlineInputBorder(),
                       suffixIcon: newPasswordController.text.isNotEmpty
                           ? IconButton(
                               icon: Icon(obscureNew ? Icons.visibility_off : Icons.visibility),
@@ -198,14 +203,14 @@ class _ProfilePageState extends State<ProfilePage> {
                           : null,
                     ),
                     obscureText: obscureNew,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: confirmPasswordController,
-                    decoration: InputDecoration(
-                      labelText: 'Confirm New Password',
-                      border: const OutlineInputBorder(),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: confirmPasswordController,
+                  decoration: InputDecoration(
+                    labelText: 'Confirm New Password',
+                    border: const OutlineInputBorder(),
                       suffixIcon: confirmPasswordController.text.isNotEmpty
                           ? IconButton(
                               icon: Icon(obscureConfirm ? Icons.visibility_off : Icons.visibility),
@@ -344,6 +349,15 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  void _openSecurity() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MfaSettingsScreen(email: email),
+      ),
+    );
+  }
+
   void _logout() {
     showDialog(
       context: context,
@@ -415,9 +429,14 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
             const SizedBox(height: 20),
+            _buildSectionTitle('Personal Information'),
             _buildInfoCard(),
             const SizedBox(height: 20),
-            _buildSettingsSection(),
+            _buildSectionTitle('Account Settings'),
+            _buildAccountSettingsSection(),
+            const SizedBox(height: 12),
+            _buildSectionTitle('Settings'),
+            _buildSecuritySection(),
             const SizedBox(height: 12),
             _buildLogoutSection(),
             const SizedBox(height: 20),
@@ -493,7 +512,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Divider(height: 1, color: Colors.grey[200]);
   }
 
-  Widget _buildSettingsSection() {
+  Widget _buildAccountSettingsSection() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
@@ -516,6 +535,12 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           _buildDivider(),
           _buildSettingsTile(
+            icon: Icons.alternate_email,
+            title: 'Change Email',
+            onTap: _showChangeEmailDialog,
+          ),
+          _buildDivider(),
+          _buildSettingsTile(
             icon: Icons.lock_outline,
             title: 'Change Password',
             onTap: _showChangePasswordDialog,
@@ -526,6 +551,138 @@ class _ProfilePageState extends State<ProfilePage> {
             title: 'Delete Account',
             onTap: _showDeleteAccountDialog,
             isDestructive: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showChangeEmailDialog() {
+    final currentPwdController = TextEditingController();
+    final newEmailController = TextEditingController();
+    bool obscure = true;
+    bool loading = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Change Email'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: currentPwdController,
+                  obscureText: obscure,
+                  decoration: InputDecoration(
+                    labelText: 'Current Password',
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
+                      onPressed: () => setState(() => obscure = !obscure),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: newEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'New Email',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: loading ? null : () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: loading
+                  ? null
+                  : () async {
+                      final pwd = currentPwdController.text.trim();
+                      final next = newEmailController.text.trim();
+                      // defer obtaining ScaffoldMessenger until after async operations
+                      if (pwd.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password is required')));
+                        return;
+                      }
+                      if (!_isValidEmail(next)) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter a valid email')));
+                        return;
+                      }
+                      if (next.toLowerCase() == email.toLowerCase()) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('New email must be different')));
+                        return;
+                      }
+                      setState(() => loading = true);
+                      try {
+                        final res = await MongoDBService.updateEmail(
+                          email: email,
+                          password: pwd,
+                          newEmail: next,
+                        );
+                        if (res['success'] == true) {
+                          final updated = (res['email'] is String) ? (res['email'] as String) : next;
+                          setState(() {
+                            email = updated;
+                            loading = false;
+                          });
+                          if (!context.mounted) return;
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text((res['message'] is String) ? res['message'] as String : 'Email updated')),
+                          );
+                        } else {
+                          setState(() => loading = false);
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text((res['message'] is String) ? res['message'] as String : 'Update failed')),
+                          );
+                        }
+                      } catch (e) {
+                        setState(() => loading = false);
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Connection error: ${e.toString()}')),
+                        );
+                      }
+                    },
+              child: loading
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Change'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSecuritySection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            spreadRadius: 1,
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildSettingsTile(
+            icon: Icons.security,
+            title: 'Multi-Factor Authentication',
+            onTap: _openSecurity,
           ),
         ],
       ),
@@ -585,4 +742,19 @@ class _ProfilePageState extends State<ProfilePage> {
       onTap: onTap,
     );
   }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          title,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
 }
+
+// Removed face unlock stubs
