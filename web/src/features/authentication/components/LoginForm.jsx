@@ -26,25 +26,28 @@ export default function LoginForm({ onSubmit } = {}) {
 
   return (
     <Card title="Login" extra={(
-      <Flex gap="small">
-        <Dropdown
-          menu={{
-            items: [
-              { key: 'admin', label: 'Admin' },
-              { key: 'provider', label: 'Provider' },
-              { key: 'customer', label: 'Customer' },
-            ],
-            onClick: ({ key }) => {
-              if (key === 'admin') prefillAdmin()
-              else if (key === 'provider') prefillProvider()
-              else if (key === 'customer') prefillCustomer()
-            },
-          }}
-          trigger={['click']}
-        >
-          <Button size="small" type="text">Prefill</Button>
-        </Dropdown>
-      </Flex>
+      // Only show developer prefills in non-production modes
+      import.meta.env.MODE !== 'production' ? (
+        <Flex gap="small">
+          <Dropdown
+            menu={{
+              items: [
+                { key: 'admin', label: 'Admin' },
+                { key: 'provider', label: 'Provider' },
+                { key: 'customer', label: 'Customer' },
+              ],
+              onClick: ({ key }) => {
+                if (key === 'admin') prefillAdmin()
+                else if (key === 'provider') prefillProvider()
+                else if (key === 'customer') prefillCustomer()
+              },
+            }}
+            trigger={['click']}
+          >
+            <Button size="small" type="text">Prefill</Button>
+          </Dropdown>
+        </Flex>
+      ) : null
     )}>
       <Form name="login" form={form} layout="vertical" onFinish={handleFinish} initialValues={initialValues}>
         <Form.Item

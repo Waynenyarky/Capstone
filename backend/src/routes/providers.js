@@ -6,6 +6,40 @@ const ServiceAreaConfig = require('../models/ServiceAreaConfig')
 
 const router = express.Router()
 
+// DEV-ONLY: Create a provider record for the current user (development convenience)
+router.post('/profile/dev-create', async (req, res) => {
+  try {
+    if (process.env.NODE_ENV === 'production') return res.status(403).json({ error: 'Forbidden' })
+    const idHeader = req.headers['x-user-id']
+    const emailHeader = req.headers['x-user-email']
+
+    let userDoc = null
+    if (idHeader) {
+      try { userDoc = await User.findById(idHeader) } catch (_) { userDoc = null }
+    }
+    if (!userDoc && emailHeader) userDoc = await User.findOne({ email: emailHeader })
+    if (!userDoc) return res.status(401).json({ error: 'Unauthorized: user not found' })
+
+    const exists = await Provider.findOne({ userId: userDoc._id }).lean()
+    if (exists) return res.status(200).json({ ok: true, provider: exists })
+
+    const created = await Provider.create({
+      userId: userDoc._id,
+      businessName: `${userDoc.firstName || ''} ${userDoc.lastName || ''}`.trim() || 'Dev Provider',
+      servicesCategories: [],
+      serviceAreas: [],
+      status: 'pending',
+    })
+
+    const populated = await Provider.findById(created._id).populate('userId').lean()
+    return res.status(201).json(populated)
+  } catch (err) {
+    console.error('POST /api/providers/profile/dev-create error:', err)
+    return res.status(500).json({ error: 'Failed to create provider (dev)' })
+  }
+})
+
+
 // GET /api/providers
 router.get('/', async (req, res) => {
   try {

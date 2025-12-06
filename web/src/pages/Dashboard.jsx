@@ -2,7 +2,6 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Row, Col, Layout } from 'antd'
 import { LogoutForm, DeletionScheduledBanner, useAuthSession } from "@/features/authentication"
-import { ProviderWorkspaceGate } from "@/features/provider"
 import { CustomerWorkspaceGate } from "@/features/customer"
 import { AdminWorkspaceGate } from "@/features/admin"
 
@@ -18,6 +17,7 @@ export default function Dashboard() {
 
   return (
     <Layout>
+      {/* Dev debug panel removed */}
       {currentUser && currentUser.deletionPending && (
         <>
           <Row gutter={[12, 12]} style={{ padding: 24 }}>
@@ -41,11 +41,7 @@ export default function Dashboard() {
       )}
 
 
-      {currentUser && !currentUser?.deletionPending && role === 'provider' && (
-        <>
-          <ProviderWorkspaceGate />
-        </>
-      )}
+      {/* Provider feature removed */}
 
 
       {currentUser && role === 'admin' && (
@@ -53,7 +49,6 @@ export default function Dashboard() {
           <AdminWorkspaceGate />
         </>
       )}
-
 
     </Layout>
   )
