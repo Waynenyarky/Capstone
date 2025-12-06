@@ -13,5 +13,5 @@ export default function ForgotPassword() {
         </Row>
       </Layout.Content>
     </Layout>
-   )
+  )
 }
