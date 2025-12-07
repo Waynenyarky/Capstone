@@ -554,4 +554,62 @@ class MongoDBService {
       };
     }
   }
+
+  static Future<Map<String, dynamic>> uploadAvatar({
+    required String email,
+    required String imageBase64,
+  }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/profile/avatar',
+        { 'imageBase64': imageBase64 },
+        headers: { 'x-user-email': email },
+        timeout: const Duration(seconds: 20),
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map) {
+        return {
+          'success': true,
+          'avatarUrl': data['avatarUrl'],
+        };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Upload failed';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> uploadAvatarFile({
+    required String email,
+    required String filePath,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/auth/profile/avatar-file');
+      final req = http.MultipartRequest('POST', uri);
+      req.headers.addAll({
+        'Accept': 'application/json',
+        'x-user-email': email,
+      });
+      req.files.add(await http.MultipartFile.fromPath('avatar', filePath));
+      final streamed = await req.send().timeout(const Duration(seconds: 30));
+      final res = await http.Response.fromStream(streamed);
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map) {
+        return {'success': true, 'avatarUrl': data['avatarUrl']};
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Upload failed';
+      return {'success': false, 'message': msg};
+    } on TimeoutException {
+      return {'success': false, 'message': 'Request timeout. Check network and server availability.'};
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: ${e.toString()}'};
+    }
+  }
 }
