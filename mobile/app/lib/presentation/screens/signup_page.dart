@@ -312,6 +312,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               constraints: const BoxConstraints(maxWidth: 500),
               child: Form(
                 key: _formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -444,11 +445,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       onChanged: (_) => setState(() {}),
                       validator: (value) {
                         if (!_phoneTouched) return null;
-                        if (value == null || value.isEmpty) {
-                          return null;
+                        final v = (value ?? '').trim();
+                        if (v.isEmpty) {
+                          return 'Please enter your phone number';
                         }
-                        if (!_isValidPhone(value)) {
-                          return 'Phone must be 11 digits starting with 09';
+                        if (!RegExp(r'^\d+$').hasMatch(v)) {
+                          return 'Phone must contain digits only';
+                        }
+                        if (v.length != 11) {
+                          return 'Phone number must be 11 digits';
+                        }
+                        if (!RegExp(r'^09').hasMatch(v)) {
+                          return 'Phone number must start with 09';
+                        }
+                        if (!_isValidPhone(v)) {
+                          return 'Enter a valid phone number';
                         }
                         return null;
                       },
