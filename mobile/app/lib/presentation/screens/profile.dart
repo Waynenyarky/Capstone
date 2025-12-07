@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:app/data/services/mongodb_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'dart:io' as io;
+import '../../domain/usecases/upload_avatar.dart';
 import 'login_page.dart';
 import 'security/mfa_settings_screen.dart';
 
@@ -10,7 +15,8 @@ class ProfilePage extends StatefulWidget {
   final String lastName;
   final String phoneNumber;
   final String token;
-  const ProfilePage({super.key, required this.email, required this.firstName, required this.lastName, required this.phoneNumber, required this.token});
+  final String avatarUrl;
+  const ProfilePage({super.key, required this.email, required this.firstName, required this.lastName, required this.phoneNumber, required this.token, this.avatarUrl = ''});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -21,6 +27,9 @@ class _ProfilePageState extends State<ProfilePage> {
   String firstName = '';
   String lastName = '';
   String phoneNumber = '';
+  String avatarUrl = '';
+  String _localAvatarPath = '';
+  bool _uploadingAvatar = false;
   bool _saving = false;
 
   bool _isValidName(String v) {
@@ -44,6 +53,164 @@ class _ProfilePageState extends State<ProfilePage> {
     firstName = widget.firstName;
     lastName = widget.lastName;
     phoneNumber = widget.phoneNumber;
+    avatarUrl = widget.avatarUrl;
+  }
+
+  Future<void> _changeAvatar() async {
+    try {
+      if (_uploadingAvatar) return;
+      final messenger = ScaffoldMessenger.of(context);
+      final pathToUpload = await _pickAndEditImage(messenger);
+      if (pathToUpload == null || pathToUpload.isEmpty) return;
+
+      if (!mounted) return;
+      setState(() {
+        _localAvatarPath = pathToUpload;
+        _uploadingAvatar = true;
+      });
+      final uploader = UploadAvatar();
+      final res = await uploader.call(email: email, filePath: pathToUpload);
+      if (!mounted) return;
+      setState(() => _uploadingAvatar = false);
+      if (res['success'] == true && res['avatarUrl'] is String) {
+        setState(() {
+          avatarUrl = res['avatarUrl'] as String;
+          _localAvatarPath = '';
+        });
+        messenger.showSnackBar(const SnackBar(content: Text('Profile photo updated')));
+      } else {
+        final msg = (res['message'] is String) ? res['message'] as String : 'Upload failed';
+        messenger.showSnackBar(SnackBar(content: Text(msg)));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _uploadingAvatar = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to change photo: ${e.toString()}')));
+    }
+  }
+
+  Future<String?> _pickAndEditImage(ScaffoldMessengerState messenger) async {
+    try {
+      final source = await _selectImageSource();
+      if (source == null) return null;
+      if (!io.Platform.isAndroid) {
+        if (source == ImageSource.gallery) {
+          final ok = await _ensureGalleryPermission(messenger);
+          if (!ok) return null;
+        }
+        if (source == ImageSource.camera) {
+          var c = await Permission.camera.status;
+          if (!c.isGranted) {
+            c = await Permission.camera.request();
+            if (!c.isGranted) return null;
+          }
+        }
+      }
+
+      final picker = ImagePicker();
+      XFile? picked;
+      try {
+        picked = await picker.pickImage(
+          source: source,
+          imageQuality: 70,
+          maxWidth: 1280,
+          maxHeight: 1280,
+        );
+      } catch (e) {
+        messenger.showSnackBar(SnackBar(content: Text('Unable to open picker')));
+        return null;
+      }
+      if (picked == null) {
+        messenger.showSnackBar(const SnackBar(content: Text('No image selected')));
+        return null;
+      }
+
+      final cropped = await ImageCropper().cropImage(
+        sourcePath: picked.path,
+        compressFormat: ImageCompressFormat.jpg,
+        compressQuality: 80,
+        maxWidth: 640,
+        maxHeight: 640,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Edit Photo',
+            toolbarColor: Colors.blue,
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: false,
+            hideBottomControls: false,
+          ),
+          IOSUiSettings(
+            title: 'Edit Photo',
+            aspectRatioLockEnabled: false,
+          ),
+        ],
+      );
+
+      return cropped?.path ?? picked.path;
+    } catch (_) {
+      messenger.showSnackBar(const SnackBar(content: Text('Image selection failed')));
+      return null;
+    }
+  }
+
+  Future<ImageSource?> _selectImageSource() async {
+    return await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Gallery'),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Camera'),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<bool> _ensureGalleryPermission(ScaffoldMessengerState messenger) async {
+    if (io.Platform.isAndroid) {
+      try {
+        var s = await Permission.storage.status;
+        if (!s.isGranted) {
+          s = await Permission.storage.request();
+          if (!s.isGranted) return false;
+        }
+      } catch (_) {}
+      try {
+        var p = await Permission.photos.status;
+        if (!p.isGranted && !p.isLimited) {
+          p = await Permission.photos.request();
+        }
+      } catch (_) {}
+      return true;
+    } else {
+      var s = await Permission.photos.status;
+      if (s.isPermanentlyDenied) {
+        messenger.showSnackBar(const SnackBar(content: Text('Enable Photos permission in settings')));
+        await openAppSettings();
+        return false;
+      }
+      if (!s.isGranted && !s.isLimited) {
+        s = await Permission.photos.request();
+        if (!s.isGranted && !s.isLimited) {
+          messenger.showSnackBar(const SnackBar(content: Text('Photos permission denied')));
+          return false;
+        }
+      }
+      return true;
+    }
   }
 
   void _showEditProfileDialog() {
@@ -385,6 +552,67 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Future<void> _onAvatarTapped() async {
+    final action = await _showAvatarOptions();
+    if (action == 'view') {
+      _showProfilePictureDialog();
+    } else if (action == 'choose') {
+      await _changeAvatar();
+    }
+  }
+
+  Future<String?> _showAvatarOptions() async {
+    return await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.visibility),
+                title: const Text('See profile picture'),
+                onTap: () => Navigator.pop(ctx, 'view'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose profile picture'),
+                onTap: () => Navigator.pop(ctx, 'choose'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showProfilePictureDialog() {
+    final messenger = ScaffoldMessenger.of(context);
+    ImageProvider? provider;
+    if (_localAvatarPath.isNotEmpty) {
+      provider = FileImage(io.File(_localAvatarPath));
+    } else if (avatarUrl.isNotEmpty) {
+      provider = NetworkImage('${MongoDBService.baseUrl}$avatarUrl');
+    }
+    if (provider == null) {
+      messenger.showSnackBar(const SnackBar(content: Text('No profile picture')));
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.9,
+          height: MediaQuery.of(context).size.width * 0.9,
+          child: InteractiveViewer(
+            child: Image(image: provider!, fit: BoxFit.cover),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -406,21 +634,32 @@ class _ProfilePageState extends State<ProfilePage> {
                   Stack(
                     alignment: Alignment.bottomRight,
                     children: [
-                      const CircleAvatar(
-                        radius: 50,
-                        backgroundColor: Colors.white,
-                        child: Icon(Icons.person, size: 60, color: Colors.blue),
+                      InkWell(
+                        onTap: _uploadingAvatar ? null : _onAvatarTapped,
+                        child: CircleAvatar(
+                          radius: 50,
+                          backgroundColor: Colors.white,
+                          backgroundImage: _localAvatarPath.isNotEmpty
+                              ? FileImage(io.File(_localAvatarPath))
+                              : (avatarUrl.isNotEmpty
+                                  ? NetworkImage('${MongoDBService.baseUrl}$avatarUrl')
+                                  : null),
+                          child: (_localAvatarPath.isEmpty && avatarUrl.isEmpty)
+                              ? const Icon(Icons.person, size: 60, color: Colors.blue)
+                              : null,
+                        ),
                       ),
-                      const Positioned(
+                      Positioned(
                         right: 0,
                         bottom: 0,
-                        child: CircleAvatar(
-                          radius: 16,
-                          backgroundColor: Colors.blue,
-                          child: Icon(
-                            Icons.camera_alt,
-                            size: 16,
-                            color: Colors.white,
+                        child: InkWell(
+                          onTap: _uploadingAvatar ? null : _changeAvatar,
+                          child: CircleAvatar(
+                            radius: 16,
+                            backgroundColor: Colors.blue,
+                            child: _uploadingAvatar
+                                ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
+                                : const Icon(Icons.camera_alt, size: 16, color: Colors.white),
                           ),
                         ),
                       ),

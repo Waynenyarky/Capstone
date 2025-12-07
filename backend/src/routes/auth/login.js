@@ -106,6 +106,7 @@ router.post('/login', validateBody(loginCredentialsSchema), async (req, res) => 
       deletionPending: !!doc.deletionPending,
       deletionRequestedAt: doc.deletionRequestedAt,
       deletionScheduledFor: doc.deletionScheduledFor,
+      avatarUrl: doc.avatarUrl || '',
     }
     return res.json(safe)
   } catch (err) {
@@ -218,6 +219,7 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
       deletionPending: !!doc.deletionPending,
       deletionRequestedAt: doc.deletionRequestedAt,
       deletionScheduledFor: doc.deletionScheduledFor,
+      avatarUrl: doc.avatarUrl || '',
     }
 
     // Cleanup login state

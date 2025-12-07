@@ -17,6 +17,99 @@ const updateProfileSchema = Joi.object({
   phoneNumber: Joi.string().optional(),
 })
 
+const uploadAvatarSchema = Joi.object({
+  imageBase64: Joi.string().min(32).required(),
+})
+
+router.post('/profile/avatar', validateBody(uploadAvatarSchema), async (req, res) => {
+  try {
+    const idHeader = req.headers['x-user-id']
+    const emailHeader = req.headers['x-user-email']
+    let doc = null
+    if (idHeader) {
+      try { doc = await User.findById(idHeader) } catch (_) { doc = null }
+    }
+    if (!doc && emailHeader) {
+      doc = await User.findOne({ email: emailHeader })
+    }
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const raw = String(req.body.imageBase64 || '')
+    let mime = ''
+    let dataStr = raw
+    if (raw.startsWith('data:')) {
+      const parts = raw.split(',')
+      const header = parts[0] || ''
+      dataStr = parts[1] || ''
+      const m = header.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64$/)
+      mime = m ? m[1] : ''
+    }
+    const buf = Buffer.from(dataStr, 'base64')
+    if (!buf || buf.length < 1000) return respond.error(res, 400, 'invalid_image', 'Invalid image')
+    let ext = 'jpg'
+    if (mime.includes('png')) ext = 'png'
+    if (mime.includes('jpeg')) ext = 'jpg'
+    if (mime.includes('webp')) ext = 'webp'
+    const path = require('path')
+    const fs = require('fs')
+    const uploadsDir = path.join(__dirname, '..', '..', '..', 'uploads')
+    const avatarsDir = path.join(uploadsDir, 'avatars')
+    try { fs.mkdirSync(avatarsDir, { recursive: true }) } catch (_) {}
+    const filename = `${String(doc._id)}_${Date.now()}.${ext}`
+    const filePath = path.join(avatarsDir, filename)
+    await fs.promises.writeFile(filePath, buf)
+    doc.avatarUrl = `/uploads/avatars/${filename}`
+    await doc.save()
+    return res.json({ success: true, avatarUrl: doc.avatarUrl })
+  } catch (err) {
+    console.error('POST /api/auth/profile/avatar error:', err)
+    return respond.error(res, 500, 'avatar_upload_failed', 'Failed to upload avatar')
+  }
+})
+
+// POST /api/auth/profile/avatar-file - multipart upload
+router.post('/profile/avatar-file', async (req, res) => {
+  try {
+    const idHeader = req.headers['x-user-id']
+    const emailHeader = req.headers['x-user-email']
+    let doc = null
+    if (idHeader) {
+      try { doc = await User.findById(idHeader) } catch (_) { doc = null }
+    }
+    if (!doc && emailHeader) {
+      doc = await User.findOne({ email: emailHeader })
+    }
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const multer = require('multer')
+    const path = require('path')
+    const fs = require('fs')
+    const uploadsDir = path.join(__dirname, '..', '..', '..', 'uploads')
+    const avatarsDir = path.join(uploadsDir, 'avatars')
+    try { fs.mkdirSync(avatarsDir, { recursive: true }) } catch (_) {}
+    const storage = multer.diskStorage({
+      destination: (_req, _file, cb) => cb(null, avatarsDir),
+      filename: (_req, file, cb) => {
+        const ext = path.extname(file.originalname || '.jpg').toLowerCase() || '.jpg'
+        cb(null, `${String(doc._id)}_${Date.now()}${ext}`)
+      },
+    })
+    const upload = multer({ storage }).single('avatar')
+
+    upload(req, res, async (err) => {
+      if (err) return respond.error(res, 400, 'upload_failed', 'Upload failed')
+      const file = req.file
+      if (!file) return respond.error(res, 400, 'no_file', 'No file uploaded')
+      doc.avatarUrl = `/uploads/avatars/${path.basename(file.path)}`
+      await doc.save()
+      return res.json({ success: true, avatarUrl: doc.avatarUrl })
+    })
+  } catch (err) {
+    console.error('POST /api/auth/profile/avatar-file error:', err)
+    return respond.error(res, 500, 'avatar_upload_failed', 'Failed to upload avatar')
+  }
+})
+
 const changeEmailAuthenticatedSchema = Joi.object({
   password: Joi.string().min(6).max(200).required(),
   newEmail: Joi.string().email().required(),

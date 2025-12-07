@@ -268,6 +268,7 @@ class _LoginScreenState extends State<LoginScreen> {
           final lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
           final email = (user['email'] is String) ? user['email'] as String : '';
           final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
+          final avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
           final token = (result['token'] is String) ? result['token'] as String : '';
 
           ScaffoldMessenger.of(context).showSnackBar(
@@ -287,6 +288,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 lastName: lastName,
                 phoneNumber: phoneNumber,
                 token: token,
+                avatarUrl: avatarUrl,
               ),
             ),
             (route) => false,
