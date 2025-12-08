@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, Form, Input, Select, Button, Flex, Typography } from 'antd'
-import { usePHLocations } from '@/hooks/usePHLocations.js'
+import { PH_LOCATIONS } from '@/lib/phLocations.js'
 import { useAuthSession } from '@/features/authentication'
 import { createAddress } from '@/features/customer/addresses/services/customerAddressesService.js'
 import { useNotifier } from '@/shared/notifications.js'
@@ -10,7 +10,35 @@ export default function CustomerOnboarding({ onCompleted }) {
   const [form] = Form.useForm()
   const { currentUser, role } = useAuthSession()
   const { success, error } = useNotifier()
-  const { provinceSelectProps, citySelectProps } = usePHLocations(form)
+  const [province, setProvince] = React.useState(null)
+  const provincesOptions = React.useMemo(() => (Array.isArray(PH_LOCATIONS.provinces) ? PH_LOCATIONS.provinces.map((p) => ({ label: p, value: p })) : []), [])
+  const citiesOptions = React.useMemo(() => {
+    if (!province) return []
+    const cities = (PH_LOCATIONS.citiesByProvince || {})[province] || []
+    return cities.map((c) => ({ label: c, value: c }))
+  }, [province])
+  const filterOption = (input, option) => (option?.label ?? '').toLowerCase().includes(String(input).toLowerCase())
+  const provinceSelectProps = {
+    options: provincesOptions,
+    showSearch: true,
+    filterOption,
+    placeholder: 'Select province',
+    allowClear: true,
+    loading: false,
+    onChange: (value) => {
+      setProvince(value || null)
+      if (form) form.setFieldsValue({ province: value || undefined, city: undefined })
+    }
+  }
+  const citySelectProps = {
+    options: citiesOptions,
+    showSearch: true,
+    filterOption,
+    placeholder: 'Select city',
+    allowClear: true,
+    disabled: !province,
+    loading: false,
+  }
 
   const toTitleCase = (str) => String(str || '')
     .split(/\s+/)
