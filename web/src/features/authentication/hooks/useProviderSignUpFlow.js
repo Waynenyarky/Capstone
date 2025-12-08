@@ -1,8 +1,8 @@
 import React from 'react'
 import { Form } from 'antd'
 import { useProviderSignUp } from '@/features/authentication/hooks'
-import { usePHLocations } from '@/hooks/usePHLocations'
-import { useSupportedServiceAreas } from '@/hooks/useSupportedServiceAreas.js'
+import { PH_LOCATIONS } from '@/lib/phLocations.js'
+import { fetchWithFallback } from '@/lib/http.js'
 import { useNotifier } from '@/shared/notifications.js'
 import { notifyUserSignedUp } from '@/features/admin/users/lib/usersEvents.js'
 
@@ -11,7 +11,7 @@ export function useProviderSignUpFlow({ onSubmit } = {}) {
   const [step, setStep] = React.useState('form')
   const [emailForVerify, setEmailForVerify] = React.useState('')
   const [devCodeForVerify, setDevCodeForVerify] = React.useState('')
-  const { success } = useNotifier()
+  const { success, error } = useNotifier()
 
   const { form, handleFinish, isSubmitting, categoryOptions, categoriesLoading } = useProviderSignUp({
     onBegin: ({ email, devCode }) => {
@@ -22,8 +22,61 @@ export function useProviderSignUpFlow({ onSubmit } = {}) {
     onSubmit: typeof onSubmit === 'function' ? onSubmit : console.log,
   })
 
-  const { provinceSelectProps, citySelectProps } = usePHLocations(form)
-  const { areasByProvince, isLoading: serviceAreasLoading } = useSupportedServiceAreas()
+  // Local provinces/cities implementation (replaces `usePHLocations`)
+  const [province, setProvince] = React.useState(null)
+  const provincesOptions = React.useMemo(() => (Array.isArray(PH_LOCATIONS.provinces) ? PH_LOCATIONS.provinces.map((p) => ({ label: p, value: p })) : []), [])
+  const citiesOptions = React.useMemo(() => {
+    if (!province) return []
+    const cities = (PH_LOCATIONS.citiesByProvince || {})[province] || []
+    return cities.map((c) => ({ label: c, value: c }))
+  }, [province])
+  const filterOption = (input, option) => (option?.label ?? '').toLowerCase().includes(String(input).toLowerCase())
+  const provinceSelectProps = React.useMemo(() => ({
+    options: provincesOptions,
+    showSearch: true,
+    filterOption,
+    placeholder: 'Select province',
+    allowClear: true,
+    loading: false,
+    onChange: (value) => {
+      setProvince(value || null)
+      if (form) form.setFieldsValue({ province: value || undefined, city: undefined })
+    }
+  }), [provincesOptions, form])
+
+  const citySelectProps = React.useMemo(() => ({
+    options: citiesOptions,
+    showSearch: true,
+    filterOption,
+    placeholder: 'Select city',
+    allowClear: true,
+    disabled: !province,
+    loading: false,
+  }), [citiesOptions, province])
+
+  // Local supported service areas implementation (replaces `useSupportedServiceAreas`)
+  const [areasByProvince, setAreasByProvince] = React.useState([])
+  const [serviceAreasLoading, setServiceAreasLoading] = React.useState(false)
+  const reloadAreas = React.useCallback(async () => {
+    setServiceAreasLoading(true)
+    try {
+      const res = await fetchWithFallback('/api/service-areas')
+      if (!res || !res.ok) {
+        error('Failed to load supported service areas')
+        setServiceAreasLoading(false)
+        return
+      }
+      const data = await res.json()
+      const list = Array.isArray(data) ? data : []
+      setAreasByProvince(list)
+    } catch (err) {
+      void err
+      error('Failed to load supported service areas')
+    } finally {
+      setServiceAreasLoading(false)
+    }
+  }, [error])
+  React.useEffect(() => { reloadAreas() }, [reloadAreas])
 
   const activeAreas = React.useMemo(() => {
     const list = Array.isArray(areasByProvince) ? areasByProvince : []
@@ -36,9 +89,12 @@ export function useProviderSignUpFlow({ onSubmit } = {}) {
 
   const watchedGroups = Form.useWatch('serviceAreasGroups', form)
   React.useEffect(() => {
+    if (!form) return
     const groups = Array.isArray(watchedGroups) ? watchedGroups : []
     const flattened = Array.from(new Set(groups.flatMap((g) => (Array.isArray(g?.cities) ? g.cities : []))))
-    form.setFieldsValue({ serviceAreas: flattened })
+    try {
+      form.setFieldsValue({ serviceAreas: flattened })
+    } catch (err) { void err }
   }, [watchedGroups, form])
 
   const businessTypeValue = Form.useWatch('businessType', form)
