@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../domain/usecases/enable_mfa.dart';
 import '../../../domain/usecases/verify_mfa.dart';
+import '../../../domain/usecases/get_mfa_status.dart';
+import '../../../domain/usecases/disable_mfa.dart';
 import '../../../data/services/mongodb_service.dart';
 import 'mfa_setup_screen.dart';
-import 'mfa_verify_screen.dart';
 
 class MfaSettingsScreen extends StatefulWidget {
   final String email;
@@ -24,6 +25,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
   void initState() {
     super.initState();
     _loadFace();
+    _loadAuthStatus();
   }
 
   Future<void> _loadFace() async {
@@ -59,8 +61,8 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
   
 
   void _openSetupFor(String method) {
-    final enable = _EnableMfaStub();
-    final verify = _VerifyMfaStub();
+    final enable = EnableMfaImpl(email: widget.email);
+    final verify = VerifyMfaImpl(email: widget.email);
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -71,21 +73,70 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
           allowSelection: false,
         ),
       ),
-    );
+    ).then((_) => _loadAuthStatus());
   }
 
-  void _openVerify(String method) {
-    final verify = _VerifyMfaStub();
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => MfaVerifyScreen(verifyMfa: verify, method: method),
-      ),
-    );
-  }
 
   void _select(String method) {
     setState(() => _selected = (_selected == method) ? null : method);
+  }
+
+  Future<void> _loadAuthStatus() async {
+    try {
+      final get = GetMfaStatusImpl(email: widget.email);
+      final enabled = await get.call();
+      if (!mounted) return;
+      setState(() {
+        _authEnabled = enabled;
+        if (enabled) {
+          _selected = 'authenticator';
+        } else if (_selected == 'authenticator') {
+          _selected = null;
+        }
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _toggleAuthenticator(bool value) async {
+    if (value) {
+      _openSetupFor('authenticator');
+      return;
+    }
+    final confirm = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Disable Authenticator App?'),
+        content: const Text('Are you sure you want to disable the Authenticator App? You will no longer receive verification codes at login.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Disable'),
+          ),
+        ],
+      ),
+    ) ?? false;
+    if (!confirm) {
+      if (!mounted) return;
+      setState(() {});
+      return;
+    }
+    final disable = DisableMfaImpl(email: widget.email);
+    final res = await disable.call();
+    final ok = res['success'] == true;
+    if (!mounted) return;
+    setState(() {
+      _authEnabled = ok ? false : _authEnabled;
+      if (ok) _selected = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(ok ? 'Authenticator disabled' : (res['message'] ?? 'Disable failed').toString())),
+    );
   }
 
   @override
@@ -161,7 +212,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
           icon: Icons.qr_code,
           title: 'Authenticator App',
           enabled: _authEnabled,
-          onToggle: (v) => setState(() => _authEnabled = v),
+          onToggle: _toggleAuthenticator,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -171,13 +222,14 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
               const SizedBox(height: 8),
               const Text('During setup, you will scan a QR code and enter the generated 6-digit code to verify.'),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  ElevatedButton(onPressed: () => _openSetupFor('authenticator'), child: const Text('Set Up')),
-                  const SizedBox(width: 12),
-                  OutlinedButton(onPressed: () => _openVerify('authenticator'), child: const Text('Verify')),
-                ],
-              ),
+              if (_authEnabled)
+                const Text('Authenticator is already set up.', style: TextStyle(color: Colors.green))
+              else
+                Row(
+                  children: [
+                    ElevatedButton(onPressed: () => _openSetupFor('authenticator'), child: const Text('Set Up')),
+                  ],
+                ),
             ],
           ),
         );
@@ -199,8 +251,6 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
               Row(
                 children: [
                   ElevatedButton(onPressed: () => _openSetupFor('fingerprint'), child: const Text('Set Up')),
-                  const SizedBox(width: 12),
-                  OutlinedButton(onPressed: () => _openVerify('fingerprint'), child: const Text('Verify')),
                 ],
               ),
             ],
@@ -225,8 +275,6 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
               Row(
                 children: [
                   ElevatedButton(onPressed: () => _openSetupFor('face'), child: const Text('Set Up')),
-                  const SizedBox(width: 12),
-                  OutlinedButton(onPressed: () => _openVerify('face'), child: const Text('Verify')),
                 ],
               ),
             ],
@@ -274,16 +322,3 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
     );
   }
 }
-
-class _EnableMfaStub implements EnableMfa {
-  @override
-  Future<void> call({required String method}) async {}
-}
-
-class _VerifyMfaStub implements VerifyMfa {
-  @override
-  Future<bool> call({required String code}) async {
-    return true;
-  }
-}
-
