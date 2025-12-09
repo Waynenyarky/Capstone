@@ -198,6 +198,75 @@ class MongoDBService {
     }
   }
 
+  static Future<Map<String, dynamic>> signupStart({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phoneNumber,
+    required String password,
+    required bool termsAccepted,
+  }) async {
+    try {
+      final body = {
+        'firstName': firstName,
+        'lastName': lastName,
+        'email': email,
+        'phoneNumber': phoneNumber,
+        'password': password,
+        'termsAccepted': termsAccepted,
+        'role': 'user',
+      };
+      final response = await _postJsonWithFallback('/api/auth/signup/start', body);
+      final ct = (response.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(response.body) : {};
+      if (response.statusCode == 200) {
+        return { 'success': true };
+      }
+      String code = '';
+      String msg = 'Failed to send verification code';
+      if (data is Map) {
+        final err = data['error'];
+        if (err is Map) {
+          if (err['code'] is String) code = err['code'] as String;
+          if (err['message'] is String) msg = err['message'] as String;
+        } else if (data['message'] is String) {
+          msg = data['message'] as String;
+        }
+      }
+      if (code == 'email_exists') {
+        msg = 'This email is already registered. Please log in or choose another email.';
+      }
+      return { 'success': false, 'message': msg, if (code.isNotEmpty) 'code': code };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> signupVerify({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      final body = { 'email': email, 'code': code };
+      final response = await _postJsonWithFallback('/api/auth/signup/verify', body);
+      final ct = (response.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(response.body) : {};
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return { 'success': true, 'user': data };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] as String : 'Failed to verify signup';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
