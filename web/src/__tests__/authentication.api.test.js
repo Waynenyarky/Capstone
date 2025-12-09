@@ -10,8 +10,7 @@ describe('Authentication public API', () => {
     const expectedExports = [
       'LoginForm',
       'LogoutForm',
-      'CustomerSignUpForm',
-      'ProviderSignUpForm',
+      'UserSignUpForm',
       'LoginVerificationForm',
       'SignUpVerificationForm',
       'ChangeEmailForm',
@@ -20,7 +19,6 @@ describe('Authentication public API', () => {
       'VerificationForm',
       'SendCodeForCurrentUser',
       'PasswordResetFlow',
-      // Consolidated account flows
       'DeleteAccountFlow',
       'LoggedInEmailChangeFlow',
       'LoggedInPasswordChangeFlow',
@@ -40,10 +38,9 @@ describe('Authentication public API', () => {
       'useLoginVerificationForm',
       'useSendVerificationCode',
       'useSignUpVerificationForm',
-      'useProviderSignUp',
-      'useCustomerSignUp',
+      'useUserSignUp',
+      'useUserSignUpFlow',
       'usePasswordResetFlow',
-      // Consolidated account hooks
       'useLoggedInEmailChangeFlow',
       'useLoggedInPasswordChangeFlow',
       'useConfirmDeleteAccountForm',
@@ -61,9 +58,6 @@ describe('Authentication validations API', () => {
   it('exposes expected rule sets', () => {
     const expectedRuleExports = [
       'firstNameRules', 'lastNameRules', 'phoneNumberRules', 'emailRules', 'termsRules',
-      'businessNameRules', 'businessTypeRules', 'yearsInBusinessRules', 'serviceAreasRules',
-      'businessPhoneRules', 'businessEmailRules', 'businessDescriptionRules', 'businessAddressRules',
-      'cityRules', 'provinceRules', 'zipCodeRules', 'serviceCategoriesRules',
       'signUpPasswordRules', 'signUpConfirmPasswordRules',
       'changePasswordRules', 'changeConfirmPasswordRules',
       'loginEmailRules', 'loginPasswordRules',

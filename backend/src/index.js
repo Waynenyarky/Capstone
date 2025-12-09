@@ -26,41 +26,13 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, service: 'backend', timestamp: new Date().toISOString() });
 });
 
-// Categories API routes (DB-aware with in-memory fallback)
-const categoriesRouter = require('./routes/categories')
-app.use('/api/categories', categoriesRouter)
-
-// Services API routes (DB-aware with in-memory fallback)
-const servicesRouter = require('./routes/services')
-app.use('/api/services', servicesRouter)
-
-// Providers API routes (DB-aware with in-memory fallback)
-const providersRouter = require('./routes/providers')
-app.use('/api/providers', providersRouter)
-
-// Provider offerings and onboarding routes
-const providerOfferingsRouter = require('./routes/providerOfferings')
-app.use('/api/provider-offerings', providerOfferingsRouter)
+// Removed domain-specific routes for services/providers/offerings
 
 // Auth API routes (DB-aware with in-memory fallback)
 const authRouter = require('./routes/auth')
 app.use('/api/auth', authRouter)
 
-// Locations API routes (PSGC-backed)
-const locationsRouter = require('./routes/locations')
-app.use('/api/locations', locationsRouter)
-
-// Service Areas config routes (admin-managed)
-const serviceAreasRouter = require('./routes/serviceAreas')
-app.use('/api/service-areas', serviceAreasRouter)
-
-// Customer Addresses routes
-const customerAddressesRouter = require('./routes/customerAddresses')
-app.use('/api/customer-addresses', customerAddressesRouter)
-
-// Appointments routes
-const appointmentsRouter = require('./routes/appointments')
-app.use('/api/appointments', appointmentsRouter)
+// Removed locations, service areas, customer addresses, appointments routes
 
 const PRIMARY_PORT = Number(process.env.PORT || 3000);
 const SECONDARY_PORT = Number(process.env.ALT_PORT || process.env.PORT2 || 5001);
