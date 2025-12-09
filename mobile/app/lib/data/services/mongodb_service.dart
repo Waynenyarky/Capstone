@@ -612,4 +612,55 @@ class MongoDBService {
       return {'success': false, 'message': 'Connection error: ${e.toString()}'};
     }
   }
+
+  static Future<Map<String, dynamic>> deleteAvatar({
+    required String email,
+    String? token,
+  }) async {
+    try {
+      final headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'x-user-email': email,
+        if (token != null && token.isNotEmpty) 'x-auth-token': token,
+      };
+
+      try {
+        final delRes = await http
+            .delete(
+          Uri.parse('$baseUrl/api/auth/profile/avatar'),
+          headers: headers,
+        )
+            .timeout(const Duration(seconds: 12));
+        final delCt = (delRes.headers['content-type'] ?? '').toLowerCase();
+        final delIsJson = delCt.contains('application/json');
+        final delData = delIsJson ? json.decode(delRes.body) : {};
+        if (delRes.statusCode == 200 || delRes.statusCode == 204) {
+          return {
+            'success': true,
+            'message': (delData is Map && delData['message'] is String) ? delData['message'] : 'Avatar deleted',
+          };
+        }
+      } catch (_) {}
+
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/profile/avatar/delete',
+        {},
+        headers: { 'x-user-email': email, if (token != null && token.isNotEmpty) 'x-auth-token': token },
+        timeout: const Duration(seconds: 12),
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200) {
+        return { 'success': true, 'message': (data is Map && data['message'] is String) ? data['message'] : 'Avatar deleted' };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Delete failed';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
 }
