@@ -11,7 +11,7 @@
 
 /**
  * @typedef {Object} SignupPayload
- * @property {string} role - 'customer' | 'provider'
+ * @property {string} role - 'user'
  * @property {string} firstName
  * @property {string} lastName
  * @property {string} email
@@ -20,27 +20,7 @@
  * @property {boolean} termsAccepted
  */
 
-/**
- * @typedef {Object} ProviderSignupExtras
- * @property {string=} businessName
- * @property {string=} businessType
- * @property {number=} yearsInBusiness
- * @property {Array<string>=} servicesCategories
- * @property {Array<string>=} serviceAreas
- * @property {Array<string>=} socialLinks
- * @property {string=} streetAddress
- * @property {string=} city
- * @property {string=} province
- * @property {string=} zipCode
- * @property {string=} businessPhone
- * @property {string=} businessEmail
- * @property {string=} businessDescription
- * @property {boolean=} hasInsurance
- * @property {boolean=} hasLicenses
- * @property {boolean=} consentsToBackgroundCheck
- * @property {boolean=} isSolo
- * @property {Array<Object>=} teamMembers
- */
+// Provider-specific signup extras have been removed in favor of a unified user model
 
 /**
  * @typedef {Object} VerificationPayload

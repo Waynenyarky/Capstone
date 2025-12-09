@@ -1,20 +1,11 @@
 [
   {
-    "role": "customer",
+    "role": "user",
     "firstName": "Jane",
     "lastName": "Doe",
     "email": "jane@example.com",
     "phoneNumber": "+1-555-0101",
     "passwordPlain": "password123",
-    "termsAccepted": true
-  },
-  {
-    "role": "provider",
-    "firstName": "Mario",
-    "lastName": "Santos",
-    "email": "mario.provider@example.com",
-    "phoneNumber": "+1-555-0202",
-    "passwordPlain": "providerpass",
     "termsAccepted": true
   }
 ]

@@ -15,8 +15,7 @@ export default function LoginForm({ onSubmit } = {}) {
     isSubmitting,
     initialValues,
     prefillAdmin,
-    prefillProvider,
-    prefillCustomer,
+    prefillUser,
     verificationProps,
   } = useLoginFlow({ onSubmit })
 
@@ -33,13 +32,11 @@ export default function LoginForm({ onSubmit } = {}) {
             menu={{
               items: [
                 { key: 'admin', label: 'Admin' },
-                { key: 'provider', label: 'Provider' },
-                { key: 'customer', label: 'Customer' },
+                { key: 'user', label: 'User' },
               ],
               onClick: ({ key }) => {
                 if (key === 'admin') prefillAdmin()
-                else if (key === 'provider') prefillProvider()
-                else if (key === 'customer') prefillCustomer()
+                else if (key === 'user') prefillUser()
               },
             }}
             trigger={['click']}

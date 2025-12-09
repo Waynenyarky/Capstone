@@ -2,7 +2,7 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Row, Col, Layout } from 'antd'
 import { LogoutForm, DeletionScheduledBanner, useAuthSession } from "@/features/authentication"
-import { CustomerWorkspaceGate } from "@/features/customer"
+import { UserWorkspaceGate } from "@/features/user"
 import { AdminWorkspaceGate } from "@/features/admin"
 
 
@@ -34,9 +34,9 @@ export default function Dashboard() {
       )}
 
 
-      {currentUser && !currentUser?.deletionPending && role === 'customer' && (
+      {currentUser && !currentUser?.deletionPending && role === 'user' && (
         <>
-          <CustomerWorkspaceGate />
+          <UserWorkspaceGate />
         </>
       )}
 
