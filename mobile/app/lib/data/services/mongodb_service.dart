@@ -555,6 +555,157 @@ class MongoDBService {
     }
   }
 
+  static Future<Map<String, dynamic>> scheduleAccountDeletion({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final loginRes = await _postJsonWithFallbackH(
+        '/api/auth/login',
+        { 'email': email, 'password': password },
+        headers: { 'x-user-email': email },
+      );
+      final loginCt = (loginRes.headers['content-type'] ?? '').toLowerCase();
+      final loginJson = loginCt.contains('application/json');
+      final loginData = loginJson ? json.decode(loginRes.body) : {};
+      if (loginRes.statusCode != 200) {
+        final msg = (loginData is Map && loginData['message'] is String)
+            ? loginData['message']
+            : 'Invalid email or password';
+        return { 'success': false, 'message': msg };
+      }
+
+      final sendRes = await _postJsonWithFallbackH(
+        '/api/auth/delete-account/send-code',
+        { 'email': email },
+        headers: { 'x-user-email': email },
+      );
+      final sendCt = (sendRes.headers['content-type'] ?? '').toLowerCase();
+      final sendJson = sendCt.contains('application/json');
+      final sendData = sendJson ? json.decode(sendRes.body) : {};
+      final devCode = (sendData is Map && sendData['devCode'] is String) ? sendData['devCode'] as String : '';
+      if (sendRes.statusCode != 200) {
+        final msg = (sendData is Map && sendData['message'] is String) ? sendData['message'] : 'Failed to send verification code';
+        return { 'success': false, 'message': msg };
+      }
+
+      if (devCode.isEmpty) {
+        return { 'success': false, 'message': 'Check your inbox for a verification code to schedule deletion.' };
+      }
+
+      final verifyRes = await _postJsonWithFallbackH(
+        '/api/auth/delete-account/verify-code',
+        { 'email': email, 'code': devCode },
+        headers: { 'x-user-email': email },
+      );
+      final verifyCt = (verifyRes.headers['content-type'] ?? '').toLowerCase();
+      final verifyJson = verifyCt.contains('application/json');
+      final verifyData = verifyJson ? json.decode(verifyRes.body) : {};
+      final deleteToken = (verifyData is Map && verifyData['deleteToken'] is String) ? verifyData['deleteToken'] as String : '';
+      if (verifyRes.statusCode != 200 || deleteToken.isEmpty) {
+        final msg = (verifyData is Map && verifyData['message'] is String) ? verifyData['message'] : 'Failed to verify delete code';
+        return { 'success': false, 'message': msg };
+      }
+
+      final confirmRes = await _postJsonWithFallbackH(
+        '/api/auth/delete-account/confirm',
+        { 'email': email, 'deleteToken': deleteToken },
+        headers: { 'x-user-email': email },
+      );
+      final ok = confirmRes.statusCode == 200;
+      final confirmCt = (confirmRes.headers['content-type'] ?? '').toLowerCase();
+      final confirmJson = confirmCt.contains('application/json');
+      final confirmData = confirmJson ? json.decode(confirmRes.body) : {};
+      if (ok) {
+        final scheduledFor = () {
+          try {
+            final user = (confirmData is Map) ? confirmData['user'] : null;
+            final v = (user is Map && user['deletionScheduledFor'] is String)
+                ? user['deletionScheduledFor'] as String
+                : null;
+            return v;
+          } catch (_) {
+            return null;
+          }
+        }();
+        return { 'success': true, 'message': 'Deletion scheduled', if (scheduledFor != null) 'scheduledFor': scheduledFor };
+      }
+      return {
+        'success': false,
+        'message': (confirmData is Map && confirmData['message'] is String)
+            ? confirmData['message']
+            : 'Failed to schedule deletion',
+      };
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': 'Request timeout. Check network and server availability.',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error: ${e.toString()}',
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> fetchProfile({
+    required String email,
+  }) async {
+    try {
+      final res = await http
+          .get(
+        Uri.parse('$baseUrl/api/auth/me'),
+        headers: {
+          'Accept': 'application/json',
+          'x-user-email': email,
+        },
+      )
+          .timeout(const Duration(seconds: 12));
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map) {
+        return {
+          'success': true,
+          'user': data,
+          'deletionPending': data['deletionPending'] == true,
+          'deletionScheduledFor': (data['deletionScheduledFor'] is String) ? data['deletionScheduledFor'] : null,
+        };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to load profile';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> cancelAccountDeletion({
+    required String email,
+  }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/delete-account/cancel',
+        {},
+        headers: { 'x-user-email': email },
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200) {
+        return { 'success': true, 'message': 'Deletion cancelled' };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to cancel deletion';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
   static Future<Map<String, dynamic>> uploadAvatar({
     required String email,
     required String imageBase64,
