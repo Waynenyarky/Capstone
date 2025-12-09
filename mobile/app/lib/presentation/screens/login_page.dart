@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'signup_page.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'profile.dart';
+import 'deletion_scheduled_page.dart';
 // Face Unlock reverted: remove integration imports
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? deletionScheduledForISO;
+  const LoginScreen({super.key, this.deletionScheduledForISO});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -43,6 +45,34 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _passwordTouched = true);
       }
     });
+
+    final iso = (widget.deletionScheduledForISO ?? '').trim();
+    if (iso.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final dt = _tryParseDate(iso);
+        final msg = dt != null
+            ? 'Your account is scheduled for deletion in 30 days.\nScheduled for: ${_formatDateTime(dt)}'
+            : 'Your account is scheduled for deletion in 30 days.';
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.showMaterialBanner(
+          MaterialBanner(
+            content: Text(msg),
+            leading: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+            backgroundColor: Colors.orange.shade50,
+            actions: [
+              TextButton(
+                onPressed: () => messenger.hideCurrentMaterialBanner(),
+                child: const Text('Dismiss'),
+              ),
+            ],
+          ),
+        );
+        Future.delayed(const Duration(seconds: 6), () {
+          if (!mounted) return;
+          messenger.hideCurrentMaterialBanner();
+        });
+      });
+    }
   }
 
   @override
@@ -56,6 +86,28 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isValidEmail(String v) {
     return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim());
+  }
+
+  DateTime? _tryParseDate(String iso) {
+    try {
+      return DateTime.parse(iso).toLocal();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _two(int n) => n.toString().padLeft(2, '0');
+  String _formatDateTime(DateTime dt) {
+    final y = dt.year.toString().padLeft(4, '0');
+    final m = _two(dt.month);
+    final d = _two(dt.day);
+    final hour = dt.hour;
+    final ampm = hour >= 12 ? 'PM' : 'AM';
+    final h12 = hour % 12 == 0 ? 12 : hour % 12;
+    final h = _two(h12);
+    final min = _two(dt.minute);
+    final s = _two(dt.second);
+    return '$y-$m-$d $h:$min:$s $ampm';
   }
 
   void _showForgotPasswordDialog() {
@@ -270,17 +322,31 @@ class _LoginScreenState extends State<LoginScreen> {
           final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
           final avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
           final token = (result['token'] is String) ? result['token'] as String : '';
+          final navigator = Navigator.of(context);
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Welcome back, $firstName!'),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          final profileRes = await MongoDBService.fetchProfile(email: email);
+          final pending = profileRes['deletionPending'] == true;
+          final scheduledISO = (profileRes['deletionScheduledFor'] is String) ? profileRes['deletionScheduledFor'] as String : null;
 
-          Navigator.pushAndRemoveUntil(
-            context,
+          if (pending && scheduledISO != null) {
+            navigator.pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (_) => DeletionScheduledPage(
+                  email: email,
+                  scheduledISO: scheduledISO,
+                  firstName: firstName,
+                  lastName: lastName,
+                  phoneNumber: phoneNumber,
+                  token: token,
+                  avatarUrl: avatarUrl,
+                ),
+              ),
+              (route) => false,
+            );
+            return;
+          }
+
+          navigator.pushAndRemoveUntil(
             MaterialPageRoute(
               builder: (_) => ProfilePage(
                 email: email,
