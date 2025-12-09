@@ -10,6 +10,9 @@ const UserSchema = new mongoose.Schema(
     avatarUrl: { type: String, default: '' },
     passwordHash: { type: String, required: true },
     termsAccepted: { type: Boolean, default: false },
+    // MFA (Time-based One-Time Password)
+    mfaEnabled: { type: Boolean, default: false },
+    mfaSecret: { type: String, default: '' },
     // Account deletion scheduling (30-day waiting period)
     deletionRequestedAt: { type: Date, default: null },
     deletionScheduledFor: { type: Date, default: null },

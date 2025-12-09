@@ -3,6 +3,7 @@ import 'signup_page.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'profile.dart';
 import 'deletion_scheduled_page.dart';
+import 'security/login_mfa_screen.dart';
 // Face Unlock reverted: remove integration imports
 
 class LoginScreen extends StatefulWidget {
@@ -361,16 +362,26 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         } else {
           if (!mounted) return;
-          final msg = (result['message'] is String && (result['message'] as String).trim().isNotEmpty)
-              ? result['message'] as String
-              : 'Incorrect email or password';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(msg),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          final code = (result['code'] is String) ? result['code'] as String : '';
+          if (code == 'mfa_required') {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => LoginMfaScreen(email: _emailController.text.trim()),
+              ),
+            );
+          } else {
+            final msg = (result['message'] is String && (result['message'] as String).trim().isNotEmpty)
+                ? result['message'] as String
+                : 'Incorrect email or password';
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(msg),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
         }
       } catch (e) {
         setState(() => _isLoading = false);

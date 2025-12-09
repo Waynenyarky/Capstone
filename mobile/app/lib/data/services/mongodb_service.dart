@@ -129,6 +129,37 @@ class MongoDBService {
     throw TimeoutException('All endpoints unreachable for $path');
   }
 
+  static Future<http.Response> _getWithFallbackH(
+    String path, {
+    Map<String, String>? headers,
+    Duration timeout = const Duration(seconds: 12),
+  }) async {
+    final candidates = _candidateBaseUrls();
+    final baseHeaders = {
+      'Accept': 'application/json',
+      ...?headers,
+    };
+    for (final origin in candidates) {
+      final uri = Uri.parse('$origin$path');
+      try {
+        final res = await http
+            .get(
+          uri,
+          headers: baseHeaders,
+        )
+            .timeout(timeout);
+        return res;
+      } on TimeoutException catch (_) {
+        continue;
+      } on SocketException catch (_) {
+        continue;
+      } catch (_) {
+        continue;
+      }
+    }
+    throw TimeoutException('All endpoints unreachable for $path');
+  }
+
 
   static Future<Map<String, dynamic>> signUp({
     required String firstName,
@@ -295,11 +326,12 @@ class MongoDBService {
           'token': null,
         };
       } else {
+        String code = '';
         final msg = () {
           try {
-            final m = (data is Map && data['error'] is Map)
-                ? data['error']['message']
-                : null;
+            final err = (data is Map && data['error'] is Map) ? data['error'] as Map : null;
+            if (err != null && err['code'] is String) code = err['code'] as String;
+            final m = err != null ? err['message'] : null;
             return m ?? (data is Map ? data['message'] : null);
           } catch (_) {
             return null;
@@ -308,6 +340,7 @@ class MongoDBService {
         return {
           'success': false,
           'message': msg ?? 'Login failed',
+          if (code.isNotEmpty) 'code': code,
         };
       }
     } on TimeoutException {
@@ -321,6 +354,31 @@ class MongoDBService {
         'success': false,
         'message': 'Connection error: ${e.toString()}',
       };
+    }
+  }
+
+  static Future<Map<String, dynamic>> loginVerifyTotp({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/login/verify-totp',
+        { 'email': email, 'code': code },
+        headers: { 'x-user-email': email },
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200) {
+        return { 'success': true, 'user': data };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Invalid verification code';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
     }
   }
 
@@ -366,6 +424,91 @@ class MongoDBService {
       return false;
     } catch (_) {
       return false;
+    }
+  }
+
+  static Future<bool> getMfaStatus({ required String email }) async {
+    try {
+      final res = await _getWithFallbackH(
+        '/api/auth/mfa/status',
+        headers: { 'x-user-email': email },
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map) {
+        final flag = data['enabled'];
+        return flag is bool ? flag : false;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<Map<String, dynamic>> mfaSetup({ required String email, required String method }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/mfa/setup',
+        { 'method': method },
+        headers: { 'x-user-email': email },
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map) {
+        return { 'success': true, ...data };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to setup MFA';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> mfaVerify({ required String email, required String code }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/mfa/verify',
+        { 'code': code },
+        headers: { 'x-user-email': email },
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200) {
+        return { 'success': true, 'enabled': data is Map ? (data['enabled'] == true) : true };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to verify MFA';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> mfaDisable({ required String email }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/mfa/disable',
+        {},
+        headers: { 'x-user-email': email },
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200) {
+        return { 'success': true };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to disable MFA';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
     }
   }
 

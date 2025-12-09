@@ -27,6 +27,11 @@ const verifyCodeSchema = Joi.object({
   code: Joi.string().trim().pattern(/^[0-9]{6}$/).required(),
 })
 
+const verifyTotpSchema = Joi.object({
+  email: Joi.string().email().required(),
+  code: Joi.string().trim().pattern(/^[0-9]{6}$/).required(),
+})
+
 // Allow disabling or relaxing rate limits in development/testing
 const DISABLE_LIMITS = process.env.DISABLE_RATE_LIMIT === 'true' || process.env.NODE_ENV !== 'production'
 const passthrough = (req, res, next) => next()
@@ -94,6 +99,10 @@ router.post('/login', validateBody(loginCredentialsSchema), async (req, res) => 
       }
     }
     if (!match) return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
+
+    if (doc.mfaEnabled === true) {
+      return respond.error(res, 401, 'mfa_required', 'Multi-factor authentication required')
+    }
     if (doc.role !== 'user' && doc.role !== 'admin') {
       try {
         const dbDoc = await User.findById(doc._id)
@@ -250,6 +259,40 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
   } catch (err) {
     console.error('POST /api/auth/login/verify error:', err)
     return respond.error(res, 500, 'login_verify_failed', 'Failed to verify login code')
+  }
+})
+
+// POST /api/auth/login/verify-totp
+router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, res) => {
+  try {
+    const { email, code } = req.body || {}
+    const doc = await User.findOne({ email }).lean()
+    if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+    if (doc.mfaEnabled !== true || !doc.mfaSecret) {
+      return respond.error(res, 400, 'mfa_not_enabled', 'MFA is not enabled for this account')
+    }
+
+    const { verifyTotp } = require('../../lib/totp')
+    const ok = verifyTotp({ secret: String(doc.mfaSecret), token: String(code), window: 1, period: 30, digits: 6 })
+    if (!ok) return respond.error(res, 401, 'invalid_mfa_code', 'Invalid verification code')
+
+    const safe = {
+      id: String(doc._id),
+      role: doc.role,
+      firstName: doc.firstName,
+      lastName: doc.lastName,
+      email: doc.email,
+      phoneNumber: doc.phoneNumber,
+      avatarUrl: doc.avatarUrl || '',
+      termsAccepted: doc.termsAccepted,
+      deletionPending: !!doc.deletionPending,
+      deletionScheduledFor: doc.deletionScheduledFor,
+      createdAt: doc.createdAt,
+    }
+    return res.json(safe)
+  } catch (err) {
+    console.error('POST /api/auth/login/verify-totp error:', err)
+    return respond.error(res, 500, 'login_mfa_failed', 'Failed to verify MFA login')
   }
 })
 
