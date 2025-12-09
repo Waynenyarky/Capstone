@@ -2,8 +2,7 @@
 // Components
 export { default as LoginForm } from './components/LoginForm.jsx'
 export { default as LogoutForm } from './components/LogoutForm.jsx'
-export { default as CustomerSignUpForm } from './components/CustomerSignUpForm.jsx'
-export { default as ProviderSignUpForm } from './components/ProviderSignUpForm.jsx'
+export { default as UserSignUpForm } from './components/UserSignUpForm.jsx'
 export { default as LoginVerificationForm } from './components/LoginVerificationForm.jsx'
 export { default as SignUpVerificationForm } from './components/SignUpVerificationForm.jsx'
 export { default as ChangePasswordForm } from './components/ChangePasswordForm.jsx'

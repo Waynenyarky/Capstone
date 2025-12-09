@@ -1,8 +1,7 @@
 // Authentication components barrel — prefer importing components from here
 export { default as LoginForm } from './LoginForm.jsx'
 export { default as LogoutForm } from './LogoutForm.jsx'
-export { default as CustomerSignUpForm } from './CustomerSignUpForm.jsx'
-export { default as ProviderSignUpForm } from './ProviderSignUpForm.jsx'
+export { default as UserSignUpForm } from './UserSignUpForm.jsx'
 export { default as LoginVerificationForm } from './LoginVerificationForm.jsx'
 export { default as SignUpVerificationForm } from './SignUpVerificationForm.jsx'
 export { default as ChangePasswordForm } from './ChangePasswordForm.jsx'
@@ -15,5 +14,4 @@ export { default as SendCodeForCurrentUser } from './SendCodeForCurrentUser.jsx'
 export { default as SendDeleteCodeForCurrentUser } from './SendDeleteCodeForCurrentUser.jsx'
 export { default as DeletionScheduledBanner } from './DeletionScheduledBanner.jsx'
 
-// Nested provider components
-export * from './provider/index.js'
+ 

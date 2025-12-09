@@ -3,9 +3,11 @@ import { loginEmailRules, loginPasswordRules } from "@/features/authentication/v
 import { useLoginFlow } from "@/features/authentication/hooks"
 import { LoginVerificationForm } from "@/features/authentication"
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 
 
 export default function LoginForm({ onSubmit } = {}) {
+  const navigate = useNavigate()
   const {
     step,
     form,
@@ -13,8 +15,7 @@ export default function LoginForm({ onSubmit } = {}) {
     isSubmitting,
     initialValues,
     prefillAdmin,
-    prefillProvider,
-    prefillCustomer,
+    prefillUser,
     verificationProps,
   } = useLoginFlow({ onSubmit })
 
@@ -22,28 +23,32 @@ export default function LoginForm({ onSubmit } = {}) {
     return <LoginVerificationForm {...verificationProps} />
   }
 
-  return (
-    <Card title="Login" extra={(
-      <Flex gap="small">
+  const extraContent = (
+    <Flex gap="small" align="center">
+      <Button size="small" onClick={() => navigate('/')}>Home</Button>
+      <Button size="small" type="link" onClick={() => navigate('/sign-up')}>Sign Up</Button>
+      {import.meta.env.MODE !== 'production' ? (
         <Dropdown
           menu={{
             items: [
               { key: 'admin', label: 'Admin' },
-              { key: 'provider', label: 'Provider' },
-              { key: 'customer', label: 'Customer' },
+              { key: 'user', label: 'User' },
             ],
             onClick: ({ key }) => {
               if (key === 'admin') prefillAdmin()
-              else if (key === 'provider') prefillProvider()
-              else if (key === 'customer') prefillCustomer()
+              else if (key === 'user') prefillUser()
             },
           }}
           trigger={['click']}
         >
           <Button size="small" type="text">Prefill</Button>
         </Dropdown>
-      </Flex>
-    )}>
+      ) : null}
+    </Flex>
+  )
+
+  return (
+    <Card title="Login" extra={extraContent}>
       <Form name="login" form={form} layout="vertical" onFinish={handleFinish} initialValues={initialValues}>
         <Form.Item
           name="email"
@@ -63,6 +68,7 @@ export default function LoginForm({ onSubmit } = {}) {
           <Checkbox>Remember me</Checkbox>
         </Form.Item>
         <Flex justify="end" gap="small">
+          <Button type="link" onClick={() => navigate('/forgot-password')}>Forgot password?</Button>
           <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting}>Continue</Button>
         </Flex>
       </Form>
