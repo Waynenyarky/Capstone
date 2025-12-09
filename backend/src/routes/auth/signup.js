@@ -4,6 +4,7 @@ const mongoose = require('mongoose')
 const User = require('../../models/User')
 // Provider-related models removed in unified user flow
 const { generateCode } = require('../../lib/codes')
+const { sendOtp } = require('../../lib/mailer')
 const { signUpRequests } = require('../../lib/authRequestsStore')
 const SignUpRequest = require('../../models/SignUpRequest')
 const respond = require('../../middleware/respond')
@@ -28,18 +29,33 @@ const verifyCodeSchema = Joi.object({
 })
 
 const signupStartLimiter = perEmailRateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 5,
+  windowMs: Number(process.env.VERIFICATION_RESEND_COOLDOWN_SEC || 60) * 1000,
+  max: 1,
   code: 'signup_code_rate_limited',
-  message: 'Too many signup code requests; try again later.',
+  message: 'You have requested multiple verification codes recently. Please wait and try again later.',
 })
 
 const signupVerifyLimiter = perEmailRateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 10,
+  windowMs: Number(process.env.VERIFICATION_CODE_TTL_MIN || 10) * 60 * 1000,
+  max: Number(process.env.VERIFICATION_MAX_ATTEMPTS || 5),
   code: 'signup_verify_rate_limited',
   message: 'Too many signup verification attempts; try again later.',
 })
+
+async function checkExistingEmailBeforeLimiter(req, res, next) {
+  try {
+    const { email } = req.body || {}
+    let existing = null
+    if (mongoose.connection && mongoose.connection.readyState === 1) {
+      existing = await User.findOne({ email }).lean()
+    }
+    if (existing) return respond.error(res, 409, 'email_exists', 'Email already exists')
+    return next()
+  } catch (err) {
+    console.error('signup/start duplicate check error:', err)
+    return respond.error(res, 500, 'signup_start_failed', 'Failed to start sign up')
+  }
+}
 
 // POST /api/auth/signup
 router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
@@ -95,7 +111,7 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
 
 // POST /api/auth/signup/start
 // Step 1 for sign-up: collect payload, validate, send verification code
-router.post('/signup/start', signupStartLimiter, validateBody(signupPayloadSchema), async (req, res) => {
+router.post('/signup/start', validateBody(signupPayloadSchema), checkExistingEmailBeforeLimiter, signupStartLimiter, async (req, res) => {
   try {
     const {
       firstName,
@@ -125,7 +141,8 @@ router.post('/signup/start', signupStartLimiter, validateBody(signupPayloadSchem
     }
 
     const code = generateCode()
-    const expiresAtMs = Date.now() + 10 * 60 * 1000 // 10 minutes
+    const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10)
+    const expiresAtMs = Date.now() + ttlMin * 60 * 1000
     const emailKey = String(email).toLowerCase()
 
     const useDB = mongoose.connection && mongoose.connection.readyState === 1
@@ -139,9 +156,8 @@ router.post('/signup/start', signupStartLimiter, validateBody(signupPayloadSchem
       signUpRequests.set(emailKey, { code, expiresAt: expiresAtMs, payload })
     }
 
-    const out = { sent: true }
-    if (process.env.NODE_ENV !== 'production') out.devCode = code
-    return res.json(out)
+    await sendOtp({ to: email, code, subject: 'Verify your email' })
+    return res.json({ sent: true })
   } catch (err) {
     console.error('POST /api/auth/signup/start error:', err)
     return respond.error(res, 500, 'signup_start_failed', 'Failed to start sign up')
