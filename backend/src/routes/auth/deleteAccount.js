@@ -2,7 +2,6 @@ const express = require('express')
 const bcrypt = require('bcryptjs')
 const mongoose = require('mongoose')
 const User = require('../../models/User')
-const Provider = require('../../models/Provider')
 const { generateCode, generateToken } = require('../../lib/codes')
 const { deleteRequests } = require('../../lib/authRequestsStore')
 const DeleteRequest = require('../../models/DeleteRequest')
@@ -192,21 +191,7 @@ router.post('/delete-account/confirm', validateBody(confirmDeleteSchema), async 
     doc.deletionPending = true
     await doc.save()
 
-    // Mirror on provider record if applicable
-    try {
-      if (doc.role === 'provider') {
-        const providerDoc = await Provider.findOne({ userId: doc._id })
-        if (providerDoc) {
-          providerDoc.deletionRequestedAt = requestedAt
-          providerDoc.deletionScheduledFor = scheduledFor
-          providerDoc.deletionPending = true
-          providerDoc.status = 'deletion_pending'
-          await providerDoc.save()
-        }
-      }
-    } catch (providerErr) {
-      console.warn('Provider delete scheduling warning:', providerErr)
-    }
+    // Provider mirror removed
 
     // Cleanup delete request state
     if (useDB) await DeleteRequest.deleteOne({ email: emailKey })
@@ -258,23 +243,7 @@ router.post('/delete-account/cancel', async (req, res) => {
     doc.deletionPending = false
     await doc.save()
 
-    // Mirror cancellation on provider record if applicable
-    try {
-      if (doc.role === 'provider') {
-        const providerDoc = await Provider.findOne({ userId: doc._id })
-        if (providerDoc) {
-          providerDoc.deletionRequestedAt = null
-          providerDoc.deletionScheduledFor = null
-          providerDoc.deletionPending = false
-          if (providerDoc.status === 'deletion_pending' || providerDoc.status === 'deleted') {
-            providerDoc.status = 'active'
-          }
-          await providerDoc.save()
-        }
-      }
-    } catch (providerErr) {
-      console.warn('Provider delete cancel warning:', providerErr)
-    }
+    // Provider mirror removed
 
     const userSafe = {
       id: String(doc._id),
