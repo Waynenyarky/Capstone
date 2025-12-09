@@ -78,7 +78,7 @@ class MongoDBService {
         'password': password,
         'confirmPassword': confirmPassword,
         'termsAccepted': true,
-        'role': 'customer',
+        'role': 'user',
       };
 
       debugPrint('Sending signup request: $body');

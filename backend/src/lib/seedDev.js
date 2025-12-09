@@ -2,7 +2,7 @@ const fs = require('fs')
 const path = require('path')
 const bcrypt = require('bcryptjs')
 const User = require('../models/User')
-const Provider = require('../models/Provider')
+// Removed provider seeding; unified user model
 
 async function seedDevDataIfEmpty() {
   try {
@@ -52,7 +52,7 @@ async function seedDevDataIfEmpty() {
         for (const u of usersSeed) {
           const passwordHash = await bcrypt.hash(u.passwordPlain || 'changeme', 10)
           docs.push({
-            role: u.role || 'customer',
+            role: u.role || 'user',
             firstName: u.firstName,
             lastName: u.lastName,
             email: u.email,
@@ -80,35 +80,7 @@ async function seedDevDataIfEmpty() {
       }
     }
 
-    // Seed providers from JSON referencing users by email
-    const providersPath = path.join(__dirname, '..', 'data', 'seeds', 'providers.json')
-    let providersSeed = []
-    try {
-      const rawProv = fs.readFileSync(providersPath, 'utf-8')
-      providersSeed = JSON.parse(rawProv)
-    } catch (err) {
-      // optional file
-    }
-
-    if (Array.isArray(providersSeed) && providersSeed.length > 0) {
-      for (const p of providersSeed) {
-        if (!p.userEmail) continue
-        const user = await User.findOne({ email: p.userEmail }).lean()
-        if (!user) continue
-        const exists = await Provider.findOne({ userId: user._id }).lean()
-        if (exists) continue
-        await Provider.create({
-          userId: user._id,
-          businessName: p.businessName || '',
-          servicesCategories: Array.isArray(p.servicesCategories) ? p.servicesCategories : [],
-          streetAddress: p.streetAddress || '',
-          city: p.city || '',
-          province: p.province || '',
-          zipCode: p.zipCode || '',
-          status: p.status || 'pending',
-        })
-      }
-    }
+    // Provider seeding removed
 
     console.log('Dev seed loader run complete.')
   } catch (err) {
