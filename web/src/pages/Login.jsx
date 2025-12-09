@@ -1,5 +1,5 @@
 import React from 'react'
-import { Layout, Row, Col } from 'antd'
+import { Layout, Row, Col, Button } from 'antd'
 import { LoginForm } from '@/features/authentication'
 import { useNavigate } from 'react-router-dom'
 
@@ -16,6 +16,9 @@ export default function Login() {
       <Layout.Content style={{ padding: 24 }}>
         <Row justify="center">
           <Col>
+            <div style={{ marginBottom: 12 }}>
+              <Button onClick={() => navigate('/')} style={{ marginBottom: 12 }}>Back</Button>
+            </div>
             <LoginForm onSubmit={handleLoginSuccess} />
           </Col>
         </Row>

@@ -12,6 +12,8 @@ export { default as SendCodeForCurrentUser } from './components/SendCodeForCurre
 export { default as PasswordResetFlow } from './flows/PasswordResetFlow.jsx'
 export { default as ConfirmLogoutModal } from './components/ConfirmLogoutModal.jsx'
 export { default as ChangeEmailForm } from './components/ChangeEmailForm.jsx'
+export { default as RequireAdmin } from './components/RequireAdmin.jsx'
+export { default as AdminLoginForm } from './components/AdminLoginForm.jsx'
 
 // Hooks — re-export from hooks barrel to avoid duplication
 export * from './hooks/index.js'

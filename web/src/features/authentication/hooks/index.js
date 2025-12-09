@@ -1,4 +1,5 @@
 export { useAuthSession } from './useAuthSession.js'
+export { default as useAdminLogin } from './useAdminLogin.js'
 export { useLogin } from './useLogin.js'
 export { useLoginFlow } from './useLoginFlow.js'
 export { useLogoutForm } from './useLogoutForm.js'

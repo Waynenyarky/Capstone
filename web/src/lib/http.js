@@ -1,9 +1,30 @@
+import { getCurrentUser } from '@/features/authentication/lib/authEvents.js'
+
 export async function fetchWithFallback(path, options = {}) {
   const BACKEND_ORIGIN = import.meta.env.VITE_BACKEND_ORIGIN
 
+  // Clone options so we don't mutate the caller's object
+  const opts = { ...(options || {}) }
+
+  // Merge and normalize headers
+  const incomingHeaders = opts.headers || {}
+  const headers = { ...incomingHeaders }
+
+  // If no Authorization header provided, attach stored token (if any)
+  const hasAuthHeader = Object.keys(headers).some((k) => k.toLowerCase() === 'authorization')
+  try {
+    if (!hasAuthHeader) {
+      const current = getCurrentUser()
+      const token = current?.token
+      if (token) headers['Authorization'] = `Bearer ${token}`
+    }
+  } catch { /* ignore errors reading storage */ }
+
+  opts.headers = headers
+
   let res
   try {
-    res = await fetch(path, options)
+    res = await fetch(path, opts)
   } catch {
     res = null
   }
@@ -12,7 +33,7 @@ export async function fetchWithFallback(path, options = {}) {
   const shouldFallback = (!res || !res.ok) || (res && res.status === 403)
   if (shouldFallback && BACKEND_ORIGIN) {
     try {
-      res = await fetch(`${BACKEND_ORIGIN}${path}`, options)
+      res = await fetch(`${BACKEND_ORIGIN}${path}`, opts)
     } catch {
       res = null
     }

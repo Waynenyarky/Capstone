@@ -55,6 +55,37 @@ export async function verifyLoginCode(payload) {
   })
 }
 
+// Admin login (two-step)
+export async function adminLoginStart(payload) {
+  const res = await fetchWithFallback('/api/auth/admin/login/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!res || !res.ok) {
+    let body = null
+    try { body = await res.json() } catch { /* ignore */ }
+    return Promise.reject({ status: res?.status || 0, body })
+  }
+  return res.json()
+}
+
+export async function adminVerifyLoginCode(payload) {
+  const res = await fetchWithFallback('/api/auth/admin/login/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!res || !res.ok) {
+    let body = null
+    try { body = await res.json() } catch { /* ignore */ }
+    return Promise.reject({ status: res?.status || 0, body })
+  }
+  return res.json()
+}
+
 // Password reset
 export async function sendForgotPassword(payload) {
   return await fetchJsonWithFallback('/api/auth/forgot-password', {

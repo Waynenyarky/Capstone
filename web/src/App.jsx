@@ -4,6 +4,9 @@ import Dashboard from "@/pages/Dashboard.jsx"
 import Login from "@/pages/Login.jsx"
 import SignUp from "@/pages/SignUp.jsx"
 import ForgotPassword from "@/pages/ForgotPassword.jsx"
+import AdminLogin from "@/pages/AdminLogin.jsx"
+import AdminDashboard from "@/pages/AdminDashboard.jsx"
+import { RequireAdmin } from '@/features/authentication'
 
 function App() {
   return (
@@ -12,6 +15,8 @@ function App() {
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route path="/admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
       <Route path="/sign-up" element={<SignUp />} />
     </Routes>
   )
