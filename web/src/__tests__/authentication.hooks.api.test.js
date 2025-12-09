@@ -15,8 +15,8 @@ describe('Authentication hooks barrel API', () => {
       'useLoginVerificationForm',
       'useSendVerificationCode',
       'useSignUpVerificationForm',
-      'useProviderSignUp',
-      'useCustomerSignUp',
+      'useUserSignUp',
+      'useUserSignUpFlow',
       'usePasswordResetFlow',
       'useVerificationForm',
       // Consolidated account hooks available via authentication barrel

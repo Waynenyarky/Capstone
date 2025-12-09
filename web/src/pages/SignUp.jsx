@@ -1,11 +1,10 @@
 import React from 'react'
 import { Layout, Tabs, Row, Col } from 'antd'
-import { CustomerSignUpForm, ProviderSignUpForm } from '@/features/authentication'
+import { UserSignUpForm } from '@/features/authentication'
 
 export default function SignUp() {
   const items = [
-    { key: 'customer', label: 'Customer', children: <CustomerSignUpForm /> },
-    { key: 'provider', label: 'Provider', children: <ProviderSignUpForm /> },
+    { key: 'user', label: 'User', children: <UserSignUpForm /> },
   ]
 
   return (
