@@ -23,29 +23,32 @@ export default function LoginForm({ onSubmit } = {}) {
     return <LoginVerificationForm {...verificationProps} />
   }
 
+  const extraContent = (
+    <Flex gap="small" align="center">
+      <Button size="small" onClick={() => navigate('/')}>Home</Button>
+      <Button size="small" type="link" onClick={() => navigate('/sign-up')}>Sign Up</Button>
+      {import.meta.env.MODE !== 'production' ? (
+        <Dropdown
+          menu={{
+            items: [
+              { key: 'admin', label: 'Admin' },
+              { key: 'user', label: 'User' },
+            ],
+            onClick: ({ key }) => {
+              if (key === 'admin') prefillAdmin()
+              else if (key === 'user') prefillUser()
+            },
+          }}
+          trigger={['click']}
+        >
+          <Button size="small" type="text">Prefill</Button>
+        </Dropdown>
+      ) : null}
+    </Flex>
+  )
+
   return (
-    <Card title="Login" extra={(
-      // Only show developer prefills in non-production modes
-      import.meta.env.MODE !== 'production' ? (
-        <Flex gap="small">
-          <Dropdown
-            menu={{
-              items: [
-                { key: 'admin', label: 'Admin' },
-                { key: 'user', label: 'User' },
-              ],
-              onClick: ({ key }) => {
-                if (key === 'admin') prefillAdmin()
-                else if (key === 'user') prefillUser()
-              },
-            }}
-            trigger={['click']}
-          >
-            <Button size="small" type="text">Prefill</Button>
-          </Dropdown>
-        </Flex>
-      ) : null
-    )}>
+    <Card title="Login" extra={extraContent}>
       <Form name="login" form={form} layout="vertical" onFinish={handleFinish} initialValues={initialValues}>
         <Form.Item
           name="email"
