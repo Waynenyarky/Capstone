@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io' as io;
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import '../../domain/usecases/upload_avatar.dart';
 import 'login_page.dart';
 import 'security/mfa_settings_screen.dart';
@@ -598,19 +600,252 @@ class _ProfilePageState extends State<ProfilePage> {
       messenger.showSnackBar(const SnackBar(content: Text('No profile picture')));
       return;
     }
+    String toastMsg = '';
+    bool showToast = false;
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        insetPadding: const EdgeInsets.all(16),
-        child: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.9,
-          height: MediaQuery.of(context).size.width * 0.9,
-          child: InteractiveViewer(
-            child: Image(image: provider!, fit: BoxFit.cover),
-          ),
-        ),
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          Future<void> showFloatingToast(String msg) async {
+            setState(() {
+              toastMsg = msg;
+              showToast = true;
+            });
+            await Future.delayed(const Duration(seconds: 2));
+            if (!mounted) return;
+            setState(() => showToast = false);
+          }
+          return Dialog(
+            insetPadding: EdgeInsets.zero,
+            backgroundColor: Colors.transparent,
+            child: PopScope(
+              canPop: false,
+              child: Stack(
+                children: [
+                  SizedBox.expand(
+                    child: Container(
+                      decoration: const BoxDecoration(color: Colors.black),
+                      child: Center(
+                        child: InteractiveViewer(
+                          child: Image(image: provider!, fit: BoxFit.contain),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 16,
+                    left: 16,
+                    child: SafeArea(
+                      child: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: Colors.white.withValues(alpha: 0.15),
+                        child: IconButton(
+                          iconSize: 18,
+                          splashRadius: 20,
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 16,
+                    right: 16,
+                    child: SafeArea(
+                      child: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: Colors.white.withValues(alpha: 0.15),
+                        child: IconButton(
+                          iconSize: 18,
+                          splashRadius: 20,
+                          icon: const Icon(Icons.more_vert, color: Colors.white),
+                          onPressed: () async {
+                            final navigator = Navigator.of(context);
+                            final action = await _showPhotoActions();
+                            if (action == 'save') {
+                              final ok = await _saveProfileImageToPhone(provider!);
+                              await showFloatingToast(ok ? 'Photo saved to this device' : 'Save failed');
+                            } else if (action == 'delete') {
+                              if (!mounted) return;
+                              final confirmed = await _confirmDeletePhoto();
+                              if (confirmed) {
+                                navigator.pop();
+                                await _deleteProfilePhoto();
+                              }
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 24,
+                    child: IgnorePointer(
+                      ignoring: true,
+                      child: AnimatedSlide(
+                        duration: const Duration(milliseconds: 180),
+                        offset: showToast ? const Offset(0, 0) : const Offset(0, 0.2),
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 180),
+                          opacity: showToast ? 1.0 : 0.0,
+                          child: Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: toastMsg == 'Photo saved to this device'
+                                    ? Colors.grey.shade200
+                                    : Colors.black.withValues(alpha: 0.8),
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [
+                                  BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 14, spreadRadius: 1),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    toastMsg.contains('saved') ? Icons.check_circle : Icons.info_outline,
+                                    color: toastMsg.contains('saved') ? Colors.greenAccent : Colors.white,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    toastMsg,
+                                    style: TextStyle(
+                                      color: toastMsg == 'Photo saved to this device' ? Colors.black : Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
+  }
+
+  Future<String?> _showPhotoActions() async {
+    return await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.download),
+                title: const Text('Save to phone'),
+                onTap: () => Navigator.pop(ctx, 'save'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Delete photo'),
+                onTap: () => Navigator.pop(ctx, 'delete'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<bool> _confirmDeletePhoto() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Delete photo'),
+            content: const Text('Are you sure you want to delete this photo?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ?? false;
+  }
+
+  Future<bool> _saveProfileImageToPhone(ImageProvider provider) async {
+    try {
+      List<int> bytes = [];
+      String suggestedName = 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      if (provider is FileImage) {
+        final f = provider.file;
+        bytes = await f.readAsBytes();
+        suggestedName = f.path.split(RegExp(r'[\\/]')).last;
+      } else if (provider is NetworkImage) {
+        final url = provider.url;
+        final res = await http.get(Uri.parse(url));
+        if (res.statusCode == 200) {
+          bytes = res.bodyBytes;
+        } else {
+          throw Exception('Download failed (${res.statusCode})');
+        }
+      }
+      if (bytes.isEmpty) throw Exception('No image data');
+      if (io.Platform.isIOS) {
+        var p = await Permission.photos.status;
+        if (!p.isGranted && !p.isLimited) {
+          p = await Permission.photos.request();
+          if (!p.isGranted && !p.isLimited) throw Exception('Photos permission denied');
+        }
+      }
+      bool ok = false;
+      if (io.Platform.isAndroid) {
+        const chan = MethodChannel('app.saveImage');
+        ok = await chan.invokeMethod<bool>('saveImageToGallery', {
+          'bytes': bytes,
+          'name': suggestedName,
+        }) ?? false;
+      } else {
+        final docs = await getApplicationDocumentsDirectory();
+        final targetDir = io.Directory('${docs.path}/Capstone');
+        if (!(await targetDir.exists())) await targetDir.create(recursive: true);
+        final file = io.File('${targetDir.path}/$suggestedName');
+        await file.writeAsBytes(bytes);
+        ok = await file.exists();
+      }
+      return ok;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _deleteProfilePhoto() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final res = await MongoDBService.deleteAvatar(email: email, token: widget.token);
+      final ok = res['success'] == true;
+      if (ok) {
+        setState(() {
+          _localAvatarPath = '';
+          avatarUrl = '';
+        });
+        messenger.showSnackBar(const SnackBar(content: Text('Photo deleted')));
+      } else {
+        final msg = (res['message'] is String) ? res['message'] as String : 'Delete failed';
+        messenger.showSnackBar(SnackBar(content: Text(msg)));
+      }
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Delete failed: ${e.toString()}')));
+    }
   }
 
   @override

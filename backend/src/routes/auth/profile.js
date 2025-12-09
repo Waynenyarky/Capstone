@@ -110,6 +110,64 @@ router.post('/profile/avatar-file', async (req, res) => {
   }
 })
 
+router.delete('/profile/avatar', async (req, res) => {
+  try {
+    const idHeader = req.headers['x-user-id']
+    const emailHeader = req.headers['x-user-email']
+    let doc = null
+    if (idHeader) {
+      try { doc = await User.findById(idHeader) } catch (_) { doc = null }
+    }
+    if (!doc && emailHeader) {
+      doc = await User.findOne({ email: emailHeader })
+    }
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const path = require('path')
+    const fs = require('fs')
+    const uploadsDir = path.join(__dirname, '..', '..', '..', 'uploads')
+    const avatarsDir = path.join(uploadsDir, 'avatars')
+    const basename = path.basename(String(doc.avatarUrl || ''))
+    const filePath = basename ? path.join(avatarsDir, basename) : ''
+    try { if (filePath) await fs.promises.unlink(filePath) } catch (_) {}
+    doc.avatarUrl = ''
+    await doc.save()
+    return res.json({ success: true, message: 'Avatar deleted' })
+  } catch (err) {
+    console.error('DELETE /api/auth/profile/avatar error:', err)
+    return respond.error(res, 500, 'avatar_delete_failed', 'Failed to delete avatar')
+  }
+})
+
+router.post('/profile/avatar/delete', async (req, res) => {
+  try {
+    const idHeader = req.headers['x-user-id']
+    const emailHeader = req.headers['x-user-email']
+    let doc = null
+    if (idHeader) {
+      try { doc = await User.findById(idHeader) } catch (_) { doc = null }
+    }
+    if (!doc && emailHeader) {
+      doc = await User.findOne({ email: emailHeader })
+    }
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const path = require('path')
+    const fs = require('fs')
+    const uploadsDir = path.join(__dirname, '..', '..', '..', 'uploads')
+    const avatarsDir = path.join(uploadsDir, 'avatars')
+    const basename = path.basename(String(doc.avatarUrl || ''))
+    const filePath = basename ? path.join(avatarsDir, basename) : ''
+    try { if (filePath) await fs.promises.unlink(filePath) } catch (_) {}
+    doc.avatarUrl = ''
+    await doc.save()
+    return res.json({ success: true, message: 'Avatar deleted' })
+  } catch (err) {
+    console.error('POST /api/auth/profile/avatar/delete error:', err)
+    return respond.error(res, 500, 'avatar_delete_failed', 'Failed to delete avatar')
+  }
+})
+
 const changeEmailAuthenticatedSchema = Joi.object({
   password: Joi.string().min(6).max(200).required(),
   newEmail: Joi.string().email().required(),
