@@ -19,7 +19,26 @@ export function useLogin({ onBegin, onSubmit } = {}) {
           info(`Dev code: ${data.devCode}`)
         }
         // Keep fields for user convenience during two-step flow
-        onBegin({ email: values.email, rememberMe: values.rememberMe === true, devCode: data?.devCode })
+        const beginResult = await onBegin({ email: values.email, rememberMe: values.rememberMe === true, devCode: data?.devCode })
+        // If the onBegin handler indicates we should proceed immediately (MFA disabled),
+        // signal the caller to complete the server-side login rather than performing
+        // it inside this hook. This centralizes the finalization and ensures the
+        // caller (flow orchestrator) is the only place that marks the session
+        // as authenticated.
+        if (beginResult && beginResult.proceedWithLogin) {
+          if (typeof onSubmit === 'function') {
+            // Signal the caller to perform the final server login. Provide the
+            // original payload so the caller can call `loginPost` and validate
+            // the server response before persisting session state.
+            try {
+              await onSubmit(null, values, { serverLoginPayload: payload })
+            } catch (innerErr) {
+              console.error('Login completion (delegated) failed:', innerErr)
+              throw innerErr
+            }
+            return
+          }
+        }
       } else {
         const user = await loginPost(payload)
         const role = String(user?.role || '').toLowerCase()

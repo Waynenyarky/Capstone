@@ -10,6 +10,7 @@ export default function Home() {
           <Flex gap="small">
             <Link to="/login"><Button>Login</Button></Link>
             <Link to="/sign-up"><Button type="primary">Sign Up</Button></Link>
+            <Link to="/admin/login"><Button type="dashed">Admin Login</Button></Link>
           </Flex>
         </Flex>
       </Layout.Header>

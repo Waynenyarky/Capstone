@@ -2,6 +2,7 @@ import { Form, Input, Button, Card, Flex, Checkbox, Dropdown } from 'antd'
 import { loginEmailRules, loginPasswordRules } from "@/features/authentication/validations"
 import { useLoginFlow } from "@/features/authentication/hooks"
 import { LoginVerificationForm } from "@/features/authentication"
+import TotpVerificationForm from '@/features/authentication/components/TotpVerificationForm.jsx'
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -19,8 +20,9 @@ export default function LoginForm({ onSubmit } = {}) {
     verificationProps,
   } = useLoginFlow({ onSubmit })
 
-  if (step === 'verify') {
-    return <LoginVerificationForm {...verificationProps} />
+  if (step === 'verify' || step === 'verify-totp') {
+    const VerificationComponent = step === 'verify' ? LoginVerificationForm : TotpVerificationForm
+    return <VerificationComponent {...verificationProps} />
   }
 
   const extraContent = (

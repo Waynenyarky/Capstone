@@ -55,6 +55,14 @@ export async function verifyLoginCode(payload) {
   })
 }
 
+export async function verifyLoginTotp(payload) {
+  return await fetchJsonWithFallback('/api/auth/login/verify-totp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
 // Admin login (two-step) — reuse standard login endpoints
 export async function adminLoginStart(payload) {
   const res = await fetchWithFallback('/api/auth/login/start', {
