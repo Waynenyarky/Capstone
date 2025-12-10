@@ -4,8 +4,10 @@ import { emailRules, firstNameRules, lastNameRules, phoneNumberRules, signUpPass
 import React from 'react'
 import { SignUpVerificationForm } from "@/features/authentication"
 import { preventNonNumericKeyDown, sanitizeNumericPaste, sanitizeNumericInput } from "@/shared/forms"
+import { useNavigate } from 'react-router-dom'
 
 export default function UserSignUpForm() {
+  const navigate = useNavigate()
   const { step, emailForVerify, devCodeForVerify, verifyEmail, handleVerificationSubmit } = useUserSignUpFlow()
   const { form, handleFinish, isSubmitting, prefillDemo } = useUserSignUp({
     onBegin: verifyEmail,
@@ -23,8 +25,16 @@ export default function UserSignUpForm() {
     )
   }
 
+  const extraContent = (
+    <Flex gap="small" align="center">
+      <Button size="small" onClick={() => navigate('/')}>Home</Button>
+      <Button size="small" type="link" onClick={() => navigate('/login')}>Login</Button>
+      <Button size="small" onClick={prefillDemo}>Prefill Demo</Button>
+    </Flex>
+  )
+
   return (
-    <Card title="User Sign Up" extra={<Button onClick={prefillDemo}>Prefill Demo</Button>}>
+    <Card title="User Sign Up" extra={extraContent}>
       <Form name="userSignUp" form={form} layout="vertical" onFinish={handleFinish}>
         <Form.Item name="firstName" label="First Name" rules={firstNameRules}>
           <Input />

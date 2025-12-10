@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:app/data/services/mongodb_service.dart';
+import '../../domain/usecases/send_signup_code.dart';
+import 'signup_otp_page.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -49,7 +50,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   bool _isValidPhone(String v) {
-    return RegExp(r'^\d{11}$').hasMatch(v);
+    return RegExp(r'^09\d{9}$').hasMatch(v);
   }
 
   bool _hasLower(String v) => RegExp(r'[a-z]').hasMatch(v);
@@ -143,52 +144,55 @@ class _SignUpScreenState extends State<SignUpScreen> {
       }
 
       setState(() => _isLoading = true);
-
+      final messenger = ScaffoldMessenger.of(context);
       try {
-        final result = await MongoDBService.signUp(
+        final usecase = SendSignupCode();
+        final sent = await usecase.call(
           firstName: _firstNameController.text.trim(),
           lastName: _lastNameController.text.trim(),
           email: _emailController.text.trim(),
           phoneNumber: _phoneController.text.trim(),
           password: _passwordController.text,
-          confirmPassword: _confirmPasswordController.text,
+          termsAccepted: _acceptTerms,
         );
-
         setState(() => _isLoading = false);
-
-        if (result['success']) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Account created successfully! Please login.'),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
+        if (!mounted) return;
+        if (sent['success'] == true) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SignupOtpPage(
+                email: _emailController.text.trim(),
+                firstName: _firstNameController.text.trim(),
+                lastName: _lastNameController.text.trim(),
+                phoneNumber: _phoneController.text.trim(),
+                password: _passwordController.text,
+                termsAccepted: _acceptTerms,
+                maxAttempts: 5,
+                cooldownSec: 60,
+                ttlMin: 10,
+              ),
             ),
           );
-          Navigator.pop(context);
         } else {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['message']),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-            ),
+          final code = (sent['code'] is String) ? sent['code'] as String : '';
+          final msg = code == 'email_exists'
+              ? 'This email is already registered. Please log in or choose another email.'
+              : ((sent['message'] is String) ? sent['message'] as String : 'Failed to send verification code');
+          messenger.showSnackBar(
+            SnackBar(content: Text(msg), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
           );
         }
       } catch (e) {
         setState(() => _isLoading = false);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Connection error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
+        messenger.showSnackBar(
+          SnackBar(content: Text('Connection error: ${e.toString()}'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
         );
       }
     }
   }
+
+  
 
   Widget _buildValidationIcon(bool isValid, bool isTouched, String text) {
     if (text.isEmpty || !isTouched) {
@@ -308,6 +312,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               constraints: const BoxConstraints(maxWidth: 500),
               child: Form(
                 key: _formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -440,11 +445,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       onChanged: (_) => setState(() {}),
                       validator: (value) {
                         if (!_phoneTouched) return null;
-                        if (value == null || value.isEmpty) {
-                          return null;
+                        final v = (value ?? '').trim();
+                        if (v.isEmpty) {
+                          return 'Please enter your phone number';
                         }
-                        if (!_isValidPhone(value)) {
+                        if (!RegExp(r'^\d+$').hasMatch(v)) {
+                          return 'Phone must contain digits only';
+                        }
+                        if (v.length != 11) {
                           return 'Phone number must be 11 digits';
+                        }
+                        if (!RegExp(r'^09').hasMatch(v)) {
+                          return 'Phone number must start with 09';
+                        }
+                        if (!_isValidPhone(v)) {
+                          return 'Enter a valid phone number';
                         }
                         return null;
                       },

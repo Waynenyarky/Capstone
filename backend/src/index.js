@@ -78,3 +78,14 @@ async function start() {
 }
 
 start();
+const path = require('path');
+const fs = require('fs');
+const uploadsDir = path.join(__dirname, '..', 'uploads');
+const avatarsDir = path.join(uploadsDir, 'avatars');
+try { fs.mkdirSync(uploadsDir, { recursive: true }); } catch (_) {}
+try { fs.mkdirSync(avatarsDir, { recursive: true }); } catch (_) {}
+app.use('/uploads', express.static(uploadsDir));
+// Also serve legacy path used by some routes (src/uploads)
+const uploadsDirLegacy = path.join(__dirname, 'uploads');
+try { fs.mkdirSync(uploadsDirLegacy, { recursive: true }); } catch (_) {}
+app.use('/uploads', express.static(uploadsDirLegacy));

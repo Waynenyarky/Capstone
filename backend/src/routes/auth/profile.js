@@ -17,6 +17,162 @@ const updateProfileSchema = Joi.object({
   phoneNumber: Joi.string().optional(),
 })
 
+const uploadAvatarSchema = Joi.object({
+  imageBase64: Joi.string().min(32).required(),
+})
+
+router.post('/profile/avatar', validateBody(uploadAvatarSchema), async (req, res) => {
+  try {
+    const idHeader = req.headers['x-user-id']
+    const emailHeader = req.headers['x-user-email']
+    let doc = null
+    if (idHeader) {
+      try { doc = await User.findById(idHeader) } catch (_) { doc = null }
+    }
+    if (!doc && emailHeader) {
+      doc = await User.findOne({ email: emailHeader })
+    }
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const raw = String(req.body.imageBase64 || '')
+    let mime = ''
+    let dataStr = raw
+    if (raw.startsWith('data:')) {
+      const parts = raw.split(',')
+      const header = parts[0] || ''
+      dataStr = parts[1] || ''
+      const m = header.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64$/)
+      mime = m ? m[1] : ''
+    }
+    const buf = Buffer.from(dataStr, 'base64')
+    if (!buf || buf.length < 1000) return respond.error(res, 400, 'invalid_image', 'Invalid image')
+    let ext = 'jpg'
+    if (mime.includes('png')) ext = 'png'
+    if (mime.includes('jpeg')) ext = 'jpg'
+    if (mime.includes('webp')) ext = 'webp'
+    const path = require('path')
+    const fs = require('fs')
+    const uploadsDir = path.join(__dirname, '..', '..', '..', 'uploads')
+    const avatarsDir = path.join(uploadsDir, 'avatars')
+    try { fs.mkdirSync(avatarsDir, { recursive: true }) } catch (_) {}
+    const filename = `${String(doc._id)}_${Date.now()}.${ext}`
+    const filePath = path.join(avatarsDir, filename)
+    await fs.promises.writeFile(filePath, buf)
+    doc.avatarUrl = `/uploads/avatars/${filename}`
+    await doc.save()
+    return res.json({ success: true, avatarUrl: doc.avatarUrl })
+  } catch (err) {
+    console.error('POST /api/auth/profile/avatar error:', err)
+    return respond.error(res, 500, 'avatar_upload_failed', 'Failed to upload avatar')
+  }
+})
+
+// POST /api/auth/profile/avatar-file - multipart upload
+router.post('/profile/avatar-file', async (req, res) => {
+  try {
+    const idHeader = req.headers['x-user-id']
+    const emailHeader = req.headers['x-user-email']
+    let doc = null
+    if (idHeader) {
+      try { doc = await User.findById(idHeader) } catch (_) { doc = null }
+    }
+    if (!doc && emailHeader) {
+      doc = await User.findOne({ email: emailHeader })
+    }
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const multer = require('multer')
+    const path = require('path')
+    const fs = require('fs')
+    const uploadsDir = path.join(__dirname, '..', '..', '..', 'uploads')
+    const avatarsDir = path.join(uploadsDir, 'avatars')
+    try { fs.mkdirSync(avatarsDir, { recursive: true }) } catch (_) {}
+    const storage = multer.diskStorage({
+      destination: (_req, _file, cb) => cb(null, avatarsDir),
+      filename: (_req, file, cb) => {
+        const ext = path.extname(file.originalname || '.jpg').toLowerCase() || '.jpg'
+        cb(null, `${String(doc._id)}_${Date.now()}${ext}`)
+      },
+    })
+    const upload = multer({ storage }).single('avatar')
+
+    upload(req, res, async (err) => {
+      if (err) return respond.error(res, 400, 'upload_failed', 'Upload failed')
+      const file = req.file
+      if (!file) return respond.error(res, 400, 'no_file', 'No file uploaded')
+      doc.avatarUrl = `/uploads/avatars/${path.basename(file.path)}`
+      await doc.save()
+      return res.json({ success: true, avatarUrl: doc.avatarUrl })
+    })
+  } catch (err) {
+    console.error('POST /api/auth/profile/avatar-file error:', err)
+    return respond.error(res, 500, 'avatar_upload_failed', 'Failed to upload avatar')
+  }
+})
+
+router.delete('/profile/avatar', async (req, res) => {
+  try {
+    const idHeader = req.headers['x-user-id']
+    const emailHeader = req.headers['x-user-email']
+    let doc = null
+    if (idHeader) {
+      try { doc = await User.findById(idHeader) } catch (_) { doc = null }
+    }
+    if (!doc && emailHeader) {
+      doc = await User.findOne({ email: emailHeader })
+    }
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const path = require('path')
+    const fs = require('fs')
+    const uploadsDir = path.join(__dirname, '..', '..', '..', 'uploads')
+    const avatarsDir = path.join(uploadsDir, 'avatars')
+    const basename = path.basename(String(doc.avatarUrl || ''))
+    const filePath = basename ? path.join(avatarsDir, basename) : ''
+    try { if (filePath) await fs.promises.unlink(filePath) } catch (_) {}
+    doc.avatarUrl = ''
+    await doc.save()
+    return res.json({ success: true, message: 'Avatar deleted' })
+  } catch (err) {
+    console.error('DELETE /api/auth/profile/avatar error:', err)
+    return respond.error(res, 500, 'avatar_delete_failed', 'Failed to delete avatar')
+  }
+})
+
+router.post('/profile/avatar/delete', async (req, res) => {
+  try {
+    const idHeader = req.headers['x-user-id']
+    const emailHeader = req.headers['x-user-email']
+    let doc = null
+    if (idHeader) {
+      try { doc = await User.findById(idHeader) } catch (_) { doc = null }
+    }
+    if (!doc && emailHeader) {
+      doc = await User.findOne({ email: emailHeader })
+    }
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const path = require('path')
+    const fs = require('fs')
+    const uploadsDir = path.join(__dirname, '..', '..', '..', 'uploads')
+    const avatarsDir = path.join(uploadsDir, 'avatars')
+    const basename = path.basename(String(doc.avatarUrl || ''))
+    const filePath = basename ? path.join(avatarsDir, basename) : ''
+    try { if (filePath) await fs.promises.unlink(filePath) } catch (_) {}
+    doc.avatarUrl = ''
+    await doc.save()
+    return res.json({ success: true, message: 'Avatar deleted' })
+  } catch (err) {
+    console.error('POST /api/auth/profile/avatar/delete error:', err)
+    return respond.error(res, 500, 'avatar_delete_failed', 'Failed to delete avatar')
+  }
+})
+
+const changeEmailAuthenticatedSchema = Joi.object({
+  password: Joi.string().min(6).max(200).required(),
+  newEmail: Joi.string().email().required(),
+})
+
 // POST /api/auth/change-password-authenticated
 // Change password for a logged-in user by verifying current password.
 router.post('/change-password-authenticated', validateBody(changePasswordAuthenticatedSchema), async (req, res) => {
@@ -62,6 +218,49 @@ router.post('/change-password-authenticated', validateBody(changePasswordAuthent
   } catch (err) {
     console.error('POST /api/auth/change-password-authenticated error:', err)
     return respond.error(res, 500, 'change_password_failed', 'Failed to change password')
+  }
+})
+
+// POST /api/auth/change-email-authenticated
+// Change email for a logged-in user by verifying current password.
+router.post('/change-email-authenticated', validateBody(changeEmailAuthenticatedSchema), async (req, res) => {
+  try {
+    const { password, newEmail } = req.body || {}
+
+    const idHeader = req.headers['x-user-id']
+    const emailHeader = req.headers['x-user-email']
+
+    let doc = null
+    if (idHeader) {
+      try {
+        doc = await User.findById(idHeader)
+      } catch (_) {
+        doc = null
+      }
+    }
+    if (!doc && emailHeader) {
+      doc = await User.findOne({ email: emailHeader })
+    }
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const ok = await bcrypt.compare(password, doc.passwordHash)
+    if (!ok) return respond.error(res, 401, 'invalid_password', 'Invalid password')
+
+    const normalized = String(newEmail || '').trim().toLowerCase()
+    if (!normalized) return respond.error(res, 400, 'invalid_email', 'Invalid email')
+    if (normalized === String(doc.email || '').toLowerCase()) {
+      return respond.error(res, 400, 'same_email', 'New email must be different from current')
+    }
+    const exists = await User.findOne({ email: normalized }).lean()
+    if (exists) return respond.error(res, 409, 'email_in_use', 'Email already in use')
+
+    doc.email = normalized
+    await doc.save()
+
+    return res.json({ message: 'Email updated successfully', email: doc.email })
+  } catch (err) {
+    console.error('POST /api/auth/change-email-authenticated error:', err)
+    return respond.error(res, 500, 'change_email_failed', 'Failed to change email')
   }
 })
 
