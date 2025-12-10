@@ -446,6 +446,32 @@ class MongoDBService {
     }
   }
 
+  static Future<Map<String, dynamic>> getMfaStatusDetail({ required String email }) async {
+    try {
+      final res = await _getWithFallbackH(
+        '/api/auth/mfa/status',
+        headers: { 'x-user-email': email },
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map) {
+        return {
+          'success': true,
+          'enabled': data['enabled'] == true,
+          'disablePending': data['disablePending'] == true,
+          'scheduledFor': data['scheduledFor'],
+        };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to fetch status';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
   static Future<Map<String, dynamic>> mfaSetup({ required String email, required String method }) async {
     try {
       final res = await _postJsonWithFallbackH(
@@ -504,6 +530,53 @@ class MongoDBService {
         return { 'success': true };
       }
       final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to disable MFA';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> mfaDisableRequest({ required String email }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/mfa/disable-request',
+        {},
+        headers: { 'x-user-email': email },
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map) {
+        return { 'success': true, 'scheduledFor': data['scheduledFor'] };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to request disable';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> mfaDisableUndo({ required String email, required String code }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/mfa/disable-undo',
+        { 'code': code },
+        headers: { 'x-user-email': email },
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map) {
+        return { 'success': true, 'canceled': data['canceled'] == true };
+      }
+      if (res.statusCode == 401) {
+        return { 'success': false, 'message': 'Invalid code' };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to undo disable';
       return { 'success': false, 'message': msg };
     } on TimeoutException {
       return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };

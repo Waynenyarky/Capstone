@@ -66,4 +66,15 @@ function verifyTotp({ secret, token, window = 1, period = 30, digits = 6 }) {
   return false
 }
 
-module.exports = { generateSecret, otpauthUri, totp, verifyTotp }
+function verifyTotpWithCounter({ secret, token, window = 1, period = 30, digits = 6 }) {
+  const now = Date.now()
+  const baseCounter = Math.floor(now / 1000 / period)
+  for (let w = -window; w <= window; w++) {
+    const counter = baseCounter + w
+    const t = hotp({ secret, counter, digits })
+    if (t === String(token)) return { ok: true, counter }
+  }
+  return { ok: false, counter: null }
+}
+
+module.exports = { generateSecret, otpauthUri, totp, verifyTotp, verifyTotpWithCounter }
