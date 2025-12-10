@@ -55,9 +55,9 @@ export async function verifyLoginCode(payload) {
   })
 }
 
-// Admin login (two-step)
+// Admin login (two-step) — reuse standard login endpoints
 export async function adminLoginStart(payload) {
-  const res = await fetchWithFallback('/api/auth/admin/login/start', {
+  const res = await fetchWithFallback('/api/auth/login/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -72,7 +72,7 @@ export async function adminLoginStart(payload) {
 }
 
 export async function adminVerifyLoginCode(payload) {
-  const res = await fetchWithFallback('/api/auth/admin/login/verify', {
+  const res = await fetchWithFallback('/api/auth/login/verify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

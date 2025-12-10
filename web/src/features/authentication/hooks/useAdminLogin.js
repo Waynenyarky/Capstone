@@ -88,8 +88,13 @@ export default function useAdminLogin({ onSuccess } = {}) {
     try {
          const data = await adminVerifyLoginCode({ email, code: values.code })
 
-         if (data && data.user) {
-         try { login(data.user) } catch { /* ignore */ }
+         // Accept both shapes: { user: {...} } or plain user object
+         const maybeUser = (data && data.user) ? data.user : (
+           data && typeof data === 'object' && ('email' in data || 'id' in data || 'role' in data) ? data : null
+         )
+
+         if (maybeUser) {
+           try { login(maybeUser) } catch { /* ignore */ }
          } else if (data && data.token) {
          // Safely decode base64url JWT payload and parse JSON. This works in
          // browser environments (atob) and avoids deprecated/unsafe helpers.

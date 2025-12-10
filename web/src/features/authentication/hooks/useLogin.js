@@ -22,6 +22,15 @@ export function useLogin({ onBegin, onSubmit } = {}) {
         onBegin({ email: values.email, rememberMe: values.rememberMe === true, devCode: data?.devCode })
       } else {
         const user = await loginPost(payload)
+        const role = String(user?.role || '').toLowerCase()
+        // Block admin accounts on the generic login page: show invalid credentials
+        if (role === 'admin') {
+          form.setFields([
+            { name: 'email', errors: ['Invalid credentials'] },
+            { name: 'password', errors: ['Invalid credentials'] },
+          ])
+          return
+        }
         success('Logged in successfully')
         form.resetFields()
         if (typeof onSubmit === 'function') onSubmit(user, values)

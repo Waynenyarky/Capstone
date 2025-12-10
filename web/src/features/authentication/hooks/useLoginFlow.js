@@ -10,19 +10,13 @@ export function useLoginFlow({ onSubmit } = {}) {
   const { initialEmail, rememberEmail, clearRememberedEmail } = useRememberedEmail()
 
   const [step, setStep] = React.useState('login')
-  const [emailForVerify, setEmailForVerify] = React.useState(initialEmail || '')
-  const [rememberMe, setRememberMe] = React.useState(!!initialEmail)
+  const [emailForVerify] = React.useState(initialEmail || '')
+  const [rememberMe] = React.useState(!!initialEmail)
   const [devCodeForVerify, setDevCodeForVerify] = React.useState('')
 
   const { form, handleFinish, isSubmitting } = useLogin({
-    onBegin: ({ email, rememberMe: remember, devCode }) => {
-      setEmailForVerify(email)
-      setRememberMe(!!remember)
-      setDevCodeForVerify(String(devCode || ''))
-      setStep('verify')
-    },
     onSubmit: (user, values) => {
-      // Fallback immediate login behavior (if two-step not used)
+      // Complete login
       const remember = values?.rememberMe === true
       login(user, { remember })
       const emailToRemember = values?.email

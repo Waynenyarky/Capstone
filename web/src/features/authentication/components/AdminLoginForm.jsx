@@ -20,7 +20,7 @@ export default function AdminLoginForm() {
     handleResend,
     handleVerify,
     setPassword,
-  } = useAdminLogin({ onSuccess: () => navigate('/admin') })
+  } = useAdminLogin({ onSuccess: () => navigate('/admin/dashboard') })
 
   if (step === 'verify') {
     return (
@@ -63,7 +63,7 @@ export default function AdminLoginForm() {
     <Card title="Admin sign in">
       <Form layout="vertical" form={credForm} onFinish={handleCredentials}>
         {error && <Alert type="error" message={error} style={{ marginBottom: 16 }} />}
-        <Form.Item name="email" label="Email" rules={[{ required: true, message: 'Enter email' }, { type: 'email', message: 'Enter a valid email' }]}>
+        <Form.Item name="email" label="Email" rules={[{ required: true, message: 'Enter email' }, { message: 'Enter a valid email' }]}>
           <Input />
         </Form.Item>
         <Form.Item name="password" label="Password" rules={[{ required: true, message: 'Enter password' }]}>

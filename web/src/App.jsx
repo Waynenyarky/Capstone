@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import Home from "@/pages/Home.jsx"
 import Dashboard from "@/pages/Dashboard.jsx"
 import Login from "@/pages/Login.jsx"
@@ -16,7 +16,8 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/admin/login" element={<AdminLogin />} />
-      <Route path="/admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
+      <Route path="/admin/dashboard" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
+      <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
       <Route path="/sign-up" element={<SignUp />} />
     </Routes>
   )

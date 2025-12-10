@@ -6,8 +6,10 @@ import { useNavigate } from 'react-router-dom'
 export default function Login() {
   const navigate = useNavigate()
 
-  const handleLoginSuccess = React.useCallback(() => {
-    // Navigate to the dashboard after a successful login/verification
+  const handleLoginSuccess = React.useCallback((user) => {
+    // Generic login should never finalize admin sessions; redirect them to admin login
+    const role = String(user?.role || '').toLowerCase()
+    if (role === 'admin') { navigate('/admin/login'); return }
     navigate('/dashboard')
   }, [navigate])
 
