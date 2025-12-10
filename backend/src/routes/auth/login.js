@@ -8,6 +8,7 @@ const LoginRequest = require('../../models/LoginRequest')
 const respond = require('../../middleware/respond')
 const { validateBody, Joi } = require('../../middleware/validation')
 const { perEmailRateLimit } = require('../../middleware/rateLimit')
+const { decryptWithHash } = require('../../lib/secretCipher')
 
 const router = express.Router()
 
@@ -272,8 +273,9 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
       return respond.error(res, 400, 'mfa_not_enabled', 'MFA is not enabled for this account')
     }
 
-    const { verifyTotp } = require('../../lib/totp')
-    const ok = verifyTotp({ secret: String(doc.mfaSecret), token: String(code), window: 1, period: 30, digits: 6 })
+  const { verifyTotp } = require('../../lib/totp')
+  const secretPlain = decryptWithHash(String(doc.passwordHash || ''), String(doc.mfaSecret))
+  const ok = verifyTotp({ secret: secretPlain, token: String(code), window: 1, period: 30, digits: 6 })
     if (!ok) return respond.error(res, 401, 'invalid_mfa_code', 'Invalid verification code')
 
     const safe = {

@@ -8,6 +8,7 @@ const ResetRequest = require('../../models/ResetRequest')
 const respond = require('../../middleware/respond')
 const { validateBody, Joi } = require('../../middleware/validation')
 const { perEmailRateLimit } = require('../../middleware/rateLimit')
+const { decryptWithHash, encryptWithHash } = require('../../lib/secretCipher')
 
 const router = express.Router()
 
@@ -136,11 +137,17 @@ router.post('/change-password', validateBody(changePasswordSchema), async (req, 
       return respond.error(res, 401, 'invalid_reset_token', 'Invalid or missing reset token')
     }
 
-    const passwordHash = await bcrypt.hash(password, 10)
-
     const doc = await User.findOne({ email })
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+    const oldHash = String(doc.passwordHash)
+    let mfaPlain = ''
+    try { if (doc.mfaSecret) mfaPlain = decryptWithHash(oldHash, doc.mfaSecret) } catch (_) { mfaPlain = '' }
+
+    const passwordHash = await bcrypt.hash(password, 10)
     doc.passwordHash = passwordHash
+    if (mfaPlain) {
+      try { doc.mfaSecret = encryptWithHash(doc.passwordHash, mfaPlain) } catch (_) {}
+    }
     await doc.save()
 
     // Cleanup reset state

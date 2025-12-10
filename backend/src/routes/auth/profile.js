@@ -1,6 +1,7 @@
 const express = require('express')
 const bcrypt = require('bcryptjs')
 const User = require('../../models/User')
+const { decryptWithHash, encryptWithHash } = require('../../lib/secretCipher')
 const respond = require('../../middleware/respond')
 const { validateBody, Joi } = require('../../middleware/validation')
 
@@ -198,7 +199,15 @@ router.post('/change-password-authenticated', validateBody(changePasswordAuthent
     const ok = await bcrypt.compare(currentPassword, doc.passwordHash)
     if (!ok) return respond.error(res, 401, 'invalid_current_password', 'Invalid current password')
 
+    const oldHash = String(doc.passwordHash)
+    let mfaPlain = ''
+    try { if (doc.mfaSecret) mfaPlain = decryptWithHash(oldHash, doc.mfaSecret) } catch (_) { mfaPlain = '' }
+
     doc.passwordHash = await bcrypt.hash(newPassword, 10)
+
+    if (mfaPlain) {
+      try { doc.mfaSecret = encryptWithHash(doc.passwordHash, mfaPlain) } catch (_) {}
+    }
     await doc.save()
 
     const userSafe = {
