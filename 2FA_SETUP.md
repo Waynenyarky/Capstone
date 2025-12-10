@@ -1,7 +1,5 @@
 # 2FA Setup with Microsoft Authenticator
 
-This guide explains how to enable, use, and manage Two‑Factor Authentication (2FA) with Microsoft Authenticator in the Capstone app. It reflects the implemented flow across mobile and backend.
-
 ## What You’ll Need
 - The Capstone mobile app installed and connected to the backend
 - Microsoft Authenticator (Android/iOS) installed
@@ -70,16 +68,3 @@ References:
 - TOTP generation/verification: `backend/src/lib/totp.js:1-69` (`generateSecret`, `otpauthUri`, `verifyTotp`)
 - Login MFA check: password step returns `mfa_required` if enabled (`backend/src/routes/auth/login.js:82`)
 - Login TOTP verification: `POST /api/auth/login/verify-totp` completes login on valid code
-
-## Troubleshooting
-- Invalid code: ensure the app’s time is accurate; codes rotate every 30s.
-- Code expired: try the next code; the backend verifies within a small time window.
-- App shows wrong label: use the displayed Account Name; it maps to the issuer.
-- Can’t scan QR: enter the Secret Key manually in Microsoft Authenticator.
-- Already set up: the Security screen shows enabled status; disable first if you need to re‑setup.
-
-## Security Notes
-- Your `mfaSecret` is stored per‑user; do not share it.
-- Disabling clears the secret; re‑enabling generates a new one.
-- No raw `otpauth` URI is displayed in the UI; the QR encodes it.
-
