@@ -267,16 +267,22 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
 router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, res) => {
   try {
     const { email, code } = req.body || {}
-    const doc = await User.findOne({ email }).lean()
+    const doc = await User.findOne({ email })
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
     if (doc.mfaEnabled !== true || !doc.mfaSecret) {
       return respond.error(res, 400, 'mfa_not_enabled', 'MFA is not enabled for this account')
     }
 
-  const { verifyTotp } = require('../../lib/totp')
+  const { verifyTotpWithCounter } = require('../../lib/totp')
   const secretPlain = decryptWithHash(String(doc.passwordHash || ''), String(doc.mfaSecret))
-  const ok = verifyTotp({ secret: secretPlain, token: String(code), window: 1, period: 30, digits: 6 })
-    if (!ok) return respond.error(res, 401, 'invalid_mfa_code', 'Invalid verification code')
+  const resVerify = verifyTotpWithCounter({ secret: secretPlain, token: String(code), window: 1, period: 30, digits: 6 })
+    if (!resVerify.ok) return respond.error(res, 401, 'invalid_mfa_code', 'Invalid verification code')
+    if (typeof doc.mfaLastUsedTotpCounter === 'number' && doc.mfaLastUsedTotpCounter === resVerify.counter) {
+      return respond.error(res, 401, 'totp_replayed', 'Verification code already used')
+    }
+    doc.mfaLastUsedTotpCounter = resVerify.counter
+    doc.mfaLastUsedTotpAt = new Date()
+    await doc.save()
 
     const safe = {
       id: String(doc._id),

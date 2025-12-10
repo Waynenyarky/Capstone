@@ -3,7 +3,7 @@ const mongoose = require('mongoose')
 const User = require('../../models/User')
 const respond = require('../../middleware/respond')
 const { validateBody, Joi } = require('../../middleware/validation')
-const { otpauthUri, generateSecret, verifyTotp } = require('../../lib/totp')
+const { otpauthUri, generateSecret, verifyTotpWithCounter } = require('../../lib/totp')
 const { encryptWithHash, decryptWithHash } = require('../../lib/secretCipher')
 
 const router = express.Router()
@@ -15,6 +15,8 @@ const setupSchema = Joi.object({
 const verifySchema = Joi.object({
   code: Joi.string().pattern(/^[0-9]{6}$/).required(),
 })
+
+const oneDayMs = 24 * 60 * 60 * 1000
 
 function requireUser(req, res, next) {
   const emailHeader = String(req.headers['x-user-email'] || '').toLowerCase()
@@ -45,6 +47,65 @@ router.post('/mfa/setup', requireUser, validateBody(setupSchema), async (req, re
   }
 })
 
+// POST /api/auth/mfa/disable-request
+router.post('/mfa/disable-request', requireUser, async (req, res) => {
+  try {
+    const email = req._userEmail
+    const doc = await User.findOne({ email })
+    if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+    if (doc.mfaEnabled !== true || !doc.mfaSecret) {
+      return respond.error(res, 400, 'mfa_not_enabled', 'MFA not enabled')
+    }
+    if (doc.mfaDisablePending) {
+      return res.json({ disablePending: true, scheduledFor: doc.mfaDisableScheduledFor })
+    }
+    const now = Date.now()
+    doc.mfaDisablePending = true
+    doc.mfaDisableRequestedAt = new Date(now)
+    doc.mfaDisableScheduledFor = new Date(now + oneDayMs)
+    await doc.save()
+    return res.json({ disablePending: true, scheduledFor: doc.mfaDisableScheduledFor })
+  } catch (err) {
+    console.error('POST /api/auth/mfa/disable-request error:', err)
+    return respond.error(res, 500, 'mfa_disable_request_failed', 'Failed to request MFA disable')
+  }
+})
+
+// POST /api/auth/mfa/disable-undo
+router.post('/mfa/disable-undo', requireUser, validateBody(verifySchema), async (req, res) => {
+  try {
+    const email = req._userEmail
+  const { code } = req.body || {}
+    const doc = await User.findOne({ email })
+    if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+    if (!doc.mfaDisablePending) return res.json({ canceled: false, message: 'No pending disable' })
+    if (!doc.mfaSecret) return respond.error(res, 400, 'mfa_not_setup', 'MFA not set up')
+    const secretPlain = decryptWithHash(doc.passwordHash, doc.mfaSecret)
+    const resVerify = verifyTotpWithCounter({ secret: secretPlain, token: String(code), window: 1, period: 30, digits: 6 })
+    if (!resVerify.ok) return respond.error(res, 401, 'invalid_mfa_code', 'Invalid verification code')
+    if (typeof doc.mfaLastUsedTotpCounter === 'number' && doc.mfaLastUsedTotpCounter === resVerify.counter) {
+      return respond.error(res, 401, 'totp_replayed', 'Verification code already used')
+    }
+    if (typeof doc.mfaLastUsedTotpCounter === 'number' && doc.mfaLastUsedTotpCounter === resVerify.counter) {
+      return respond.error(res, 401, 'totp_replayed', 'Verification code already used')
+    }
+    if (typeof doc.mfaLastUsedTotpCounter === 'number' && doc.mfaLastUsedTotpCounter === resVerify.counter) {
+      return respond.error(res, 401, 'totp_replayed', 'Verification code already used')
+    }
+
+    doc.mfaDisablePending = false
+    doc.mfaDisableRequestedAt = null
+    doc.mfaDisableScheduledFor = null
+    doc.mfaLastUsedTotpCounter = resVerify.counter
+    doc.mfaLastUsedTotpAt = new Date()
+    await doc.save()
+    return res.json({ canceled: true })
+  } catch (err) {
+    console.error('POST /api/auth/mfa/disable-undo error:', err)
+    return respond.error(res, 500, 'mfa_disable_undo_failed', 'Failed to undo MFA disable')
+  }
+})
+
 // POST /api/auth/mfa/verify
 router.post('/mfa/verify', requireUser, validateBody(verifySchema), async (req, res) => {
   try {
@@ -55,10 +116,12 @@ router.post('/mfa/verify', requireUser, validateBody(verifySchema), async (req, 
     if (!doc.mfaSecret) return respond.error(res, 400, 'mfa_not_setup', 'MFA not set up')
 
     const secretPlain = decryptWithHash(doc.passwordHash, doc.mfaSecret)
-    const ok = verifyTotp({ secret: secretPlain, token: String(code), window: 1, period: 30, digits: 6 })
-    if (!ok) return respond.error(res, 401, 'invalid_mfa_code', 'Invalid verification code')
+    const resVerify = verifyTotpWithCounter({ secret: secretPlain, token: String(code), window: 1, period: 30, digits: 6 })
+    if (!resVerify.ok) return respond.error(res, 401, 'invalid_mfa_code', 'Invalid verification code')
 
     doc.mfaEnabled = true
+    doc.mfaLastUsedTotpCounter = resVerify.counter
+    doc.mfaLastUsedTotpAt = new Date()
     await doc.save()
     return res.json({ enabled: true })
   } catch (err) {
@@ -87,9 +150,17 @@ router.post('/mfa/disable', requireUser, async (req, res) => {
 router.get('/mfa/status', requireUser, async (req, res) => {
   try {
     const email = req._userEmail
-    const doc = await User.findOne({ email }).lean()
+    const doc = await User.findOne({ email })
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
-    return res.json({ enabled: !!doc.mfaEnabled })
+    if (doc.mfaDisablePending && doc.mfaDisableScheduledFor && Date.now() >= new Date(doc.mfaDisableScheduledFor).getTime()) {
+      doc.mfaEnabled = false
+      doc.mfaSecret = ''
+      doc.mfaDisablePending = false
+      doc.mfaDisableRequestedAt = null
+      doc.mfaDisableScheduledFor = null
+      await doc.save()
+    }
+    return res.json({ enabled: !!doc.mfaEnabled, disablePending: !!doc.mfaDisablePending, scheduledFor: doc.mfaDisableScheduledFor })
   } catch (err) {
     console.error('GET /api/auth/mfa/status error:', err)
     return respond.error(res, 500, 'mfa_status_failed', 'Failed to get MFA status')
