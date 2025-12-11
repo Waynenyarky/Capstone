@@ -4,11 +4,9 @@ export function usePasswordResetFlow() {
   const [step, setStep] = useState('forgot')
   const [email, setEmail] = useState('')
   const [resetToken, setResetToken] = useState('')
-  const [devCode, setDevCode] = useState('')
-
-  const handleForgotSubmit = useCallback(({ email: e, devCode: code }) => {
+  
+  const handleForgotSubmit = useCallback(({ email: e }) => {
     setEmail(e)
-    setDevCode(String(code || ''))
     setStep('verify')
   }, [])
 
@@ -26,11 +24,11 @@ export function usePasswordResetFlow() {
     setStep('forgot')
     setEmail('')
     setResetToken('')
-    setDevCode('')
+    
   }, [])
 
   const forgotProps = { onSubmit: handleForgotSubmit }
-  const verifyProps = { onSubmit: handleVerifySubmit, email, devCode }
+  const verifyProps = { onSubmit: handleVerifySubmit, email }
   const changeProps = { onSubmit: handleChangeSubmit, email, resetToken }
 
   return { step, forgotProps, verifyProps, changeProps, email, resetToken, reset }

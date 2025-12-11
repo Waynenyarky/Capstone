@@ -6,14 +6,12 @@ export function useLoggedInPasswordChangeFlow() {
   const [step, setStep] = useState('send')
   const [email, setEmail] = useState(currentUser?.email || '')
   const [resetToken, setResetToken] = useState('')
-  const [devCode, setDevCode] = useState('')
 
   useEffect(() => {
     setEmail(currentUser?.email || '')
   }, [currentUser])
 
-  const handleSent = useCallback((data) => {
-    setDevCode(String(data?.devCode || ''))
+  const handleSent = useCallback(() => {
     setStep('verify')
   }, [])
 
@@ -30,11 +28,10 @@ export function useLoggedInPasswordChangeFlow() {
   const reset = useCallback(() => {
     setStep('send')
     setResetToken('')
-    setDevCode('')
   }, [])
 
   const sendProps = { email, onSent: handleSent }
-  const verifyProps = { email, onSubmit: handleVerifySubmit, devCode }
+  const verifyProps = { email, onSubmit: handleVerifySubmit }
   const changeProps = { email, resetToken, onSubmit: handleChangeSubmit }
 
   return { step, sendProps, verifyProps, changeProps, email, resetToken, reset }

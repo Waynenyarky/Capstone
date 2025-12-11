@@ -20,13 +20,18 @@ vi.mock('@/features/authentication/services/mfaService', () => ({
   mfaDisable: async () => ({ disabled: true }),
 }))
 
+// Mock notification hook used by components
+vi.mock('@/shared/notifications', () => ({
+  useNotifier: () => ({ success: () => {}, info: () => {}, error: () => {}, warning: () => {} }),
+}))
+
 // Mock QrDisplay to keep snapshots simple
 vi.mock('@/features/authentication/components/QrDisplay.jsx', () => ({
   __esModule: true,
   default: () => React.createElement('div', { 'data-testid': 'qr', children: 'QR' })
 }))
 
-import MfaSetup from '@/pages/MfaSetup.jsx'
+import MfaSetup from '@/features/authentication/components/MfaSetup.jsx'
 import LoginVerificationForm from '@/features/authentication/components/LoginVerificationForm.jsx'
 import TotpVerificationForm from '@/features/authentication/components/TotpVerificationForm.jsx'
 import LoggedInMfaManager from '@/features/authentication/components/LoggedInMfaManager.jsx'

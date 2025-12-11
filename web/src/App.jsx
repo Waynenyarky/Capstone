@@ -4,8 +4,8 @@ import Dashboard from "@/pages/Dashboard.jsx"
 import Login from "@/pages/Login.jsx"
 import SignUp from "@/pages/SignUp.jsx"
 import ForgotPassword from "@/pages/ForgotPassword.jsx"
-import AdminLogin from "@/pages/AdminLogin.jsx"
-import MfaSetup from "@/pages/MfaSetup.jsx"
+import AdminLogin from "@/features/authentication/components/AdminLogin.jsx"
+import MfaSetup from "@/features/authentication/components/MfaSetup.jsx"
 import AdminDashboard from "@/pages/AdminDashboard.jsx"
 import { RequireAdmin } from '@/features/authentication'
 

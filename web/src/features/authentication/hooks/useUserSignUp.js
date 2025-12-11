@@ -7,7 +7,7 @@ import { useNotifier } from '@/shared/notifications.js'
 export function useUserSignUp({ onBegin, onSubmit } = {}) {
   const [form] = Form.useForm()
   const [isSubmitting, setSubmitting] = useState(false)
-  const { success, info, error } = useNotifier()
+  const { success, error } = useNotifier()
 
   const handleFinish = async (values) => {
     const payload = {
@@ -25,8 +25,7 @@ export function useUserSignUp({ onBegin, onSubmit } = {}) {
       if (typeof onBegin === 'function') {
         const data = await signupStart(payload)
         success('Verification code sent to your email')
-        if (data?.devCode) info(`Dev code: ${data.devCode}`)
-        onBegin({ email: values.email, devCode: data?.devCode })
+        onBegin({ email: values.email, serverData: data })
       } else {
         const created = await signup(payload)
         success('Account created successfully')

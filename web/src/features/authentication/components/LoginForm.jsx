@@ -5,6 +5,7 @@ import { LoginVerificationForm } from "@/features/authentication"
 import TotpVerificationForm from '@/features/authentication/components/TotpVerificationForm.jsx'
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import LockoutBanner from '@/features/authentication/components/LockoutBanner.jsx'
 
 
 export default function LoginForm({ onSubmit } = {}) {
@@ -18,12 +19,16 @@ export default function LoginForm({ onSubmit } = {}) {
     prefillAdmin,
     prefillUser,
     verificationProps,
+    serverLockedUntil,
   } = useLoginFlow({ onSubmit })
 
   if (step === 'verify' || step === 'verify-totp') {
     const VerificationComponent = step === 'verify' ? LoginVerificationForm : TotpVerificationForm
     return <VerificationComponent {...verificationProps} />
   }
+
+  // Show lockout banner above login form when server indicates account is locked
+  const banner = serverLockedUntil ? <LockoutBanner lockedUntil={serverLockedUntil} /> : null
 
   const extraContent = (
     <Flex gap="small" align="center">
@@ -50,7 +55,9 @@ export default function LoginForm({ onSubmit } = {}) {
   )
 
   return (
-    <Card title="Login" extra={extraContent}>
+    <>
+      {banner}
+      <Card title="Login" extra={extraContent}>
       <Form name="login" form={form} layout="vertical" onFinish={handleFinish} initialValues={initialValues}>
         <Form.Item
           name="email"
@@ -74,6 +81,7 @@ export default function LoginForm({ onSubmit } = {}) {
           <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting}>Continue</Button>
         </Flex>
       </Form>
-    </Card>
+      </Card>
+    </>
   )
 }

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Layout, Row, Col, Button, Card, Input, Spin, Typography } from 'antd'
+import { Layout, Row, Col, Button, Card, Input, Spin, Typography, Space, Tooltip, Checkbox } from 'antd'
 import QrDisplay from '@/features/authentication/components/QrDisplay.jsx'
 import { useMfaSetup } from '@/features/authentication/hooks'
 
@@ -9,6 +9,8 @@ export default function MfaSetup() {
     // statusFetchFailed,
     handleSetup, handleVerify, handleDisable, 
    } = useMfaSetup()
+
+  const { showSecret, toggleShowSecret, confirmedSaved, setConfirmedSaved, handleCopy } = useMfaSetup()
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -29,11 +31,28 @@ export default function MfaSetup() {
                   <div><QrDisplay dataUrl={qrDataUrl} uri={uri} size={160} /></div>
                   <div style={{ flex: 1 }}>
                     <p>Scan the QR code above with Google Authenticator, Authy, or similar.</p>
-                    <p><strong>Secret:</strong> <code>{secret}</code></p>
+                    <p>
+                      <strong>Secret:</strong>
+                      <Space style={{ marginLeft: 8 }}>
+                        <code style={{ fontSize: 14 }}>{showSecret ? secret : (secret ? '••••••••••••' : '')}</code>
+                        <Tooltip title={showSecret ? 'Hide secret' : 'Show secret'}>
+                          <Button size="small" onClick={toggleShowSecret}>{showSecret ? 'Hide' : 'Show'}</Button>
+                        </Tooltip>
+                        <Tooltip title="Copy secret to clipboard">
+                          <Button size="small" onClick={handleCopy}>Copy</Button>
+                        </Tooltip>
+                      </Space>
+                    </p>
+
                     <div style={{ marginTop: 8 }}>
                       <label>Enter code from app</label>
-                      <Input value={code} onChange={(e) => setCode(e.target.value.replace(/\D+/g, '').slice(0,6))} style={{ width: 160, marginRight: 8 }} />
-                      <Button type="primary" onClick={handleVerify}>Verify & Enable</Button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                        <Input value={code} onChange={(e) => setCode(e.target.value.replace(/\D+/g, '').slice(0,6))} style={{ width: 160 }} />
+                        <Button type="primary" onClick={handleVerify} disabled={!confirmedSaved}>Verify & Enable</Button>
+                      </div>
+                      <div style={{ marginTop: 8 }}>
+                        <Checkbox checked={confirmedSaved} onChange={(e) => setConfirmedSaved(e.target.checked)}>I have saved the secret in a secure place</Checkbox>
+                      </div>
                     </div>
                   </div>
                 </div>

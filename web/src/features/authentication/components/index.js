@@ -13,5 +13,7 @@ export { default as VerifyDeleteCodeForm } from './VerifyDeleteCodeForm.jsx'
 export { default as SendCodeForCurrentUser } from './SendCodeForCurrentUser.jsx'
 export { default as SendDeleteCodeForCurrentUser } from './SendDeleteCodeForCurrentUser.jsx'
 export { default as DeletionScheduledBanner } from './DeletionScheduledBanner.jsx'
+export { default as WebAuthnRegister } from './WebAuthnRegister.jsx'
+export { default as WebAuthnAuthenticate } from './WebAuthnAuthenticate.jsx'
 
  

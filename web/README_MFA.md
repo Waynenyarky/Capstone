@@ -1,6 +1,9 @@
+
 # MFA (Multi-Factor Authentication) — Frontend docs
 
-This document describes the MFA-related frontend work in this repository: what is implemented in the web app, how the frontend integrates with backend endpoints, developer/demo options, and how to run tests and manual checks.
+This document describes the MFA-related frontend work in this repository (UI, hooks, and tests). A canonical backend API contract is available in `web/docs/mfa_api.md` — that file contains copy-pasteable JSON examples and exact field shapes the frontend expects. Use `web/docs/mfa_api.md` as the authoritative reference for backend implementers.
+
+Below is a high-level summary and developer notes.
 
 ---
 

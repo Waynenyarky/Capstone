@@ -14,6 +14,8 @@ export { default as ConfirmLogoutModal } from './components/ConfirmLogoutModal.j
 export { default as ChangeEmailForm } from './components/ChangeEmailForm.jsx'
 export { default as RequireAdmin } from './components/RequireAdmin.jsx'
 export { default as AdminLoginForm } from './components/AdminLoginForm.jsx'
+export { default as WebAuthnRegister } from './components/WebAuthnRegister.jsx'
+export { default as WebAuthnAuthenticate } from './components/WebAuthnAuthenticate.jsx'
 
 // Hooks — re-export from hooks barrel to avoid duplication
 export * from './hooks/index.js'

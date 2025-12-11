@@ -3,11 +3,11 @@ import { useVerificationForm } from "@/features/authentication/hooks"
 import React from 'react'
  
 
-export default function VerificationForm({ email, onSubmit, title, devCode } = {}) {
-  const { form, handleFinish, isSubmitting, prefillDevCode } = useVerificationForm({ email, onSubmit, devCode })
+export default function VerificationForm({ email, onSubmit, title } = {}) {
+  const { form, handleFinish, isSubmitting } = useVerificationForm({ email, onSubmit })
   const cardTitle = title || 'Verify Code'
   return (
-    <Card title={cardTitle} extra={devCode ? (<Button size="small" onClick={prefillDevCode}>Prefill Code</Button>) : undefined}>
+    <Card title={cardTitle}>
       <Form name="verification" form={form} layout="vertical" onFinish={handleFinish}>
         <Form.Item name="verificationCode" label="Verification Code" hasFeedback rules={[{ required: true, message: 'Enter the code' }] }>
           <Input.OTP />

@@ -17,7 +17,6 @@ export default function LoggedInEmailChangeFlow() {
         {step === 'verify' && (
           <VerificationForm
             email={verifyProps.email}
-            devCode={verifyProps.devCode}
             onSubmit={verifyProps.onSubmit}
             title="Verify"
           />

@@ -6,7 +6,7 @@ import { authHeaders } from "@/lib/authHeaders.js"
 import { useNotifier } from '@/shared/notifications.js'
 
 export function useSendDeleteAccountCode({ email, onSent } = {}) {
-  const { success, info, error } = useNotifier()
+  const { success, error } = useNotifier()
   const [isSending, setSending] = useState(false)
   const { currentUser } = useAuthSession()
 
@@ -26,10 +26,7 @@ export function useSendDeleteAccountCode({ email, onSent } = {}) {
         body: JSON.stringify(payload),
       })
       success('Verification code sent to your email')
-      if (data?.devCode) {
-        info(`Dev code: ${data.devCode}`)
-      }
-      if (typeof onSent === 'function') onSent({ email: targetEmail, devCode: data?.devCode })
+      if (typeof onSent === 'function') onSent({ email: targetEmail })
     } catch (err) {
       console.error('Send delete code error:', err)
       error(err, 'Failed to send delete verification code')

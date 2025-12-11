@@ -1,5 +1,5 @@
 import React from 'react'
-import { useAuthSession } from '@/features/authentication/hooks'
+import { useAuthSession } from './useAuthSession.js'
 import { mfaSetup, mfaVerify, mfaStatus, mfaDisable } from '@/features/authentication/services/mfaService'
 import { useNotifier } from '@/shared/notifications'
 
@@ -29,11 +29,19 @@ export default function useMfaSetup() {
         console.error('MFA status fetch error:', e)
         if (!mounted) return
         setStatusFetchFailed(true)
-        try { error('Could not retrieve MFA status — continuing offline; some actions may fail.') } catch (_) { /* ignore */ }
+        try { error('Could not retrieve MFA status — continuing offline; some actions may fail.') } catch { /* ignore */ }
       }
     })()
     return () => { mounted = false }
   }, [email, error])
+
+  // Ensure secret is not persisted anywhere when the hook/component unmounts.
+  // Clear in-memory secret on unmount to avoid accidental retention in long-lived SPA sessions.
+  React.useEffect(() => {
+    return () => {
+      try { setSecret('') } catch { /* ignore */ }
+    }
+  }, [])
 
   const handleSetup = React.useCallback(async () => {
     if (!email) return error('You must be signed in to setup MFA')
@@ -47,7 +55,7 @@ export default function useMfaSetup() {
       success('MFA setup initialized — scan QR with your authenticator app')
     } catch (e) {
       console.error('MFA setup error:', e)
-      try { error(e, 'Failed to initialize MFA setup') } catch (_) { /* ignore */ }
+      try { error(e, 'Failed to initialize MFA setup') } catch { /* ignore */ }
     } finally {
       setLoading(false)
     }
@@ -63,7 +71,7 @@ export default function useMfaSetup() {
       setEnabled(true)
     } catch (e) {
       console.error('MFA verify error:', e)
-      try { error(e, 'Failed to verify code') } catch (_) { /* ignore */ }
+      try { error(e, 'Failed to verify code') } catch { /* ignore */ }
     } finally {
       setLoading(false)
     }
@@ -81,7 +89,7 @@ export default function useMfaSetup() {
       setCode('')
     } catch (e) {
       console.error('MFA disable error:', e)
-      try { error(e, 'Failed to disable MFA') } catch (_) { /* ignore */ }
+      try { error(e, 'Failed to disable MFA') } catch { /* ignore */ }
     } finally {
       setLoading(false)
     }
