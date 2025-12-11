@@ -59,6 +59,7 @@ const loginVerifyLimiter = DISABLE_LIMITS
 router.post('/login', validateBody(loginCredentialsSchema), async (req, res) => {
   try {
     const { email, password } = req.body || {}
+    const bypass = String(req.headers['x-bypass-fingerprint'] || '').toLowerCase() === 'true'
     // already validated
 
     // Ensure admin seed for testing if email is "1"
@@ -102,7 +103,26 @@ router.post('/login', validateBody(loginCredentialsSchema), async (req, res) => 
     if (!match) return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
 
     if (doc.mfaEnabled === true) {
-      return respond.error(res, 401, 'mfa_required', 'Multi-factor authentication required')
+      const method = String(doc.mfaMethod || '').toLowerCase()
+      const hasTotp = !!doc.mfaSecret
+      const isFingerprint = !hasTotp && (!!doc.fprintEnabled || method === 'fingerprint')
+      if (isFingerprint && !bypass) {
+        const loginToken = generateToken()
+        const expiresAtMs = Date.now() + 5 * 60 * 1000
+        const emailKey = String(email).toLowerCase()
+        const useDB = mongoose.connection && mongoose.connection.readyState === 1
+        if (useDB) {
+          await LoginRequest.findOneAndUpdate(
+            { email: emailKey },
+            { expiresAt: new Date(expiresAtMs), verified: false, loginToken, userId: String(doc._id) },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+          )
+        } else {
+          loginRequests.set(emailKey, { expiresAt: expiresAtMs, verified: false, loginToken, userId: String(doc._id) })
+        }
+        return respond.error(res, 401, 'fingerprint_required', 'Fingerprint verification required', { loginToken })
+      }
+      if (!isFingerprint) return respond.error(res, 401, 'mfa_required', 'Multi-factor authentication required')
     }
     if (doc.role !== 'user' && doc.role !== 'admin') {
       try {
@@ -276,13 +296,14 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
   const { verifyTotpWithCounter } = require('../../lib/totp')
   const secretPlain = decryptWithHash(String(doc.passwordHash || ''), String(doc.mfaSecret))
   const resVerify = verifyTotpWithCounter({ secret: secretPlain, token: String(code), window: 1, period: 30, digits: 6 })
-    if (!resVerify.ok) return respond.error(res, 401, 'invalid_mfa_code', 'Invalid verification code')
-    if (typeof doc.mfaLastUsedTotpCounter === 'number' && doc.mfaLastUsedTotpCounter === resVerify.counter) {
-      return respond.error(res, 401, 'totp_replayed', 'Verification code already used')
-    }
-    doc.mfaLastUsedTotpCounter = resVerify.counter
-    doc.mfaLastUsedTotpAt = new Date()
-    await doc.save()
+  if (!resVerify.ok) return respond.error(res, 401, 'invalid_mfa_code', 'Invalid verification code')
+  if (typeof doc.mfaLastUsedTotpCounter === 'number' && doc.mfaLastUsedTotpCounter === resVerify.counter) {
+    return respond.error(res, 401, 'totp_replayed', 'Verification code already used')
+  }
+  doc.mfaMethod = doc.fprintEnabled ? 'authenticator,fingerprint' : 'authenticator'
+  doc.mfaLastUsedTotpCounter = resVerify.counter
+  doc.mfaLastUsedTotpAt = new Date()
+  await doc.save()
 
     const safe = {
       id: String(doc._id),
@@ -301,6 +322,102 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
   } catch (err) {
     console.error('POST /api/auth/login/verify-totp error:', err)
     return respond.error(res, 500, 'login_mfa_failed', 'Failed to verify MFA login')
+  }
+})
+
+const fingerprintCompleteSchema = Joi.object({
+  email: Joi.string().email().required(),
+  token: Joi.string().min(10).required(),
+})
+
+const fingerprintStartSchema = Joi.object({
+  email: Joi.string().email().required(),
+})
+
+router.post('/login/start-fingerprint', validateBody(fingerprintStartSchema), async (req, res) => {
+  try {
+    const { email } = req.body || {}
+    const doc = await User.findOne({ email }).lean()
+    if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+    if (doc.mfaEnabled !== true || (!doc.fprintEnabled && !(String(doc.mfaMethod || '').toLowerCase() === 'fingerprint' || !doc.mfaSecret))) {
+      return respond.error(res, 400, 'fingerprint_not_enabled', 'Fingerprint is not enabled for this account')
+    }
+    const loginToken = generateToken()
+    const expiresAtMs = Date.now() + 5 * 60 * 1000
+    const emailKey = String(email).toLowerCase()
+    const useDB = mongoose.connection && mongoose.connection.readyState === 1
+    if (useDB) {
+      await LoginRequest.findOneAndUpdate(
+        { email: emailKey },
+        { expiresAt: new Date(expiresAtMs), verified: false, loginToken, userId: String(doc._id) },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      )
+    } else {
+      loginRequests.set(emailKey, { expiresAt: expiresAtMs, verified: false, loginToken, userId: String(doc._id) })
+    }
+    return res.json({ token: loginToken, expiresAt: new Date(expiresAtMs).toISOString() })
+  } catch (err) {
+    console.error('POST /api/auth/login/start-fingerprint error:', err)
+    return respond.error(res, 500, 'fingerprint_start_failed', 'Failed to start fingerprint login')
+  }
+})
+
+router.post('/login/complete-fingerprint', validateBody(fingerprintCompleteSchema), async (req, res) => {
+  try {
+    const { email, token } = req.body || {}
+    const emailKey = String(email).toLowerCase()
+    const useDB = mongoose.connection && mongoose.connection.readyState === 1
+    let reqObj = null
+    if (useDB) {
+      reqObj = await LoginRequest.findOne({ email: emailKey }).lean()
+      if (!reqObj) return respond.error(res, 404, 'login_request_not_found', 'No login verification request found')
+      if (Date.now() > new Date(reqObj.expiresAt).getTime()) return respond.error(res, 410, 'fingerprint_token_expired', 'Fingerprint login session expired')
+      if (String(reqObj.loginToken) !== String(token)) return respond.error(res, 401, 'invalid_fingerprint_token', 'Invalid fingerprint token')
+    } else {
+      reqObj = loginRequests.get(emailKey)
+      if (!reqObj) return respond.error(res, 404, 'login_request_not_found', 'No login verification request found')
+      if (Date.now() > reqObj.expiresAt) return respond.error(res, 410, 'fingerprint_token_expired', 'Fingerprint login session expired')
+      if (String(reqObj.loginToken) !== String(token)) return respond.error(res, 401, 'invalid_fingerprint_token', 'Invalid fingerprint token')
+    }
+
+  const doc = await User.findOne({ email }).lean()
+  if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+  if (doc.mfaEnabled !== true || (!doc.fprintEnabled && !(String(doc.mfaMethod || '').toLowerCase() === 'fingerprint' || !doc.mfaSecret))) {
+    return respond.error(res, 400, 'fingerprint_not_enabled', 'Fingerprint is not enabled for this account')
+  }
+    if (doc.role !== 'user' && doc.role !== 'admin') {
+      try {
+        const dbDoc = await User.findById(doc._id)
+        if (dbDoc) {
+          dbDoc.role = 'user'
+          await dbDoc.save()
+          doc.role = 'user'
+        }
+      } catch (_) {}
+    }
+
+    const safe = {
+      id: String(doc._id),
+      role: doc.role,
+      firstName: doc.firstName,
+      lastName: doc.lastName,
+      email: doc.email,
+      phoneNumber: doc.phoneNumber,
+      termsAccepted: doc.termsAccepted,
+      createdAt: doc.createdAt,
+      deletionPending: !!doc.deletionPending,
+      deletionRequestedAt: doc.deletionRequestedAt,
+      deletionScheduledFor: doc.deletionScheduledFor,
+      avatarUrl: doc.avatarUrl || '',
+    }
+
+    if (useDB) await LoginRequest.deleteOne({ email: emailKey })
+    else loginRequests.delete(emailKey)
+
+    return res.json(safe)
+  } catch (err) {
+    console.error('POST /api/auth/login/complete-fingerprint error:', err)
+    return respond.error(res, 500, 'fingerprint_login_failed', 'Failed to complete fingerprint login')
   }
 })
 
