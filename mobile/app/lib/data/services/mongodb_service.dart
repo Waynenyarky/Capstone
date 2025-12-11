@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:mailer/mailer.dart';
+import 'package:mailer/smtp_server.dart';
 
 class MongoDBService {
     static final String baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:3000';
@@ -301,6 +303,7 @@ class MongoDBService {
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
+    bool bypassFingerprint = false,
   }) async {
     try {
       debugPrint('Posting to: $baseUrl/api/auth/login');
@@ -311,7 +314,9 @@ class MongoDBService {
 
       debugPrint('Sending login request: $body');
 
-      final response = await _postJsonWithFallback('/api/auth/login', body);
+      final response = bypassFingerprint
+          ? await _postJsonWithFallbackH('/api/auth/login', body, headers: { 'x-bypass-fingerprint': 'true' })
+          : await _postJsonWithFallback('/api/auth/login', body);
 
       debugPrint('Login response status: ${response.statusCode}');
       debugPrint('Login response body: ${response.body}');
@@ -327,10 +332,14 @@ class MongoDBService {
         };
       } else {
         String code = '';
+        String fpToken = '';
         final msg = () {
           try {
             final err = (data is Map && data['error'] is Map) ? data['error'] as Map : null;
             if (err != null && err['code'] is String) code = err['code'] as String;
+            if (err != null && err['details'] is Map && (err['details'] as Map)['loginToken'] is String) {
+              fpToken = (err['details'] as Map)['loginToken'] as String;
+            }
             final m = err != null ? err['message'] : null;
             return m ?? (data is Map ? data['message'] : null);
           } catch (_) {
@@ -341,6 +350,7 @@ class MongoDBService {
           'success': false,
           'message': msg ?? 'Login failed',
           if (code.isNotEmpty) 'code': code,
+          if (fpToken.isNotEmpty) 'fingerprintToken': fpToken,
         };
       }
     } on TimeoutException {
@@ -456,14 +466,93 @@ class MongoDBService {
       final isJson = ct.contains('application/json');
       final data = isJson ? json.decode(res.body) : {};
       if (res.statusCode == 200 && data is Map) {
+        final enabled = data['enabled'] == true;
+        final rawMethod = (data['method'] is String) ? (data['method'] as String) : '';
+        final methodNorm = rawMethod.toLowerCase().trim();
+        final serverFp = data['isFingerprintEnabled'] == true;
+        final derivedFp = enabled && (methodNorm.isEmpty || methodNorm == 'fingerprint' || methodNorm.contains('finger'));
+        final effectiveFp = serverFp || derivedFp;
         return {
           'success': true,
-          'enabled': data['enabled'] == true,
+          'enabled': enabled,
           'disablePending': data['disablePending'] == true,
           'scheduledFor': data['scheduledFor'],
+          'method': rawMethod,
+          'isFingerprintEnabled': effectiveFp,
         };
       }
       final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to fetch status';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> loginStartFingerprint({ required String email }) async {
+    try {
+      final e = email.trim().toLowerCase();
+      // Primary attempt (POST)
+      final response = await _postJsonWithFallbackH(
+        '/api/auth/login/start-fingerprint',
+        { 'email': e },
+        headers: { 'x-user-email': e },
+      );
+      Map<String, dynamic> data = {};
+      {
+        final ct = (response.headers['content-type'] ?? '').toLowerCase();
+        final isJson = ct.contains('application/json');
+        data = isJson ? (json.decode(response.body) as Map<String, dynamic>? ?? {}) : {};
+      }
+      if (response.statusCode == 200 && (data['token'] is String) && (data['token'] as String).isNotEmpty) {
+        return { 'success': true, 'token': data['token'], 'expiresAt': data['expiresAt'] };
+      }
+
+      // Fallback 1 (GET same endpoint with header only)
+      try {
+        final res2 = await _getWithFallbackH(
+          '/api/auth/login/start-fingerprint',
+          headers: { 'x-user-email': e },
+        );
+        final ct2 = (res2.headers['content-type'] ?? '').toLowerCase();
+        final isJson2 = ct2.contains('application/json');
+        final data2 = isJson2 ? (json.decode(res2.body) as Map<String, dynamic>? ?? {}) : {};
+        if (res2.statusCode == 200 && (data2['token'] is String) && (data2['token'] as String).isNotEmpty) {
+          return { 'success': true, 'token': data2['token'], 'expiresAt': data2['expiresAt'] };
+        }
+      } catch (_) {}
+
+      // Fallback 2 (alternate path order: POST)
+      try {
+        final res3 = await _postJsonWithFallbackH(
+          '/api/auth/login/fingerprint/start',
+          { 'email': e },
+          headers: { 'x-user-email': e },
+        );
+        final ct3 = (res3.headers['content-type'] ?? '').toLowerCase();
+        final isJson3 = ct3.contains('application/json');
+        final data3 = isJson3 ? (json.decode(res3.body) as Map<String, dynamic>? ?? {}) : {};
+        if (res3.statusCode == 200 && (data3['token'] is String) && (data3['token'] as String).isNotEmpty) {
+          return { 'success': true, 'token': data3['token'], 'expiresAt': data3['expiresAt'] };
+        }
+      } catch (_) {}
+
+      // Fallback 3 (alternate path order: GET)
+      try {
+        final res4 = await _getWithFallbackH(
+          '/api/auth/login/fingerprint/start',
+          headers: { 'x-user-email': e },
+        );
+        final ct4 = (res4.headers['content-type'] ?? '').toLowerCase();
+        final isJson4 = ct4.contains('application/json');
+        final data4 = isJson4 ? (json.decode(res4.body) as Map<String, dynamic>? ?? {}) : {};
+        if (res4.statusCode == 200 && (data4['token'] is String) && (data4['token'] as String).isNotEmpty) {
+          return { 'success': true, 'token': data4['token'], 'expiresAt': data4['expiresAt'] };
+        }
+      } catch (_) {}
+
+      final msg = (data['message'] is String) ? data['message'] as String : 'Fingerprint start failed';
       return { 'success': false, 'message': msg };
     } on TimeoutException {
       return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
@@ -476,16 +565,112 @@ class MongoDBService {
     try {
       final res = await _postJsonWithFallbackH(
         '/api/auth/mfa/setup',
-        { 'method': method },
+        { 'method': method, 'email': email, 'channel': 'email' },
         headers: { 'x-user-email': email },
       );
       final ct = (res.headers['content-type'] ?? '').toLowerCase();
       final isJson = ct.contains('application/json');
       final data = isJson ? json.decode(res.body) : {};
-      if (res.statusCode == 200 && data is Map) {
-        return { 'success': true, ...data };
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        return { 'success': true, ...(data is Map ? data : {}) };
       }
-      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to setup MFA';
+      final bodyText = res.body.toString();
+      final msg = (data is Map && data['message'] is String)
+          ? data['message']
+          : (bodyText.isNotEmpty ? bodyText : 'Failed to setup MFA');
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> sendOtpEmail({ required String to, required String code }) async {
+    try {
+      final host = dotenv.env['SMTP_HOST'];
+      final portStr = dotenv.env['SMTP_PORT'];
+      final username = dotenv.env['SMTP_USERNAME'];
+      final password = dotenv.env['SMTP_PASSWORD'];
+      final fromAddr = dotenv.env['SMTP_FROM'] ?? username;
+      final useSsl = (dotenv.env['SMTP_SSL'] ?? 'false').toLowerCase() == 'true';
+      final port = int.tryParse(portStr ?? '') ?? (useSsl ? 465 : 587);
+      if (host == null || host.isEmpty || username == null || username.isEmpty || password == null || password.isEmpty) {
+        return { 'success': false, 'message': 'SMTP not configured' };
+      }
+      final server = SmtpServer(host, port: port, username: username, password: password, ssl: useSsl);
+      final message = Message()
+        ..from = Address(fromAddr ?? username)
+        ..recipients.add(to)
+        ..subject = 'Your verification code'
+        ..text = 'Your verification code is: $code\nThis code expires in 10 minutes.';
+      await send(message, server);
+      return { 'success': true };
+    } catch (e) {
+      return { 'success': false, 'message': e.toString() };
+    }
+  }
+
+  static Future<Map<String, dynamic>> mfaFingerprintStart({ required String email }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/mfa/fingerprint/start',
+        {},
+        headers: { 'x-user-email': email },
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && (data is Map ? data['sent'] == true : true)) {
+        return { 'success': true };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to send verification code';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> mfaFingerprintVerify({ required String email, required String code }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/mfa/fingerprint/verify',
+        { 'code': code },
+        headers: { 'x-user-email': email },
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200) {
+        return { 'success': true, 'enabled': data is Map ? (data['enabled'] == true) : true };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to verify fingerprint';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> disableFingerprintLogin({ required String email }) async {
+    try {
+      final e = email.trim().toLowerCase();
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/mfa/fingerprint/disable',
+        {},
+        headers: { 'x-user-email': e },
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? (json.decode(res.body) as Map<String, dynamic>? ?? {}) : {};
+      if (res.statusCode == 200) {
+        final disabled = (data['fingerprintDisabled'] == true) || (data['disabled'] == true);
+        return { 'success': true, 'disabled': disabled, 'message': disabled ? 'Biometrics login disabled' : 'Success' };
+      }
+      final msg = data['message'] is String ? (data['message'] as String) : 'Request failed';
       return { 'success': false, 'message': msg };
     } on TimeoutException {
       return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
@@ -1092,6 +1277,32 @@ class MongoDBService {
         return { 'success': true, 'message': (data is Map && data['message'] is String) ? data['message'] : 'Avatar deleted' };
       }
       final msg = (data is Map && data['message'] is String) ? data['message'] : 'Delete failed';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> loginCompleteFingerprint({
+    required String email,
+    required String token,
+  }) async {
+    try {
+      final e = email.trim().toLowerCase();
+      final response = await _postJsonWithFallbackH(
+        '/api/auth/login/complete-fingerprint',
+        { 'email': e, 'token': token },
+        headers: { 'x-user-email': e },
+      );
+      final ct = (response.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(response.body) : {};
+      if (response.statusCode == 200) {
+        return { 'success': true, 'user': data };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] as String : 'Fingerprint login failed';
       return { 'success': false, 'message': msg };
     } on TimeoutException {
       return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };

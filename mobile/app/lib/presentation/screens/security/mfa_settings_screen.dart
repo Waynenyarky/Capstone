@@ -9,6 +9,7 @@ import '../../../domain/usecases/request_disable_mfa.dart';
 import '../../../domain/usecases/undo_disable_mfa.dart';
 import '../../../data/services/mongodb_service.dart';
 import 'mfa_setup_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MfaSettingsScreen extends StatefulWidget {
   final String email;
@@ -28,6 +29,9 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
   DateTime? _scheduledFor;
   Duration _disableRemaining = Duration.zero;
   Timer? _disableTicker;
+  
+  String? _selectOnReturn;
+  bool _fingerLock = false;
 
   @override
   void initState() {
@@ -71,6 +75,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
   void _openSetupFor(String method) {
     final enable = EnableMfaImpl(email: widget.email);
     final verify = VerifyMfaImpl(email: widget.email);
+    _selectOnReturn = method;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -79,9 +84,27 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
           verifyMfa: verify,
           initialMethod: method,
           allowSelection: false,
+          email: widget.email,
         ),
       ),
-    ).then((_) => _loadAuthDetail());
+    ).then((result) async {
+      final selected = (result is String && result.isNotEmpty) ? result : _selectOnReturn;
+      setState(() {
+        _selected = selected;
+        if (selected == 'fingerprint') {
+          _fingerEnabled = true;
+          _fingerLock = true;
+        }
+      });
+      if (selected == 'fingerprint') {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('lastLoginEmail', widget.email);
+        } catch (_) {}
+      }
+      _selectOnReturn = null;
+      _loadAuthDetail();
+    });
   }
 
 
@@ -91,19 +114,31 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
 
   Future<void> _loadAuthDetail() async {
     try {
-      final get = GetMfaStatusDetailImpl(email: widget.email);
-      final status = await get.call();
+      final raw = await MongoDBService.getMfaStatusDetail(email: widget.email);
       if (!mounted) return;
       setState(() {
-        _authEnabled = status.enabled;
-        _disablePending = status.disablePending;
-        _scheduledFor = status.scheduledFor;
-        if (_authEnabled) {
-          _selected = 'authenticator';
-        } else if (_selected == 'authenticator') {
-          _selected = null;
+        final currentMethod = (raw['method'] is String) ? (raw['method'] as String) : '';
+        final methodNorm = currentMethod.toLowerCase().trim();
+        final fpEnabledFromServer = (raw['fprintEnabled'] == true) || (raw['isFingerprintEnabled'] == true);
+        final isAuthMethod = methodNorm == 'authenticator' || methodNorm == 'totp' || methodNorm == 'microsoft' || methodNorm.contains('auth');
+        _authEnabled = raw['enabled'] == true;
+        _disablePending = raw['disablePending'] == true;
+        final s = raw['scheduledFor'];
+        _scheduledFor = s is String ? DateTime.tryParse(s) : null;
+        final fpDerived = (raw['enabled'] == true) && (methodNorm.isEmpty || methodNorm == 'fingerprint');
+        final lockActive = _fingerLock && (methodNorm.isEmpty || methodNorm == 'fingerprint');
+        _fingerEnabled = fpEnabledFromServer || fpDerived || lockActive;
+        if (fpEnabledFromServer || isAuthMethod) {
+          _fingerLock = false;
         }
+        
+        // Do not override selection here; details will render based on enabled flags
       });
+      if (_selected == 'authenticator') {
+        _syncDisableCountdown();
+      } else if (_selected == 'fingerprint') {
+        setState(() {});
+      }
       _syncDisableCountdown();
     } catch (_) {}
   }
@@ -136,6 +171,124 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
         ),
       ),
     ).then((_) => _loadAuthDetail());
+  }
+
+  Future<void> _toggleFingerprint(bool value) async {
+    if (value) {
+      _openSetupFor('fingerprint');
+      return;
+    }
+    final proceed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        final w = MediaQuery.of(ctx).size.width;
+        final isCompact = w < 360;
+        return AlertDialog(
+          scrollable: true,
+          insetPadding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 24, vertical: 24),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+          contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+          title: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.red.shade50, shape: BoxShape.circle),
+                child: Icon(Icons.warning_amber_rounded, color: Colors.red.shade600, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  'Disable Biometrics Login',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.red.shade100),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 18, color: Colors.red.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Disabling fingerprint will remove biometric login for this device/account.',
+                        style: TextStyle(fontSize: 13, color: Colors.red.shade900, height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Your Authenticator App (if enabled) remains active.',
+                style: const TextStyle(fontSize: 13, color: Colors.black54),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Disable Biometrics Login'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Cancel'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    ) ?? false;
+    if (!mounted) return;
+    if (!proceed) {
+      setState(() {});
+      return;
+    }
+    try {
+      final res = await MongoDBService.disableFingerprintLogin(email: widget.email);
+      final ok = res['success'] == true;
+      if (!mounted) return;
+      setState(() => _fingerEnabled = ok ? false : _fingerEnabled);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(ok ? 'Biometrics login disabled' : (res['message'] ?? 'Update failed').toString())),
+      );
+      if (ok) {
+        _loadAuthDetail();
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Connection error')));
+      }
+    }
   }
 
   Future<void> _toggleAuthenticator(bool value) async {
@@ -242,7 +395,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
                   onTap: () => _select('authenticator'),
                 ),
               ),
-              if (_selected == 'authenticator') Padding(
+              if (_selected == 'authenticator' || _authEnabled) Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: _buildDetailFor('authenticator'),
               ),
@@ -256,7 +409,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
                   onTap: () => _select('fingerprint'),
                 ),
               ),
-              if (_selected == 'fingerprint') Padding(
+              if (_selected == 'fingerprint' || _fingerEnabled) Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: _buildDetailFor('fingerprint'),
               ),
@@ -304,6 +457,8 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
               const SizedBox(height: 8),
               const Text('During setup, you will scan a QR code and enter the generated 6-digit code to verify.'),
               const SizedBox(height: 16),
+              
+              
               if (_authEnabled && _disablePending && _scheduledFor != null) ...[
                 const Text('The authenticator is currently active but has been scheduled for deactivation.', style: TextStyle(color: Colors.orange)),
                 const SizedBox(height: 8),
@@ -329,7 +484,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
           icon: Icons.fingerprint,
           title: 'Fingerprint',
           enabled: _fingerEnabled,
-          onToggle: (v) => setState(() => _fingerEnabled = v),
+          onToggle: _toggleFingerprint,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -339,11 +494,17 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
               const SizedBox(height: 8),
               const Text('Make sure fingerprint is enrolled in your device settings.'),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  ElevatedButton(onPressed: () => _openSetupFor('fingerprint'), child: const Text('Set Up')),
-                ],
-              ),
+              if (_fingerEnabled) ...[
+                const Text('Fingerprint is enabled.', style: TextStyle(color: Colors.green)),
+                const SizedBox(height: 12),
+              ],
+              if (!_fingerEnabled) ...[
+                Row(
+                  children: [
+                    ElevatedButton(onPressed: () => _openSetupFor('fingerprint'), child: const Text('Set Up')),
+                  ],
+                ),
+              ],
             ],
           ),
         );
