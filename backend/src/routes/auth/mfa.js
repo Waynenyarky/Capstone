@@ -7,6 +7,7 @@ const { otpauthUri, generateSecret, verifyTotpWithCounter } = require('../../lib
 const { sendOtp } = require('../../lib/mailer')
 const { mfaRequests } = require('../../lib/authRequestsStore')
 const { encryptWithHash, decryptWithHash } = require('../../lib/secretCipher')
+const { generateToken } = require('../../lib/codes')
 
 const router = express.Router()
 
@@ -151,28 +152,32 @@ router.post('/mfa/disable', requireUser, async (req, res) => {
 })
 
 // GET /api/auth/mfa/status
-router.get('/mfa/status', requireUser, async (req, res) => {
-  try {
-    const email = req._userEmail
-    const doc = await User.findOne({ email })
-    if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
-    if (doc.mfaDisablePending && doc.mfaDisableScheduledFor && Date.now() >= new Date(doc.mfaDisableScheduledFor).getTime()) {
-      doc.mfaEnabled = false
-      doc.mfaSecret = ''
-      doc.mfaDisablePending = false
-      doc.mfaDisableRequestedAt = null
-      doc.mfaDisableScheduledFor = null
-      doc.fprintEnabled = false
-      await doc.save()
+  router.get('/mfa/status', requireUser, async (req, res) => {
+    try {
+      const email = req._userEmail
+      const doc = await User.findOne({ email })
+      if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+      if (doc.mfaDisablePending && doc.mfaDisableScheduledFor && Date.now() >= new Date(doc.mfaDisableScheduledFor).getTime()) {
+        doc.mfaEnabled = false
+        doc.mfaSecret = ''
+        doc.mfaDisablePending = false
+        doc.mfaDisableRequestedAt = null
+        doc.mfaDisableScheduledFor = null
+        doc.fprintEnabled = false
+        await doc.save()
+      }
+      const hasTotp = !!doc.mfaSecret
+      let method = String(doc.mfaMethod || '').toLowerCase()
+      if (!hasTotp && !!doc.fprintEnabled) {
+        method = 'fingerprint'
+      }
+      const isFingerprint = !!doc.fprintEnabled
+      return res.json({ enabled: !!doc.mfaEnabled, disablePending: !!doc.mfaDisablePending, scheduledFor: doc.mfaDisableScheduledFor, method, isFingerprintEnabled: isFingerprint, fprintEnabled: !!doc.fprintEnabled })
+    } catch (err) {
+      console.error('GET /api/auth/mfa/status error:', err)
+      return respond.error(res, 500, 'mfa_status_failed', 'Failed to get MFA status')
     }
-    const method = String(doc.mfaMethod || '').toLowerCase()
-    const isFingerprint = !!doc.fprintEnabled || (!!doc.mfaEnabled && (method === 'fingerprint' || !doc.mfaSecret))
-    return res.json({ enabled: !!doc.mfaEnabled, disablePending: !!doc.mfaDisablePending, scheduledFor: doc.mfaDisableScheduledFor, method, isFingerprintEnabled: isFingerprint, fprintEnabled: !!doc.fprintEnabled })
-  } catch (err) {
-    console.error('GET /api/auth/mfa/status error:', err)
-    return respond.error(res, 500, 'mfa_status_failed', 'Failed to get MFA status')
-  }
-})
+  })
 
 // POST /api/auth/mfa/fingerprint/start
 router.post('/mfa/fingerprint/start', requireUser, async (req, res) => {
@@ -214,6 +219,7 @@ router.post('/mfa/fingerprint/verify', requireUser, validateBody(verifySchema), 
     doc.fprintEnabled = true
     const hasTotp = !!doc.mfaSecret
     doc.mfaMethod = hasTotp ? 'authenticator,fingerprint' : 'fingerprint'
+    doc.tokenFprint = generateToken()
     await doc.save()
     mfaRequests.delete(key)
     return res.json({ enabled: true })
@@ -239,6 +245,7 @@ router.post('/mfa/fingerprint/disable', requireUser, async (req, res) => {
       doc.mfaEnabled = false
       if (String(doc.mfaMethod || '').toLowerCase() === 'fingerprint') doc.mfaMethod = ''
     }
+    doc.tokenFprint = ''
     await doc.save()
     return res.json({ fingerprintDisabled: true, mfaEnabled: !!doc.mfaEnabled })
   } catch (err) {

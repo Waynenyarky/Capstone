@@ -29,9 +29,6 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
   DateTime? _scheduledFor;
   Duration _disableRemaining = Duration.zero;
   Timer? _disableTicker;
-  
-  String? _selectOnReturn;
-  bool _fingerLock = false;
 
   @override
   void initState() {
@@ -75,7 +72,6 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
   void _openSetupFor(String method) {
     final enable = EnableMfaImpl(email: widget.email);
     final verify = VerifyMfaImpl(email: widget.email);
-    _selectOnReturn = method;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -88,13 +84,9 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
         ),
       ),
     ).then((result) async {
-      final selected = (result is String && result.isNotEmpty) ? result : _selectOnReturn;
+      final selected = (result is String && result.isNotEmpty) ? result : null;
       setState(() {
         _selected = selected;
-        if (selected == 'fingerprint') {
-          _fingerEnabled = true;
-          _fingerLock = true;
-        }
       });
       if (selected == 'fingerprint') {
         try {
@@ -102,7 +94,6 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
           await prefs.setString('lastLoginEmail', widget.email);
         } catch (_) {}
       }
-      _selectOnReturn = null;
       _loadAuthDetail();
     });
   }
@@ -121,16 +112,11 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
         final methodNorm = currentMethod.toLowerCase().trim();
         final fpEnabledFromServer = (raw['fprintEnabled'] == true) || (raw['isFingerprintEnabled'] == true);
         final isAuthMethod = methodNorm == 'authenticator' || methodNorm == 'totp' || methodNorm == 'microsoft' || methodNorm.contains('auth');
-        _authEnabled = raw['enabled'] == true;
+        _authEnabled = (raw['enabled'] == true) && isAuthMethod;
         _disablePending = raw['disablePending'] == true;
         final s = raw['scheduledFor'];
         _scheduledFor = s is String ? DateTime.tryParse(s) : null;
-        final fpDerived = (raw['enabled'] == true) && (methodNorm.isEmpty || methodNorm == 'fingerprint');
-        final lockActive = _fingerLock && (methodNorm.isEmpty || methodNorm == 'fingerprint');
-        _fingerEnabled = fpEnabledFromServer || fpDerived || lockActive;
-        if (fpEnabledFromServer || isAuthMethod) {
-          _fingerLock = false;
-        }
+        _fingerEnabled = fpEnabledFromServer;
         
         // Do not override selection here; details will render based on enabled flags
       });
@@ -235,7 +221,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                'Your Authenticator App (if enabled) remains active.',
+                'Your TOTP Authenticator (if enabled) remains active.',
                 style: const TextStyle(fontSize: 13, color: Colors.black54),
               ),
               const SizedBox(height: 16),
@@ -316,7 +302,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          title: const Text('Disable Authenticator App'),
+          title: const Text('Disable TOTP Authenticator'),
           content: const Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -389,7 +375,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.qr_code),
-                  title: const Text('Authenticator App'),
+                  title: const Text('TOTP Authenticator'),
                   subtitle: const Text('Use time-based codes from an app'),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () => _select('authenticator'),
@@ -403,8 +389,8 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.fingerprint),
-                  title: const Text('Fingerprint'),
-                  subtitle: const Text('Use your device fingerprint'),
+                      title: const Text('Biometrics'),
+                  subtitle: const Text('Use your device biometrics'),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () => _select('fingerprint'),
                 ),
@@ -445,7 +431,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
       case 'authenticator':
         return _buildMethodCard(
           icon: Icons.qr_code,
-          title: 'Authenticator App',
+          title: 'TOTP Authenticator',
           enabled: _authEnabled,
           onToggle: _toggleAuthenticator,
           child: Column(
@@ -482,7 +468,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
       case 'fingerprint':
         return _buildMethodCard(
           icon: Icons.fingerprint,
-          title: 'Fingerprint',
+          title: 'Biometrics',
           enabled: _fingerEnabled,
           onToggle: _toggleFingerprint,
           child: Column(
@@ -490,12 +476,12 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
             children: [
               const Text('How it works', style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
-              const Text('Use your device\'s fingerprint sensor to verify your identity during sign in.'),
+              const Text('Use your device\'s biometrics to verify your identity during sign in.'),
               const SizedBox(height: 8),
-              const Text('Make sure fingerprint is enrolled in your device settings.'),
+              const Text('Make sure biometrics are enrolled in your device settings.'),
               const SizedBox(height: 16),
               if (_fingerEnabled) ...[
-                const Text('Fingerprint is enabled.', style: TextStyle(color: Colors.green)),
+                const Text('Biometrics is enabled.', style: TextStyle(color: Colors.green)),
                 const SizedBox(height: 12),
               ],
               if (!_fingerEnabled) ...[

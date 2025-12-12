@@ -12,7 +12,7 @@ class BiometricSetupSection extends StatelessWidget {
     required this.activated,
     required this.onChanged,
     this.title = 'Activate Biometric Authentication',
-    this.infoText = 'Ensure fingerprint is enrolled in your device settings before enabling.',
+    this.infoText = 'Ensure biometrics are enrolled in your device settings before enabling.',
   });
 
   @override

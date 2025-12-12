@@ -345,7 +345,7 @@ class _DisableMfaPageState extends State<DisableMfaPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Enter the 6-digit code from your authenticator app to cancel this request and keep your account protected.',
+                'Enter the 6-digit code from your TOTP authenticator to cancel this request and keep your account protected.',
                 style: TextStyle(
                   fontSize: 15,
                   color: Colors.grey.shade600,

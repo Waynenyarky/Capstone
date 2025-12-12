@@ -468,10 +468,7 @@ class MongoDBService {
       if (res.statusCode == 200 && data is Map) {
         final enabled = data['enabled'] == true;
         final rawMethod = (data['method'] is String) ? (data['method'] as String) : '';
-        final methodNorm = rawMethod.toLowerCase().trim();
-        final serverFp = data['isFingerprintEnabled'] == true;
-        final derivedFp = enabled && (methodNorm.isEmpty || methodNorm == 'fingerprint' || methodNorm.contains('finger'));
-        final effectiveFp = serverFp || derivedFp;
+        final effectiveFp = data['isFingerprintEnabled'] == true;
         return {
           'success': true,
           'enabled': enabled,
@@ -508,6 +505,16 @@ class MongoDBService {
       if (response.statusCode == 200 && (data['token'] is String) && (data['token'] as String).isNotEmpty) {
         return { 'success': true, 'token': data['token'], 'expiresAt': data['expiresAt'] };
       }
+      String emsg = () {
+        try {
+          if (data['error'] is Map && (data['error'] as Map)['message'] is String) {
+            return (data['error'] as Map)['message'] as String;
+          }
+          if (data['message'] is String) return data['message'] as String;
+        } catch (_) {}
+        final bodyText = response.body.toString();
+        return bodyText.isNotEmpty ? bodyText : '';
+      }();
 
       // Fallback 1 (GET same endpoint with header only)
       try {
@@ -520,6 +527,18 @@ class MongoDBService {
         final data2 = isJson2 ? (json.decode(res2.body) as Map<String, dynamic>? ?? {}) : {};
         if (res2.statusCode == 200 && (data2['token'] is String) && (data2['token'] as String).isNotEmpty) {
           return { 'success': true, 'token': data2['token'], 'expiresAt': data2['expiresAt'] };
+        }
+        if (emsg.isEmpty) {
+          try {
+            if (data2['error'] is Map && (data2['error'] as Map)['message'] is String) {
+              emsg = (data2['error'] as Map)['message'] as String;
+            } else if (data2['message'] is String) {
+              emsg = data2['message'] as String;
+            } else {
+              final bodyText2 = res2.body.toString();
+              if (bodyText2.isNotEmpty) emsg = bodyText2;
+            }
+          } catch (_) {}
         }
       } catch (_) {}
 
@@ -536,6 +555,18 @@ class MongoDBService {
         if (res3.statusCode == 200 && (data3['token'] is String) && (data3['token'] as String).isNotEmpty) {
           return { 'success': true, 'token': data3['token'], 'expiresAt': data3['expiresAt'] };
         }
+        if (emsg.isEmpty) {
+          try {
+            if (data3['error'] is Map && (data3['error'] as Map)['message'] is String) {
+              emsg = (data3['error'] as Map)['message'] as String;
+            } else if (data3['message'] is String) {
+              emsg = data3['message'] as String;
+            } else {
+              final bodyText3 = res3.body.toString();
+              if (bodyText3.isNotEmpty) emsg = bodyText3;
+            }
+          } catch (_) {}
+        }
       } catch (_) {}
 
       // Fallback 3 (alternate path order: GET)
@@ -550,9 +581,21 @@ class MongoDBService {
         if (res4.statusCode == 200 && (data4['token'] is String) && (data4['token'] as String).isNotEmpty) {
           return { 'success': true, 'token': data4['token'], 'expiresAt': data4['expiresAt'] };
         }
+        if (emsg.isEmpty) {
+          try {
+            if (data4['error'] is Map && (data4['error'] as Map)['message'] is String) {
+              emsg = (data4['error'] as Map)['message'] as String;
+            } else if (data4['message'] is String) {
+              emsg = data4['message'] as String;
+            } else {
+              final bodyText4 = res4.body.toString();
+              if (bodyText4.isNotEmpty) emsg = bodyText4;
+            }
+          } catch (_) {}
+        }
       } catch (_) {}
 
-      final msg = (data['message'] is String) ? data['message'] as String : 'Fingerprint start failed';
+      final msg = emsg.isNotEmpty ? emsg : 'Fingerprint start failed';
       return { 'success': false, 'message': msg };
     } on TimeoutException {
       return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
@@ -928,6 +971,113 @@ class MongoDBService {
         'success': false,
         'message': 'Connection error: ${e.toString()}',
       };
+    }
+  }
+
+  static Future<Map<String, dynamic>> changeEmailStart({
+    required String currentEmail,
+    required String newEmail,
+  }) async {
+    try {
+      final body = { 'newEmail': newEmail };
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/change-email/start',
+        body,
+        headers: { 'x-user-email': currentEmail },
+        timeout: const Duration(seconds: 12),
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && (data is Map ? data['sent'] == true : true)) {
+        return { 'success': true, 'to': data is Map ? data['to'] : newEmail };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to send verification code';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> changeEmailVerify({
+    required String currentEmail,
+    required String code,
+  }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/change-email/verify',
+        { 'code': code },
+        headers: { 'x-user-email': currentEmail },
+        timeout: const Duration(seconds: 12),
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200) {
+        return {
+          'success': true,
+          'email': (data is Map && data['email'] is String) ? data['email'] as String : currentEmail,
+        };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Invalid verification code';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> changeEmailConfirmStart({
+    required String email,
+  }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/change-email/confirm/start',
+        {},
+        headers: { 'x-user-email': email },
+        timeout: const Duration(seconds: 12),
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && (data is Map ? data['sent'] == true : true)) {
+        return { 'success': true, 'to': data is Map ? data['to'] : email };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to send verification code';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> changeEmailConfirmVerify({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/change-email/confirm/verify',
+        { 'code': code },
+        headers: { 'x-user-email': email },
+        timeout: const Duration(seconds: 12),
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200) {
+        return { 'success': true, 'verified': data is Map ? (data['verified'] == true) : true };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Invalid verification code';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
     }
   }
 

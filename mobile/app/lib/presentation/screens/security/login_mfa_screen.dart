@@ -166,7 +166,7 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Enter the 6-digit code from your authenticator app',
+                'Enter the 6-digit code from your TOTP authenticator',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey.shade600,
@@ -292,7 +292,7 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Check your authenticator app for the verification code',
+                            'Check your TOTP authenticator for the verification code',
                             style: TextStyle(
                               fontSize: 13,
                               color: Colors.grey.shade600,

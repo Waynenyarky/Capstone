@@ -54,7 +54,7 @@ class AuthenticatorSetupSection extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Add to your authenticator app',
+                'Add to your TOTP authenticator',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 12),

@@ -643,6 +643,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         focusNode: _emailFocus,
                         keyboardType: TextInputType.emailAddress,
                         enabled: !_isLoading,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9._@+\-]')),
+                        ],
                         decoration: _buildInputDecoration(
                           label: 'Email',
                           prefixIcon: Icons.email_outlined,

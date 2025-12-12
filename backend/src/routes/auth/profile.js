@@ -4,6 +4,9 @@ const User = require('../../models/User')
 const { decryptWithHash, encryptWithHash } = require('../../lib/secretCipher')
 const respond = require('../../middleware/respond')
 const { validateBody, Joi } = require('../../middleware/validation')
+const { generateCode } = require('../../lib/codes')
+const { sendOtp } = require('../../lib/mailer')
+const { changeEmailRequests } = require('../../lib/authRequestsStore')
 
 const router = express.Router()
 
@@ -264,6 +267,14 @@ router.post('/change-email-authenticated', validateBody(changeEmailAuthenticated
     if (exists) return respond.error(res, 409, 'email_in_use', 'Email already in use')
 
     doc.email = normalized
+    doc.mfaEnabled = false
+    doc.mfaSecret = ''
+    doc.fprintEnabled = false
+    doc.mfaMethod = ''
+    doc.mfaDisablePending = false
+    doc.mfaDisableRequestedAt = null
+    doc.mfaDisableScheduledFor = null
+    doc.tokenFprint = ''
     await doc.save()
 
     return res.json({ message: 'Email updated successfully', email: doc.email })
@@ -273,6 +284,160 @@ router.post('/change-email-authenticated', validateBody(changeEmailAuthenticated
   }
 })
 
+const changeEmailStartSchema = Joi.object({
+  newEmail: Joi.string().email().required(),
+})
+
+// POST /api/auth/change-email/start
+// Step 1: send OTP to the new email to confirm change
+router.post('/change-email/start', validateBody(changeEmailStartSchema), async (req, res) => {
+  try {
+    const idHeader = req.headers['x-user-id']
+    const emailHeader = req.headers['x-user-email']
+    let doc = null
+    if (idHeader) {
+      try { doc = await User.findById(idHeader) } catch (_) { doc = null }
+    }
+    if (!doc && emailHeader) {
+      doc = await User.findOne({ email: emailHeader })
+    }
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const currentEmail = String(doc.email || '').toLowerCase()
+    const input = String(req.body.newEmail || '').trim().toLowerCase()
+    if (!input) return respond.error(res, 400, 'invalid_email', 'Invalid email')
+    if (input === currentEmail) return respond.error(res, 400, 'same_email', 'New email must be different from current')
+
+    const exists = await User.findOne({ email: input }).lean()
+    if (exists) return respond.error(res, 409, 'email_in_use', 'Email already in use')
+
+    const code = generateCode()
+    const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10)
+    const expiresAtMs = Date.now() + ttlMin * 60 * 1000
+    const key = currentEmail
+    changeEmailRequests.set(key, { code, expiresAt: expiresAtMs, newEmail: input })
+
+    await sendOtp({ to: input, code, subject: 'Confirm email change' })
+    return res.json({ sent: true, to: input, expiresAt: new Date(expiresAtMs).toISOString() })
+  } catch (err) {
+    console.error('POST /api/auth/change-email/start error:', err)
+    return respond.error(res, 500, 'change_email_start_failed', 'Failed to send verification code')
+  }
+})
+
+const changeEmailVerifySchema = Joi.object({
+  code: Joi.string().pattern(/^[0-9]{6}$/).required(),
+})
+
+// POST /api/auth/change-email/verify
+// Step 2: verify OTP and update user's email
+router.post('/change-email/verify', validateBody(changeEmailVerifySchema), async (req, res) => {
+  try {
+    const idHeader = req.headers['x-user-id']
+    const emailHeader = req.headers['x-user-email']
+    let doc = null
+    if (idHeader) {
+      try { doc = await User.findById(idHeader) } catch (_) { doc = null }
+    }
+    if (!doc && emailHeader) {
+      doc = await User.findOne({ email: emailHeader })
+    }
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const key = String(doc.email || '').toLowerCase()
+    const reqObj = changeEmailRequests.get(key)
+    if (!reqObj) return respond.error(res, 404, 'change_email_request_not_found', 'No change email request found')
+    if (Date.now() > reqObj.expiresAt) return respond.error(res, 410, 'code_expired', 'Code expired')
+
+    const { code } = req.body || {}
+    if (String(reqObj.code) !== String(code)) return respond.error(res, 401, 'invalid_code', 'Invalid code')
+
+    const nextEmail = String(reqObj.newEmail || '').toLowerCase()
+    if (!nextEmail) return respond.error(res, 400, 'invalid_email', 'Invalid email')
+    const exists = await User.findOne({ email: nextEmail }).lean()
+    if (exists) {
+      changeEmailRequests.delete(key)
+      return respond.error(res, 409, 'email_in_use', 'Email already in use')
+    }
+
+    doc.email = nextEmail
+    doc.mfaEnabled = false
+    doc.mfaSecret = ''
+    doc.fprintEnabled = false
+    doc.mfaMethod = ''
+    doc.mfaDisablePending = false
+    doc.mfaDisableRequestedAt = null
+    doc.mfaDisableScheduledFor = null
+    doc.tokenFprint = ''
+    await doc.save()
+    changeEmailRequests.delete(key)
+    return res.json({ updated: true, email: doc.email })
+  } catch (err) {
+    console.error('POST /api/auth/change-email/verify error:', err)
+    return respond.error(res, 500, 'change_email_verify_failed', 'Failed to verify change email')
+  }
+})
+
+const changeEmailConfirmStartSchema = Joi.object({
+  email: Joi.string().email().optional(),
+})
+
+// POST /api/auth/change-email/confirm/start
+router.post('/change-email/confirm/start', validateBody(changeEmailConfirmStartSchema), async (req, res) => {
+  try {
+    const idHeader = req.headers['x-user-id']
+    const emailHeader = req.headers['x-user-email']
+    let doc = null
+    if (idHeader) {
+      try { doc = await User.findById(idHeader) } catch (_) { doc = null }
+    }
+    if (!doc && emailHeader) {
+      doc = await User.findOne({ email: emailHeader })
+    }
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+    const currentEmail = String(doc.email || '').toLowerCase()
+    const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10)
+    const expiresAtMs = Date.now() + ttlMin * 60 * 1000
+    const code = generateCode()
+    changeEmailRequests.set(currentEmail, { code, expiresAt: expiresAtMs, newEmail: '' })
+    await sendOtp({ to: currentEmail, code, subject: 'Confirm your email' })
+    return res.json({ sent: true, to: currentEmail, expiresAt: new Date(expiresAtMs).toISOString() })
+  } catch (err) {
+    console.error('POST /api/auth/change-email/confirm/start error:', err)
+    return respond.error(res, 500, 'change_email_confirm_start_failed', 'Failed to send verification code')
+  }
+})
+
+const changeEmailConfirmVerifySchema = Joi.object({
+  code: Joi.string().pattern(/^[0-9]{6}$/).required(),
+})
+
+// POST /api/auth/change-email/confirm/verify
+router.post('/change-email/confirm/verify', validateBody(changeEmailConfirmVerifySchema), async (req, res) => {
+  try {
+    const idHeader = req.headers['x-user-id']
+    const emailHeader = req.headers['x-user-email']
+    let doc = null
+    if (idHeader) {
+      try { doc = await User.findById(idHeader) } catch (_) { doc = null }
+    }
+    if (!doc && emailHeader) {
+      doc = await User.findOne({ email: emailHeader })
+    }
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+    const key = String(doc.email || '').toLowerCase()
+    const reqObj = changeEmailRequests.get(key)
+    if (!reqObj) return respond.error(res, 404, 'change_email_confirm_not_found', 'No confirmation request found')
+    if (Date.now() > reqObj.expiresAt) return respond.error(res, 410, 'code_expired', 'Code expired')
+    const { code } = req.body || {}
+    if (String(reqObj.code) !== String(code)) return respond.error(res, 401, 'invalid_code', 'Invalid code')
+    changeEmailRequests.delete(key)
+    return res.json({ verified: true })
+  } catch (err) {
+    console.error('POST /api/auth/change-email/confirm/verify error:', err)
+    return respond.error(res, 500, 'change_email_confirm_verify_failed', 'Failed to verify email')
+  }
+})
 // GET /api/auth/users
 router.get('/users', async (req, res) => {
   try {

@@ -90,7 +90,7 @@ class _MfaSetupScreenState extends State<MfaSetupScreen> {
       final hasFingerprint = types.contains(BiometricType.fingerprint) || types.contains(BiometricType.strong) || types.contains(BiometricType.weak);
       if (!(supported && canCheck && hasFingerprint)) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fingerprint not supported on this device')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometrics not supported on this device')));
         setState(() {
           _biometricActivated = false;
           _sendingFingerprintOtp = false;
@@ -163,20 +163,20 @@ class _MfaSetupScreenState extends State<MfaSetupScreen> {
                     DropdownButtonFormField<String>(
                       initialValue: _method,
                       items: const [
-                        DropdownMenuItem(value: 'authenticator', child: Text('Authenticator app')),
-                        DropdownMenuItem(value: 'fingerprint', child: Text('Fingerprint')),
+                        DropdownMenuItem(value: 'authenticator', child: Text('TOTP authenticator')),
+                        DropdownMenuItem(value: 'fingerprint', child: Text('Biometrics')),
                         DropdownMenuItem(value: 'face', child: Text('Face recognition')),
                       ],
-                      onChanged: (v) => setState(() => _method = v ?? 'authenticator'),
-                    ),
-                    const SizedBox(height: 12),
-                  ] else ...[
-                    Text(
-                      _method == 'authenticator'
-                          ? 'Authenticator App'
-                          : (_method == 'fingerprint' ? 'Fingerprint' : 'Face Recognition'),
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                    ),
+                  onChanged: (v) => setState(() => _method = v ?? 'authenticator'),
+                ),
+                const SizedBox(height: 12),
+              ] else ...[
+                Text(
+                  _method == 'authenticator'
+                      ? 'TOTP Authenticator'
+                      : (_method == 'fingerprint' ? 'Biometrics' : 'Face Recognition'),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                ),
                   ],
                   const SizedBox(height: 16),
                   if (_method == 'authenticator') ...[
