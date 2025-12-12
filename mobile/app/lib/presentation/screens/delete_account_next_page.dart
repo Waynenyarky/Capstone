@@ -58,6 +58,18 @@ class _DeleteAccountNextPageState extends State<DeleteAccountNextPage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _emailController.text = widget.email;
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     _scheduledISO ??= widget.scheduledISO;
     final dt = _tryParseDate(_scheduledISO);
@@ -167,6 +179,7 @@ class _DeleteAccountNextPageState extends State<DeleteAccountNextPage> {
                     TextField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
+                      readOnly: true,
                       style: const TextStyle(fontSize: 16),
                       decoration: InputDecoration(
                         labelText: 'Enter your current email',
@@ -200,12 +213,7 @@ class _DeleteAccountNextPageState extends State<DeleteAccountNextPage> {
                         onPressed: _scheduling
                             ? null
                             : () async {
-                                final emailInput = _emailController.text.trim();
-                                final validEmail = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(emailInput);
-                                if (!validEmail) {
-                                  setState(() => _errorMessage = 'Enter a valid email');
-                                  return;
-                                }
+                                final emailInput = widget.email;
                                 setState(() {
                                   _scheduling = true;
                                   _errorMessage = null;

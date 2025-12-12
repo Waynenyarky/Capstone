@@ -12,6 +12,7 @@ import 'login_page.dart';
 import 'security/mfa_settings_screen.dart';
 import 'change_email_page.dart';
 import 'delete_account_next_page.dart';
+import 'change_password_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final String email;
@@ -327,123 +328,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _showChangePasswordDialog() {
-    final currentPasswordController = TextEditingController();
-    final newPasswordController = TextEditingController();
-    final confirmPasswordController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        bool obscureNew = true;
-        bool obscureConfirm = true;
-        return StatefulBuilder(
-          builder: (context, setState) => AlertDialog(
-            title: const Text('Change Password'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: currentPasswordController,
-                  decoration: const InputDecoration(
-                    labelText: 'Current Password',
-                    border: OutlineInputBorder(),
-                  ),
-                  obscureText: true,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: newPasswordController,
-                  decoration: InputDecoration(
-                    labelText: 'New Password',
-                    border: const OutlineInputBorder(),
-                      suffixIcon: newPasswordController.text.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(obscureNew ? Icons.visibility_off : Icons.visibility),
-                              onPressed: () {
-                                setState(() {
-                                  obscureNew = !obscureNew;
-                                });
-                              },
-                            )
-                          : null,
-                    ),
-                    obscureText: obscureNew,
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: confirmPasswordController,
-                  decoration: InputDecoration(
-                    labelText: 'Confirm New Password',
-                    border: const OutlineInputBorder(),
-                      suffixIcon: confirmPasswordController.text.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(obscureConfirm ? Icons.visibility_off : Icons.visibility),
-                              onPressed: () {
-                                setState(() {
-                                  obscureConfirm = !obscureConfirm;
-                                });
-                              },
-                            )
-                          : null,
-                    ),
-                    obscureText: obscureConfirm,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  final current = currentPasswordController.text;
-                  final next = newPasswordController.text;
-                  final confirm = confirmPasswordController.text;
-                  final navigator = Navigator.of(context);
-                  final messenger = ScaffoldMessenger.of(context);
-                  if (current.isEmpty || next.isEmpty || confirm.isEmpty) {
-                    messenger.showSnackBar(
-                      const SnackBar(content: Text('All fields are required')),
-                    );
-                    return;
-                  }
-                  if (next != confirm) {
-                    messenger.showSnackBar(
-                      const SnackBar(content: Text('Passwords do not match')),
-                    );
-                    return;
-                  }
-                  final result = await MongoDBService.updatePassword(
-                    email: email,
-                    token: widget.token,
-                    currentPassword: current,
-                    newPassword: next,
-                  );
-                  if (result['success'] == true) {
-                    navigator.pop();
-                    messenger.showSnackBar(
-                      SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Password changed successfully')),
-                    );
-                  } else {
-                    messenger.showSnackBar(
-                      SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Password update failed')),
-                    );
-                  }
-                },
-                child: const Text('Change'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+ 
 
  
 
@@ -979,7 +864,18 @@ class _ProfilePageState extends State<ProfilePage> {
           _buildSettingsTile(
             icon: Icons.lock_outline,
             title: 'Change Password',
-            onTap: _showChangePasswordDialog,
+            onTap: () async {
+              final nav = Navigator.of(context);
+              await nav.push<bool>(
+                MaterialPageRoute(
+                  builder: (_) => ChangePasswordPage(
+                    email: email,
+                    token: widget.token,
+                  ),
+                ),
+              );
+              // Success toast handled inside the verification flow; avoid duplicate toasts here.
+            },
           ),
           _buildDivider(),
           _buildSettingsTile(

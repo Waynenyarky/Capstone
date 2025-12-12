@@ -9,6 +9,7 @@ const respond = require('../../middleware/respond')
 const { validateBody, Joi } = require('../../middleware/validation')
 const { perEmailRateLimit } = require('../../middleware/rateLimit')
 const { decryptWithHash, encryptWithHash } = require('../../lib/secretCipher')
+const { sendOtp } = require('../../lib/mailer')
 
 const router = express.Router()
 
@@ -70,6 +71,7 @@ router.post('/forgot-password', sendCodeLimiter, validateBody(emailOnlySchema), 
       resetRequests.set(emailKey, { code, expiresAt: expiresAtMs, verified: false, resetToken: null })
     }
 
+    await sendOtp({ to: email, code, subject: 'Reset your password' })
     const payload = { sent: true }
     if (process.env.NODE_ENV !== 'production') payload.devCode = code
     return res.json(payload)
