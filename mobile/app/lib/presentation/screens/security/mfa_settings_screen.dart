@@ -23,8 +23,6 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
   String? _selected;
   bool _authEnabled = false;
   bool _fingerEnabled = false;
-  bool _faceEnabled = false;
-  bool _faceLoading = false;
   bool _disablePending = false;
   DateTime? _scheduledFor;
   Duration _disableRemaining = Duration.zero;
@@ -33,38 +31,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadFace();
     _loadAuthDetail();
-  }
-
-  Future<void> _loadFace() async {
-    setState(() => _faceLoading = true);
-    try {
-      final status = await MongoDBService.getFaceUnlockStatus(email: widget.email);
-      if (!mounted) return;
-      setState(() => _faceEnabled = status);
-    } catch (_) {} finally {
-      if (mounted) setState(() => _faceLoading = false);
-    }
-  }
-
-  Future<void> _toggleFace(bool value) async {
-    setState(() => _faceLoading = true);
-    try {
-      final res = await MongoDBService.setFaceUnlockEnabled(email: widget.email, enabled: value);
-      final ok = res['success'] == true;
-      if (!mounted) return;
-      setState(() => _faceEnabled = ok ? value : _faceEnabled);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(ok ? 'Face recognition ${value ? 'enabled' : 'disabled'}' : (res['message'] ?? 'Update failed').toString())),
-      );
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Connection error')));
-      }
-    } finally {
-      if (mounted) setState(() => _faceLoading = false);
-    }
   }
 
   
@@ -399,20 +366,6 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
                 padding: const EdgeInsets.only(top: 8),
                 child: _buildDetailFor('fingerprint'),
               ),
-              const SizedBox(height: 8),
-              Card(
-                child: ListTile(
-                  leading: const Icon(Icons.face),
-                  title: const Text('Face Recognition'),
-                  subtitle: const Text('Use your device face recognition'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () => _select('face'),
-                ),
-              ),
-              if (_selected == 'face') Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: _buildDetailFor('face'),
-              ),
             ],
           ),
         ),
@@ -491,30 +444,6 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
                   ],
                 ),
               ],
-            ],
-          ),
-        );
-      case 'face':
-        return _buildMethodCard(
-          icon: Icons.face,
-          title: 'Face Recognition',
-          enabled: _faceEnabled,
-          loading: _faceLoading,
-          onToggle: _toggleFace,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('How it works', style: TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              const Text('Use your device\'s face recognition to add an additional check after password.'),
-              const SizedBox(height: 8),
-              const Text('Ensure face recognition is set up in your device settings.'),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  ElevatedButton(onPressed: () => _openSetupFor('face'), child: const Text('Set Up')),
-                ],
-              ),
             ],
           ),
         );

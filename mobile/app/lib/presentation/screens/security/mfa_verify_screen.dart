@@ -71,7 +71,7 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
       _errorMessage = null;
     });
     try {
-      final isBiometric = widget.method == 'fingerprint' || widget.method == 'face';
+      final isBiometric = widget.method == 'fingerprint';
       if (!isBiometric && !_isOtpComplete) {
         setState(() => _errorMessage = 'Please enter all 6 digits');
         return;
@@ -148,7 +148,7 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isBiometric = widget.method == 'fingerprint' || widget.method == 'face';
+    final isBiometric = widget.method == 'fingerprint';
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 360;
     final boxSize = isSmallScreen ? 45.0 : (screenWidth < 400 ? 48.0 : 50.0);
@@ -189,9 +189,7 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
               const SizedBox(height: 12),
               Text(
                 isBiometric
-                  ? (widget.method == 'face'
-                      ? 'Use face recognition to verify and enable 2FA'
-                      : 'Use biometrics to verify and enable 2FA')
+                  ? 'Use biometrics to verify and enable 2FA'
                   : 'Enter the 6-digit code from your TOTP authenticator to complete setup',
                 style: TextStyle(
                   fontSize: 16,
@@ -401,11 +399,7 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
                           color: Colors.blue.shade50,
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(
-                          widget.method == 'face' ? Icons.face : Icons.fingerprint,
-                          size: 80,
-                          color: Colors.blue.shade700,
-                        ),
+                        child: Icon(Icons.fingerprint, size: 80, color: Colors.blue.shade700),
                       ),
                       const SizedBox(height: 24),
                       Container(
@@ -465,7 +459,7 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
                           ),
                         )
                       : Text(
-                          isBiometric ? 'Verify with ${widget.method == 'face' ? 'Face' : 'Fingerprint'}' : 'Verify & Enable 2FA',
+                          isBiometric ? 'Verify with Fingerprint' : 'Verify & Enable 2FA',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
