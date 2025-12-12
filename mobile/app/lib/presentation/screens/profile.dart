@@ -11,6 +11,7 @@ import '../../domain/usecases/upload_avatar.dart';
 import '../../domain/usecases/schedule_account_deletion.dart';
 import 'login_page.dart';
 import 'security/mfa_settings_screen.dart';
+import 'change_email_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final String email;
@@ -43,10 +44,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   bool _isValidPhone(String v) {
     return RegExp(r'^09\d{9}$').hasMatch(v);
-  }
-
-  bool _isValidEmail(String v) {
-    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim());
   }
 
   @override
@@ -623,6 +620,20 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  void _openChangeEmailPage() async {
+    final result = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChangeEmailPage(currentEmail: email),
+      ),
+    );
+    if (result is String && result.isNotEmpty) {
+      setState(() {
+        email = result;
+      });
+    }
+  }
+
   void _logout() {
     showDialog(
       context: context,
@@ -1126,7 +1137,7 @@ class _ProfilePageState extends State<ProfilePage> {
           _buildSettingsTile(
             icon: Icons.alternate_email,
             title: 'Change Email',
-            onTap: _showChangeEmailDialog,
+            onTap: _openChangeEmailPage,
           ),
           _buildDivider(),
           _buildSettingsTile(
@@ -1146,127 +1157,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _showChangeEmailDialog() {
-    final currentPwdController = TextEditingController();
-    final newEmailController = TextEditingController();
-    bool obscure = true;
-    bool loading = false;
-    String? pwdError;
-    String? emailError;
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Change Email'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: currentPwdController,
-                  obscureText: obscure,
-                  decoration: InputDecoration(
-                    labelText: 'Current Password',
-                    border: const OutlineInputBorder(),
-                    errorText: pwdError,
-                    suffixIcon: IconButton(
-                      icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => obscure = !obscure),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: newEmailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: 'New Email',
-                    border: const OutlineInputBorder(),
-                    errorText: emailError,
-                  ),
-                  onChanged: (_) {
-                    if (emailError != null) setState(() => emailError = null);
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: loading ? null : () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: loading
-                  ? null
-                  : () async {
-                      final pwd = currentPwdController.text.trim();
-                      final next = newEmailController.text.trim();
-                      // inline validation
-                      if (pwd.isEmpty) {
-                        setState(() => pwdError = 'Password is incorrect');
-                        return;
-                      }
-                      if (!_isValidEmail(next)) {
-                        setState(() => emailError = 'Email is not valid');
-                        return;
-                      }
-                      if (next.toLowerCase() == email.toLowerCase()) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('New email must be different')));
-                        return;
-                      }
-                      setState(() => loading = true);
-                      try {
-                        // verify password first to show precise inline message
-                        final verify = await MongoDBService.login(email: email, password: pwd);
-                        if (verify['success'] != true) {
-                          setState(() {
-                            pwdError = 'Password is incorrect';
-                            loading = false;
-                          });
-                          return;
-                        }
-                        final res = await MongoDBService.updateEmail(
-                          email: email,
-                          password: pwd,
-                          newEmail: next,
-                        );
-                        if (res['success'] == true) {
-                          final updated = (res['email'] is String) ? (res['email'] as String) : next;
-                          setState(() {
-                            email = updated;
-                            loading = false;
-                          });
-                          if (!context.mounted) return;
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text((res['message'] is String) ? res['message'] as String : 'Email updated')),
-                          );
-                        } else {
-                          setState(() => loading = false);
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text((res['message'] is String) ? res['message'] as String : 'Update failed')),
-                          );
-                        }
-                      } catch (e) {
-                        setState(() => loading = false);
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Connection error: ${e.toString()}')),
-                        );
-                      }
-                    },
-              child: loading
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Change'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildSecuritySection() {
     return Container(

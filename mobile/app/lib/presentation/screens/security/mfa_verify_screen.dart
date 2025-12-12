@@ -189,10 +189,10 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
               const SizedBox(height: 12),
               Text(
                 isBiometric
-                    ? (widget.method == 'face'
-                        ? 'Use face recognition to verify and enable 2FA'
-                        : 'Use fingerprint to verify and enable 2FA')
-                    : 'Enter the 6-digit code from your authenticator app to complete setup',
+                  ? (widget.method == 'face'
+                      ? 'Use face recognition to verify and enable 2FA'
+                      : 'Use biometrics to verify and enable 2FA')
+                  : 'Enter the 6-digit code from your TOTP authenticator to complete setup',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey.shade600,
@@ -216,7 +216,7 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
                       Icon(Icons.phone_android, size: 16, color: Colors.green.shade700),
                       const SizedBox(width: 8),
                       Text(
-                        'Authenticator App',
+                        'TOTP Authenticator',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -332,7 +332,7 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Open your authenticator app (Google Authenticator, Authy, etc.) to get the current 6-digit verification code.',
+                              'Open your TOTP authenticator (Google Authenticator, Authy, etc.) to get the current 6-digit verification code.',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: Colors.blue.shade800,

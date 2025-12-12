@@ -16,4 +16,7 @@ const loginRequests = new Map()
 // Map: email(lowercased) -> { code, expiresAt, verified, method }
 const mfaRequests = new Map()
 
-module.exports = { resetRequests, deleteRequests, signUpRequests, loginRequests, mfaRequests }
+// Map: currentEmail(lowercased) -> { code, expiresAt, newEmail }
+const changeEmailRequests = new Map()
+
+module.exports = { resetRequests, deleteRequests, signUpRequests, loginRequests, mfaRequests, changeEmailRequests }

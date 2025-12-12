@@ -71,7 +71,7 @@ class _FingerprintOtpVerifyScreenState extends State<FingerprintOtpVerifyScreen>
               ],
             ),
             content: const Text(
-              'Fingerprint verification is enabled. Your account is now more secure.',
+              'Biometrics verification is enabled. Your account is now more secure.',
               style: TextStyle(fontSize: 15, height: 1.4),
             ),
             actions: [

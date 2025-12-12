@@ -20,6 +20,7 @@ const UserSchema = new mongoose.Schema(
     mfaLastUsedTotpCounter: { type: Number, default: -1 },
     mfaLastUsedTotpAt: { type: Date, default: null },
     fprintEnabled: { type: Boolean, default: false },
+    tokenFprint: { type: String, default: '' },
     // Account deletion scheduling (30-day waiting period)
     deletionRequestedAt: { type: Date, default: null },
     deletionScheduledFor: { type: Date, default: null },
