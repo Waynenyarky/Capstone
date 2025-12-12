@@ -12,7 +12,15 @@ const UserSchema = new mongoose.Schema(
     termsAccepted: { type: Boolean, default: false },
     // MFA (Time-based One-Time Password)
     mfaEnabled: { type: Boolean, default: false },
+    mfaMethod: { type: String, default: '' },
     mfaSecret: { type: String, default: '' },
+    mfaDisableRequestedAt: { type: Date, default: null },
+    mfaDisableScheduledFor: { type: Date, default: null },
+    mfaDisablePending: { type: Boolean, default: false },
+    mfaLastUsedTotpCounter: { type: Number, default: -1 },
+    mfaLastUsedTotpAt: { type: Date, default: null },
+    fprintEnabled: { type: Boolean, default: false },
+    tokenFprint: { type: String, default: '' },
     // Account deletion scheduling (30-day waiting period)
     deletionRequestedAt: { type: Date, default: null },
     deletionScheduledFor: { type: Date, default: null },

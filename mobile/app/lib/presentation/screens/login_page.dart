@@ -4,7 +4,11 @@ import 'package:app/data/services/mongodb_service.dart';
 import 'profile.dart';
 import 'deletion_scheduled_page.dart';
 import 'security/login_mfa_screen.dart';
-// Face Unlock reverted: remove integration imports
+ 
+import 'package:local_auth/local_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
+ 
 
 class LoginScreen extends StatefulWidget {
   final String? deletionScheduledForISO;
@@ -29,6 +33,10 @@ class _LoginScreenState extends State<LoginScreen> {
   // Track which fields have been touched
   bool _emailTouched = false;
   bool _passwordTouched = false;
+  bool _autoFpAttempted = false;
+  bool _fingerprintEnabled = false;
+  bool _showAccountFields = false;
+  final LocalAuthentication _localAuth = LocalAuthentication();
 
   @override
   void initState() {
@@ -74,6 +82,32 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       });
     }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (_autoFpAttempted) return;
+      _autoFpAttempted = true;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        var email = (prefs.getString('lastLoginEmail') ?? '').trim();
+        if (email.isEmpty || !_isValidEmail(email)) {
+          final typed = _emailController.text.trim();
+          if (typed.isNotEmpty && _isValidEmail(typed)) {
+            email = typed;
+            await prefs.setString('lastLoginEmail', email);
+          } else {
+            if (mounted) setState(() => _fingerprintEnabled = false);
+            return;
+          }
+        }
+        final status = await MongoDBService.getMfaStatusDetail(email: email);
+        final fingerEnabled = status['success'] == true && status['isFingerprintEnabled'] == true;
+        if (mounted) setState(() => _fingerprintEnabled = fingerEnabled);
+        if (fingerEnabled && mounted && !_isLoading) {
+          if (!mounted) return;
+          await _loginWithFingerprint();
+        }
+      } catch (_) {}
+    });
   }
 
   @override
@@ -109,6 +143,21 @@ class _LoginScreenState extends State<LoginScreen> {
     final min = _two(dt.minute);
     final s = _two(dt.second);
     return '$y-$m-$d $h:$min:$s $ampm';
+  }
+
+  String _biometricErrorText(Object e) {
+    try {
+      if (e is PlatformException) {
+        final code = (e.code).toLowerCase();
+        if (code.contains('cancel')) return '';
+        if (code.contains('notavailable')) return 'Fingerprint not supported on this device';
+        if (code.contains('notenrolled')) return 'No biometric enrolled on this device';
+        if (code.contains('lockedout')) return 'Biometric is locked. Try again later';
+      }
+      final s = e.toString().toLowerCase();
+      if (s.contains('cancel')) return '';
+    } catch (_) {}
+    return 'Fingerprint error: ${e.toString()}';
   }
 
   void _showForgotPasswordDialog() {
@@ -296,103 +345,104 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Future<void> _login() async {
-    // Mark all fields as touched when submit is pressed
-    setState(() {
-      _emailTouched = true;
-      _passwordTouched = true;
-    });
+  
 
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-
-      try {
-        final result = await MongoDBService.login(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        );
-
-        setState(() => _isLoading = false);
-
-        if (result['success']) {
-          if (!mounted) return;
-          final user = (result['user'] is Map<String, dynamic>) ? (result['user'] as Map<String, dynamic>) : <String, dynamic>{};
-          final firstName = (user['firstName'] is String) ? user['firstName'] as String : '';
-          final lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
-          final email = (user['email'] is String) ? user['email'] as String : '';
-          final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
-          final avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
-          final token = (result['token'] is String) ? result['token'] as String : '';
-          final navigator = Navigator.of(context);
-
-          final profileRes = await MongoDBService.fetchProfile(email: email);
-          final pending = profileRes['deletionPending'] == true;
-          final scheduledISO = (profileRes['deletionScheduledFor'] is String) ? profileRes['deletionScheduledFor'] as String : null;
-
-          if (pending && scheduledISO != null) {
-            navigator.pushAndRemoveUntil(
-              MaterialPageRoute(
-                builder: (_) => DeletionScheduledPage(
-                  email: email,
-                  scheduledISO: scheduledISO,
-                  firstName: firstName,
-                  lastName: lastName,
-                  phoneNumber: phoneNumber,
-                  token: token,
-                  avatarUrl: avatarUrl,
-                ),
-              ),
-              (route) => false,
-            );
-            return;
-          }
-
+  Future<void> _loginWithFingerprint() async {
+    final messenger = ScaffoldMessenger.of(context);
+    String email = '';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      email = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
+    } catch (_) {}
+    if (email.isEmpty || !_isValidEmail(email)) {
+      final fallbackEmail = _emailController.text.trim().toLowerCase();
+      if (fallbackEmail.isNotEmpty && _isValidEmail(fallbackEmail)) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('lastLoginEmail', fallbackEmail);
+        } catch (_) {}
+        email = fallbackEmail;
+      } else {
+        messenger.showSnackBar(const SnackBar(content: Text('Enable fingerprint in Security settings or enter your email once')));
+        return;
+      }
+    }
+    try {
+      final status = await MongoDBService.getMfaStatusDetail(email: email);
+      final fpEnabled = status['success'] == true && status['isFingerprintEnabled'] == true;
+      if (!fpEnabled) {
+        messenger.showSnackBar(const SnackBar(content: Text('Fingerprint is not enabled for this account')));
+        return;
+      }
+      final supported = await _localAuth.isDeviceSupported();
+      final canCheck = await _localAuth.canCheckBiometrics;
+      final types = await _localAuth.getAvailableBiometrics();
+      final hasFingerprint = types.contains(BiometricType.fingerprint) || types.contains(BiometricType.strong) || types.contains(BiometricType.weak);
+      if (!(supported && canCheck && hasFingerprint)) {
+        messenger.showSnackBar(const SnackBar(content: Text('Fingerprint not supported on this device')));
+        return;
+      }
+      final ok = await _localAuth.authenticate(localizedReason: 'Authentication Required');
+      if (!ok) {
+        return;
+      }
+      final start = await MongoDBService.loginStartFingerprint(email: email);
+      if (start['success'] != true || start['token'] is! String || (start['token'] as String).isEmpty) {
+        final msg = (start['message'] is String) ? start['message'] as String : 'Fingerprint login not available';
+        messenger.showSnackBar(SnackBar(content: Text(msg)));
+        return;
+      }
+      final token = start['token'] as String;
+      final complete = await MongoDBService.loginCompleteFingerprint(email: email, token: token);
+      if (!mounted) return;
+      if (complete['success'] == true) {
+        final user = (complete['user'] is Map<String, dynamic>) ? (complete['user'] as Map<String, dynamic>) : <String, dynamic>{};
+        final firstName = (user['firstName'] is String) ? user['firstName'] as String : '';
+        final lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
+        final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
+        final avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
+        final navigator = Navigator.of(context);
+        final profileRes = await MongoDBService.fetchProfile(email: email);
+        final pending = profileRes['deletionPending'] == true;
+        final scheduledISO = (profileRes['deletionScheduledFor'] is String) ? profileRes['deletionScheduledFor'] as String : null;
+        if (pending && scheduledISO != null) {
           navigator.pushAndRemoveUntil(
             MaterialPageRoute(
-              builder: (_) => ProfilePage(
+              builder: (_) => DeletionScheduledPage(
                 email: email,
+                scheduledISO: scheduledISO,
                 firstName: firstName,
                 lastName: lastName,
                 phoneNumber: phoneNumber,
-                token: token,
+                token: '',
                 avatarUrl: avatarUrl,
               ),
             ),
             (route) => false,
           );
-        } else {
-          if (!mounted) return;
-          final code = (result['code'] is String) ? result['code'] as String : '';
-          if (code == 'mfa_required') {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => LoginMfaScreen(email: _emailController.text.trim()),
-              ),
-            );
-          } else {
-            final msg = (result['message'] is String && (result['message'] as String).trim().isNotEmpty)
-                ? result['message'] as String
-                : 'Incorrect email or password';
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(msg),
-                backgroundColor: Colors.red,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
+          return;
         }
-      } catch (e) {
-        setState(() => _isLoading = false);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Connection error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
+        navigator.pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => ProfilePage(
+              email: email,
+              firstName: firstName,
+              lastName: lastName,
+              phoneNumber: phoneNumber,
+              token: '',
+              avatarUrl: avatarUrl,
+            ),
           ),
+          (route) => false,
         );
+      } else {
+        final msg = (complete['message'] is String) ? complete['message'] as String : 'Fingerprint login failed';
+        messenger.showSnackBar(SnackBar(content: Text(msg)));
+      }
+    } catch (e) {
+      final msg = _biometricErrorText(e);
+      if (msg.isNotEmpty) {
+        messenger.showSnackBar(SnackBar(content: Text(msg)));
       }
     }
   }
@@ -406,6 +456,54 @@ class _LoginScreenState extends State<LoginScreen> {
       isValid ? Icons.check_circle : Icons.error_outline,
       color: isValid ? Colors.green : Colors.red,
       size: 20,
+    );
+  }
+
+  Widget _squareAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        height: 84,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: Colors.blue.shade700, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                label,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -514,160 +612,190 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     SizedBox(height: largeSpacing + 8),
                     
-                    // Email Field
-                    TextFormField(
-                      controller: _emailController,
-                      focusNode: _emailFocus,
-                      keyboardType: TextInputType.emailAddress,
-                      enabled: !_isLoading,
-                      decoration: _buildInputDecoration(
-                        label: 'Email',
-                        prefixIcon: Icons.email_outlined,
-                        suffixIcon: _buildValidationIcon(
-                          emailValid,
-                          _emailTouched,
-                          _emailController.text,
+                    if (_fingerprintEnabled) ...[
+                      if (!_showAccountFields)
+                        _squareAction(
+                          icon: Icons.lock_outline,
+                          label: 'Login Using Account',
+                          onTap: _isLoading ? null : () => setState(() => _showAccountFields = true),
                         ),
+                      if (!_showAccountFields) SizedBox(height: spacing),
+                      _squareAction(
+                        icon: Icons.fingerprint,
+                        label: 'Login Using Biometrics',
+                        onTap: _isLoading ? null : _loginWithFingerprint,
                       ),
-                      onChanged: (_) => setState(() {}),
-                      validator: (value) {
-                        if (!_emailTouched) return null;
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your email';
-                        }
-                        final v = value.trim();
-                        final looksEmail = v.contains('@');
-                        final isDevAdmin = v == '1';
-                        if (!looksEmail && !isDevAdmin) {
-                          return 'Enter a valid email';
-                        }
-                        return null;
-                      },
-                    ),
-                    SizedBox(height: spacing),
-                    
-                    // Password Field
-                    TextFormField(
-                      controller: _passwordController,
-                      focusNode: _passwordFocus,
-                      obscureText: _obscurePassword,
-                      enabled: !_isLoading,
-                      decoration: _buildInputDecoration(
-                        label: 'Password',
-                        prefixIcon: Icons.lock_outlined,
-                        suffixIcon: _passwordController.text.isNotEmpty
-                            ? IconButton(
-                                icon: Icon(
-                                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _obscurePassword = !_obscurePassword;
-                                  });
-                                },
-                              )
-                            : null,
+                      SizedBox(height: spacing),
+                    ] else ...[
+                      if (!_showAccountFields)
+                        _squareAction(
+                          icon: Icons.lock_outline,
+                          label: 'Login Using Account',
+                          onTap: _isLoading ? null : () => setState(() => _showAccountFields = true),
+                        ),
+                      if (!_showAccountFields) SizedBox(height: spacing),
+                    ],
+
+                    if (_showAccountFields) ...[
+                      // Email Field
+                      TextFormField(
+                        controller: _emailController,
+                        focusNode: _emailFocus,
+                        keyboardType: TextInputType.emailAddress,
+                        enabled: !_isLoading,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9._@+\-]')),
+                        ],
+                        decoration: _buildInputDecoration(
+                          label: 'Email',
+                          prefixIcon: Icons.email_outlined,
+                          suffixIcon: _buildValidationIcon(
+                            emailValid,
+                            _emailTouched,
+                            _emailController.text,
+                          ),
+                        ),
+                        onChanged: (_) => setState(() {}),
+                        validator: (value) {
+                          if (!_emailTouched) return null;
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your email';
+                          }
+                          final v = value.trim();
+                          final looksEmail = v.contains('@');
+                          final isDevAdmin = v == '1';
+                          if (!looksEmail && !isDevAdmin) {
+                            return 'Enter a valid email';
+                          }
+                          return null;
+                        },
                       ),
-                      onChanged: (_) => setState(() {}),
-                      validator: (value) {
-                        if (!_passwordTouched) return null;
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your password';
-                        }
-                        return null;
-                      },
-                    ),
-                    SizedBox(height: spacing / 2),
-                    
-                    // Remember Me & Forgot Password
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        InkWell(
-                          onTap: _isLoading ? null : () {
-                            setState(() {
-                              _rememberMe = !_rememberMe;
-                            });
-                          },
-                          borderRadius: BorderRadius.circular(8),
-                          child: Padding(
-                            padding: const EdgeInsets.all(4),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Checkbox(
-                                  value: _rememberMe,
-                                  onChanged: _isLoading ? null : (value) {
+                      SizedBox(height: spacing),
+
+                      // Password Field
+                      TextFormField(
+                        controller: _passwordController,
+                        focusNode: _passwordFocus,
+                        obscureText: _obscurePassword,
+                        enabled: !_isLoading,
+                        decoration: _buildInputDecoration(
+                          label: 'Password',
+                          prefixIcon: Icons.lock_outlined,
+                          suffixIcon: _passwordController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(
+                                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                  ),
+                                  onPressed: () {
                                     setState(() {
-                                      _rememberMe = value ?? false;
+                                      _obscurePassword = !_obscurePassword;
                                     });
                                   },
-                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  visualDensity: VisualDensity.compact,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                ),
-                                Text(
-                                  'Remember me',
-                                  style: TextStyle(
-                                    fontSize: subtitleFontSize,
-                                    color: Colors.grey.shade700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                                )
+                              : null,
                         ),
-                        TextButton(
-                          onPressed: _isLoading ? null : _showForgotPasswordDialog,
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            minimumSize: const Size(0, 0),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: Text(
-                            'Forgot Password?',
-                            style: TextStyle(
-                              fontSize: subtitleFontSize,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: largeSpacing),
-                    
-                    // Login Button
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _login,
-                      style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(
-                          vertical: isSmallScreen ? 14 : 16,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 2,
+                        onChanged: (_) => setState(() {}),
+                        validator: (value) {
+                          if (!_passwordTouched) return null;
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your password';
+                          }
+                          return null;
+                        },
                       ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      SizedBox(height: spacing / 2),
+
+                      // Remember Me & Forgot Password
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          InkWell(
+                            onTap: _isLoading ? null : () {
+                              setState(() {
+                                _rememberMe = !_rememberMe;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.all(4),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Checkbox(
+                                    value: _rememberMe,
+                                    onChanged: _isLoading ? null : (value) {
+                                      setState(() {
+                                        _rememberMe = value ?? false;
+                                      });
+                                    },
+                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    visualDensity: VisualDensity.compact,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                  Text(
+                                    'Remember me',
+                                    style: TextStyle(
+                                      fontSize: subtitleFontSize,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            )
-                          : Text(
-                              'Login',
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _isLoading ? null : _showForgotPasswordDialog,
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              minimumSize: const Size(0, 0),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: Text(
+                              'Forgot Password?',
                               style: TextStyle(
-                                fontSize: subtitleFontSize + 1,
+                                fontSize: subtitleFontSize,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                    ),
-                    SizedBox(height: spacing),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: largeSpacing),
+
+                      // Login Button
+                      ElevatedButton(
+                        onPressed: _isLoading ? null : _loginAccountOnly,
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(
+                            vertical: isSmallScreen ? 14 : 16,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 2,
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : Text(
+                                'Login',
+                                style: TextStyle(
+                                  fontSize: subtitleFontSize + 1,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                      ),
+                      SizedBox(height: spacing),
+                    ],
+                    
                     
                     // Sign Up Link
                     Row(
@@ -712,5 +840,102 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _loginAccountOnly() async {
+    setState(() {
+      _emailTouched = true;
+      _passwordTouched = true;
+    });
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+    try {
+      final messenger = ScaffoldMessenger.of(context);
+      final result = await MongoDBService.login(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        bypassFingerprint: true,
+      );
+      setState(() => _isLoading = false);
+      if (result['success']) {
+        if (!mounted) return;
+        final user = (result['user'] is Map<String, dynamic>) ? (result['user'] as Map<String, dynamic>) : <String, dynamic>{};
+        final firstName = (user['firstName'] is String) ? user['firstName'] as String : '';
+        final lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
+        final email = (user['email'] is String) ? user['email'] as String : '';
+        final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
+        final avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
+        final navigator = Navigator.of(context);
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('lastLoginEmail', email);
+        } catch (_) {}
+        final profileRes = await MongoDBService.fetchProfile(email: email);
+        final pending = profileRes['deletionPending'] == true;
+        final scheduledISO = (profileRes['deletionScheduledFor'] is String) ? profileRes['deletionScheduledFor'] as String : null;
+        if (pending && scheduledISO != null) {
+          navigator.pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => DeletionScheduledPage(
+                email: email,
+                scheduledISO: scheduledISO,
+                firstName: firstName,
+                lastName: lastName,
+                phoneNumber: phoneNumber,
+                token: '',
+                avatarUrl: avatarUrl,
+              ),
+            ),
+            (route) => false,
+          );
+          return;
+        }
+        navigator.pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => ProfilePage(
+              email: email,
+              firstName: firstName,
+              lastName: lastName,
+              phoneNumber: phoneNumber,
+              token: '',
+              avatarUrl: avatarUrl,
+            ),
+          ),
+          (route) => false,
+        );
+      } else {
+        final code = (result['code'] is String) ? (result['code'] as String).toLowerCase() : '';
+        if (code == 'mfa_required') {
+          if (!mounted) return;
+          final email = _emailController.text.trim();
+          final nav = Navigator.of(context);
+          nav.push(
+            MaterialPageRoute(builder: (_) => LoginMfaScreen(email: email)),
+          );
+          return;
+        }
+        final msg = (result['message'] is String && (result['message'] as String).trim().isNotEmpty)
+            ? result['message'] as String
+            : 'Incorrect email or password';
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Connection error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 }
