@@ -180,9 +180,10 @@ class _DeleteAccountNextPageState extends State<DeleteAccountNextPage> {
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       readOnly: true,
+                      enabled: false,
                       style: const TextStyle(fontSize: 16),
                       decoration: InputDecoration(
-                        labelText: 'Enter your current email',
+                        labelText: 'Current Email Address',
                         hintText: 'your.email@example.com',
                         prefixIcon: const Icon(Icons.email_outlined),
                         border: OutlineInputBorder(
