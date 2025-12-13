@@ -13,6 +13,7 @@ import 'security/mfa_settings_screen.dart';
 import 'change_email_page.dart';
 import 'delete_account_next_page.dart';
 import 'change_password_page.dart';
+import 'edit_profile_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final String email;
@@ -35,17 +36,8 @@ class _ProfilePageState extends State<ProfilePage> {
   String avatarUrl = '';
   String _localAvatarPath = '';
   bool _uploadingAvatar = false;
-  bool _saving = false;
 
-  bool _isValidName(String v) {
-    final s = v.trim();
-    if (s.length < 2 || s.length > 50) return false;
-    return RegExp(r'^[A-Za-z][A-Za-z\-\s]*$').hasMatch(s);
-  }
-
-  bool _isValidPhone(String v) {
-    return RegExp(r'^09\d{9}$').hasMatch(v);
-  }
+ 
 
   @override
   void initState() {
@@ -212,120 +204,6 @@ class _ProfilePageState extends State<ProfilePage> {
       }
       return true;
     }
-  }
-
-  void _showEditProfileDialog() {
-    final firstNameController = TextEditingController(text: firstName);
-    final lastNameController = TextEditingController(text: lastName);
-    final phoneController = TextEditingController(text: phoneNumber);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Profile'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: firstNameController,
-                decoration: const InputDecoration(
-                  labelText: 'First Name',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: lastNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Last Name',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: phoneController,
-                decoration: const InputDecoration(
-                  labelText: 'Phone Number',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.phone,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(11),
-                ],
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final f = firstNameController.text.trim();
-              final l = lastNameController.text.trim();
-              final p = phoneController.text.trim();
-              final navigator = Navigator.of(context);
-              final messenger = ScaffoldMessenger.of(context);
-              if (!_isValidName(f)) {
-                messenger.showSnackBar(
-                  const SnackBar(content: Text('First Name must be 2-50 letters, spaces or hyphen')),
-                );
-                return;
-              }
-              if (!_isValidName(l)) {
-                messenger.showSnackBar(
-                  const SnackBar(content: Text('Last Name must be 2-50 letters, spaces or hyphen')),
-                );
-                return;
-              }
-              if (!_isValidPhone(p)) {
-                messenger.showSnackBar(
-                  const SnackBar(content: Text('Phone must be 11 digits starting with 09')),
-                );
-                return;
-              }
-              setState(() {
-                _saving = true;
-              });
-              final result = await MongoDBService.updateProfile(
-                email: email,
-                token: widget.token,
-                firstName: f,
-                lastName: l,
-                phoneNumber: p,
-              );
-              setState(() {
-                _saving = false;
-              });
-              if (result['success'] == true) {
-                final user = (result['user'] is Map<String, dynamic>) ? (result['user'] as Map<String, dynamic>) : <String, dynamic>{};
-                final nextFirst = (user['firstName'] is String) ? user['firstName'] as String : firstName;
-                final nextLast = (user['lastName'] is String) ? user['lastName'] as String : lastName;
-                final nextPhone = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : phoneNumber;
-                setState(() {
-                  firstName = nextFirst;
-                  lastName = nextLast;
-                  phoneNumber = nextPhone;
-                });
-                navigator.pop();
-                messenger.showSnackBar(
-                  SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Profile updated successfully')),
-                );
-              } else {
-                messenger.showSnackBar(
-                  SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Update failed')),
-                );
-              }
-            },
-            child: _saving ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Save'),
-          ),
-        ],
-      ),
-    );
   }
 
  
@@ -852,7 +730,30 @@ class _ProfilePageState extends State<ProfilePage> {
           _buildSettingsTile(
             icon: Icons.edit,
             title: 'Edit Profile',
-            onTap: _showEditProfileDialog,
+            onTap: () async {
+              final result = await Navigator.push<Map<String, dynamic>>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => EditProfilePage(
+                    email: email,
+                    token: widget.token,
+                    firstName: firstName,
+                    lastName: lastName,
+                    phoneNumber: phoneNumber,
+                    avatarUrl: avatarUrl,
+                  ),
+                ),
+              );
+              if (result is Map<String, dynamic>) {
+                setState(() {
+                  firstName = (result['firstName'] is String) ? result['firstName'] as String : firstName;
+                  lastName = (result['lastName'] is String) ? result['lastName'] as String : lastName;
+                  phoneNumber = (result['phoneNumber'] is String) ? result['phoneNumber'] as String : phoneNumber;
+                  avatarUrl = (result['avatarUrl'] is String) ? result['avatarUrl'] as String : avatarUrl;
+                  _localAvatarPath = (result['localAvatarPath'] is String) ? result['localAvatarPath'] as String : _localAvatarPath;
+                });
+              }
+            },
           ),
           _buildDivider(),
           _buildSettingsTile(
