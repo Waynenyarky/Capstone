@@ -18,6 +18,12 @@ class _ChangeEmailPageState extends State<ChangeEmailPage> {
   String? _emailError;
 
   @override
+  void initState() {
+    super.initState();
+    _currentEmailController.text = widget.currentEmail;
+  }
+
+  @override
   void dispose() {
     _currentEmailController.dispose();
     _emailFocusNode.dispose();
@@ -125,11 +131,11 @@ class _ChangeEmailPageState extends State<ChangeEmailPage> {
                     focusNode: _emailFocusNode,
                     keyboardType: TextInputType.emailAddress,
                     autocorrect: false,
-                    enabled: !_loading,
+                    readOnly: true,
                     style: theme.textTheme.bodyLarge,
                     decoration: InputDecoration(
                       labelText: 'Current Email Address',
-                      hintText: 'Enter your current email',
+                      hintText: 'Current email',
                       prefixIcon: const Icon(Icons.email_outlined),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),

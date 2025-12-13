@@ -8,10 +8,11 @@ import 'dart:io' as io;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import '../../domain/usecases/upload_avatar.dart';
-import '../../domain/usecases/schedule_account_deletion.dart';
 import 'login_page.dart';
 import 'security/mfa_settings_screen.dart';
 import 'change_email_page.dart';
+import 'delete_account_next_page.dart';
+import 'change_password_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final String email;
@@ -327,289 +328,9 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _showChangePasswordDialog() {
-    final currentPasswordController = TextEditingController();
-    final newPasswordController = TextEditingController();
-    final confirmPasswordController = TextEditingController();
+ 
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        bool obscureNew = true;
-        bool obscureConfirm = true;
-        return StatefulBuilder(
-          builder: (context, setState) => AlertDialog(
-            title: const Text('Change Password'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: currentPasswordController,
-                  decoration: const InputDecoration(
-                    labelText: 'Current Password',
-                    border: OutlineInputBorder(),
-                  ),
-                  obscureText: true,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: newPasswordController,
-                  decoration: InputDecoration(
-                    labelText: 'New Password',
-                    border: const OutlineInputBorder(),
-                      suffixIcon: newPasswordController.text.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(obscureNew ? Icons.visibility_off : Icons.visibility),
-                              onPressed: () {
-                                setState(() {
-                                  obscureNew = !obscureNew;
-                                });
-                              },
-                            )
-                          : null,
-                    ),
-                    obscureText: obscureNew,
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: confirmPasswordController,
-                  decoration: InputDecoration(
-                    labelText: 'Confirm New Password',
-                    border: const OutlineInputBorder(),
-                      suffixIcon: confirmPasswordController.text.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(obscureConfirm ? Icons.visibility_off : Icons.visibility),
-                              onPressed: () {
-                                setState(() {
-                                  obscureConfirm = !obscureConfirm;
-                                });
-                              },
-                            )
-                          : null,
-                    ),
-                    obscureText: obscureConfirm,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  final current = currentPasswordController.text;
-                  final next = newPasswordController.text;
-                  final confirm = confirmPasswordController.text;
-                  final navigator = Navigator.of(context);
-                  final messenger = ScaffoldMessenger.of(context);
-                  if (current.isEmpty || next.isEmpty || confirm.isEmpty) {
-                    messenger.showSnackBar(
-                      const SnackBar(content: Text('All fields are required')),
-                    );
-                    return;
-                  }
-                  if (next != confirm) {
-                    messenger.showSnackBar(
-                      const SnackBar(content: Text('Passwords do not match')),
-                    );
-                    return;
-                  }
-                  final result = await MongoDBService.updatePassword(
-                    email: email,
-                    token: widget.token,
-                    currentPassword: current,
-                    newPassword: next,
-                  );
-                  if (result['success'] == true) {
-                    navigator.pop();
-                    messenger.showSnackBar(
-                      SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Password changed successfully')),
-                    );
-                  } else {
-                    messenger.showSnackBar(
-                      SnackBar(content: Text((result['message'] is String) ? result['message'] as String : 'Password update failed')),
-                    );
-                  }
-                },
-                child: const Text('Change'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _showDeleteAccountDialog() {
-    final passwordController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        String? passwordError;
-        bool obscure = true;
-        bool hasText = false;
-        return StatefulBuilder(
-          builder: (ctx, setState) => AlertDialog(
-            title: const Text('Delete Account'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Are you sure you want to delete your account? This action cannot be undone.',
-                  style: TextStyle(color: Colors.red),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: passwordController,
-                  decoration: InputDecoration(
-                    labelText: 'Enter Password to Confirm',
-                    border: const OutlineInputBorder(),
-                    errorText: passwordError,
-                    suffixIcon: hasText
-                        ? IconButton(
-                            icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
-                            onPressed: () => setState(() => obscure = !obscure),
-                          )
-                        : null,
-                  ),
-                  obscureText: obscure,
-                  onChanged: (v) => setState(() => hasText = v.isNotEmpty),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  final pwd = passwordController.text.trim();
-                  final messenger = ScaffoldMessenger.of(context);
-                  final nav = Navigator.of(context);
-                  if (pwd.isEmpty) {
-                    messenger.showSnackBar(
-                      const SnackBar(content: Text('Password is required')),
-                    );
-                    return;
-                  }
-                  MongoDBService.login(
-                    email: email,
-                    password: pwd,
-                  ).then((verify) {
-                    if (verify['success'] != true) {
-                      setState(() => passwordError = 'Incorrect password');
-                      return;
-                    }
-                    if (!mounted) return;
-                    nav.pop();
-                    _showScheduleDeletionConfirmModal(email, pwd);
-                  });
-                },
-                child: const Text('Continue'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _showScheduleDeletionConfirmModal(String email, String password) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogCtx) {
-        bool submitting = false;
-        return StatefulBuilder(
-          builder: (ctx, setState) => AlertDialog(
-            title: const Text('Confirm Account Deletion'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF7E6),
-                    border: Border.all(color: const Color(0xFFFFE58F)),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Row(
-                        children: [
-                          Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                          SizedBox(width: 8),
-                          Text('Important', style: TextStyle(fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                      SizedBox(height: 8),
-                      Text('This will schedule your account for deletion in 30 days.'),
-                      SizedBox(height: 6),
-                      Text('Your past transaction and service records will NOT be removed, as they must remain for auditing, billing, and service history.'),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text("If you're sure, proceed to schedule account deletion."),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: submitting ? null : () => Navigator.pop(dialogCtx),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: submitting
-                    ? null
-                    : () async {
-                      final navigator = Navigator.of(dialogCtx);
-                      try {
-                        setState(() => submitting = true);
-                        final usecase = ScheduleAccountDeletion();
-                        final res = await usecase.call(email: email, password: password);
-                        final ok = res['success'] == true;
-                        final scheduledIso = (res['scheduledFor'] is String) ? res['scheduledFor'] as String : null;
-                        if (ok) {
-                          navigator.pop();
-                          if (mounted) {
-                            Navigator.of(context).pushAndRemoveUntil(
-                              MaterialPageRoute(builder: (_) => LoginScreen(deletionScheduledForISO: scheduledIso)),
-                              (route) => false,
-                            );
-                          }
-                        } else {
-                          final msg = (res['message'] is String) ? res['message'] as String : 'Failed to schedule deletion';
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-                          }
-                        }
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error: ${e.toString()}')),
-                          );
-                        }
-                      } finally {
-                        setState(() => submitting = false);
-                      }
-                    },
-                child: const Text('Schedule Deletion'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+ 
 
   void _openSecurity() {
     Navigator.push(
@@ -1143,13 +864,39 @@ class _ProfilePageState extends State<ProfilePage> {
           _buildSettingsTile(
             icon: Icons.lock_outline,
             title: 'Change Password',
-            onTap: _showChangePasswordDialog,
+            onTap: () async {
+              final nav = Navigator.of(context);
+              await nav.push<bool>(
+                MaterialPageRoute(
+                  builder: (_) => ChangePasswordPage(
+                    email: email,
+                    token: widget.token,
+                  ),
+                ),
+              );
+              // Success toast handled inside the verification flow; avoid duplicate toasts here.
+            },
           ),
           _buildDivider(),
           _buildSettingsTile(
             icon: Icons.delete_outline,
             title: 'Delete Account',
-            onTap: _showDeleteAccountDialog,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DeleteAccountNextPage(
+                    email: email,
+                    scheduledISO: null,
+                    firstName: firstName,
+                    lastName: lastName,
+                    phoneNumber: phoneNumber,
+                    token: widget.token,
+                    avatarUrl: avatarUrl,
+                  ),
+                ),
+              );
+            },
             isDestructive: true,
           ),
         ],

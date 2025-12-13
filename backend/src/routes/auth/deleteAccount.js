@@ -5,6 +5,7 @@ const User = require('../../models/User')
 const { generateCode, generateToken } = require('../../lib/codes')
 const { deleteRequests } = require('../../lib/authRequestsStore')
 const DeleteRequest = require('../../models/DeleteRequest')
+const { sendOtp } = require('../../lib/mailer')
 const respond = require('../../middleware/respond')
 const { validateBody, Joi } = require('../../middleware/validation')
 const { perEmailRateLimit } = require('../../middleware/rateLimit')
@@ -119,6 +120,7 @@ router.post('/delete-account/send-code', sendCodeLimiter, validateBody(optionalE
       deleteRequests.set(emailKey, { code, expiresAt: expiresAtMs, verified: false, deleteToken: null })
     }
 
+    await sendOtp({ to: doc.email, code, subject: 'Confirm account deletion' })
     const payload = { sent: true }
     if (process.env.NODE_ENV !== 'production') payload.devCode = code
     return res.json(payload)
