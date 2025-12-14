@@ -345,20 +345,16 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.blue, width: 2),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.red, width: 1.5),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.red, width: 2),
-      ),
-      filled: true,
-      fillColor: Colors.grey.shade50,
-    );
+      borderSide: const BorderSide(color: Colors.blue, width: 2),
+    ),
+  );
+}
+
+  void _signInWithGooglePending() {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(content: Text('Google Sign-In will be available soon')));
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -617,6 +613,38 @@ class _LoginScreenState extends State<LoginScreen> {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
+                       ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          children: [
+                            Expanded(child: Divider(color: Colors.grey.shade300)),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              child: Text(
+                                'Or',
+                                style: TextStyle(
+                                  fontSize: subtitleFontSize - 1,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ),
+                            Expanded(child: Divider(color: Colors.grey.shade300)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: _isLoading ? null : _signInWithGooglePending,
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          side: BorderSide(color: Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                        ),
+                        icon: const GoogleGIcon(size: 22),
+                        label: const Text('Continue with Google', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                       ),
                       SizedBox(height: spacing),
                     ],
@@ -765,4 +793,55 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     }
   }
+}
+
+class GoogleGIcon extends StatelessWidget {
+  final double size;
+  const GoogleGIcon({super.key, this.size = 20});
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _GoogleGPainter(),
+      ),
+    );
+  }
+}
+
+class _GoogleGPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = size.width * 0.18;
+    final rect = Rect.fromLTWH(stroke, stroke, size.width - stroke * 2, size.height - stroke * 2);
+    Paint seg(Color c) => Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round
+      ..color = c;
+    final blue = seg(const Color(0xFF4285F4));
+    final red = seg(const Color(0xFFDB4437));
+    final yellow = seg(const Color(0xFFF4B400));
+    final green = seg(const Color(0xFF0F9D58));
+
+    // Four segments around the ring
+    canvas.drawArc(rect, _deg(-30), _deg(90), false, blue);     // top-right
+    canvas.drawArc(rect, _deg(60), _deg(90), false, red);       // top-left
+    canvas.drawArc(rect, _deg(150), _deg(90), false, yellow);   // bottom-left
+    canvas.drawArc(rect, _deg(240), _deg(85), false, green);    // bottom-right (leave small gap)
+
+    // Horizontal blue cut to form the 'G' bar
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final cut = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round
+      ..color = const Color(0xFF4285F4);
+    canvas.drawLine(Offset(cx, cy), Offset(cx + rect.width / 2, cy), cut);
+  }
+  double _deg(double d) => d * 3.1415926535 / 180.0;
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
