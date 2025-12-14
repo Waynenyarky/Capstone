@@ -7,6 +7,7 @@ import 'mfa_verify_screen.dart';
 import 'widgets/biometric_setup_section.dart';
 import 'widgets/authenticator_setup_section.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MfaSetupScreen extends StatefulWidget {
   final EnableMfa enableMfa;
@@ -84,6 +85,37 @@ class _MfaSetupScreenState extends State<MfaSetupScreen> {
     }
     try {
       setState(() => _sendingFingerprintOtp = true);
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final saved = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
+        if (saved.isNotEmpty && saved != widget.email.toLowerCase()) {
+          bool stillEnabled = true;
+          try {
+            final s = await MongoDBService.getMfaStatusDetail(email: saved);
+            stillEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
+          } catch (_) {}
+          if (!stillEnabled) {
+            try { await prefs.remove('fingerprintEmail'); } catch (_) {}
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  backgroundColor: Colors.red,
+                  content: Text(
+                    'You cannot use biometrics to log in to multiple accounts on the same device.',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              );
+            }
+            setState(() {
+              _biometricActivated = false;
+              _sendingFingerprintOtp = false;
+            });
+            return;
+          }
+        }
+      } catch (_) {}
       final supported = await _localAuth.isDeviceSupported();
       final canCheck = await _localAuth.canCheckBiometrics;
       final types = await _localAuth.getAvailableBiometrics();

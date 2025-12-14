@@ -14,6 +14,7 @@ import 'change_email_page.dart';
 import 'delete_account_next_page.dart';
 import 'change_password_page.dart';
 import 'edit_profile_page.dart';
+import 'package:app/data/services/google_auth_service.dart';
 
 class ProfilePage extends StatefulWidget {
   final String email;
@@ -246,6 +247,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           ElevatedButton(
             onPressed: () {
+              GoogleAuthService.signOutAndReset();
               Navigator.pop(context);
               Navigator.pushAndRemoveUntil(
                 context,
@@ -667,7 +669,7 @@ class _ProfilePageState extends State<ProfilePage> {
           _buildDivider(),
           _buildInfoRow(Icons.person_outline, 'Last Name', lastName),
           _buildDivider(),
-          _buildInfoRow(Icons.phone, 'Phone Number', phoneNumber),
+          _buildInfoRow(Icons.phone, 'Phone Number', phoneNumber.isNotEmpty ? phoneNumber : 'Phone number is currently empty.'),
         ],
       ),
     );

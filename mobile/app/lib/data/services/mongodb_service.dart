@@ -393,6 +393,37 @@ class MongoDBService {
     }
   }
 
+  static Future<Map<String, dynamic>> loginWithGoogle({ required String idToken, String? email, String? providerId, bool? emailVerified, String? firstName, String? lastName }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/login/google',
+        { 'idToken': idToken, if (email != null) 'email': email, if (providerId != null) 'providerId': providerId, if (emailVerified != null) 'emailVerified': emailVerified, if (firstName != null) 'firstName': firstName, if (lastName != null) 'lastName': lastName },
+        timeout: const Duration(seconds: 12),
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200) {
+        return { 'success': true, 'user': data };
+      }
+      String msg = 'Google login failed';
+      try {
+        if (data is Map) {
+          if ((data['error'] is Map) && ((data['error'] as Map)['message'] is String)) {
+            msg = (data['error'] as Map)['message'] as String;
+          } else if (data['message'] is String) {
+            msg = data['message'] as String;
+          }
+        }
+      } catch (_) {}
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
   static Future<Map<String, dynamic>> loginVerifyTotp({
     required String email,
     required String code,

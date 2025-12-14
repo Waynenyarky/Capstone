@@ -52,6 +52,7 @@ class _FingerprintOtpVerifyScreenState extends State<FingerprintOtpVerifyScreen>
         try {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('lastLoginEmail', widget.email);
+          await prefs.setString('fingerprintEmail', widget.email.toLowerCase());
         } catch (_) {}
         if (!mounted) return;
         showDialog(

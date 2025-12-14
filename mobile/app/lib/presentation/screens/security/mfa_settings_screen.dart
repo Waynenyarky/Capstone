@@ -94,6 +94,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
         try {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('lastLoginEmail', widget.email);
+          await prefs.setString('fingerprintEmail', widget.email.toLowerCase());
         } catch (_) {}
       }
       _loadAuthDetail();
@@ -163,6 +164,33 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
 
   Future<void> _toggleFingerprint(bool value) async {
     if (value) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final existingFpEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
+        if (existingFpEmail.isNotEmpty && existingFpEmail != widget.email.toLowerCase()) {
+          bool stillEnabled = true;
+          try {
+            final s = await MongoDBService.getMfaStatusDetail(email: existingFpEmail);
+            stillEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
+          } catch (_) {}
+          if (!stillEnabled) {
+            try { await prefs.remove('fingerprintEmail'); } catch (_) {}
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  backgroundColor: Colors.red,
+                  content: Text(
+                    'You cannot use biometrics to log in to multiple accounts on the same device.',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              );
+            }
+            return;
+          }
+        }
+      } catch (_) {}
       if (!_deviceSupportChecked) {
         await _checkDeviceSupport();
       }
@@ -279,6 +307,13 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
         SnackBar(content: Text(ok ? 'Biometrics login disabled' : (res['message'] ?? 'Update failed').toString())),
       );
       if (ok) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final existing = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
+          if (existing.isNotEmpty && existing == widget.email.toLowerCase()) {
+            await prefs.remove('fingerprintEmail');
+          }
+        } catch (_) {}
         _loadAuthDetail();
       }
     } catch (_) {
@@ -500,6 +535,33 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
                   children: [
                     ElevatedButton(
                       onPressed: () async {
+                        try {
+                          final prefs = await SharedPreferences.getInstance();
+                          final existingFpEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
+                          if (existingFpEmail.isNotEmpty && existingFpEmail != widget.email.toLowerCase()) {
+                            bool stillEnabled = true;
+                            try {
+                              final s = await MongoDBService.getMfaStatusDetail(email: existingFpEmail);
+                              stillEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
+                            } catch (_) {}
+                            if (!stillEnabled) {
+                              try { await prefs.remove('fingerprintEmail'); } catch (_) {}
+                            } else {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    backgroundColor: Colors.red,
+                                    content: Text(
+                                      'You cannot use biometrics to log in to multiple accounts on the same device.',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                );
+                              }
+                              return;
+                            }
+                          }
+                        } catch (_) {}
                         if (!_deviceSupportChecked) {
                           await _checkDeviceSupport();
                         }

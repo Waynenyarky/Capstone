@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'signup_page.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'profile.dart';
@@ -10,7 +11,9 @@ import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
  
-
+import 'package:app/data/services/google_auth_service.dart';
+import '../../domain/usecases/sign_in_with_google.dart';
+ 
 class LoginScreen extends StatefulWidget {
   final String? deletionScheduledForISO;
   const LoginScreen({super.key, this.deletionScheduledForISO});
@@ -84,31 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
       });
     }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (_autoFpAttempted) return;
-      _autoFpAttempted = true;
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        var email = (prefs.getString('lastLoginEmail') ?? '').trim();
-        if (email.isEmpty || !_isValidEmail(email)) {
-          final typed = _emailController.text.trim();
-          if (typed.isNotEmpty && _isValidEmail(typed)) {
-            email = typed;
-            await prefs.setString('lastLoginEmail', email);
-          } else {
-            if (mounted) setState(() => _fingerprintEnabled = false);
-            return;
-          }
-        }
-        final status = await MongoDBService.getMfaStatusDetail(email: email);
-        final fingerEnabled = status['success'] == true && status['isFingerprintEnabled'] == true;
-        if (mounted) setState(() => _fingerprintEnabled = fingerEnabled);
-        if (fingerEnabled && mounted && !_isLoading) {
-          if (!mounted) return;
-          await _loginWithFingerprint();
-        }
-      } catch (_) {}
-    });
+    Future.microtask(() => _detectFingerprintStatus(autoLogin: true));
   }
 
   @override
@@ -161,6 +140,76 @@ class _LoginScreenState extends State<LoginScreen> {
     return 'Fingerprint error: ${e.toString()}';
   }
 
+  Future<void> _detectFingerprintStatus({bool autoLogin = false}) async {
+    if (_autoFpAttempted) return;
+    _autoFpAttempted = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final fpEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
+      final lastEmail = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
+      final typed = _emailController.text.trim().toLowerCase();
+      final candidatesOrdered = <String>[
+        if (fpEmail.isNotEmpty && _isValidEmail(fpEmail)) fpEmail,
+        if (lastEmail.isNotEmpty && _isValidEmail(lastEmail)) lastEmail,
+        if (typed.isNotEmpty && _isValidEmail(typed)) typed,
+      ];
+      if (fpEmail.isNotEmpty && _isValidEmail(fpEmail)) {
+        if (mounted) setState(() => _fingerprintEnabled = true);
+        () async {
+          try {
+            final supported = await _localAuth.isDeviceSupported();
+            final canCheck = await _localAuth.canCheckBiometrics;
+            final types = await _localAuth.getAvailableBiometrics();
+            final hasFingerprint = types.contains(BiometricType.fingerprint) || types.contains(BiometricType.strong) || types.contains(BiometricType.weak);
+            if (!(supported && canCheck && hasFingerprint)) {
+              if (mounted) setState(() => _fingerprintEnabled = false);
+            }
+          } catch (_) {}
+        }();
+      }
+      if (candidatesOrdered.isEmpty) {
+        if (mounted) setState(() => _fingerprintEnabled = false);
+        return;
+      }
+      final unique = <String>{};
+      final candidates = <String>[];
+      for (final e in candidatesOrdered) {
+        if (unique.add(e)) candidates.add(e);
+      }
+      bool found = false;
+      String chosen = '';
+      final futures = candidates.map((email) async {
+        try {
+          final s = await MongoDBService.getMfaStatusDetail(email: email).timeout(const Duration(milliseconds: 1500));
+          final enabled = s['success'] == true && s['isFingerprintEnabled'] == true;
+          if (!found && enabled) {
+            found = true;
+            chosen = email;
+            if (mounted) setState(() => _fingerprintEnabled = true);
+            try { await prefs.setString('fingerprintEmail', chosen); } catch (_) {}
+            if (autoLogin && mounted && !_isLoading) {
+              await _loginWithFingerprint();
+            }
+          }
+          return {'email': email, 'enabled': enabled};
+        } catch (_) {
+          return {'email': email, 'enabled': false};
+        }
+      }).toList();
+      await Future.wait(futures);
+      if (!found) {
+        try {
+          if (fpEmail.isNotEmpty && _isValidEmail(fpEmail)) {
+            await prefs.remove('fingerprintEmail');
+          }
+        } catch (_) {}
+        if (mounted) setState(() => _fingerprintEnabled = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _fingerprintEnabled = false);
+    }
+  }
+
   
 
   
@@ -170,7 +219,8 @@ class _LoginScreenState extends State<LoginScreen> {
     String email = '';
     try {
       final prefs = await SharedPreferences.getInstance();
-      email = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
+      final fpEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
+      email = fpEmail.isNotEmpty ? fpEmail : (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
     } catch (_) {}
     if (email.isEmpty || !_isValidEmail(email)) {
       final fallbackEmail = _emailController.text.trim().toLowerCase();
@@ -219,6 +269,12 @@ class _LoginScreenState extends State<LoginScreen> {
         final lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
         final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
         final avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('lastLoginEmail', email);
+          await prefs.setString('fingerprintEmail', email);
+        } catch (_) {}
+        if (!mounted) return;
         final navigator = Navigator.of(context);
         final profileRes = await MongoDBService.fetchProfile(email: email);
         final pending = profileRes['deletionPending'] == true;
@@ -350,10 +406,155 @@ class _LoginScreenState extends State<LoginScreen> {
   );
 }
 
-  void _signInWithGooglePending() {
+  Future<void> _signInWithGoogle() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
     final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(const SnackBar(content: Text('Google Sign-In will be available soon')));
+    try {
+      if (!GoogleAuthService.isSupportedPlatform()) {
+        setState(() => _isLoading = false);
+        messenger.showSnackBar(const SnackBar(content: Text('Google Sign-In is only available on Android or iOS')));
+        return;
+      }
+      try {
+        final typedPre = _emailController.text.trim().toLowerCase();
+        if (_isValidEmail(typedPre)) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('lastLoginEmail', typedPre);
+        }
+      } catch (_) {}
+      final auth = await GoogleAuthService.signInGetTokenAndEmail();
+      final idToken = (auth['idToken'] ?? '').toString();
+      final email = (auth['email'] ?? '').toString();
+      final providerId = (auth['providerId'] ?? '').toString();
+      final displayName = (auth['displayName'] ?? '').toString();
+      final errCode = (auth['errorCode'] ?? '').toString();
+      final errMsg = (auth['errorMessage'] ?? '').toString();
+      if (idToken.isEmpty && email.isEmpty) {
+        setState(() => _isLoading = false);
+        final detail = (errCode.isNotEmpty || errMsg.isNotEmpty) ? ' ($errCode${errMsg.isNotEmpty ? ': $errMsg' : ''})' : '';
+        messenger.showSnackBar(SnackBar(content: Text('Google Sign-In canceled or failed$detail')));
+        return;
+      }
+      // Derive names from displayName if available (first two words as first name)
+      String? firstNameArg;
+      String? lastNameArg;
+      if (displayName.isNotEmpty) {
+        final parts = displayName.trim().split(RegExp(r'\s+'));
+        if (parts.isNotEmpty) {
+          if (parts.length >= 2) {
+            final f = '${parts[0].trim()} ${parts[1].trim()}'.trim();
+            firstNameArg = f.isNotEmpty ? f : null;
+            final l = parts.length > 2 ? parts.sublist(2).join(' ').trim() : '';
+            lastNameArg = l.isNotEmpty ? l : null;
+          } else {
+            final f = parts.first.trim();
+            firstNameArg = f.isNotEmpty ? f : null;
+            lastNameArg = null;
+          }
+        }
+      }
+      if (firstNameArg != null && firstNameArg.trim().isEmpty) firstNameArg = null;
+      if (lastNameArg != null && lastNameArg.trim().isEmpty) lastNameArg = null;
+      final usecase = SignInWithGoogle();
+      final result = await usecase.call(
+        idToken: idToken.isNotEmpty ? idToken : 'none:${DateTime.now().millisecondsSinceEpoch}',
+        email: email.isNotEmpty ? email : null,
+        providerId: providerId.isNotEmpty ? providerId : null,
+        emailVerified: true,
+        firstName: firstNameArg,
+        lastName: lastNameArg,
+      );
+      setState(() => _isLoading = false);
+      if (result['success'] == true) {
+        final user = (result['user'] is Map<String, dynamic>) ? (result['user'] as Map<String, dynamic>) : <String, dynamic>{};
+        final email = (user['email'] is String) ? user['email'] as String : '';
+        var firstName = (user['firstName'] is String) ? user['firstName'] as String : '';
+        var lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
+        if (displayName.isNotEmpty) {
+          final parts = displayName.trim().split(RegExp(r'\s+'));
+          if (parts.isNotEmpty) {
+            if (firstName.isEmpty || firstName.toLowerCase() == 'user') {
+              if (parts.length >= 2) {
+                firstName = '${parts[0].trim()} ${parts[1].trim()}'.trim();
+              } else {
+                firstName = parts.first.trim();
+              }
+            }
+            if (lastName.isEmpty || lastName.toLowerCase() == 'user') {
+              final l = parts.length > 2 ? parts.sublist(2).join(' ').trim() : '';
+              lastName = l;
+            }
+          }
+        }
+        if ((firstName.isEmpty || firstName.toLowerCase() == 'user') && email.isNotEmpty) {
+          final local = email.split('@').first;
+          final tokens = local.split(RegExp(r'[._\- ]+')).where((t) => t.trim().isNotEmpty).toList();
+          if (tokens.isNotEmpty) {
+            if (firstName.isEmpty || firstName.toLowerCase() == 'user') firstName = tokens.first.trim();
+            if (lastName.isEmpty && tokens.length > 1) lastName = tokens.sublist(1).join(' ').trim();
+          }
+        }
+        final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
+        final avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
+        if (!mounted) return;
+        final navigator = Navigator.of(context);
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          if (email.isNotEmpty) await prefs.setString('lastLoginEmail', email);
+          if (email.isNotEmpty) {
+            try {
+              final status = await MongoDBService.getMfaStatusDetail(email: email);
+              final fpEnabled = status['success'] == true && status['isFingerprintEnabled'] == true;
+              if (fpEnabled) {
+                await prefs.setString('fingerprintEmail', email.toLowerCase());
+              }
+            } catch (_) {}
+          }
+        } catch (_) {}
+        final profileRes = await MongoDBService.fetchProfile(email: email);
+        final pending = profileRes['deletionPending'] == true;
+        final scheduledISO = (profileRes['deletionScheduledFor'] is String) ? profileRes['deletionScheduledFor'] as String : null;
+        if (pending && scheduledISO != null) {
+          navigator.pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => DeletionScheduledPage(
+                email: email,
+                scheduledISO: scheduledISO,
+                firstName: firstName,
+                lastName: lastName,
+                phoneNumber: phoneNumber,
+                token: '',
+                avatarUrl: avatarUrl,
+              ),
+            ),
+            (route) => false,
+          );
+          return;
+        }
+        navigator.pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => ProfilePage(
+              email: email,
+              firstName: firstName,
+              lastName: lastName,
+              phoneNumber: phoneNumber,
+              token: '',
+              avatarUrl: avatarUrl,
+            ),
+          ),
+          (route) => false,
+        );
+      } else {
+        final msg = (result['message'] is String) ? result['message'] as String : 'Google login failed';
+        messenger.showSnackBar(SnackBar(content: Text(msg)));
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      messenger.showSnackBar(SnackBar(content: Text('Google login error: ${e.toString()}')));
+    }
   }
+
 
 
   @override
@@ -470,6 +671,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         onChanged: (_) => setState(() {}),
+                        onFieldSubmitted: (_) => _refreshFingerprintStatusForEmail(),
                         validator: (value) {
                           if (!_emailTouched) return null;
                           if (value == null || value.isEmpty) {
@@ -636,7 +838,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 10),
                       OutlinedButton.icon(
-                        onPressed: _isLoading ? null : _signInWithGooglePending,
+                        onPressed: _isLoading ? null : _signInWithGoogle,
                         style: OutlinedButton.styleFrom(
                           backgroundColor: Colors.white,
                           side: BorderSide(color: Colors.grey.shade300),
@@ -792,6 +994,31 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     }
+  }
+
+  Timer? _fpDebounce;
+  void _refreshFingerprintStatusForEmail() {
+    final email = _emailController.text.trim();
+    if (!_isValidEmail(email)) {
+      setState(() => _fingerprintEnabled = false);
+      return;
+    }
+    _fpDebounce?.cancel();
+    _fpDebounce = Timer(const Duration(milliseconds: 400), () async {
+      try {
+        final status = await MongoDBService.getMfaStatusDetail(email: email);
+        final fingerEnabled = status['success'] == true && status['isFingerprintEnabled'] == true;
+        if (mounted) setState(() => _fingerprintEnabled = fingerEnabled);
+        if (fingerEnabled) {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('fingerprintEmail', email.toLowerCase());
+          } catch (_) {}
+        }
+      } catch (_) {
+        if (mounted) setState(() => _fingerprintEnabled = false);
+      }
+    });
   }
 }
 
