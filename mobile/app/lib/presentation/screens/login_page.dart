@@ -4,6 +4,7 @@ import 'package:app/data/services/mongodb_service.dart';
 import 'profile.dart';
 import 'deletion_scheduled_page.dart';
 import 'security/login_mfa_screen.dart';
+import 'forgot_password_page.dart';
  
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -160,190 +161,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return 'Fingerprint error: ${e.toString()}';
   }
 
-  void _showForgotPasswordDialog() {
-    final emailController = TextEditingController();
-    final newPwdController = TextEditingController();
-    final confirmPwdController = TextEditingController();
-    bool obscureNew = true;
-    bool obscureConfirm = true;
-    int step = 1;
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          final size = MediaQuery.of(context).size;
-          final isSmall = size.width < 360;
-          final subtitleSize = isSmall ? 14.0 : 16.0;
-          final validEmail = _isValidEmail(emailController.text.trim());
-          final newPwd = newPwdController.text;
-          final confirmPwd = confirmPwdController.text;
-          final passwordsOk = newPwd.isNotEmpty && confirmPwd.isNotEmpty && newPwd == confirmPwd && newPwd.length >= 6;
-
-          return AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: const Text(
-              'Forgot Password?',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (step == 1)
-                    TextField(
-                      controller: emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: const Icon(Icons.email_outlined),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.blue, width: 2),
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey.shade50,
-                      ),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  if (step == 2) ...[
-                    TextField(
-                      controller: newPwdController,
-                      obscureText: obscureNew,
-                      decoration: InputDecoration(
-                        labelText: 'New Password',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          icon: Icon(obscureNew ? Icons.visibility_off : Icons.visibility),
-                          onPressed: () => setState(() => obscureNew = !obscureNew),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.blue, width: 2),
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey.shade50,
-                      ),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: confirmPwdController,
-                      obscureText: obscureConfirm,
-                      decoration: InputDecoration(
-                        labelText: 'Confirm Password',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          icon: Icon(obscureConfirm ? Icons.visibility_off : Icons.visibility),
-                          onPressed: () => setState(() => obscureConfirm = !obscureConfirm),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.blue, width: 2),
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey.shade50,
-                      ),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    const SizedBox(height: 12),
-                    if (newPwd.isNotEmpty && confirmPwd.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: passwordsOk ? Colors.green.shade50 : Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: passwordsOk ? Colors.green.shade200 : Colors.red.shade200,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              passwordsOk ? Icons.check_circle : Icons.error_outline,
-                              color: passwordsOk ? Colors.green : Colors.red,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                passwordsOk ? 'Passwords match' : 'Passwords do not match or too short (min 6 characters)',
-                                style: TextStyle(
-                                  fontSize: subtitleSize - 2,
-                                  color: passwordsOk ? Colors.green.shade800 : Colors.red.shade800,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(
-                  'Cancel',
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
-              ),
-              if (step == 2)
-                TextButton(
-                  onPressed: () => setState(() => step = 1),
-                  child: const Text('Back'),
-                ),
-              if (step == 1)
-                FilledButton(
-                  onPressed: validEmail ? () => setState(() => step = 2) : null,
-                  style: FilledButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Next'),
-                ),
-              if (step == 2)
-                FilledButton(
-                  onPressed: passwordsOk ? () => Navigator.of(context).pop() : null,
-                  style: FilledButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Reset Password'),
-                ),
-            ],
-          );
-        },
-      ),
-    );
-  }
+  
 
   
 
@@ -746,7 +564,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           TextButton(
-                            onPressed: _isLoading ? null : _showForgotPasswordDialog,
+                            onPressed: _isLoading ? null : () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const ForgotPasswordPage(),
+                                ),
+                              );
+                            },
                             style: TextButton.styleFrom(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               minimumSize: const Size(0, 0),
@@ -797,12 +622,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                     
                     
-                    // Sign Up Link
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 4,
+                      runSpacing: 4,
                       children: [
                         Text(
-                          "Don't have an account? ",
+                          "Don't have an account?",
                           style: TextStyle(
                             fontSize: subtitleFontSize,
                             color: Colors.grey.shade600,

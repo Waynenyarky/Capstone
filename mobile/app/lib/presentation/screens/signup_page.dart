@@ -240,29 +240,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Widget _buildPasswordRequirement(String text, bool isMet, bool showValidation) {
-    return AnimatedOpacity(
-      opacity: showValidation ? 1.0 : 0.6,
-      duration: const Duration(milliseconds: 200),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Icon(
-              isMet ? Icons.check_circle : Icons.radio_button_unchecked,
-              color: showValidation && isMet ? Colors.green : Colors.grey,
-              size: 18,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(
+            isMet ? Icons.check_circle : Icons.close,
+            color: isMet ? Colors.green : Colors.red,
+            size: 18,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 13,
+              color: isMet ? Colors.green : Colors.red,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(width: 8),
-            Text(
-              text,
-              style: TextStyle(
-                fontSize: 13,
-                color: showValidation && isMet ? Colors.green : Colors.grey.shade700,
-                fontWeight: showValidation && isMet ? FontWeight.w500 : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -520,7 +516,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade700,
+                                color: Colors.black87,
                               ),
                             ),
                             const SizedBox(height: 8),
