@@ -25,6 +25,10 @@ class MongoDBService {
         urls.add(Uri(scheme: u.scheme, host: '10.0.2.2', port: altPort).toString());
       }
     } catch (_) {}
+    final extra = (dotenv.env['ALT_BASE_URLS'] ?? '').split(',').map((s) => s.trim()).where((s) => s.isNotEmpty);
+    for (final x in extra) {
+      urls.add(x);
+    }
     final seen = <String>{};
     final out = <String>[];
     for (final x in urls) {
@@ -160,6 +164,28 @@ class MongoDBService {
       }
     }
     throw TimeoutException('All endpoints unreachable for $path');
+  }
+
+  static Future<bool> isNetworkAvailable({Duration timeout = const Duration(seconds: 3)}) async {
+    try {
+      final list = await InternetAddress.lookup('google.com').timeout(timeout);
+      return list.isNotEmpty && list.first.rawAddress.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<Map<String, dynamic>> serverHealth({Duration timeout = const Duration(seconds: 5)}) async {
+    try {
+      final res = await _getWithFallbackH('/api/health', timeout: timeout);
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? (json.decode(res.body) as Map<String, dynamic>? ?? {}) : {};
+      final ok = isJson ? (data['ok'] == true) : (res.statusCode == 200);
+      return { 'ok': ok, 'status': res.statusCode, 'service': data['service'] };
+    } catch (e) {
+      return { 'ok': false, 'error': e.toString() };
+    }
   }
 
 

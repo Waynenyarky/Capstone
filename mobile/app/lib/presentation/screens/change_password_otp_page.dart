@@ -180,6 +180,22 @@ class _ChangePasswordOtpPageState extends State<ChangePasswordOtpPage> {
     });
     try {
       final messenger = ScaffoldMessenger.of(context);
+      final netOk = await MongoDBService.isNetworkAvailable();
+      if (!netOk) {
+        setState(() {
+          _verifying = false;
+          _errorMessage = 'No internet connection. Please check your network.';
+        });
+        return;
+      }
+      final health = await MongoDBService.serverHealth(timeout: const Duration(seconds: 4));
+      if (health['ok'] != true) {
+        setState(() {
+          _verifying = false;
+          _errorMessage = 'Server unavailable. Please try again later.';
+        });
+        return;
+      }
       String? resetToken;
       if (_serverMode) {
         final v = await MongoDBService.resetVerifyCode(email: widget.email, code: _otpCode);
