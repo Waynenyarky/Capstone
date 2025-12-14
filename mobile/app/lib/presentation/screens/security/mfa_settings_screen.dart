@@ -10,6 +10,7 @@ import '../../../domain/usecases/undo_disable_mfa.dart';
 import '../../../data/services/mongodb_service.dart';
 import 'mfa_setup_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:local_auth/local_auth.dart';
 
 class MfaSettingsScreen extends StatefulWidget {
   final String email;
@@ -24,46 +25,47 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
   bool _authEnabled = false;
   bool _fingerEnabled = false;
   bool _faceEnabled = false;
-  bool _faceLoading = false;
   bool _disablePending = false;
   DateTime? _scheduledFor;
   Duration _disableRemaining = Duration.zero;
   Timer? _disableTicker;
+  final LocalAuthentication _localAuth = LocalAuthentication();
+  bool _deviceSupportsFingerprint = false;
+  bool _deviceSupportChecked = false;
 
   @override
   void initState() {
     super.initState();
-    _loadFace();
     _loadAuthDetail();
+    _checkDeviceSupport();
   }
 
-  Future<void> _loadFace() async {
-    setState(() => _faceLoading = true);
-    try {
-      final status = await MongoDBService.getFaceUnlockStatus(email: widget.email);
-      if (!mounted) return;
-      setState(() => _faceEnabled = status);
-    } catch (_) {} finally {
-      if (mounted) setState(() => _faceLoading = false);
-    }
+  void _toggleFace(bool value) {
+    setState(() {
+      _faceEnabled = value;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Face recognition ${value ? 'enabled (UI only)' : 'disabled (UI only)'}')),
+    );
   }
 
-  Future<void> _toggleFace(bool value) async {
-    setState(() => _faceLoading = true);
+  Future<void> _checkDeviceSupport() async {
     try {
-      final res = await MongoDBService.setFaceUnlockEnabled(email: widget.email, enabled: value);
-      final ok = res['success'] == true;
+      final supported = await _localAuth.isDeviceSupported();
+      final canCheck = await _localAuth.canCheckBiometrics;
+      final types = await _localAuth.getAvailableBiometrics();
+      final hasFingerprint = types.contains(BiometricType.fingerprint) || types.contains(BiometricType.strong) || types.contains(BiometricType.weak);
       if (!mounted) return;
-      setState(() => _faceEnabled = ok ? value : _faceEnabled);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(ok ? 'Face recognition ${value ? 'enabled' : 'disabled'}' : (res['message'] ?? 'Update failed').toString())),
-      );
+      setState(() {
+        _deviceSupportsFingerprint = supported && canCheck && hasFingerprint;
+        _deviceSupportChecked = true;
+      });
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Connection error')));
-      }
-    } finally {
-      if (mounted) setState(() => _faceLoading = false);
+      if (!mounted) return;
+      setState(() {
+        _deviceSupportsFingerprint = false;
+        _deviceSupportChecked = true;
+      });
     }
   }
 
@@ -161,6 +163,15 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
 
   Future<void> _toggleFingerprint(bool value) async {
     if (value) {
+      if (!_deviceSupportChecked) {
+        await _checkDeviceSupport();
+      }
+      if (!_deviceSupportsFingerprint) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fingerprint not supported on this device')));
+        }
+        return;
+      }
       _openSetupFor('fingerprint');
       return;
     }
@@ -487,7 +498,21 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
               if (!_fingerEnabled) ...[
                 Row(
                   children: [
-                    ElevatedButton(onPressed: () => _openSetupFor('fingerprint'), child: const Text('Set Up')),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (!_deviceSupportChecked) {
+                          await _checkDeviceSupport();
+                        }
+                        if (!_deviceSupportsFingerprint) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fingerprint not supported on this device')));
+                          }
+                          return;
+                        }
+                        _openSetupFor('fingerprint');
+                      },
+                      child: const Text('Set Up'),
+                    ),
                   ],
                 ),
               ],
@@ -499,7 +524,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
           icon: Icons.face,
           title: 'Face Recognition',
           enabled: _faceEnabled,
-          loading: _faceLoading,
+          loading: false,
           onToggle: _toggleFace,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -512,7 +537,14 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  ElevatedButton(onPressed: () => _openSetupFor('face'), child: const Text('Set Up')),
+                  ElevatedButton(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Face recognition setup is UI-only')),
+                      );
+                    },
+                    child: const Text('Set Up'),
+                  ),
                 ],
               ),
             ],

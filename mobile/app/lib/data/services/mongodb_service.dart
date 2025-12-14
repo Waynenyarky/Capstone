@@ -635,20 +635,112 @@ class MongoDBService {
       final portStr = dotenv.env['SMTP_PORT'];
       final username = dotenv.env['SMTP_USERNAME'];
       final password = dotenv.env['SMTP_PASSWORD'];
-      final fromAddr = dotenv.env['SMTP_FROM'] ?? username;
-      final useSsl = (dotenv.env['SMTP_SSL'] ?? 'false').toLowerCase() == 'true';
-      final port = int.tryParse(portStr ?? '') ?? (useSsl ? 465 : 587);
+      String fromAddr = (dotenv.env['SMTP_FROM'] ?? username) ?? '';
+      final sslEnv = (dotenv.env['SMTP_SSL'] ?? 'false').toLowerCase() == 'true';
+      final parsedPort = int.tryParse(portStr ?? '');
+      final port = parsedPort ?? (sslEnv ? 465 : 587);
+      final useSsl = (port == 465) ? true : (port == 587 ? false : sslEnv);
+      final allowInsecure = (dotenv.env['SMTP_ALLOW_INSECURE'] ?? 'false').toLowerCase() == 'true';
+      final ignoreBadCert = (dotenv.env['SMTP_IGNORE_BAD_CERT'] ?? 'false').toLowerCase() == 'true';
+      final name = dotenv.env['SMTP_NAME'] ?? 'Verification Service';
       if (host == null || host.isEmpty || username == null || username.isEmpty || password == null || password.isEmpty) {
         return { 'success': false, 'message': 'SMTP not configured' };
       }
-      final server = SmtpServer(host, port: port, username: username, password: password, ssl: useSsl);
+      if (fromAddr.isEmpty) {
+        fromAddr = username;
+      }
+      debugPrint('SMTP send to $to via $host:$port ssl=$useSsl');
+      final server = SmtpServer(
+        host,
+        port: port,
+        username: username,
+        password: password,
+        ssl: useSsl,
+        allowInsecure: allowInsecure,
+        ignoreBadCertificate: ignoreBadCert,
+      );
       final message = Message()
-        ..from = Address(fromAddr ?? username)
+        ..from = Address(fromAddr, name)
         ..recipients.add(to)
         ..subject = 'Your verification code'
         ..text = 'Your verification code is: $code\nThis code expires in 10 minutes.';
       await send(message, server);
       return { 'success': true };
+    } on MailerException catch (e) {
+      try {
+        final problems = e.problems.map((p) => p.toString()).join('; ');
+        return { 'success': false, 'message': 'SMTP error: $problems' };
+      } catch (_) {
+        return { 'success': false, 'message': e.toString() };
+      }
+    } catch (e) {
+      return { 'success': false, 'message': e.toString() };
+    }
+  }
+
+  static Future<Map<String, dynamic>> sendChangePasswordOtpEmail({ required String to, required String code }) async {
+    try {
+      final host = dotenv.env['SMTP_HOST'];
+      final portStr = dotenv.env['SMTP_PORT'];
+      final username = dotenv.env['SMTP_USERNAME'];
+      final password = dotenv.env['SMTP_PASSWORD'];
+      String fromAddr = (dotenv.env['SMTP_FROM'] ?? username) ?? '';
+      final sslEnv = (dotenv.env['SMTP_SSL'] ?? 'false').toLowerCase() == 'true';
+      final parsedPort = int.tryParse(portStr ?? '');
+      final port = parsedPort ?? (sslEnv ? 465 : 587);
+      final useSsl = (port == 465) ? true : (port == 587 ? false : sslEnv);
+      final allowInsecure = (dotenv.env['SMTP_ALLOW_INSECURE'] ?? 'false').toLowerCase() == 'true';
+      final ignoreBadCert = (dotenv.env['SMTP_IGNORE_BAD_CERT'] ?? 'false').toLowerCase() == 'true';
+      final name = dotenv.env['SMTP_NAME'] ?? 'Account Security';
+      if (host == null || host.isEmpty || username == null || username.isEmpty || password == null || password.isEmpty) {
+        return { 'success': false, 'message': 'SMTP not configured' };
+      }
+      if (fromAddr.isEmpty) {
+        fromAddr = username;
+      }
+      debugPrint('SMTP send Change Password OTP to $to via $host:$port ssl=$useSsl');
+      final server = SmtpServer(
+        host,
+        port: port,
+        username: username,
+        password: password,
+        ssl: useSsl,
+        allowInsecure: allowInsecure,
+        ignoreBadCertificate: ignoreBadCert,
+      );
+      final message = Message()
+        ..from = Address(fromAddr, name)
+        ..recipients.add(to)
+        ..subject = 'Change Password Verification Code'
+        ..text = 'Use this code to change your password: $code\nThis code expires in 10 minutes.'
+        ..html = '<p>Use this code to change your password:</p><h2>$code</h2><p>This code expires in 10 minutes.</p>';
+      final timeoutSec = int.tryParse(dotenv.env['SMTP_TIMEOUT'] ?? '5') ?? 5;
+      final maxRetries = int.tryParse(dotenv.env['SMTP_MAX_RETRIES'] ?? '1') ?? 1;
+      final timeout = Duration(seconds: timeoutSec);
+      int retries = 0;
+      while (true) {
+        try {
+          await send(message, server).timeout(timeout);
+          return { 'success': true };
+        } on TimeoutException catch (e) {
+          if (retries >= maxRetries) {
+            return { 'success': false, 'message': 'SMTP timeout: ${e.toString()}' };
+          }
+          retries++;
+          await Future.delayed(Duration(milliseconds: 500 * retries));
+        } on MailerException catch (e) {
+          if (retries >= maxRetries) {
+            try {
+              final problems = e.problems.map((p) => p.toString()).join('; ');
+              return { 'success': false, 'message': 'SMTP error: $problems' };
+            } catch (_) {
+              return { 'success': false, 'message': e.toString() };
+            }
+          }
+          retries++;
+          await Future.delayed(Duration(milliseconds: 500 * retries));
+        }
+      }
     } catch (e) {
       return { 'success': false, 'message': e.toString() };
     }
@@ -920,6 +1012,84 @@ class MongoDBService {
         'success': false,
         'message': 'Connection error: ${e.toString()}',
       };
+    }
+  }
+
+  static Future<Map<String, dynamic>> resetStart({ required String email }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/forgot-password',
+        { 'email': email },
+        headers: { 'Accept': 'application/json' },
+        timeout: const Duration(seconds: 12),
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? (json.decode(res.body) as Map<String, dynamic>? ?? {}) : {};
+      if (res.statusCode == 200) {
+        final devCode = (data['devCode'] is String) ? data['devCode'] as String : '';
+        return { 'success': true, 'message': 'Verification code sent', 'devCode': devCode };
+      }
+      final bodyText = res.body.toString();
+      final msg = (data['message'] is String)
+          ? data['message'] as String
+          : (bodyText.isNotEmpty ? bodyText : 'Failed to send verification code');
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> resetVerifyCode({ required String email, required String code }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/verify-code',
+        { 'email': email, 'code': code },
+        headers: { 'Accept': 'application/json' },
+        timeout: const Duration(seconds: 12),
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? (json.decode(res.body) as Map<String, dynamic>? ?? {}) : {};
+      if (res.statusCode == 200) {
+        final token = (data['resetToken'] is String) ? data['resetToken'] as String : '';
+        return { 'success': true, 'resetToken': token };
+      }
+      final msg = (data['message'] is String) ? data['message'] as String : 'Invalid verification code';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> resetChangePassword({
+    required String email,
+    required String resetToken,
+    required String newPassword,
+  }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/change-password',
+        { 'email': email, 'resetToken': resetToken, 'password': newPassword },
+        headers: { 'Accept': 'application/json' },
+        timeout: const Duration(seconds: 12),
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? (json.decode(res.body) as Map<String, dynamic>? ?? {}) : {};
+      if (res.statusCode == 200) {
+        return { 'success': true, 'message': 'Password changed successfully' };
+      }
+      final msg = (data['message'] is String) ? data['message'] as String : 'Password update failed';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
     }
   }
 
@@ -1318,6 +1488,176 @@ class MongoDBService {
         return { 'success': true, 'message': 'Deletion cancelled' };
       }
       final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to cancel deletion';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> sendDeleteAccountCode({
+    required String email,
+  }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/delete-account/send-code',
+        { 'email': email },
+        headers: { 'x-user-email': email },
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200) {
+        final devCode = (data is Map && data['devCode'] is String) ? data['devCode'] as String : '';
+        return { 'success': true, 'message': 'Verification code sent', 'devCode': devCode };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to send verification code';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> verifyDeleteAccountCode({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/delete-account/verify-code',
+        { 'email': email, 'code': code },
+        headers: { 'x-user-email': email },
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200) {
+        final deleteToken = (data is Map && data['deleteToken'] is String) ? data['deleteToken'] as String : '';
+        return { 'success': true, 'deleteToken': deleteToken };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Invalid verification code';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> sendChangePasswordCode({
+    required String email,
+    required String token,
+  }) async {
+    try {
+      final headers = {
+        'x-user-email': email,
+        'x-auth-token': token,
+        'x-access-token': token,
+        'Authorization': 'Bearer $token',
+      };
+      http.Response res;
+      try {
+        res = await _postJsonWithFallbackH(
+          '/api/auth/change-password/send-code',
+          { 'email': email },
+          headers: headers,
+        );
+      } catch (_) {
+        res = await _getWithFallbackH(
+          '/api/auth/change-password/send-code',
+          headers: headers,
+        );
+      }
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final dynamic parsed = isJson ? json.decode(res.body) : null;
+      final Map<String, dynamic> data = (parsed is Map<String, dynamic>) ? parsed : <String, dynamic>{};
+      if (res.statusCode == 200) {
+        final devCode = (data['devCode'] is String) ? data['devCode'] as String : '';
+        return { 'success': true, 'message': 'Verification code sent', 'devCode': devCode };
+      }
+      if (res.statusCode == 401 || res.statusCode == 403) {
+        final msg = (data['message'] is String) ? data['message'] as String : 'Unauthorized: invalid or expired token';
+        return { 'success': false, 'message': msg };
+      }
+      final bodyText = res.body.toString();
+      final msg = (data['message'] is String)
+          ? data['message'] as String
+          : (bodyText.isNotEmpty ? bodyText : 'Failed to send verification code');
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> verifyChangePasswordCode({
+    required String email,
+    required String code,
+    required String token,
+  }) async {
+    try {
+      final headers = {
+        'x-user-email': email,
+        'x-auth-token': token,
+        'x-access-token': token,
+        'Authorization': 'Bearer $token',
+      };
+      http.Response res;
+      try {
+        res = await _postJsonWithFallbackH(
+          '/api/auth/change-password/verify-code',
+          { 'email': email, 'code': code },
+          headers: headers,
+        );
+      } catch (_) {
+        res = await _getWithFallbackH(
+          '/api/auth/change-password/verify-code?email=$email&code=$code',
+          headers: headers,
+        );
+      }
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200) {
+        return { 'success': true };
+      }
+      if (res.statusCode == 401 || res.statusCode == 403) {
+        final msg = (data is Map && data['message'] is String) ? data['message'] as String : 'Unauthorized: invalid or expired token';
+        return { 'success': false, 'message': msg };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Invalid verification code';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> confirmDeleteAccountDeletion({
+    required String email,
+    required String deleteToken,
+  }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/delete-account/confirm',
+        { 'email': email, 'deleteToken': deleteToken },
+        headers: { 'x-user-email': email },
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200) {
+        final user = (data is Map && data['user'] is Map<String, dynamic>) ? data['user'] as Map<String, dynamic> : <String, dynamic>{};
+        final scheduledISO = (user['deletionScheduledFor'] is String) ? user['deletionScheduledFor'] as String : null;
+        return { 'success': true, 'scheduledISO': scheduledISO, 'user': user };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to schedule deletion';
       return { 'success': false, 'message': msg };
     } on TimeoutException {
       return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
