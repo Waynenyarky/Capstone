@@ -18,14 +18,16 @@ class _ChangeEmailPageState extends State<ChangeEmailPage> {
   String? _emailError;
 
   @override
+  void initState() {
+    super.initState();
+    _currentEmailController.text = widget.currentEmail;
+  }
+
+  @override
   void dispose() {
     _currentEmailController.dispose();
     _emailFocusNode.dispose();
     super.dispose();
-  }
-
-  bool _isValidEmail(String v) {
-    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim());
   }
 
   Future<void> _submit() async {
@@ -33,16 +35,6 @@ class _ChangeEmailPageState extends State<ChangeEmailPage> {
     
     // Unfocus to dismiss keyboard
     _emailFocusNode.unfocus();
-    
-    final entered = _currentEmailController.text.trim();
-    if (!_isValidEmail(entered)) {
-      setState(() => _emailError = 'Please enter a valid email address');
-      return;
-    }
-    if (entered.toLowerCase() != widget.currentEmail.toLowerCase()) {
-      setState(() => _emailError = 'This email does not match your current email');
-      return;
-    }
     setState(() {
       _loading = true;
       _emailError = null;
@@ -125,12 +117,24 @@ class _ChangeEmailPageState extends State<ChangeEmailPage> {
                     focusNode: _emailFocusNode,
                     keyboardType: TextInputType.emailAddress,
                     autocorrect: false,
-                    enabled: !_loading,
-                    style: theme.textTheme.bodyLarge,
+                    readOnly: true,
+                    enabled: false,
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                    ),
                     decoration: InputDecoration(
                       labelText: 'Current Email Address',
-                      hintText: 'Enter your current email',
-                      prefixIcon: const Icon(Icons.email_outlined),
+                      hintText: 'Current email',
+                      labelStyle: const TextStyle(
+                        color: Color(0xFF64748B),
+                      ),
+                      hintStyle: const TextStyle(
+                        color: Color(0xFF64748B),
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.email_outlined,
+                        color: Color(0xFF64748B),
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -216,8 +220,8 @@ class _ChangeEmailPageState extends State<ChangeEmailPage> {
                                 ),
                               ],
                             ),
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 16),
                   Center(
                     child: Text(

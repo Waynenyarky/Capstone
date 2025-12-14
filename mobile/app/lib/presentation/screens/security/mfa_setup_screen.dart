@@ -165,7 +165,6 @@ class _MfaSetupScreenState extends State<MfaSetupScreen> {
                       items: const [
                         DropdownMenuItem(value: 'authenticator', child: Text('TOTP authenticator')),
                         DropdownMenuItem(value: 'fingerprint', child: Text('Biometrics')),
-                        DropdownMenuItem(value: 'face', child: Text('Face recognition')),
                       ],
                   onChanged: (v) => setState(() => _method = v ?? 'authenticator'),
                 ),
@@ -174,7 +173,7 @@ class _MfaSetupScreenState extends State<MfaSetupScreen> {
                 Text(
                   _method == 'authenticator'
                       ? 'TOTP Authenticator'
-                      : (_method == 'fingerprint' ? 'Biometrics' : 'Face Recognition'),
+                      : 'Biometrics',
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                 ),
                   ],
