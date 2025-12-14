@@ -16,6 +16,8 @@ export default function useMfaSetup() {
   const [code, setCode] = React.useState('')
   const [enabled, setEnabled] = React.useState(false)
   const [statusFetchFailed, setStatusFetchFailed] = React.useState(false)
+  const [showSecret, setShowSecret] = React.useState(false)
+  const [confirmedSaved, setConfirmedSaved] = React.useState(false)
 
   React.useEffect(() => {
     if (!email) return
@@ -61,6 +63,21 @@ export default function useMfaSetup() {
     }
   }, [email, error, success])
 
+  const toggleShowSecret = React.useCallback(() => {
+    setShowSecret((s) => !s)
+  }, [])
+
+  const handleCopy = React.useCallback(async () => {
+    try {
+      const s = String(secret || '')
+      if (!s) return error('Secret not available')
+      await navigator.clipboard.writeText(s)
+      success('Secret copied to clipboard')
+    } catch (e) {
+      error(e, 'Failed to copy secret')
+    }
+  }, [secret, success, error])
+
   const handleVerify = React.useCallback(async () => {
     if (!email) return error('Signed-in email missing')
     if (!code || !/^[0-9]{6}$/.test(code)) return error('Enter a valid 6-digit code')
@@ -101,10 +118,15 @@ export default function useMfaSetup() {
     setQrDataUrl,
     uri,
     secret,
+    showSecret,
+    toggleShowSecret,
     code,
     setCode,
     enabled,
     statusFetchFailed,
+    confirmedSaved,
+    setConfirmedSaved,
+    handleCopy,
     handleSetup,
     handleVerify,
     handleDisable,
