@@ -1,4 +1,6 @@
 import { fetchJsonWithFallback, fetchWithFallback } from "@/lib/http.js"
+import { authHeaders } from '@/lib/authHeaders.js'
+import { getCurrentUser } from '@/features/authentication/lib/authEvents.js'
 
 /**
  * Authentication service layer — centralizes HTTP calls used by
@@ -120,10 +122,74 @@ export async function changePassword(payload) {
   })
 }
 
+// Change password for an authenticated user by verifying current password
+export async function changePasswordAuthenticated(payload) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  return await fetchJsonWithFallback('/api/auth/change-password-authenticated', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function changeEmail(payload) {
   return await fetchJsonWithFallback('/api/auth/change-email', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+  })
+}
+
+// Start change email flow (send OTP to the new email)
+export async function changeEmailStart(payload) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  return await fetchJsonWithFallback('/api/auth/change-email/start', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  })
+}
+
+// Verify the OTP sent to the new email and finalize change
+export async function changeEmailVerify(payload) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  return await fetchJsonWithFallback('/api/auth/change-email/verify', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  })
+}
+
+// Send OTP to current email to confirm identity before allowing change
+export async function changeEmailConfirmStart(payload) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  return await fetchJsonWithFallback('/api/auth/change-email/confirm/start', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  })
+}
+
+// Verify OTP sent to current email
+export async function changeEmailConfirmVerify(payload) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  return await fetchJsonWithFallback('/api/auth/change-email/confirm/verify', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function getProfile() {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  return await fetchJsonWithFallback('/api/auth/me', {
+    method: 'GET',
+    headers,
   })
 }

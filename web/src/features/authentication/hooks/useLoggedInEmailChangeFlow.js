@@ -5,6 +5,7 @@ export function useLoggedInEmailChangeFlow() {
   const { currentUser } = useAuthSession()
   const [step, setStep] = useState('send')
   const [email, setEmail] = useState(currentUser?.email || '')
+  const [newEmail, setNewEmail] = useState('')
   const [resetToken, setResetToken] = useState('')
 
   useEffect(() => {
@@ -21,7 +22,12 @@ export function useLoggedInEmailChangeFlow() {
     setStep('change')
   }, [])
 
-  const handleChangeSubmit = useCallback(() => {
+  const handleChangeStart = useCallback(({ newEmail: ne }) => {
+    setNewEmail(ne)
+    setStep('verifyNew')
+  }, [])
+
+  const handleVerifyNewSubmit = useCallback(() => {
     setStep('done')
   }, [])
 
@@ -32,7 +38,8 @@ export function useLoggedInEmailChangeFlow() {
 
   const sendProps = { email, onSent: handleSent }
   const verifyProps = { email, onSubmit: handleVerifySubmit }
-  const changeProps = { email, resetToken, onSubmit: handleChangeSubmit }
+  const changeProps = { email, resetToken, onSubmit: handleChangeStart }
+  const verifyNewProps = { email: newEmail, currentEmail: email, onSubmit: handleVerifyNewSubmit }
 
-  return { step, sendProps, verifyProps, changeProps, email, resetToken, reset }
+  return { step, sendProps, verifyProps, changeProps, verifyNewProps, email, newEmail, resetToken, reset }
 }

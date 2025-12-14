@@ -7,6 +7,7 @@ const { validateBody, Joi } = require('../../middleware/validation')
 const { generateCode } = require('../../lib/codes')
 const { sendOtp } = require('../../lib/mailer')
 const { changeEmailRequests } = require('../../lib/authRequestsStore')
+const { perEmailRateLimit } = require('../../middleware/rateLimit')
 
 const router = express.Router()
 
@@ -294,16 +295,21 @@ router.post('/change-email/start', validateBody(changeEmailStartSchema), async (
   try {
     const idHeader = req.headers['x-user-id']
     const emailHeader = req.headers['x-user-email']
+    const bodyEmail = String(req.body.currentEmail || req.body.email || '').trim().toLowerCase()
     let doc = null
-    if (idHeader) {
+    // Prefer explicit currentEmail provided in the request body when present
+    if (bodyEmail) {
+      try { doc = await User.findOne({ email: bodyEmail }) } catch (_) { doc = null }
+    }
+    if (!doc && idHeader) {
       try { doc = await User.findById(idHeader) } catch (_) { doc = null }
     }
     if (!doc && emailHeader) {
-      doc = await User.findOne({ email: emailHeader })
+      try { doc = await User.findOne({ email: String(emailHeader).trim().toLowerCase() }) } catch (_) { doc = null }
     }
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
-    const currentEmail = String(doc.email || '').toLowerCase()
+    const currentEmail = bodyEmail || String(doc.email || '').toLowerCase()
     const input = String(req.body.newEmail || '').trim().toLowerCase()
     if (!input) return respond.error(res, 400, 'invalid_email', 'Invalid email')
     if (input === currentEmail) return respond.error(res, 400, 'same_email', 'New email must be different from current')
@@ -315,7 +321,10 @@ router.post('/change-email/start', validateBody(changeEmailStartSchema), async (
     const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10)
     const expiresAtMs = Date.now() + ttlMin * 60 * 1000
     const key = currentEmail
-    changeEmailRequests.set(key, { code, expiresAt: expiresAtMs, newEmail: input })
+    // Store a hash of the code for security
+    let codeHash = null
+    try { codeHash = await bcrypt.hash(String(code), 10) } catch (_) { codeHash = null }
+    changeEmailRequests.set(key, { codeHash, expiresAt: expiresAtMs, newEmail: input })
 
     await sendOtp({ to: input, code, subject: 'Confirm email change' })
     return res.json({ sent: true, to: input, expiresAt: new Date(expiresAtMs).toISOString() })
@@ -335,22 +344,27 @@ router.post('/change-email/verify', validateBody(changeEmailVerifySchema), async
   try {
     const idHeader = req.headers['x-user-id']
     const emailHeader = req.headers['x-user-email']
+    const bodyEmail = String(req.body.currentEmail || req.body.email || '').trim().toLowerCase()
     let doc = null
-    if (idHeader) {
+    if (bodyEmail) {
+      try { doc = await User.findOne({ email: bodyEmail }) } catch (_) { doc = null }
+    }
+    if (!doc && idHeader) {
       try { doc = await User.findById(idHeader) } catch (_) { doc = null }
     }
     if (!doc && emailHeader) {
-      doc = await User.findOne({ email: emailHeader })
+      try { doc = await User.findOne({ email: String(emailHeader).trim().toLowerCase() }) } catch (_) { doc = null }
     }
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
-    const key = String(doc.email || '').toLowerCase()
+    const key = bodyEmail || String(doc.email || '').toLowerCase()
     const reqObj = changeEmailRequests.get(key)
     if (!reqObj) return respond.error(res, 404, 'change_email_request_not_found', 'No change email request found')
     if (Date.now() > reqObj.expiresAt) return respond.error(res, 410, 'code_expired', 'Code expired')
 
     const { code } = req.body || {}
-    if (String(reqObj.code) !== String(code)) return respond.error(res, 401, 'invalid_code', 'Invalid code')
+    const matches = reqObj.codeHash ? await bcrypt.compare(String(code || ''), String(reqObj.codeHash)) : false
+    if (!matches) return respond.error(res, 401, 'invalid_code', 'Invalid code')
 
     const nextEmail = String(reqObj.newEmail || '').toLowerCase()
     if (!nextEmail) return respond.error(res, 400, 'invalid_email', 'Invalid email')
@@ -383,23 +397,30 @@ const changeEmailConfirmStartSchema = Joi.object({
 })
 
 // POST /api/auth/change-email/confirm/start
-router.post('/change-email/confirm/start', validateBody(changeEmailConfirmStartSchema), async (req, res) => {
+router.post('/change-email/confirm/start', perEmailRateLimit({ windowMs: 10 * 60 * 1000, max: 6, code: 'too_many_otps', message: 'Too many OTP requests' }), validateBody(changeEmailConfirmStartSchema), async (req, res) => {
   try {
     const idHeader = req.headers['x-user-id']
     const emailHeader = req.headers['x-user-email']
+    const bodyEmail = String(req.body.currentEmail || req.body.email || '').trim().toLowerCase()
     let doc = null
-    if (idHeader) {
+    if (bodyEmail) {
+      try { doc = await User.findOne({ email: bodyEmail }) } catch (_) { doc = null }
+    }
+    if (!doc && idHeader) {
       try { doc = await User.findById(idHeader) } catch (_) { doc = null }
     }
     if (!doc && emailHeader) {
-      doc = await User.findOne({ email: emailHeader })
+      try { doc = await User.findOne({ email: String(emailHeader).trim().toLowerCase() }) } catch (_) { doc = null }
     }
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
-    const currentEmail = String(doc.email || '').toLowerCase()
+    const currentEmail = bodyEmail || String(doc.email || '').toLowerCase()
     const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10)
     const expiresAtMs = Date.now() + ttlMin * 60 * 1000
     const code = generateCode()
-    changeEmailRequests.set(currentEmail, { code, expiresAt: expiresAtMs, newEmail: '' })
+    const key = currentEmail
+    let codeHash = null
+    try { codeHash = await bcrypt.hash(String(code), 10) } catch (_) { codeHash = null }
+    changeEmailRequests.set(key, { codeHash, expiresAt: expiresAtMs, newEmail: '' })
     await sendOtp({ to: currentEmail, code, subject: 'Confirm your email' })
     return res.json({ sent: true, to: currentEmail, expiresAt: new Date(expiresAtMs).toISOString() })
   } catch (err) {
@@ -417,20 +438,25 @@ router.post('/change-email/confirm/verify', validateBody(changeEmailConfirmVerif
   try {
     const idHeader = req.headers['x-user-id']
     const emailHeader = req.headers['x-user-email']
+    const bodyEmail = String(req.body.currentEmail || req.body.email || '').trim().toLowerCase()
     let doc = null
-    if (idHeader) {
+    if (bodyEmail) {
+      try { doc = await User.findOne({ email: bodyEmail }) } catch (_) { doc = null }
+    }
+    if (!doc && idHeader) {
       try { doc = await User.findById(idHeader) } catch (_) { doc = null }
     }
     if (!doc && emailHeader) {
-      doc = await User.findOne({ email: emailHeader })
+      try { doc = await User.findOne({ email: String(emailHeader).trim().toLowerCase() }) } catch (_) { doc = null }
     }
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
-    const key = String(doc.email || '').toLowerCase()
+    const key = bodyEmail || String(doc.email || '').toLowerCase()
     const reqObj = changeEmailRequests.get(key)
     if (!reqObj) return respond.error(res, 404, 'change_email_confirm_not_found', 'No confirmation request found')
     if (Date.now() > reqObj.expiresAt) return respond.error(res, 410, 'code_expired', 'Code expired')
     const { code } = req.body || {}
-    if (String(reqObj.code) !== String(code)) return respond.error(res, 401, 'invalid_code', 'Invalid code')
+    const matches = reqObj.codeHash ? await bcrypt.compare(String(code || ''), String(reqObj.codeHash)) : false
+    if (!matches) return respond.error(res, 401, 'invalid_code', 'Invalid code')
     changeEmailRequests.delete(key)
     return res.json({ verified: true })
   } catch (err) {

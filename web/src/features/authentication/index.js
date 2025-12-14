@@ -16,6 +16,9 @@ export { default as RequireAdmin } from './components/RequireAdmin.jsx'
 export { default as AdminLoginForm } from './components/AdminLoginForm.jsx'
 export { default as WebAuthnRegister } from './components/WebAuthnRegister.jsx'
 export { default as WebAuthnAuthenticate } from './components/WebAuthnAuthenticate.jsx'
+export { default as SendCodeForCurrentUserConfirm } from './components/SendCodeForCurrentUserConfirm.jsx'
+export { default as VerificationConfirmForm } from './components/VerificationConfirmForm.jsx'
+export { default as VerificationNewEmailForm } from './components/VerificationNewEmailForm.jsx'
 
 // Hooks — re-export from hooks barrel to avoid duplication
 export * from './hooks/index.js'
