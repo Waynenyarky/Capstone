@@ -21,7 +21,7 @@ export function useVerifyChangeEmailForm({ onSubmit, email, currentEmail } = {})
         const localRaw = localStorage.getItem('auth__currentUser')
         const remember = !!localRaw
         login(updated, { remember })
-      } catch (_) {
+      } catch {
         login(updated, { remember: false })
       }
       success('Email changed and verified')
@@ -33,7 +33,7 @@ export function useVerifyChangeEmailForm({ onSubmit, email, currentEmail } = {})
     } finally {
       setSubmitting(false)
     }
-  }, [form, onSubmit, success, error, login, currentEmail])
+  }, [form, onSubmit, success, error, login, currentEmail, email])
 
   return { form, handleFinish, isSubmitting }
 }
