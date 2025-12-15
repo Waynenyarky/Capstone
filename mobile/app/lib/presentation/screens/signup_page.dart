@@ -221,6 +221,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final email = (auth['email'] ?? '').toString();
       final providerId = (auth['providerId'] ?? '').toString();
       final displayName = (auth['displayName'] ?? '').toString();
+      final authPhotoUrlRaw = (auth['photoUrl'] ?? '').toString();
+      String authPhotoUrl = authPhotoUrlRaw;
+      try {
+        final u = authPhotoUrlRaw.trim();
+        if (u.isNotEmpty && (u.startsWith('http://') || u.startsWith('https://'))) {
+          final uri = Uri.parse(u);
+          final host = uri.host.toLowerCase();
+          if (host.contains('googleusercontent.com')) {
+            String path = uri.path.replaceAll(RegExp(r's\d{2,4}-c'), 's1024-c');
+            String query = uri.query.replaceAll(RegExp(r'(?<=^|[&])sz=\d{2,4}'), 'sz=1024');
+            authPhotoUrl = uri.replace(path: path, query: query).toString();
+          }
+        }
+      } catch (_) {}
       final errCode = (auth['errorCode'] ?? '').toString();
       final errMsg = (auth['errorMessage'] ?? '').toString();
       if (idToken.isEmpty && email.isEmpty) {
@@ -263,10 +277,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
         final email = (user['email'] is String) ? user['email'] as String : '';
         var firstName = (user['firstName'] is String) ? user['firstName'] as String : '';
         var lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
+        Map<String, dynamic> mfaStatus = {};
         try {
-          final status = await MongoDBService.getMfaStatusDetail(email: email);
-          final enabledMfa = status['success'] == true && status['enabled'] == true;
-          final method = (status['method'] ?? '').toString().toLowerCase();
+          mfaStatus = await MongoDBService.getMfaStatusDetail(email: email).timeout(const Duration(milliseconds: 1200));
+          final enabledMfa = mfaStatus['success'] == true && mfaStatus['enabled'] == true;
+          final method = (mfaStatus['method'] ?? '').toString().toLowerCase();
           final hasAuthenticator = method.contains('authenticator');
           if (enabledMfa && hasAuthenticator) {
             if (!mounted) return;
@@ -302,23 +317,43 @@ class _SignUpScreenState extends State<SignUpScreen> {
           }
         }
         final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
-        final avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
+        var avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
+        if (avatarUrl.isEmpty) {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final isCustom = prefs.getBool('avatarIsCustom') == true;
+            final cached = (prefs.getString('lastAvatarUrl') ?? '').trim();
+            if (isCustom && cached.isNotEmpty) {
+              avatarUrl = cached;
+            } else if (authPhotoUrl.isNotEmpty) {
+              avatarUrl = authPhotoUrl;
+            } else {
+              final gPhoto = GoogleAuthService.getCurrentPhotoUrl();
+              if (gPhoto != null && gPhoto.isNotEmpty) {
+                avatarUrl = gPhoto;
+              }
+            }
+          } catch (_) {}
+        }
         if (!mounted) return;
         final navigator = Navigator.of(context);
         try {
           final prefs = await SharedPreferences.getInstance();
-          if (email.isNotEmpty) await prefs.setString('lastLoginEmail', email);
           if (email.isNotEmpty) {
+            await prefs.setString('lastLoginEmail', email);
             try {
-              final status = await MongoDBService.getMfaStatusDetail(email: email);
-              final fpEnabled = status['success'] == true && status['isFingerprintEnabled'] == true;
+              final fpEnabled = mfaStatus['success'] == true && mfaStatus['isFingerprintEnabled'] == true;
               if (fpEnabled) {
                 await prefs.setString('fingerprintEmail', email.toLowerCase());
               }
             } catch (_) {}
           }
+          final isCustom = prefs.getBool('avatarIsCustom') == true;
+          if (avatarUrl.isNotEmpty && !isCustom) {
+            await prefs.setString('lastAvatarUrl', avatarUrl);
+          }
         } catch (_) {}
-        final profileRes = await MongoDBService.fetchProfile(email: email);
+        final profileRes = await MongoDBService.fetchProfile(email: email).timeout(const Duration(seconds: 2));
         final pending = profileRes['deletionPending'] == true;
         final scheduledISO = (profileRes['deletionScheduledFor'] is String) ? profileRes['deletionScheduledFor'] as String : null;
         if (pending && scheduledISO != null) {
@@ -893,7 +928,7 @@ class GoogleGIcon extends StatelessWidget {
 class _GoogleGPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final stroke = size.width * 0.17;
+    final stroke = size.width * 0.18;
     final rect = Rect.fromLTWH(stroke, stroke, size.width - stroke * 2, size.height - stroke * 2);
     Paint seg(Color c) => Paint()
       ..style = PaintingStyle.stroke
@@ -905,10 +940,10 @@ class _GoogleGPainter extends CustomPainter {
     final yellow = seg(const Color(0xFFF4B400));
     final green = seg(const Color(0xFF0F9D58));
 
-    canvas.drawArc(rect, _deg(300), _deg(85), false, blue);
-    canvas.drawArc(rect, _deg(25), _deg(100), false, red);
-    canvas.drawArc(rect, _deg(135), _deg(80), false, yellow);
-    canvas.drawArc(rect, _deg(215), _deg(95), false, green);
+    canvas.drawArc(rect, _deg(315), _deg(90), false, blue);
+    canvas.drawArc(rect, _deg(45), _deg(90), false, red);
+    canvas.drawArc(rect, _deg(135), _deg(90), false, yellow);
+    canvas.drawArc(rect, _deg(225), _deg(90), false, green);
 
     final cx = size.width / 2;
     final cy = size.height / 2;
@@ -917,7 +952,7 @@ class _GoogleGPainter extends CustomPainter {
       ..strokeWidth = stroke
       ..strokeCap = StrokeCap.round
       ..color = const Color(0xFF4285F4);
-    canvas.drawLine(Offset(cx, cy), Offset(cx + rect.width * 0.42, cy), cut);
+    canvas.drawLine(Offset(cx, cy), Offset(cx + rect.width / 2, cy), cut);
   }
   double _deg(double d) => d * 3.1415926535 / 180.0;
   @override

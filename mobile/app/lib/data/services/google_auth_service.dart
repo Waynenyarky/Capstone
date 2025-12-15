@@ -25,7 +25,7 @@ class GoogleAuthService {
   }
 
   static Future<Map<String, String?>> signInGetTokenAndEmail() async {
-    if (!isSupportedPlatform()) return {'idToken': null, 'email': null, 'providerId': null, 'displayName': null};
+    if (!isSupportedPlatform()) return {'idToken': null, 'email': null, 'providerId': null, 'displayName': null, 'photoUrl': null};
     final serverClient = _buildClientBasic();
     GoogleSignInAccount? account;
     String? errCode;
@@ -48,9 +48,9 @@ class GoogleAuthService {
       } catch (_) {
         idToken = null;
       }
-      return {'idToken': idToken, 'email': account.email, 'providerId': account.id, 'displayName': account.displayName};
+      return {'idToken': idToken, 'email': account.email, 'providerId': account.id, 'displayName': account.displayName, 'photoUrl': account.photoUrl};
     }
-    return {'idToken': null, 'email': null, 'providerId': null, 'displayName': null, 'errorCode': errCode, 'errorMessage': errMsg};
+    return {'idToken': null, 'email': null, 'providerId': null, 'displayName': null, 'photoUrl': null, 'errorCode': errCode, 'errorMessage': errMsg};
   }
 
   static Future<void> signOutAndReset() async {
@@ -63,5 +63,13 @@ class GoogleAuthService {
         // no-op
       }
     } catch (_) {}
+  }
+
+  static String? getCurrentPhotoUrl() {
+    try {
+      return _singleton?.currentUser?.photoUrl;
+    } catch (_) {
+      return null;
+    }
   }
 }

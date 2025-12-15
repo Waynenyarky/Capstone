@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io' as io;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/usecases/upload_avatar.dart';
 
 class EditProfilePage extends StatefulWidget {
@@ -42,6 +43,24 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String _localAvatarPath = '';
   String _avatarUrl = '';
   bool _uploadingAvatar = false;
+  String _resolveAvatarUrl(String url) {
+    final u = url.trim();
+    if (u.isEmpty) return '';
+    if (u.startsWith('http://') || u.startsWith('https://')) {
+      try {
+        final uri = Uri.parse(u);
+        final host = uri.host.toLowerCase();
+        if (host.contains('googleusercontent.com')) {
+          String path = uri.path.replaceAll(RegExp(r's\d{2,4}-c'), 's1024-c');
+          String query = uri.query.replaceAll(RegExp(r'(?<=^|[&])sz=\d{2,4}'), 'sz=1024');
+          final upgraded = uri.replace(path: path, query: query).toString();
+          return upgraded;
+        }
+      } catch (_) {}
+      return u;
+    }
+    return '${MongoDBService.baseUrl}$u';
+  }
 
   @override
   void initState() {
@@ -50,6 +69,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _lastController = TextEditingController(text: widget.lastName);
     _phoneController = TextEditingController(text: widget.phoneNumber);
     _avatarUrl = widget.avatarUrl;
+    () async {
+      try {
+        if (_avatarUrl.isEmpty) {
+          final prefs = await SharedPreferences.getInstance();
+          final cached = (prefs.getString('lastAvatarUrl') ?? '').trim();
+          if (cached.isNotEmpty) {
+            if (mounted) {
+              setState(() {
+                _avatarUrl = cached;
+              });
+            }
+          }
+        }
+      } catch (_) {}
+    }();
   }
 
   @override
@@ -144,17 +178,49 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (action == 'view') {
       final provider = _localAvatarPath.isNotEmpty
           ? FileImage(io.File(_localAvatarPath))
-          : (_avatarUrl.isNotEmpty ? NetworkImage('${MongoDBService.baseUrl}$_avatarUrl') as ImageProvider : null);
+          : (_avatarUrl.isNotEmpty ? NetworkImage(_resolveAvatarUrl(_avatarUrl)) as ImageProvider : null);
       await showDialog<void>(
         context: context,
+        barrierDismissible: true,
         builder: (ctx) {
           return Dialog(
-            insetPadding: const EdgeInsets.all(16),
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: provider != null
-                  ? Image(image: provider, fit: BoxFit.cover)
-                  : Center(child: Icon(Icons.person, size: 64, color: Colors.grey.shade400)),
+            insetPadding: EdgeInsets.zero,
+            backgroundColor: Colors.transparent,
+            child: Stack(
+              children: [
+                SizedBox.expand(
+                  child: Container(
+                    color: Colors.black,
+                    child: Center(
+                      child: provider != null
+                          ? InteractiveViewer(
+                              child: Image(
+                                image: provider,
+                                fit: BoxFit.cover,
+                                filterQuality: FilterQuality.high,
+                              ),
+                            )
+                          : Icon(Icons.person, size: 64, color: Colors.grey.shade400),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  child: SafeArea(
+                    child: CircleAvatar(
+                      radius: 18,
+                      backgroundColor: Colors.white.withValues(alpha: 0.15),
+                      child: IconButton(
+                        iconSize: 18,
+                        splashRadius: 20,
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        onPressed: () => Navigator.of(ctx).pop(),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
         },
@@ -221,6 +287,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
         _avatarUrl = res['avatarUrl'] as String;
         _localAvatarPath = '';
       });
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('lastAvatarUrl', _avatarUrl);
+        await prefs.setBool('avatarIsCustom', true);
+      } catch (_) {}
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Row(
@@ -465,13 +537,33 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                       child: CircleAvatar(
                                         radius: avatarSize / 2,
                                         backgroundColor: Colors.grey.shade100,
-                                        backgroundImage: _localAvatarPath.isNotEmpty
-                                            ? FileImage(io.File(_localAvatarPath))
-                                            : (_avatarUrl.isNotEmpty ? NetworkImage('${MongoDBService.baseUrl}$_avatarUrl') as ImageProvider : null),
-                                        child: (_localAvatarPath.isEmpty && _avatarUrl.isEmpty)
-                                            ? Icon(Icons.person, size: avatarSize * 0.5, color: Colors.grey.shade400)
-                                          : null,
-                                    ),
+                                        child: Builder(
+                                          builder: (_) {
+                                            if (_localAvatarPath.isNotEmpty) {
+                                              return ClipOval(
+                                                child: Image.file(
+                                                  io.File(_localAvatarPath),
+                                                  fit: BoxFit.cover,
+                                                  filterQuality: FilterQuality.high,
+                                                  width: avatarSize,
+                                                  height: avatarSize,
+                                                ),
+                                              );
+                                            } else if (_avatarUrl.isNotEmpty) {
+                                              return ClipOval(
+                                                child: Image.network(
+                                                  _resolveAvatarUrl(_avatarUrl),
+                                                  fit: BoxFit.cover,
+                                                  filterQuality: FilterQuality.high,
+                                                  width: avatarSize,
+                                                  height: avatarSize,
+                                                ),
+                                              );
+                                            }
+                                            return Icon(Icons.person, size: avatarSize * 0.5, color: Colors.grey.shade400);
+                                          },
+                                        ),
+                                      ),
                                   ),
                                   ),
                                   if (_uploadingAvatar)

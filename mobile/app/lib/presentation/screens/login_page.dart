@@ -18,7 +18,9 @@ class LoginScreen extends StatefulWidget {
   final String? deletionScheduledForISO;
   final bool preFingerprintEnabled;
   final String? preFingerprintEmail;
-  const LoginScreen({super.key, this.deletionScheduledForISO, this.preFingerprintEnabled = false, this.preFingerprintEmail});
+  final bool preFaceEnabled;
+  final bool preAuthenticatorEnabled;
+  const LoginScreen({super.key, this.deletionScheduledForISO, this.preFingerprintEnabled = false, this.preFingerprintEmail, this.preFaceEnabled = false, this.preAuthenticatorEnabled = false});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -41,6 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _passwordTouched = false;
   bool _autoFpAttempted = false;
   bool _fingerprintEnabled = false;
+  bool _fingerprintDeviceOk = true;
   bool _showAccountFields = false;
   final LocalAuthentication _localAuth = LocalAuthentication();
 
@@ -48,7 +51,22 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     
+    () async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final alreadyLoggedEmail = (prefs.getString('loggedInEmail') ?? '').trim().toLowerCase();
+        if (alreadyLoggedEmail.isNotEmpty) {
+          _autoFpAttempted = true;
+          _fingerprintEnabled = false;
+          return;
+        }
+      } catch (_) {}
+    }();
+    
     if (widget.preFingerprintEnabled) {
+      _fingerprintEnabled = true;
+    }
+    if (widget.preFaceEnabled) {
       _fingerprintEnabled = true;
     }
     final preEmail = (widget.preFingerprintEmail ?? '').trim().toLowerCase();
@@ -102,7 +120,56 @@ class _LoginScreenState extends State<LoginScreen> {
       });
     }
 
-    Future.microtask(() => _detectFingerprintStatus(autoLogin: true));
+    () async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final disableOnce = prefs.getBool('disableAutoBiometricOnce') == true;
+        if (disableOnce) {
+          await prefs.setBool('disableAutoBiometricOnce', false);
+          _autoFpAttempted = true;
+          return;
+        }
+      } catch (_) {}
+      if (widget.preFingerprintEnabled || widget.preFaceEnabled) {
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if (!mounted || _isLoading) return;
+          try {
+            final supported = await _localAuth.isDeviceSupported();
+            final canCheck = await _localAuth.canCheckBiometrics;
+            final types = await _localAuth.getAvailableBiometrics();
+            final hasFingerprint = types.contains(BiometricType.fingerprint) || types.contains(BiometricType.strong) || types.contains(BiometricType.weak);
+            if (supported && canCheck && hasFingerprint) {
+              await _loginWithFingerprint();
+              return;
+            }
+          } catch (_) {}
+          _detectFingerprintStatus(autoLogin: true);
+        });
+      } else {
+        Future.microtask(() => _detectFingerprintStatus(autoLogin: true));
+      }
+    }();
+    if (widget.preAuthenticatorEnabled) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final disableOnce = prefs.getBool('disableAutoAuthenticatorOnce') == true;
+          if (disableOnce) {
+            await prefs.setBool('disableAutoAuthenticatorOnce', false);
+            return;
+          }
+          final alreadyLoggedEmail = (prefs.getString('loggedInEmail') ?? '').trim().toLowerCase();
+          if (alreadyLoggedEmail.isNotEmpty) {
+            return;
+          }
+          final email = (prefs.getString('loggedInEmail') ?? prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
+          if (!mounted) return;
+          if (email.isNotEmpty) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => LoginMfaScreen(email: email)));
+          }
+        } catch (_) {}
+      });
+    }
   }
 
   @override
@@ -158,12 +225,17 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _detectFingerprintStatus({bool autoLogin = false}) async {
     if (_autoFpAttempted) return;
     _autoFpAttempted = true;
+    final preEmailArg = (widget.preFingerprintEmail ?? '').trim().toLowerCase();
+    final preKnown = widget.preFingerprintEnabled || widget.preFaceEnabled;
     try {
       final prefs = await SharedPreferences.getInstance();
       final fpEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
+      final loggedInEmail = (prefs.getString('loggedInEmail') ?? '').trim().toLowerCase();
       final lastEmail = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
       final typed = _emailController.text.trim().toLowerCase();
       final candidatesOrdered = <String>[
+        if (preEmailArg.isNotEmpty && _isValidEmail(preEmailArg)) preEmailArg,
+        if (loggedInEmail.isNotEmpty && _isValidEmail(loggedInEmail)) loggedInEmail,
         if (fpEmail.isNotEmpty && _isValidEmail(fpEmail)) fpEmail,
         if (lastEmail.isNotEmpty && _isValidEmail(lastEmail)) lastEmail,
         if (typed.isNotEmpty && _isValidEmail(typed)) typed,
@@ -176,14 +248,21 @@ class _LoginScreenState extends State<LoginScreen> {
             final types = await _localAuth.getAvailableBiometrics();
             final hasFingerprint = types.contains(BiometricType.fingerprint) || types.contains(BiometricType.strong) || types.contains(BiometricType.weak);
             if (!(supported && canCheck && hasFingerprint)) {
-              if (mounted) setState(() => _fingerprintEnabled = false);
+              if (mounted) setState(() => _fingerprintDeviceOk = false);
+            } else {
+              if (mounted) setState(() => _fingerprintDeviceOk = true);
             }
           } catch (_) {}
         }();
       }
       if (candidatesOrdered.isEmpty) {
-        if (mounted) setState(() => _fingerprintEnabled = false);
-        return;
+        if (preKnown) {
+          if (mounted) setState(() => _fingerprintEnabled = true);
+          return;
+        } else {
+          if (mounted) setState(() => _fingerprintEnabled = false);
+          return;
+        }
       }
       final unique = <String>{};
       final candidates = <String>[];
@@ -202,12 +281,13 @@ class _LoginScreenState extends State<LoginScreen> {
           if (enabledCached && ageMs < 7 * 24 * 60 * 60 * 1000 && chosen.isEmpty) {
             chosen = email;
             try { await prefs.setString('fingerprintEmail', chosen); } catch (_) {}
+            if (mounted) setState(() => _fingerprintEnabled = true);
           }
         }
       } catch (_) {}
       final futures = candidates.map((email) async {
         try {
-          final s = await MongoDBService.getMfaStatusDetail(email: email).timeout(const Duration(milliseconds: 600));
+          final s = await MongoDBService.getMfaStatusDetail(email: email).timeout(const Duration(milliseconds: 1200));
           final enabled = s['success'] == true && s['isFingerprintEnabled'] == true;
           if (!found && enabled) {
             found = true;
@@ -238,10 +318,14 @@ class _LoginScreenState extends State<LoginScreen> {
             await prefs.remove('fingerprintEmail');
           }
         } catch (_) {}
-        if (mounted) setState(() => _fingerprintEnabled = false);
+        if (!preKnown) {
+          if (mounted) setState(() => _fingerprintEnabled = false);
+        }
       }
       } catch (_) {
-        if (mounted) setState(() => _fingerprintEnabled = false);
+        if (!preKnown) {
+          if (mounted) setState(() => _fingerprintEnabled = false);
+        }
     }
   }
 
@@ -271,11 +355,14 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     }
     try {
-      final status = await MongoDBService.getMfaStatusDetail(email: email);
-      final fpEnabled = status['success'] == true && status['isFingerprintEnabled'] == true;
-      if (!fpEnabled) {
-        messenger.showSnackBar(const SnackBar(content: Text('Fingerprint is not enabled for this account')));
-        return;
+      final assumeEnabled = widget.preFingerprintEnabled || _fingerprintEnabled;
+      if (!assumeEnabled) {
+        final status = await MongoDBService.getMfaStatusDetail(email: email);
+        final fpEnabled = status['success'] == true && status['isFingerprintEnabled'] == true;
+        if (!fpEnabled) {
+          messenger.showSnackBar(const SnackBar(content: Text('Fingerprint is not enabled for this account')));
+          return;
+        }
       }
       final supported = await _localAuth.isDeviceSupported();
       final canCheck = await _localAuth.canCheckBiometrics;
@@ -291,8 +378,19 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       final start = await MongoDBService.loginStartFingerprint(email: email);
       if (start['success'] != true || start['token'] is! String || (start['token'] as String).isEmpty) {
-        final msg = (start['message'] is String) ? start['message'] as String : 'Fingerprint login not available';
-        messenger.showSnackBar(SnackBar(content: Text(msg)));
+        try {
+          final status = await MongoDBService.getMfaStatusDetail(email: email);
+          final fpEnabled = status['success'] == true && status['isFingerprintEnabled'] == true;
+          if (!fpEnabled) {
+            messenger.showSnackBar(const SnackBar(content: Text('Fingerprint is not enabled for this account')));
+          } else {
+            final msg = (start['message'] is String) ? start['message'] as String : 'Fingerprint login not available';
+            messenger.showSnackBar(SnackBar(content: Text(msg)));
+          }
+        } catch (_) {
+          final msg = (start['message'] is String) ? start['message'] as String : 'Fingerprint login not available';
+          messenger.showSnackBar(SnackBar(content: Text(msg)));
+        }
         return;
       }
       final token = start['token'] as String;
@@ -303,12 +401,34 @@ class _LoginScreenState extends State<LoginScreen> {
         final firstName = (user['firstName'] is String) ? user['firstName'] as String : '';
         final lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
         final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
-        final avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
+        var avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
+        if (avatarUrl.isEmpty) {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final isCustom = prefs.getBool('avatarIsCustom') == true;
+            final cached = (prefs.getString('lastAvatarUrl') ?? '').trim();
+            if (isCustom && cached.isNotEmpty) {
+              avatarUrl = cached;
+            } else {
+              final gPhoto = GoogleAuthService.getCurrentPhotoUrl();
+              if (gPhoto != null && gPhoto.isNotEmpty) {
+                avatarUrl = gPhoto;
+              }
+            }
+          } catch (_) {}
+        }
         try {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('lastLoginEmail', email);
           await prefs.setString('fingerprintEmail', email);
           await prefs.setString('loggedInEmail', email.toLowerCase());
+          await prefs.setString('cachedFirstName', firstName);
+          await prefs.setString('cachedLastName', lastName);
+          await prefs.setString('cachedPhoneNumber', phoneNumber);
+          final isCustom = prefs.getBool('avatarIsCustom') == true;
+          if (avatarUrl.isNotEmpty && !isCustom) {
+            await prefs.setString('lastAvatarUrl', avatarUrl);
+          }
         } catch (_) {}
         if (!mounted) return;
         final navigator = Navigator.of(context);
@@ -469,6 +589,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final email = (auth['email'] ?? '').toString();
       final providerId = (auth['providerId'] ?? '').toString();
       final displayName = (auth['displayName'] ?? '').toString();
+      final authPhotoUrl = (auth['photoUrl'] ?? '').toString();
       final errCode = (auth['errorCode'] ?? '').toString();
       final errMsg = (auth['errorMessage'] ?? '').toString();
       if (idToken.isEmpty && email.isEmpty) {
@@ -551,12 +672,33 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         }
         final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
-        final avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
+        var avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
+        if (avatarUrl.isEmpty) {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final isCustom = prefs.getBool('avatarIsCustom') == true;
+            final cached = (prefs.getString('lastAvatarUrl') ?? '').trim();
+            if (isCustom && cached.isNotEmpty) {
+              avatarUrl = cached;
+            } else if (authPhotoUrl.isNotEmpty) {
+              avatarUrl = authPhotoUrl;
+            } else {
+              final gPhoto = GoogleAuthService.getCurrentPhotoUrl();
+              if (gPhoto != null && gPhoto.isNotEmpty) {
+                avatarUrl = gPhoto;
+              }
+            }
+          } catch (_) {}
+        }
         if (!mounted) return;
         final navigator = Navigator.of(context);
         try {
           final prefs = await SharedPreferences.getInstance();
           if (email.isNotEmpty) await prefs.setString('lastLoginEmail', email);
+          if (email.isNotEmpty) await prefs.setString('loggedInEmail', email.toLowerCase());
+          await prefs.setString('cachedFirstName', firstName);
+          await prefs.setString('cachedLastName', lastName);
+          await prefs.setString('cachedPhoneNumber', phoneNumber);
           if (email.isNotEmpty) {
             try {
               final status = await MongoDBService.getMfaStatusDetail(email: email);
@@ -565,6 +707,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 await prefs.setString('fingerprintEmail', email.toLowerCase());
               }
             } catch (_) {}
+          }
+          final isCustom = prefs.getBool('avatarIsCustom') == true;
+          if (avatarUrl.isNotEmpty && !isCustom) {
+            await prefs.setString('lastAvatarUrl', avatarUrl);
           }
         } catch (_) {}
         final profileRes = await MongoDBService.fetchProfile(email: email);
@@ -694,6 +840,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         icon: Icons.fingerprint,
                         label: 'Login Using Biometrics',
                         onTap: _isLoading ? null : _loginWithFingerprint,
+                        trailing: _fingerprintDeviceOk
+                            ? null
+                            : const Icon(Icons.error_outline, color: Colors.red, size: 20),
                       ),
                       SizedBox(height: spacing),
                     ] else ...[
@@ -981,6 +1130,10 @@ class _LoginScreenState extends State<LoginScreen> {
         try {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('lastLoginEmail', email);
+          await prefs.setString('loggedInEmail', email.toLowerCase());
+          await prefs.setString('cachedFirstName', firstName);
+          await prefs.setString('cachedLastName', lastName);
+          await prefs.setString('cachedPhoneNumber', phoneNumber);
         } catch (_) {}
         final profileRes = await MongoDBService.fetchProfile(email: email);
         final pending = profileRes['deletionPending'] == true;
@@ -1095,7 +1248,7 @@ class GoogleGIcon extends StatelessWidget {
 class _GoogleGPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final stroke = size.width * 0.17;
+    final stroke = size.width * 0.18;
     final rect = Rect.fromLTWH(stroke, stroke, size.width - stroke * 2, size.height - stroke * 2);
     Paint seg(Color c) => Paint()
       ..style = PaintingStyle.stroke
@@ -1107,10 +1260,10 @@ class _GoogleGPainter extends CustomPainter {
     final yellow = seg(const Color(0xFFF4B400));
     final green = seg(const Color(0xFF0F9D58));
 
-    canvas.drawArc(rect, _deg(300), _deg(85), false, blue);
-    canvas.drawArc(rect, _deg(25), _deg(100), false, red);
-    canvas.drawArc(rect, _deg(135), _deg(80), false, yellow);
-    canvas.drawArc(rect, _deg(215), _deg(95), false, green);
+    canvas.drawArc(rect, _deg(315), _deg(90), false, blue);
+    canvas.drawArc(rect, _deg(45), _deg(90), false, red);
+    canvas.drawArc(rect, _deg(135), _deg(90), false, yellow);
+    canvas.drawArc(rect, _deg(225), _deg(90), false, green);
 
     final cx = size.width / 2;
     final cy = size.height / 2;
@@ -1119,7 +1272,7 @@ class _GoogleGPainter extends CustomPainter {
       ..strokeWidth = stroke
       ..strokeCap = StrokeCap.round
       ..color = const Color(0xFF4285F4);
-    canvas.drawLine(Offset(cx, cy), Offset(cx + rect.width * 0.42, cy), cut);
+    canvas.drawLine(Offset(cx, cy), Offset(cx + rect.width / 2, cy), cut);
   }
   double _deg(double d) => d * 3.1415926535 / 180.0;
   @override

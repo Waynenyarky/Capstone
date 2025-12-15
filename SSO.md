@@ -7,6 +7,15 @@
   - After Google sign‑in: if TOTP authenticator is enabled, the Two‑Factor screen is shown.
   - After biometrics login: TOTP is skipped (biometric success is treated as second factor).
 
+## Recent Changes
+- Mobile sign‑in flows persist session and profile cache for smoother startup:
+  - Saves `loggedInEmail`, `lastLoginEmail`, avatar, and basic profile so the app can render immediately after launch.
+- Logout UX:
+  - Logging out now returns to the Login screen and does not auto‑open the Two‑Factor screen.
+  - If any known account has biometrics enabled, the login page will still offer “Login Using Biometrics”.
+- Google avatar handling:
+  - When a Google photo URL is present, the app prefers the highest‑quality variant and caches it locally when appropriate.
+
 ## Prerequisites
 - Google Cloud project with OAuth client IDs: Web and Android.
 - Mobile app configured with `google_sign_in` and `.env`.
@@ -45,13 +54,22 @@ GOOGLE_CLIENT_ID=146767537658-ig1s62nfuddjj3j2r7it5nb9e207hv1q.apps.googleuserco
   - Ensure Android client entry matches package `com.yourorg.capstone` and the expected SHA‑1.
 
 ## Mobile Configuration
+- Dependencies (pubspec):
+  - `google_sign_in`, `flutter_dotenv`, `shared_preferences`, `local_auth`.
+- Assets:
+  - Ensure `.env` is listed under `assets:` in `pubspec.yaml`.
 - `GoogleSignIn` setup (`mobile/app/lib/data/services/google_auth_service.dart`):
   - `serverClientId` from Web client ID.
   - `clientId` from `GOOGLE_ANDROID_CLIENT_ID` on Android.
-- Login flow (`mobile/app/lib/presentation/screens/login_page.dart`):
+- Login and Sign‑Up flows:
+  - Login (`mobile/app/lib/presentation/screens/login_page.dart`) “Continue with Google”.
+  - Sign‑Up (`mobile/app/lib/presentation/screens/signup_page.dart`) “Continue with Google”.
   - On Google sign‑in success, app calls backend and then checks MFA status.
   - If authenticator is enabled, navigates to the Two‑Factor screen.
   - If login was via biometrics, skips TOTP and proceeds to profile.
+- Post‑Logout behavior:
+  - After logout, users are redirected to the Login screen; Two‑Factor is not auto‑opened.
+  - The login page still checks the backend for any biometric‑enabled account and shows biometrics if available.
 
 ## Backend Configuration
 - Token verification (`backend/src/routes/auth/login.js`):

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'profile.dart';
 import 'login_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:app/data/services/google_auth_service.dart';
 
 class DeletionScheduledPage extends StatefulWidget {
   final String email;
@@ -354,9 +356,49 @@ class _DeletionScheduledPageState extends State<DeletionScheduledPage> {
                 width: double.infinity,
                 height: 54,
                 child: OutlinedButton.icon(
-                  onPressed: () {
-                    navigator.pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  onPressed: () async {
+                    final nav = Navigator.of(context);
+                    bool preFpEnabled = false;
+                    bool preFaceEnabled = false;
+                    bool preAuthenticatorEnabled = false;
+                    String preFpEmail = '';
+                    try {
+                      GoogleAuthService.signOutAndReset();
+                    } catch (_) {}
+                    try {
+                      final prefs = await SharedPreferences.getInstance();
+                      String targetEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
+                      if (targetEmail.isEmpty) {
+                        targetEmail = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
+                      }
+                      if (targetEmail.isEmpty) {
+                        targetEmail = widget.email;
+                      }
+                      final s = await MongoDBService.getMfaStatusDetail(email: targetEmail);
+                      preFpEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
+                      final enabledMfa = s['success'] == true && s['enabled'] == true;
+                      final method = (s['method'] ?? '').toString().toLowerCase();
+                      if (enabledMfa) {
+                        if (method.contains('face')) preFaceEnabled = true;
+                        if (method.contains('authenticator')) preAuthenticatorEnabled = true;
+                      }
+                      preFpEmail = targetEmail;
+                    } catch (_) {}
+                    try {
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.remove('loggedInEmail');
+                      await prefs.setBool('disableAutoAuthenticatorOnce', true);
+                    } catch (_) {}
+                    if (!mounted) return;
+                    nav.pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (_) => LoginScreen(
+                          preFingerprintEnabled: preFpEnabled,
+                          preFingerprintEmail: preFpEmail,
+                          preFaceEnabled: preFaceEnabled,
+                          preAuthenticatorEnabled: preAuthenticatorEnabled,
+                        ),
+                      ),
                       (route) => false,
                     );
                   },

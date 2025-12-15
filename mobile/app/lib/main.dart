@@ -79,6 +79,37 @@ class AppRoot extends StatefulWidget {
 }
 
 class _AppRootState extends State<AppRoot> {
+  bool _likelyLoggedIn = false;
+  String _earlyEmail = '';
+  String _earlyFirstName = '';
+  String _earlyLastName = '';
+  String _earlyPhoneNumber = '';
+  String _earlyAvatarUrl = '';
+
+  @override
+  void initState() {
+    super.initState();
+    () async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final email = (prefs.getString('loggedInEmail') ?? '').trim().toLowerCase();
+        final firstName = (prefs.getString('cachedFirstName') ?? '').trim();
+        final lastName = (prefs.getString('cachedLastName') ?? '').trim();
+        final phoneNumber = (prefs.getString('cachedPhoneNumber') ?? '').trim();
+        final avatar = (prefs.getString('lastAvatarUrl') ?? '').trim();
+        if (mounted) {
+          setState(() {
+            _likelyLoggedIn = email.isNotEmpty;
+            _earlyEmail = email;
+            _earlyFirstName = firstName;
+            _earlyLastName = lastName;
+            _earlyPhoneNumber = phoneNumber;
+            _earlyAvatarUrl = avatar;
+          });
+        }
+      } catch (_) {}
+    }();
+  }
   Future<Map<String, dynamic>> _prepare() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -88,30 +119,57 @@ class _AppRootState extends State<AppRoot> {
         preFpEmail = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
       }
       bool preFpEnabled = false;
+      bool preFaceEnabled = false;
+      bool preAuthenticatorEnabled = false;
       if (preFpEmail.isNotEmpty) {
         try {
-          final keyEnabled = 'fp_cache_enabled_$preFpEmail';
-          final keyTs = 'fp_cache_ts_$preFpEmail';
-          final enabledCached = prefs.getBool(keyEnabled) ?? false;
-          final tsCached = prefs.getInt(keyTs) ?? 0;
-          final ageMs = DateTime.now().millisecondsSinceEpoch - tsCached;
-          if (enabledCached && ageMs < 7 * 24 * 60 * 60 * 1000) {
-            preFpEnabled = true;
+          final detail = await MongoDBService.getMfaStatusDetail(email: preFpEmail).timeout(const Duration(seconds: 2));
+          preFpEnabled = detail['success'] == true && detail['isFingerprintEnabled'] == true;
+          final enabledMfa = detail['success'] == true && detail['enabled'] == true;
+          final method = (detail['method'] ?? '').toString().toLowerCase();
+          if (enabledMfa) {
+            if (method.contains('face')) preFaceEnabled = true;
+            if (method.contains('authenticator')) preAuthenticatorEnabled = true;
           }
         } catch (_) {}
       }
       if (email.isEmpty) return {'screen': 'login'};
       final profile = await MongoDBService.fetchProfile(email: email).timeout(const Duration(seconds: 3));
+      try {
+        final detailSelf = await MongoDBService.getMfaStatusDetail(email: email).timeout(const Duration(seconds: 2));
+        final selfEnabled = detailSelf['success'] == true && detailSelf['isFingerprintEnabled'] == true;
+        preFpEnabled = preFpEnabled || selfEnabled;
+        final enabledSelfMfa = detailSelf['success'] == true && detailSelf['enabled'] == true;
+        final methodSelf = (detailSelf['method'] ?? '').toString().toLowerCase();
+        if (enabledSelfMfa) {
+          if (methodSelf.contains('face')) preFaceEnabled = true;
+          if (methodSelf.contains('authenticator')) preAuthenticatorEnabled = true;
+        }
+        try {
+          final keyEnabled = 'fp_cache_enabled_$email';
+          final keyTs = 'fp_cache_ts_$email';
+          await prefs.setBool(keyEnabled, selfEnabled);
+          await prefs.setInt(keyTs, DateTime.now().millisecondsSinceEpoch);
+          if (selfEnabled) {
+            await prefs.setString('fingerprintEmail', email);
+          }
+        } catch (_) {}
+      } catch (_) {}
       if (profile['success'] != true) {
+        final cachedFirstName = (prefs.getString('cachedFirstName') ?? '').trim();
+        final cachedLastName = (prefs.getString('cachedLastName') ?? '').trim();
+        final cachedPhoneNumber = (prefs.getString('cachedPhoneNumber') ?? '').trim();
         return {
           'screen': 'profile',
           'email': email,
-          'firstName': '',
-          'lastName': '',
-          'phoneNumber': '',
+          'firstName': cachedFirstName,
+          'lastName': cachedLastName,
+          'phoneNumber': cachedPhoneNumber,
           'avatarUrl': '',
           'preFpEnabled': preFpEnabled,
           'preFpEmail': preFpEmail,
+          'preFaceEnabled': preFaceEnabled,
+          'preAuthenticatorEnabled': preAuthenticatorEnabled,
         };
       }
       final user = (profile['user'] is Map<String, dynamic>) ? (profile['user'] as Map<String, dynamic>) : <String, dynamic>{};
@@ -120,6 +178,9 @@ class _AppRootState extends State<AppRoot> {
       final firstName = (user['firstName'] is String) ? user['firstName'] as String : '';
       final lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
       final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
+      final fetchedAvatarUrl = (user['avatarUrl'] is String) ? (user['avatarUrl'] as String) : '';
+      final cachedAvatarUrl = (prefs.getString('lastAvatarUrl') ?? '').trim();
+      final effectiveAvatar = fetchedAvatarUrl.isNotEmpty ? fetchedAvatarUrl : cachedAvatarUrl;
       if (pending && scheduledISO != null) {
         return {
           'screen': 'deletion',
@@ -128,9 +189,11 @@ class _AppRootState extends State<AppRoot> {
           'firstName': firstName,
           'lastName': lastName,
           'phoneNumber': phoneNumber,
-          'avatarUrl': '',
+          'avatarUrl': effectiveAvatar,
           'preFpEnabled': preFpEnabled,
           'preFpEmail': preFpEmail,
+          'preFaceEnabled': preFaceEnabled,
+          'preAuthenticatorEnabled': preAuthenticatorEnabled,
         };
       }
       return {
@@ -139,9 +202,11 @@ class _AppRootState extends State<AppRoot> {
         'firstName': firstName,
         'lastName': lastName,
         'phoneNumber': phoneNumber,
-        'avatarUrl': '',
+        'avatarUrl': effectiveAvatar,
         'preFpEnabled': preFpEnabled,
         'preFpEmail': preFpEmail,
+        'preFaceEnabled': preFaceEnabled,
+        'preAuthenticatorEnabled': preAuthenticatorEnabled,
       };
     } catch (_) {
       try {
@@ -152,6 +217,8 @@ class _AppRootState extends State<AppRoot> {
           preFpEmail = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
         }
         bool preFpEnabled = false;
+        bool preFaceEnabled = false;
+        bool preAuthenticatorEnabled = false;
         if (preFpEmail.isNotEmpty) {
           try {
             final keyEnabled = 'fp_cache_enabled_$preFpEmail';
@@ -165,18 +232,24 @@ class _AppRootState extends State<AppRoot> {
           } catch (_) {}
         }
         if (email.isEmpty) return {'screen': 'login'};
+        final cachedAvatarUrl = (prefs.getString('lastAvatarUrl') ?? '').trim();
+        final cachedFirstName = (prefs.getString('cachedFirstName') ?? '').trim();
+        final cachedLastName = (prefs.getString('cachedLastName') ?? '').trim();
+        final cachedPhoneNumber = (prefs.getString('cachedPhoneNumber') ?? '').trim();
         return {
           'screen': 'profile',
           'email': email,
-          'firstName': '',
-          'lastName': '',
-          'phoneNumber': '',
-          'avatarUrl': '',
+          'firstName': cachedFirstName,
+          'lastName': cachedLastName,
+          'phoneNumber': cachedPhoneNumber,
+          'avatarUrl': cachedAvatarUrl,
           'preFpEnabled': preFpEnabled,
           'preFpEmail': preFpEmail,
+          'preFaceEnabled': preFaceEnabled,
+          'preAuthenticatorEnabled': preAuthenticatorEnabled,
         };
       } catch (_) {
-        return {'screen': 'login', 'preFpEnabled': false, 'preFpEmail': ''};
+        return {'screen': 'login', 'preFpEnabled': false, 'preFpEmail': '', 'preFaceEnabled': false, 'preAuthenticatorEnabled': false};
       }
     }
   }
@@ -187,9 +260,17 @@ class _AppRootState extends State<AppRoot> {
       future: _prepare(),
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          if (_likelyLoggedIn) {
+            return ProfilePage(
+              email: _earlyEmail,
+              firstName: _earlyFirstName,
+              lastName: _earlyLastName,
+              phoneNumber: _earlyPhoneNumber,
+              token: '',
+              avatarUrl: _earlyAvatarUrl,
+            );
+          }
+          return const LoginScreen();
         }
         final data = snap.data ?? const {'screen': 'login'};
         final screen = (data['screen'] ?? 'login').toString();
@@ -217,6 +298,8 @@ class _AppRootState extends State<AppRoot> {
         return LoginScreen(
           preFingerprintEnabled: (data['preFpEnabled'] ?? false) == true,
           preFingerprintEmail: (data['preFpEmail'] ?? '').toString(),
+          preFaceEnabled: (data['preFaceEnabled'] ?? false) == true,
+          preAuthenticatorEnabled: (data['preAuthenticatorEnabled'] ?? false) == true,
         );
       },
     );

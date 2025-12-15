@@ -39,6 +39,25 @@ class _ProfilePageState extends State<ProfilePage> {
   String _localAvatarPath = '';
   bool _uploadingAvatar = false;
 
+  String _resolveAvatarUrl(String url) {
+    final u = (url).trim();
+    if (u.isEmpty) return '';
+    if (u.startsWith('http://') || u.startsWith('https://')) {
+      try {
+        final uri = Uri.parse(u);
+        final host = uri.host.toLowerCase();
+        if (host.contains('googleusercontent.com')) {
+          String path = uri.path.replaceAll(RegExp(r's\d{2,4}-c'), 's1024-c');
+          String query = uri.query.replaceAll(RegExp(r'(?<=^|[&])sz=\d{2,4}'), 'sz=1024');
+          final upgraded = uri.replace(path: path, query: query).toString();
+          return upgraded;
+        }
+      } catch (_) {}
+      return u;
+    }
+    return '${MongoDBService.baseUrl}$u';
+  }
+
  
 
   @override
@@ -49,6 +68,21 @@ class _ProfilePageState extends State<ProfilePage> {
     lastName = widget.lastName;
     phoneNumber = widget.phoneNumber;
     avatarUrl = widget.avatarUrl;
+    () async {
+      try {
+        if (avatarUrl.isEmpty) {
+          final prefs = await SharedPreferences.getInstance();
+          final cached = (prefs.getString('lastAvatarUrl') ?? '').trim();
+          if (cached.isNotEmpty) {
+            if (mounted) {
+              setState(() {
+                avatarUrl = cached;
+              });
+            }
+          }
+        }
+      } catch (_) {}
+    }();
   }
 
   Future<void> _changeAvatar() async {
@@ -72,6 +106,11 @@ class _ProfilePageState extends State<ProfilePage> {
           avatarUrl = res['avatarUrl'] as String;
           _localAvatarPath = '';
         });
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('lastAvatarUrl', avatarUrl);
+          await prefs.setBool('avatarIsCustom', true);
+        } catch (_) {}
         messenger.showSnackBar(const SnackBar(content: Text('Profile photo updated')));
       } else {
         final msg = (res['message'] is String) ? res['message'] as String : 'Upload failed';
@@ -239,29 +278,98 @@ class _ProfilePageState extends State<ProfilePage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.logout, color: Colors.black87),
+            const SizedBox(width: 8),
+            const Text('Logout'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Are you sure you want to logout?', style: TextStyle(fontSize: 15, height: 1.5)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade100),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue.shade700, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "You're about to sign out of this device. Your account and data stay safe—nothing will be deleted. You can sign back in anytime with your email and password, or with biometrics if enabled.",
+                      style: TextStyle(fontSize: 13, color: Colors.blue.shade900, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () {
               GoogleAuthService.signOutAndReset();
+              final nav = Navigator.of(context);
               () async {
                 try {
                   final prefs = await SharedPreferences.getInstance();
                   await prefs.remove('loggedInEmail');
-                  await prefs.setBool('disableAutoBiometricOnce', true);
+                  await prefs.setBool('disableAutoAuthenticatorOnce', true);
                 } catch (_) {}
               }();
               Navigator.pop(context);
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-                (route) => false,
-              );
+              () async {
+                bool preFpEnabled = false;
+                bool preFaceEnabled = false;
+                bool preAuthenticatorEnabled = false;
+                String preFpEmail = '';
+                try {
+                  final prefs = await SharedPreferences.getInstance();
+                  String targetEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
+                  if (targetEmail.isEmpty) {
+                    targetEmail = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
+                  }
+                  if (targetEmail.isEmpty) {
+                    targetEmail = email;
+                  }
+                  final s = await MongoDBService.getMfaStatusDetail(email: targetEmail);
+                  preFpEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
+                  final enabledMfa = s['success'] == true && s['enabled'] == true;
+                  final method = (s['method'] ?? '').toString().toLowerCase();
+                  if (enabledMfa) {
+                    if (method.contains('face')) preFaceEnabled = true;
+                    if (method.contains('authenticator')) preAuthenticatorEnabled = true;
+                  }
+                  preFpEmail = targetEmail;
+                } catch (_) {}
+                if (!mounted) return;
+                nav.pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (_) => LoginScreen(
+                      preFingerprintEnabled: preFpEnabled,
+                      preFingerprintEmail: preFpEmail,
+                      preFaceEnabled: preFaceEnabled,
+                      preAuthenticatorEnabled: preAuthenticatorEnabled,
+                    ),
+                  ),
+                  (route) => false,
+                );
+              }();
             },
             child: const Text('Logout'),
           ),
@@ -311,7 +419,7 @@ class _ProfilePageState extends State<ProfilePage> {
     if (_localAvatarPath.isNotEmpty) {
       provider = FileImage(io.File(_localAvatarPath));
     } else if (avatarUrl.isNotEmpty) {
-      provider = NetworkImage('${MongoDBService.baseUrl}$avatarUrl');
+      provider = NetworkImage(_resolveAvatarUrl(avatarUrl));
     }
     if (provider == null) {
       messenger.showSnackBar(const SnackBar(content: Text('No profile picture')));
@@ -345,7 +453,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       decoration: const BoxDecoration(color: Colors.black),
                       child: Center(
                         child: InteractiveViewer(
-                          child: Image(image: provider!, fit: BoxFit.contain),
+                          child: Image(image: provider!, fit: BoxFit.cover, filterQuality: FilterQuality.high),
                         ),
                       ),
                     ),
@@ -555,6 +663,11 @@ class _ProfilePageState extends State<ProfilePage> {
           _localAvatarPath = '';
           avatarUrl = '';
         });
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('lastAvatarUrl');
+          await prefs.setBool('avatarIsCustom', false);
+        } catch (_) {}
         messenger.showSnackBar(const SnackBar(content: Text('Photo deleted')));
       } else {
         final msg = (res['message'] is String) ? res['message'] as String : 'Delete failed';
@@ -591,14 +704,32 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: CircleAvatar(
                           radius: 50,
                           backgroundColor: Colors.white,
-                          backgroundImage: _localAvatarPath.isNotEmpty
-                              ? FileImage(io.File(_localAvatarPath))
-                              : (avatarUrl.isNotEmpty
-                                  ? NetworkImage('${MongoDBService.baseUrl}$avatarUrl')
-                                  : null),
-                          child: (_localAvatarPath.isEmpty && avatarUrl.isEmpty)
-                              ? const Icon(Icons.person, size: 60, color: Colors.blue)
-                              : null,
+                          child: Builder(
+                            builder: (_) {
+                              if (_localAvatarPath.isNotEmpty) {
+                                return ClipOval(
+                                  child: Image.file(
+                                    io.File(_localAvatarPath),
+                                    fit: BoxFit.cover,
+                                    filterQuality: FilterQuality.high,
+                                    width: 100,
+                                    height: 100,
+                                  ),
+                                );
+                              } else if (avatarUrl.isNotEmpty) {
+                                return ClipOval(
+                                  child: Image.network(
+                                    _resolveAvatarUrl(avatarUrl),
+                                    fit: BoxFit.cover,
+                                    filterQuality: FilterQuality.high,
+                                    width: 100,
+                                    height: 100,
+                                  ),
+                                );
+                              }
+                              return const Icon(Icons.person, size: 60, color: Colors.blue);
+                            },
+                          ),
                         ),
                       ),
                       Positioned(
