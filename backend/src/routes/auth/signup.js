@@ -13,10 +13,18 @@ const { perEmailRateLimit } = require('../../middleware/rateLimit')
 
 const router = express.Router()
 
+const emailWithTld = (value, helpers) => {
+  const parts = String(value || '').split('@')
+  if (parts.length !== 2) return helpers.error('any.invalid')
+  const domain = parts[1]
+  if (!domain || domain.indexOf('.') === -1) return helpers.error('any.invalid')
+  return value
+}
+
 const signupPayloadSchema = Joi.object({
   firstName: Joi.string().min(1).max(100).required(),
   lastName: Joi.string().min(1).max(100).required(),
-  email: Joi.string().email().required(),
+  email: Joi.string().email().custom(emailWithTld, 'require domain TLD').required(),
   phoneNumber: Joi.string().allow('', null),
   password: Joi.string().min(6).max(200).required(),
   termsAccepted: Joi.boolean().truthy('true', 'TRUE', 'True', 1, '1').valid(true).required(),
@@ -24,7 +32,7 @@ const signupPayloadSchema = Joi.object({
 })
 
 const verifyCodeSchema = Joi.object({
-  email: Joi.string().email().required(),
+  email: Joi.string().email().custom(emailWithTld, 'require domain TLD').required(),
   code: Joi.string().pattern(/^[0-9]{6}$/).required(),
 })
 
