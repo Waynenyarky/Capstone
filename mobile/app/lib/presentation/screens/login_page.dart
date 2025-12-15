@@ -273,6 +273,7 @@ class _LoginScreenState extends State<LoginScreen> {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('lastLoginEmail', email);
           await prefs.setString('fingerprintEmail', email);
+          await prefs.setString('loggedInEmail', email.toLowerCase());
         } catch (_) {}
         if (!mounted) return;
         final navigator = Navigator.of(context);

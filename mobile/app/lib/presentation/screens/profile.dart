@@ -15,6 +15,7 @@ import 'delete_account_next_page.dart';
 import 'change_password_page.dart';
 import 'edit_profile_page.dart';
 import 'package:app/data/services/google_auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfilePage extends StatefulWidget {
   final String email;
@@ -248,6 +249,13 @@ class _ProfilePageState extends State<ProfilePage> {
           ElevatedButton(
             onPressed: () {
               GoogleAuthService.signOutAndReset();
+              () async {
+                try {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('loggedInEmail');
+                  await prefs.setBool('disableAutoBiometricOnce', true);
+                } catch (_) {}
+              }();
               Navigator.pop(context);
               Navigator.pushAndRemoveUntil(
                 context,

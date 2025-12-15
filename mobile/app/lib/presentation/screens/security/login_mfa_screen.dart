@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../data/services/mongodb_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../deletion_scheduled_page.dart';
 import '../profile.dart';
 
@@ -80,6 +81,14 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
         final email = (user['email'] is String) ? user['email'] as String : '';
         final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
         final avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          if (email.isNotEmpty) {
+            await prefs.setString('loggedInEmail', email.toLowerCase());
+            await prefs.setString('lastLoginEmail', email.toLowerCase());
+            await prefs.remove('disableAutoBiometricOnce');
+          }
+        } catch (_) {}
         if (!mounted) return;
         final navigator = Navigator.of(context);
         final profileRes = await MongoDBService.fetchProfile(email: email);

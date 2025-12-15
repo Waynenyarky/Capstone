@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:app/presentation/screens/login_page.dart';
+import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:app/data/services/mongodb_service.dart';
+import 'package:app/presentation/screens/profile.dart';
+import 'package:app/presentation/screens/deletion_scheduled_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,7 +67,113 @@ class MyApp extends StatelessWidget {
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
-      home: const LoginScreen(),
+      home: const AppRoot(),
+    );
+  }
+}
+
+class AppRoot extends StatefulWidget {
+  const AppRoot({super.key});
+  @override
+  State<AppRoot> createState() => _AppRootState();
+}
+
+class _AppRootState extends State<AppRoot> {
+  Future<Map<String, dynamic>> _prepare() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final email = (prefs.getString('loggedInEmail') ?? '').trim().toLowerCase();
+      if (email.isEmpty) return {'screen': 'login'};
+      final profile = await MongoDBService.fetchProfile(email: email).timeout(const Duration(seconds: 3));
+      if (profile['success'] != true) {
+        return {
+          'screen': 'profile',
+          'email': email,
+          'firstName': '',
+          'lastName': '',
+          'phoneNumber': '',
+          'avatarUrl': '',
+        };
+      }
+      final user = (profile['user'] is Map<String, dynamic>) ? (profile['user'] as Map<String, dynamic>) : <String, dynamic>{};
+      final pending = profile['deletionPending'] == true;
+      final scheduledISO = (profile['deletionScheduledFor'] is String) ? profile['deletionScheduledFor'] as String : null;
+      final firstName = (user['firstName'] is String) ? user['firstName'] as String : '';
+      final lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
+      final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
+      if (pending && scheduledISO != null) {
+        return {
+          'screen': 'deletion',
+          'email': email,
+          'scheduledISO': scheduledISO,
+          'firstName': firstName,
+          'lastName': lastName,
+          'phoneNumber': phoneNumber,
+          'avatarUrl': '',
+        };
+      }
+      return {
+        'screen': 'profile',
+        'email': email,
+        'firstName': firstName,
+        'lastName': lastName,
+        'phoneNumber': phoneNumber,
+        'avatarUrl': '',
+      };
+    } catch (_) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final email = (prefs.getString('loggedInEmail') ?? '').trim().toLowerCase();
+        if (email.isEmpty) return {'screen': 'login'};
+        return {
+          'screen': 'profile',
+          'email': email,
+          'firstName': '',
+          'lastName': '',
+          'phoneNumber': '',
+          'avatarUrl': '',
+        };
+      } catch (_) {
+        return {'screen': 'login'};
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _prepare(),
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final data = snap.data ?? const {'screen': 'login'};
+        final screen = (data['screen'] ?? 'login').toString();
+        if (screen == 'profile') {
+          return ProfilePage(
+            email: (data['email'] ?? '').toString(),
+            firstName: (data['firstName'] ?? '').toString(),
+            lastName: (data['lastName'] ?? '').toString(),
+            phoneNumber: (data['phoneNumber'] ?? '').toString(),
+            token: '',
+            avatarUrl: (data['avatarUrl'] ?? '').toString(),
+          );
+        }
+        if (screen == 'deletion') {
+          return DeletionScheduledPage(
+            email: (data['email'] ?? '').toString(),
+            scheduledISO: (data['scheduledISO'] ?? '').toString(),
+            firstName: (data['firstName'] ?? '').toString(),
+            lastName: (data['lastName'] ?? '').toString(),
+            phoneNumber: (data['phoneNumber'] ?? '').toString(),
+            token: '',
+            avatarUrl: (data['avatarUrl'] ?? '').toString(),
+          );
+        }
+        return const LoginScreen();
+      },
     );
   }
 }
