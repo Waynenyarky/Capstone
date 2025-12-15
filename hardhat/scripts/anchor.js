@@ -5,7 +5,7 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Using account:", deployer.address);
 
-  const contractAddress = "0x8856C536AC9826dF2348c61E2493A98315C67Abb"; 
+  const contractAddress = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"; 
   const SimpleStorage = await ethers.getContractFactory("SimpleStorage");
   const simpleStorage = SimpleStorage.attach(contractAddress);
 
@@ -14,7 +14,8 @@ async function main() {
   console.log("Transaction sent, hash:", tx.hash);
   await tx.wait();
 
-  const latestHash = await simpleStorage.latestHash(); 
+  
+  const latestHash = await simpleStorage.latestHash();
   console.log("Latest hash in contract:", latestHash);
 
   console.log(

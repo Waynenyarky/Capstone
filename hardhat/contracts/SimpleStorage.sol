@@ -1,10 +1,10 @@
 
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.28;
 
 contract SimpleStorage {
-    string public latestHash;
+    bytes32 public latestHash;
 
-    function storeHash(string memory _hash) public {
+    function storeHash(bytes32 _hash) public {
         latestHash = _hash;
     }
 }
