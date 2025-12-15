@@ -4,6 +4,7 @@ const mongoose = require('mongoose')
 const User = require('../../models/User')
 const { generateCode, generateToken } = require('../../lib/codes')
 const { loginRequests } = require('../../lib/authRequestsStore')
+const { signAccessToken } = require('../../middleware/auth')
 const LoginRequest = require('../../models/LoginRequest')
 const respond = require('../../middleware/respond')
 const { validateBody, Joi } = require('../../middleware/validation')
@@ -159,6 +160,11 @@ router.post('/login', validateBody(loginCredentialsSchema), async (req, res) => 
       deletionScheduledFor: doc.deletionScheduledFor,
       avatarUrl: doc.avatarUrl || '',
     }
+    try {
+      const { token, expiresAtMs } = signAccessToken(doc)
+      safe.token = token
+      safe.expiresAt = new Date(expiresAtMs).toISOString()
+    } catch (_) {}
     return res.json(safe)
   } catch (err) {
     console.error('POST /api/auth/login error:', err)
@@ -350,6 +356,11 @@ router.post('/login/google', validateBody(googleLoginSchema), async (req, res) =
       deletionRequestedAt: doc.deletionRequestedAt,
       deletionScheduledFor: doc.deletionScheduledFor,
     }
+    try {
+      const { token, expiresAtMs } = signAccessToken(doc)
+      safe.token = token
+      safe.expiresAt = new Date(expiresAtMs).toISOString()
+    } catch (_) {}
     return res.json(safe)
   } catch (err) {
     console.error('POST /api/auth/login/google error:', err)
@@ -473,6 +484,11 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
       deletionScheduledFor: doc.deletionScheduledFor,
       avatarUrl: doc.avatarUrl || '',
     }
+    try {
+      const { token, expiresAtMs } = signAccessToken(doc)
+      safe.token = token
+      safe.expiresAt = new Date(expiresAtMs).toISOString()
+    } catch (_) {}
 
     // Cleanup login state
     if (useDB) await LoginRequest.deleteOne({ email: emailKey })
@@ -520,6 +536,11 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
       deletionScheduledFor: doc.deletionScheduledFor,
       createdAt: doc.createdAt,
     }
+    try {
+      const { token, expiresAtMs } = signAccessToken(doc)
+      safe.token = token
+      safe.expiresAt = new Date(expiresAtMs).toISOString()
+    } catch (_) {}
     return res.json(safe)
   } catch (err) {
     console.error('POST /api/auth/login/verify-totp error:', err)
@@ -612,6 +633,11 @@ router.post('/login/complete-fingerprint', validateBody(fingerprintCompleteSchem
       deletionScheduledFor: doc.deletionScheduledFor,
       avatarUrl: doc.avatarUrl || '',
     }
+    try {
+      const { token, expiresAtMs } = signAccessToken(doc)
+      safe.token = token
+      safe.expiresAt = new Date(expiresAtMs).toISOString()
+    } catch (_) {}
 
     if (useDB) await LoginRequest.deleteOne({ email: emailKey })
     else loginRequests.delete(emailKey)

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 import 'package:app/data/services/mongodb_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -16,6 +17,7 @@ import 'change_password_page.dart';
 import 'edit_profile_page.dart';
 import 'package:app/data/services/google_auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ProfilePage extends StatefulWidget {
   final String email;
@@ -38,6 +40,7 @@ class _ProfilePageState extends State<ProfilePage> {
   String avatarUrl = '';
   String _localAvatarPath = '';
   bool _uploadingAvatar = false;
+  Timer? _autoLogoutTimer;
 
   String _resolveAvatarUrl(String url) {
     final u = (url).trim();
@@ -83,8 +86,144 @@ class _ProfilePageState extends State<ProfilePage> {
         }
       } catch (_) {}
     }();
+    _autoLogoutTimer = Timer.periodic(const Duration(minutes: 1), (_) => _checkSessionExpiry());
   }
 
+  @override
+  void dispose() {
+    _autoLogoutTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _checkSessionExpiry() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final loginAt = prefs.getInt('sessionLoginAtMs') ?? 0;
+      final ttlStr = dotenv.env['SESSION_TTL_MINUTES'] ?? '';
+      final ttlMin = int.tryParse(ttlStr) ?? 0;
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final expired = ttlMin > 0 && loginAt > 0 && (nowMs - loginAt) > ttlMin * 60 * 1000;
+      if (!expired) return;
+      _autoLogoutTimer?.cancel();
+      if (!mounted) return;
+      final minutes = ttlMin > 0 ? ttlMin : 5;
+      final ok = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+          contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+          actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          title: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: Colors.blue.shade50,
+                child: Icon(Icons.info_outline, color: Colors.blue.shade700),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Text('Session Expired', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                    SizedBox(height: 4),
+                    Text('For your security, you have been signed out.', style: TextStyle(fontSize: 13, color: Colors.black54)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.shade100),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.schedule, color: Colors.blue.shade700, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Auto logout time', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                          const SizedBox(height: 2),
+                          Text('$minutes minutes', style: TextStyle(fontSize: 14, color: Colors.blue.shade900, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Okay'),
+              ),
+            )
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (ok == true) {
+        GoogleAuthService.signOutAndReset();
+        final nav = Navigator.of(context);
+        () async {
+          bool preFpEnabled = false;
+          bool preFaceEnabled = false;
+          bool preAuthenticatorEnabled = false;
+          String preFpEmail = '';
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('loggedInEmail');
+            await prefs.remove('fingerprintEmail');
+            await prefs.setBool('disableAutoAuthenticatorOnce', true);
+            String targetEmail = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
+            if (targetEmail.isEmpty) {
+              targetEmail = email;
+            }
+            final s = await MongoDBService.getMfaStatusDetail(email: targetEmail);
+            preFpEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
+            final enabledMfa = s['success'] == true && s['enabled'] == true;
+            final method = (s['method'] ?? '').toString().toLowerCase();
+            if (enabledMfa) {
+              if (method.contains('face')) preFaceEnabled = true;
+              if (method.contains('authenticator')) preAuthenticatorEnabled = true;
+            }
+            preFpEmail = targetEmail;
+          } catch (_) {}
+          if (!mounted) return;
+          nav.pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => LoginScreen(
+                preFingerprintEnabled: preFpEnabled,
+                preFingerprintEmail: preFpEmail,
+                preFaceEnabled: preFaceEnabled,
+                preAuthenticatorEnabled: preAuthenticatorEnabled,
+              ),
+            ),
+            (route) => false,
+          );
+        }();
+      }
+    } catch (_) {}
+  }
   Future<void> _changeAvatar() async {
     try {
       if (_uploadingAvatar) return;

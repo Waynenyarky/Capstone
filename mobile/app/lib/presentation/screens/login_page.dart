@@ -63,6 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
       } catch (_) {}
     }();
     
+    
     if (widget.preFingerprintEnabled) {
       _fingerprintEnabled = true;
     }
@@ -402,6 +403,9 @@ class _LoginScreenState extends State<LoginScreen> {
         final lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
         final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
         var avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
+        final token = (user['token'] is String)
+            ? (user['token'] as String)
+            : ((complete['token'] is String) ? (complete['token'] as String) : '');
         if (avatarUrl.isEmpty) {
           try {
             final prefs = await SharedPreferences.getInstance();
@@ -422,9 +426,13 @@ class _LoginScreenState extends State<LoginScreen> {
           await prefs.setString('lastLoginEmail', email);
           await prefs.setString('fingerprintEmail', email);
           await prefs.setString('loggedInEmail', email.toLowerCase());
+          await prefs.setInt('sessionLoginAtMs', DateTime.now().millisecondsSinceEpoch);
           await prefs.setString('cachedFirstName', firstName);
           await prefs.setString('cachedLastName', lastName);
           await prefs.setString('cachedPhoneNumber', phoneNumber);
+          if (token.isNotEmpty) {
+            await prefs.setString('accessToken', token);
+          }
           final isCustom = prefs.getBool('avatarIsCustom') == true;
           if (avatarUrl.isNotEmpty && !isCustom) {
             await prefs.setString('lastAvatarUrl', avatarUrl);
@@ -444,7 +452,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 firstName: firstName,
                 lastName: lastName,
                 phoneNumber: phoneNumber,
-                token: '',
+                token: token,
                 avatarUrl: avatarUrl,
               ),
             ),
@@ -459,7 +467,7 @@ class _LoginScreenState extends State<LoginScreen> {
               firstName: firstName,
               lastName: lastName,
               phoneNumber: phoneNumber,
-              token: '',
+              token: token,
               avatarUrl: avatarUrl,
             ),
           ),
@@ -633,6 +641,9 @@ class _LoginScreenState extends State<LoginScreen> {
         final email = (user['email'] is String) ? user['email'] as String : '';
         var firstName = (user['firstName'] is String) ? user['firstName'] as String : '';
         var lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
+        final token = (user['token'] is String)
+            ? (user['token'] as String)
+            : ((result['token'] is String) ? (result['token'] as String) : '');
         try {
           final status = await MongoDBService.getMfaStatusDetail(email: email);
           final enabledMfa = status['success'] == true && status['enabled'] == true;
@@ -696,9 +707,13 @@ class _LoginScreenState extends State<LoginScreen> {
           final prefs = await SharedPreferences.getInstance();
           if (email.isNotEmpty) await prefs.setString('lastLoginEmail', email);
           if (email.isNotEmpty) await prefs.setString('loggedInEmail', email.toLowerCase());
+          await prefs.setInt('sessionLoginAtMs', DateTime.now().millisecondsSinceEpoch);
           await prefs.setString('cachedFirstName', firstName);
           await prefs.setString('cachedLastName', lastName);
           await prefs.setString('cachedPhoneNumber', phoneNumber);
+          if (token.isNotEmpty) {
+            await prefs.setString('accessToken', token);
+          }
           if (email.isNotEmpty) {
             try {
               final status = await MongoDBService.getMfaStatusDetail(email: email);
@@ -725,7 +740,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 firstName: firstName,
                 lastName: lastName,
                 phoneNumber: phoneNumber,
-                token: '',
+                token: token,
                 avatarUrl: avatarUrl,
               ),
             ),
@@ -740,7 +755,7 @@ class _LoginScreenState extends State<LoginScreen> {
               firstName: firstName,
               lastName: lastName,
               phoneNumber: phoneNumber,
-              token: '',
+              token: token,
               avatarUrl: avatarUrl,
             ),
           ),
@@ -1126,14 +1141,21 @@ class _LoginScreenState extends State<LoginScreen> {
         final email = (user['email'] is String) ? user['email'] as String : '';
         final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
         final avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
+        final token = (user['token'] is String)
+            ? (user['token'] as String)
+            : ((result['token'] is String) ? (result['token'] as String) : '');
         final navigator = Navigator.of(context);
         try {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('lastLoginEmail', email);
           await prefs.setString('loggedInEmail', email.toLowerCase());
+          await prefs.setInt('sessionLoginAtMs', DateTime.now().millisecondsSinceEpoch);
           await prefs.setString('cachedFirstName', firstName);
           await prefs.setString('cachedLastName', lastName);
           await prefs.setString('cachedPhoneNumber', phoneNumber);
+          if (token.isNotEmpty) {
+            await prefs.setString('accessToken', token);
+          }
         } catch (_) {}
         final profileRes = await MongoDBService.fetchProfile(email: email);
         final pending = profileRes['deletionPending'] == true;
@@ -1147,7 +1169,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 firstName: firstName,
                 lastName: lastName,
                 phoneNumber: phoneNumber,
-                token: '',
+                token: token,
                 avatarUrl: avatarUrl,
               ),
             ),
@@ -1162,7 +1184,7 @@ class _LoginScreenState extends State<LoginScreen> {
               firstName: firstName,
               lastName: lastName,
               phoneNumber: phoneNumber,
-              token: '',
+              token: token,
               avatarUrl: avatarUrl,
             ),
           ),

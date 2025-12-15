@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MongoDBService {
     static final String baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:3000';
@@ -78,6 +79,18 @@ class MongoDBService {
       'Accept': 'application/json',
       ...?headers,
     };
+    try {
+      final providedAuth = (headers ?? const {}).keys.map((k) => k.toLowerCase()).contains('authorization');
+      if (!providedAuth) {
+        final prefs = await SharedPreferences.getInstance();
+        final t = (prefs.getString('accessToken') ?? '').trim();
+        if (t.isNotEmpty) {
+          baseHeaders['Authorization'] = 'Bearer $t';
+          baseHeaders['x-auth-token'] = t;
+          baseHeaders['x-access-token'] = t;
+        }
+      }
+    } catch (_) {}
     for (final origin in candidates) {
       final uri = Uri.parse('$origin$path');
       try {
@@ -113,6 +126,18 @@ class MongoDBService {
       'Accept': 'application/json',
       ...?headers,
     };
+    try {
+      final providedAuth = (headers ?? const {}).keys.map((k) => k.toLowerCase()).contains('authorization');
+      if (!providedAuth) {
+        final prefs = await SharedPreferences.getInstance();
+        final t = (prefs.getString('accessToken') ?? '').trim();
+        if (t.isNotEmpty) {
+          baseHeaders['Authorization'] = 'Bearer $t';
+          baseHeaders['x-auth-token'] = t;
+          baseHeaders['x-access-token'] = t;
+        }
+      }
+    } catch (_) {}
     for (final origin in candidates) {
       final uri = Uri.parse('$origin$path');
       try {
@@ -145,6 +170,18 @@ class MongoDBService {
       'Accept': 'application/json',
       ...?headers,
     };
+    try {
+      final providedAuth = (headers ?? const {}).keys.map((k) => k.toLowerCase()).contains('authorization');
+      if (!providedAuth) {
+        final prefs = await SharedPreferences.getInstance();
+        final t = (prefs.getString('accessToken') ?? '').trim();
+        if (t.isNotEmpty) {
+          baseHeaders['Authorization'] = 'Bearer $t';
+          baseHeaders['x-auth-token'] = t;
+          baseHeaders['x-access-token'] = t;
+        }
+      }
+    } catch (_) {}
     for (final origin in candidates) {
       final uri = Uri.parse('$origin$path');
       try {
@@ -350,11 +387,17 @@ class MongoDBService {
       final data = json.decode(response.body);
       if (response.statusCode == 200) {
         final user = data;
+        String? token;
+        try {
+          if (data is Map && data['token'] is String && (data['token'] as String).isNotEmpty) {
+            token = data['token'] as String;
+          }
+        } catch (_) {}
         return {
           'success': true,
           'message': 'Login successful',
           'user': user,
-          'token': null,
+          'token': token,
         };
       } else {
         String code = '';
@@ -404,7 +447,13 @@ class MongoDBService {
       final isJson = ct.contains('application/json');
       final data = isJson ? json.decode(res.body) : {};
       if (res.statusCode == 200) {
-        return { 'success': true, 'user': data };
+        String? token;
+        try {
+          if (data is Map && data['token'] is String && (data['token'] as String).isNotEmpty) {
+            token = data['token'] as String;
+          }
+        } catch (_) {}
+        return { 'success': true, 'user': data, if (token != null) 'token': token };
       }
       String msg = 'Google login failed';
       try {
@@ -1500,15 +1549,13 @@ class MongoDBService {
     required String email,
   }) async {
     try {
-      final res = await http
-          .get(
-        Uri.parse('$baseUrl/api/auth/me'),
+      final res = await _getWithFallbackH(
+        '/api/auth/me',
         headers: {
-          'Accept': 'application/json',
           'x-user-email': email,
         },
-      )
-          .timeout(const Duration(seconds: 12));
+        timeout: const Duration(seconds: 12),
+      );
       final ct = (res.headers['content-type'] ?? '').toLowerCase();
       final isJson = ct.contains('application/json');
       final data = isJson ? json.decode(res.body) : {};
@@ -1847,7 +1894,13 @@ class MongoDBService {
       final isJson = ct.contains('application/json');
       final data = isJson ? json.decode(response.body) : {};
       if (response.statusCode == 200) {
-        return { 'success': true, 'user': data };
+        String? access;
+        try {
+          if (data is Map && data['token'] is String && (data['token'] as String).isNotEmpty) {
+            access = data['token'] as String;
+          }
+        } catch (_) {}
+        return { 'success': true, 'user': data, if (access != null) 'token': access };
       }
       final msg = (data is Map && data['message'] is String) ? data['message'] as String : 'Fingerprint login failed';
       return { 'success': false, 'message': msg };

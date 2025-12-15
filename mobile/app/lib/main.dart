@@ -93,14 +93,27 @@ class _AppRootState extends State<AppRoot> {
       try {
         final prefs = await SharedPreferences.getInstance();
         final email = (prefs.getString('loggedInEmail') ?? '').trim().toLowerCase();
+        final loginAt = prefs.getInt('sessionLoginAtMs') ?? 0;
+        final ttlStr = dotenv.env['SESSION_TTL_MINUTES'] ?? '';
+        final ttlMin = int.tryParse(ttlStr) ?? 0;
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        final expired = ttlMin > 0 && loginAt > 0 && (nowMs - loginAt) > ttlMin * 60 * 1000;
         final firstName = (prefs.getString('cachedFirstName') ?? '').trim();
         final lastName = (prefs.getString('cachedLastName') ?? '').trim();
         final phoneNumber = (prefs.getString('cachedPhoneNumber') ?? '').trim();
         final avatar = (prefs.getString('lastAvatarUrl') ?? '').trim();
+        if (expired) {
+          try {
+            await prefs.setBool('showAutoLogoutNoticeOnce', true);
+            await prefs.setInt('showAutoLogoutTtlMin', ttlMin > 0 ? ttlMin : 5);
+            await prefs.remove('loggedInEmail');
+            await prefs.remove('fingerprintEmail');
+          } catch (_) {}
+        }
         if (mounted) {
           setState(() {
-            _likelyLoggedIn = email.isNotEmpty;
-            _earlyEmail = email;
+            _likelyLoggedIn = email.isNotEmpty && !expired;
+            _earlyEmail = expired ? '' : email;
             _earlyFirstName = firstName;
             _earlyLastName = lastName;
             _earlyPhoneNumber = phoneNumber;
@@ -114,6 +127,19 @@ class _AppRootState extends State<AppRoot> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final email = (prefs.getString('loggedInEmail') ?? '').trim().toLowerCase();
+      final loginAt = prefs.getInt('sessionLoginAtMs') ?? 0;
+      final ttlStr = dotenv.env['SESSION_TTL_MINUTES'] ?? '';
+      final ttlMin = int.tryParse(ttlStr) ?? 0;
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final expired = ttlMin > 0 && loginAt > 0 && (nowMs - loginAt) > ttlMin * 60 * 1000;
+      if (expired) {
+        try {
+          await prefs.setBool('showAutoLogoutNoticeOnce', true);
+          await prefs.setInt('showAutoLogoutTtlMin', ttlMin > 0 ? ttlMin : 5);
+          await prefs.remove('loggedInEmail');
+          await prefs.remove('fingerprintEmail');
+        } catch (_) {}
+      }
       String preFpEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
       if (preFpEmail.isEmpty) {
         preFpEmail = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
@@ -133,7 +159,7 @@ class _AppRootState extends State<AppRoot> {
           }
         } catch (_) {}
       }
-      if (email.isEmpty) return {'screen': 'login'};
+      if (email.isEmpty || expired) return {'screen': 'login'};
       final profile = await MongoDBService.fetchProfile(email: email).timeout(const Duration(seconds: 3));
       try {
         final detailSelf = await MongoDBService.getMfaStatusDetail(email: email).timeout(const Duration(seconds: 2));

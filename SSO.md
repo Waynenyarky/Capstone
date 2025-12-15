@@ -15,6 +15,10 @@
   - If any known account has biometrics enabled, the login page will still offer “Login Using Biometrics”.
 - Google avatar handling:
   - When a Google photo URL is present, the app prefers the highest‑quality variant and caches it locally when appropriate.
+- Access tokens (JWT):
+  - Backend now issues a short‑lived JWT on successful login (email/password, Google, TOTP verify, fingerprint complete).
+  - Mobile stores the token in `SharedPreferences` (`accessToken`) and auto‑attaches `Authorization: Bearer <token>` to API calls.
+  - Configure `JWT_SECRET` and `ACCESS_TOKEN_TTL_MINUTES` in `backend/.env`.
 
 ## Prerequisites
 - Google Cloud project with OAuth client IDs: Web and Android.
@@ -76,9 +80,18 @@ GOOGLE_CLIENT_ID=146767537658-ig1s62nfuddjj3j2r7it5nb9e207hv1q.apps.googleuserco
   - Verifies `idToken` with `audience: GOOGLE_SERVER_CLIENT_ID` when provided.
   - Extracts names from token payload when available.
   - Creates/updates user; returns profile JSON.
+  - Adds `token` and `expiresAt` fields (JWT) in responses for:
+    - `/api/auth/login`
+    - `/api/auth/login/google`
+    - `/api/auth/login/verify`
+    - `/api/auth/login/verify-totp`
+    - `/api/auth/login/complete-fingerprint`
 - MFA endpoints:
   - `POST /api/auth/login/verify-totp` to verify TOTP during login.
   - Fingerprint login start/complete endpoints for biometric flow.
+ - JWT middleware:
+   - `backend/src/middleware/auth.js` provides `requireJwt` for protecting routes and `signAccessToken` for issuing tokens.
+   - Set `JWT_SECRET` and optional `ACCESS_TOKEN_TTL_MINUTES` (default 60).
 
 ## Consent Screen
 - If consent screen is “Testing”, add your account as a test user.
@@ -92,6 +105,7 @@ GOOGLE_CLIENT_ID=146767537658-ig1s62nfuddjj3j2r7it5nb9e207hv1q.apps.googleuserco
   - With TOTP enabled: Two‑Factor screen appears and verifies successfully.
   - With biometrics login: TOTP prompt is skipped after successful device auth.
 - Backend accepts and verifies tokens, returns correct profile data.
+ - Mobile persists `accessToken` and uses it on authenticated API calls (e.g., change password).
 
 ## Troubleshooting
 - `ApiException: 10` on Android:
@@ -100,6 +114,8 @@ GOOGLE_CLIENT_ID=146767537658-ig1s62nfuddjj3j2r7it5nb9e207hv1q.apps.googleuserco
   - Add test users or publish the consent screen.
 - `invalid_audience`:
   - Backend `.env` must use the Web client ID as audience.
+ - `invalid_token` or `unauthorized`:
+   - Ensure `JWT_SECRET` is set identically on the server, and the mobile app is sending `Authorization: Bearer <token>`.
 
 ## Security Notes
 - Do not commit secrets. Keep client IDs in `.env` or secrets manager.
