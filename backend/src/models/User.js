@@ -21,6 +21,14 @@ const UserSchema = new mongoose.Schema(
     mfaLastUsedTotpAt: { type: Date, default: null },
     fprintEnabled: { type: Boolean, default: false },
     tokenFprint: { type: String, default: '' },
+    // WebAuthn / passkey credentials
+    webauthnCredentials: [{
+      credId: { type: String },
+      publicKey: { type: String },
+      counter: { type: Number, default: 0 },
+      transports: { type: [String], default: [] },
+      label: { type: String, default: '' },
+    }],
     // Account deletion scheduling (30-day waiting period)
     deletionRequestedAt: { type: Date, default: null },
     deletionScheduledFor: { type: Date, default: null },

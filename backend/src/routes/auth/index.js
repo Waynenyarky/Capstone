@@ -6,6 +6,7 @@ const passwordResetRouter = require('./passwordReset')
 const deleteAccountRouter = require('./deleteAccount')
 const profileRouter = require('./profile')
 const mfaRouter = require('./mfa')
+const webauthnRouter = require('./webauthn')
 
 const router = express.Router()
 
@@ -16,5 +17,6 @@ router.use('/', passwordResetRouter)
 router.use('/', deleteAccountRouter)
 router.use('/', profileRouter)
 router.use('/', mfaRouter)
+router.use('/', webauthnRouter)
 
 module.exports = router

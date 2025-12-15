@@ -2,6 +2,7 @@ import React from 'react'
 import { Layout, Row, Col, Button, Card, Input, Spin, Typography, Space, Tooltip, Checkbox } from 'antd'
 import QrDisplay from '@/features/authentication/components/QrDisplay.jsx'
 import { useMfaSetup } from '@/features/authentication/hooks'
+import { useNavigate } from 'react-router-dom'
 
 export default function MfaSetup() {
   const {
@@ -11,12 +12,16 @@ export default function MfaSetup() {
    } = useMfaSetup()
 
   const { showSecret, toggleShowSecret, confirmedSaved, setConfirmedSaved, handleCopy } = useMfaSetup()
+  const navigate = useNavigate()
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Layout.Content style={{ padding: 24 }}>
         <Row justify="center">
           <Col style={{ width: 520 }}>
+            <div style={{ marginBottom: 12 }}>
+              <Button onClick={() => navigate(-1)}>Back</Button>
+            </div>
             <Card title="Multi-factor Authentication (TOTP)">
               <div style={{ marginBottom: 12 }}>
                 <p><strong>Status:</strong> {enabled ? 'Enabled' : 'Disabled'}</p>

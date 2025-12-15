@@ -2,7 +2,22 @@ export const firstNameRules = [{ required: true, message: 'Please enter your fir
 
 export const lastNameRules = [{ required: true, message: 'Please enter your last name' }]
 
-export const phoneNumberRules = [{ required: true, message: 'Please enter your phone number' }]
+export const phoneNumberRules = [
+  { required: true, message: 'Please enter your phone number' },
+  () => ({
+    validator(_, value) {
+      const v = String(value || '').trim()
+      if (!v) return Promise.resolve()
+      if (!/^\d{11}$/.test(v)) {
+        return Promise.reject(new Error('Phone number must be exactly 11 digits'))
+      }
+      if (!v.startsWith('09')) {
+        return Promise.reject(new Error('Phone number must start with 09'))
+      }
+      return Promise.resolve()
+    }
+  })
+]
 
 export const passwordRules = [
     { required: true, message: 'Please enter your password' },

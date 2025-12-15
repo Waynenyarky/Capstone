@@ -1,6 +1,5 @@
 import { Card, Button, Flex, Typography } from 'antd'
 import { useSendCodeForCurrentUserConfirm } from '@/features/authentication/hooks'
-
 import { useEffect } from 'react'
 
 export default function SendCodeForCurrentUserConfirm({ email, onSent, title, autoSend = false } = {}) {
@@ -10,12 +9,12 @@ export default function SendCodeForCurrentUserConfirm({ email, onSent, title, au
       handleSend()
     }
   }, [autoSend, email, isSending, handleSend])
-  const cardTitle = title || 'Confirm Current Email'
+  const cardTitle = title || 'Send Verification Code'
 
   return (
     <Card title={cardTitle}>
       <Typography.Paragraph>
-        To change your account email, first confirm you control your current email address.
+        We will send a verification code to your current email to confirm it's you.
       </Typography.Paragraph>
       <Typography.Text type="secondary">{email || 'Unknown email'}</Typography.Text>
       <Flex justify="end" gap="small" style={{ marginTop: 16 }}>

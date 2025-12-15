@@ -21,6 +21,24 @@ if (process.env.NODE_ENV !== 'production') {
   if (morgan) app.use(morgan('dev'))
 }
 
+// Basic session/cookie support required for SSO state handling
+try {
+  const cookieParser = require('cookie-parser')
+  const session = require('express-session')
+  app.use(cookieParser())
+  const sessSecret = process.env.SESSION_SECRET || 'dev-session-secret'
+  app.use(
+    session({
+      secret: sessSecret,
+      resave: false,
+      saveUninitialized: false,
+      cookie: { secure: process.env.NODE_ENV === 'production', sameSite: 'lax' },
+    })
+  )
+} catch (err) {
+  console.warn('Session middleware not available; install express-session and cookie-parser to enable SSO sessions')
+}
+
 // Health check route
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, service: 'backend', timestamp: new Date().toISOString() });
@@ -30,7 +48,15 @@ app.get('/api/health', (req, res) => {
 
 // Auth API routes (DB-aware with in-memory fallback)
 const authRouter = require('./routes/auth')
+// Mirror session user id into request headers for existing handlers
+try {
+  const { attachSessionUser } = require('./middleware/sessionAuth')
+  app.use(attachSessionUser)
+} catch (_) {}
+
 app.use('/api/auth', authRouter)
+
+// Optionally mount SSO at top-level if other routers expect session
 
 // Removed locations, service areas, customer addresses, appointments routes
 

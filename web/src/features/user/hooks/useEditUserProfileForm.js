@@ -18,7 +18,7 @@ export function useEditUserProfileForm({ onSubmit } = {}) {
       form.setFieldsValue({
         firstName: data?.firstName || '',
         lastName: data?.lastName || '',
-        phoneNumber: data?.phoneNumber || '',
+        phoneNumber: data?.phoneNumber || '09',
       })
     } catch (err) {
       console.error('Load user profile error:', err)
