@@ -1,14 +1,10 @@
 
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.20;
 
 contract SimpleStorage {
-    uint256 public value;
+    string public latestHash;
 
-    function setValue(uint256 _value) public {
-        value = _value;
-    }
-
-    function getValue() public view returns (uint256) {
-        return value;
+    function storeHash(string memory _hash) public {
+        latestHash = _hash;
     }
 }
