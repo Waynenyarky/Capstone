@@ -1,4 +1,4 @@
-# C1-66 Anaconda Navigator Installation Instructions (Windows)
+# Anaconda Navigator Installation Instructions (Windows)
 
 ## Important Steps
 
