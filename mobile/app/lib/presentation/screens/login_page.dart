@@ -276,6 +276,21 @@ class _LoginScreenState extends State<LoginScreen> {
         } catch (_) {}
         if (!mounted) return;
         final navigator = Navigator.of(context);
+        try {
+          final status = await MongoDBService.getMfaStatusDetail(email: email);
+          final enabledMfa = status['success'] == true && status['enabled'] == true;
+          final method = (status['method'] ?? '').toString().toLowerCase();
+          final hasAuthenticator = method.contains('authenticator');
+          final hasFingerprint = status['isFingerprintEnabled'] == true;
+          if (enabledMfa && hasAuthenticator && !hasFingerprint) {
+            if (!mounted) return;
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => LoginMfaScreen(email: email)),
+            );
+            return;
+          }
+        } catch (_) {}
         final profileRes = await MongoDBService.fetchProfile(email: email);
         final pending = profileRes['deletionPending'] == true;
         final scheduledISO = (profileRes['deletionScheduledFor'] is String) ? profileRes['deletionScheduledFor'] as String : null;
@@ -471,6 +486,21 @@ class _LoginScreenState extends State<LoginScreen> {
         final email = (user['email'] is String) ? user['email'] as String : '';
         var firstName = (user['firstName'] is String) ? user['firstName'] as String : '';
         var lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
+        try {
+          final status = await MongoDBService.getMfaStatusDetail(email: email);
+          final enabledMfa = status['success'] == true && status['enabled'] == true;
+          final method = (status['method'] ?? '').toString().toLowerCase();
+          final hasAuthenticator = method.contains('authenticator');
+          final hasFingerprint = status['isFingerprintEnabled'] == true;
+          if (enabledMfa && hasAuthenticator && !hasFingerprint) {
+            if (!mounted) return;
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => LoginMfaScreen(email: email)),
+            );
+            return;
+          }
+        } catch (_) {}
         if (displayName.isNotEmpty) {
           final parts = displayName.trim().split(RegExp(r'\s+'));
           if (parts.isNotEmpty) {
