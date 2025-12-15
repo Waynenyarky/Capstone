@@ -1095,7 +1095,7 @@ class GoogleGIcon extends StatelessWidget {
 class _GoogleGPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final stroke = size.width * 0.18;
+    final stroke = size.width * 0.17;
     final rect = Rect.fromLTWH(stroke, stroke, size.width - stroke * 2, size.height - stroke * 2);
     Paint seg(Color c) => Paint()
       ..style = PaintingStyle.stroke
@@ -1107,13 +1107,11 @@ class _GoogleGPainter extends CustomPainter {
     final yellow = seg(const Color(0xFFF4B400));
     final green = seg(const Color(0xFF0F9D58));
 
-    // Four segments around the ring
-    canvas.drawArc(rect, _deg(-30), _deg(90), false, blue);     // top-right
-    canvas.drawArc(rect, _deg(60), _deg(90), false, red);       // top-left
-    canvas.drawArc(rect, _deg(150), _deg(90), false, yellow);   // bottom-left
-    canvas.drawArc(rect, _deg(240), _deg(85), false, green);    // bottom-right (leave small gap)
+    canvas.drawArc(rect, _deg(300), _deg(85), false, blue);
+    canvas.drawArc(rect, _deg(25), _deg(100), false, red);
+    canvas.drawArc(rect, _deg(135), _deg(80), false, yellow);
+    canvas.drawArc(rect, _deg(215), _deg(95), false, green);
 
-    // Horizontal blue cut to form the 'G' bar
     final cx = size.width / 2;
     final cy = size.height / 2;
     final cut = Paint()
@@ -1121,7 +1119,7 @@ class _GoogleGPainter extends CustomPainter {
       ..strokeWidth = stroke
       ..strokeCap = StrokeCap.round
       ..color = const Color(0xFF4285F4);
-    canvas.drawLine(Offset(cx, cy), Offset(cx + rect.width / 2, cy), cut);
+    canvas.drawLine(Offset(cx, cy), Offset(cx + rect.width * 0.42, cy), cut);
   }
   double _deg(double d) => d * 3.1415926535 / 180.0;
   @override
