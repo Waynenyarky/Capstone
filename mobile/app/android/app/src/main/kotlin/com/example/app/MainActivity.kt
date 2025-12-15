@@ -1,4 +1,4 @@
-package com.example.app
+package com.yourorg.capstone
 
 import android.content.ContentValues
 import android.media.MediaScannerConnection

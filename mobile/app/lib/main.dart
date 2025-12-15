@@ -83,6 +83,23 @@ class _AppRootState extends State<AppRoot> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final email = (prefs.getString('loggedInEmail') ?? '').trim().toLowerCase();
+      String preFpEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
+      if (preFpEmail.isEmpty) {
+        preFpEmail = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
+      }
+      bool preFpEnabled = false;
+      if (preFpEmail.isNotEmpty) {
+        try {
+          final keyEnabled = 'fp_cache_enabled_$preFpEmail';
+          final keyTs = 'fp_cache_ts_$preFpEmail';
+          final enabledCached = prefs.getBool(keyEnabled) ?? false;
+          final tsCached = prefs.getInt(keyTs) ?? 0;
+          final ageMs = DateTime.now().millisecondsSinceEpoch - tsCached;
+          if (enabledCached && ageMs < 7 * 24 * 60 * 60 * 1000) {
+            preFpEnabled = true;
+          }
+        } catch (_) {}
+      }
       if (email.isEmpty) return {'screen': 'login'};
       final profile = await MongoDBService.fetchProfile(email: email).timeout(const Duration(seconds: 3));
       if (profile['success'] != true) {
@@ -93,6 +110,8 @@ class _AppRootState extends State<AppRoot> {
           'lastName': '',
           'phoneNumber': '',
           'avatarUrl': '',
+          'preFpEnabled': preFpEnabled,
+          'preFpEmail': preFpEmail,
         };
       }
       final user = (profile['user'] is Map<String, dynamic>) ? (profile['user'] as Map<String, dynamic>) : <String, dynamic>{};
@@ -110,6 +129,8 @@ class _AppRootState extends State<AppRoot> {
           'lastName': lastName,
           'phoneNumber': phoneNumber,
           'avatarUrl': '',
+          'preFpEnabled': preFpEnabled,
+          'preFpEmail': preFpEmail,
         };
       }
       return {
@@ -119,11 +140,30 @@ class _AppRootState extends State<AppRoot> {
         'lastName': lastName,
         'phoneNumber': phoneNumber,
         'avatarUrl': '',
+        'preFpEnabled': preFpEnabled,
+        'preFpEmail': preFpEmail,
       };
     } catch (_) {
       try {
         final prefs = await SharedPreferences.getInstance();
         final email = (prefs.getString('loggedInEmail') ?? '').trim().toLowerCase();
+        String preFpEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
+        if (preFpEmail.isEmpty) {
+          preFpEmail = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
+        }
+        bool preFpEnabled = false;
+        if (preFpEmail.isNotEmpty) {
+          try {
+            final keyEnabled = 'fp_cache_enabled_$preFpEmail';
+            final keyTs = 'fp_cache_ts_$preFpEmail';
+            final enabledCached = prefs.getBool(keyEnabled) ?? false;
+            final tsCached = prefs.getInt(keyTs) ?? 0;
+            final ageMs = DateTime.now().millisecondsSinceEpoch - tsCached;
+            if (enabledCached && ageMs < 7 * 24 * 60 * 60 * 1000) {
+              preFpEnabled = true;
+            }
+          } catch (_) {}
+        }
         if (email.isEmpty) return {'screen': 'login'};
         return {
           'screen': 'profile',
@@ -132,9 +172,11 @@ class _AppRootState extends State<AppRoot> {
           'lastName': '',
           'phoneNumber': '',
           'avatarUrl': '',
+          'preFpEnabled': preFpEnabled,
+          'preFpEmail': preFpEmail,
         };
       } catch (_) {
-        return {'screen': 'login'};
+        return {'screen': 'login', 'preFpEnabled': false, 'preFpEmail': ''};
       }
     }
   }
@@ -172,7 +214,10 @@ class _AppRootState extends State<AppRoot> {
             avatarUrl: (data['avatarUrl'] ?? '').toString(),
           );
         }
-        return const LoginScreen();
+        return LoginScreen(
+          preFingerprintEnabled: (data['preFpEnabled'] ?? false) == true,
+          preFingerprintEmail: (data['preFpEmail'] ?? '').toString(),
+        );
       },
     );
   }

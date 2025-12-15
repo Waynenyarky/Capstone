@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class GoogleAuthService {
   static GoogleSignIn? _singleton;
@@ -11,7 +12,14 @@ class GoogleAuthService {
   }
 
   static GoogleSignIn _buildClientBasic() {
-    final client = GoogleSignIn(scopes: const ['email', 'profile']);
+    final webId = dotenv.env['GOOGLE_SERVER_CLIENT_ID'] ?? dotenv.env['GOOGLE_CLIENT_ID'];
+    final androidId = dotenv.env['GOOGLE_ANDROID_CLIENT_ID'];
+    final useAndroidClientId = !kIsWeb && Platform.isAndroid && (androidId != null && androidId.isNotEmpty);
+    final client = GoogleSignIn(
+      scopes: const ['email', 'profile'],
+      serverClientId: webId,
+      clientId: useAndroidClientId ? androidId : null,
+    );
     _singleton = client;
     return client;
   }

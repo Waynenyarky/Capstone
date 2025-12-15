@@ -1,66 +1,88 @@
-# SSO: Continue with Google Setup
+# SSO: Google OAuth Setup
 
 ## Overview
 - Implements “Continue with Google” on mobile and verifies Google users on the backend.
-- Supports two modes:
-  - With `idToken`: backend verifies token audience and extracts names and profile.
-  - With only `email`: backend accepts the email when `idToken` is unavailable, then stores/updates profile.
+- Uses Web client ID as `serverClientId` and Android client ID on device.
+- MFA behavior:
+  - After Google sign‑in: if TOTP authenticator is enabled, the Two‑Factor screen is shown.
+  - After biometrics login: TOTP is skipped (biometric success is treated as second factor).
 
 ## Prerequisites
-- Google Cloud project with OAuth 2.0 client IDs.
-- Mobile app package configured for Google Sign-In (`google_sign_in`).
-- Backend running Node.js with `google-auth-library`.
+- Google Cloud project with OAuth client IDs: Web and Android.
+- Mobile app configured with `google_sign_in` and `.env`.
+- Backend configured with `google-auth-library` and `.env`.
 
-## Backend Setup (.env)
-- `GOOGLE_SERVER_CLIENT_ID`: Web client ID used for verifying ID tokens on the backend.
-- `GOOGLE_CLIENT_ID`: Fallback client ID if `GOOGLE_SERVER_CLIENT_ID` is not set.
-- Optional:
-  - `DISABLE_RATE_LIMIT=true` to relax login rate limits in non‑production.
+## OAuth Client IDs
+- Web client ID (used for ID token audience verification):
+  - `GOOGLE_SERVER_CLIENT_ID` and `GOOGLE_CLIENT_ID` in both mobile and backend `.env`.
+- Android client ID (used by Google Play Services on device):
+  - `GOOGLE_ANDROID_CLIENT_ID` in mobile `.env`.
 
-Example:
+Example (`mobile/app/.env`):
 ```
-GOOGLE_SERVER_CLIENT_ID=YOUR_WEB_CLIENT_ID.apps.googleusercontent.com
-DISABLE_RATE_LIMIT=true
+GOOGLE_SERVER_CLIENT_ID=146767537658-ig1s62nfuddjj3j2r7it5nb9e207hv1q.apps.googleusercontent.com
+GOOGLE_CLIENT_ID=146767537658-ig1s62nfuddjj3j2r7it5nb9e207hv1q.apps.googleusercontent.com
+GOOGLE_ANDROID_CLIENT_ID=146767537658-3gtn7f5fifqvejip4hlkq5kp33hoa3k0.apps.googleusercontent.com
 ```
 
-Notes:
-- Create a “Web application” OAuth client in Google Cloud Console and copy its Client ID into `GOOGLE_SERVER_CLIENT_ID`.
-- If you only set `GOOGLE_CLIENT_ID`, it will be used as the audience fallback.
+Example (`backend/.env`):
+```
+GOOGLE_SERVER_CLIENT_ID=146767537658-ig1s62nfuddjj3j2r7it5nb9e207hv1q.apps.googleusercontent.com
+GOOGLE_CLIENT_ID=146767537658-ig1s62nfuddjj3j2r7it5nb9e207hv1q.apps.googleusercontent.com
+```
 
-## Mobile Setup (Android/iOS)
-- Uses the `google_sign_in` plugin with `email` and `profile` scopes.
-- On success, the app sends `idToken` (if available), `email`, `providerId`, and names derived from `displayName`.
-- Android:
-  - Ensure the applicationId (package name) matches the one registered in your Google Cloud OAuth credentials.
-  - If you require server verification with `idToken`, also configure your app signing and OAuth consent screen.
-- iOS:
-  - Ensure the bundle identifier matches the one registered in your Google Cloud OAuth credentials.
-  - Add required URL schemes if using advanced flows.
+## Android Signing and Identity
+- Package name: `com.yourorg.capstone` (`mobile/app/android/app/build.gradle.kts`).
+- Shared keystore enforced for app variants:
+  - `debug`, `release`, and `profile` use `teamDebug` signing.
+  - `debugAndroidTest` mirrors the shared keystore.
+- Verify identity:
+  - Run `./gradlew.bat signingReport -q` in `mobile/app/android`.
+  - Confirm SHA‑1 matches the Android OAuth client’s fingerprint.
+  - Expected SHA‑1: `12:81:F3:AE:5D:F9:33:52:4B:9C:DF:E6:78:38:15:E4:41:26:E1:A0`.
+- Google Cloud Console:
+  - Delete any Android OAuth client using old SHA‑1 (e.g., `6F:F3:F5:...`).
+  - Ensure Android client entry matches package `com.yourorg.capstone` and the expected SHA‑1.
 
-## Flow Summary
-1. User taps “Continue with Google” in the login page.
-2. Mobile obtains `idToken`, `email`, `providerId`, and `displayName`.
-3. Mobile sends to backend:
-   - `idToken` (or a fallback marker when unavailable),
-   - `email`,
-   - `providerId`,
-   - `firstName`/`lastName` parsed from `displayName`.
-4. Backend:
-   - Verifies `idToken` if present (audience must match `GOOGLE_SERVER_CLIENT_ID`).
-   - Extracts names from token (`given_name`, `family_name`), or splits `name`.
-   - Falls back to app‑provided names, and if still missing, derives names from the email local part.
-   - Creates or updates the user record and returns profile data.
+## Mobile Configuration
+- `GoogleSignIn` setup (`mobile/app/lib/data/services/google_auth_service.dart`):
+  - `serverClientId` from Web client ID.
+  - `clientId` from `GOOGLE_ANDROID_CLIENT_ID` on Android.
+- Login flow (`mobile/app/lib/presentation/screens/login_page.dart`):
+  - On Google sign‑in success, app calls backend and then checks MFA status.
+  - If authenticator is enabled, navigates to the Two‑Factor screen.
+  - If login was via biometrics, skips TOTP and proceeds to profile.
+
+## Backend Configuration
+- Token verification (`backend/src/routes/auth/login.js`):
+  - Verifies `idToken` with `audience: GOOGLE_SERVER_CLIENT_ID` when provided.
+  - Extracts names from token payload when available.
+  - Creates/updates user; returns profile JSON.
+- MFA endpoints:
+  - `POST /api/auth/login/verify-totp` to verify TOTP during login.
+  - Fingerprint login start/complete endpoints for biometric flow.
+
+## Consent Screen
+- If consent screen is “Testing”, add your account as a test user.
+- Or publish the consent screen for broader access.
+- Scopes used: `email`, `profile` (standard; no special verification needed).
+
+## Testing Checklist
+- `flutter analyze` reports no issues.
+- `./gradlew signingReport` shows expected SHA‑1 for app variants.
+- Google sign‑in:
+  - With TOTP enabled: Two‑Factor screen appears and verifies successfully.
+  - With biometrics login: TOTP prompt is skipped after successful device auth.
+- Backend accepts and verifies tokens, returns correct profile data.
 
 ## Troubleshooting
-- `idToken` null:
-  - The app will still pass `email`. Backend accepts email-only sign‑in.
-  - If you require server verification, confirm your OAuth client ID and app signing configuration.
-- Audience mismatch:
-  - Ensure the token’s audience equals `GOOGLE_SERVER_CLIENT_ID` in `.env`.
-- Names appear as “User”:
-  - Re‑sign in with Google. Backend now updates names using token, `displayName`, or email local part.
+- `ApiException: 10` on Android:
+  - Android OAuth client does not match package + SHA‑1. Fix in Cloud Console.
+- “Consent required”:
+  - Add test users or publish the consent screen.
+- `invalid_audience`:
+  - Backend `.env` must use the Web client ID as audience.
 
 ## Security Notes
-- Never commit secrets to the repository.
-- Keep OAuth client IDs and any private keys in `.env` or your secret manager.
-- Enable rate limiting in production and harden your OAuth consent screen.
+- Do not commit secrets. Keep client IDs in `.env` or secrets manager.
+- Enable rate limiting in production and secure consent screen and domains.

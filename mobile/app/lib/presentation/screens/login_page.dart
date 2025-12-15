@@ -16,7 +16,9 @@ import '../../domain/usecases/sign_in_with_google.dart';
  
 class LoginScreen extends StatefulWidget {
   final String? deletionScheduledForISO;
-  const LoginScreen({super.key, this.deletionScheduledForISO});
+  final bool preFingerprintEnabled;
+  final String? preFingerprintEmail;
+  const LoginScreen({super.key, this.deletionScheduledForISO, this.preFingerprintEnabled = false, this.preFingerprintEmail});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -46,6 +48,19 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     
+    if (widget.preFingerprintEnabled) {
+      _fingerprintEnabled = true;
+    }
+    final preEmail = (widget.preFingerprintEmail ?? '').trim().toLowerCase();
+    if (preEmail.isNotEmpty) {
+      () async {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('fingerprintEmail', preEmail);
+        } catch (_) {}
+      }();
+    }
+
     // Add focus listeners to track when fields are touched
     _emailFocus.addListener(() {
       if (!_emailFocus.hasFocus && _emailController.text.isNotEmpty) {
@@ -154,7 +169,6 @@ class _LoginScreenState extends State<LoginScreen> {
         if (typed.isNotEmpty && _isValidEmail(typed)) typed,
       ];
       if (fpEmail.isNotEmpty && _isValidEmail(fpEmail)) {
-        if (mounted) setState(() => _fingerprintEnabled = true);
         () async {
           try {
             final supported = await _localAuth.isDeviceSupported();
@@ -178,21 +192,42 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       bool found = false;
       String chosen = '';
+      try {
+        for (final email in candidates) {
+          final keyEnabled = 'fp_cache_enabled_$email';
+          final keyTs = 'fp_cache_ts_$email';
+          final enabledCached = prefs.getBool(keyEnabled) ?? false;
+          final tsCached = prefs.getInt(keyTs) ?? 0;
+          final ageMs = DateTime.now().millisecondsSinceEpoch - tsCached;
+          if (enabledCached && ageMs < 7 * 24 * 60 * 60 * 1000 && chosen.isEmpty) {
+            chosen = email;
+            try { await prefs.setString('fingerprintEmail', chosen); } catch (_) {}
+          }
+        }
+      } catch (_) {}
       final futures = candidates.map((email) async {
         try {
-          final s = await MongoDBService.getMfaStatusDetail(email: email).timeout(const Duration(milliseconds: 1500));
+          final s = await MongoDBService.getMfaStatusDetail(email: email).timeout(const Duration(milliseconds: 600));
           final enabled = s['success'] == true && s['isFingerprintEnabled'] == true;
           if (!found && enabled) {
             found = true;
             chosen = email;
             if (mounted) setState(() => _fingerprintEnabled = true);
             try { await prefs.setString('fingerprintEmail', chosen); } catch (_) {}
+            try {
+              await prefs.setBool('fp_cache_enabled_$chosen', true);
+              await prefs.setInt('fp_cache_ts_$chosen', DateTime.now().millisecondsSinceEpoch);
+            } catch (_) {}
             if (autoLogin && mounted && !_isLoading) {
               await _loginWithFingerprint();
             }
           }
           return {'email': email, 'enabled': enabled};
         } catch (_) {
+          try {
+            await prefs.setBool('fp_cache_enabled_$email', false);
+            await prefs.setInt('fp_cache_ts_$email', DateTime.now().millisecondsSinceEpoch);
+          } catch (_) {}
           return {'email': email, 'enabled': false};
         }
       }).toList();
@@ -205,8 +240,8 @@ class _LoginScreenState extends State<LoginScreen> {
         } catch (_) {}
         if (mounted) setState(() => _fingerprintEnabled = false);
       }
-    } catch (_) {
-      if (mounted) setState(() => _fingerprintEnabled = false);
+      } catch (_) {
+        if (mounted) setState(() => _fingerprintEnabled = false);
     }
   }
 
@@ -277,21 +312,6 @@ class _LoginScreenState extends State<LoginScreen> {
         } catch (_) {}
         if (!mounted) return;
         final navigator = Navigator.of(context);
-        try {
-          final status = await MongoDBService.getMfaStatusDetail(email: email);
-          final enabledMfa = status['success'] == true && status['enabled'] == true;
-          final method = (status['method'] ?? '').toString().toLowerCase();
-          final hasAuthenticator = method.contains('authenticator');
-          final hasFingerprint = status['isFingerprintEnabled'] == true;
-          if (enabledMfa && hasAuthenticator && !hasFingerprint) {
-            if (!mounted) return;
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => LoginMfaScreen(email: email)),
-            );
-            return;
-          }
-        } catch (_) {}
         final profileRes = await MongoDBService.fetchProfile(email: email);
         final pending = profileRes['deletionPending'] == true;
         final scheduledISO = (profileRes['deletionScheduledFor'] is String) ? profileRes['deletionScheduledFor'] as String : null;
@@ -353,6 +373,7 @@ class _LoginScreenState extends State<LoginScreen> {
     required IconData icon,
     required String label,
     required VoidCallback? onTap,
+    Widget? trailing,
   }) {
     return InkWell(
       onTap: onTap,
@@ -391,6 +412,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+            if (trailing != null) ...[
+              const SizedBox(width: 12),
+              trailing,
+            ],
           ],
         ),
       ),
@@ -492,8 +517,7 @@ class _LoginScreenState extends State<LoginScreen> {
           final enabledMfa = status['success'] == true && status['enabled'] == true;
           final method = (status['method'] ?? '').toString().toLowerCase();
           final hasAuthenticator = method.contains('authenticator');
-          final hasFingerprint = status['isFingerprintEnabled'] == true;
-          if (enabledMfa && hasAuthenticator && !hasFingerprint) {
+          if (enabledMfa && hasAuthenticator) {
             if (!mounted) return;
             Navigator.push(
               context,
