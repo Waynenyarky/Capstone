@@ -7,6 +7,10 @@ import 'package:app/data/services/mongodb_service.dart';
 import 'package:app/presentation/screens/profile.dart';
 import 'package:app/presentation/screens/deletion_scheduled_page.dart';
 
+import 'package:app/presentation/widgets/session_timeout_manager.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
@@ -19,6 +23,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Auth Demo',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -67,6 +72,16 @@ class MyApp extends StatelessWidget {
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
+      builder: (context, child) {
+        // Default to 1 minute as requested for stricter security
+        final ttlStr = dotenv.env['SESSION_TTL_MINUTES'] ?? '1';
+        final ttlMin = int.tryParse(ttlStr) ?? 1;
+        return SessionTimeoutManager(
+          navigatorKey: navigatorKey,
+          duration: Duration(minutes: ttlMin),
+          child: child!,
+        );
+      },
       home: const AppRoot(),
     );
   }
@@ -93,11 +108,10 @@ class _AppRootState extends State<AppRoot> {
       try {
         final prefs = await SharedPreferences.getInstance();
         final email = (prefs.getString('loggedInEmail') ?? '').trim().toLowerCase();
-        final loginAt = prefs.getInt('sessionLoginAtMs') ?? 0;
-        final ttlStr = dotenv.env['SESSION_TTL_MINUTES'] ?? '';
-        final ttlMin = int.tryParse(ttlStr) ?? 0;
-        final nowMs = DateTime.now().millisecondsSinceEpoch;
-        final expired = ttlMin > 0 && loginAt > 0 && (nowMs - loginAt) > ttlMin * 60 * 1000;
+        
+        // We defer session expiry checks to SessionTimeoutManager so the Modal can be shown.
+        // Just load profile data here.
+
         final firstName = (prefs.getString('cachedFirstName') ?? '').trim();
         final lastName = (prefs.getString('cachedLastName') ?? '').trim();
         final phoneNumber = (prefs.getString('cachedPhoneNumber') ?? '').trim();
@@ -105,18 +119,11 @@ class _AppRootState extends State<AppRoot> {
         if (avatar.isEmpty) {
            avatar = (prefs.getString('lastAvatarUrl') ?? '').trim();
         }
-        if (expired) {
-          try {
-            await prefs.setBool('showAutoLogoutNoticeOnce', true);
-            await prefs.setInt('showAutoLogoutTtlMin', ttlMin > 0 ? ttlMin : 5);
-            await prefs.remove('loggedInEmail');
-            await prefs.remove('fingerprintEmail');
-          } catch (_) {}
-        }
+
         if (mounted) {
           setState(() {
-            _likelyLoggedIn = email.isNotEmpty && !expired;
-            _earlyEmail = expired ? '' : email;
+            _likelyLoggedIn = email.isNotEmpty;
+            _earlyEmail = email;
             _earlyFirstName = firstName;
             _earlyLastName = lastName;
             _earlyPhoneNumber = phoneNumber;
@@ -129,20 +136,13 @@ class _AppRootState extends State<AppRoot> {
   Future<Map<String, dynamic>> _prepare() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
       final email = (prefs.getString('loggedInEmail') ?? '').trim().toLowerCase();
-      final loginAt = prefs.getInt('sessionLoginAtMs') ?? 0;
-      final ttlStr = dotenv.env['SESSION_TTL_MINUTES'] ?? '';
-      final ttlMin = int.tryParse(ttlStr) ?? 0;
-      final nowMs = DateTime.now().millisecondsSinceEpoch;
-      final expired = ttlMin > 0 && loginAt > 0 && (nowMs - loginAt) > ttlMin * 60 * 1000;
-      if (expired) {
-        try {
-          await prefs.setBool('showAutoLogoutNoticeOnce', true);
-          await prefs.setInt('showAutoLogoutTtlMin', ttlMin > 0 ? ttlMin : 5);
-          await prefs.remove('loggedInEmail');
-          await prefs.remove('fingerprintEmail');
-        } catch (_) {}
-      }
+      final token = (prefs.getString('accessToken') ?? '').trim();
+      
+      // Let SessionTimeoutManager handle expiry dialogs.
+      // We just check if we have a user.
+      
       String preFpEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
       if (preFpEmail.isEmpty) {
         preFpEmail = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
@@ -152,7 +152,7 @@ class _AppRootState extends State<AppRoot> {
       bool preAuthenticatorEnabled = false;
       if (preFpEmail.isNotEmpty) {
         try {
-          final detail = await MongoDBService.getMfaStatusDetail(email: preFpEmail).timeout(const Duration(seconds: 2));
+          final detail = await MongoDBService.getMfaStatusDetail(email: preFpEmail).timeout(const Duration(seconds: 5));
           preFpEnabled = detail['success'] == true && detail['isFingerprintEnabled'] == true;
           final enabledMfa = detail['success'] == true && detail['enabled'] == true;
           final method = (detail['method'] ?? '').toString().toLowerCase();
@@ -162,8 +162,16 @@ class _AppRootState extends State<AppRoot> {
           }
         } catch (_) {}
       }
-      if (email.isEmpty || expired) return {'screen': 'login'};
-      final profile = await MongoDBService.fetchProfile(email: email).timeout(const Duration(seconds: 3));
+      if (email.isEmpty || token.isEmpty) {
+        return {
+          'screen': 'login',
+          'preFpEnabled': preFpEnabled,
+          'preFpEmail': preFpEmail,
+          'preFaceEnabled': preFaceEnabled,
+          'preAuthenticatorEnabled': preAuthenticatorEnabled,
+        };
+      }
+      final profile = await MongoDBService.fetchProfile(email: email, token: token).timeout(const Duration(seconds: 3));
       try {
         final detailSelf = await MongoDBService.getMfaStatusDetail(email: email).timeout(const Duration(seconds: 2));
         final selfEnabled = detailSelf['success'] == true && detailSelf['isFingerprintEnabled'] == true;
@@ -185,6 +193,17 @@ class _AppRootState extends State<AppRoot> {
         } catch (_) {}
       } catch (_) {}
       if (profile['success'] != true) {
+        if (profile['statusCode'] == 401) {
+           await prefs.remove('accessToken');
+           await prefs.remove('loggedInEmail');
+           return {
+              'screen': 'login',
+              'preFpEnabled': preFpEnabled,
+              'preFpEmail': preFpEmail,
+              'preFaceEnabled': preFaceEnabled,
+              'preAuthenticatorEnabled': preAuthenticatorEnabled,
+           };
+        }
         final cachedFirstName = (prefs.getString('cachedFirstName') ?? '').trim();
         final cachedLastName = (prefs.getString('cachedLastName') ?? '').trim();
         final cachedPhoneNumber = (prefs.getString('cachedPhoneNumber') ?? '').trim();

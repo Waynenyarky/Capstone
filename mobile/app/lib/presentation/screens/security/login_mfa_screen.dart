@@ -81,6 +81,7 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
         final email = (user['email'] is String) ? user['email'] as String : '';
         final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
         final avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
+        final token = (user['token'] is String) ? user['token'] as String : '';
         try {
           final prefs = await SharedPreferences.getInstance();
           if (email.isNotEmpty) {
@@ -88,10 +89,13 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
             await prefs.setString('lastLoginEmail', email.toLowerCase());
             await prefs.remove('disableAutoBiometricOnce');
           }
+          if (token.isNotEmpty) {
+            await prefs.setString('accessToken', token);
+          }
         } catch (_) {}
         if (!mounted) return;
         final navigator = Navigator.of(context);
-        final profileRes = await MongoDBService.fetchProfile(email: email);
+        final profileRes = await MongoDBService.fetchProfile(email: email, token: token);
         final pending = profileRes['deletionPending'] == true;
         final scheduledISO = (profileRes['deletionScheduledFor'] is String) ? profileRes['deletionScheduledFor'] as String : null;
         if (pending && scheduledISO != null) {
@@ -103,7 +107,7 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
                 firstName: firstName,
                 lastName: lastName,
                 phoneNumber: phoneNumber,
-                token: '',
+                token: token,
                 avatarUrl: avatarUrl,
               ),
             ),
@@ -118,7 +122,7 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
               firstName: firstName,
               lastName: lastName,
               phoneNumber: phoneNumber,
-              token: '',
+              token: token,
               avatarUrl: avatarUrl,
             ),
           ),

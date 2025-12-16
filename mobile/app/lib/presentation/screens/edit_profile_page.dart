@@ -310,6 +310,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         await prefs.setString('avatar_url_${widget.email.toLowerCase()}', _avatarUrl);
         await prefs.setString('lastAvatarUrl', _avatarUrl);
         await prefs.setBool('avatarIsCustom', true);
+        await prefs.setBool('avatarIsCustom_${widget.email.toLowerCase()}', true);
       } catch (_) {}
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -542,45 +543,51 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                     child: Container(
                                       width: avatarSize,
                                       height: avatarSize,
+                                      padding: const EdgeInsets.all(2),
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        border: Border.all(color: Colors.grey.shade200, width: 3),
+                                        border: Border.all(color: Colors.blue, width: 2),
+                                        gradient: LinearGradient(
+                                          colors: [Colors.blue.shade200, Colors.blue.shade400],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.1),
+                                            color: Colors.blue.withValues(alpha: 0.2),
                                             blurRadius: 10,
                                             offset: const Offset(0, 4),
                                           ),
                                         ],
                                       ),
-                                      child: CircleAvatar(
-                                        radius: avatarSize / 2,
-                                        backgroundColor: Colors.grey.shade100,
-                                        child: Builder(
-                                          builder: (_) {
-                                            if (_localAvatarPath.isNotEmpty) {
-                                              return ClipOval(
-                                                child: Image.file(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.grey.shade100,
+                                        ),
+                                        child: ClipOval(
+                                          child: Builder(
+                                            builder: (_) {
+                                              if (_localAvatarPath.isNotEmpty) {
+                                                return Image.file(
                                                   io.File(_localAvatarPath),
                                                   fit: BoxFit.cover,
                                                   filterQuality: FilterQuality.high,
-                                                  width: avatarSize,
-                                                  height: avatarSize,
-                                                ),
-                                              );
-                                            } else if (_avatarUrl.isNotEmpty) {
-                                              return ClipOval(
-                                                child: Image.network(
+                                                  width: double.infinity,
+                                                  height: double.infinity,
+                                                );
+                                              } else if (_avatarUrl.isNotEmpty) {
+                                                return Image.network(
                                                   _resolveAvatarUrl(_avatarUrl),
                                                   fit: BoxFit.cover,
                                                   filterQuality: FilterQuality.high,
-                                                  width: avatarSize,
-                                                  height: avatarSize,
-                                                ),
-                                              );
-                                            }
-                                            return Icon(Icons.person, size: avatarSize * 0.5, color: Colors.grey.shade400);
-                                          },
+                                                  width: double.infinity,
+                                                  height: double.infinity,
+                                                );
+                                              }
+                                              return Center(child: Icon(Icons.person, size: avatarSize * 0.5, color: Colors.grey.shade400));
+                                            },
+                                          ),
                                         ),
                                       ),
                                   ),

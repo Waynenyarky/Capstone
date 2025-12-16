@@ -318,6 +318,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         }
         final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
         var avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
+        final token = (result['token'] is String) ? result['token'] as String : '';
         if (avatarUrl.isEmpty) {
           try {
             final prefs = await SharedPreferences.getInstance();
@@ -325,7 +326,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
             if (cachedSpecific.isNotEmpty) {
               avatarUrl = cachedSpecific;
             } else {
-              final isCustom = prefs.getBool('avatarIsCustom') == true;
+              final isCustomKey = 'avatarIsCustom_${email.toLowerCase()}';
+              var isCustom = prefs.getBool(isCustomKey) == true;
+              if (!isCustom && prefs.getBool('avatarIsCustom') == true) isCustom = true;
               final cached = (prefs.getString('lastAvatarUrl') ?? '').trim();
               if (isCustom && cached.isNotEmpty) {
                 avatarUrl = cached;
@@ -353,10 +356,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
               }
             } catch (_) {}
           }
+          if (token.isNotEmpty) {
+             await prefs.setString('accessToken', token);
+          }
           if (avatarUrl.isNotEmpty) {
              await prefs.setString('avatar_url_${email.toLowerCase()}', avatarUrl);
           }
-          final isCustom = prefs.getBool('avatarIsCustom') == true;
+          final isCustomKey = 'avatarIsCustom_${email.toLowerCase()}';
+          final isCustom = prefs.getBool(isCustomKey) == true;
           if (avatarUrl.isNotEmpty && !isCustom) {
             await prefs.setString('lastAvatarUrl', avatarUrl);
           }
@@ -373,7 +380,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 firstName: firstName,
                 lastName: lastName,
                 phoneNumber: phoneNumber,
-                token: '',
+                token: token,
                 avatarUrl: avatarUrl,
               ),
             ),
@@ -388,7 +395,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               firstName: firstName,
               lastName: lastName,
               phoneNumber: phoneNumber,
-              token: '',
+              token: token,
               avatarUrl: avatarUrl,
             ),
           ),

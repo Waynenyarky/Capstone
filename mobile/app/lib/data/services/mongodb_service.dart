@@ -572,18 +572,25 @@ class MongoDBService {
       final isJson = ct.contains('application/json');
       final data = isJson ? json.decode(res.body) : {};
       if (res.statusCode == 200 && data is Map) {
-        final enabled = data['enabled'] == true;
-        final rawMethod = (data['method'] is String) ? (data['method'] as String) : '';
-        final effectiveFp = data['isFingerprintEnabled'] == true;
-        return {
-          'success': true,
-          'enabled': enabled,
-          'disablePending': data['disablePending'] == true,
-          'scheduledFor': data['scheduledFor'],
-          'method': rawMethod,
-          'isFingerprintEnabled': effectiveFp,
-        };
-      }
+              final enabled = data['enabled'] == true;
+              
+              String rawMethod = '';
+              if (data['method'] is String) {
+                rawMethod = data['method'];
+              } else if (data['method'] is List) {
+                rawMethod = (data['method'] as List).join(',');
+              }
+              
+              final effectiveFp = data['isFingerprintEnabled'] == true;
+              return {
+                'success': true,
+                'enabled': enabled,
+                'disablePending': data['disablePending'] == true,
+                'scheduledFor': data['scheduledFor'],
+                'method': rawMethod,
+                'isFingerprintEnabled': effectiveFp,
+              };
+            }
       final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to fetch status';
       return { 'success': false, 'message': msg };
     } on TimeoutException {
@@ -1547,34 +1554,40 @@ class MongoDBService {
 
   static Future<Map<String, dynamic>> fetchProfile({
     required String email,
+    String? token,
   }) async {
     try {
+      final headers = {
+        'x-user-email': email,
+      };
+      if (token != null && token.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $token';
+      }
       final res = await _getWithFallbackH(
         '/api/auth/me',
-        headers: {
-          'x-user-email': email,
-        },
+        headers: headers,
         timeout: const Duration(seconds: 12),
       );
       final ct = (res.headers['content-type'] ?? '').toLowerCase();
       final isJson = ct.contains('application/json');
       final data = isJson ? json.decode(res.body) : {};
       if (res.statusCode == 200 && data is Map) {
-        return {
-          'success': true,
-          'user': data,
-          'deletionPending': data['deletionPending'] == true,
-          'deletionScheduledFor': (data['deletionScheduledFor'] is String) ? data['deletionScheduledFor'] : null,
-        };
-      }
-      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to load profile';
-      return { 'success': false, 'message': msg };
-    } on TimeoutException {
-      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
-    } catch (e) {
-      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
-    }
-  }
+              return {
+                'success': true,
+                'user': data,
+                'deletionPending': data['deletionPending'] == true,
+                'deletionScheduledFor': (data['deletionScheduledFor'] is String) ? data['deletionScheduledFor'] : null,
+                'statusCode': 200,
+              };
+            }
+            final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to load profile';
+            return { 'success': false, 'message': msg, 'statusCode': res.statusCode };
+          } on TimeoutException {
+            return { 'success': false, 'message': 'Request timeout. Check network and server availability.', 'statusCode': 408 };
+          } catch (e) {
+            return { 'success': false, 'message': 'Connection error: ${e.toString()}', 'statusCode': 500 };
+          }
+        }
 
   static Future<Map<String, dynamic>> cancelAccountDeletion({
     required String email,

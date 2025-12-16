@@ -117,7 +117,9 @@ router.post('/login', validateBody(loginCredentialsSchema), async (req, res) => 
     if (doc.mfaEnabled === true) {
       const method = String(doc.mfaMethod || '').toLowerCase()
       const hasTotp = !!doc.mfaSecret
-      const isFingerprint = !hasTotp && (!!doc.fprintEnabled || method === 'fingerprint')
+      // Allow fingerprint if enabled, regardless of TOTP status.
+      // If both are enabled, we prefer fingerprint but allow fallback to TOTP via client logic.
+      const isFingerprint = !!doc.fprintEnabled || method.includes('fingerprint')
       if (isFingerprint && !bypass) {
         const loginToken = generateToken()
         const expiresAtMs = Date.now() + 5 * 60 * 1000
@@ -308,7 +310,7 @@ router.post('/login/google', validateBody(googleLoginSchema), async (req, res) =
               dbDoc.lastName = newLast
               doc.lastName = newLast
             }
-            if (avatarUrl && (!dbDoc.avatarUrl || String(dbDoc.avatarUrl) !== avatarUrl)) {
+            if (avatarUrl && !dbDoc.avatarUrl) {
               dbDoc.avatarUrl = avatarUrl
               doc.avatarUrl = avatarUrl
             }
