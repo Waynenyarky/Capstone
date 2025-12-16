@@ -59,7 +59,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
       } catch (_) {}
       return u;
     }
-    return '${MongoDBService.baseUrl}$u';
+    String base = MongoDBService.baseUrl;
+    if (io.Platform.isAndroid && (base.contains('localhost') || base.contains('127.0.0.1'))) {
+       base = base.replaceFirst('localhost', '10.0.2.2').replaceFirst('127.0.0.1', '10.0.2.2');
+    }
+    return '$base$u';
   }
 
   @override
@@ -73,12 +77,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
       try {
         if (_avatarUrl.isEmpty) {
           final prefs = await SharedPreferences.getInstance();
-          final cached = (prefs.getString('lastAvatarUrl') ?? '').trim();
-          if (cached.isNotEmpty) {
-            if (mounted) {
-              setState(() {
-                _avatarUrl = cached;
-              });
+          final cachedSpecific = (prefs.getString('avatar_url_${widget.email.toLowerCase()}') ?? '').trim();
+          if (cachedSpecific.isNotEmpty) {
+            if (mounted) setState(() => _avatarUrl = cachedSpecific);
+          } else {
+            final cached = (prefs.getString('lastAvatarUrl') ?? '').trim();
+            if (cached.isNotEmpty) {
+              if (mounted) setState(() => _avatarUrl = cached);
             }
           }
         }
@@ -108,15 +113,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Future<bool> _ensureGalleryPermission() async {
+    if (io.Platform.isAndroid) {
+      if (await Permission.photos.isGranted) return true;
+      if (await Permission.storage.isGranted) return true;
+
+      if (await Permission.photos.request().isGranted) return true;
+      if (await Permission.storage.request().isGranted) return true;
+
+      return false;
+    }
+    // For iOS and others
     try {
       var s = await Permission.photos.status;
       if (!s.isGranted && !s.isLimited) {
         s = await Permission.photos.request();
         if (!s.isGranted && !s.isLimited) return false;
-      }
-      var st = await Permission.storage.status;
-      if (!st.isGranted) {
-        st = await Permission.storage.request();
       }
     } catch (_) {}
     return true;
@@ -237,6 +248,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final ok = await _ensureGalleryPermission();
       if (!ok) return null;
     }
+    if (source == ImageSource.camera) {
+      var c = await Permission.camera.status;
+      if (!c.isGranted) {
+        c = await Permission.camera.request();
+        if (!c.isGranted) return null;
+      }
+    }
     final picker = ImagePicker();
     XFile? picked;
     try {
@@ -289,6 +307,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       });
       try {
         final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('avatar_url_${widget.email.toLowerCase()}', _avatarUrl);
         await prefs.setString('lastAvatarUrl', _avatarUrl);
         await prefs.setBool('avatarIsCustom', true);
       } catch (_) {}

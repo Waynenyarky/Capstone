@@ -409,14 +409,19 @@ class _LoginScreenState extends State<LoginScreen> {
         if (avatarUrl.isEmpty) {
           try {
             final prefs = await SharedPreferences.getInstance();
-            final isCustom = prefs.getBool('avatarIsCustom') == true;
-            final cached = (prefs.getString('lastAvatarUrl') ?? '').trim();
-            if (isCustom && cached.isNotEmpty) {
-              avatarUrl = cached;
+            final cachedSpecific = (prefs.getString('avatar_url_${email.toLowerCase()}') ?? '').trim();
+            if (cachedSpecific.isNotEmpty) {
+              avatarUrl = cachedSpecific;
             } else {
-              final gPhoto = GoogleAuthService.getCurrentPhotoUrl();
-              if (gPhoto != null && gPhoto.isNotEmpty) {
-                avatarUrl = gPhoto;
+              final isCustom = prefs.getBool('avatarIsCustom') == true;
+              final cached = (prefs.getString('lastAvatarUrl') ?? '').trim();
+              if (isCustom && cached.isNotEmpty) {
+                avatarUrl = cached;
+              } else {
+                final gPhoto = GoogleAuthService.getCurrentPhotoUrl();
+                if (gPhoto != null && gPhoto.isNotEmpty) {
+                  avatarUrl = gPhoto;
+                }
               }
             }
           } catch (_) {}
@@ -432,6 +437,9 @@ class _LoginScreenState extends State<LoginScreen> {
           await prefs.setString('cachedPhoneNumber', phoneNumber);
           if (token.isNotEmpty) {
             await prefs.setString('accessToken', token);
+          }
+          if (avatarUrl.isNotEmpty) {
+            await prefs.setString('avatar_url_${email.toLowerCase()}', avatarUrl);
           }
           final isCustom = prefs.getBool('avatarIsCustom') == true;
           if (avatarUrl.isNotEmpty && !isCustom) {
@@ -687,16 +695,21 @@ class _LoginScreenState extends State<LoginScreen> {
         if (avatarUrl.isEmpty) {
           try {
             final prefs = await SharedPreferences.getInstance();
-            final isCustom = prefs.getBool('avatarIsCustom') == true;
-            final cached = (prefs.getString('lastAvatarUrl') ?? '').trim();
-            if (isCustom && cached.isNotEmpty) {
-              avatarUrl = cached;
-            } else if (authPhotoUrl.isNotEmpty) {
-              avatarUrl = authPhotoUrl;
+            final cachedSpecific = (prefs.getString('avatar_url_${email.toLowerCase()}') ?? '').trim();
+            if (cachedSpecific.isNotEmpty) {
+              avatarUrl = cachedSpecific;
             } else {
-              final gPhoto = GoogleAuthService.getCurrentPhotoUrl();
-              if (gPhoto != null && gPhoto.isNotEmpty) {
-                avatarUrl = gPhoto;
+              final isCustom = prefs.getBool('avatarIsCustom') == true;
+              final cached = (prefs.getString('lastAvatarUrl') ?? '').trim();
+              if (isCustom && cached.isNotEmpty) {
+                avatarUrl = cached;
+              } else if (authPhotoUrl.isNotEmpty) {
+                avatarUrl = authPhotoUrl;
+              } else {
+                final gPhoto = GoogleAuthService.getCurrentPhotoUrl();
+                if (gPhoto != null && gPhoto.isNotEmpty) {
+                  avatarUrl = gPhoto;
+                }
               }
             }
           } catch (_) {}
@@ -722,6 +735,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 await prefs.setString('fingerprintEmail', email.toLowerCase());
               }
             } catch (_) {}
+          }
+          if (avatarUrl.isNotEmpty) {
+            await prefs.setString('avatar_url_${email.toLowerCase()}', avatarUrl);
           }
           final isCustom = prefs.getBool('avatarIsCustom') == true;
           if (avatarUrl.isNotEmpty && !isCustom) {
@@ -1155,6 +1171,13 @@ class _LoginScreenState extends State<LoginScreen> {
           await prefs.setString('cachedPhoneNumber', phoneNumber);
           if (token.isNotEmpty) {
             await prefs.setString('accessToken', token);
+          }
+          if (avatarUrl.isNotEmpty) {
+            await prefs.setString('avatar_url_${email.toLowerCase()}', avatarUrl);
+          }
+          final isCustom = prefs.getBool('avatarIsCustom') == true;
+          if (avatarUrl.isNotEmpty && !isCustom) {
+            await prefs.setString('lastAvatarUrl', avatarUrl);
           }
         } catch (_) {}
         final profileRes = await MongoDBService.fetchProfile(email: email);

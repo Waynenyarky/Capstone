@@ -1064,6 +1064,9 @@ class DeleteAccountConfirmPage extends StatelessWidget {
                       try {
                         final prefs = await SharedPreferences.getInstance();
                         await prefs.remove('loggedInEmail');
+                        await prefs.remove('avatar_url_${email.toLowerCase()}');
+                        await prefs.remove('lastAvatarUrl');
+                        await prefs.setBool('avatarIsCustom', false);
                         await prefs.setBool('disableAutoAuthenticatorOnce', true);
                       } catch (_) {}
                       nav.pushAndRemoveUntil(

@@ -101,7 +101,10 @@ class _AppRootState extends State<AppRoot> {
         final firstName = (prefs.getString('cachedFirstName') ?? '').trim();
         final lastName = (prefs.getString('cachedLastName') ?? '').trim();
         final phoneNumber = (prefs.getString('cachedPhoneNumber') ?? '').trim();
-        final avatar = (prefs.getString('lastAvatarUrl') ?? '').trim();
+        var avatar = (prefs.getString('avatar_url_$email') ?? '').trim();
+        if (avatar.isEmpty) {
+           avatar = (prefs.getString('lastAvatarUrl') ?? '').trim();
+        }
         if (expired) {
           try {
             await prefs.setBool('showAutoLogoutNoticeOnce', true);
@@ -205,7 +208,10 @@ class _AppRootState extends State<AppRoot> {
       final lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
       final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
       final fetchedAvatarUrl = (user['avatarUrl'] is String) ? (user['avatarUrl'] as String) : '';
-      final cachedAvatarUrl = (prefs.getString('lastAvatarUrl') ?? '').trim();
+      var cachedAvatarUrl = (prefs.getString('avatar_url_$email') ?? '').trim();
+      if (cachedAvatarUrl.isEmpty) {
+        cachedAvatarUrl = (prefs.getString('lastAvatarUrl') ?? '').trim();
+      }
       final effectiveAvatar = fetchedAvatarUrl.isNotEmpty ? fetchedAvatarUrl : cachedAvatarUrl;
       if (pending && scheduledISO != null) {
         return {
@@ -258,7 +264,10 @@ class _AppRootState extends State<AppRoot> {
           } catch (_) {}
         }
         if (email.isEmpty) return {'screen': 'login'};
-        final cachedAvatarUrl = (prefs.getString('lastAvatarUrl') ?? '').trim();
+        var cachedAvatarUrl = (prefs.getString('avatar_url_$email') ?? '').trim();
+        if (cachedAvatarUrl.isEmpty) {
+          cachedAvatarUrl = (prefs.getString('lastAvatarUrl') ?? '').trim();
+        }
         final cachedFirstName = (prefs.getString('cachedFirstName') ?? '').trim();
         final cachedLastName = (prefs.getString('cachedLastName') ?? '').trim();
         final cachedPhoneNumber = (prefs.getString('cachedPhoneNumber') ?? '').trim();

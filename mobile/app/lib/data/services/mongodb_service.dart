@@ -1803,29 +1803,53 @@ class MongoDBService {
     required String email,
     required String filePath,
   }) async {
+    final candidates = _candidateBaseUrls();
+    // Retrieve auth token for upload
+    String token = '';
     try {
-      final uri = Uri.parse('$baseUrl/api/auth/profile/avatar-file');
-      final req = http.MultipartRequest('POST', uri);
-      req.headers.addAll({
-        'Accept': 'application/json',
-        'x-user-email': email,
-      });
-      req.files.add(await http.MultipartFile.fromPath('avatar', filePath));
-      final streamed = await req.send().timeout(const Duration(seconds: 30));
-      final res = await http.Response.fromStream(streamed);
-      final ct = (res.headers['content-type'] ?? '').toLowerCase();
-      final isJson = ct.contains('application/json');
-      final data = isJson ? json.decode(res.body) : {};
-      if (res.statusCode == 200 && data is Map) {
-        return {'success': true, 'avatarUrl': data['avatarUrl']};
+      final prefs = await SharedPreferences.getInstance();
+      token = (prefs.getString('accessToken') ?? '').trim();
+    } catch (_) {}
+
+    for (final origin in candidates) {
+      try {
+        final uri = Uri.parse('$origin/api/auth/profile/avatar-file');
+        final req = http.MultipartRequest('POST', uri);
+        req.headers.addAll({
+          'Accept': 'application/json',
+          'x-user-email': email,
+        });
+        if (token.isNotEmpty) {
+           req.headers['Authorization'] = 'Bearer $token';
+           req.headers['x-auth-token'] = token;
+           req.headers['x-access-token'] = token;
+        }
+
+        req.files.add(await http.MultipartFile.fromPath('avatar', filePath));
+        final streamed = await req.send().timeout(const Duration(seconds: 30));
+        final res = await http.Response.fromStream(streamed);
+        
+        // Enhanced logging for debugging
+        debugPrint('Upload avatar response: ${res.statusCode} ${res.body}');
+
+        final ct = (res.headers['content-type'] ?? '').toLowerCase();
+        final isJson = ct.contains('application/json');
+        final data = isJson ? json.decode(res.body) : {};
+        if (res.statusCode == 200 && data is Map) {
+          return {'success': true, 'avatarUrl': data['avatarUrl']};
+        }
+        final msg = (data is Map && data['message'] is String) ? data['message'] : 'Upload failed with status ${res.statusCode}';
+        return {'success': false, 'message': msg};
+      } on TimeoutException catch (_) {
+        continue;
+      } on SocketException catch (_) {
+        continue;
+      } catch (e) {
+        debugPrint('Upload error: $e');
+        continue;
       }
-      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Upload failed';
-      return {'success': false, 'message': msg};
-    } on TimeoutException {
-      return {'success': false, 'message': 'Request timeout. Check network and server availability.'};
-    } catch (e) {
-      return {'success': false, 'message': 'Connection error: ${e.toString()}'};
     }
+    return {'success': false, 'message': 'All endpoints unreachable for upload'};
   }
 
   static Future<Map<String, dynamic>> deleteAvatar({

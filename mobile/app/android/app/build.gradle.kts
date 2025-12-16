@@ -4,6 +4,7 @@ plugins {
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+import java.util.Properties
 
 android {
     namespace = "com.yourorg.capstone"
@@ -24,6 +25,36 @@ android {
             storePassword = team.storePassword
             keyAlias = team.keyAlias
             keyPassword = team.keyPassword
+        }
+        // Load release keystore from key.properties or environment variables
+        val keystoreProps = Properties()
+        run {
+            val f = rootProject.file("key.properties")
+            if (f.exists()) {
+                f.inputStream().use { keystoreProps.load(it) }
+            }
+        }
+        val releaseStoreFileProp = keystoreProps.getProperty("storeFile") ?: System.getenv("RELEASE_STORE_FILE")
+        val releaseStoreFile = releaseStoreFileProp?.let { file(it) }
+        val releaseStorePassword = keystoreProps.getProperty("storePassword") ?: System.getenv("RELEASE_STORE_PASSWORD")
+        val releaseKeyAlias = keystoreProps.getProperty("keyAlias") ?: System.getenv("RELEASE_KEY_ALIAS")
+        val releaseKeyPassword = keystoreProps.getProperty("keyPassword") ?: System.getenv("RELEASE_KEY_PASSWORD")
+        val hasValidFile = (releaseStoreFile != null) && releaseStoreFile.exists()
+        val hasValidPasswords = !releaseStorePassword.isNullOrBlank() && !releaseKeyAlias.isNullOrBlank() && !releaseKeyPassword.isNullOrBlank()
+        create("releaseSecure") {
+            if (hasValidFile && hasValidPasswords) {
+                storeFile = releaseStoreFile
+                storePassword = releaseStorePassword!!
+                keyAlias = releaseKeyAlias!!
+                keyPassword = releaseKeyPassword!!
+            } else {
+                // Fallback to debug signing to keep builds working
+                val team = signingConfigs.getByName("teamDebug")
+                storeFile = team.storeFile
+                storePassword = team.storePassword
+                keyAlias = team.keyAlias
+                keyPassword = team.keyPassword
+            }
         }
     }
 
@@ -53,9 +84,8 @@ android {
             isMinifyEnabled = false
         }
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("teamDebug")
+            // Use release keystore if configured; otherwise fallback keeps build working
+            signingConfig = signingConfigs.getByName("releaseSecure")
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android.txt"),

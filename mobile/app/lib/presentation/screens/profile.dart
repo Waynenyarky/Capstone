@@ -58,7 +58,11 @@ class _ProfilePageState extends State<ProfilePage> {
       } catch (_) {}
       return u;
     }
-    return '${MongoDBService.baseUrl}$u';
+    String base = MongoDBService.baseUrl;
+    if (io.Platform.isAndroid && (base.contains('localhost') || base.contains('127.0.0.1'))) {
+       base = base.replaceFirst('localhost', '10.0.2.2').replaceFirst('127.0.0.1', '10.0.2.2');
+    }
+    return '$base$u';
   }
 
  
@@ -75,12 +79,13 @@ class _ProfilePageState extends State<ProfilePage> {
       try {
         if (avatarUrl.isEmpty) {
           final prefs = await SharedPreferences.getInstance();
-          final cached = (prefs.getString('lastAvatarUrl') ?? '').trim();
-          if (cached.isNotEmpty) {
-            if (mounted) {
-              setState(() {
-                avatarUrl = cached;
-              });
+          final cachedSpecific = (prefs.getString('avatar_url_${email.toLowerCase()}') ?? '').trim();
+          if (cachedSpecific.isNotEmpty) {
+             if (mounted) setState(() => avatarUrl = cachedSpecific);
+          } else {
+            final cached = (prefs.getString('lastAvatarUrl') ?? '').trim();
+            if (cached.isNotEmpty) {
+              if (mounted) setState(() => avatarUrl = cached);
             }
           }
         }
@@ -247,6 +252,7 @@ class _ProfilePageState extends State<ProfilePage> {
         });
         try {
           final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('avatar_url_${email.toLowerCase()}', avatarUrl);
           await prefs.setString('lastAvatarUrl', avatarUrl);
           await prefs.setBool('avatarIsCustom', true);
         } catch (_) {}
@@ -266,16 +272,18 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final source = await _selectImageSource();
       if (source == null) return null;
-      if (!io.Platform.isAndroid) {
-        if (source == ImageSource.gallery) {
-          final ok = await _ensureGalleryPermission(messenger);
-          if (!ok) return null;
-        }
-        if (source == ImageSource.camera) {
-          var c = await Permission.camera.status;
+      // Check permissions for both Android and iOS
+      if (source == ImageSource.gallery) {
+        final ok = await _ensureGalleryPermission(messenger);
+        if (!ok) return null;
+      }
+      if (source == ImageSource.camera) {
+        var c = await Permission.camera.status;
+        if (!c.isGranted) {
+          c = await Permission.camera.request();
           if (!c.isGranted) {
-            c = await Permission.camera.request();
-            if (!c.isGranted) return null;
+            messenger.showSnackBar(const SnackBar(content: Text('Camera permission denied')));
+            return null;
           }
         }
       }
@@ -354,20 +362,20 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<bool> _ensureGalleryPermission(ScaffoldMessengerState messenger) async {
     if (io.Platform.isAndroid) {
-      try {
-        var s = await Permission.storage.status;
-        if (!s.isGranted) {
-          s = await Permission.storage.request();
-          if (!s.isGranted) return false;
-        }
-      } catch (_) {}
-      try {
-        var p = await Permission.photos.status;
-        if (!p.isGranted && !p.isLimited) {
-          p = await Permission.photos.request();
-        }
-      } catch (_) {}
-      return true;
+      // Check if already granted
+      if (await Permission.photos.isGranted) return true;
+      if (await Permission.storage.isGranted) return true;
+
+      // Try requesting Photos permission (Android 13+)
+      final p = await Permission.photos.request();
+      if (p.isGranted) return true;
+
+      // Try requesting Storage permission (Android <13)
+      final s = await Permission.storage.request();
+      if (s.isGranted) return true;
+
+      messenger.showSnackBar(const SnackBar(content: Text('Gallery permission denied')));
+      return false;
     } else {
       var s = await Permission.photos.status;
       if (s.isPermanentlyDenied) {
@@ -804,6 +812,7 @@ class _ProfilePageState extends State<ProfilePage> {
         });
         try {
           final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('avatar_url_${email.toLowerCase()}');
           await prefs.remove('lastAvatarUrl');
           await prefs.setBool('avatarIsCustom', false);
         } catch (_) {}
