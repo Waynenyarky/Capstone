@@ -1,0 +1,21 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Hardhat build artifacts
+artifacts/
+cache/
+coverage/
+typechain/
+
+# Env files
+.env
+.env.*
+
+# OS / editor junk
+.DS_Store
+.vscode/
+
