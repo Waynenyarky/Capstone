@@ -5,7 +5,7 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Using account:", deployer.address);
 
-  const contractAddress = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"; 
+  const contractAddress = "0x689A524aB2B7cD7907097A2190573F5D27914C33"; 
   const SimpleStorage = await ethers.getContractFactory("SimpleStorage");
   const simpleStorage = SimpleStorage.attach(contractAddress);
 

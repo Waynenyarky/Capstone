@@ -1,7 +1,6 @@
 
 pragma solidity ^0.8.28;
 
-
 contract Lock {
     uint public unlockTime;
     address payable public owner;
@@ -19,13 +18,10 @@ contract Lock {
     }
 
     function withdraw() public {
-        
-
         require(block.timestamp >= unlockTime, "You can't withdraw yet");
         require(msg.sender == owner, "You aren't the owner");
 
         emit Withdrawal(address(this).balance, block.timestamp);
-
         owner.transfer(address(this).balance);
     }
 }
