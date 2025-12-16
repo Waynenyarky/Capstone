@@ -10,10 +10,10 @@ async function main() {
   console.log("Deploying contracts with account:", deployer.address);
 
   const Lock = await ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: ethers.utils.parseEther("1") });
+  const lock = await Lock.deploy(unlockTime, { value: ethers.parseEther("1") });
 
-  await lock.deployed();
-  console.log("Lock deployed to:", lock.address);
+  await lock.waitForDeployment();
+  console.log("Lock deployed to:", lock.target);
 }
 
 main().catch((error) => {
