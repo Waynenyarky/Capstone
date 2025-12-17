@@ -6,8 +6,11 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "node": "hardhat node",
-    "deploy": "hardhat run scripts/deploy.js"
+    "test:audit": "hardhat test test/AuditAnchor.js",
+    "deploy:ganache": "hardhat run scripts/deploy_audit.js --network ganache",
+    "deploy:sepolia": "hardhat run scripts/deploy_audit.js --network sepolia",
+    "interact:ganache": "hardhat run scripts/interact_audit.js --network ganache",
+    "interact:sepolia": "hardhat run scripts/interact_audit.js --network sepolia"
   },
   "keywords": [],
   "author": "",
