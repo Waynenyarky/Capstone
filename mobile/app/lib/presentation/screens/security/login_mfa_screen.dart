@@ -325,19 +325,22 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
               SizedBox(
                 width: double.infinity,
                 height: 56,
-                child: ElevatedButton(
+                child: ElevatedButton.icon(
                   onPressed: _loading || !_isOtpComplete ? null : _verify,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
+                    backgroundColor: Colors.blue.shade700,
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: Colors.grey.shade300,
                     disabledForegroundColor: Colors.grey.shade500,
-                    elevation: 0,
+                    elevation: 3,
+                    shadowColor: Colors.blue.shade200,
+                    side: BorderSide(color: Colors.blue.shade300, width: 1.2),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: _loading
+                  icon: _loading
                       ? const SizedBox(
                           height: 24,
                           width: 24,
@@ -346,13 +349,14 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Text(
-                          'Verify & Continue',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                      : const Icon(Icons.verified, size: 22),
+                  label: const Text(
+                    'Verify & Continue',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
 

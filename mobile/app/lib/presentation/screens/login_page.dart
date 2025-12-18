@@ -46,6 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _authenticatorEnabled = false;
   bool _fingerprintDeviceOk = true;
   bool _showAccountFields = false;
+  String _authEmail = '';
   final LocalAuthentication _localAuth = LocalAuthentication();
 
   @override
@@ -294,6 +295,7 @@ class _LoginScreenState extends State<LoginScreen> {
               setState(() {
                 _fingerprintEnabled = fpCached;
                 _authenticatorEnabled = authCached;
+                _authEmail = chosen;
               });
             }
           }
@@ -319,6 +321,7 @@ class _LoginScreenState extends State<LoginScreen> {
               setState(() {
                 _fingerprintEnabled = fpEnabled;
                 _authenticatorEnabled = authEnabled;
+                _authEmail = chosen;
               });
             }
 
@@ -362,12 +365,24 @@ class _LoginScreenState extends State<LoginScreen> {
           // await prefs.remove('fingerprintEmail'); 
         } catch (_) {}
         if (!preKnown) {
-          if (mounted) setState(() => _fingerprintEnabled = false);
+          if (mounted) {
+            setState(() {
+              _fingerprintEnabled = false;
+              _authenticatorEnabled = false;
+              _authEmail = '';
+            });
+          }
         }
       }
       } catch (_) {
         if (!preKnown) {
-          if (mounted) setState(() => _fingerprintEnabled = false);
+          if (mounted) {
+            setState(() {
+              _fingerprintEnabled = false;
+              _authenticatorEnabled = false;
+              _authEmail = '';
+            });
+          }
         }
     }
   }
@@ -1012,6 +1027,23 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
 
                     if (_showAccountFields) ...[
+                      if (_fingerprintEnabled) ...[
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _isLoading ? null : _loginWithFingerprint,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.blue.shade700,
+                              side: BorderSide(color: Colors.blue.shade300),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            ),
+                            icon: const Icon(Icons.fingerprint, size: 20),
+                            label: const Text('Login Using Biometrics', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                        SizedBox(height: spacing),
+                      ],
                       // Email Field
                       TextFormField(
                         controller: _emailController,
@@ -1046,7 +1078,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           return null;
                         },
                       ),
-                      if (_authenticatorEnabled && _emailController.text.trim().isNotEmpty)
+                      if (_isValidEmail(_emailController.text.trim()) && _authenticatorEnabled && _emailController.text.trim().toLowerCase() == _authEmail)
                         Padding(
                           padding: const EdgeInsets.only(top: 8, left: 4),
                           child: Row(
@@ -1167,7 +1199,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       // Login Button
                       ElevatedButton(
-                        onPressed: _isLoading ? null : _loginAccountOnly,
+                        onPressed: _isLoading
+                            ? null
+                            : ((_isValidEmail(_emailController.text.trim()) && _authenticatorEnabled && _emailController.text.trim().toLowerCase() == _authEmail)
+                                ? _navigateToMfa
+                                : _loginAccountOnly),
                         style: ElevatedButton.styleFrom(
                           padding: EdgeInsets.symmetric(
                             vertical: isSmallScreen ? 14 : 16,
@@ -1186,13 +1222,49 @@ class _LoginScreenState extends State<LoginScreen> {
                                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                 ),
                               )
-                            : Text(
-                                _authenticatorEnabled ? 'Login (MFA)' : 'Login',
-                                style: TextStyle(
-                                  fontSize: subtitleFontSize + 1,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                            : ((_isValidEmail(_emailController.text.trim()) && _authenticatorEnabled && _emailController.text.trim().toLowerCase() == _authEmail)
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Login ',
+                                        style: TextStyle(
+                                          fontSize: subtitleFontSize + 1,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(999),
+                                          border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.shield, size: 14, color: Colors.white),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              'MFA',
+                                              style: TextStyle(
+                                                fontSize: subtitleFontSize,
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : Text(
+                                    'Login',
+                                    style: TextStyle(
+                                      fontSize: subtitleFontSize + 1,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  )),
                        ),
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1227,14 +1299,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         label: const Text('Continue with Google', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                       ),
                       
-                      if (_fingerprintEnabled)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 12),
-                          child: TextButton(
-                            onPressed: _isLoading ? null : () => setState(() => _showAccountFields = false),
-                            child: const Text('Use Biometrics instead'),
-                          ),
-                        ),
+                      
                       SizedBox(height: spacing),
                     ],
                     
@@ -1394,7 +1459,10 @@ class _LoginScreenState extends State<LoginScreen> {
           
           // Learn: Authenticator is enabled
           if (!_authenticatorEnabled) {
-            setState(() => _authenticatorEnabled = true);
+            setState(() {
+              _authenticatorEnabled = true;
+              _authEmail = email;
+            });
             await prefs.setBool('auth_cache_enabled_$email', true);
             await prefs.setInt('mfa_cache_ts_$email', DateTime.now().millisecondsSinceEpoch);
           }
@@ -1481,6 +1549,23 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _navigateToMfa() async {
+    final messenger = ScaffoldMessenger.of(context);
+    var email = _emailController.text.trim().toLowerCase();
+    if (!_isValidEmail(email)) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        email = (prefs.getString('loggedInEmail') ?? prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
+      } catch (_) {}
+    }
+    if (email.isEmpty || !_isValidEmail(email)) {
+      messenger.showSnackBar(const SnackBar(content: Text('Enter your email first')));
+      return;
+    }
+    if (!mounted) return;
+    Navigator.push(context, MaterialPageRoute(builder: (_) => LoginMfaScreen(email: email)));
+  }
+
   Timer? _fpDebounce;
   
   void _onEmailChanged() {
@@ -1490,10 +1575,6 @@ class _LoginScreenState extends State<LoginScreen> {
   void _refreshFingerprintStatusForEmail() {
     final email = _emailController.text.trim().toLowerCase();
     if (!_isValidEmail(email)) {
-      setState(() {
-        _fingerprintEnabled = false;
-        _authenticatorEnabled = false;
-      });
       return;
     }
     _fpDebounce?.cancel();
@@ -1508,8 +1589,11 @@ class _LoginScreenState extends State<LoginScreen> {
         
         if (mounted) {
           setState(() {
-            _fingerprintEnabled = fingerEnabled;
+            if (fingerEnabled) {
+              _fingerprintEnabled = true;
+            }
             _authenticatorEnabled = authEnabled;
+            _authEmail = authEnabled ? email : '';
           });
         }
         
@@ -1537,8 +1621,8 @@ class _LoginScreenState extends State<LoginScreen> {
       } catch (_) {
         if (mounted) {
           setState(() {
-            _fingerprintEnabled = false;
             _authenticatorEnabled = false;
+            _authEmail = '';
           });
         }
       }
