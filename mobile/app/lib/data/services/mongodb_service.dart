@@ -46,6 +46,7 @@ class MongoDBService {
     final payload = json.encode(body);
     for (final origin in candidates) {
       final uri = Uri.parse('$origin$path');
+      debugPrint('Trying endpoint: $uri');
       try {
         final res = await http
             .post(
@@ -54,15 +55,20 @@ class MongoDBService {
           body: payload,
         )
             .timeout(timeout);
+        debugPrint('Success with endpoint: $uri');
         return res;
-      } on TimeoutException catch (_) {
+      } on TimeoutException catch (e) {
+        debugPrint('Timeout on $uri: $e');
         continue;
-      } on SocketException catch (_) {
+      } on SocketException catch (e) {
+        debugPrint('SocketException on $uri: $e');
         continue;
-      } catch (_) {
+      } catch (e) {
+        debugPrint('Error on $uri: $e');
         continue;
       }
     }
+    debugPrint('All endpoints failed. Candidates were: $candidates');
     throw TimeoutException('All endpoints unreachable for $path');
   }
 
@@ -184,6 +190,7 @@ class MongoDBService {
     } catch (_) {}
     for (final origin in candidates) {
       final uri = Uri.parse('$origin$path');
+      debugPrint('Trying GET endpoint: $uri');
       try {
         final res = await http
             .get(
@@ -191,15 +198,20 @@ class MongoDBService {
           headers: baseHeaders,
         )
             .timeout(timeout);
+        debugPrint('Success with GET endpoint: $uri');
         return res;
-      } on TimeoutException catch (_) {
+      } on TimeoutException catch (e) {
+        debugPrint('Timeout on $uri: $e');
         continue;
-      } on SocketException catch (_) {
+      } on SocketException catch (e) {
+        debugPrint('SocketException on $uri: $e');
         continue;
-      } catch (_) {
+      } catch (e) {
+        debugPrint('Error on $uri: $e');
         continue;
       }
     }
+    debugPrint('All GET endpoints failed. Candidates were: $candidates');
     throw TimeoutException('All endpoints unreachable for $path');
   }
 

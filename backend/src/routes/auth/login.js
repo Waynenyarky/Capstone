@@ -562,9 +562,9 @@ const fingerprintStartSchema = Joi.object({
 router.post('/login/start-fingerprint', validateBody(fingerprintStartSchema), async (req, res) => {
   try {
     const { email } = req.body || {}
-    const doc = await User.findOne({ email }).lean()
+    const doc = await User.findOne({ email })
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
-    if (doc.mfaEnabled !== true || (!doc.fprintEnabled && !(String(doc.mfaMethod || '').toLowerCase() === 'fingerprint' || !doc.mfaSecret))) {
+    if (doc.mfaEnabled !== true || (!doc.fprintEnabled && !(String(doc.mfaMethod || '').toLowerCase().includes('fingerprint') || !doc.mfaSecret))) {
       return respond.error(res, 400, 'fingerprint_not_enabled', 'Fingerprint is not enabled for this account')
     }
     const loginToken = generateToken()
@@ -605,11 +605,11 @@ router.post('/login/complete-fingerprint', validateBody(fingerprintCompleteSchem
       if (String(reqObj.loginToken) !== String(token)) return respond.error(res, 401, 'invalid_fingerprint_token', 'Invalid fingerprint token')
     }
 
-  const doc = await User.findOne({ email }).lean()
-  if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
-  if (doc.mfaEnabled !== true || (!doc.fprintEnabled && !(String(doc.mfaMethod || '').toLowerCase() === 'fingerprint' || !doc.mfaSecret))) {
-    return respond.error(res, 400, 'fingerprint_not_enabled', 'Fingerprint is not enabled for this account')
-  }
+  const doc = await User.findOne({ email })
+    if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+    if (doc.mfaEnabled !== true || (!doc.fprintEnabled && !(String(doc.mfaMethod || '').toLowerCase().includes('fingerprint') || !doc.mfaSecret))) {
+      return respond.error(res, 400, 'fingerprint_not_enabled', 'Fingerprint is not enabled for this account')
+    }
     if (doc.role !== 'user' && doc.role !== 'admin') {
       try {
         const dbDoc = await User.findById(doc._id)

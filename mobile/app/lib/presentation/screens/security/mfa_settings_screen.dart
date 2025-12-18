@@ -24,7 +24,6 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
   String? _selected;
   bool _authEnabled = false;
   bool _fingerEnabled = false;
-  bool _faceEnabled = false;
   bool _disablePending = false;
   DateTime? _scheduledFor;
   Duration _disableRemaining = Duration.zero;
@@ -38,15 +37,6 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
     super.initState();
     _loadAuthDetail();
     _checkDeviceSupport();
-  }
-
-  void _toggleFace(bool value) {
-    setState(() {
-      _faceEnabled = value;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Face recognition ${value ? 'enabled (UI only)' : 'disabled (UI only)'}')),
-    );
   }
 
   Future<void> _checkDeviceSupport() async {
@@ -461,20 +451,6 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
                 onTap: () => _select('fingerprint'),
                 content: _buildDetailFor('fingerprint'),
               ),
-
-              const SizedBox(height: 16),
-
-              // Face Section
-              _buildSection(
-                id: 'face',
-                title: 'Face Recognition',
-                subtitle: 'Use device face recognition',
-                icon: Icons.face_rounded,
-                isEnabled: _faceEnabled,
-                isSelected: _selected == 'face',
-                onTap: () => _select('face'),
-                content: _buildDetailFor('face'),
-              ),
             ],
           ),
         ),
@@ -787,43 +763,6 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
                   ),
                 ),
               ],
-            ],
-          ),
-        );
-      case 'face':
-        return _buildMethodCard(
-          icon: Icons.face_rounded,
-          title: 'Face Recognition',
-          enabled: _faceEnabled,
-          loading: false,
-          onToggle: _toggleFace,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('How it works', style: titleStyle),
-              const SizedBox(height: 8),
-              const Text('Use your device\'s face recognition to add an additional check after password.', style: bodyStyle),
-              const SizedBox(height: 8),
-              const Text('Ensure face recognition is set up in your device settings.', style: bodyStyle),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Face recognition setup is UI-only')),
-                    );
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
-                  ),
-                  child: const Text('Set Up Face ID', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-              ),
             ],
           ),
         );

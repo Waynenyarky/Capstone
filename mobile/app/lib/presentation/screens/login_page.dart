@@ -1362,12 +1362,11 @@ class _LoginScreenState extends State<LoginScreen> {
       final messenger = ScaffoldMessenger.of(context);
       final emailVal = _emailController.text.trim().toLowerCase();
       
-      // Attempt login. Note: We do NOT bypass fingerprint anymore to ensure strict enforcement.
-      // If fingerprint is enabled/required, the backend will return 'fingerprint_required'.
+      // Attempt login. We bypass fingerprint to allow password-only login as requested.
       final result = await MongoDBService.login(
         email: emailVal,
         password: _passwordController.text,
-        bypassFingerprint: false, 
+        bypassFingerprint: true, 
       );
       setState(() => _isLoading = false);
       if (result['success']) {
