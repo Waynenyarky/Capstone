@@ -1,102 +1,89 @@
-# AI Foundation: Environment Setup with Anaconda
+# AI Foundation: Environment Setup
 
-This guide covers setting up Anaconda, Jupyter Notebook, and TensorFlow for the AI foundation.
+This guide covers setting up the Anaconda environment for the AI foundation using the committed environment specification.
 
 ## Prerequisites
 
 - **Windows, macOS, or Linux** operating system
-- Administrator access to install software
+- **Anaconda or Miniconda** installed ([anaconda.com](https://www.anaconda.com/download))
 - Internet connection for downloading packages
 
 ---
 
-## Step 1: Install Anaconda
+## Quick Start: Create Environment from Spec
 
-### Windows & macOS
-1. Download from [anaconda.com](https://www.anaconda.com/download)
-2. Run the installer and follow the default installation steps
-3. **Important**: During installation, check "Add Anaconda to PATH" (Windows) or use the graphical installer defaults (macOS)
-4. Restart your terminal/PowerShell
+The environment configuration is stored in `ai/environment.yml` and is committed to the repository for reproducibility.
 
-### Verify Installation
+### Step 1: Navigate to Project Root
 ```bash
-conda --version
-python --version
+cd path/to/Capstone
+```
+
+### Step 2: Create Environment from Spec
+```bash
+conda env create -f ai/environment.yml
+```
+
+This will create an environment named `capstone-ai` with all required dependencies.
+
+### Step 3: Activate Environment
+```bash
+conda activate capstone-ai
+```
+
+### Step 4: Verify Installation
+```bash
+python -c "import tensorflow as tf; print(f'TensorFlow: {tf.__version__}')"
+python -c "import jupyter; print(f'Jupyter available')"
+python -c "import pandas; print(f'Pandas: {pd.__version__}')"
 ```
 
 ---
 
-## Step 2: Create a Project Environment
+## Environment Contents
 
-Creating a dedicated conda environment isolates dependencies and prevents conflicts.
+The `ai/environment.yml` includes:
 
-### Create Environment
-```bash
-# Navigate to the project root
-cd path/to/Capstone
+- **Python 3.10** - Recommended for TensorFlow compatibility
+- **Core Data Science**: pandas, numpy, scikit-learn, scipy
+- **Deep Learning**: tensorflow (CPU included)
+- **Notebooks**: jupyter, jupyterlab, notebook, ipython, ipywidgets
+- **Visualization**: matplotlib, seaborn
+- **Utilities**: joblib, python-dotenv
+- **Development**: pip for any additional packages
 
-# Create environment with Python 3.10 (recommended for TensorFlow)
-conda create -n capstone-ai python=3.10 -y
+---
 
-# Activate environment
-conda activate capstone-ai
-```
+## Troubleshooting
 
-### Windows PowerShell Issue?
-If activation fails, run:
+### Windows PowerShell: Activation Error
+If environment activation fails:
 ```powershell
 conda init powershell
 # Restart PowerShell and try again
 ```
 
----
-
-## Step 3: Install Required Packages
-
-### Install Core Dependencies
+### Update Existing Environment
+If you need to sync with the latest `ai/environment.yml`:
 ```bash
-# With environment activated (capstone-ai)
-conda install -c conda-forge pandas numpy scikit-learn jupyter notebook -y
+conda env update -f ai/environment.yml --prune
 ```
 
-### Install TensorFlow (Option A: CPU - Faster Setup)
+### Create Fresh Environment
+To completely recreate:
 ```bash
-conda install -c conda-forge tensorflow -y
-```
-
-### Install TensorFlow (Option B: GPU - For Fast Training)
-Requires NVIDIA GPU and CUDA toolkit:
-```bash
-# GPU version (NVIDIA only)
-conda install -c conda-forge tensorflow[and-cuda] -y
-```
-
-### Verify Installation
-```bash
-python -c "import tensorflow as tf; print(tf.__version__)"
-python -c "import jupyter; print(jupyter.__version__)"
+conda env remove -n capstone-ai
+conda env create -f ai/environment.yml
 ```
 
 ---
 
-## Step 4: Create environment.yml for Reproducibility
+## Next Steps
 
-Save your environment configuration:
-
-```bash
-# Generate environment file
-conda env export > environment.yml
-```
-
-**To recreate environment on another machine:**
-```bash
-conda env create -f environment.yml
-conda activate capstone-ai
-```
-
----
-
-## Step 5: Launch Jupyter Notebook
+See the following guides in order:
+- **[2_DATA_SETUP.md](2_DATA_SETUP.md)** - Configure datasets and data loading
+- **[3_JUPYTER_GUIDE.md](3_JUPYTER_GUIDE.md)** - Run notebooks and explore data
+- **[4_MODEL_TRAINING.md](4_MODEL_TRAINING.md)** - Train and evaluate models
 
 ### Start Jupyter
 ```bash

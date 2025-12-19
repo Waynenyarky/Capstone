@@ -1,0 +1,62 @@
+# Environment & Dependencies
+.env
+.env.local
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+.jupyter/
+
+# AI/ML Models and Large Files
+ai/models/**/*.h5
+ai/models/**/*.pkl
+ai/models/**/*.joblib
+ai/models/**/*.pth
+ai/models/**/*.onnx
+
+# Datasets (keep sample files, exclude large real datasets)
+ai/datasets/**
+!ai/datasets/sample_toy.csv
+!ai/datasets/sample_template.csv
+
+# Python Virtual Environments
+venv/
+env/
+conda-env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build & Distribution
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Node & Web
+node_modules/
+.npm
+dist/
+build/
+
+# Blockchain & Database
+blockchain/data/**
+!blockchain/data/.gitkeep
+db/**
+!db/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
