@@ -1,0 +1,39 @@
+# Python Requirements (pip alternative to environment.yml)
+# Usage: pip install -r requirements.txt
+
+# Core Data Science
+pandas>=1.5.0
+numpy>=1.23.0
+scikit-learn>=1.2.0
+scipy>=1.10.0
+
+# Deep Learning
+tensorflow>=2.12.0
+
+# Jupyter Notebooks
+jupyter>=1.0.0
+notebook>=7.0.0
+jupyterlab>=4.0.0
+ipython>=8.10.0
+
+# Data Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Model Serialization
+joblib>=1.2.0
+
+# Environment Management
+python-dotenv>=0.21.0
+
+# Optional: For enhanced notebooks
+ipywidgets>=8.0.0
+
+# Optional: For model export formats
+onnx>=1.12.0
+onnxruntime>=1.13.0
+
+# Optional: For serving models
+flask>=2.3.0
+flask-cors>=4.0.0
+gunicorn>=20.1.0

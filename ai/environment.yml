@@ -1,0 +1,39 @@
+name: capstone-ai
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  # Python
+  - python=3.10
+
+  # Core Data Science & ML
+  - pandas>=1.5.0
+  - numpy>=1.23.0
+  - scikit-learn>=1.2.0
+  - scipy>=1.10.0
+
+  # Deep Learning (TensorFlow)
+  - tensorflow>=2.12.0
+
+  # Jupyter & Notebooks
+  - jupyter>=1.0.0
+  - notebook>=7.0.0
+  - jupyterlab>=4.0.0
+  - ipython>=8.10.0
+
+  # Data Visualization
+  - matplotlib>=3.7.0
+  - seaborn>=0.12.0
+
+  # Model Serialization
+  - joblib>=1.2.0
+
+  # Development & Utilities
+  - pip>=23.0
+
+  # Optional: IPython Extensions
+  - ipywidgets>=8.0.0
+
+pip:
+  # Any pip-only packages can be listed here if needed
+  # Currently all main dependencies are available via conda-forge
