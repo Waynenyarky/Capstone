@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MongoDBService {
     static final String baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:3000';
@@ -25,6 +26,10 @@ class MongoDBService {
         urls.add(Uri(scheme: u.scheme, host: '10.0.2.2', port: altPort).toString());
       }
     } catch (_) {}
+    final extra = (dotenv.env['ALT_BASE_URLS'] ?? '').split(',').map((s) => s.trim()).where((s) => s.isNotEmpty);
+    for (final x in extra) {
+      urls.add(x);
+    }
     final seen = <String>{};
     final out = <String>[];
     for (final x in urls) {
@@ -41,6 +46,7 @@ class MongoDBService {
     final payload = json.encode(body);
     for (final origin in candidates) {
       final uri = Uri.parse('$origin$path');
+      debugPrint('Trying endpoint: $uri');
       try {
         final res = await http
             .post(
@@ -49,15 +55,20 @@ class MongoDBService {
           body: payload,
         )
             .timeout(timeout);
+        debugPrint('Success with endpoint: $uri');
         return res;
-      } on TimeoutException catch (_) {
+      } on TimeoutException catch (e) {
+        debugPrint('Timeout on $uri: $e');
         continue;
-      } on SocketException catch (_) {
+      } on SocketException catch (e) {
+        debugPrint('SocketException on $uri: $e');
         continue;
-      } catch (_) {
+      } catch (e) {
+        debugPrint('Error on $uri: $e');
         continue;
       }
     }
+    debugPrint('All endpoints failed. Candidates were: $candidates');
     throw TimeoutException('All endpoints unreachable for $path');
   }
 
@@ -74,6 +85,18 @@ class MongoDBService {
       'Accept': 'application/json',
       ...?headers,
     };
+    try {
+      final providedAuth = (headers ?? const {}).keys.map((k) => k.toLowerCase()).contains('authorization');
+      if (!providedAuth) {
+        final prefs = await SharedPreferences.getInstance();
+        final t = (prefs.getString('accessToken') ?? '').trim();
+        if (t.isNotEmpty) {
+          baseHeaders['Authorization'] = 'Bearer $t';
+          baseHeaders['x-auth-token'] = t;
+          baseHeaders['x-access-token'] = t;
+        }
+      }
+    } catch (_) {}
     for (final origin in candidates) {
       final uri = Uri.parse('$origin$path');
       try {
@@ -109,6 +132,18 @@ class MongoDBService {
       'Accept': 'application/json',
       ...?headers,
     };
+    try {
+      final providedAuth = (headers ?? const {}).keys.map((k) => k.toLowerCase()).contains('authorization');
+      if (!providedAuth) {
+        final prefs = await SharedPreferences.getInstance();
+        final t = (prefs.getString('accessToken') ?? '').trim();
+        if (t.isNotEmpty) {
+          baseHeaders['Authorization'] = 'Bearer $t';
+          baseHeaders['x-auth-token'] = t;
+          baseHeaders['x-access-token'] = t;
+        }
+      }
+    } catch (_) {}
     for (final origin in candidates) {
       final uri = Uri.parse('$origin$path');
       try {
@@ -141,8 +176,21 @@ class MongoDBService {
       'Accept': 'application/json',
       ...?headers,
     };
+    try {
+      final providedAuth = (headers ?? const {}).keys.map((k) => k.toLowerCase()).contains('authorization');
+      if (!providedAuth) {
+        final prefs = await SharedPreferences.getInstance();
+        final t = (prefs.getString('accessToken') ?? '').trim();
+        if (t.isNotEmpty) {
+          baseHeaders['Authorization'] = 'Bearer $t';
+          baseHeaders['x-auth-token'] = t;
+          baseHeaders['x-access-token'] = t;
+        }
+      }
+    } catch (_) {}
     for (final origin in candidates) {
       final uri = Uri.parse('$origin$path');
+      debugPrint('Trying GET endpoint: $uri');
       try {
         final res = await http
             .get(
@@ -150,16 +198,43 @@ class MongoDBService {
           headers: baseHeaders,
         )
             .timeout(timeout);
+        debugPrint('Success with GET endpoint: $uri');
         return res;
-      } on TimeoutException catch (_) {
+      } on TimeoutException catch (e) {
+        debugPrint('Timeout on $uri: $e');
         continue;
-      } on SocketException catch (_) {
+      } on SocketException catch (e) {
+        debugPrint('SocketException on $uri: $e');
         continue;
-      } catch (_) {
+      } catch (e) {
+        debugPrint('Error on $uri: $e');
         continue;
       }
     }
+    debugPrint('All GET endpoints failed. Candidates were: $candidates');
     throw TimeoutException('All endpoints unreachable for $path');
+  }
+
+  static Future<bool> isNetworkAvailable({Duration timeout = const Duration(seconds: 3)}) async {
+    try {
+      final list = await InternetAddress.lookup('google.com').timeout(timeout);
+      return list.isNotEmpty && list.first.rawAddress.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<Map<String, dynamic>> serverHealth({Duration timeout = const Duration(seconds: 5)}) async {
+    try {
+      final res = await _getWithFallbackH('/api/health', timeout: timeout);
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? (json.decode(res.body) as Map<String, dynamic>? ?? {}) : {};
+      final ok = isJson ? (data['ok'] == true) : (res.statusCode == 200);
+      return { 'ok': ok, 'status': res.statusCode, 'service': data['service'] };
+    } catch (e) {
+      return { 'ok': false, 'error': e.toString() };
+    }
   }
 
 
@@ -324,11 +399,17 @@ class MongoDBService {
       final data = json.decode(response.body);
       if (response.statusCode == 200) {
         final user = data;
+        String? token;
+        try {
+          if (data is Map && data['token'] is String && (data['token'] as String).isNotEmpty) {
+            token = data['token'] as String;
+          }
+        } catch (_) {}
         return {
           'success': true,
           'message': 'Login successful',
           'user': user,
-          'token': null,
+          'token': token,
         };
       } else {
         String code = '';
@@ -364,6 +445,43 @@ class MongoDBService {
         'success': false,
         'message': 'Connection error: ${e.toString()}',
       };
+    }
+  }
+
+  static Future<Map<String, dynamic>> loginWithGoogle({ required String idToken, String? email, String? providerId, bool? emailVerified, String? firstName, String? lastName }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/login/google',
+        { 'idToken': idToken, if (email != null) 'email': email, if (providerId != null) 'providerId': providerId, if (emailVerified != null) 'emailVerified': emailVerified, if (firstName != null) 'firstName': firstName, if (lastName != null) 'lastName': lastName },
+        timeout: const Duration(seconds: 12),
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200) {
+        String? token;
+        try {
+          if (data is Map && data['token'] is String && (data['token'] as String).isNotEmpty) {
+            token = data['token'] as String;
+          }
+        } catch (_) {}
+        return { 'success': true, 'user': data, if (token != null) 'token': token };
+      }
+      String msg = 'Google login failed';
+      try {
+        if (data is Map) {
+          if ((data['error'] is Map) && ((data['error'] as Map)['message'] is String)) {
+            msg = (data['error'] as Map)['message'] as String;
+          } else if (data['message'] is String) {
+            msg = data['message'] as String;
+          }
+        }
+      } catch (_) {}
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
     }
   }
 
@@ -466,18 +584,25 @@ class MongoDBService {
       final isJson = ct.contains('application/json');
       final data = isJson ? json.decode(res.body) : {};
       if (res.statusCode == 200 && data is Map) {
-        final enabled = data['enabled'] == true;
-        final rawMethod = (data['method'] is String) ? (data['method'] as String) : '';
-        final effectiveFp = data['isFingerprintEnabled'] == true;
-        return {
-          'success': true,
-          'enabled': enabled,
-          'disablePending': data['disablePending'] == true,
-          'scheduledFor': data['scheduledFor'],
-          'method': rawMethod,
-          'isFingerprintEnabled': effectiveFp,
-        };
-      }
+              final enabled = data['enabled'] == true;
+              
+              String rawMethod = '';
+              if (data['method'] is String) {
+                rawMethod = data['method'];
+              } else if (data['method'] is List) {
+                rawMethod = (data['method'] as List).join(',');
+              }
+              
+              final effectiveFp = data['isFingerprintEnabled'] == true;
+              return {
+                'success': true,
+                'enabled': enabled,
+                'disablePending': data['disablePending'] == true,
+                'scheduledFor': data['scheduledFor'],
+                'method': rawMethod,
+                'isFingerprintEnabled': effectiveFp,
+              };
+            }
       final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to fetch status';
       return { 'success': false, 'message': msg };
     } on TimeoutException {
@@ -1441,36 +1566,40 @@ class MongoDBService {
 
   static Future<Map<String, dynamic>> fetchProfile({
     required String email,
+    String? token,
   }) async {
     try {
-      final res = await http
-          .get(
-        Uri.parse('$baseUrl/api/auth/me'),
-        headers: {
-          'Accept': 'application/json',
-          'x-user-email': email,
-        },
-      )
-          .timeout(const Duration(seconds: 12));
+      final headers = {
+        'x-user-email': email,
+      };
+      if (token != null && token.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+      final res = await _getWithFallbackH(
+        '/api/auth/me',
+        headers: headers,
+        timeout: const Duration(seconds: 12),
+      );
       final ct = (res.headers['content-type'] ?? '').toLowerCase();
       final isJson = ct.contains('application/json');
       final data = isJson ? json.decode(res.body) : {};
       if (res.statusCode == 200 && data is Map) {
-        return {
-          'success': true,
-          'user': data,
-          'deletionPending': data['deletionPending'] == true,
-          'deletionScheduledFor': (data['deletionScheduledFor'] is String) ? data['deletionScheduledFor'] : null,
-        };
-      }
-      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to load profile';
-      return { 'success': false, 'message': msg };
-    } on TimeoutException {
-      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
-    } catch (e) {
-      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
-    }
-  }
+              return {
+                'success': true,
+                'user': data,
+                'deletionPending': data['deletionPending'] == true,
+                'deletionScheduledFor': (data['deletionScheduledFor'] is String) ? data['deletionScheduledFor'] : null,
+                'statusCode': 200,
+              };
+            }
+            final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to load profile';
+            return { 'success': false, 'message': msg, 'statusCode': res.statusCode };
+          } on TimeoutException {
+            return { 'success': false, 'message': 'Request timeout. Check network and server availability.', 'statusCode': 408 };
+          } catch (e) {
+            return { 'success': false, 'message': 'Connection error: ${e.toString()}', 'statusCode': 500 };
+          }
+        }
 
   static Future<Map<String, dynamic>> cancelAccountDeletion({
     required String email,
@@ -1699,29 +1828,53 @@ class MongoDBService {
     required String email,
     required String filePath,
   }) async {
+    final candidates = _candidateBaseUrls();
+    // Retrieve auth token for upload
+    String token = '';
     try {
-      final uri = Uri.parse('$baseUrl/api/auth/profile/avatar-file');
-      final req = http.MultipartRequest('POST', uri);
-      req.headers.addAll({
-        'Accept': 'application/json',
-        'x-user-email': email,
-      });
-      req.files.add(await http.MultipartFile.fromPath('avatar', filePath));
-      final streamed = await req.send().timeout(const Duration(seconds: 30));
-      final res = await http.Response.fromStream(streamed);
-      final ct = (res.headers['content-type'] ?? '').toLowerCase();
-      final isJson = ct.contains('application/json');
-      final data = isJson ? json.decode(res.body) : {};
-      if (res.statusCode == 200 && data is Map) {
-        return {'success': true, 'avatarUrl': data['avatarUrl']};
+      final prefs = await SharedPreferences.getInstance();
+      token = (prefs.getString('accessToken') ?? '').trim();
+    } catch (_) {}
+
+    for (final origin in candidates) {
+      try {
+        final uri = Uri.parse('$origin/api/auth/profile/avatar-file');
+        final req = http.MultipartRequest('POST', uri);
+        req.headers.addAll({
+          'Accept': 'application/json',
+          'x-user-email': email,
+        });
+        if (token.isNotEmpty) {
+           req.headers['Authorization'] = 'Bearer $token';
+           req.headers['x-auth-token'] = token;
+           req.headers['x-access-token'] = token;
+        }
+
+        req.files.add(await http.MultipartFile.fromPath('avatar', filePath));
+        final streamed = await req.send().timeout(const Duration(seconds: 30));
+        final res = await http.Response.fromStream(streamed);
+        
+        // Enhanced logging for debugging
+        debugPrint('Upload avatar response: ${res.statusCode} ${res.body}');
+
+        final ct = (res.headers['content-type'] ?? '').toLowerCase();
+        final isJson = ct.contains('application/json');
+        final data = isJson ? json.decode(res.body) : {};
+        if (res.statusCode == 200 && data is Map) {
+          return {'success': true, 'avatarUrl': data['avatarUrl']};
+        }
+        final msg = (data is Map && data['message'] is String) ? data['message'] : 'Upload failed with status ${res.statusCode}';
+        return {'success': false, 'message': msg};
+      } on TimeoutException catch (_) {
+        continue;
+      } on SocketException catch (_) {
+        continue;
+      } catch (e) {
+        debugPrint('Upload error: $e');
+        continue;
       }
-      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Upload failed';
-      return {'success': false, 'message': msg};
-    } on TimeoutException {
-      return {'success': false, 'message': 'Request timeout. Check network and server availability.'};
-    } catch (e) {
-      return {'success': false, 'message': 'Connection error: ${e.toString()}'};
     }
+    return {'success': false, 'message': 'All endpoints unreachable for upload'};
   }
 
   static Future<Map<String, dynamic>> deleteAvatar({
@@ -1790,7 +1943,13 @@ class MongoDBService {
       final isJson = ct.contains('application/json');
       final data = isJson ? json.decode(response.body) : {};
       if (response.statusCode == 200) {
-        return { 'success': true, 'user': data };
+        String? access;
+        try {
+          if (data is Map && data['token'] is String && (data['token'] as String).isNotEmpty) {
+            access = data['token'] as String;
+          }
+        } catch (_) {}
+        return { 'success': true, 'user': data, if (access != null) 'token': access };
       }
       final msg = (data is Map && data['message'] is String) ? data['message'] as String : 'Fingerprint login failed';
       return { 'success': false, 'message': msg };

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 import 'package:app/data/services/mongodb_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -14,6 +15,8 @@ import 'change_email_page.dart';
 import 'delete_account_next_page.dart';
 import 'change_password_page.dart';
 import 'edit_profile_page.dart';
+import 'package:app/data/services/google_auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfilePage extends StatefulWidget {
   final String email;
@@ -37,6 +40,29 @@ class _ProfilePageState extends State<ProfilePage> {
   String _localAvatarPath = '';
   bool _uploadingAvatar = false;
 
+  String _resolveAvatarUrl(String url) {
+    final u = (url).trim();
+    if (u.isEmpty) return '';
+    if (u.startsWith('http://') || u.startsWith('https://')) {
+      try {
+        final uri = Uri.parse(u);
+        final host = uri.host.toLowerCase();
+        if (host.contains('googleusercontent.com')) {
+          String path = uri.path.replaceAll(RegExp(r's\d{2,4}-c'), 's1024-c');
+          String query = uri.query.replaceAll(RegExp(r'(?<=^|[&])sz=\d{2,4}'), 'sz=1024');
+          final upgraded = uri.replace(path: path, query: query).toString();
+          return upgraded;
+        }
+      } catch (_) {}
+      return u;
+    }
+    String base = MongoDBService.baseUrl;
+    if (io.Platform.isAndroid && (base.contains('localhost') || base.contains('127.0.0.1'))) {
+       base = base.replaceFirst('localhost', '10.0.2.2').replaceFirst('127.0.0.1', '10.0.2.2');
+    }
+    return '$base$u';
+  }
+
  
 
   @override
@@ -47,6 +73,27 @@ class _ProfilePageState extends State<ProfilePage> {
     lastName = widget.lastName;
     phoneNumber = widget.phoneNumber;
     avatarUrl = widget.avatarUrl;
+    () async {
+      try {
+        if (avatarUrl.isEmpty) {
+          final prefs = await SharedPreferences.getInstance();
+          final cachedSpecific = (prefs.getString('avatar_url_${email.toLowerCase()}') ?? '').trim();
+          if (cachedSpecific.isNotEmpty) {
+             if (mounted) setState(() => avatarUrl = cachedSpecific);
+          } else {
+            final cached = (prefs.getString('lastAvatarUrl') ?? '').trim();
+            if (cached.isNotEmpty) {
+              if (mounted) setState(() => avatarUrl = cached);
+            }
+          }
+        }
+      } catch (_) {}
+    }();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   Future<void> _changeAvatar() async {
@@ -70,6 +117,13 @@ class _ProfilePageState extends State<ProfilePage> {
           avatarUrl = res['avatarUrl'] as String;
           _localAvatarPath = '';
         });
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('avatar_url_${email.toLowerCase()}', avatarUrl);
+          await prefs.setString('lastAvatarUrl', avatarUrl);
+          await prefs.setBool('avatarIsCustom', true);
+          await prefs.setBool('avatarIsCustom_${email.toLowerCase()}', true);
+        } catch (_) {}
         messenger.showSnackBar(const SnackBar(content: Text('Profile photo updated')));
       } else {
         final msg = (res['message'] is String) ? res['message'] as String : 'Upload failed';
@@ -86,16 +140,18 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final source = await _selectImageSource();
       if (source == null) return null;
-      if (!io.Platform.isAndroid) {
-        if (source == ImageSource.gallery) {
-          final ok = await _ensureGalleryPermission(messenger);
-          if (!ok) return null;
-        }
-        if (source == ImageSource.camera) {
-          var c = await Permission.camera.status;
+      // Check permissions for both Android and iOS
+      if (source == ImageSource.gallery) {
+        final ok = await _ensureGalleryPermission(messenger);
+        if (!ok) return null;
+      }
+      if (source == ImageSource.camera) {
+        var c = await Permission.camera.status;
+        if (!c.isGranted) {
+          c = await Permission.camera.request();
           if (!c.isGranted) {
-            c = await Permission.camera.request();
-            if (!c.isGranted) return null;
+            messenger.showSnackBar(const SnackBar(content: Text('Camera permission denied')));
+            return null;
           }
         }
       }
@@ -174,20 +230,20 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<bool> _ensureGalleryPermission(ScaffoldMessengerState messenger) async {
     if (io.Platform.isAndroid) {
-      try {
-        var s = await Permission.storage.status;
-        if (!s.isGranted) {
-          s = await Permission.storage.request();
-          if (!s.isGranted) return false;
-        }
-      } catch (_) {}
-      try {
-        var p = await Permission.photos.status;
-        if (!p.isGranted && !p.isLimited) {
-          p = await Permission.photos.request();
-        }
-      } catch (_) {}
-      return true;
+      // Check if already granted
+      if (await Permission.photos.isGranted) return true;
+      if (await Permission.storage.isGranted) return true;
+
+      // Try requesting Photos permission (Android 13+)
+      final p = await Permission.photos.request();
+      if (p.isGranted) return true;
+
+      // Try requesting Storage permission (Android <13)
+      final s = await Permission.storage.request();
+      if (s.isGranted) return true;
+
+      messenger.showSnackBar(const SnackBar(content: Text('Gallery permission denied')));
+      return false;
     } else {
       var s = await Permission.photos.status;
       if (s.isPermanentlyDenied) {
@@ -237,21 +293,98 @@ class _ProfilePageState extends State<ProfilePage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.logout, color: Colors.black87),
+            const SizedBox(width: 8),
+            const Text('Logout'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Are you sure you want to logout?', style: TextStyle(fontSize: 15, height: 1.5)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade100),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue.shade700, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "You're about to sign out of this device. Your account and data stay safe—nothing will be deleted. You can sign back in anytime with your email and password, or with biometrics if enabled.",
+                      style: TextStyle(fontSize: 13, color: Colors.blue.shade900, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () {
+              GoogleAuthService.signOutAndReset();
+              final nav = Navigator.of(context);
+              () async {
+                try {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('loggedInEmail');
+                  await prefs.setBool('disableAutoAuthenticatorOnce', true);
+                } catch (_) {}
+              }();
               Navigator.pop(context);
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-                (route) => false,
-              );
+              () async {
+                bool preFpEnabled = false;
+                bool preFaceEnabled = false;
+                bool preAuthenticatorEnabled = false;
+                String preFpEmail = '';
+                try {
+                  final prefs = await SharedPreferences.getInstance();
+                  String targetEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
+                  if (targetEmail.isEmpty) {
+                    targetEmail = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
+                  }
+                  if (targetEmail.isEmpty) {
+                    targetEmail = email;
+                  }
+                  final s = await MongoDBService.getMfaStatusDetail(email: targetEmail);
+                  preFpEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
+                  final enabledMfa = s['success'] == true && s['enabled'] == true;
+                  final method = (s['method'] ?? '').toString().toLowerCase();
+                  if (enabledMfa) {
+                    if (method.contains('face')) preFaceEnabled = true;
+                    if (method.contains('authenticator')) preAuthenticatorEnabled = true;
+                  }
+                  preFpEmail = targetEmail;
+                } catch (_) {}
+                if (!mounted) return;
+                nav.pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (_) => LoginScreen(
+                      preFingerprintEnabled: preFpEnabled,
+                      preFingerprintEmail: preFpEmail,
+                      preFaceEnabled: preFaceEnabled,
+                      preAuthenticatorEnabled: preAuthenticatorEnabled,
+                    ),
+                  ),
+                  (route) => false,
+                );
+              }();
             },
             child: const Text('Logout'),
           ),
@@ -301,7 +434,7 @@ class _ProfilePageState extends State<ProfilePage> {
     if (_localAvatarPath.isNotEmpty) {
       provider = FileImage(io.File(_localAvatarPath));
     } else if (avatarUrl.isNotEmpty) {
-      provider = NetworkImage('${MongoDBService.baseUrl}$avatarUrl');
+      provider = NetworkImage(_resolveAvatarUrl(avatarUrl));
     }
     if (provider == null) {
       messenger.showSnackBar(const SnackBar(content: Text('No profile picture')));
@@ -335,7 +468,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       decoration: const BoxDecoration(color: Colors.black),
                       child: Center(
                         child: InteractiveViewer(
-                          child: Image(image: provider!, fit: BoxFit.contain),
+                          child: Image(image: provider!, fit: BoxFit.cover, filterQuality: FilterQuality.high),
                         ),
                       ),
                     ),
@@ -545,6 +678,12 @@ class _ProfilePageState extends State<ProfilePage> {
           _localAvatarPath = '';
           avatarUrl = '';
         });
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('avatar_url_${email.toLowerCase()}');
+          await prefs.remove('lastAvatarUrl');
+          await prefs.setBool('avatarIsCustom', false);
+        } catch (_) {}
         messenger.showSnackBar(const SnackBar(content: Text('Photo deleted')));
       } else {
         final msg = (res['message'] is String) ? res['message'] as String : 'Delete failed';
@@ -558,9 +697,13 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: const Text('Profile', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w700, fontSize: 24)),
+        backgroundColor: Colors.white,
         elevation: 0,
+        centerTitle: false,
+        iconTheme: const IconThemeData(color: Colors.black87),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -568,9 +711,18 @@ class _ProfilePageState extends State<ProfilePage> {
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor,
+                color: Colors.white,
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withValues(alpha: 0.05),
+                    spreadRadius: 1,
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-              padding: const EdgeInsets.only(bottom: 30),
+              padding: const EdgeInsets.only(bottom: 30, top: 10),
               child: Column(
                 children: [
                   Stack(
@@ -578,27 +730,68 @@ class _ProfilePageState extends State<ProfilePage> {
                     children: [
                       InkWell(
                         onTap: _uploadingAvatar ? null : _onAvatarTapped,
-                        child: CircleAvatar(
-                          radius: 50,
-                          backgroundColor: Colors.white,
-                          backgroundImage: _localAvatarPath.isNotEmpty
-                              ? FileImage(io.File(_localAvatarPath))
-                              : (avatarUrl.isNotEmpty
-                                  ? NetworkImage('${MongoDBService.baseUrl}$avatarUrl')
-                                  : null),
-                          child: (_localAvatarPath.isEmpty && avatarUrl.isEmpty)
-                              ? const Icon(Icons.person, size: 60, color: Colors.blue)
-                              : null,
-                        ),
+                        child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.blue, width: 2),
+                              gradient: LinearGradient(
+                                colors: [Colors.blue.shade200, Colors.blue.shade400],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: CircleAvatar(
+                              radius: 52,
+                              backgroundColor: Colors.grey.shade100,
+                              child: Builder(
+                                builder: (_) {
+                                  if (_localAvatarPath.isNotEmpty) {
+                                    return ClipOval(
+                                      child: Image.file(
+                                        io.File(_localAvatarPath),
+                                        fit: BoxFit.cover,
+                                        filterQuality: FilterQuality.high,
+                                        width: 104,
+                                        height: 104,
+                                      ),
+                                    );
+                                  } else if (avatarUrl.isNotEmpty) {
+                                    return ClipOval(
+                                      child: Image.network(
+                                        _resolveAvatarUrl(avatarUrl),
+                                        fit: BoxFit.cover,
+                                        filterQuality: FilterQuality.high,
+                                        width: 104,
+                                        height: 104,
+                                      ),
+                                    );
+                                  }
+                                  return Icon(Icons.person, size: 64, color: Colors.blue.shade300);
+                                },
+                              ),
+                            ),
+                          ),
                       ),
                       Positioned(
-                        right: 0,
-                        bottom: 0,
+                        right: 4,
+                        bottom: 4,
                         child: InkWell(
                           onTap: _uploadingAvatar ? null : _changeAvatar,
-                          child: CircleAvatar(
-                            radius: 16,
-                            backgroundColor: Colors.blue,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.blue,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.blue.withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
                             child: _uploadingAvatar
                                 ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
                                 : const Icon(Icons.camera_alt, size: 16, color: Colors.white),
@@ -607,38 +800,47 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   Text(
                     '$firstName $lastName',
                     style: const TextStyle(
                       fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black87,
+                      letterSpacing: -0.5,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    email,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.white70,
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      email,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[700],
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             _buildSectionTitle('Personal Information'),
             _buildInfoCard(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             _buildSectionTitle('Account Settings'),
             _buildAccountSettingsSection(),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             _buildSectionTitle('Settings'),
             _buildSecuritySection(),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             _buildLogoutSection(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 30),
           ],
         ),
       ),
@@ -647,88 +849,102 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildInfoCard() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            spreadRadius: 1,
-            blurRadius: 10,
+            color: Colors.grey.withValues(alpha: 0.08),
+            spreadRadius: 0,
+            blurRadius: 20,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         children: [
-          _buildInfoRow(Icons.email, 'Email', email),
+          _buildInfoRow(Icons.email_outlined, 'Email', email),
           _buildDivider(),
-          _buildInfoRow(Icons.person, 'First Name', firstName),
+          _buildInfoRow(Icons.person_outline, 'First Name', firstName),
           _buildDivider(),
           _buildInfoRow(Icons.person_outline, 'Last Name', lastName),
           _buildDivider(),
-          _buildInfoRow(Icons.phone, 'Phone Number', phoneNumber),
+          _buildInfoRow(Icons.phone_outlined, 'Phone Number', phoneNumber.isNotEmpty ? phoneNumber : 'Not set'),
         ],
       ),
     );
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.blue, size: 24),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+    return Material(
+      color: Colors.transparent,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: Colors.blue.shade700, size: 22),
             ),
-          ),
-        ],
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildDivider() {
-    return Divider(height: 1, color: Colors.grey[200]);
+    return Divider(height: 1, color: Colors.grey[100], indent: 64);
   }
 
   Widget _buildAccountSettingsSection() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            spreadRadius: 1,
-            blurRadius: 10,
+            color: Colors.grey.withValues(alpha: 0.08),
+            spreadRadius: 0,
+            blurRadius: 20,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         children: [
           _buildSettingsTile(
-            icon: Icons.edit,
+            icon: Icons.edit_outlined,
             title: 'Edit Profile',
             onTap: () async {
               final result = await Navigator.push<Map<String, dynamic>>(
@@ -775,7 +991,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
               );
-              // Success toast handled inside the verification flow; avoid duplicate toasts here.
             },
           ),
           _buildDivider(),
@@ -808,22 +1023,23 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildSecuritySection() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            spreadRadius: 1,
-            blurRadius: 10,
+            color: Colors.grey.withValues(alpha: 0.08),
+            spreadRadius: 0,
+            blurRadius: 20,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         children: [
           _buildSettingsTile(
-            icon: Icons.security,
+            icon: Icons.security_outlined,
             title: 'Multi-Factor Authentication',
             onTap: _openSecurity,
           ),
@@ -834,15 +1050,16 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildLogoutSection() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            spreadRadius: 1,
-            blurRadius: 10,
+            color: Colors.grey.withValues(alpha: 0.08),
+            spreadRadius: 0,
+            blurRadius: 20,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -865,35 +1082,63 @@ class _ProfilePageState extends State<ProfilePage> {
     required VoidCallback onTap,
     bool isDestructive = false,
   }) {
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: isDestructive ? Colors.red : Colors.blue,
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: isDestructive ? Colors.red : Colors.black87,
-          fontWeight: FontWeight.w500,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isDestructive ? Colors.red.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: isDestructive ? Colors.red.shade400 : Colors.blue.shade700,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isDestructive ? Colors.red.shade700 : Colors.black87,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: Colors.grey[400],
+              ),
+            ],
+          ),
         ),
       ),
-      trailing: Icon(
-        Icons.arrow_forward_ios,
-        size: 16,
-        color: Colors.grey[400],
-      ),
-      onTap: onTap,
     );
   }
 
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
       child: Align(
         alignment: Alignment.centerLeft,
         child: Text(
           title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Colors.grey[800],
+            letterSpacing: 0.5,
+          ),
         ),
       ),
     );

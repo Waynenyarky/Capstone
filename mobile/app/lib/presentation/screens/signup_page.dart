@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../domain/usecases/send_signup_code.dart';
 import 'signup_otp_page.dart';
+import 'profile.dart';
+import 'deletion_scheduled_page.dart';
+import 'security/login_mfa_screen.dart';
+import 'package:app/data/services/mongodb_service.dart';
+import 'package:app/data/services/google_auth_service.dart';
+import '../../domain/usecases/sign_in_with_google.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -192,7 +199,217 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  
+  Future<void> _signInWithGoogle() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      if (!GoogleAuthService.isSupportedPlatform()) {
+        setState(() => _isLoading = false);
+        messenger.showSnackBar(const SnackBar(content: Text('Google Sign-In is only available on Android or iOS')));
+        return;
+      }
+      try {
+        final typedPre = _emailController.text.trim().toLowerCase();
+        if (_isValidEmail(typedPre)) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('lastLoginEmail', typedPre);
+        }
+      } catch (_) {}
+      final auth = await GoogleAuthService.signInGetTokenAndEmail();
+      final idToken = (auth['idToken'] ?? '').toString();
+      final email = (auth['email'] ?? '').toString();
+      final providerId = (auth['providerId'] ?? '').toString();
+      final displayName = (auth['displayName'] ?? '').toString();
+      final authPhotoUrlRaw = (auth['photoUrl'] ?? '').toString();
+      String authPhotoUrl = authPhotoUrlRaw;
+      try {
+        final u = authPhotoUrlRaw.trim();
+        if (u.isNotEmpty && (u.startsWith('http://') || u.startsWith('https://'))) {
+          final uri = Uri.parse(u);
+          final host = uri.host.toLowerCase();
+          if (host.contains('googleusercontent.com')) {
+            String path = uri.path.replaceAll(RegExp(r's\d{2,4}-c'), 's1024-c');
+            String query = uri.query.replaceAll(RegExp(r'(?<=^|[&])sz=\d{2,4}'), 'sz=1024');
+            authPhotoUrl = uri.replace(path: path, query: query).toString();
+          }
+        }
+      } catch (_) {}
+      final errCode = (auth['errorCode'] ?? '').toString();
+      final errMsg = (auth['errorMessage'] ?? '').toString();
+      if (idToken.isEmpty && email.isEmpty) {
+        setState(() => _isLoading = false);
+        final detail = (errCode.isNotEmpty || errMsg.isNotEmpty) ? ' ($errCode${errMsg.isNotEmpty ? ': $errMsg' : ''})' : '';
+        messenger.showSnackBar(SnackBar(content: Text('Google Sign-In canceled or failed$detail')));
+        return;
+      }
+      String? firstNameArg;
+      String? lastNameArg;
+      if (displayName.isNotEmpty) {
+        final parts = displayName.trim().split(RegExp(r'\s+'));
+        if (parts.isNotEmpty) {
+          if (parts.length >= 2) {
+            final f = '${parts[0].trim()} ${parts[1].trim()}'.trim();
+            firstNameArg = f.isNotEmpty ? f : null;
+            final l = parts.length > 2 ? parts.sublist(2).join(' ').trim() : '';
+            lastNameArg = l.isNotEmpty ? l : null;
+          } else {
+            final f = parts.first.trim();
+            firstNameArg = f.isNotEmpty ? f : null;
+            lastNameArg = null;
+          }
+        }
+      }
+      if (firstNameArg != null && firstNameArg.trim().isEmpty) firstNameArg = null;
+      if (lastNameArg != null && lastNameArg.trim().isEmpty) lastNameArg = null;
+      final usecase = SignInWithGoogle();
+      final result = await usecase.call(
+        idToken: idToken.isNotEmpty ? idToken : 'none:${DateTime.now().millisecondsSinceEpoch}',
+        email: email.isNotEmpty ? email : null,
+        providerId: providerId.isNotEmpty ? providerId : null,
+        emailVerified: true,
+        firstName: firstNameArg,
+        lastName: lastNameArg,
+      );
+      setState(() => _isLoading = false);
+      if (result['success'] == true) {
+        final user = (result['user'] is Map<String, dynamic>) ? (result['user'] as Map<String, dynamic>) : <String, dynamic>{};
+        final email = (user['email'] is String) ? user['email'] as String : '';
+        var firstName = (user['firstName'] is String) ? user['firstName'] as String : '';
+        var lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
+        Map<String, dynamic> mfaStatus = {};
+        try {
+          mfaStatus = await MongoDBService.getMfaStatusDetail(email: email).timeout(const Duration(milliseconds: 1200));
+          final enabledMfa = mfaStatus['success'] == true && mfaStatus['enabled'] == true;
+          final method = (mfaStatus['method'] ?? '').toString().toLowerCase();
+          final hasAuthenticator = method.contains('authenticator');
+          if (enabledMfa && hasAuthenticator) {
+            if (!mounted) return;
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => LoginMfaScreen(email: email)),
+            );
+            return;
+          }
+        } catch (_) {}
+        if (displayName.isNotEmpty) {
+          final parts = displayName.trim().split(RegExp(r'\s+'));
+          if (parts.isNotEmpty) {
+            if (firstName.isEmpty || firstName.toLowerCase() == 'user') {
+              if (parts.length >= 2) {
+                firstName = '${parts[0].trim()} ${parts[1].trim()}'.trim();
+              } else {
+                firstName = parts.first.trim();
+              }
+            }
+            if (lastName.isEmpty || lastName.toLowerCase() == 'user') {
+              final l = parts.length > 2 ? parts.sublist(2).join(' ').trim() : '';
+              lastName = l;
+            }
+          }
+        }
+        if ((firstName.isEmpty || firstName.toLowerCase() == 'user') && email.isNotEmpty) {
+          final local = email.split('@').first;
+          final tokens = local.split(RegExp(r'[._\- ]+')).where((t) => t.trim().isNotEmpty).toList();
+          if (tokens.isNotEmpty) {
+            if (firstName.isEmpty || firstName.toLowerCase() == 'user') firstName = tokens.first.trim();
+            if (lastName.isEmpty && tokens.length > 1) lastName = tokens.sublist(1).join(' ').trim();
+          }
+        }
+        final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
+        var avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
+        final token = (result['token'] is String) ? result['token'] as String : '';
+        if (avatarUrl.isEmpty) {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final cachedSpecific = (prefs.getString('avatar_url_${email.toLowerCase()}') ?? '').trim();
+            if (cachedSpecific.isNotEmpty) {
+              avatarUrl = cachedSpecific;
+            } else {
+              final isCustomKey = 'avatarIsCustom_${email.toLowerCase()}';
+              var isCustom = prefs.getBool(isCustomKey) == true;
+              if (!isCustom && prefs.getBool('avatarIsCustom') == true) isCustom = true;
+              final cached = (prefs.getString('lastAvatarUrl') ?? '').trim();
+              if (isCustom && cached.isNotEmpty) {
+                avatarUrl = cached;
+              } else if (authPhotoUrl.isNotEmpty) {
+                avatarUrl = authPhotoUrl;
+              } else {
+                final gPhoto = GoogleAuthService.getCurrentPhotoUrl();
+                if (gPhoto != null && gPhoto.isNotEmpty) {
+                  avatarUrl = gPhoto;
+                }
+              }
+            }
+          } catch (_) {}
+        }
+        if (!mounted) return;
+        final navigator = Navigator.of(context);
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          if (email.isNotEmpty) {
+            await prefs.setString('lastLoginEmail', email);
+            try {
+              final fpEnabled = mfaStatus['success'] == true && mfaStatus['isFingerprintEnabled'] == true;
+              if (fpEnabled) {
+                await prefs.setString('fingerprintEmail', email.toLowerCase());
+              }
+            } catch (_) {}
+          }
+          if (token.isNotEmpty) {
+             await prefs.setString('accessToken', token);
+          }
+          if (avatarUrl.isNotEmpty) {
+             await prefs.setString('avatar_url_${email.toLowerCase()}', avatarUrl);
+          }
+          final isCustomKey = 'avatarIsCustom_${email.toLowerCase()}';
+          final isCustom = prefs.getBool(isCustomKey) == true;
+          if (avatarUrl.isNotEmpty && !isCustom) {
+            await prefs.setString('lastAvatarUrl', avatarUrl);
+          }
+        } catch (_) {}
+        final profileRes = await MongoDBService.fetchProfile(email: email).timeout(const Duration(seconds: 2));
+        final pending = profileRes['deletionPending'] == true;
+        final scheduledISO = (profileRes['deletionScheduledFor'] is String) ? profileRes['deletionScheduledFor'] as String : null;
+        if (pending && scheduledISO != null) {
+          navigator.pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => DeletionScheduledPage(
+                email: email,
+                scheduledISO: scheduledISO,
+                firstName: firstName,
+                lastName: lastName,
+                phoneNumber: phoneNumber,
+                token: token,
+                avatarUrl: avatarUrl,
+              ),
+            ),
+            (route) => false,
+          );
+          return;
+        }
+        navigator.pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => ProfilePage(
+              email: email,
+              firstName: firstName,
+              lastName: lastName,
+              phoneNumber: phoneNumber,
+              token: token,
+              avatarUrl: avatarUrl,
+            ),
+          ),
+          (route) => false,
+        );
+      } else {
+        final msg = (result['message'] is String) ? result['message'] as String : 'Google signup failed';
+        messenger.showSnackBar(SnackBar(content: Text(msg)));
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      messenger.showSnackBar(SnackBar(content: Text('Google signup error: ${e.toString()}')));
+    }
+  }
 
   Widget _buildValidationIcon(bool isValid, bool isTouched, String text) {
     if (text.isEmpty || !isTouched) {
@@ -240,29 +457,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Widget _buildPasswordRequirement(String text, bool isMet, bool showValidation) {
-    return AnimatedOpacity(
-      opacity: showValidation ? 1.0 : 0.6,
-      duration: const Duration(milliseconds: 200),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Icon(
-              isMet ? Icons.check_circle : Icons.radio_button_unchecked,
-              color: showValidation && isMet ? Colors.green : Colors.grey,
-              size: 18,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(
+            isMet ? Icons.check_circle : Icons.close,
+            color: isMet ? Colors.green : Colors.red,
+            size: 18,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 13,
+              color: isMet ? Colors.green : Colors.red,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(width: 8),
-            Text(
-              text,
-              style: TextStyle(
-                fontSize: 13,
-                color: showValidation && isMet ? Colors.green : Colors.grey.shade700,
-                fontWeight: showValidation && isMet ? FontWeight.w500 : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -520,7 +733,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade700,
+                                color: Colors.black87,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -640,6 +853,37 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     SizedBox(height: spacing),
                     
+                    Row(
+                      children: [
+                        Expanded(child: Divider(color: Colors.grey.shade300)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Text(
+                            'Or',
+                            style: TextStyle(
+                              fontSize: subtitleFontSize - 1,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                        Expanded(child: Divider(color: Colors.grey.shade300)),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: _isLoading ? null : _signInWithGoogle,
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        side: BorderSide(color: Colors.grey.shade300),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                      ),
+                      icon: const GoogleGIcon(size: 22),
+                      label: const Text('Continue with Google', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    ),
+                    SizedBox(height: spacing),
+                    
                     // Login Link
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -679,4 +923,53 @@ class _SignUpScreenState extends State<SignUpScreen> {
       ),
     );
   }
+}
+
+class GoogleGIcon extends StatelessWidget {
+  final double size;
+  const GoogleGIcon({super.key, this.size = 20});
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _GoogleGPainter(),
+      ),
+    );
+  }
+}
+
+class _GoogleGPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = size.width * 0.18;
+    final rect = Rect.fromLTWH(stroke, stroke, size.width - stroke * 2, size.height - stroke * 2);
+    Paint seg(Color c) => Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round
+      ..color = c;
+    final blue = seg(const Color(0xFF4285F4));
+    final red = seg(const Color(0xFFDB4437));
+    final yellow = seg(const Color(0xFFF4B400));
+    final green = seg(const Color(0xFF0F9D58));
+
+    canvas.drawArc(rect, _deg(315), _deg(90), false, blue);
+    canvas.drawArc(rect, _deg(45), _deg(90), false, red);
+    canvas.drawArc(rect, _deg(135), _deg(90), false, yellow);
+    canvas.drawArc(rect, _deg(225), _deg(90), false, green);
+
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final cut = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round
+      ..color = const Color(0xFF4285F4);
+    canvas.drawLine(Offset(cx, cy), Offset(cx + rect.width / 2, cy), cut);
+  }
+  double _deg(double d) => d * 3.1415926535 / 180.0;
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

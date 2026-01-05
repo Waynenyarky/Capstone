@@ -64,6 +64,18 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     setState(() => _loading = true);
     final messenger = ScaffoldMessenger.of(context);
     _currentError = null;
+    final netOk = await MongoDBService.isNetworkAvailable();
+    if (!netOk) {
+      setState(() => _loading = false);
+      messenger.showSnackBar(const SnackBar(content: Text('No internet connection. Please check your network.')));
+      return;
+    }
+    final health = await MongoDBService.serverHealth(timeout: const Duration(seconds: 4));
+    if (health['ok'] != true) {
+      setState(() => _loading = false);
+      messenger.showSnackBar(const SnackBar(content: Text('Server unavailable. Please try again later.')));
+      return;
+    }
     final check = await MongoDBService.login(email: widget.email, password: _currentController.text, bypassFingerprint: true);
     if (check['success'] != true) {
       final code = (check['code'] is String) ? check['code'] as String : '';

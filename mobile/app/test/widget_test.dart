@@ -7,24 +7,26 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:app/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('App loads login screen', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    // Pump the app
     await tester.pumpWidget(const MyApp());
+    // Avoid hanging: pump a few short frames until the login text appears
+    for (var i = 0; i < 20; i++) {
+      if (find.text('Welcome Back').evaluate().isNotEmpty) break;
+      await tester.pump(const Duration(milliseconds: 200));
+    }
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Expect the login title is visible
+    expect(find.text('Welcome Back'), findsOneWidget);
+    expect(find.text('Login to your account'), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Smoke check: screen rendered without throwing
+    expect(find.byType(MaterialApp), findsOneWidget);
   });
 }

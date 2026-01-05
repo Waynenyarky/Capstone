@@ -36,6 +36,10 @@ app.use('/api/auth', authRouter)
 
 const PRIMARY_PORT = Number(process.env.PORT || 3000);
 const SECONDARY_PORT = Number(process.env.ALT_PORT || process.env.PORT2 || 5001);
+const EXTRA_PORTS = String(process.env.EXTRA_PORTS || process.env.PORTS || '')
+  .split(',')
+  .map((s) => Number(String(s).trim()))
+  .filter((n) => Number.isFinite(n) && n > 0);
 
 async function start() {
   try {
@@ -67,10 +71,12 @@ async function start() {
       });
     }
 
-    await Promise.all([
-      startOnPort(PRIMARY_PORT),
-      startOnPort(SECONDARY_PORT),
-    ]);
+    const ports = [PRIMARY_PORT, SECONDARY_PORT, ...EXTRA_PORTS];
+    const unique = [];
+    for (const p of ports) {
+      if (!unique.includes(p)) unique.push(p);
+    }
+    await Promise.all(unique.map((p) => startOnPort(p)));
   } catch (err) {
     console.error('Server start failed:', err);
     process.exit(1);
@@ -89,3 +95,15 @@ app.use('/uploads', express.static(uploadsDir));
 const uploadsDirLegacy = path.join(__dirname, 'uploads');
 try { fs.mkdirSync(uploadsDirLegacy, { recursive: true }); } catch (_) {}
 app.use('/uploads', express.static(uploadsDirLegacy));
+
+app.get('/policy', (req, res) => {
+  res.type('html').send(
+    '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Privacy Policy</title><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="font-family:system-ui,Segoe UI,Arial,sans-serif;padding:24px;line-height:1.6;color:#222"><h1>Capstone Privacy Policy</h1><p>Capstone collects and processes basic profile data to provide authentication and profile features. We store your email, name, and optional avatar to operate the service. We do not sell your data.</p><p>For account removal, contact support or use the in-app delete account flow. Deletion requests are scheduled and processed in accordance with our retention policy.</p><p>When you sign in with Google, Google shares your account email and profile as permitted; we verify your identity to log you into Capstone.</p><p>Contact: enriquejohnwayne@gmail.com</p></body></html>'
+  )
+})
+
+app.get('/terms', (req, res) => {
+  res.type('html').send(
+    '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Terms of Service</title><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="font-family:system-ui,Segoe UI,Arial,sans-serif;padding:24px;line-height:1.6;color:#222"><h1>Capstone Terms of Service</h1><p>By using Capstone you agree to create an account and provide accurate information. You are responsible for activity on your account.</p><p>Capstone is provided as-is without warranties. We may update features and policies; continued use indicates acceptance of changes.</p><p>We process your data as described in the Privacy Policy to provide authentication, profile management, and security features such as MFA.</p><p>Contact: enriquejohnwayne@gmail.com</p></body></html>'
+  )
+})

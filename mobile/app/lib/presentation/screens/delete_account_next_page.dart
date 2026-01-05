@@ -4,6 +4,8 @@ import 'login_page.dart';
 import 'profile.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:app/data/services/google_auth_service.dart';
 
 class DeleteAccountNextPage extends StatefulWidget {
   final String email;
@@ -398,9 +400,50 @@ class _DeleteAccountNextPageState extends State<DeleteAccountNextPage> {
                       width: double.infinity,
                       height: 54,
                       child: ElevatedButton.icon(
-                        onPressed: () {
-                          navigator.pushAndRemoveUntil(
-                            MaterialPageRoute(builder: (_) => LoginScreen(deletionScheduledForISO: _scheduledISO)),
+                        onPressed: () async {
+                          final nav = Navigator.of(context);
+                          bool preFpEnabled = false;
+                          bool preFaceEnabled = false;
+                          bool preAuthenticatorEnabled = false;
+                          String preFpEmail = '';
+                          try {
+                            GoogleAuthService.signOutAndReset();
+                          } catch (_) {}
+                          try {
+                            final prefs = await SharedPreferences.getInstance();
+                            String targetEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
+                            if (targetEmail.isEmpty) {
+                              targetEmail = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
+                            }
+                            if (targetEmail.isEmpty) {
+                              targetEmail = widget.email;
+                            }
+                            final s = await MongoDBService.getMfaStatusDetail(email: targetEmail);
+                            preFpEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
+                            final enabledMfa = s['success'] == true && s['enabled'] == true;
+                            final method = (s['method'] ?? '').toString().toLowerCase();
+                            if (enabledMfa) {
+                              if (method.contains('face')) preFaceEnabled = true;
+                              if (method.contains('authenticator')) preAuthenticatorEnabled = true;
+                            }
+                            preFpEmail = targetEmail;
+                          } catch (_) {}
+                          try {
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.remove('loggedInEmail');
+                            await prefs.setBool('disableAutoAuthenticatorOnce', true);
+                          } catch (_) {}
+                          if (!mounted) return;
+                          nav.pushAndRemoveUntil(
+                            MaterialPageRoute(
+                              builder: (_) => LoginScreen(
+                                deletionScheduledForISO: _scheduledISO,
+                                preFingerprintEnabled: preFpEnabled,
+                                preFingerprintEmail: preFpEmail,
+                                preFaceEnabled: preFaceEnabled,
+                                preAuthenticatorEnabled: preAuthenticatorEnabled,
+                              ),
+                            ),
                             (route) => false,
                           );
                         },
@@ -982,15 +1025,60 @@ class DeleteAccountConfirmPage extends StatelessWidget {
                         ),
                       ) ??
                       false;
+                  if (!context.mounted) return;
                   if (!confirmed) return;
                   try {
+                    final nav = Navigator.of(context);
                     final res = await MongoDBService.confirmDeleteAccountDeletion(email: email, deleteToken: deleteToken);
+                    if (!context.mounted) return;
                     final ok = res['success'] == true;
                     if (ok) {
                       messenger.showSnackBar(const SnackBar(content: Text('Account deletion scheduled')));
                       final scheduledISO = (res['scheduledISO'] is String) ? res['scheduledISO'] as String : null;
-                      navigator.pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (_) => LoginScreen(deletionScheduledForISO: scheduledISO)),
+                      try {
+                        GoogleAuthService.signOutAndReset();
+                      } catch (_) {}
+                      bool preFpEnabled = false;
+                      bool preFaceEnabled = false;
+                      bool preAuthenticatorEnabled = false;
+                      String preFpEmail = '';
+                      try {
+                        final prefs = await SharedPreferences.getInstance();
+                        String targetEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
+                        if (targetEmail.isEmpty) {
+                          targetEmail = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
+                        }
+                        if (targetEmail.isEmpty) {
+                          targetEmail = email;
+                        }
+                        final s = await MongoDBService.getMfaStatusDetail(email: targetEmail);
+                        preFpEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
+                        final enabledMfa = s['success'] == true && s['enabled'] == true;
+                        final method = (s['method'] ?? '').toString().toLowerCase();
+                        if (enabledMfa) {
+                          if (method.contains('face')) preFaceEnabled = true;
+                          if (method.contains('authenticator')) preAuthenticatorEnabled = true;
+                        }
+                        preFpEmail = targetEmail;
+                      } catch (_) {}
+                      try {
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.remove('loggedInEmail');
+                        await prefs.remove('avatar_url_${email.toLowerCase()}');
+                        await prefs.remove('lastAvatarUrl');
+                        await prefs.setBool('avatarIsCustom', false);
+                        await prefs.setBool('disableAutoAuthenticatorOnce', true);
+                      } catch (_) {}
+                      nav.pushAndRemoveUntil(
+                        MaterialPageRoute(
+                          builder: (_) => LoginScreen(
+                            deletionScheduledForISO: scheduledISO,
+                            preFingerprintEnabled: preFpEnabled,
+                            preFingerprintEmail: preFpEmail,
+                            preFaceEnabled: preFaceEnabled,
+                            preAuthenticatorEnabled: preAuthenticatorEnabled,
+                          ),
+                        ),
                         (route) => false,
                       );
                     } else {

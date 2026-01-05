@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs')
 const User = require('../../models/User')
 const { decryptWithHash, encryptWithHash } = require('../../lib/secretCipher')
 const respond = require('../../middleware/respond')
+const { requireJwt } = require('../../middleware/auth')
 const { validateBody, Joi } = require('../../middleware/validation')
 const { generateCode } = require('../../lib/codes')
 const { sendOtp } = require('../../lib/mailer')
@@ -25,10 +26,10 @@ const uploadAvatarSchema = Joi.object({
   imageBase64: Joi.string().min(32).required(),
 })
 
-router.post('/profile/avatar', validateBody(uploadAvatarSchema), async (req, res) => {
+router.post('/profile/avatar', requireJwt, validateBody(uploadAvatarSchema), async (req, res) => {
   try {
     const idHeader = req.headers['x-user-id']
-    const emailHeader = req.headers['x-user-email']
+    const emailHeader = req._userEmail || req.headers['x-user-email']
     let doc = null
     if (idHeader) {
       try { doc = await User.findById(idHeader) } catch (_) { doc = null }
@@ -72,10 +73,10 @@ router.post('/profile/avatar', validateBody(uploadAvatarSchema), async (req, res
 })
 
 // POST /api/auth/profile/avatar-file - multipart upload
-router.post('/profile/avatar-file', async (req, res) => {
+router.post('/profile/avatar-file', requireJwt, async (req, res) => {
   try {
     const idHeader = req.headers['x-user-id']
-    const emailHeader = req.headers['x-user-email']
+    const emailHeader = req._userEmail || req.headers['x-user-email']
     let doc = null
     if (idHeader) {
       try { doc = await User.findById(idHeader) } catch (_) { doc = null }
@@ -114,10 +115,10 @@ router.post('/profile/avatar-file', async (req, res) => {
   }
 })
 
-router.delete('/profile/avatar', async (req, res) => {
+router.delete('/profile/avatar', requireJwt, async (req, res) => {
   try {
     const idHeader = req.headers['x-user-id']
-    const emailHeader = req.headers['x-user-email']
+    const emailHeader = req._userEmail || req.headers['x-user-email']
     let doc = null
     if (idHeader) {
       try { doc = await User.findById(idHeader) } catch (_) { doc = null }
@@ -143,10 +144,10 @@ router.delete('/profile/avatar', async (req, res) => {
   }
 })
 
-router.post('/profile/avatar/delete', async (req, res) => {
+router.post('/profile/avatar/delete', requireJwt, async (req, res) => {
   try {
     const idHeader = req.headers['x-user-id']
-    const emailHeader = req.headers['x-user-email']
+    const emailHeader = req._userEmail || req.headers['x-user-email']
     let doc = null
     if (idHeader) {
       try { doc = await User.findById(idHeader) } catch (_) { doc = null }
@@ -179,12 +180,12 @@ const changeEmailAuthenticatedSchema = Joi.object({
 
 // POST /api/auth/change-password-authenticated
 // Change password for a logged-in user by verifying current password.
-router.post('/change-password-authenticated', validateBody(changePasswordAuthenticatedSchema), async (req, res) => {
+router.post('/change-password-authenticated', requireJwt, validateBody(changePasswordAuthenticatedSchema), async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body || {}
 
     const idHeader = req.headers['x-user-id']
-    const emailHeader = req.headers['x-user-email']
+    const emailHeader = req._userEmail || req.headers['x-user-email']
 
     let doc = null
     if (idHeader) {
@@ -235,12 +236,12 @@ router.post('/change-password-authenticated', validateBody(changePasswordAuthent
 
 // POST /api/auth/change-email-authenticated
 // Change email for a logged-in user by verifying current password.
-router.post('/change-email-authenticated', validateBody(changeEmailAuthenticatedSchema), async (req, res) => {
+router.post('/change-email-authenticated', requireJwt, validateBody(changeEmailAuthenticatedSchema), async (req, res) => {
   try {
     const { password, newEmail } = req.body || {}
 
     const idHeader = req.headers['x-user-id']
-    const emailHeader = req.headers['x-user-email']
+    const emailHeader = req._userEmail || req.headers['x-user-email']
 
     let doc = null
     if (idHeader) {
@@ -290,10 +291,10 @@ const changeEmailStartSchema = Joi.object({
 
 // POST /api/auth/change-email/start
 // Step 1: send OTP to the new email to confirm change
-router.post('/change-email/start', validateBody(changeEmailStartSchema), async (req, res) => {
+router.post('/change-email/start', requireJwt, validateBody(changeEmailStartSchema), async (req, res) => {
   try {
     const idHeader = req.headers['x-user-id']
-    const emailHeader = req.headers['x-user-email']
+    const emailHeader = req._userEmail || req.headers['x-user-email']
     let doc = null
     if (idHeader) {
       try { doc = await User.findById(idHeader) } catch (_) { doc = null }
@@ -331,10 +332,10 @@ const changeEmailVerifySchema = Joi.object({
 
 // POST /api/auth/change-email/verify
 // Step 2: verify OTP and update user's email
-router.post('/change-email/verify', validateBody(changeEmailVerifySchema), async (req, res) => {
+router.post('/change-email/verify', requireJwt, validateBody(changeEmailVerifySchema), async (req, res) => {
   try {
     const idHeader = req.headers['x-user-id']
-    const emailHeader = req.headers['x-user-email']
+    const emailHeader = req._userEmail || req.headers['x-user-email']
     let doc = null
     if (idHeader) {
       try { doc = await User.findById(idHeader) } catch (_) { doc = null }
@@ -383,10 +384,10 @@ const changeEmailConfirmStartSchema = Joi.object({
 })
 
 // POST /api/auth/change-email/confirm/start
-router.post('/change-email/confirm/start', validateBody(changeEmailConfirmStartSchema), async (req, res) => {
+router.post('/change-email/confirm/start', requireJwt, validateBody(changeEmailConfirmStartSchema), async (req, res) => {
   try {
     const idHeader = req.headers['x-user-id']
-    const emailHeader = req.headers['x-user-email']
+    const emailHeader = req._userEmail || req.headers['x-user-email']
     let doc = null
     if (idHeader) {
       try { doc = await User.findById(idHeader) } catch (_) { doc = null }
@@ -413,10 +414,10 @@ const changeEmailConfirmVerifySchema = Joi.object({
 })
 
 // POST /api/auth/change-email/confirm/verify
-router.post('/change-email/confirm/verify', validateBody(changeEmailConfirmVerifySchema), async (req, res) => {
+router.post('/change-email/confirm/verify', requireJwt, validateBody(changeEmailConfirmVerifySchema), async (req, res) => {
   try {
     const idHeader = req.headers['x-user-id']
-    const emailHeader = req.headers['x-user-email']
+    const emailHeader = req._userEmail || req.headers['x-user-email']
     let doc = null
     if (idHeader) {
       try { doc = await User.findById(idHeader) } catch (_) { doc = null }
@@ -439,12 +440,12 @@ router.post('/change-email/confirm/verify', validateBody(changeEmailConfirmVerif
   }
 })
 // GET /api/auth/users
-router.get('/users', async (req, res) => {
+router.get('/users', requireJwt, async (req, res) => {
   try {
     // Naive admin check for dev: validate requester headers
-    const roleHeader = String(req.headers['x-user-role'] || '').toLowerCase()
+    const roleHeader = String(req._userRole || req.headers['x-user-role'] || '').toLowerCase()
     const idHeader = req.headers['x-user-id']
-    const emailHeader = req.headers['x-user-email']
+    const emailHeader = req._userEmail || req.headers['x-user-email']
 
     async function isAdminRequester() {
       if (roleHeader === 'admin') {
@@ -486,10 +487,10 @@ router.get('/users', async (req, res) => {
 })
 
 // GET /api/auth/me - return current user's profile (dev-friendly header-based auth)
-router.get('/me', async (req, res) => {
+router.get('/me', requireJwt, async (req, res) => {
   try {
     const idHeader = req.headers['x-user-id']
-    const emailHeader = req.headers['x-user-email']
+    const emailHeader = req._userEmail || req.headers['x-user-email']
 
     let doc = null
     if (idHeader) {

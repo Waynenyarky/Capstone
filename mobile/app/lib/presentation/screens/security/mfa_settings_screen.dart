@@ -24,7 +24,6 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
   String? _selected;
   bool _authEnabled = false;
   bool _fingerEnabled = false;
-  bool _faceEnabled = false;
   bool _disablePending = false;
   DateTime? _scheduledFor;
   Duration _disableRemaining = Duration.zero;
@@ -38,15 +37,6 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
     super.initState();
     _loadAuthDetail();
     _checkDeviceSupport();
-  }
-
-  void _toggleFace(bool value) {
-    setState(() {
-      _faceEnabled = value;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Face recognition ${value ? 'enabled (UI only)' : 'disabled (UI only)'}')),
-    );
   }
 
   Future<void> _checkDeviceSupport() async {
@@ -94,6 +84,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
         try {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('lastLoginEmail', widget.email);
+          await prefs.setString('fingerprintEmail', widget.email.toLowerCase());
         } catch (_) {}
       }
       _loadAuthDetail();
@@ -163,6 +154,33 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
 
   Future<void> _toggleFingerprint(bool value) async {
     if (value) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final existingFpEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
+        if (existingFpEmail.isNotEmpty && existingFpEmail != widget.email.toLowerCase()) {
+          bool stillEnabled = true;
+          try {
+            final s = await MongoDBService.getMfaStatusDetail(email: existingFpEmail);
+            stillEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
+          } catch (_) {}
+          if (!stillEnabled) {
+            try { await prefs.remove('fingerprintEmail'); } catch (_) {}
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  backgroundColor: Colors.red,
+                  content: Text(
+                    'You cannot use biometrics to log in to multiple accounts on the same device.',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              );
+            }
+            return;
+          }
+        }
+      } catch (_) {}
       if (!_deviceSupportChecked) {
         await _checkDeviceSupport();
       }
@@ -279,6 +297,13 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
         SnackBar(content: Text(ok ? 'Biometrics login disabled' : (res['message'] ?? 'Update failed').toString())),
       );
       if (ok) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final existing = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
+          if (existing.isNotEmpty && existing == widget.email.toLowerCase()) {
+            await prefs.remove('fingerprintEmail');
+          }
+        } catch (_) {}
         _loadAuthDetail();
       }
     } catch (_) {
@@ -368,65 +393,168 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Security')),
+      backgroundColor: Colors.grey.shade50,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        centerTitle: true,
+        title: const Text(
+          'Security',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+        ),
+        iconTheme: const IconThemeData(color: Colors.black),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Text(
                 'Multi-Factor Authentication',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                  letterSpacing: -0.5,
+                ),
               ),
               const SizedBox(height: 8),
-              const Text('Select a method to view details and enable or disable.'),
+              Text(
+                'Enhance your account security by enabling an additional authentication method.',
+                style: TextStyle(fontSize: 15, color: Colors.grey.shade600, height: 1.4),
+              ),
+              const SizedBox(height: 32),
+
+              // TOTP Section
+              _buildSection(
+                id: 'authenticator',
+                title: 'TOTP Authenticator',
+                subtitle: 'Use time-based codes from an app',
+                icon: Icons.qr_code_rounded,
+                isEnabled: _authEnabled,
+                isSelected: _selected == 'authenticator',
+                onTap: () => _select('authenticator'),
+                content: _buildDetailFor('authenticator'),
+              ),
+              
               const SizedBox(height: 16),
 
-              Card(
-                child: ListTile(
-                  leading: const Icon(Icons.qr_code),
-                  title: const Text('TOTP Authenticator'),
-                  subtitle: const Text('Use time-based codes from an app'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () => _select('authenticator'),
-                ),
-              ),
-              if (_selected == 'authenticator' || _authEnabled) Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: _buildDetailFor('authenticator'),
-              ),
-              const SizedBox(height: 8),
-              Card(
-                child: ListTile(
-                  leading: const Icon(Icons.fingerprint),
-                      title: const Text('Biometrics'),
-                  subtitle: const Text('Use your device biometrics'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () => _select('fingerprint'),
-                ),
-              ),
-              if (_selected == 'fingerprint' || _fingerEnabled) Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: _buildDetailFor('fingerprint'),
-              ),
-              const SizedBox(height: 8),
-              Card(
-                child: ListTile(
-                  leading: const Icon(Icons.face),
-                  title: const Text('Face Recognition'),
-                  subtitle: const Text('Use your device face recognition'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () => _select('face'),
-                ),
-              ),
-              if (_selected == 'face') Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: _buildDetailFor('face'),
+              // Biometrics Section
+              _buildSection(
+                id: 'fingerprint',
+                title: 'Biometrics',
+                subtitle: 'Use fingerprint or system biometrics',
+                icon: Icons.fingerprint_rounded,
+                isEnabled: _fingerEnabled,
+                isSelected: _selected == 'fingerprint',
+                onTap: () => _select('fingerprint'),
+                content: _buildDetailFor('fingerprint'),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSection({
+    required String id,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isEnabled,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required Widget content,
+  }) {
+    final showDetails = isSelected || isEnabled;
+    
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: showDetails ? Colors.blue.withAlpha(76) : Colors.transparent,
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(10),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header (Always visible, but acts as toggle if not enabled)
+          // If details are shown, we might hide this OR keep it as a header?
+          // The previous logic had a separate card for details.
+          // Let's integrate them. 
+          // If showDetails is true, the content (which is _buildMethodCard) is shown.
+          // _buildMethodCard HAS a header inside it.
+          // So if showDetails is true, we ONLY show content.
+          // If showDetails is false, we show the summary tile.
+          
+          if (showDetails)
+            content
+          else
+            Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(icon, color: Colors.blue.shade700, size: 24),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              subtitle,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 16,
+                        color: Colors.grey.shade300,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -438,115 +566,203 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
   }
 
   Widget _buildDetailFor(String method) {
+    const titleStyle = TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.black87);
+    const bodyStyle = TextStyle(fontSize: 14, color: Colors.black54, height: 1.5);
+
     switch (method) {
       case 'authenticator':
         return _buildMethodCard(
-          icon: Icons.qr_code,
+          icon: Icons.qr_code_rounded,
           title: 'TOTP Authenticator',
           enabled: _authEnabled,
           onToggle: _toggleAuthenticator,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('How it works', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text('How it works', style: titleStyle),
               const SizedBox(height: 8),
-              const Text('Use a time-based one-time password (TOTP) app like Google Authenticator or Authy.'),
+              const Text('Use a time-based one-time password (TOTP) app like Google Authenticator or Authy.', style: bodyStyle),
               const SizedBox(height: 8),
-              const Text('During setup, you will scan a QR code and enter the generated 6-digit code to verify.'),
-              const SizedBox(height: 16),
-              
+              const Text('During setup, you will scan a QR code and enter the generated 6-digit code to verify.', style: bodyStyle),
+              const SizedBox(height: 24),
               
               if (_authEnabled && _disablePending && _scheduledFor != null) ...[
-                const Text('The authenticator is currently active but has been scheduled for deactivation.', style: TextStyle(color: Colors.orange)),
-                const SizedBox(height: 8),
-                Text('Disable scheduled: ${_fmtDateTimeAmPm(_scheduledFor!)}'),
-                const SizedBox(height: 4),
-                Text('Time remaining: ${_formatDuration(_disableRemaining)}'),
-                const SizedBox(height: 8),
-                ElevatedButton(onPressed: _openDisablePage, child: const Text('Manage Disable')),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.schedule, size: 20, color: Colors.orange.shade800),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Deactivation Scheduled',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange.shade900,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text('Scheduled for: ${_fmtDateTimeAmPm(_scheduledFor!)}', style: TextStyle(fontSize: 13, color: Colors.orange.shade900)),
+                      Text('Time remaining: ${_formatDuration(_disableRemaining)}', style: TextStyle(fontSize: 13, color: Colors.orange.shade900)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: _openDisablePage,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black87,
+                      side: BorderSide(color: Colors.grey.shade300),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Manage Request'),
+                  ),
+                ),
               ] else if (_authEnabled) ...[
-                const Text('The authenticator is already configured.', style: TextStyle(color: Colors.green)),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle_outline, size: 20, color: Colors.green.shade700),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'The authenticator is active and protecting your account.',
+                          style: TextStyle(color: Colors.green.shade900, fontSize: 13, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ]
               else
-                Row(
-                  children: [
-                    ElevatedButton(onPressed: () => _openSetupFor('authenticator'), child: const Text('Set Up')),
-                  ],
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => _openSetupFor('authenticator'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    child: const Text('Set Up Authenticator', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
                 ),
             ],
           ),
         );
       case 'fingerprint':
         return _buildMethodCard(
-          icon: Icons.fingerprint,
+          icon: Icons.fingerprint_rounded,
           title: 'Biometrics',
           enabled: _fingerEnabled,
           onToggle: _toggleFingerprint,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('How it works', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text('How it works', style: titleStyle),
               const SizedBox(height: 8),
-              const Text('Use your device\'s biometrics to verify your identity during sign in.'),
+              const Text('Use your device\'s biometrics to verify your identity during sign in.', style: bodyStyle),
               const SizedBox(height: 8),
-              const Text('Make sure biometrics are enrolled in your device settings.'),
-              const SizedBox(height: 16),
+              const Text('Make sure biometrics are enrolled in your device settings.', style: bodyStyle),
+              const SizedBox(height: 24),
               if (_fingerEnabled) ...[
-                const Text('Biometrics is enabled.', style: TextStyle(color: Colors.green)),
-                const SizedBox(height: 12),
-              ],
-              if (!_fingerEnabled) ...[
-                Row(
-                  children: [
-                    ElevatedButton(
-                      onPressed: () async {
-                        if (!_deviceSupportChecked) {
-                          await _checkDeviceSupport();
-                        }
-                        if (!_deviceSupportsFingerprint) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fingerprint not supported on this device')));
-                          }
-                          return;
-                        }
-                        _openSetupFor('fingerprint');
-                      },
-                      child: const Text('Set Up'),
-                    ),
-                  ],
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle_outline, size: 20, color: Colors.green.shade700),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Biometric login is enabled.',
+                          style: TextStyle(color: Colors.green.shade900, fontSize: 13, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
-            ],
-          ),
-        );
-      case 'face':
-        return _buildMethodCard(
-          icon: Icons.face,
-          title: 'Face Recognition',
-          enabled: _faceEnabled,
-          loading: false,
-          onToggle: _toggleFace,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('How it works', style: TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              const Text('Use your device\'s face recognition to add an additional check after password.'),
-              const SizedBox(height: 8),
-              const Text('Ensure face recognition is set up in your device settings.'),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  ElevatedButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Face recognition setup is UI-only')),
-                      );
+              if (!_fingerEnabled) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () async {
+                      try {
+                        final prefs = await SharedPreferences.getInstance();
+                        final existingFpEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
+                        if (existingFpEmail.isNotEmpty && existingFpEmail != widget.email.toLowerCase()) {
+                          bool stillEnabled = true;
+                          try {
+                            final s = await MongoDBService.getMfaStatusDetail(email: existingFpEmail);
+                            stillEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
+                          } catch (_) {}
+                          if (!stillEnabled) {
+                            try { await prefs.remove('fingerprintEmail'); } catch (_) {}
+                          } else {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  backgroundColor: Colors.red,
+                                  content: Text(
+                                    'You cannot use biometrics to log in to multiple accounts on the same device.',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              );
+                            }
+                            return;
+                          }
+                        }
+                      } catch (_) {}
+                      if (!_deviceSupportChecked) {
+                        await _checkDeviceSupport();
+                      }
+                      if (!_deviceSupportsFingerprint) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fingerprint not supported on this device')));
+                        }
+                        return;
+                      }
+                      _openSetupFor('fingerprint');
                     },
-                    child: const Text('Set Up'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    child: const Text('Set Up Biometrics', style: TextStyle(fontWeight: FontWeight.w600)),
                   ),
-                ],
-              ),
+                ),
+              ],
             ],
           ),
         );
@@ -563,31 +779,73 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
     bool loading = false,
     required ValueChanged<bool> onToggle,
   }) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 24, color: Colors.blue),
-                const SizedBox(width: 8),
-                Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                const Spacer(),
-                Switch(value: enabled, onChanged: loading ? null : onToggle),
-              ],
-            ),
-            const SizedBox(height: 12),
-            child,
-            if (loading)
-              const Padding(
-                padding: EdgeInsets.only(top: 12),
-                child: LinearProgressIndicator(minHeight: 2),
+    // No Card wrapper - parent handles container
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: enabled ? Colors.green.shade50 : Colors.blue.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  color: enabled ? Colors.green.shade700 : Colors.blue.shade700,
+                  size: 24,
+                ),
               ),
-          ],
-        ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    if (enabled)
+                      Text(
+                        'Enabled',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.green.shade600,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Transform.scale(
+                scale: 0.9,
+                child: Switch.adaptive(
+                  value: enabled,
+                  onChanged: loading ? null : onToggle,
+                  activeThumbColor: Colors.green,
+                  activeTrackColor: Colors.green.shade200,
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Divider(height: 1, color: Colors.grey.shade100),
+          ),
+          child,
+          if (loading)
+            const Padding(
+              padding: EdgeInsets.only(top: 20),
+              child: LinearProgressIndicator(minHeight: 2),
+            ),
+        ],
       ),
     );
   }

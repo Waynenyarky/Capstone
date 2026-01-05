@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../data/services/mongodb_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../deletion_scheduled_page.dart';
 import '../profile.dart';
 
@@ -80,9 +81,21 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
         final email = (user['email'] is String) ? user['email'] as String : '';
         final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
         final avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
+        final token = (user['token'] is String) ? user['token'] as String : '';
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          if (email.isNotEmpty) {
+            await prefs.setString('loggedInEmail', email.toLowerCase());
+            await prefs.setString('lastLoginEmail', email.toLowerCase());
+            await prefs.remove('disableAutoBiometricOnce');
+          }
+          if (token.isNotEmpty) {
+            await prefs.setString('accessToken', token);
+          }
+        } catch (_) {}
         if (!mounted) return;
         final navigator = Navigator.of(context);
-        final profileRes = await MongoDBService.fetchProfile(email: email);
+        final profileRes = await MongoDBService.fetchProfile(email: email, token: token);
         final pending = profileRes['deletionPending'] == true;
         final scheduledISO = (profileRes['deletionScheduledFor'] is String) ? profileRes['deletionScheduledFor'] as String : null;
         if (pending && scheduledISO != null) {
@@ -94,7 +107,7 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
                 firstName: firstName,
                 lastName: lastName,
                 phoneNumber: phoneNumber,
-                token: '',
+                token: token,
                 avatarUrl: avatarUrl,
               ),
             ),
@@ -109,7 +122,7 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
               firstName: firstName,
               lastName: lastName,
               phoneNumber: phoneNumber,
-              token: '',
+              token: token,
               avatarUrl: avatarUrl,
             ),
           ),
@@ -312,19 +325,22 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
               SizedBox(
                 width: double.infinity,
                 height: 56,
-                child: ElevatedButton(
+                child: ElevatedButton.icon(
                   onPressed: _loading || !_isOtpComplete ? null : _verify,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
+                    backgroundColor: Colors.blue.shade700,
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: Colors.grey.shade300,
                     disabledForegroundColor: Colors.grey.shade500,
-                    elevation: 0,
+                    elevation: 3,
+                    shadowColor: Colors.blue.shade200,
+                    side: BorderSide(color: Colors.blue.shade300, width: 1.2),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: _loading
+                  icon: _loading
                       ? const SizedBox(
                           height: 24,
                           width: 24,
@@ -333,13 +349,14 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Text(
-                          'Verify & Continue',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                      : const Icon(Icons.verified, size: 22),
+                  label: const Text(
+                    'Verify & Continue',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
 
