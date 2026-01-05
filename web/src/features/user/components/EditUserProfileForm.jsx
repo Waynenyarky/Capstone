@@ -3,7 +3,7 @@ import { Form, Input, Card, Flex, Button, Typography } from 'antd'
 import { useEditUserProfileForm } from "@/features/user/hooks/useEditUserProfileForm.js"
 import { firstNameRules, lastNameRules, phoneNumberRules } from "@/features/authentication/validations"
 import { useAuthSession } from "@/features/authentication"
-import { preventNonNumericKeyDown, sanitizeNumericPaste, sanitizeNumericInput } from "@/shared/forms"
+import { preventNonNumericKeyDown, sanitizeNumericPaste, sanitizeNumericInput, sanitizePhonePaste, sanitizePhoneInput } from "@/shared/forms"
 
 export default function EditUserProfileForm() {
   const initialValuesRef = React.useRef({})
@@ -54,7 +54,15 @@ export default function EditUserProfileForm() {
           <Input />
         </Form.Item>
         <Form.Item name="phoneNumber" label="Phone Number" rules={phoneNumberRules}>
-          <Input inputMode="numeric" pattern="[0-9]*" onKeyDown={preventNonNumericKeyDown} onPaste={sanitizeNumericPaste} onInput={sanitizeNumericInput} />
+          <Input
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={11}
+            onKeyDown={preventNonNumericKeyDown}
+            onPaste={sanitizePhonePaste}
+            onInput={sanitizePhoneInput}
+            placeholder="09XXXXXXXXX"
+          />
         </Form.Item>
         <Flex justify="end">
           <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting}>Save</Button>

@@ -2,6 +2,7 @@ import React from 'react'
 import { Row, Col, Card, Typography } from 'antd'
 import { LogoutForm, DeleteAccountFlow, LoggedInEmailChangeFlow, LoggedInPasswordChangeFlow } from "@/features/authentication"
 import EditUserProfileForm from "@/features/user/components/EditUserProfileForm.jsx"
+import LoggedInMfaManager from '@/features/authentication/components/LoggedInMfaManager.jsx'
 
 export default function UserWorkspaceGate() {
   return (
@@ -23,6 +24,9 @@ export default function UserWorkspaceGate() {
         <DeleteAccountFlow />
         <LoggedInEmailChangeFlow />
         <LoggedInPasswordChangeFlow />
+        <Col span={8}>
+          <LoggedInMfaManager />
+        </Col>
       </Row>
     </>
   )

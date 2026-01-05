@@ -1,1 +1,1 @@
-export { preventNonNumericKeyDown, sanitizeNumericPaste, sanitizeNumericInput } from "@/shared/forms/numericGuards.js"
+export { preventNonNumericKeyDown, sanitizeNumericPaste, sanitizeNumericInput, sanitizePhonePaste, sanitizePhoneInput } from "@/shared/forms/numericGuards.js"

@@ -21,7 +21,7 @@ export default function PasswordResetFlow() {
     <Row gutter={[12, 12]} style={{ padding: 24 }}>
       <Col span={8}>
         {step === 'forgot' && <ForgotPasswordForm onSubmit={forgotProps.onSubmit} />}
-        {step === 'verify' && <VerificationForm email={verifyProps.email} devCode={verifyProps.devCode} onSubmit={verifyProps.onSubmit} />}
+        {step === 'verify' && <VerificationForm email={verifyProps.email} onSubmit={verifyProps.onSubmit} />}
         {step === 'change' && <ChangePasswordForm email={changeProps.email} resetToken={changeProps.resetToken} onSubmit={changeProps.onSubmit} />}
       </Col>
     </Row>

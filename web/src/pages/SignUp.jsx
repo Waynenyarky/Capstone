@@ -1,8 +1,10 @@
 import React from 'react'
-import { Layout, Tabs, Row, Col } from 'antd'
+import { Layout, Tabs, Row, Col, Button } from 'antd'
+import { useNavigate } from 'react-router-dom'
 import { UserSignUpForm } from '@/features/authentication'
 
 export default function SignUp() {
+  const navigate = useNavigate()
   const items = [
     { key: 'user', label: 'User', children: <UserSignUpForm /> },
   ]
@@ -12,6 +14,9 @@ export default function SignUp() {
       <Layout.Content style={{ padding: 24 }}>
         <Row justify="center">
           <Col xs={24} md={20} lg={16} xl={14}>
+            <div style={{ marginBottom: 12 }}>
+              <Button onClick={() => navigate('/')} style={{ marginBottom: 12 }}>Back</Button>
+            </div>
             <Tabs items={items} />
           </Col>
         </Row>

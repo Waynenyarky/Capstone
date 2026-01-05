@@ -3,7 +3,7 @@ import { useUserSignUp, useUserSignUpFlow } from "@/features/authentication/hook
 import { emailRules, firstNameRules, lastNameRules, phoneNumberRules, signUpPasswordRules as passwordRules, signUpConfirmPasswordRules, termsRules } from "@/features/authentication/validations"
 import React from 'react'
 import { SignUpVerificationForm } from "@/features/authentication"
-import { preventNonNumericKeyDown, sanitizeNumericPaste, sanitizeNumericInput } from "@/shared/forms"
+import { preventNonNumericKeyDown, sanitizePhonePaste, sanitizePhoneInput } from "@/shared/forms"
 import { useNavigate } from 'react-router-dom'
 
 export default function UserSignUpForm() {
@@ -46,7 +46,7 @@ export default function UserSignUpForm() {
           <Input />
         </Form.Item>
         <Form.Item name="phoneNumber" label="Phone Number" rules={phoneNumberRules}>
-          <Input inputMode="numeric" pattern="[0-9]*" onKeyDown={preventNonNumericKeyDown} onPaste={sanitizeNumericPaste} onInput={sanitizeNumericInput} />
+          <Input inputMode="numeric" pattern="[0-9]*" onKeyDown={preventNonNumericKeyDown} onPaste={sanitizePhonePaste} onInput={sanitizePhoneInput} />
         </Form.Item>
         <Form.Item name="password" label="Password" rules={passwordRules}>
           <Input.Password />

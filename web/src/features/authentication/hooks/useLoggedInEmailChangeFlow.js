@@ -5,15 +5,14 @@ export function useLoggedInEmailChangeFlow() {
   const { currentUser } = useAuthSession()
   const [step, setStep] = useState('send')
   const [email, setEmail] = useState(currentUser?.email || '')
+  const [newEmail, setNewEmail] = useState('')
   const [resetToken, setResetToken] = useState('')
-  const [devCode, setDevCode] = useState('')
 
   useEffect(() => {
     setEmail(currentUser?.email || '')
   }, [currentUser])
 
-  const handleSent = useCallback((data) => {
-    setDevCode(String(data?.devCode || ''))
+  const handleSent = useCallback(() => {
     setStep('verify')
   }, [])
 
@@ -23,19 +22,24 @@ export function useLoggedInEmailChangeFlow() {
     setStep('change')
   }, [])
 
-  const handleChangeSubmit = useCallback(() => {
+  const handleChangeStart = useCallback(({ newEmail: ne }) => {
+    setNewEmail(ne)
+    setStep('verifyNew')
+  }, [])
+
+  const handleVerifyNewSubmit = useCallback(() => {
     setStep('done')
   }, [])
 
   const reset = useCallback(() => {
     setStep('send')
     setResetToken('')
-    setDevCode('')
   }, [])
 
   const sendProps = { email, onSent: handleSent }
-  const verifyProps = { email, onSubmit: handleVerifySubmit, devCode }
-  const changeProps = { email, resetToken, onSubmit: handleChangeSubmit }
+  const verifyProps = { email, onSubmit: handleVerifySubmit }
+  const changeProps = { email, resetToken, onSubmit: handleChangeStart }
+  const verifyNewProps = { email: newEmail, currentEmail: email, onSubmit: handleVerifyNewSubmit }
 
-  return { step, sendProps, verifyProps, changeProps, email, resetToken, reset }
+  return { step, sendProps, verifyProps, changeProps, verifyNewProps, email, newEmail, resetToken, reset }
 }

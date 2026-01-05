@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { loginStart, loginPost } from "@/features/authentication/services"
 import { useNotifier } from '@/shared/notifications.js'
 
-export function useLogin({ onBegin, onSubmit } = {}) {
+export function useLogin({ onBegin, onSubmit, onError } = {}) {
   const [form] = Form.useForm()
   const [isSubmitting, setSubmitting] = useState(false)
   const { success, info, error } = useNotifier()
@@ -19,14 +19,46 @@ export function useLogin({ onBegin, onSubmit } = {}) {
           info(`Dev code: ${data.devCode}`)
         }
         // Keep fields for user convenience during two-step flow
-        onBegin({ email: values.email, rememberMe: values.rememberMe === true, devCode: data?.devCode })
+        const beginResult = await onBegin({ email: values.email, rememberMe: values.rememberMe === true, devCode: data?.devCode, serverData: data })
+        // If the onBegin handler indicates we should proceed immediately (MFA disabled),
+        // signal the caller to complete the server-side login rather than performing
+        // it inside this hook. This centralizes the finalization and ensures the
+        // caller (flow orchestrator) is the only place that marks the session
+        // as authenticated.
+        if (beginResult && beginResult.proceedWithLogin) {
+          if (typeof onSubmit === 'function') {
+            // Signal the caller to perform the final server login. Provide the
+            // original payload so the caller can call `loginPost` and validate
+            // the server response before persisting session state.
+            try {
+              await onSubmit(null, values, { serverLoginPayload: payload })
+            } catch (innerErr) {
+              console.error('Login completion (delegated) failed:', innerErr)
+              throw innerErr
+            }
+            return
+          }
+        }
       } else {
         const user = await loginPost(payload)
+        const role = String(user?.role || '').toLowerCase()
+        // Block admin accounts on the generic login page: show invalid credentials
+        if (role === 'admin') {
+          form.setFields([
+            { name: 'email', errors: ['Invalid credentials'] },
+            { name: 'password', errors: ['Invalid credentials'] },
+          ])
+          return
+        }
         success('Logged in successfully')
         form.resetFields()
         if (typeof onSubmit === 'function') onSubmit(user, values)
       }
     } catch (err) {
+      // Notify caller about structured server errors (e.g., locked accounts)
+      try {
+        if (typeof onError === 'function') onError(err)
+      } catch { /* ignore onError failures */ }
       console.error('Login error:', err)
       const msg = String(err?.message || '').toLowerCase()
       // Prefer field-level errors for invalid credentials

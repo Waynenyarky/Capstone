@@ -1,8 +1,15 @@
 import { Card, Button, Flex, Typography } from 'antd'
 import { useSendVerificationCode } from "@/features/authentication/hooks"
 
-export default function SendCodeForCurrentUser({ email, onSent, title } = {}) {
+import { useEffect } from 'react'
+
+export default function SendCodeForCurrentUser({ email, onSent, title, autoSend = false } = {}) {
   const { isSending, handleSend } = useSendVerificationCode({ email, onSent })
+  useEffect(() => {
+    if (autoSend && email && !isSending) {
+      handleSend()
+    }
+  }, [autoSend, email, isSending, handleSend])
   const cardTitle = title || 'Send Verification Code'
 
   return (

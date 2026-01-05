@@ -6,12 +6,15 @@ export default function VerifyDeleteCodeForm({ email, onSubmit, title } = {}) {
   return (
     <Card title={title}>
       <Typography.Paragraph type="secondary">
-        Enter the verification code sent to your email.
+        Enter the 6-digit verification code that was sent to your email (not the code from an authenticator app). Check your inbox (and spam folder) for the message.
       </Typography.Paragraph>
       <Form name="verifyDelete" form={form} layout="vertical" onFinish={handleFinish}>
         <Form.Item name="verificationCode" label="Verification Code" hasFeedback rules={[{ required: true, message: 'Enter the code' }] }>
           <Input.OTP />
         </Form.Item>
+        <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+          Tip: this is the email code sent to your inbox — do not enter codes from your authenticator app.
+        </Typography.Text>
         <Flex justify="end" gap="small">
           <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting}>Verify</Button>
         </Flex>

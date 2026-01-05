@@ -1,9 +1,13 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import Home from "@/pages/Home.jsx"
 import Dashboard from "@/pages/Dashboard.jsx"
 import Login from "@/pages/Login.jsx"
 import SignUp from "@/pages/SignUp.jsx"
 import ForgotPassword from "@/pages/ForgotPassword.jsx"
+import AdminLogin from "@/features/authentication/components/AdminLogin.jsx"
+import MfaSetup from "@/features/authentication/components/MfaSetup.jsx"
+import AdminDashboard from "@/pages/AdminDashboard.jsx"
+import { RequireAdmin } from '@/features/authentication'
 
 function App() {
   return (
@@ -12,6 +16,10 @@ function App() {
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route path="/mfa/setup" element={<MfaSetup />} />
+      <Route path="/admin/dashboard" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
+      <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
       <Route path="/sign-up" element={<SignUp />} />
     </Routes>
   )

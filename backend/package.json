@@ -16,6 +16,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@simplewebauthn/server": "^13.2.2",
+    "base64url": "^3.0.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dayjs": "^1.11.19",
@@ -31,6 +33,11 @@
     "nodemailer": "^7.0.11",
     "philippine-administrative-divisions": "^2.0.3",
     "google-auth-library": "^9.14.1"
+  },
+  "optionalDependencies": {
+    "cookie-parser": "^1.4.7",
+    "express-session": "^1.18.2",
+    "openid-client": "^5.7.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
