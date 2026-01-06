@@ -10,11 +10,19 @@ export default function Home() {
           <Flex gap="small">
             <Link to="/login"><Button>Login</Button></Link>
             <Link to="/sign-up"><Button type="primary">Sign Up</Button></Link>
+            <Link to="/sign-up-static"><Button>Static Sign Up</Button></Link>
             <Link to="/admin/login"><Button type="dashed">Admin Login</Button></Link>
           </Flex>
         </Flex>
       </Layout.Header>
       <Layout.Content style={{ padding: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-start', gap: 12, marginBottom: 16 }}>
+          <Link to="/business"><Button type="default">Business Owner</Button></Link>
+          <Link to="/lgu-officer"><Button type="default">LGU Officer</Button></Link>
+          <Link to="/lgu-manager"><Button type="default">LGU Manager</Button></Link>
+          <Link to="/inspector"><Button type="default">Inspector</Button></Link>
+          <Link to="/cso"><Button type="default">Customer Support</Button></Link>
+        </div>
         {/* TODO: Add hero/sections later. Keeping minimal for now. */}
       </Layout.Content>
     </Layout>

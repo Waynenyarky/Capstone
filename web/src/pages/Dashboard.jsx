@@ -1,6 +1,7 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Row, Col, Layout } from 'antd'
+import { Row, Col, Layout, Button, Space } from 'antd'
+import { Link } from 'react-router-dom'
 import { LogoutForm, DeletionScheduledBanner, useAuthSession } from "@/features/authentication"
 import { UserWorkspaceGate } from "@/features/user"
 import { AdminWorkspaceGate } from "@/features/admin"
@@ -37,6 +38,11 @@ export default function Dashboard() {
       {currentUser && !currentUser?.deletionPending && role === 'user' && (
         <>
           <UserWorkspaceGate />
+          <div style={{ padding: 24 }}>
+            <Space>
+              <Link to="/profile-static"><Button>View Profile (Static)</Button></Link>
+            </Space>
+          </div>
         </>
       )}
 

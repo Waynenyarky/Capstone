@@ -1,6 +1,7 @@
 import React from 'react'
-import { Layout, Row, Col } from 'antd'
+import { Layout, Row, Col, Button } from 'antd'
 import { AdminLoginForm } from '@/features/authentication'
+import { Link } from 'react-router-dom'
 
 export default function AdminLogin() {
   return (
@@ -9,6 +10,11 @@ export default function AdminLogin() {
         <Row justify="center">
           <Col style={{ width: 420 }}>
             <h2>Admin Login</h2>
+            <div style={{ marginBottom: 12 }}>
+              <Link to="/">
+                <Button type="default">Back</Button>
+              </Link>
+            </div>
             <AdminLoginForm />
           </Col>
         </Row>
