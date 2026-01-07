@@ -1,12 +1,16 @@
 import React from 'react'
 import { Layout, Row, Col, Card, Button, Typography, Space } from 'antd'
 import { Link } from 'react-router-dom'
+import Sidebar from '@/features/authentication/components/Sidebar'
 
 const { Title, Paragraph } = Typography
 
 export default function BusinessOwnerDashboard() {
   return (
     <Layout style={{ minHeight: '100vh', background: '#f5f7fb' }}>
+      <Layout.Sider width={260} style={{ background: '#fff' }}>
+        <Sidebar />
+      </Layout.Sider>
       <Layout.Content style={{ padding: 32 }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
           <div style={{ marginBottom: 18 }}>

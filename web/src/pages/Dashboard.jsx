@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { LogoutForm, DeletionScheduledBanner, useAuthSession } from "@/features/authentication"
 import { UserWorkspaceGate } from "@/features/user"
 import { AdminWorkspaceGate } from "@/features/admin"
+import Sidebar from '@/features/authentication/components/Sidebar'
 
 
 export default function Dashboard() {
@@ -15,47 +16,47 @@ export default function Dashboard() {
     if (!currentUser) navigate('/login')
   }, [currentUser, navigate])
 
-
   return (
-    <Layout>
-      {/* Dev debug panel removed */}
-      {currentUser && currentUser.deletionPending && (
-        <>
-          <Row gutter={[12, 12]} style={{ padding: 24 }}>
-            <Col span={24}>
-              <DeletionScheduledBanner />
-            </Col>
-          </Row>
-          <Row gutter={[12, 12]} style={{ padding: 24 }}>
-            <Col span={6}>
-              <LogoutForm />
-            </Col>
-          </Row>
-        </>
-      )}
+    <Layout style={{ minHeight: '100vh' }}>
+      <Layout.Sider width={260} style={{ background: '#fff' }}>
+        <Sidebar />
+      </Layout.Sider>
+      <Layout.Content>
+        {/* Dev debug panel removed */}
+        {currentUser && currentUser.deletionPending && (
+          <>
+            <Row gutter={[12, 12]} style={{ padding: 24 }}>
+              <Col span={24}>
+                <DeletionScheduledBanner />
+              </Col>
+            </Row>
+            <Row gutter={[12, 12]} style={{ padding: 24 }}>
+              <Col span={6}>
+                <LogoutForm />
+              </Col>
+            </Row>
+          </>
+        )}
 
+        {currentUser && !currentUser?.deletionPending && role === 'user' && (
+          <>
+            <UserWorkspaceGate />
+            <div style={{ padding: 24 }}>
+              <Space>
+                <Link to="/profile-static"><Button>View Profile (Static)</Button></Link>
+              </Space>
+            </div>
+          </>
+        )}
 
-      {currentUser && !currentUser?.deletionPending && role === 'user' && (
-        <>
-          <UserWorkspaceGate />
-          <div style={{ padding: 24 }}>
-            <Space>
-              <Link to="/profile-static"><Button>View Profile (Static)</Button></Link>
-            </Space>
-          </div>
-        </>
-      )}
+        {/* Provider feature removed */}
 
-
-      {/* Provider feature removed */}
-
-
-      {currentUser && role === 'admin' && (
-        <>
-          <AdminWorkspaceGate />
-        </>
-      )}
-
+        {currentUser && role === 'admin' && (
+          <>
+            <AdminWorkspaceGate />
+          </>
+        )}
+      </Layout.Content>
     </Layout>
   )
 }
