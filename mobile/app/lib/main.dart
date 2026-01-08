@@ -4,8 +4,9 @@ import 'package:app/presentation/screens/login_page.dart';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app/data/services/mongodb_service.dart';
-import 'package:app/presentation/screens/profile.dart';
 import 'package:app/presentation/screens/deletion_scheduled_page.dart';
+import 'package:app/presentation/screens/dashboard/main_dashboard_screen.dart';
+import 'package:app/domain/entities/user_role.dart';
 
 import 'package:app/presentation/widgets/session_timeout_manager.dart';
 
@@ -100,6 +101,8 @@ class _AppRootState extends State<AppRoot> {
   String _earlyLastName = '';
   String _earlyPhoneNumber = '';
   String _earlyAvatarUrl = '';
+  String _earlyToken = '';
+  UserRole _earlyRole = UserRole.unknown;
 
   @override
   void initState() {
@@ -115,6 +118,9 @@ class _AppRootState extends State<AppRoot> {
         final firstName = (prefs.getString('cachedFirstName') ?? '').trim();
         final lastName = (prefs.getString('cachedLastName') ?? '').trim();
         final phoneNumber = (prefs.getString('cachedPhoneNumber') ?? '').trim();
+        final token = (prefs.getString('accessToken') ?? '').trim();
+        final roleStr = (prefs.getString('cachedRole') ?? '').trim();
+        
         var avatar = (prefs.getString('avatar_url_$email') ?? '').trim();
         if (avatar.isEmpty) {
            avatar = (prefs.getString('lastAvatarUrl') ?? '').trim();
@@ -128,6 +134,8 @@ class _AppRootState extends State<AppRoot> {
             _earlyLastName = lastName;
             _earlyPhoneNumber = phoneNumber;
             _earlyAvatarUrl = avatar;
+            _earlyToken = token;
+            _earlyRole = parseUserRole(roleStr);
           });
         }
       } catch (_) {}
@@ -221,6 +229,12 @@ class _AppRootState extends State<AppRoot> {
         };
       }
       final user = (profile['user'] is Map<String, dynamic>) ? (profile['user'] as Map<String, dynamic>) : <String, dynamic>{};
+      final roleStr = (user['role'] is String) ? user['role'] as String : '';
+      final role = parseUserRole(roleStr);
+      if (roleStr.isNotEmpty) {
+        try { await prefs.setString('cachedRole', roleStr); } catch (_) {}
+      }
+
       final pending = profile['deletionPending'] == true;
       final scheduledISO = (profile['deletionScheduledFor'] is String) ? profile['deletionScheduledFor'] as String : null;
       final firstName = (user['firstName'] is String) ? user['firstName'] as String : '';
@@ -248,11 +262,13 @@ class _AppRootState extends State<AppRoot> {
         };
       }
       return {
-        'screen': 'profile',
+        'screen': 'dashboard',
+        'role': role,
         'email': email,
         'firstName': firstName,
         'lastName': lastName,
         'phoneNumber': phoneNumber,
+        'token': token,
         'avatarUrl': effectiveAvatar,
         'preFpEnabled': preFpEnabled,
         'preFpEmail': preFpEmail,
@@ -290,12 +306,18 @@ class _AppRootState extends State<AppRoot> {
         final cachedFirstName = (prefs.getString('cachedFirstName') ?? '').trim();
         final cachedLastName = (prefs.getString('cachedLastName') ?? '').trim();
         final cachedPhoneNumber = (prefs.getString('cachedPhoneNumber') ?? '').trim();
+        final cachedToken = (prefs.getString('accessToken') ?? '').trim();
+        final cachedRoleStr = (prefs.getString('cachedRole') ?? '').trim();
+        final cachedRole = parseUserRole(cachedRoleStr);
+
         return {
-          'screen': 'profile',
+          'screen': 'dashboard',
+          'role': cachedRole,
           'email': email,
           'firstName': cachedFirstName,
           'lastName': cachedLastName,
           'phoneNumber': cachedPhoneNumber,
+          'token': cachedToken,
           'avatarUrl': cachedAvatarUrl,
           'preFpEnabled': preFpEnabled,
           'preFpEmail': preFpEmail,
@@ -315,12 +337,13 @@ class _AppRootState extends State<AppRoot> {
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
           if (_likelyLoggedIn) {
-            return ProfilePage(
-              email: _earlyEmail,
+            return MainDashboardScreen(
+              role: _earlyRole,
               firstName: _earlyFirstName,
               lastName: _earlyLastName,
+              email: _earlyEmail,
               phoneNumber: _earlyPhoneNumber,
-              token: '',
+              token: _earlyToken,
               avatarUrl: _earlyAvatarUrl,
             );
           }
@@ -328,13 +351,14 @@ class _AppRootState extends State<AppRoot> {
         }
         final data = snap.data ?? const {'screen': 'login'};
         final screen = (data['screen'] ?? 'login').toString();
-        if (screen == 'profile') {
-          return ProfilePage(
-            email: (data['email'] ?? '').toString(),
+        if (screen == 'dashboard' || screen == 'profile') {
+          return MainDashboardScreen(
+            role: (data['role'] is UserRole) ? data['role'] as UserRole : UserRole.unknown,
             firstName: (data['firstName'] ?? '').toString(),
             lastName: (data['lastName'] ?? '').toString(),
+            email: (data['email'] ?? '').toString(),
             phoneNumber: (data['phoneNumber'] ?? '').toString(),
-            token: '',
+            token: (data['token'] ?? '').toString(),
             avatarUrl: (data['avatarUrl'] ?? '').toString(),
           );
         }

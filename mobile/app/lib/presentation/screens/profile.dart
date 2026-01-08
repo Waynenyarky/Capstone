@@ -25,7 +25,8 @@ class ProfilePage extends StatefulWidget {
   final String phoneNumber;
   final String token;
   final String avatarUrl;
-  const ProfilePage({super.key, required this.email, required this.firstName, required this.lastName, required this.phoneNumber, required this.token, this.avatarUrl = ''});
+  final Widget? drawer;
+  const ProfilePage({super.key, required this.email, required this.firstName, required this.lastName, required this.phoneNumber, required this.token, this.avatarUrl = '', this.drawer});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -697,6 +698,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: widget.drawer,
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: const Text('Profile', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w700, fontSize: 24)),

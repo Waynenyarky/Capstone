@@ -52,7 +52,7 @@ async function seedDevDataIfEmpty() {
         for (const u of usersSeed) {
           const passwordHash = await bcrypt.hash(u.passwordPlain || 'changeme', 10)
           docs.push({
-            role: u.role || 'user',
+            role: (u.role === 'user' ? 'business_owner' : u.role) || 'business_owner',
             firstName: u.firstName,
             lastName: u.lastName,
             email: u.email,

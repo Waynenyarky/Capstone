@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../domain/usecases/send_signup_code.dart';
 import 'signup_otp_page.dart';
-import 'profile.dart';
+// import 'profile.dart';
 import 'deletion_scheduled_page.dart';
 import 'security/login_mfa_screen.dart';
+import 'dashboard/main_dashboard_screen.dart';
+import '../../domain/entities/user_role.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'package:app/data/services/google_auth_service.dart';
 import '../../domain/usecases/sign_in_with_google.dart';
@@ -371,6 +373,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
         final profileRes = await MongoDBService.fetchProfile(email: email).timeout(const Duration(seconds: 2));
         final pending = profileRes['deletionPending'] == true;
         final scheduledISO = (profileRes['deletionScheduledFor'] is String) ? profileRes['deletionScheduledFor'] as String : null;
+        
+        // Role handling and caching
+        String roleStr = 'business_owner'; // Default per requirements
+        try {
+          if (profileRes['user'] is Map && profileRes['user']['role'] is String) {
+            roleStr = profileRes['user']['role'];
+          }
+        } catch (_) {}
+        
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('cachedRole', roleStr);
+        } catch (_) {}
+
+        final userRole = parseUserRole(roleStr);
+
         if (pending && scheduledISO != null) {
           navigator.pushAndRemoveUntil(
             MaterialPageRoute(
@@ -390,7 +408,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
         }
         navigator.pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (_) => ProfilePage(
+            builder: (_) => MainDashboardScreen(
+              role: userRole,
               email: email,
               firstName: firstName,
               lastName: lastName,

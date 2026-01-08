@@ -138,13 +138,13 @@ router.post('/login', validateBody(loginCredentialsSchema), async (req, res) => 
       }
       if (!isFingerprint) return respond.error(res, 401, 'mfa_required', 'Multi-factor authentication required')
     }
-    if (doc.role !== 'user' && doc.role !== 'admin') {
+    if (doc.role === 'user') {
       try {
         const dbDoc = await User.findById(doc._id)
         if (dbDoc) {
-          dbDoc.role = 'user'
+          dbDoc.role = 'business_owner'
           await dbDoc.save()
-          doc.role = 'user'
+          doc.role = 'business_owner'
         }
       } catch (_) {}
     }
@@ -276,7 +276,7 @@ router.post('/login/google', validateBody(googleLoginSchema), async (req, res) =
         }
         const passwordHash = await bcrypt.hash(generateToken(), 10)
         const created = await User.create({
-          role: 'user',
+          role: 'business_owner',
           firstName,
           lastName,
           email,
@@ -462,13 +462,13 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
     // Load user and return safe object
     const doc = await User.findOne({ email }).lean()
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
-    if (doc.role !== 'user' && doc.role !== 'admin') {
+    if (doc.role !== 'business_owner' && doc.role !== 'admin') {
       try {
         const dbDoc = await User.findById(doc._id)
         if (dbDoc) {
-          dbDoc.role = 'user'
+          dbDoc.role = 'business_owner'
           await dbDoc.save()
-          doc.role = 'user'
+          doc.role = 'business_owner'
         }
       } catch (_) {}
     }
@@ -610,13 +610,13 @@ router.post('/login/complete-fingerprint', validateBody(fingerprintCompleteSchem
     if (doc.mfaEnabled !== true || (!doc.fprintEnabled && !(String(doc.mfaMethod || '').toLowerCase().includes('fingerprint') || !doc.mfaSecret))) {
       return respond.error(res, 400, 'fingerprint_not_enabled', 'Fingerprint is not enabled for this account')
     }
-    if (doc.role !== 'user' && doc.role !== 'admin') {
+    if (doc.role !== 'business_owner' && doc.role !== 'admin') {
       try {
         const dbDoc = await User.findById(doc._id)
         if (dbDoc) {
-          dbDoc.role = 'user'
+          dbDoc.role = 'business_owner'
           await dbDoc.save()
-          doc.role = 'user'
+          doc.role = 'business_owner'
         }
       } catch (_) {}
     }

@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 import '../../../data/services/mongodb_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../deletion_scheduled_page.dart';
-import '../profile.dart';
+import '../dashboard/main_dashboard_screen.dart';
+import '../../../domain/entities/user_role.dart';
 
 class LoginMfaScreen extends StatefulWidget {
   final String email;
@@ -82,6 +83,8 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
         final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
         final avatarUrl = (user['avatarUrl'] is String) ? user['avatarUrl'] as String : '';
         final token = (user['token'] is String) ? user['token'] as String : '';
+        final roleStr = (user['role'] is String) ? user['role'] as String : '';
+        final role = parseUserRole(roleStr);
         try {
           final prefs = await SharedPreferences.getInstance();
           if (email.isNotEmpty) {
@@ -117,7 +120,8 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
         }
         navigator.pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (_) => ProfilePage(
+            builder: (_) => MainDashboardScreen(
+              role: role,
               email: email,
               firstName: firstName,
               lastName: lastName,

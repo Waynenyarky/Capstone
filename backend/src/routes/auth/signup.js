@@ -28,7 +28,7 @@ const signupPayloadSchema = Joi.object({
   phoneNumber: Joi.string().allow('', null),
   password: Joi.string().min(6).max(200).required(),
   termsAccepted: Joi.boolean().truthy('true', 'TRUE', 'True', 1, '1').valid(true).required(),
-  role: Joi.string().valid('user').default('user'),
+  role: Joi.string().valid('business_owner', 'admin', 'lgu_officer', 'lgu_manager', 'inspector', 'cso').default('business_owner'),
 })
 
 const verifyCodeSchema = Joi.object({
@@ -75,7 +75,7 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
       phoneNumber,
       password,
       termsAccepted,
-      role = 'user',
+      role = 'business_owner',
     } = req.body || {}
 
     const passwordHash = await bcrypt.hash(password, 10)
@@ -87,7 +87,7 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
     if (existing) return respond.error(res, 409, 'email_exists', 'Email already exists')
 
     const doc = await User.create({
-      role: role || 'user',
+      role: role || 'business_owner',
       firstName,
       lastName,
       email,
@@ -205,7 +205,7 @@ router.post('/signup/verify', signupVerifyLimiter, validateBody(verifyCodeSchema
 
     const passwordHash = await bcrypt.hash(p.password, 10)
     const doc = await User.create({
-      role: p.role || 'user',
+      role: p.role || 'business_owner',
       firstName: p.firstName,
       lastName: p.lastName,
       email: p.email,

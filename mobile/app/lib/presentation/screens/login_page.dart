@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'signup_page.dart';
 import 'package:app/data/services/mongodb_service.dart';
-import 'profile.dart';
 import 'deletion_scheduled_page.dart';
 import 'security/login_mfa_screen.dart';
 import 'forgot_password_page.dart';
@@ -13,6 +12,8 @@ import 'package:flutter/services.dart';
  
 import 'package:app/data/services/google_auth_service.dart';
 import '../../domain/usecases/sign_in_with_google.dart';
+import '../../domain/entities/user_role.dart';
+import 'dashboard/main_dashboard_screen.dart';
  
 class LoginScreen extends StatefulWidget {
   final String? deletionScheduledForISO;
@@ -456,6 +457,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       if (complete['success'] == true) {
         final user = (complete['user'] is Map<String, dynamic>) ? (complete['user'] as Map<String, dynamic>) : <String, dynamic>{};
+        final roleStr = (user['role'] is String) ? user['role'] as String : '';
+        final role = parseUserRole(roleStr);
         final firstName = (user['firstName'] is String) ? user['firstName'] as String : '';
         final lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
         final phoneNumber = (user['phoneNumber'] is String) ? user['phoneNumber'] as String : '';
@@ -522,6 +525,7 @@ class _LoginScreenState extends State<LoginScreen> {
           await prefs.setString('cachedFirstName', firstName);
           await prefs.setString('cachedLastName', lastName);
           await prefs.setString('cachedPhoneNumber', phoneNumber);
+          await prefs.setString('cachedRole', roleStr); // Save role for offline/restart
           if (token.isNotEmpty) {
             await prefs.setString('accessToken', token);
           }
@@ -568,10 +572,11 @@ class _LoginScreenState extends State<LoginScreen> {
         }
         navigator.pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (_) => ProfilePage(
-              email: email,
+            builder: (_) => MainDashboardScreen(
+              role: role,
               firstName: firstName,
               lastName: lastName,
+              email: email,
               phoneNumber: phoneNumber,
               token: token,
               avatarUrl: avatarUrl,
@@ -744,6 +749,8 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _isLoading = false);
       if (result['success'] == true) {
         final user = (result['user'] is Map<String, dynamic>) ? (result['user'] as Map<String, dynamic>) : <String, dynamic>{};
+        final roleStr = (user['role'] is String) ? user['role'] as String : '';
+        final role = parseUserRole(roleStr);
         final email = (user['email'] is String) ? user['email'] as String : '';
         var firstName = (user['firstName'] is String) ? user['firstName'] as String : '';
         var lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
@@ -905,10 +912,11 @@ class _LoginScreenState extends State<LoginScreen> {
         }
         navigator.pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (_) => ProfilePage(
-              email: email,
+            builder: (_) => MainDashboardScreen(
+              role: role,
               firstName: firstName,
               lastName: lastName,
+              email: email,
               phoneNumber: phoneNumber,
               token: token,
               avatarUrl: avatarUrl,
@@ -1372,6 +1380,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (result['success']) {
         if (!mounted) return;
         final user = (result['user'] is Map<String, dynamic>) ? (result['user'] as Map<String, dynamic>) : <String, dynamic>{};
+        final roleStr = (user['role'] is String) ? user['role'] as String : '';
+        final role = parseUserRole(roleStr);
         final firstName = (user['firstName'] is String) ? user['firstName'] as String : '';
         final lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
         final email = (user['email'] is String) ? user['email'] as String : '';
@@ -1432,10 +1442,11 @@ class _LoginScreenState extends State<LoginScreen> {
         }
         navigator.pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (_) => ProfilePage(
-              email: email,
+            builder: (_) => MainDashboardScreen(
+              role: role,
               firstName: firstName,
               lastName: lastName,
+              email: email,
               phoneNumber: phoneNumber,
               token: token,
               avatarUrl: avatarUrl,
