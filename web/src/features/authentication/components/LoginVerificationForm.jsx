@@ -4,13 +4,13 @@ import React from 'react'
 import OtpInput from '@/features/authentication/components/OtpInput.jsx'
 import useOtpCountdown from '@/features/authentication/hooks/useOtpCountdown.js'
 
-export default function LoginVerificationForm({ email, onSubmit, title, devCode, otpExpiresAt } = {}) {
-  const { form, handleFinish, isSubmitting, prefillDevCode } = useLoginVerificationForm({ email, onSubmit, devCode })
+export default function LoginVerificationForm({ email, onSubmit, title, otpExpiresAt } = {}) {
+  const { form, handleFinish, isSubmitting } = useLoginVerificationForm({ email, onSubmit })
   const cardTitle = title || 'Verify Login'
   const { isSending: isResending, handleResend, isCooling, remaining } = useResendLoginCode({ email, cooldownSec: 60 })
   const { remaining: otpRemaining, isExpired } = useOtpCountdown(otpExpiresAt)
   return (
-    <Card title={cardTitle} extra={devCode ? (<Button size="small" onClick={prefillDevCode}>Prefill Code</Button>) : undefined}>
+    <Card title={cardTitle}>
       <Form name="loginVerification" form={form} layout="vertical" onFinish={handleFinish}>
         <Form.Item name="verificationCode" label="Verification Code" hasFeedback rules={[{ required: true, message: 'Enter the code' }] }>
           <OtpInput />

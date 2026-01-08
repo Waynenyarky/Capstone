@@ -18,5 +18,6 @@ export { default as SendDeleteCodeForCurrentUser } from './SendDeleteCodeForCurr
 export { default as DeletionScheduledBanner } from './DeletionScheduledBanner.jsx'
 export { default as WebAuthnRegister } from './WebAuthnRegister.jsx'
 export { default as WebAuthnAuthenticate } from './WebAuthnAuthenticate.jsx'
+export { default as ProfileStatic } from './ProfileStatic.jsx'
 
  

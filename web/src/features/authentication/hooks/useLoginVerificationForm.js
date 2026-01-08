@@ -3,16 +3,10 @@ import { useState, useCallback } from 'react'
 import { verifyLoginCode } from "@/features/authentication/services"
 import { useNotifier } from '@/shared/notifications.js'
 
-export function useLoginVerificationForm({ onSubmit, email, devCode } = {}) {
+export function useLoginVerificationForm({ onSubmit, email } = {}) {
   const [form] = Form.useForm()
   const [isSubmitting, setSubmitting] = useState(false)
   const { success, error } = useNotifier()
-
-  const prefillDevCode = useCallback(() => {
-    if (!devCode) return
-    form.setFieldsValue({ verificationCode: String(devCode) })
-    success('Dev code prefilled')
-  }, [form, devCode, success])
 
   const handleFinish = async (values) => {
     const payload = { email, code: values.verificationCode }
@@ -40,5 +34,5 @@ export function useLoginVerificationForm({ onSubmit, email, devCode } = {}) {
     }
   }
 
-  return { form, handleFinish, isSubmitting, prefillDevCode }
+  return { form, handleFinish, isSubmitting }
 }

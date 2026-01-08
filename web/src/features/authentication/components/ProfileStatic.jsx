@@ -1,32 +1,25 @@
 import React from 'react'
-import { Layout, Card, Form, Input, Button, Typography, Row, Col, Tag } from 'antd'
+import { Layout, Card, Form, Button, Typography, Row, Col, Tag } from 'antd'
 import { Link } from 'react-router-dom'
+import useProfileStatic from '@/features/authentication/hooks/useProfileStatic'
+import Sidebar from '@/features/authentication/components/Sidebar'
+import EditUserProfileForm from '@/features/user/components/EditUserProfileForm.jsx'
 
 const { Title, Paragraph, Text } = Typography
 
 export default function ProfileStatic() {
-  // static example values
-  const user = {
-    name: 'Juan Dela Cruz',
-    email: 'juan.delacruz@example.com',
-    role: 'Business Owner',
-    mfaEnabled: true,
-  }
-
-  const noop = (e) => { e && e.preventDefault() }
-
-  const editableStyle = { border: '1px dashed rgba(0,0,0,0.12)', padding: 8, borderRadius: 6, background: '#fff' }
+  const { user, noop, editableStyle } = useProfileStatic()
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#f6f8fb' }}>
-      <Layout.Content style={{ padding: 40 }}>
+    <Layout style={{ minHeight: '100vh' }}>
+      <Layout.Sider width={260} style={{ background: '#fff' }}>
+        <Sidebar />
+      </Layout.Sider>
+      <Layout.Content style={{ padding: 40, background: '#f6f8fb' }}>
         <div style={{ maxWidth: 820, margin: '0 auto' }}>
           <div style={{ marginBottom: 12 }}>
             <Title level={3}>Profile (Static)</Title>
             <Paragraph type="secondary">All fields are visible. Editable fields are visually indicated but do not submit changes.</Paragraph>
-            <div style={{ marginTop: 8 }}>
-              <Link to="/dashboard"><Button type="default">Back</Button></Link>
-            </div>
           </div>
 
           <Card bodyStyle={{ padding: 20 }}>
@@ -67,7 +60,6 @@ export default function ProfileStatic() {
                 </Col>
               </Row>
 
-              {/* Visual editable indicators for email and name (no submission) */}
               <div style={{ marginTop: 8 }}>
                 <Text type="secondary">Fields with dashed border are editable visually.</Text>
               </div>
@@ -78,6 +70,10 @@ export default function ProfileStatic() {
               </Form.Item>
             </Form>
           </Card>
+
+          <div style={{ marginTop: 24 }}>
+            <EditUserProfileForm />
+          </div>
         </div>
       </Layout.Content>
     </Layout>

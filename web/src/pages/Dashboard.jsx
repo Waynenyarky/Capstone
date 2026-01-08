@@ -39,14 +39,7 @@ export default function Dashboard() {
         )}
 
         {currentUser && !currentUser?.deletionPending && role === 'user' && (
-          <>
-            <UserWorkspaceGate />
-            <div style={{ padding: 24 }}>
-              <Space>
-                <Link to="/profile-static"><Button>View Profile (Static)</Button></Link>
-              </Space>
-            </div>
-          </>
+          <UserWorkspaceGate />
         )}
 
         {/* Provider feature removed */}

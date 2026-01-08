@@ -42,9 +42,16 @@ export function useEditUserProfileForm({ onSubmit } = {}) {
         const localRaw = localStorage.getItem('auth__currentUser')
         const remember = !!localRaw
         const nextUser = data?.user || data
+        // Preserve existing token (if server returned only user object)
+        if (!nextUser?.token && currentUser?.token) {
+          nextUser.token = currentUser.token
+        }
         login(nextUser, { remember })
       } catch {
         const nextUser = data?.user || data
+        if (!nextUser?.token && currentUser?.token) {
+          nextUser.token = currentUser.token
+        }
         login(nextUser, { remember: false })
       }
 

@@ -6,7 +6,7 @@ import { useNotifier } from '@/shared/notifications.js'
 export function useLogin({ onBegin, onSubmit, onError } = {}) {
   const [form] = Form.useForm()
   const [isSubmitting, setSubmitting] = useState(false)
-  const { success, info, error } = useNotifier()
+  const { success, error } = useNotifier()
 
   const handleFinish = async (values) => {
     const payload = { email: values.email, password: values.password }
@@ -14,12 +14,8 @@ export function useLogin({ onBegin, onSubmit, onError } = {}) {
       setSubmitting(true)
       if (typeof onBegin === 'function') {
         const data = await loginStart(payload)
-        success('Verification code sent to your email')
-        if (data?.devCode) {
-          info(`Dev code: ${data.devCode}`)
-        }
         // Keep fields for user convenience during two-step flow
-        const beginResult = await onBegin({ email: values.email, rememberMe: values.rememberMe === true, devCode: data?.devCode, serverData: data })
+        const beginResult = await onBegin({ email: values.email, rememberMe: values.rememberMe === true, serverData: data })
         // If the onBegin handler indicates we should proceed immediately (MFA disabled),
         // signal the caller to complete the server-side login rather than performing
         // it inside this hook. This centralizes the finalization and ensures the
@@ -38,6 +34,10 @@ export function useLogin({ onBegin, onSubmit, onError } = {}) {
             }
             return
           }
+        } else {
+          // Only show the verification-sent message when the flow will proceed
+          // to a verification step (i.e., MFA / email code is expected).
+          success('Verification code sent to your email')
         }
       } else {
         const user = await loginPost(payload)

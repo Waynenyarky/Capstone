@@ -15,16 +15,14 @@ export function useLoginFlow({ onSubmit } = {}) {
   const [step, setStep] = React.useState('login')
   const [emailForVerify, setEmailForVerify] = React.useState(initialEmail || '')
   const [rememberMe, setRememberMe] = React.useState(!!initialEmail)
-  const [devCodeForVerify, setDevCodeForVerify] = React.useState('')
   const [otpExpiresAt, setOtpExpiresAt] = React.useState(null)
   const [serverLockedUntil, setServerLockedUntil] = React.useState(null)
 
   const { form, handleFinish, isSubmitting } = useLogin({
-    onBegin: async ({ email, rememberMe: rm, devCode, serverData } = {}) => {
+    onBegin: async ({ email, rememberMe: rm, serverData } = {}) => {
       // Called after loginStart succeeds. Decide which verification UI to show.
       setEmailForVerify(email || '')
       setRememberMe(!!rm)
-      setDevCodeForVerify(String(devCode || ''))
       // capture OTP expiry info from server response if present
       try {
         if (serverData) {
@@ -105,6 +103,8 @@ export function useLoginFlow({ onSubmit } = {}) {
           // Complete login centrally only after a successful server response
           const remember = values?.rememberMe === true
           login(serverUser, { remember })
+          // Show success toast on final login completion
+          success('Logged in successfully')
           const emailToRemember = values?.email
           if (remember) rememberEmail(emailToRemember)
           else clearRememberedEmail()
@@ -119,6 +119,8 @@ export function useLoginFlow({ onSubmit } = {}) {
       // Normal path: caller provided a full server-validated `user` object.
       const remember = values?.rememberMe === true
       login(user, { remember })
+      // Show success toast on final login completion
+      success('Logged in successfully')
       const emailToRemember = values?.email
       if (remember) rememberEmail(emailToRemember)
       else clearRememberedEmail()
@@ -136,7 +138,6 @@ export function useLoginFlow({ onSubmit } = {}) {
     if (typeof onSubmit === 'function') onSubmit(user)
     // Reset step for next time
     setStep('login')
-    setDevCodeForVerify('')
   }, [login, rememberMe, emailForVerify, rememberEmail, clearRememberedEmail, success, onSubmit])
 
   const prefillAdmin = React.useCallback(() => {
@@ -153,7 +154,6 @@ export function useLoginFlow({ onSubmit } = {}) {
 
   const verificationProps = {
     email: emailForVerify,
-    devCode: devCodeForVerify,
     title: 'Login Verification',
     onSubmit: handleVerificationSubmit,
     otpExpiresAt,

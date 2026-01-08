@@ -15,7 +15,6 @@ export function useResendLoginCode({ email, cooldownSec = 60, onSent } = {}) {
       setSending(true)
       const data = await loginStart({ email, password: '' })
       success('Verification code sent')
-      if (data?.devCode) info(`Dev code: ${data.devCode}`)
         // If server provided retry/lock info, prefer it for cooldown
         let cooldownToStart = cooldownSec
         if (data) {
@@ -34,7 +33,7 @@ export function useResendLoginCode({ email, cooldownSec = 60, onSent } = {}) {
           }
         }
         start(Math.max(0, Math.floor(cooldownToStart)))
-      if (typeof onSent === 'function') onSent({ email, devCode: data?.devCode })
+      if (typeof onSent === 'function') onSent({ email })
     } catch (err) {
       console.error('Resend login code error:', err)
         // If server returned structured lock info in a thrown object (some callers use fetchWithFallback),

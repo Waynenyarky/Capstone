@@ -10,13 +10,13 @@ import MfaSetup from "@/features/authentication/components/MfaSetup.jsx"
 import AdminDashboard from "@/pages/AdminDashboard.jsx"
 import AdminCreateRole from "@/pages/AdminCreateRole.jsx"
 import AdminFullDashboard from "@/pages/AdminFullDashboard.jsx"
-import ProfileStatic from "@/pages/ProfileStatic.jsx"
 import BusinessOwnerDashboard from "@/pages/BusinessOwnerDashboard.jsx"
 import LGUOfficerDashboard from "@/pages/LGUOfficerDashboard.jsx"
 import LGUManagerDashboard from "@/pages/LGUManagerDashboard.jsx"
 import InspectorDashboard from "@/pages/InspectorDashboard.jsx"
 import CSODashboard from "@/pages/CSODashboard.jsx"
 import { RequireAdmin } from '@/features/authentication'
+import ProfileStatic from '@/features/authentication/components/ProfileStatic.jsx'
 
 function App() {
   return (
@@ -31,7 +31,6 @@ function App() {
       <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
       <Route path="/admin/create-role" element={<RequireAdmin><AdminCreateRole /></RequireAdmin>} />
       <Route path="/admin/full" element={<RequireAdmin><AdminFullDashboard /></RequireAdmin>} />
-      <Route path="/profile-static" element={<ProfileStatic />} />
       <Route path="/business" element={<BusinessOwnerDashboard />} />
       <Route path="/lgu-officer" element={<LGUOfficerDashboard />} />
       <Route path="/lgu-manager" element={<LGUManagerDashboard />} />
@@ -39,6 +38,7 @@ function App() {
       <Route path="/cso" element={<CSODashboard />} />
       <Route path="/sign-up-static" element={<SignUpStatic />} />
       <Route path="/sign-up" element={<SignUp />} />
+      <Route path="/profile-static" element={<ProfileStatic />} />
     </Routes>
   )
 }
