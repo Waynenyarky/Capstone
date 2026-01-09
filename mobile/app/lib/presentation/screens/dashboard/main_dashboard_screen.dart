@@ -4,10 +4,18 @@ import 'package:app/domain/entities/menu_item.dart';
 import 'package:app/presentation/widgets/role_based_drawer.dart';
 import 'package:app/presentation/navigation/role_menu_config.dart';
 import 'package:app/presentation/screens/profile.dart';
-import '../business/permit_applications_screen.dart';
-import '../business/cessation_screen.dart';
-import '../business/payments_screen.dart';
-import '../business/appeals_screen.dart';
+import '../inspector/violations_log_screen.dart';
+import '../inspector/inspector_dashboard.dart';
+import '../inspector/assigned_inspections_screen.dart';
+import '../inspector/pending_violations_screen.dart';
+import '../inspector/recent_activity_screen.dart';
+import '../inspector/conduct_inspection_screen.dart';
+import '../inspector/upload_inspection_report_screen.dart';
+import '../inspector/inspection_history_screen.dart';
+import '../inspector/violation_status_tracking_screen.dart';
+import '../inspector/submitted_reports_screen.dart';
+import '../inspector/photo_evidence_uploads_screen.dart';
+import '../inspector/compliance_records_screen.dart';
 
 class MainDashboardScreen extends StatefulWidget {
   final UserRole role;
@@ -40,10 +48,12 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   void initState() {
     super.initState();
     // Default to the first item (usually Dashboard)
-    final menuItems = RoleMenuConfig.getMenuForRole(widget.role);
-    _currentItem = menuItems.isNotEmpty
-        ? menuItems.first
-        : const AppMenuItem(title: 'Dashboard', icon: Icons.dashboard);
+    final menuSections = RoleMenuConfig.getMenuForRole(widget.role);
+    // Flatten the list to find the first item
+    final allItems = menuSections.expand((section) => section.items).toList();
+    _currentItem = allItems.isNotEmpty
+        ? allItems.first
+        : const AppMenuItem(title: 'Overview', icon: Icons.dashboard);
   }
 
   void _onMenuItemSelected(AppMenuItem item) {
@@ -54,17 +64,18 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDashboard = _currentItem.title == 'Dashboard';
+    final isDashboard = _currentItem.title == 'Overview';
 
     return PopScope(
       canPop: isDashboard,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         setState(() {
-          final menuItems = RoleMenuConfig.getMenuForRole(widget.role);
-          _currentItem = menuItems.firstWhere(
-            (item) => item.title == 'Dashboard',
-            orElse: () => const AppMenuItem(title: 'Dashboard', icon: Icons.dashboard),
+          final menuSections = RoleMenuConfig.getMenuForRole(widget.role);
+          final allItems = menuSections.expand((section) => section.items).toList();
+          _currentItem = allItems.firstWhere(
+            (item) => item.title == 'Overview',
+            orElse: () => const AppMenuItem(title: 'Overview', icon: Icons.dashboard),
           );
         });
       },
@@ -114,72 +125,46 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   Widget _buildBody() {
     switch (_currentItem.title) {
-      case 'Permit Applications':
-        return const PermitApplicationsScreen();
-      case 'Cessation':
-        return const CessationScreen();
-      case 'Payments':
-        return const PaymentsScreen();
-      case 'Appeals':
-        return const AppealsScreen();
-      case 'Dashboard':
+      // Dashboard Section
+      case 'Overview':
+        return InspectorDashboard(
+          firstName: widget.firstName,
+          lastName: widget.lastName,
+          token: widget.token,
+        );
+      case 'Assigned Inspections':
+        return AssignedInspectionsScreen(token: widget.token);
+      case 'Pending Violations':
+        return PendingViolationsScreen(token: widget.token);
+      case 'Recent Activity':
+        return RecentActivityScreen(token: widget.token);
+      
+      // Inspections & Violations Section
+      case 'Conduct Inspection':
+        return ConductInspectionScreen(token: widget.token);
+      case 'Log New Violation':
+        return ViolationsLogScreen(token: widget.token);
+      case 'Upload Inspection Report':
+        return UploadInspectionReportScreen(token: widget.token);
+      case 'View Inspection History':
+        return InspectionHistoryScreen(token: widget.token);
+      case 'Violation Status Tracking':
+        return ViolationStatusTrackingScreen(token: widget.token);
+
+      // Reports & Records Section
+      case 'Submitted Reports':
+        return SubmittedReportsScreen(token: widget.token);
+      case 'Photo & Evidence Uploads':
+        return PhotoEvidenceUploadsScreen(token: widget.token);
+      case 'Compliance Records':
+        return ComplianceRecordsScreen(token: widget.token);
+
       default:
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Welcome back, ${widget.firstName}!',
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Role: ${getRoleDisplayName(widget.role)}',
-                style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 32),
-              _buildDashboardCard(
-                title: 'Quick Actions',
-                icon: Icons.flash_on,
-                content: 'Access your most used features here.',
-              ),
-              const SizedBox(height: 16),
-              _buildDashboardCard(
-                title: 'Notifications',
-                icon: Icons.notifications,
-                content: 'You have no new notifications.',
-              ),
-            ],
-          ),
+        return InspectorDashboard(
+          firstName: widget.firstName,
+          lastName: widget.lastName,
+          token: widget.token,
         );
     }
-  }
-
-  Widget _buildDashboardCard({required String title, required IconData icon, required String content}) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: Colors.blue),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(content),
-          ],
-        ),
-      ),
-    );
   }
 }

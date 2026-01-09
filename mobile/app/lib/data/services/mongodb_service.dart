@@ -256,7 +256,7 @@ class MongoDBService {
         'password': password,
         'confirmPassword': confirmPassword,
         'termsAccepted': true,
-        'role': 'business_owner',
+        'role': 'inspector',
       };
 
       debugPrint('Sending signup request: $body');
@@ -322,7 +322,7 @@ class MongoDBService {
         'phoneNumber': phoneNumber,
         'password': password,
         'termsAccepted': termsAccepted,
-        'role': 'business_owner',
+        'role': 'inspector',
       };
       final response = await _postJsonWithFallback('/api/auth/signup/start', body);
       final ct = (response.headers['content-type'] ?? '').toLowerCase();

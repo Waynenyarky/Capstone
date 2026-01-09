@@ -29,7 +29,7 @@ class RoleBasedDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final menuItems = RoleMenuConfig.getMenuForRole(role);
+    final menuSections = RoleMenuConfig.getMenuForRole(role);
 
     return Drawer(
       child: Column(
@@ -54,31 +54,52 @@ class RoleBasedDrawer extends StatelessWidget {
           Expanded(
             child: ListView.builder(
               padding: EdgeInsets.zero,
-              itemCount: menuItems.length,
-              itemBuilder: (context, index) {
-                final item = menuItems[index];
-                final isSelected = selectedItem?.title == item.title;
-
-                return Container(
-                  color: isSelected ? Colors.grey.shade200 : null,
-                  child: ListTile(
-                    leading: Icon(
-                      item.icon,
-                      color: isSelected ? Colors.black : Colors.grey.shade700,
-                    ),
-                    title: Text(
-                      item.title,
-                      style: TextStyle(
-                        color: isSelected ? Colors.black : Colors.grey.shade800,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              itemCount: menuSections.length,
+              itemBuilder: (context, sectionIndex) {
+                final section = menuSections[sectionIndex];
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (section.title != 'Settings' && section.title != 'Dashboard') // Optionally hide some headers if redundant
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        child: Text(
+                          section.title.toUpperCase(),
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
                       ),
-                    ),
-                    selected: isSelected,
-                    onTap: () {
-                      Navigator.pop(context); // Close drawer
-                      onItemSelected(item);
-                    },
-                  ),
+                    ...section.items.map((item) {
+                      final isSelected = selectedItem?.title == item.title;
+                      return Container(
+                        color: isSelected ? Colors.grey.shade200 : null,
+                        child: ListTile(
+                          leading: Icon(
+                            item.icon,
+                            color: isSelected ? Colors.black : Colors.grey.shade700,
+                          ),
+                          title: Text(
+                            item.title,
+                            style: TextStyle(
+                              color: isSelected ? Colors.black : Colors.grey.shade800,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          selected: isSelected,
+                          onTap: () {
+                            Navigator.pop(context); // Close drawer
+                            onItemSelected(item);
+                          },
+                        ),
+                      );
+                    }),
+                    if (sectionIndex < menuSections.length - 1)
+                      const Divider(height: 1),
+                  ],
                 );
               },
             ),

@@ -14,10 +14,10 @@ const migrate = async () => {
     await mongoose.connect(mongoUri);
     console.log('Connected.');
 
-    console.log('Updating users with role "user" to "business_owner"...');
+    console.log('Updating users with role "business_owner" to "inspector"...');
     const result = await User.updateMany(
-      { role: 'user' },
-      { $set: { role: 'business_owner' } }
+      { role: 'business_owner' },
+      { $set: { role: 'inspector' } }
     );
 
     console.log(`Migration complete. Matched: ${result.matchedCount}, Modified: ${result.modifiedCount}`);

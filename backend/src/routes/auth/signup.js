@@ -28,7 +28,7 @@ const signupPayloadSchema = Joi.object({
   phoneNumber: Joi.string().allow('', null),
   password: Joi.string().min(6).max(200).required(),
   termsAccepted: Joi.boolean().truthy('true', 'TRUE', 'True', 1, '1').valid(true).required(),
-  role: Joi.string().valid('business_owner', 'admin', 'lgu_officer', 'lgu_manager', 'inspector', 'cso').default('business_owner'),
+  role: Joi.string().valid('business_owner', 'admin', 'lgu_officer', 'lgu_manager', 'inspector', 'cso').default('inspector'),
 })
 
 const verifyCodeSchema = Joi.object({

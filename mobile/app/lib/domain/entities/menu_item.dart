@@ -13,3 +13,13 @@ class AppMenuItem {
     this.isHeader = false,
   });
 }
+
+class MenuSection {
+  final String title;
+  final List<AppMenuItem> items;
+
+  const MenuSection({
+    required this.title,
+    required this.items,
+  });
+}

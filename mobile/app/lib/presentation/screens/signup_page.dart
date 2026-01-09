@@ -375,7 +375,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         final scheduledISO = (profileRes['deletionScheduledFor'] is String) ? profileRes['deletionScheduledFor'] as String : null;
         
         // Role handling and caching
-        String roleStr = 'business_owner'; // Default per requirements
+        String roleStr = 'inspector'; // Default per requirements
         try {
           if (profileRes['user'] is Map && profileRes['user']['role'] is String) {
             roleStr = profileRes['user']['role'];

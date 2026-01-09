@@ -3,65 +3,42 @@ import 'package:app/domain/entities/user_role.dart';
 import 'package:app/domain/entities/menu_item.dart';
 
 class RoleMenuConfig {
-  static List<AppMenuItem> getMenuForRole(UserRole role) {
-    switch (role) {
-      case UserRole.businessOwner:
-        return [
-          const AppMenuItem(title: 'Dashboard', icon: Icons.dashboard),
-          const AppMenuItem(title: 'Permit Applications', icon: Icons.assignment),
-          const AppMenuItem(title: 'Cessation', icon: Icons.cancel_presentation),
-          const AppMenuItem(title: 'Payments', icon: Icons.payment),
-          const AppMenuItem(title: 'Appeals', icon: Icons.gavel),
-          const AppMenuItem(title: 'Profile/Settings', icon: Icons.settings),
-        ];
-      case UserRole.lguOfficer:
-        return [
-          const AppMenuItem(title: 'Dashboard', icon: Icons.dashboard),
-          const AppMenuItem(title: 'Permit Applications (Review)', icon: Icons.rate_review),
-          const AppMenuItem(title: 'Cessation (Review)', icon: Icons.free_cancellation),
-          const AppMenuItem(title: 'Violations/Inspections', icon: Icons.warning_amber),
-          const AppMenuItem(title: 'Appeals', icon: Icons.gavel),
-          const AppMenuItem(title: 'Profile/Settings', icon: Icons.settings),
-        ];
-      case UserRole.lguManager:
-        return [
-          const AppMenuItem(title: 'Dashboard', icon: Icons.dashboard),
-          const AppMenuItem(title: 'Reports/Analytics', icon: Icons.analytics),
-          const AppMenuItem(title: 'Permit Applications (Overview)', icon: Icons.summarize),
-          const AppMenuItem(title: 'Cessation (Overview)', icon: Icons.assignment_turned_in),
-          const AppMenuItem(title: 'Violations/Inspections (Overview)', icon: Icons.report_problem),
-          const AppMenuItem(title: 'Appeals (Overview)', icon: Icons.gavel),
-          const AppMenuItem(title: 'Profile/Settings', icon: Icons.settings),
-        ];
-      case UserRole.inspector:
-        return [
-          const AppMenuItem(title: 'Dashboard', icon: Icons.dashboard),
-          const AppMenuItem(title: 'Violations/Inspections (Log/Upload)', icon: Icons.camera_alt),
-          const AppMenuItem(title: 'Profile/Settings', icon: Icons.settings),
-        ];
-      case UserRole.admin:
-        return [
-          const AppMenuItem(title: 'Dashboard', icon: Icons.dashboard),
-          const AppMenuItem(title: 'User Management', icon: Icons.people),
-          const AppMenuItem(title: 'Permit Applications', icon: Icons.assignment),
-          const AppMenuItem(title: 'Cessation', icon: Icons.cancel_presentation),
-          const AppMenuItem(title: 'Payments', icon: Icons.payment),
-          const AppMenuItem(title: 'Violations/Inspections', icon: Icons.warning_amber),
-          const AppMenuItem(title: 'Appeals', icon: Icons.gavel),
-          const AppMenuItem(title: 'Reports/Analytics', icon: Icons.analytics),
-          const AppMenuItem(title: 'Profile/Settings', icon: Icons.settings),
-        ];
-      case UserRole.cso:
-        return [
-          const AppMenuItem(title: 'Dashboard', icon: Icons.dashboard),
-          const AppMenuItem(title: 'Customer Support / Inquiry', icon: Icons.support_agent),
-          const AppMenuItem(title: 'Profile/Settings', icon: Icons.settings),
-        ];
-      default:
-        return [
-          const AppMenuItem(title: 'Dashboard', icon: Icons.dashboard),
-          const AppMenuItem(title: 'Profile/Settings', icon: Icons.settings),
-        ];
-    }
+  static List<MenuSection> getMenuForRole(UserRole role) {
+    // Always return Inspector menu since that's the only supported role
+    return [
+      const MenuSection(
+        title: 'Dashboard',
+        items: [
+          AppMenuItem(title: 'Overview', icon: Icons.dashboard),
+          AppMenuItem(title: 'Assigned Inspections', icon: Icons.assignment_ind),
+          AppMenuItem(title: 'Pending Violations', icon: Icons.warning_amber),
+          AppMenuItem(title: 'Recent Activity', icon: Icons.history),
+        ],
+      ),
+      const MenuSection(
+        title: 'Inspections & Violations',
+        items: [
+          AppMenuItem(title: 'Conduct Inspection', icon: Icons.playlist_add_check),
+          AppMenuItem(title: 'Log New Violation', icon: Icons.note_add),
+          AppMenuItem(title: 'Upload Inspection Report', icon: Icons.upload_file),
+          AppMenuItem(title: 'View Inspection History', icon: Icons.history_edu),
+          AppMenuItem(title: 'Violation Status Tracking', icon: Icons.track_changes),
+        ],
+      ),
+      const MenuSection(
+        title: 'Reports & Records',
+        items: [
+          AppMenuItem(title: 'Submitted Reports', icon: Icons.summarize),
+          AppMenuItem(title: 'Photo & Evidence Uploads', icon: Icons.photo_library),
+          AppMenuItem(title: 'Compliance Records', icon: Icons.folder_shared),
+        ],
+      ),
+      const MenuSection(
+        title: 'Settings',
+        items: [
+          AppMenuItem(title: 'Profile/Settings', icon: Icons.settings),
+        ],
+      ),
+    ];
   }
 }
