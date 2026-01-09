@@ -2,11 +2,11 @@ const mongoose = require('mongoose')
 
 const UserSchema = new mongoose.Schema(
   {
-    role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    role: { type: String, enum: ['user', 'admin', 'business_owner'], default: 'user' },
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    phoneNumber: { type: String, default: '' },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    phoneNumber: { type: String, default: '', unique: true, sparse: true },
     avatarUrl: { type: String, default: '' },
     passwordHash: { type: String, required: true },
     termsAccepted: { type: Boolean, default: false },
@@ -36,7 +36,7 @@ const UserSchema = new mongoose.Schema(
 
 UserSchema.pre('validate', function() {
   const v = String(this.role || '').toLowerCase()
-  if (v && v !== 'user' && v !== 'admin') {
+  if (v && v !== 'user' && v !== 'admin' && v !== 'business_owner') {
     this.role = 'user'
   }
 })

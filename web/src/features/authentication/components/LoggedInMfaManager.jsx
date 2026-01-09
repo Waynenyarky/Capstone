@@ -141,7 +141,7 @@ export default function LoggedInMfaManager() {
   }
 
   return (
-    <Card title="Two-factor Authentication">
+    <div>
       {disablePending && scheduledFor ? (
         <div style={{ marginBottom: 12 }}>
           <Typography.Text type="danger">Disable requested — scheduled for: {new Date(scheduledFor).toLocaleString()}</Typography.Text>
@@ -153,9 +153,11 @@ export default function LoggedInMfaManager() {
           Could not retrieve MFA status — continuing offline; some actions may fail.
         </Typography.Paragraph>
       ) : null}
-      <Typography.Paragraph>
-        Manage two-factor authentication for your account. We support TOTP (Google Authenticator, Authy).
-      </Typography.Paragraph>
+      
+      <div style={{ marginTop: 12, marginBottom: 16 }}>
+        <strong>Status:</strong> {enabled ? <span style={{ color: 'green', marginLeft: 8 }}>Enabled</span> : <span style={{ color: 'red', marginLeft: 8 }}>Disabled</span>}
+      </div>
+
       <Space>
         <Button type="primary" onClick={handleOpenSetup} disabled={loading || enabled}>Setup / Manage MFA</Button>
         <Button danger onClick={handleDisable} disabled={loading || !enabled || disablePending}>Disable MFA</Button>
@@ -163,12 +165,10 @@ export default function LoggedInMfaManager() {
           <Button onClick={() => setUndoModalVisible(true)}>Undo Disable</Button>
         ) : null}
       </Space>
-      <div style={{ marginTop: 12 }}>
-        <strong>Status:</strong> {enabled ? 'Enabled' : 'Disabled'}
-      </div>
+
       <Modal
         title="Confirm disable MFA"
-        visible={confirmModalVisible}
+        open={confirmModalVisible}
         onOk={confirmDisable}
         onCancel={() => setConfirmModalVisible(false)}
         okText="Confirm"
@@ -185,7 +185,7 @@ export default function LoggedInMfaManager() {
 
       <Modal
         title="Undo disable request"
-        visible={undoModalVisible}
+        open={undoModalVisible}
         onOk={confirmUndo}
         onCancel={() => setUndoModalVisible(false)}
         okText="Undo"
@@ -199,7 +199,7 @@ export default function LoggedInMfaManager() {
           maxLength={6}
         />
       </Modal>
-    </Card>
+    </div>
   )
 }
 

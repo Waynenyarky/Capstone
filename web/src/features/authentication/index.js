@@ -34,3 +34,10 @@ export { default as ConfirmDeleteAccountForm } from './components/ConfirmDeleteA
 export { default as DeletionScheduledBanner } from './components/DeletionScheduledBanner.jsx'
 export { default as SendDeleteCodeForCurrentUser } from './components/SendDeleteCodeForCurrentUser.jsx'
 export { default as VerifyDeleteCodeForm } from './components/VerifyDeleteCodeForm.jsx'
+
+// Pages
+export { default as Login } from './pages/Login.jsx'
+export { default as SignUp } from './pages/SignUp.jsx'
+export { default as SignUpStatic } from './pages/SignUpStatic.jsx'
+export { default as ForgotPassword } from './pages/ForgotPassword.jsx'
+export { default as VerifyEmail } from './pages/VerifyEmail.jsx'

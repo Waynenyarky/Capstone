@@ -1,10 +1,11 @@
 const express = require('express')
 const bcrypt = require('bcryptjs')
 const mongoose = require('mongoose')
+const jwt = require('jsonwebtoken')
 const User = require('../../models/User')
 // Provider-related models removed in unified user flow
 const { generateCode } = require('../../lib/codes')
-const { sendOtp } = require('../../lib/mailer')
+const { sendOtp, sendVerificationEmail } = require('../../lib/mailer')
 const { signUpRequests } = require('../../lib/authRequestsStore')
 const SignUpRequest = require('../../models/SignUpRequest')
 const respond = require('../../middleware/respond')
@@ -28,7 +29,7 @@ const signupPayloadSchema = Joi.object({
   phoneNumber: Joi.string().allow('', null),
   password: Joi.string().min(6).max(200).required(),
   termsAccepted: Joi.boolean().truthy('true', 'TRUE', 'True', 1, '1').valid(true).required(),
-  role: Joi.string().valid('user').default('user'),
+  role: Joi.string().valid('user', 'business_owner').default('user'),
 })
 
 const verifyCodeSchema = Joi.object({
@@ -96,6 +97,25 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
       passwordHash,
     })
 
+    // Send verification email automatically
+    try {
+      const secret = process.env.JWT_SECRET || 'dev_secret_change_me'
+      const token = jwt.sign(
+        { sub: doc._id, purpose: 'email-verification' },
+        secret,
+        { expiresIn: '1d' }
+      )
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+      const link = `${frontendUrl}/verify-email?token=${token}`
+      
+      // Fire and forget - don't block response
+      sendVerificationEmail({ to: doc.email, link }).catch(err => 
+        console.error('Failed to send auto-verification email:', err)
+      )
+    } catch (err) {
+      console.error('Auto-verification setup failed:', err)
+    }
+
     const created = {
       id: String(doc._id),
       role: doc.role,
@@ -131,17 +151,19 @@ router.post('/signup/start', validateBody(signupPayloadSchema), checkExistingEma
       role = 'user',
     } = req.body || {}
 
+    const emailKey = String(email).toLowerCase().trim()
+
     // Prevent duplicates prior to verification
     let existing = null
     if (mongoose.connection && mongoose.connection.readyState === 1) {
-      existing = await User.findOne({ email }).lean()
+      existing = await User.findOne({ email: emailKey }).lean()
     }
     if (existing) return respond.error(res, 409, 'email_exists', 'Email already exists')
 
     const payload = {
       firstName,
       lastName,
-      email,
+      email: emailKey,
       phoneNumber: phoneNumber || '',
       password,
       termsAccepted: !!termsAccepted,
@@ -151,7 +173,7 @@ router.post('/signup/start', validateBody(signupPayloadSchema), checkExistingEma
     const code = generateCode()
     const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10)
     const expiresAtMs = Date.now() + ttlMin * 60 * 1000
-    const emailKey = String(email).toLowerCase()
+    // const emailKey = String(email).toLowerCase() // already defined above
 
     const useDB = mongoose.connection && mongoose.connection.readyState === 1
     if (useDB) {
@@ -224,11 +246,16 @@ router.post('/signup/verify', signupVerifyLimiter, validateBody(verifyCodeSchema
       createdAt: doc.createdAt,
     }
 
+    try {
+      const { token, expiresAtMs } = signAccessToken(doc)
+      created.token = token
+      created.expiresAt = new Date(expiresAtMs).toISOString()
+    } catch (_) {}
+
     // Cleanup pending state
     if (useDB) await SignUpRequest.deleteOne({ email: emailKey })
     else signUpRequests.delete(emailKey)
-    return res.status(201).json(created)
-  } catch (err) {
+    return res.status(201).json(created)  } catch (err) {
     if (err && err.code === 11000) {
       return respond.error(res, 409, 'email_exists', 'Email already exists')
     }
@@ -238,3 +265,4 @@ router.post('/signup/verify', signupVerifyLimiter, validateBody(verifyCodeSchema
 })
 
 module.exports = router
+

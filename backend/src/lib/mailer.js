@@ -54,7 +54,56 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
     <p style="text-align:center;margin:16px 0 0;color:#94a3b8;font-size:12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">This email was sent automatically. Please do not reply.</p>
   </div>
   `
-  await transporter.sendMail({ from, to, subject, text, html })
+  try {
+    await transporter.sendMail({ from, to, subject, text, html })
+  } catch (err) {
+    console.log('--------------------------------------------------')
+    console.log('⚠️  SMTP FAILED (Mocking Send) ⚠️')
+    console.log('To:', to)
+    console.log('Code:', code)
+    console.log('Error:', err.message)
+    console.log('--------------------------------------------------')
+  }
 }
 
-module.exports = { sendOtp }
+async function sendVerificationEmail({ to, link, subject = 'Verify your email' }) {
+  const transporter = createTransport()
+  const brandName = process.env.APP_BRAND_NAME || 'Security Team'
+  
+  const text = [
+    'Hello,',
+    '',
+    'Please verify your email address by clicking the link below:',
+    link,
+    '',
+    'If you didn’t request this, you can safely ignore this email.',
+    '',
+    'Thank you,',
+    brandName
+  ].join('\n')
+
+  const html = `
+  <div style="background:#f6f9fc;padding:24px;margin:0;">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;border:1px solid #eaeef3;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+      <div style="text-align:center;margin:0 0 12px;font-size:16px;color:#0f172a;font-weight:700;">${brandName}</div>
+      <h1 style="margin:0 0 8px;font-size:20px;color:#0f172a;text-align:center;">Verify your email</h1>
+      <p style="margin:0 8px 16px;color:#334155;text-align:center;">Click the button below to verify your email address.</p>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="${link}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600;">Verify Email</a>
+      </div>
+    </div>
+  </div>
+  `
+  try {
+    await transporter.sendMail({ from: process.env.EMAIL_HOST_USER, to, subject, text, html })
+  } catch (err) {
+    console.log('--------------------------------------------------')
+    console.log('⚠️  SMTP FAILED (Mocking Send) ⚠️')
+    console.log('To:', to)
+    console.log('Link:', link)
+    console.log('Error:', err.message)
+    console.log('--------------------------------------------------')
+  }
+}
+
+module.exports = { sendOtp, sendVerificationEmail }

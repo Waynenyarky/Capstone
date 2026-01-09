@@ -1,6 +1,7 @@
 import React from 'react'
 import { Layout, Menu, Avatar, Typography } from 'antd'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { UserOutlined } from '@ant-design/icons'
 import useSidebar from '@/features/authentication/hooks/useSidebar'
 import { useAuthSession } from '@/features/authentication'
 import ConfirmLogoutModal from '@/features/authentication/components/ConfirmLogoutModal.jsx'
@@ -38,37 +39,48 @@ export default function Sidebar() {
       show()
       return
     }
-    // default: selection handled by Menu onClick; navigation via Link
+    
+    // Programmatic navigation for better click handling
+    if (item.to) {
+      navigate(item.to)
+    }
   }
 
   return (
-    <div style={{ position: 'sticky', top: 0, height: '98 vh', display: 'flex', flexDirection: 'column', background: '#fff', overflow: 'auto' }}>
-      <div style={{ padding: 20, textAlign: 'center', borderBottom: '1px solid #f0f0f0' }}>
-        <Avatar size={56} src={currentUser?.avatar} />
+    <div style={{ position: 'sticky', top: 0, height: '100vh', display: 'flex', flexDirection: 'column', background: '#fff', borderRight: '1px solid #f0f0f0', boxShadow: '2px 0 8px rgba(0,0,0,0.05)' }}>
+      <div style={{ padding: '24px 20px', textAlign: 'center', borderBottom: '1px solid #f0f0f0' }}>
+        <Avatar size={64} src={currentUser?.avatar} style={{ marginBottom: 12, border: '2px solid #1890ff' }} icon={<UserOutlined />} />
         <div style={{ marginTop: 8 }}>
-          <Text strong>{currentUser?.name ?? currentUser?.email ?? 'Guest'}</Text>
+          <Text strong style={{ fontSize: 16 }}>{currentUser?.name ?? currentUser?.email ?? 'Guest'}</Text>
         </div>
         <div style={{ marginTop: 4 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>{role ?? 'visitor'}</Text>
+          <Text type="secondary" style={{ fontSize: 12, textTransform: 'capitalize' }}>{role?.replace('_', ' ') ?? 'Visitor'}</Text>
         </div>
       </div>
 
       <Menu
         mode="inline"
         selectedKeys={[activeKey]}
-        onClick={({ key }) => onSelect({ key })}
-        style={{ borderRight: 0, flex: 1 }}
-      >
-        {items.map(item => (
-          <Menu.Item
-            key={item.key}
-            onClick={() => handleItemClick(item)}
-            style={item.key === activeKey ? { background: '#e6f7ff' } : undefined}
-          >
-            {item.to ? <Link to={item.to}>{item.label}</Link> : <span>{item.label}</span>}
-          </Menu.Item>
-        ))}
-      </Menu>
+        onClick={({ key }) => {
+            const item = items.find(i => i.key === key)
+            if (item) {
+                onSelect({ key })
+                handleItemClick(item)
+            }
+        }}
+        style={{ borderRight: 0, flex: 1, padding: '12px 0' }}
+        items={items.map(item => ({
+          key: item.key,
+          icon: item.icon,
+          label: item.label, // Removed Link wrapper to rely on onClick
+          style: { margin: '4px 8px', borderRadius: 6, width: 'auto' }
+        }))}
+      />
+      
+      <div style={{ padding: 16, borderTop: '1px solid #f0f0f0', textAlign: 'center' }}>
+        <Text type="secondary" style={{ fontSize: 11 }}>© {new Date().getFullYear()} {import.meta.env.VITE_APP_BRAND_NAME || 'Capstone'}</Text>
+      </div>
+      
       <ConfirmLogoutModal open={open} onConfirm={handleConfirm} onCancel={hide} confirmLoading={confirming} />
     </div>
   )

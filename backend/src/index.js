@@ -48,6 +48,7 @@ app.get('/api/health', (req, res) => {
 
 // Auth API routes (DB-aware with in-memory fallback)
 const authRouter = require('./routes/auth')
+const businessRouter = require('./routes/business/profile') // Direct import for now
 // Mirror session user id into request headers for existing handlers
 try {
   const { attachSessionUser } = require('./middleware/sessionAuth')
@@ -55,6 +56,7 @@ try {
 } catch (_) {}
 
 app.use('/api/auth', authRouter)
+app.use('/api/business', businessRouter)
 
 // Optionally mount SSO at top-level if other routers expect session
 

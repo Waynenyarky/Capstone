@@ -14,7 +14,8 @@ export default function Dashboard() {
 
   React.useEffect(() => {
     if (!currentUser) navigate('/login')
-  }, [currentUser, navigate])
+    if (currentUser && role === 'business_owner') navigate('/business')
+  }, [currentUser, role, navigate])
 
   return (
     <Layout style={{ minHeight: '100vh' }}>

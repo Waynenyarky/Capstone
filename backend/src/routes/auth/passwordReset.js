@@ -51,11 +51,11 @@ const verifyLimiter = perEmailRateLimit({
 // POST /api/auth/forgot-password
 router.post('/forgot-password', sendCodeLimiter, validateBody(emailOnlySchema), async (req, res) => {
   try {
-    const { email } = req.body || {}
-    const emailKey = String(email).toLowerCase()
+    let { email } = req.body || {}
+    const emailKey = String(email).toLowerCase().trim()
 
     // Check existence
-    const exists = await User.findOne({ email }).lean()
+    const exists = await User.findOne({ email: emailKey }).lean()
     if (!exists) return respond.error(res, 404, 'email_not_found', 'Email not found')
 
     const code = generateCode()

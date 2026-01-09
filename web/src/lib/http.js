@@ -14,7 +14,23 @@ export async function fetchWithFallback(path, options = {}) {
   const hasAuthHeader = Object.keys(headers).some((k) => k.toLowerCase() === 'authorization')
   try {
     if (!hasAuthHeader) {
-      const current = getCurrentUser()
+      let current = getCurrentUser()
+      
+      // Fallback: try reading from storage if not in memory (e.g. on fresh page load)
+      if (!current) {
+        const LOCAL_KEY = 'auth__currentUser'
+        const SESSION_KEY = 'auth__sessionUser'
+        try {
+          let raw = localStorage.getItem(LOCAL_KEY)
+          if (!raw) raw = sessionStorage.getItem(SESSION_KEY)
+          if (raw) {
+            const parsed = JSON.parse(raw)
+            // Handle { user, expiresAt } wrapper or direct user object
+            current = parsed.user || parsed
+          }
+        } catch { /* ignore storage errors */ }
+      }
+
       const token = current?.token
       if (token) headers['Authorization'] = `Bearer ${token}`
     }
@@ -69,3 +85,27 @@ export async function fetchJsonWithFallback(path, options = {}) {
   }
   return res.json()
 }
+
+export const get = (path, options) => fetchJsonWithFallback(path, { ...options, method: 'GET' })
+
+export const post = (path, body, options) => fetchJsonWithFallback(path, { 
+  ...options, 
+  method: 'POST', 
+  body: JSON.stringify(body),
+  headers: {
+    'Content-Type': 'application/json',
+    ...options?.headers
+  }
+})
+
+export const put = (path, body, options) => fetchJsonWithFallback(path, { 
+  ...options, 
+  method: 'PUT', 
+  body: JSON.stringify(body),
+  headers: {
+    'Content-Type': 'application/json',
+    ...options?.headers
+  }
+})
+
+export const del = (path, options) => fetchJsonWithFallback(path, { ...options, method: 'DELETE' })

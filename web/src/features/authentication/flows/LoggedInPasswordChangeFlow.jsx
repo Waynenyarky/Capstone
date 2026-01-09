@@ -6,12 +6,12 @@ export default function LoggedInPasswordChangeFlow() {
   const { step, sendProps, verifyProps, changeProps } = useLoggedInPasswordChangeFlow()
 
   return (
-      <Col span={6}>
+      <div style={{ maxWidth: 400 }}>
         {step === 'send' && (
           <SendCodeForCurrentUser
             email={sendProps.email}
             onSent={sendProps.onSent}
-            title="Change Password"
+            title={null} // Title handled by parent
           />
         )}
         {step === 'verify' && (
@@ -28,6 +28,6 @@ export default function LoggedInPasswordChangeFlow() {
             onSubmit={changeProps.onSubmit}
           />
         )}
-      </Col>
+      </div>
   )
 }

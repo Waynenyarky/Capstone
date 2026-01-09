@@ -175,8 +175,12 @@ export default function UserSignUpForm() {
           <Input.Password placeholder="Confirm password" style={inputStyle} className="bizclear-input" />
         </Form.Item>
 
-        <Form.Item name="termsAndConditions" valuePropName="checked" rules={termsRules}>
+        <Form.Item name="termsAndConditions" valuePropName="checked" rules={termsRules} style={{ marginBottom: 12 }}>
           <Checkbox style={{ color: '#c9d0ff' }}>Accept Terms and Conditions</Checkbox>
+        </Form.Item>
+
+        <Form.Item name="isBusinessOwner" valuePropName="checked" style={{ marginBottom: 12 }}>
+          <Checkbox style={{ color: '#c9d0ff' }}>Sign up as Business Owner</Checkbox>
         </Form.Item>
 
         <div style={{ marginTop: 8, marginBottom: 10 }}>

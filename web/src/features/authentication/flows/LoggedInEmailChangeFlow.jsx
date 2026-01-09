@@ -1,17 +1,17 @@
-import { Col, Card, Button, Typography } from 'antd'
-import { SendCodeForCurrentUser, VerificationForm, ChangeEmailForm, VerificationNewEmailForm, SendCodeForCurrentUserConfirm, VerificationConfirmForm } from "@/features/authentication"
+import { Col, Card, Button, Typography, Row } from 'antd'
+import { SendCodeForCurrentUserConfirm, VerificationConfirmForm, ChangeEmailForm, VerificationNewEmailForm } from "@/features/authentication"
 import { useLoggedInEmailChangeFlow } from "@/features/authentication/hooks"
 
 export default function LoggedInEmailChangeFlow() {
   const { step, sendProps, verifyProps, changeProps, verifyNewProps, reset } = useLoggedInEmailChangeFlow()
 
   return (
-    <Col span={6}>
+    <div style={{ maxWidth: 400 }}>
       {step === 'send' && (
         <SendCodeForCurrentUserConfirm
           email={sendProps.email}
           onSent={sendProps.onSent}
-          title="Change Email"
+          title={null} // Title is handled by parent container
         />
       )}
 
@@ -50,6 +50,6 @@ export default function LoggedInEmailChangeFlow() {
           </div>
         </Card>
       )}
-    </Col>
+    </div>
   )
 }

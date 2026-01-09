@@ -17,7 +17,7 @@ export function useUserSignUp({ onBegin, onSubmit } = {}) {
       phoneNumber: values.phoneNumber,
       password: values.password,
       termsAccepted: values.termsAndConditions === true,
-      role: 'user',
+      role: values.role || (values.isBusinessOwner ? 'business_owner' : 'user'),
     }
 
     try {

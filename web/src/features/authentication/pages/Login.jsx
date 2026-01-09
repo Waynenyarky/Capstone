@@ -10,6 +10,7 @@ export default function Login() {
     // Generic login should never finalize admin sessions; redirect them to admin login
     const role = String(user?.role || '').toLowerCase()
     if (role === 'admin') { navigate('/admin/login'); return }
+    if (role === 'business_owner') { navigate('/business'); return }
     navigate('/dashboard')
   }, [navigate])
 

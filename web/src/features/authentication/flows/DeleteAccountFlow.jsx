@@ -6,12 +6,12 @@ export default function DeleteAccountFlow() {
   const { step, sendProps, verifyProps, confirmProps } = useLoggedInDeleteAccountFlow()
 
   return (
-    <Col span={6}>
+    <div style={{ maxWidth: 400 }}>
       {step === 'send' && (
         <SendDeleteCodeForCurrentUser
           email={sendProps.email}
           onSent={sendProps.onSent}
-          title="Delete Account"
+          title={null} // Title handled by parent
         />
       )}
       {step === 'verify' && (
@@ -28,6 +28,6 @@ export default function DeleteAccountFlow() {
           onSubmit={confirmProps.onSubmit}
         />
       )}
-    </Col>
+    </div>
   )
 }

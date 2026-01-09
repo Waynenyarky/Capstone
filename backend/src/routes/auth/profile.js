@@ -221,12 +221,22 @@ router.post('/change-password-authenticated', requireJwt, validateBody(changePas
       lastName: doc.lastName,
       email: doc.email,
       phoneNumber: doc.phoneNumber,
+      isEmailVerified: !!doc.isEmailVerified,
       termsAccepted: doc.termsAccepted,
       createdAt: doc.createdAt,
       deletionPending: !!doc.deletionPending,
       deletionRequestedAt: doc.deletionRequestedAt,
       deletionScheduledFor: doc.deletionScheduledFor,
     }
+
+    // Force 200 by adding a cache-busting header or modifying response headers
+    // The 304 happens because Express/ETag sees the response hasn't changed.
+    // To "make it 200", we can disable caching for this specific route.
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    res.set('Pragma', 'no-cache')
+    res.set('Expires', '0')
+    res.set('Surrogate-Control', 'no-store')
+
     return res.json(userSafe)
   } catch (err) {
     console.error('POST /api/auth/change-password-authenticated error:', err)
@@ -476,6 +486,7 @@ router.get('/users', requireJwt, async (req, res) => {
       lastName: doc.lastName,
       email: doc.email,
       phoneNumber: doc.phoneNumber,
+      isEmailVerified: !!doc.isEmailVerified,
       termsAccepted: doc.termsAccepted,
       createdAt: doc.createdAt,
     }))
@@ -512,12 +523,22 @@ router.get('/me', requireJwt, async (req, res) => {
       lastName: doc.lastName,
       email: doc.email,
       phoneNumber: doc.phoneNumber,
+      isEmailVerified: !!doc.isEmailVerified,
       termsAccepted: doc.termsAccepted,
       createdAt: doc.createdAt,
       deletionPending: !!doc.deletionPending,
       deletionRequestedAt: doc.deletionRequestedAt,
       deletionScheduledFor: doc.deletionScheduledFor,
     }
+
+    // Force 200 by adding a cache-busting header or modifying response headers
+    // The 304 happens because Express/ETag sees the response hasn't changed.
+    // To "make it 200", we can disable caching for this specific route.
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    res.set('Pragma', 'no-cache')
+    res.set('Expires', '0')
+    res.set('Surrogate-Control', 'no-store')
+
     return res.json(userSafe)
   } catch (err) {
     console.error('GET /api/auth/me error:', err)

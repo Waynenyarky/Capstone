@@ -70,9 +70,12 @@ const loginVerifyLimiter = DISABLE_LIMITS
 // POST /api/auth/login
 router.post('/login', validateBody(loginCredentialsSchema), async (req, res) => {
   try {
-    const { email, password } = req.body || {}
+    let { email, password } = req.body || {}
     const bypass = String(req.headers['x-bypass-fingerprint'] || '').toLowerCase() === 'true'
     // already validated
+
+    // Ensure email is lowercased for consistency
+    if (email) email = String(email).toLowerCase().trim()
 
     // Ensure admin seed for testing if email is "1"
     if (String(email) === '1') {
@@ -138,7 +141,7 @@ router.post('/login', validateBody(loginCredentialsSchema), async (req, res) => 
       }
       if (!isFingerprint) return respond.error(res, 401, 'mfa_required', 'Multi-factor authentication required')
     }
-    if (doc.role !== 'user' && doc.role !== 'admin') {
+    if (doc.role !== 'user' && doc.role !== 'admin' && doc.role !== 'business_owner') {
       try {
         const dbDoc = await User.findById(doc._id)
         if (dbDoc) {
@@ -160,6 +163,7 @@ router.post('/login', validateBody(loginCredentialsSchema), async (req, res) => 
       deletionPending: !!doc.deletionPending,
       deletionRequestedAt: doc.deletionRequestedAt,
       deletionScheduledFor: doc.deletionScheduledFor,
+      isEmailVerified: !!doc.isEmailVerified,
       avatarUrl: doc.avatarUrl || '',
     }
     try {
@@ -374,8 +378,11 @@ router.post('/login/google', validateBody(googleLoginSchema), async (req, res) =
 // Step 1 of two-step login: verify credentials, send verification code
 router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSchema), async (req, res) => {
   try {
-    const { email, password } = req.body || {}
+    let { email, password } = req.body || {}
     // already validated
+
+    // Ensure email is lowercased for consistency
+    if (email) email = String(email).toLowerCase().trim()
 
     // Ensure admin seed for testing if email is "1"
     if (String(email) === '1') {
@@ -443,8 +450,8 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
 // Step 2 of two-step login: verify code and complete login
 router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema), async (req, res) => {
   try {
-    const { email, code } = req.body || {}
-    const emailKey = String(email).toLowerCase()
+    let { email, code } = req.body || {}
+    const emailKey = String(email).toLowerCase().trim()
     const useDB = mongoose.connection && mongoose.connection.readyState === 1
     let reqObj = null
     if (useDB) {
@@ -460,7 +467,7 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
     }
 
     // Load user and return safe object
-    const doc = await User.findOne({ email }).lean()
+    const doc = await User.findOne({ email: emailKey }).lean()
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
     if (doc.role !== 'user' && doc.role !== 'admin') {
       try {
@@ -506,8 +513,9 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
 // POST /api/auth/login/verify-totp
 router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, res) => {
   try {
-    const { email, code } = req.body || {}
-    const doc = await User.findOne({ email })
+    let { email, code } = req.body || {}
+    const emailKey = String(email).toLowerCase().trim()
+    const doc = await User.findOne({ email: emailKey })
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
     if (doc.mfaEnabled !== true || !doc.mfaSecret) {
       return respond.error(res, 400, 'mfa_not_enabled', 'MFA is not enabled for this account')
