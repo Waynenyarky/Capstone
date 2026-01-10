@@ -10,7 +10,7 @@ export default function PublicRoute({ children }) {
     return null
   }
 
-  if (currentUser) {
+  if (currentUser && currentUser.token) {
     const r = String(role || '').toLowerCase()
     const state = location.state // Preserve state (e.g. notifications) during redirect
 

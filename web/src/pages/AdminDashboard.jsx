@@ -7,9 +7,7 @@ import Sidebar from '@/features/authentication/components/Sidebar'
 export default function AdminDashboard() {
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Layout.Sider width={260} style={{ background: '#fff' }}>
-        <Sidebar />
-      </Layout.Sider>
+      <Sidebar />
       <Layout.Content style={{ padding: 24 }}>
         <Row justify="center">
           <Col>

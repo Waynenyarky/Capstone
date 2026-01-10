@@ -9,8 +9,8 @@ function perEmailRateLimit({ windowMs, max, code, message }) {
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req /*, res*/) => {
-      const bodyEmail = req.body && req.body.email ? String(req.body.email).toLowerCase() : ''
-      const headerEmail = String(req.headers['x-user-email'] || '').toLowerCase()
+      const bodyEmail = req.body && req.body.email ? String(req.body.email).toLowerCase().trim() : ''
+      const headerEmail = String(req.headers['x-user-email'] || '').toLowerCase().trim()
       if (bodyEmail) return bodyEmail
       if (headerEmail) return headerEmail
       return ipKeyGenerator(req)

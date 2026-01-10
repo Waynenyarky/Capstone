@@ -1,15 +1,17 @@
 import { useCallback, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuthSession } from '@/features/authentication'
 import { notifyUserSignedUp } from '@/features/admin/users/lib/usersEvents.js'
 
 export function useUserSignUpFlow() {
-  const { login } = useAuthSession()
+  const navigate = useNavigate()
+  const { /* login */ } = useAuthSession()
   const [step, setStep] = useState('form')
   const [emailForVerify, setEmailForVerify] = useState('')
   const [devCodeForVerify, setDevCodeForVerify] = useState('')
 
   const verifyEmail = useCallback(({ email, devCode }) => {
-    setEmailForVerify(String(email || ''))
+    setEmailForVerify(String(email || '').trim())
     setDevCodeForVerify(String(devCode || ''))
     setStep('verify')
   }, [])
@@ -22,12 +24,20 @@ export function useUserSignUpFlow() {
 
   const handleVerificationSubmit = useCallback((created) => {
     try {
-      const user = created?.user || created
+      // We do not auto-login here because the user explicitly requested
+      // to be redirected to the Login page after verification.
+      // If we called login(user), they might be redirected to the dashboard instead.
+      /*
+      let user = created?.user || created
+      if (created?.token && user && !user.token) {
+        user = { ...user, token: created.token }
+      }
       if (user) login(user, { remember: false })
+      */
     } catch { /* ignore */ }
     notifyUserSignedUp(created)
-    resetFlow()
-  }, [login, resetFlow])
+    navigate('/login')
+  }, [navigate])
 
   return { step, emailForVerify, devCodeForVerify, verifyEmail, resetFlow, handleVerificationSubmit }
 }

@@ -92,4 +92,16 @@ export const provinceRules = [{ required: true, message: 'Please enter your prov
 
 export const zipCodeRules = [{ required: true, message: 'Please enter your zip code' }]
 
-export const termsRules = [{ required: true, message: 'Please accept the terms and conditions' }]
+export const termsRules = [
+  {
+    validator: (_, value) =>
+      value ? Promise.resolve() : Promise.reject(new Error('Please accept the terms and conditions')),
+  },
+]
+
+export const businessOwnerRequiredRules = [
+  {
+    validator: (_, value) =>
+      value ? Promise.resolve() : Promise.reject(new Error('You must check this box to continue')),
+  },
+]

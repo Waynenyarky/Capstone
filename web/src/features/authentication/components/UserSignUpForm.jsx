@@ -13,6 +13,7 @@ import {
   signUpPasswordRules as passwordRules,
   signUpConfirmPasswordRules,
   termsRules,
+  businessOwnerRequiredRules,
 } from '@/features/authentication/validations'
 
 import { preventNonNumericKeyDown, sanitizePhonePaste, sanitizePhoneInput } from '@/shared/forms'
@@ -128,7 +129,7 @@ export default function UserSignUpForm() {
           </Checkbox>
         </Form.Item>
 
-        <Form.Item name="isBusinessOwner" valuePropName="checked" style={{ marginBottom: 12 }}>
+        <Form.Item name="isBusinessOwner" valuePropName="checked" rules={businessOwnerRequiredRules} style={{ marginBottom: 12 }}>
           <Checkbox>Sign up as Business Owner</Checkbox>
         </Form.Item>
 

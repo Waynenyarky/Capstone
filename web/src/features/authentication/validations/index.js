@@ -7,6 +7,7 @@ export {
   phoneNumberRules,
   emailRules,
   termsRules,
+  businessOwnerRequiredRules,
   passwordRules as signUpPasswordRules,
   confirmPasswordRules as signUpConfirmPasswordRules,
 } from './signUpRules.js'

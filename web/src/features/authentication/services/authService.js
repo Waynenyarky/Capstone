@@ -32,6 +32,14 @@ export async function verifySignupCode(payload) {
   })
 }
 
+export async function resendSignupCode(payload) {
+  return await fetchJsonWithFallback('/api/auth/signup/resend', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
 // Login
 export async function loginStart(payload) {
   return await fetchJsonWithFallback('/api/auth/login/start', {

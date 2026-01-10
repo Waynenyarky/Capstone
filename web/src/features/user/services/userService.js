@@ -14,3 +14,15 @@ export async function updateUserProfile(payload, currentUser, role) {
     body: JSON.stringify(payload),
   })
 }
+
+export async function uploadUserAvatar(file, currentUser, role) {
+  const headers = authHeaders(currentUser, role)
+  const formData = new FormData()
+  formData.append('avatar', file)
+
+  return fetchJsonWithFallback('/api/auth/profile/avatar-file', {
+    method: 'POST',
+    headers,
+    body: formData,
+  })
+}

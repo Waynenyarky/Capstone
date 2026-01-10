@@ -78,7 +78,12 @@ export async function fetchJsonWithFallback(path, options = {}) {
           else if (typeof first?.message === 'string') errMsg = first.message
         }
       }
-    } catch {
+      
+      const errorObj = new Error(String(errMsg))
+      if (err && err.details) errorObj.details = err.details
+      throw errorObj
+    } catch (e) {
+      if (e.details) throw e // re-throw if it's the error we just created
       // ignore JSON parse errors and fall back to status text
     }
     throw new Error(String(errMsg))

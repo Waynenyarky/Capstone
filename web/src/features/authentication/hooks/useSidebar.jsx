@@ -27,7 +27,7 @@ export default function useSidebar() {
       { key: 'cessation', label: 'Cessation', to: '/owner/cessation', icon: <StopOutlined /> },
       { key: 'payments', label: 'Payments', to: '/owner/payments', icon: <CreditCardOutlined /> },
       { key: 'appeals', label: 'Appeals', to: '/owner/appeals', icon: <AuditOutlined /> },
-      { key: 'profile', label: 'Profile / Settings', to: '/profile-static', icon: <UserOutlined /> },
+      { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
       { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
     ]
 
@@ -38,7 +38,7 @@ export default function useSidebar() {
         { key: 'dashboard', label: 'Dashboard', to: '/admin/dashboard', icon: <DashboardOutlined /> },
         { key: 'admin-full', label: 'Admin — Full', to: '/admin/full', icon: <SafetyCertificateOutlined /> },
         { key: 'admin-users', label: 'User Management', to: '/admin/users', icon: <TeamOutlined /> },
-        { key: 'profile', label: 'Profile / Settings', to: '/profile-static', icon: <UserOutlined /> },
+        { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
         { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
       ],
       staff: [
@@ -49,13 +49,13 @@ export default function useSidebar() {
         { key: 'appeals', label: 'Appeals', to: '/staff/appeals', icon: <AuditOutlined /> },
         { key: 'reports', label: 'Reports / Analytics', to: '/staff/reports', icon: <BarChartOutlined /> },
         { key: 'support', label: 'Customer Support / Inquiry', to: '/staff/support', icon: <CustomerServiceOutlined /> },
-        { key: 'profile', label: 'Profile / Settings', to: '/profile-static', icon: <UserOutlined /> },
+        { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
         { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
       ],
       inspector: [
         { key: 'dashboard', label: 'Dashboard', to: '/staff', icon: <DashboardOutlined /> },
         { key: 'inspections', label: 'Violations / Inspections', to: '/staff/inspections', icon: <SolutionOutlined /> },
-        { key: 'profile', label: 'Profile / Settings', to: '/profile-static', icon: <UserOutlined /> },
+        { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
         { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
       ],
       lgu_officer: [
@@ -64,30 +64,31 @@ export default function useSidebar() {
         { key: 'cessation', label: 'Cessation (Review)', to: '/staff/cessation', icon: <StopOutlined /> },
         { key: 'inspections', label: 'Violations / Inspections', to: '/staff/inspections', icon: <SolutionOutlined /> },
         { key: 'appeals', label: 'Appeals', to: '/staff/appeals', icon: <AuditOutlined /> },
-        { key: 'profile', label: 'Profile / Settings', to: '/profile-static', icon: <UserOutlined /> },
+        { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
         { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
       ],
       lgu_manager: [
         { key: 'dashboard', label: 'Dashboard', to: '/staff', icon: <DashboardOutlined /> },
         { key: 'reports', label: 'Reports / Analytics', to: '/staff/reports', icon: <BarChartOutlined /> },
-        { key: 'profile', label: 'Profile / Settings', to: '/profile-static', icon: <UserOutlined /> },
+        { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
         { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
       ],
       cso: [
         { key: 'dashboard', label: 'Dashboard', to: '/staff', icon: <DashboardOutlined /> },
         { key: 'support', label: 'Customer Support / Inquiry', to: '/staff/support', icon: <CustomerServiceOutlined /> },
-        { key: 'profile', label: 'Profile / Settings', to: '/profile-static', icon: <UserOutlined /> },
+        { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
         { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
       ],
       user: [
         { key: 'dashboard', label: 'Dashboard', to: '/dashboard', icon: <DashboardOutlined /> },
-        { key: 'profile', label: 'Profile / Settings', to: '/profile-static', icon: <UserOutlined /> },
+        { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
         { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
       ],
     }
 
     const roleKey = (role || 'user').toString()
-    return perRole[roleKey] || perRole.user
+    const result = perRole[roleKey] || perRole.user
+    return Array.isArray(result) ? result : []
   }, [role])
 
   const [selected, setSelected] = useState(items[0]?.key ?? 'dashboard')

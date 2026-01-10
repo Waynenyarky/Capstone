@@ -24,7 +24,7 @@ function createTransport() {
 async function sendOtp({ to, code, subject = 'Your verification code', from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER }) {
   const transporter = createTransport()
   const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10)
-  const brandName = process.env.APP_BRAND_NAME || 'Capstone Business Center'
+  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
   const text = [
     'Hello,',
     '',
@@ -86,7 +86,7 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
 
 async function sendVerificationEmail({ to, link, subject = 'Verify your email' }) {
   const transporter = createTransport()
-  const brandName = process.env.APP_BRAND_NAME || 'Capstone Business Center'
+  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
   
   const text = [
     'Hello,',

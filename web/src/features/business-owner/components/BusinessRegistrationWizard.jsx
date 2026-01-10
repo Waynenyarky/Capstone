@@ -63,15 +63,21 @@ export default function BusinessRegistrationWizard({ onComplete }) {
       }
 
       // Handle File URLs -> FileList for Upload components
-      const fileFields = ['idFileUrl', 'registrationFileUrl']
+      const fileFields = ['idFileUrl', 'idFileBackUrl', 'registrationFileUrl']
       fileFields.forEach(field => {
-        if (data[field] && typeof data[field] === 'string') {
+        let val = data[field]
+        if (!val) {
+          data[field] = []
+        } else if (typeof val === 'string') {
           data[field] = [{
             uid: '-1',
             name: 'Uploaded Document',
             status: 'done',
-            url: data[field]
+            url: val
           }]
+        } else if (!Array.isArray(val)) {
+          // Safety: If it's an object/file but not an array, wrap it
+          data[field] = [val]
         }
       })
       
@@ -105,7 +111,7 @@ export default function BusinessRegistrationWizard({ onComplete }) {
       setLoading(true)
       
       // Normalize file uploads (Convert FileList back to URL string)
-      const fileFields = ['idFileUrl', 'registrationFileUrl']
+      const fileFields = ['idFileUrl', 'idFileBackUrl', 'registrationFileUrl']
       fileFields.forEach(field => {
         const val = values[field]
         if (Array.isArray(val)) {
@@ -172,9 +178,26 @@ export default function BusinessRegistrationWizard({ onComplete }) {
             <Form.Item name="idNumber" label="ID Number" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
-            <Form.Item name="idFileUrl" label="Upload ID" valuePropName="fileList" getValueFromEvent={(e) => e && e.fileList}>
-              <Upload name="idFile" action="/api/upload" listType="picture">
-                <Button icon={<UploadOutlined />}>Click to upload (Front/Back)</Button>
+            <Form.Item 
+              name="idFileUrl" 
+              label="Upload ID (Front)" 
+              valuePropName="fileList" 
+              getValueFromEvent={(e) => e && e.fileList}
+              rules={[{ required: true, message: 'Please upload front ID' }]}
+            >
+              <Upload name="idFile" action="/api/upload" listType="picture" maxCount={1}>
+                <Button icon={<UploadOutlined />}>Click to upload (Front)</Button>
+              </Upload>
+            </Form.Item>
+            <Form.Item 
+              name="idFileBackUrl" 
+              label="Upload ID (Back)" 
+              valuePropName="fileList" 
+              getValueFromEvent={(e) => e && e.fileList}
+              rules={[{ required: true, message: 'Please upload back ID' }]}
+            >
+              <Upload name="idFileBack" action="/api/upload" listType="picture" maxCount={1}>
+                <Button icon={<UploadOutlined />}>Click to upload (Back)</Button>
               </Upload>
             </Form.Item>
           </>

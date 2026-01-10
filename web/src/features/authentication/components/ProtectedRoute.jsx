@@ -15,7 +15,7 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
   }
 
   // If not authenticated, redirect to login
-  if (!currentUser) {
+  if (!currentUser || !currentUser.token) {
     // Check if we are in the process of logging out. 
     // If so, suppress the "Restricted Access" warning.
     const isLoggingOut = getIsLoggingOut()

@@ -8,7 +8,7 @@ export function useVerifyChangeEmailForm({ onSubmit, email, currentEmail } = {})
   const [form] = Form.useForm()
   const [isSubmitting, setSubmitting] = useState(false)
   const { success, error } = useNotifier()
-  const { login } = useAuthSession()
+  const { login, currentUser } = useAuthSession()
 
   const handleFinish = useCallback(async (values) => {
     const payload = { currentEmail, email, code: values.verificationCode }
@@ -17,6 +17,12 @@ export function useVerifyChangeEmailForm({ onSubmit, email, currentEmail } = {})
       await changeEmailVerify(payload)
       // Fetch updated profile and update session
       const updated = await getProfile()
+      
+      // Preserve existing token if not returned by profile
+      if (currentUser?.token && updated && !updated.token) {
+        updated.token = currentUser.token
+      }
+
       try {
         const localRaw = localStorage.getItem('auth__currentUser')
         const remember = !!localRaw
@@ -33,7 +39,7 @@ export function useVerifyChangeEmailForm({ onSubmit, email, currentEmail } = {})
     } finally {
       setSubmitting(false)
     }
-  }, [form, onSubmit, success, error, login, currentEmail, email])
+  }, [form, onSubmit, success, error, login, currentUser, currentEmail, email])
 
   return { form, handleFinish, isSubmitting }
 }

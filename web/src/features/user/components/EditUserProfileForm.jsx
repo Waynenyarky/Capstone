@@ -5,7 +5,7 @@ import { firstNameRules, lastNameRules, phoneNumberRules } from "@/features/auth
 import { useAuthSession } from "@/features/authentication"
 import { preventNonNumericKeyDown, sanitizeNumericPaste, sanitizeNumericInput, sanitizePhonePaste, sanitizePhoneInput } from "@/shared/forms"
 
-export default function EditUserProfileForm() {
+export default function EditUserProfileForm({ embedded = false }) {
   const initialValuesRef = React.useRef({})
   const hasSnapshotRef = React.useRef(false)
   const [, setDirty] = React.useState(false)
@@ -43,31 +43,42 @@ export default function EditUserProfileForm() {
     }
   }, [isLoading, form])
 
+  const content = (
+    <Form form={form} layout="vertical" onFinish={handleFinish} disabled={isLoading} onValuesChange={handleValuesChange}>
+      <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
+        Email: <Typography.Text strong>{currentUser?.email || '-'}</Typography.Text>
+      </Typography.Text>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <Form.Item name="firstName" label="First Name" rules={firstNameRules} style={{ marginBottom: 24 }}>
+          <Input size="large" />
+        </Form.Item>
+        <Form.Item name="lastName" label="Last Name" rules={lastNameRules} style={{ marginBottom: 24 }}>
+          <Input size="large" />
+        </Form.Item>
+      </div>
+      <Form.Item name="phoneNumber" label="Phone Number" rules={phoneNumberRules} style={{ marginBottom: 24 }}>
+        <Input
+          size="large"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          maxLength={11}
+          onKeyDown={preventNonNumericKeyDown}
+          onPaste={sanitizePhonePaste}
+          onInput={sanitizePhoneInput}
+          placeholder="09XXXXXXXXX"
+        />
+      </Form.Item>
+      <Flex justify="end">
+        <Button type="primary" htmlType="submit" size="large" loading={isSubmitting} disabled={isSubmitting}>Save Changes</Button>
+      </Flex>
+    </Form>
+  )
+
+  if (embedded) return content
+
   return (
     <Card title="Edit Profile">
-      <Form form={form} layout="vertical" onFinish={handleFinish} disabled={isLoading} onValuesChange={handleValuesChange}>
-        <Typography.Text type="secondary">Email: {currentUser?.email || '-'}</Typography.Text>
-        <Form.Item name="firstName" label="First Name" rules={firstNameRules}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="lastName" label="Last Name" rules={lastNameRules}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="phoneNumber" label="Phone Number" rules={phoneNumberRules}>
-          <Input
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={11}
-            onKeyDown={preventNonNumericKeyDown}
-            onPaste={sanitizePhonePaste}
-            onInput={sanitizePhoneInput}
-            placeholder="09XXXXXXXXX"
-          />
-        </Form.Item>
-        <Flex justify="end">
-          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting}>Save</Button>
-        </Flex>
-      </Form>
+      {content}
     </Card>
   )
 }
