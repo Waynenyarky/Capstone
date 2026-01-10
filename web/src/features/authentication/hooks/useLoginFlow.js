@@ -92,13 +92,6 @@ export function useLoginFlow({ onSubmit } = {}) {
           }
 
           const role = String(serverUser?.role || '').toLowerCase()
-          if (role === 'admin') {
-            form.setFields([
-              { name: 'email', errors: ['Invalid credentials'] },
-              { name: 'password', errors: ['Invalid credentials'] },
-            ])
-            return
-          }
 
           // Complete login centrally only after a successful server response
           const remember = values?.rememberMe === true

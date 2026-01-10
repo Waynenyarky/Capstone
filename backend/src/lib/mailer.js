@@ -24,7 +24,7 @@ function createTransport() {
 async function sendOtp({ to, code, subject = 'Your verification code', from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER }) {
   const transporter = createTransport()
   const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10)
-  const brandName = process.env.APP_BRAND_NAME || 'Security Team'
+  const brandName = process.env.APP_BRAND_NAME || 'Capstone Business Center'
   const text = [
     'Hello,',
     '',
@@ -37,21 +37,39 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
     brandName
   ].join('\n')
   const html = `
-  <div style="background:#f6f9fc;padding:24px;margin:0;">
-    <div style="display:none;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;color:transparent;">Your verification code expires in ${ttlMin} minutes.</div>
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;border:1px solid #eaeef3;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-      <div style="text-align:center;margin:0 0 12px;font-size:16px;color:#0f172a;font-weight:700;">${brandName}</div>
-      <h1 style="margin:0 0 8px;font-size:20px;color:#0f172a;text-align:center;">Verify your email</h1>
-      <p style="margin:0 8px 16px;color:#334155;text-align:center;">Use the code below to continue.</p>
-      <div style="text-align:center;margin:0 0 12px;">
-        <span style="display:inline-block;background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700;">Expires in ${ttlMin} minutes</span>
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
+      
+      <!-- Header -->
+      <div style="background:#001529;padding:32px;text-align:center;">
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:600;letter-spacing:1px;">${brandName}</h1>
       </div>
-      <div style="text-align:center;margin:0 0 8px;">
-        <div style="display:inline-block;padding:16px 26px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;font-size:28px;letter-spacing:8px;color:#0f172a;font-weight:800;font-family:SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;">${code}</div>
+
+      <!-- Body -->
+      <div style="padding:40px 32px;text-align:center;">
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:600;">Verification Code</h2>
+        
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          Use the code below to complete your verification.
+        </p>
+
+        <div style="background:#fafafa;padding:24px;border-radius:8px;border:1px dashed #d9d9d9;margin-bottom:24px;display:inline-block;">
+           <div style="font-size:32px;letter-spacing:8px;color:#1f1f1f;font-weight:700;font-family:monospace;">${code}</div>
+        </div>
+
+        <p style="margin:0;color:#8c8c8c;font-size:14px;">
+           This code expires in ${ttlMin} minutes.
+        </p>
       </div>
-      <p style="margin:12px 0 0;color:#64748b;text-align:center;">If you didn’t request this, you can safely ignore this email.</p>
+
+      <!-- Footer -->
+      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
+        <p style="margin:0;color:#bfbfbf;font-size:12px;">
+          © ${new Date().getFullYear()} ${brandName}. All rights reserved.
+        </p>
+      </div>
+
     </div>
-    <p style="text-align:center;margin:16px 0 0;color:#94a3b8;font-size:12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">This email was sent automatically. Please do not reply.</p>
   </div>
   `
   try {
@@ -68,7 +86,7 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
 
 async function sendVerificationEmail({ to, link, subject = 'Verify your email' }) {
   const transporter = createTransport()
-  const brandName = process.env.APP_BRAND_NAME || 'Security Team'
+  const brandName = process.env.APP_BRAND_NAME || 'Capstone Business Center'
   
   const text = [
     'Hello,',
@@ -83,14 +101,40 @@ async function sendVerificationEmail({ to, link, subject = 'Verify your email' }
   ].join('\n')
 
   const html = `
-  <div style="background:#f6f9fc;padding:24px;margin:0;">
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;border:1px solid #eaeef3;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-      <div style="text-align:center;margin:0 0 12px;font-size:16px;color:#0f172a;font-weight:700;">${brandName}</div>
-      <h1 style="margin:0 0 8px;font-size:20px;color:#0f172a;text-align:center;">Verify your email</h1>
-      <p style="margin:0 8px 16px;color:#334155;text-align:center;">Click the button below to verify your email address.</p>
-      <div style="text-align:center;margin:24px 0;">
-        <a href="${link}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600;">Verify Email</a>
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
+      
+      <!-- Header -->
+      <div style="background:#001529;padding:32px;text-align:center;">
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:600;letter-spacing:1px;">${brandName}</h1>
       </div>
+
+      <!-- Body -->
+      <div style="padding:40px 32px;text-align:center;">
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:600;">Verify your email</h2>
+        
+        <p style="margin:0 0 32px;color:#595959;font-size:16px;line-height:1.6;">
+          Click the button below to verify your email address and activate your account.
+        </p>
+
+        <div style="margin-bottom:32px;">
+          <a href="${link}" style="display:inline-block;background:#1677ff;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:6px;font-weight:500;font-size:16px;transition:all 0.3s;box-shadow:0 2px 0 rgba(0,0,0,0.04);">
+            Verify Email
+          </a>
+        </div>
+
+        <p style="margin:0;color:#8c8c8c;font-size:14px;line-height:1.5;">
+          If you didn't request this verification, you can simply ignore this email.
+        </p>
+      </div>
+
+      <!-- Footer -->
+      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
+        <p style="margin:0;color:#bfbfbf;font-size:12px;">
+          © ${new Date().getFullYear()} ${brandName}. All rights reserved.
+        </p>
+      </div>
+
     </div>
   </div>
   `

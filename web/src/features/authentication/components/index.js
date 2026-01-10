@@ -19,5 +19,6 @@ export { default as DeletionScheduledBanner } from './DeletionScheduledBanner.js
 export { default as WebAuthnRegister } from './WebAuthnRegister.jsx'
 export { default as WebAuthnAuthenticate } from './WebAuthnAuthenticate.jsx'
 export { default as ProfileStatic } from './ProfileStatic.jsx'
+export { default as AuthLayout } from './AuthLayout.jsx'
 
  

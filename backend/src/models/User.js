@@ -2,7 +2,7 @@ const mongoose = require('mongoose')
 
 const UserSchema = new mongoose.Schema(
   {
-    role: { type: String, enum: ['user', 'admin', 'business_owner'], default: 'user' },
+    role: { type: String, enum: ['user', 'admin', 'business_owner', 'staff', 'lgu_manager', 'lgu_officer', 'inspector', 'cso'], default: 'user' },
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
@@ -36,7 +36,8 @@ const UserSchema = new mongoose.Schema(
 
 UserSchema.pre('validate', function() {
   const v = String(this.role || '').toLowerCase()
-  if (v && v !== 'user' && v !== 'admin' && v !== 'business_owner') {
+  const validRoles = ['user', 'admin', 'business_owner', 'staff', 'lgu_manager', 'lgu_officer', 'inspector', 'cso']
+  if (v && !validRoles.includes(v)) {
     this.role = 'user'
   }
 })

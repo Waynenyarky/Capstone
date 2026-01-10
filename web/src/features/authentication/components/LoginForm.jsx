@@ -1,4 +1,4 @@
-import { Form, Input, Button, Card, Flex, Checkbox, Dropdown } from 'antd'
+import { Form, Input, Button, Card, Flex, Checkbox, Dropdown, Typography } from 'antd'
 import { loginEmailRules, loginPasswordRules } from "@/features/authentication/validations"
 import { useLoginFlow } from "@/features/authentication/hooks"
 import { LoginVerificationForm } from "@/features/authentication"
@@ -10,6 +10,7 @@ import { useNotifier } from '@/shared/notifications.js'
 import { useNavigate } from 'react-router-dom'
 import LockoutBanner from '@/features/authentication/components/LockoutBanner.jsx'
 
+const { Title, Text } = Typography
 
 export default function LoginForm({ onSubmit } = {}) {
   const navigate = useNavigate()
@@ -60,34 +61,75 @@ export default function LoginForm({ onSubmit } = {}) {
   return (
     <>
       {banner}
-      <Card title="Login" extra={extraContent}>
-      <Form name="login" form={form} layout="vertical" onFinish={handleFinish} initialValues={initialValues}>
-        <Form.Item
-          name="email"
-          label="Email"
-          rules={loginEmailRules}
-        >
-          <Input />
-        </Form.Item>
-        <Form.Item
-          name="password"
-          label="Password"
-          rules={loginPasswordRules}
-        >
-          <Input.Password />
-        </Form.Item>
-        <Form.Item name="rememberMe" valuePropName="checked">
-          <Checkbox>Remember me</Checkbox>
-        </Form.Item>
-        <Flex justify="end" gap="small">
-          <Button type="link" onClick={() => navigate('/forgot-password')}>Forgot password?</Button>
-          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting}>Continue</Button>
-        </Flex>
-        <Flex justify="end" style={{ marginTop: 8 }}>
-          <PasskeyButton form={form} />
-        </Flex>
-      </Form>
-      </Card>
+      <div>
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <Title level={2} style={{ marginBottom: 12, fontWeight: 700, fontSize: 32 }}>Welcome Back</Title>
+          <Text type="secondary" style={{ fontSize: 16 }}>Please enter your details to sign in</Text>
+        </div>
+        
+        <Form name="login" form={form} layout="vertical" onFinish={handleFinish} initialValues={initialValues} size="large" requiredMark={false}>
+          <Form.Item
+            name="email"
+            label={<Text strong>Email</Text>}
+            rules={loginEmailRules}
+            style={{ marginBottom: 24 }}
+          >
+            <Input placeholder="Enter your email" variant="filled" />
+          </Form.Item>
+          <Form.Item
+            name="password"
+            label={<Text strong>Password</Text>}
+            rules={loginPasswordRules}
+            style={{ marginBottom: 24 }}
+          >
+            <Input.Password placeholder="Enter your password" variant="filled" />
+          </Form.Item>
+          
+          <Flex justify="space-between" align="center" style={{ marginBottom: 24 }}>
+            <Form.Item name="rememberMe" valuePropName="checked" noStyle>
+              <Checkbox>Remember me</Checkbox>
+            </Form.Item>
+            <Button type="link" onClick={() => navigate('/forgot-password')} style={{ padding: 0 }}>
+              Forgot password?
+            </Button>
+          </Flex>
+
+          <Form.Item style={{ marginBottom: 24 }}>
+            <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block size="large">
+              Sign in
+            </Button>
+          </Form.Item>
+
+          <Flex justify="center" style={{ marginBottom: 24 }}>
+             <PasskeyButton form={form} />
+          </Flex>
+
+          <div style={{ textAlign: 'center' }}>
+            <Text type="secondary">Don't have an account? </Text>
+            <Button type="link" onClick={() => navigate('/sign-up')} style={{ padding: 0, fontWeight: 600 }}>Sign up</Button>
+          </div>
+
+          {/* Dev Prefill Controls - Hidden in production */}
+          {import.meta.env.MODE !== 'production' && (
+             <div style={{ marginTop: 24, textAlign: 'center', opacity: 0.5 }}>
+                <Dropdown
+                  menu={{
+                    items: [
+                      { key: 'admin', label: 'Prefill Admin' },
+                      { key: 'user', label: 'Prefill User' },
+                    ],
+                    onClick: ({ key }) => {
+                      if (key === 'admin') prefillAdmin()
+                      else if (key === 'user') prefillUser()
+                    },
+                  }}
+                >
+                  <Button type="text" size="small">Dev Tools</Button>
+                </Dropdown>
+             </div>
+          )}
+        </Form>
+      </div>
     </>
   )
 }
@@ -120,6 +162,8 @@ function PasskeyButton({ form } = {}) {
   }
 
   return (
-    <Button onClick={handle} type="default">Use Passkey</Button>
+    <Button onClick={handle} type="default" block size="large" icon={<span role="img" aria-label="passkey">🔑</span>}>
+      Sign in with Passkey
+    </Button>
   )
 }

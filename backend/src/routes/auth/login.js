@@ -469,16 +469,7 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
     // Load user and return safe object
     const doc = await User.findOne({ email: emailKey }).lean()
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
-    if (doc.role !== 'user' && doc.role !== 'admin') {
-      try {
-        const dbDoc = await User.findById(doc._id)
-        if (dbDoc) {
-          dbDoc.role = 'user'
-          await dbDoc.save()
-          doc.role = 'user'
-        }
-      } catch (_) {}
-    }
+    
     const safe = {
       id: String(doc._id),
       role: doc.role,

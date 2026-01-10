@@ -26,8 +26,10 @@ export default function Sidebar() {
     onConfirm: async () => {
       // perform logout and navigate
       try {
-        logout()
+        // Navigate for immediate feedback, but logout() will also trigger a redirect
+        // handled gracefully by ProtectedRoute's isLoggingOut check.
         navigate('/login')
+        logout()
       } catch (err) {
         void err
       }

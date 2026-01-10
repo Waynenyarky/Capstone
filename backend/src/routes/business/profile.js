@@ -1,11 +1,11 @@
 const express = require('express')
 const router = express.Router()
-const { requireJwt } = require('../../middleware/auth')
+const { requireJwt, requireRole } = require('../../middleware/auth')
 const respond = require('../../middleware/respond')
 const businessProfileService = require('../../services/businessProfileService')
 
 // GET /api/business/profile - Get current user's business profile
-router.get('/profile', requireJwt, async (req, res) => {
+router.get('/profile', requireJwt, requireRole(['business_owner']), async (req, res) => {
   try {
     const profile = await businessProfileService.getProfile(req._userId)
     res.json(profile)
@@ -16,7 +16,7 @@ router.get('/profile', requireJwt, async (req, res) => {
 })
 
 // POST /api/business/profile - Update business profile (Step 2-8)
-router.post('/profile', requireJwt, async (req, res) => {
+router.post('/profile', requireJwt, requireRole(['business_owner']), async (req, res) => {
   try {
     const userId = req._userId
     const { step, data } = req.body

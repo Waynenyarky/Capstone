@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs')
 const User = require('../../models/User')
 const { decryptWithHash, encryptWithHash } = require('../../lib/secretCipher')
 const respond = require('../../middleware/respond')
-const { requireJwt } = require('../../middleware/auth')
+const { requireJwt, requireRole } = require('../../middleware/auth')
 const { validateBody, Joi } = require('../../middleware/validation')
 const { generateCode } = require('../../lib/codes')
 const { sendOtp } = require('../../lib/mailer')
@@ -450,34 +450,8 @@ router.post('/change-email/confirm/verify', requireJwt, validateBody(changeEmail
   }
 })
 // GET /api/auth/users
-router.get('/users', requireJwt, async (req, res) => {
+router.get('/users', requireJwt, requireRole(['admin']), async (req, res) => {
   try {
-    // Naive admin check for dev: validate requester headers
-    const roleHeader = String(req._userRole || req.headers['x-user-role'] || '').toLowerCase()
-    const idHeader = req.headers['x-user-id']
-    const emailHeader = req._userEmail || req.headers['x-user-email']
-
-    async function isAdminRequester() {
-      if (roleHeader === 'admin') {
-        let doc = null
-        if (idHeader) {
-          try {
-            doc = await User.findById(idHeader).lean()
-          } catch (_) {
-            doc = null
-          }
-        }
-        if (!doc && emailHeader) {
-          doc = await User.findOne({ email: emailHeader }).lean()
-        }
-        return !!doc && doc.role === 'admin'
-      }
-      return false
-    }
-
-    const allowed = await isAdminRequester()
-    if (!allowed) return respond.error(res, 403, 'forbidden', 'Forbidden: admin only')
-
     const docs = await User.find({}).lean()
     const usersSafe = docs.map((doc) => ({
       id: String(doc._id),
@@ -497,23 +471,10 @@ router.get('/users', requireJwt, async (req, res) => {
   }
 })
 
-// GET /api/auth/me - return current user's profile (dev-friendly header-based auth)
+// GET /api/auth/me - return current user's profile
 router.get('/me', requireJwt, async (req, res) => {
   try {
-    const idHeader = req.headers['x-user-id']
-    const emailHeader = req._userEmail || req.headers['x-user-email']
-
-    let doc = null
-    if (idHeader) {
-      try {
-        doc = await User.findById(idHeader).lean()
-      } catch (_) {
-        doc = null
-      }
-    }
-    if (!doc && emailHeader) {
-      doc = await User.findOne({ email: emailHeader }).lean()
-    }
+    const doc = await User.findById(req._userId).lean()
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
     const userSafe = {
@@ -547,22 +508,9 @@ router.get('/me', requireJwt, async (req, res) => {
 })
 
 // PATCH /api/auth/profile - update current user's profile (excluding email/password)
-router.patch('/profile', validateBody(updateProfileSchema), async (req, res) => {
+router.patch('/profile', requireJwt, validateBody(updateProfileSchema), async (req, res) => {
   try {
-    const idHeader = req.headers['x-user-id']
-    const emailHeader = req.headers['x-user-email']
-
-    let doc = null
-    if (idHeader) {
-      try {
-        doc = await User.findById(idHeader)
-      } catch (_) {
-        doc = null
-      }
-    }
-    if (!doc && emailHeader) {
-      doc = await User.findOne({ email: emailHeader })
-    }
+    const doc = await User.findById(req._userId)
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
     const { firstName, lastName, phoneNumber } = req.body || {}

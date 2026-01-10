@@ -1,56 +1,115 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
+import { App as AntdApp } from 'antd'
+import { LockOutlined } from '@ant-design/icons'
 import Home from "@/pages/Home.jsx"
 import Dashboard from "@/pages/Dashboard.jsx"
-import { Login, SignUp, SignUpStatic, ForgotPassword, RequireAdmin, VerifyEmail } from "@/features/authentication"
-import AdminLogin from "@/features/authentication/components/AdminLogin.jsx"
+import { Login, SignUp, ForgotPassword, VerifyEmail, ProtectedRoute, PublicRoute } from "@/features/authentication"
 import MfaSetup from "@/features/authentication/components/MfaSetup.jsx"
 import AdminDashboard from "@/pages/AdminDashboard.jsx"
 import AdminCreateRole from "@/pages/AdminCreateRole.jsx"
 import AdminFullDashboard from "@/pages/AdminFullDashboard.jsx"
 import { BusinessOwnerDashboard } from "@/features/business-owner"
-import LGUOfficerDashboard from "@/pages/LGUOfficerDashboard.jsx"
-import LGUManagerDashboard from "@/pages/LGUManagerDashboard.jsx"
-import InspectorDashboard from "@/pages/InspectorDashboard.jsx"
-import CSODashboard from "@/pages/CSODashboard.jsx"
-import ProfileStatic from '@/features/authentication/components/ProfileStatic.jsx'
+import StaffDashboard from "@/pages/StaffDashboard.jsx"
 import ProfileSettings from "@/pages/ProfileSettings.jsx"
 import PlaceholderPage from "@/pages/PlaceholderPage.jsx"
 
 function App() {
+  const location = useLocation()
+  const { notification, modal } = AntdApp.useApp()
+
+  useEffect(() => {
+    if (location.state?.notification) {
+      const { type = 'info', message, description } = location.state.notification
+      
+      // If it's an access warning (login required or forbidden), show it as a professional top-center alert
+      const isSecurityWarning = ['Access Denied', 'Restricted Access', '403 Forbidden'].includes(message) && type === 'warning'
+      
+      if (isSecurityWarning) {
+        // Map internal message codes to display titles if needed
+        let title = message
+        if (message === 'Access Denied') title = 'Restricted Access'
+
+        notification.error({ // Use 'error' type for red styling automatically
+          message: <span style={{ fontSize: '16px', fontWeight: 600, color: '#1f1f1f' }}>{title}</span>,
+          description: <span style={{ fontSize: '14px', color: '#666' }}>{description}</span>,
+          placement: 'top',
+          top: 24, // Add spacing from top of screen
+          duration: 5,
+          icon: <LockOutlined style={{ color: '#ff4d4f', fontSize: '22px' }} />,
+          style: { 
+            width: 400, 
+            margin: '0 auto',
+            borderRadius: '8px', // Softer corners
+            border: '1px solid #ffccc7', // Subtle red border
+            backgroundColor: '#fff1f0', // Very light red background (Standard Enterprise Error/Alert)
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
+          },
+          closeIcon: false, // Cleaner look without close button (auto-dismiss)
+          key: `access-denied-${Date.now()}`,
+        })
+      } else {
+        // Otherwise, use the standard notification toast
+        notification[type]({
+          message,
+          description,
+          placement: 'topRight',
+          duration: 4.5,
+          key: `nav-notification-${Date.now()}`,
+        })
+      }
+      
+      // Clear the notification from state to prevent it from showing again on refresh
+      // We use window.history to manipulate the state without triggering a re-render/navigation loop
+      const state = { ...window.history.state }
+      if (state.usr) {
+        delete state.usr.notification
+        window.history.replaceState(state, '')
+      }
+    }
+  }, [location, notification])
+
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/admin/login" element={<AdminLogin />} />
-      <Route path="/mfa/setup" element={<MfaSetup />} />
-      <Route path="/admin/dashboard" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
-      <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-      <Route path="/admin/create-role" element={<RequireAdmin><AdminCreateRole /></RequireAdmin>} />
-      <Route path="/admin/full" element={<RequireAdmin><AdminFullDashboard /></RequireAdmin>} />
-      
-      {/* Business Owner Routes */}
-      <Route path="/business" element={<BusinessOwnerDashboard />} />
-      <Route path="/permit-applications" element={<PlaceholderPage title="Permit Applications" />} />
-      <Route path="/cessation" element={<PlaceholderPage title="Cessation" />} />
-      <Route path="/payments" element={<PlaceholderPage title="Payments" />} />
-      <Route path="/appeals" element={<PlaceholderPage title="Appeals" />} />
-      
-      {/* LGU & Inspector Routes */}
-      <Route path="/lgu-officer" element={<LGUOfficerDashboard />} />
-      <Route path="/lgu-manager" element={<LGUManagerDashboard />} />
-      <Route path="/inspector" element={<InspectorDashboard />} />
-      <Route path="/inspections" element={<PlaceholderPage title="Inspections" />} />
-      <Route path="/applications" element={<PlaceholderPage title="Applications Review" />} />
-      <Route path="/reports" element={<PlaceholderPage title="Reports & Analytics" />} />
-      <Route path="/support" element={<PlaceholderPage title="Customer Support" />} />
-
-      <Route path="/cso" element={<CSODashboard />} />
-      <Route path="/sign-up-static" element={<SignUpStatic />} />
-      <Route path="/sign-up" element={<SignUp />} />
+      <Route path="/" element={<PublicRoute><Home /></PublicRoute>} />
+      <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+      <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+      <Route path="/sign-up" element={<PublicRoute><SignUp /></PublicRoute>} />
       <Route path="/verify-email" element={<VerifyEmail />} />
-      <Route path="/profile-static" element={<ProfileSettings />} />
+      <Route path="/mfa/setup" element={<ProtectedRoute><MfaSetup /></ProtectedRoute>} />
+      
+      {/* Admin Routes */}
+      <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><Outlet /></ProtectedRoute>}>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="create-role" element={<AdminCreateRole />} />
+        <Route path="full" element={<AdminFullDashboard />} />
+        <Route path="users" element={<PlaceholderPage title="User Management" />} />
+      </Route>
+
+      {/* Business Owner Routes */}
+      <Route path="/owner" element={<ProtectedRoute allowedRoles={['business_owner']}><Outlet /></ProtectedRoute>}>
+        <Route index element={<BusinessOwnerDashboard />} />
+        <Route path="permits" element={<PlaceholderPage title="Permit Applications" />} />
+        <Route path="cessation" element={<PlaceholderPage title="Cessation" />} />
+        <Route path="payments" element={<PlaceholderPage title="Payments" />} />
+        <Route path="appeals" element={<PlaceholderPage title="Appeals" />} />
+      </Route>
+      
+      {/* Staff Routes */}
+      <Route path="/staff" element={<ProtectedRoute allowedRoles={['staff', 'lgu_officer', 'lgu_manager', 'inspector', 'cso']}><Outlet /></ProtectedRoute>}>
+        <Route index element={<StaffDashboard />} />
+        <Route path="inspections" element={<PlaceholderPage title="Inspections" />} />
+        <Route path="applications" element={<PlaceholderPage title="Applications Review" />} />
+        <Route path="cessation" element={<PlaceholderPage title="Cessation Review" />} />
+        <Route path="appeals" element={<PlaceholderPage title="Appeals Review" />} />
+        <Route path="reports" element={<PlaceholderPage title="Reports & Analytics" />} />
+        <Route path="support" element={<PlaceholderPage title="Customer Support" />} />
+      </Route>
+
+      {/* Generic/Public Routes */}
+      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/profile-static" element={<ProtectedRoute><ProfileSettings /></ProtectedRoute>} />
       
       {/* Catch-all for 404 */}
       <Route path="*" element={<PlaceholderPage title="Page Not Found" />} />
