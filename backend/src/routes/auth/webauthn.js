@@ -17,7 +17,7 @@ const emailSchema = Joi.object({ email: Joi.string().email().required() })
 router.post('/webauthn/register/start', validateBody(emailSchema), async (req, res) => {
   try {
       const { email } = req.body || {}
-      const user = await User.findOne({ email })
+      const user = await User.findOne({ email }).populate('role')
       if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
 
       const userId = base64url.encode(String(user._id))
@@ -124,7 +124,7 @@ router.post('/webauthn/authenticate/complete', validateBody(authCompleteSchema),
       const expectedChallenge = authenticationChallenges.get(String(email).toLowerCase())
       if (!expectedChallenge) return respond.error(res, 400, 'challenge_missing', 'No authentication in progress')
 
-      const user = await User.findOne({ email })
+      const user = await User.findOne({ email }).populate('role')
       if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
 
       const credRecord = (user.webauthnCredentials || []).find(c => c.credId === credential.id || c.credId === credential.rawId)
@@ -153,9 +153,10 @@ router.post('/webauthn/authenticate/complete', validateBody(authCompleteSchema),
       authenticationChallenges.delete(String(email).toLowerCase())
 
       // Return safe user object similar to login endpoints
+      const roleSlug = (user.role && user.role.slug) ? user.role.slug : 'user'
       const safe = {
          id: String(user._id),
-         role: user.role,
+         role: roleSlug,
          firstName: user.firstName,
          lastName: user.lastName,
          email: user.email,
@@ -166,6 +167,15 @@ router.post('/webauthn/authenticate/complete', validateBody(authCompleteSchema),
          deletionScheduledFor: user.deletionScheduledFor,
          createdAt: user.createdAt,
       }
+      
+      try {
+         const { token, expiresAtMs } = require('../../middleware/auth').signAccessToken(user)
+         safe.token = token
+         safe.expiresAt = new Date(expiresAtMs).toISOString()
+      } catch (err) {
+         console.error('webauthn token signing error', err)
+      }
+
       return res.json(safe)
    } catch (err) {
       console.error('webauthn authenticate complete error', err)

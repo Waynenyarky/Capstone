@@ -8,7 +8,7 @@ function signAccessToken(user) {
   const payload = {
     sub: String(user._id || user.id || ''),
     email: String(user.email || ''),
-    role: String(user.role || ''),
+    role: String(user.role && user.role.slug ? user.role.slug : (user.role || '')),
     iat: nowSec,
     exp: expSec,
   }

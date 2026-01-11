@@ -1,10 +1,55 @@
 [
   {
-    "role": "user",
-    "firstName": "Jane",
-    "lastName": "Doe",
-    "email": "jane@example.com",
-    "phoneNumber": "+1-555-0101",
+    "role": "business_owner",
+    "firstName": "Bob",
+    "lastName": "Business",
+    "email": "business@example.com",
+    "phoneNumber": "+1-555-0202",
+    "passwordPlain": "password123",
+    "termsAccepted": true
+  },
+  {
+    "role": "lgu_officer",
+    "firstName": "Larry",
+    "lastName": "Officer",
+    "email": "officer@example.com",
+    "phoneNumber": "+1-555-0303",
+    "passwordPlain": "password123",
+    "termsAccepted": true
+  },
+  {
+    "role": "lgu_manager",
+    "firstName": "Mary",
+    "lastName": "Manager",
+    "email": "manager@example.com",
+    "phoneNumber": "+1-555-0404",
+    "passwordPlain": "password123",
+    "termsAccepted": true
+  },
+  {
+    "role": "inspector",
+    "firstName": "Ian",
+    "lastName": "Inspector",
+    "email": "inspector@example.com",
+    "phoneNumber": "+1-555-0505",
+    "passwordPlain": "password123",
+    "termsAccepted": true
+  },
+  {
+    "role": "admin",
+    "firstName": "Alice",
+    "lastName": "Admin",
+    "email": "admin@example.com",
+    "phoneNumber": "+1-555-0000",
+    "passwordPlain": "password123",
+    "termsAccepted": true
+  },
+  {
+    "role": "cso",
+    "firstName": "Charlie",
+    "lastName": "Support",
+    "email": "cso@example.com",
+    "phoneNumber": "+1-555-0606",
     "passwordPlain": "password123",
     "termsAccepted": true
   }

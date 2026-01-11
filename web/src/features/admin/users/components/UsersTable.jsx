@@ -7,6 +7,23 @@ import { subscribeUserSignedUp } from "@/features/admin/users/lib/usersEvents.js
 export default function UsersTable() {
   const { users, isLoading, reloadUsers } = useUsersTable()
 
+  const roleLabel = (role) => {
+    const key = String(role || '').toLowerCase()
+    const map = {
+      admin: 'Admin',
+      business_owner: 'Business Owner',
+      user: 'User',
+      lgu_officer: 'LGU Officer',
+      lgu_manager: 'LGU Manager',
+      inspector: 'LGU Inspector',
+      cso: 'CSO',
+    }
+    if (map[key]) return map[key]
+
+    const words = key.split(/[_\s]+/).filter(Boolean)
+    return words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  }
+
   useEffect(() => {
     const unsubscribe = subscribeUserSignedUp(() => {
       reloadUsers()
@@ -30,6 +47,7 @@ export default function UsersTable() {
       title: 'Role',
       dataIndex: 'role',
       key: 'role',
+      render: (role) => <span>{roleLabel(role)}</span>,
     },
     {
       title: 'Phone',

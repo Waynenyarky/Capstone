@@ -86,7 +86,7 @@ export default function useSidebar() {
       ],
     }
 
-    const roleKey = (role || 'user').toString()
+    const roleKey = (role?.slug || role || 'user').toString()
     const result = perRole[roleKey] || perRole.user
     return Array.isArray(result) ? result : []
   }, [role])

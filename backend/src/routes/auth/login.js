@@ -2,6 +2,7 @@ const express = require('express')
 const bcrypt = require('bcryptjs')
 const mongoose = require('mongoose')
 const User = require('../../models/User')
+const Role = require('../../models/Role')
 const { generateCode, generateToken } = require('../../lib/codes')
 const { loginRequests } = require('../../lib/authRequestsStore')
 const { signAccessToken } = require('../../middleware/auth')
@@ -77,25 +78,7 @@ router.post('/login', validateBody(loginCredentialsSchema), async (req, res) => 
     // Ensure email is lowercased for consistency
     if (email) email = String(email).toLowerCase().trim()
 
-    // Ensure admin seed for testing if email is "1"
-    if (String(email) === '1') {
-      let adminDoc = await User.findOne({ email: '1' }).lean()
-      if (!adminDoc) {
-        const passwordHash = await bcrypt.hash('1', 10)
-        const createdAdmin = await User.create({
-          role: 'admin',
-          firstName: 'Admin',
-          lastName: 'User',
-          email: '1',
-          phoneNumber: '',
-          termsAccepted: true,
-          passwordHash,
-        })
-        adminDoc = await User.findById(createdAdmin._id).lean()
-      }
-    }
-
-    const doc = await User.findOne({ email }).lean()
+    const doc = await User.findOne({ email }).populate('role').lean()
     if (!doc || typeof doc.passwordHash !== 'string' || !doc.passwordHash) {
       return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
     }
@@ -141,19 +124,12 @@ router.post('/login', validateBody(loginCredentialsSchema), async (req, res) => 
       }
       if (!isFingerprint) return respond.error(res, 401, 'mfa_required', 'Multi-factor authentication required')
     }
-    if (doc.role !== 'user' && doc.role !== 'admin' && doc.role !== 'business_owner') {
-      try {
-        const dbDoc = await User.findById(doc._id)
-        if (dbDoc) {
-          dbDoc.role = 'user'
-          await dbDoc.save()
-          doc.role = 'user'
-        }
-      } catch (_) {}
-    }
+
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+
     const safe = {
       id: String(doc._id),
-      role: doc.role,
+      role: roleSlug,
       firstName: doc.firstName,
       lastName: doc.lastName,
       email: doc.email,
@@ -279,8 +255,9 @@ router.post('/login/google', validateBody(googleLoginSchema), async (req, res) =
           lastName = (String(lastName || '').trim() || '')
         }
         const passwordHash = await bcrypt.hash(generateToken(), 10)
+        const userRole = await Role.findOne({ slug: 'user' })
         const created = await User.create({
-          role: 'user',
+          role: userRole ? userRole._id : undefined,
           firstName,
           lastName,
           email,
@@ -293,7 +270,7 @@ router.post('/login/google', validateBody(googleLoginSchema), async (req, res) =
           isEmailVerified,
           lastLoginAt: new Date(),
         })
-        doc = await User.findById(created._id).lean()
+        doc = await User.findById(created._id).populate('role').lean()
       } else {
         try {
           const dbDoc = await User.findById(doc._id)
@@ -324,7 +301,7 @@ router.post('/login/google', validateBody(googleLoginSchema), async (req, res) =
             dbDoc.lastLoginAt = new Date()
             await dbDoc.save()
             try {
-              doc = await User.findById(doc._id).lean()
+              doc = await User.findById(doc._id).populate('role').lean()
             } catch (_) {}
           }
         } catch (_) {}
@@ -343,10 +320,12 @@ router.post('/login/google', validateBody(googleLoginSchema), async (req, res) =
       console.error('Google login DB error:', dbErr)
       return respond.error(res, 500, 'db_error', 'Database error during Google login')
     }
+    
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
 
     const safe = {
       id: String(doc._id),
-      role: doc.role,
+      role: roleSlug,
       firstName: doc.firstName,
       lastName: doc.lastName,
       email: doc.email,
@@ -389,8 +368,9 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       let adminDoc = await User.findOne({ email: '1' }).lean()
       if (!adminDoc) {
         const passwordHash = await bcrypt.hash('1', 10)
+        const adminRole = await Role.findOne({ slug: 'admin' })
         const createdAdmin = await User.create({
-          role: 'admin',
+          role: adminRole ? adminRole._id : undefined,
           firstName: 'Admin',
           lastName: 'User',
           email: '1',
@@ -438,6 +418,17 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     }
 
     const payload = { sent: true }
+    payload.mfaEnabled = doc.mfaEnabled === true
+    try {
+      const hasTotp = !!doc.mfaSecret
+      let method = String(doc.mfaMethod || '').toLowerCase()
+      if (!method) {
+        if (hasTotp) method = 'authenticator'
+        else if (doc.fprintEnabled) method = 'fingerprint'
+      }
+      payload.mfaMethod = method
+      payload.isFingerprintEnabled = !!doc.fprintEnabled || method.includes('fingerprint')
+    } catch (_) {}
     if (process.env.NODE_ENV !== 'production') payload.devCode = code
     return res.json(payload)
   } catch (err) {
@@ -467,12 +458,14 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
     }
 
     // Load user and return safe object
-    const doc = await User.findOne({ email: emailKey }).lean()
+    const doc = await User.findOne({ email: emailKey }).populate('role').lean()
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
     
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+
     const safe = {
       id: String(doc._id),
-      role: doc.role,
+      role: roleSlug,
       firstName: doc.firstName,
       lastName: doc.lastName,
       email: doc.email,
@@ -506,7 +499,7 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
   try {
     let { email, code } = req.body || {}
     const emailKey = String(email).toLowerCase().trim()
-    const doc = await User.findOne({ email: emailKey })
+    const doc = await User.findOne({ email: emailKey }).populate('role')
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
     if (doc.mfaEnabled !== true || !doc.mfaSecret) {
       return respond.error(res, 400, 'mfa_not_enabled', 'MFA is not enabled for this account')
@@ -524,9 +517,11 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
   doc.mfaLastUsedTotpAt = new Date()
   await doc.save()
 
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+
     const safe = {
       id: String(doc._id),
-      role: doc.role,
+      role: roleSlug,
       firstName: doc.firstName,
       lastName: doc.lastName,
       email: doc.email,
@@ -604,25 +599,17 @@ router.post('/login/complete-fingerprint', validateBody(fingerprintCompleteSchem
       if (String(reqObj.loginToken) !== String(token)) return respond.error(res, 401, 'invalid_fingerprint_token', 'Invalid fingerprint token')
     }
 
-  const doc = await User.findOne({ email })
+  const doc = await User.findOne({ email }).populate('role')
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
     if (doc.mfaEnabled !== true || (!doc.fprintEnabled && !(String(doc.mfaMethod || '').toLowerCase().includes('fingerprint') || !doc.mfaSecret))) {
       return respond.error(res, 400, 'fingerprint_not_enabled', 'Fingerprint is not enabled for this account')
     }
-    if (doc.role !== 'user' && doc.role !== 'admin') {
-      try {
-        const dbDoc = await User.findById(doc._id)
-        if (dbDoc) {
-          dbDoc.role = 'user'
-          await dbDoc.save()
-          doc.role = 'user'
-        }
-      } catch (_) {}
-    }
+
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
 
     const safe = {
       id: String(doc._id),
-      role: doc.role,
+      role: roleSlug,
       firstName: doc.firstName,
       lastName: doc.lastName,
       email: doc.email,

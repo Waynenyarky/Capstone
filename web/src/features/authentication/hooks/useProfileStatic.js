@@ -19,7 +19,7 @@ export default function useProfileStatic() {
       name: displayName,
       email: currentUser?.email || '',
       avatar: currentUser?.avatar,
-      role: currentUser.role || 'user',
+      role: (currentUser?.role?.slug || currentUser?.role || 'user').toString(),
       mfaEnabled: !!currentUser.mfaEnabled,
     }
   }, [currentUser])

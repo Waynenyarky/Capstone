@@ -8,6 +8,7 @@ const { sendOtp } = require('../../lib/mailer')
 const { mfaRequests } = require('../../lib/authRequestsStore')
 const { encryptWithHash, decryptWithHash } = require('../../lib/secretCipher')
 const { generateToken } = require('../../lib/codes')
+const { requireJwt } = require('../../middleware/auth')
 
 const router = express.Router()
 
@@ -21,15 +22,8 @@ const verifySchema = Joi.object({
 
 const oneDayMs = 24 * 60 * 60 * 1000
 
-function requireUser(req, res, next) {
-  const emailHeader = String(req.headers['x-user-email'] || '').toLowerCase()
-  if (!emailHeader) return respond.error(res, 401, 'unauthorized', 'Unauthorized: missing user email')
-  req._userEmail = emailHeader
-  next()
-}
-
 // POST /api/auth/mfa/setup
-router.post('/mfa/setup', requireUser, validateBody(setupSchema), async (req, res) => {
+router.post('/mfa/setup', requireJwt, validateBody(setupSchema), async (req, res) => {
   try {
     const email = req._userEmail
     const doc = await User.findOne({ email })
@@ -51,7 +45,7 @@ router.post('/mfa/setup', requireUser, validateBody(setupSchema), async (req, re
 })
 
 // POST /api/auth/mfa/disable-request
-router.post('/mfa/disable-request', requireUser, async (req, res) => {
+router.post('/mfa/disable-request', requireJwt, async (req, res) => {
   try {
     const email = req._userEmail
     const doc = await User.findOne({ email })
@@ -75,7 +69,7 @@ router.post('/mfa/disable-request', requireUser, async (req, res) => {
 })
 
 // POST /api/auth/mfa/disable-undo
-router.post('/mfa/disable-undo', requireUser, validateBody(verifySchema), async (req, res) => {
+router.post('/mfa/disable-undo', requireJwt, validateBody(verifySchema), async (req, res) => {
   try {
     const email = req._userEmail
   const { code } = req.body || {}
@@ -86,12 +80,6 @@ router.post('/mfa/disable-undo', requireUser, validateBody(verifySchema), async 
     const secretPlain = decryptWithHash(doc.passwordHash, doc.mfaSecret)
     const resVerify = verifyTotpWithCounter({ secret: secretPlain, token: String(code), window: 1, period: 30, digits: 6 })
     if (!resVerify.ok) return respond.error(res, 401, 'invalid_mfa_code', 'Invalid verification code')
-    if (typeof doc.mfaLastUsedTotpCounter === 'number' && doc.mfaLastUsedTotpCounter === resVerify.counter) {
-      return respond.error(res, 401, 'totp_replayed', 'Verification code already used')
-    }
-    if (typeof doc.mfaLastUsedTotpCounter === 'number' && doc.mfaLastUsedTotpCounter === resVerify.counter) {
-      return respond.error(res, 401, 'totp_replayed', 'Verification code already used')
-    }
     if (typeof doc.mfaLastUsedTotpCounter === 'number' && doc.mfaLastUsedTotpCounter === resVerify.counter) {
       return respond.error(res, 401, 'totp_replayed', 'Verification code already used')
     }
@@ -110,7 +98,7 @@ router.post('/mfa/disable-undo', requireUser, validateBody(verifySchema), async 
 })
 
 // POST /api/auth/mfa/verify
-router.post('/mfa/verify', requireUser, validateBody(verifySchema), async (req, res) => {
+router.post('/mfa/verify', requireJwt, validateBody(verifySchema), async (req, res) => {
   try {
     const email = req._userEmail
     const { code } = req.body || {}
@@ -135,7 +123,7 @@ router.post('/mfa/verify', requireUser, validateBody(verifySchema), async (req, 
 })
 
 // POST /api/auth/mfa/disable
-router.post('/mfa/disable', requireUser, async (req, res) => {
+router.post('/mfa/disable', requireJwt, async (req, res) => {
   try {
     const email = req._userEmail
     const doc = await User.findOne({ email })
@@ -152,7 +140,7 @@ router.post('/mfa/disable', requireUser, async (req, res) => {
 })
 
 // GET /api/auth/mfa/status
-  router.get('/mfa/status', requireUser, async (req, res) => {
+  router.get('/mfa/status', requireJwt, async (req, res) => {
     try {
       const email = req._userEmail
       const doc = await User.findOne({ email })
@@ -180,7 +168,7 @@ router.post('/mfa/disable', requireUser, async (req, res) => {
   })
 
 // POST /api/auth/mfa/fingerprint/start
-router.post('/mfa/fingerprint/start', requireUser, async (req, res) => {
+router.post('/mfa/fingerprint/start', requireJwt, async (req, res) => {
   try {
     const email = req._userEmail
     const doc = await User.findOne({ email })
@@ -202,7 +190,7 @@ router.post('/mfa/fingerprint/start', requireUser, async (req, res) => {
 })
 
 // POST /api/auth/mfa/fingerprint/verify
-router.post('/mfa/fingerprint/verify', requireUser, validateBody(verifySchema), async (req, res) => {
+router.post('/mfa/fingerprint/verify', requireJwt, validateBody(verifySchema), async (req, res) => {
   try {
     const email = req._userEmail
     const { code } = req.body || {}
@@ -230,7 +218,7 @@ router.post('/mfa/fingerprint/verify', requireUser, validateBody(verifySchema), 
 })
 
 // POST /api/auth/mfa/fingerprint/disable
-router.post('/mfa/fingerprint/disable', requireUser, async (req, res) => {
+router.post('/mfa/fingerprint/disable', requireJwt, async (req, res) => {
   try {
     const email = req._userEmail
     const doc = await User.findOne({ email })

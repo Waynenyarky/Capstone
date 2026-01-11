@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs')
 const mongoose = require('mongoose')
 const jwt = require('jsonwebtoken')
 const User = require('../../models/User')
+const Role = require('../../models/Role')
 // Provider-related models removed in unified user flow
 const { generateCode } = require('../../lib/codes')
 const { sendOtp, sendVerificationEmail } = require('../../lib/mailer')
@@ -29,7 +30,7 @@ const signupPayloadSchema = Joi.object({
   phoneNumber: Joi.string().trim().allow('', null),
   password: Joi.string().min(6).max(200).required(),
   termsAccepted: Joi.boolean().truthy('true', 'TRUE', 'True', 1, '1').valid(true).required(),
-  role: Joi.string().valid('user', 'business_owner').default('user'),
+  role: Joi.string().valid('business_owner').default('business_owner'),
 })
 
 const verifyCodeSchema = Joi.object({
@@ -87,8 +88,10 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
     }
     if (existing) return respond.error(res, 409, 'email_exists', 'Email already exists')
 
+    const roleSlug = role || 'business_owner'
+    const roleDoc = await Role.findOne({ slug: roleSlug })
     const doc = await User.create({
-      role: role || 'user',
+      role: roleDoc ? roleDoc._id : undefined,
       firstName,
       lastName,
       email,
@@ -118,7 +121,7 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
 
     const created = {
       id: String(doc._id),
-      role: doc.role,
+      role: roleSlug,
       firstName: doc.firstName,
       lastName: doc.lastName,
       email: doc.email,
@@ -278,8 +281,17 @@ router.post('/signup/verify', validateBody(verifyCodeSchema), signupVerifyLimite
     }
 
     const passwordHash = await bcrypt.hash(p.password, 10)
+    const roleSlug = p.role || 'user'
+    let roleDoc = await Role.findOne({ slug: roleSlug })
+    
+    // Fallback to 'user' role if requested role not found
+    if (!roleDoc && roleSlug !== 'user') {
+      roleDoc = await Role.findOne({ slug: 'user' })
+    }
+    // If even 'user' role is missing, this will fail validation (required: true), which is correct.
+    
     const doc = await User.create({
-      role: p.role || 'user',
+      role: roleDoc ? roleDoc._id : undefined,
       firstName: p.firstName,
       lastName: p.lastName,
       email: p.email,
@@ -287,9 +299,15 @@ router.post('/signup/verify', validateBody(verifyCodeSchema), signupVerifyLimite
       termsAccepted: !!p.termsAccepted,
       passwordHash,
     })
+    
+    // Manually attach role slug for token signing
+    // doc is a Mongoose document, we can convert to object and attach role
+    const docForToken = doc.toObject()
+    docForToken.role = { slug: roleSlug } 
+
     const created = {
       id: String(doc._id),
-      role: doc.role,
+      role: roleSlug,
       firstName: doc.firstName,
       lastName: doc.lastName,
       email: doc.email,
@@ -299,7 +317,7 @@ router.post('/signup/verify', validateBody(verifyCodeSchema), signupVerifyLimite
     }
 
     try {
-      const { token, expiresAtMs } = signAccessToken(doc)
+      const { token, expiresAtMs } = signAccessToken(docForToken)
       created.token = token
       created.expiresAt = new Date(expiresAtMs).toISOString()
     } catch (_) {}

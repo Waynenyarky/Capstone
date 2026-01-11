@@ -2,7 +2,7 @@ const mongoose = require('mongoose')
 
 const UserSchema = new mongoose.Schema(
   {
-    role: { type: String, enum: ['user', 'admin', 'business_owner', 'staff', 'lgu_manager', 'lgu_officer', 'inspector', 'cso'], default: 'user' },
+    role: { type: mongoose.Schema.Types.ObjectId, ref: 'Role', required: true },
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
@@ -34,12 +34,14 @@ const UserSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
-UserSchema.pre('validate', function() {
-  const v = String(this.role || '').toLowerCase()
-  const validRoles = ['user', 'admin', 'business_owner', 'staff', 'lgu_manager', 'lgu_officer', 'inspector', 'cso']
-  if (v && !validRoles.includes(v)) {
-    this.role = 'user'
-  }
+UserSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    // If role is populated, return the slug as the role string for backward compatibility
+    if (ret.role && typeof ret.role === 'object' && ret.role.slug) {
+      ret.role = ret.role.slug
+    }
+    return ret
+  },
 })
 
 module.exports = mongoose.model('User', UserSchema)

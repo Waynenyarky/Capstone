@@ -37,7 +37,8 @@ export function useLogin({ onBegin, onSubmit, onError } = {}) {
         } else {
           // Only show the verification-sent message when the flow will proceed
           // to a verification step (i.e., MFA / email code is expected).
-          success('Verification code sent to your email')
+          const show = beginResult ? beginResult.showVerificationSent !== false : true
+          if (show && data && data.sent === true) success('Verification code sent to your email')
         }
       } else {
         const user = await loginPost(payload)

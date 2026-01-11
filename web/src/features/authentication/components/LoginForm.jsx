@@ -22,6 +22,10 @@ export default function LoginForm({ onSubmit } = {}) {
     initialValues,
     prefillAdmin,
     prefillUser,
+    prefillLguOfficer,
+    prefillLguManager,
+    prefillInspector,
+    prefillCso,
     verificationProps,
     serverLockedUntil,
   } = useLoginFlow({ onSubmit })
@@ -116,11 +120,19 @@ export default function LoginForm({ onSubmit } = {}) {
                   menu={{
                     items: [
                       { key: 'admin', label: 'Prefill Admin' },
-                      { key: 'user', label: 'Prefill User' },
+                      { key: 'business', label: 'Prefill Business Owner' },
+                      { key: 'officer', label: 'Prefill LGU Officer' },
+                      { key: 'manager', label: 'Prefill LGU Manager' },
+                      { key: 'inspector', label: 'Prefill Inspector' },
+                      { key: 'cso', label: 'Prefill CSO' },
                     ],
                     onClick: ({ key }) => {
                       if (key === 'admin') prefillAdmin()
-                      else if (key === 'user') prefillUser()
+                      else if (key === 'business') prefillUser()
+                      else if (key === 'officer') prefillLguOfficer()
+                      else if (key === 'manager') prefillLguManager()
+                      else if (key === 'inspector') prefillInspector()
+                      else if (key === 'cso') prefillCso()
                     },
                   }}
                 >

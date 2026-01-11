@@ -4,11 +4,16 @@ import React from 'react'
 import OtpInput from '@/features/authentication/components/OtpInput.jsx'
 import useOtpCountdown from '@/features/authentication/hooks/useOtpCountdown.js'
 
-export default function LoginVerificationForm({ email, onSubmit, title, otpExpiresAt } = {}) {
+export default function LoginVerificationForm({ email, onSubmit, title, otpExpiresAt, devCode } = {}) {
   const { form, handleFinish, isSubmitting } = useLoginVerificationForm({ email, onSubmit })
   const cardTitle = title || 'Verify Login'
   const { isSending: isResending, handleResend, isCooling, remaining } = useResendLoginCode({ email, cooldownSec: 60 })
   const { remaining: otpRemaining, isExpired } = useOtpCountdown(otpExpiresAt)
+
+  const prefillDevCode = () => {
+    if (devCode) form.setFieldsValue({ verificationCode: devCode })
+  }
+
   return (
     <Card title={cardTitle}>
       <Form name="loginVerification" form={form} layout="vertical" onFinish={handleFinish}>
@@ -22,6 +27,16 @@ export default function LoginVerificationForm({ email, onSubmit, title, otpExpir
             </Typography.Text>
           </div>
         ) : null}
+
+        {/* Dev Prefill Button */}
+        {devCode && (
+          <div style={{ marginBottom: 16 }}>
+            <Button size="small" type="dashed" onClick={prefillDevCode} block>
+              Dev: Prefill Code ({devCode})
+            </Button>
+          </div>
+        )}
+
         <Flex justify="space-between" align="center">
           <div>
             <Typography.Text type="secondary">Max attempts: 5 • Rate-limited on repeated failures</Typography.Text>

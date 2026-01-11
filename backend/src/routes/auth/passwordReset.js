@@ -194,7 +194,7 @@ router.post('/change-email', validateBody(changeEmailSchema), async (req, res) =
     }
 
     // Load the current user by the provided email
-    const doc = await User.findOne({ email })
+    const doc = await User.findOne({ email }).populate('role')
     if (!doc) {
       return respond.error(res, 404, 'user_not_found', 'User not found')
     }
@@ -209,7 +209,7 @@ router.post('/change-email', validateBody(changeEmailSchema), async (req, res) =
 
     const safe = {
       id: String(doc._id),
-      role: doc.role,
+      role: doc.role && doc.role.slug ? doc.role.slug : doc.role,
       firstName: doc.firstName,
       lastName: doc.lastName,
       email: doc.email,

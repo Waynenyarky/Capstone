@@ -65,14 +65,6 @@ router.post('/delete-account/authenticated', validateBody(passwordOnlySchema), a
     if (!ok) return respond.error(res, 401, 'invalid_current_password', 'Invalid current password')
 
     try {
-      if (doc.role === 'provider') {
-        await Provider.deleteOne({ userId: doc._id })
-      }
-    } catch (providerErr) {
-      console.warn('Provider hard delete warning:', providerErr)
-    }
-
-    try {
       await User.deleteOne({ _id: doc._id })
     } catch (userErr) {
       console.error('User hard delete error:', userErr)

@@ -2,7 +2,6 @@ import React from 'react'
 import { useLogin } from './useLogin.js'
 import { useAuthSession } from './useAuthSession.js'
 import { useRememberedEmail } from './useRememberedEmail.js'
-import { mfaStatus } from '@/features/authentication/services/mfaService'
 import { useNotifier } from '@/shared/notifications.js'
 
 // Orchestrates the login UI flow (login -> verify) and keeps
@@ -17,6 +16,17 @@ export function useLoginFlow({ onSubmit } = {}) {
   const [rememberMe, setRememberMe] = React.useState(!!initialEmail)
   const [otpExpiresAt, setOtpExpiresAt] = React.useState(null)
   const [serverLockedUntil, setServerLockedUntil] = React.useState(null)
+  const [devCode, setDevCode] = React.useState(null)
+
+  const handleVerificationSubmit = React.useCallback((user) => {
+    const remember = rememberMe === true
+    login(user, { remember })
+    success('Logged in successfully')
+    if (remember) rememberEmail(user?.email || emailForVerify)
+    else clearRememberedEmail()
+    if (typeof onSubmit === 'function') onSubmit(user)
+    setStep('login')
+  }, [rememberMe, login, success, rememberEmail, clearRememberedEmail, onSubmit, emailForVerify])
 
   const { form, handleFinish, isSubmitting } = useLogin({
     onBegin: async ({ email, rememberMe: rm, serverData } = {}) => {
@@ -26,6 +36,7 @@ export function useLoginFlow({ onSubmit } = {}) {
       // capture OTP expiry info from server response if present
       try {
         if (serverData) {
+          if (serverData.devCode) setDevCode(serverData.devCode)
           if (serverData.expiresAt) {
             setOtpExpiresAt(Number(serverData.expiresAt))
           } else if (serverData.expires_in || serverData.expiresIn) {
@@ -34,21 +45,17 @@ export function useLoginFlow({ onSubmit } = {}) {
           }
         }
       } catch { /* ignore */ }
-      try {
-        const status = await mfaStatus(email)
-        if (status && status.enabled === true) {
-          setStep('verify-totp')
-        } else {
-          // MFA not enabled for this account — signal caller to complete
-          // the server-side login. We return proceedWithLogin here; the
-          // `useLogin` hook will delegate final login to the caller so
-          // completion is centralized and validated in one place.
-          return { proceedWithLogin: true }
-        }
-      } catch {
-        // If status check fails, fall back to email verification
-        setStep('verify')
+      if (serverData && serverData.mfaEnabled === true) {
+        setStep('verify-totp')
+        return { showVerificationSent: false }
       }
+      if (serverData && serverData.mfaEnabled === false) {
+        setStep('verify')
+        return { showVerificationSent: true }
+      }
+      // If server did not provide MFA status, fall back to email verification
+      setStep('verify')
+      return { showVerificationSent: true }
     },
     onError: (err) => {
       // Try to parse structured lock info from the error object
@@ -91,8 +98,6 @@ export function useLoginFlow({ onSubmit } = {}) {
             return
           }
 
-          const role = String(serverUser?.role || '').toLowerCase()
-
           // Complete login centrally only after a successful server response
           const remember = values?.rememberMe === true
           login(serverUser, { remember })
@@ -121,36 +126,46 @@ export function useLoginFlow({ onSubmit } = {}) {
     }
   })
 
-  const handleVerificationSubmit = React.useCallback((user) => {
-    // Complete login after verification
-    login(user, { remember: rememberMe })
-    // Show success toast on final login completion
-    success('Logged in successfully')
-    if (rememberMe) rememberEmail(emailForVerify)
-    else clearRememberedEmail()
-    if (typeof onSubmit === 'function') onSubmit(user)
-    // Reset step for next time
-    setStep('login')
-  }, [login, rememberMe, emailForVerify, rememberEmail, clearRememberedEmail, success, onSubmit])
+  const prefillAdmin = () => {
+    form.setFieldsValue({
+      email: 'admin@example.com',
+      password: 'password123',
+    })
+  }
 
-  const prefillAdmin = React.useCallback(() => {
-    form.setFieldsValue({ email: '1', password: '1', rememberMe: true })
-    success('Admin credentials prefilled')
-  }, [form, success])
+  const prefillUser = () => {
+    form.setFieldsValue({
+      email: 'business@example.com',
+      password: 'password123',
+    })
+  }
 
-  const prefillUser = React.useCallback(() => {
-    form.setFieldsValue({ email: 'jane@example.com', password: 'password123', rememberMe: true })
-    success('User credentials prefilled')
-  }, [form, success])
+  const prefillLguOfficer = () => {
+    form.setFieldsValue({
+      email: 'officer@example.com',
+      password: 'password123',
+    })
+  }
 
-  const initialValues = React.useMemo(() => ({ rememberMe: !!initialEmail, email: initialEmail }), [initialEmail])
+  const prefillLguManager = () => {
+    form.setFieldsValue({
+      email: 'manager@example.com',
+      password: 'password123',
+    })
+  }
 
-  const verificationProps = {
-    email: emailForVerify,
-    title: 'Login Verification',
-    onSubmit: handleVerificationSubmit,
-    otpExpiresAt,
-    serverLockedUntil,
+  const prefillInspector = () => {
+    form.setFieldsValue({
+      email: 'inspector@example.com',
+      password: 'password123',
+    })
+  }
+
+  const prefillCso = () => {
+    form.setFieldsValue({
+      email: 'cso@example.com',
+      password: 'password123',
+    })
   }
 
   return {
@@ -158,10 +173,23 @@ export function useLoginFlow({ onSubmit } = {}) {
     form,
     handleFinish,
     isSubmitting,
-    initialValues,
+    initialValues: {
+      email: initialEmail || '',
+      rememberMe: !!initialEmail,
+    },
     prefillAdmin,
     prefillUser,
-    verificationProps,
+    prefillLguOfficer,
+    prefillLguManager,
+    prefillInspector,
+    prefillCso,
+    verificationProps: {
+      email: emailForVerify,
+      otpExpiresAt,
+      devCode,
+      onBack: () => setStep('login'),
+      onSubmit: handleVerificationSubmit,
+    },
     serverLockedUntil,
   }
 }

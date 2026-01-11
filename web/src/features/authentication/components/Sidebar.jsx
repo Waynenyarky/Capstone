@@ -110,7 +110,7 @@ const SidebarContent = ({
              </div>
              <div style={{ marginTop: 4 }}>
                <Tag color="blue" style={{ margin: 0, textTransform: 'capitalize', border: 'none', background: '#e6f7ff', color: '#1890ff' }}>
-                  {role?.replace('_', ' ') ?? 'Visitor'}
+                  {String(role?.slug || role || 'Visitor').replace('_', ' ')}
                </Tag>
              </div>
            </div>

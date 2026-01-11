@@ -190,13 +190,13 @@ router.post('/change-password-authenticated', requireJwt, validateBody(changePas
     let doc = null
     if (idHeader) {
       try {
-        doc = await User.findById(idHeader)
+        doc = await User.findById(idHeader).populate('role')
       } catch (_) {
         doc = null
       }
     }
     if (!doc && emailHeader) {
-      doc = await User.findOne({ email: emailHeader })
+      doc = await User.findOne({ email: emailHeader }).populate('role')
     }
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
@@ -216,7 +216,7 @@ router.post('/change-password-authenticated', requireJwt, validateBody(changePas
 
     const userSafe = {
       id: String(doc._id),
-      role: doc.role,
+      role: doc.role && doc.role.slug ? doc.role.slug : doc.role,
       firstName: doc.firstName,
       lastName: doc.lastName,
       email: doc.email,
@@ -452,18 +452,21 @@ router.post('/change-email/confirm/verify', requireJwt, validateBody(changeEmail
 // GET /api/auth/users
 router.get('/users', requireJwt, requireRole(['admin']), async (req, res) => {
   try {
-    const docs = await User.find({}).lean()
-    const usersSafe = docs.map((doc) => ({
-      id: String(doc._id),
-      role: doc.role,
-      firstName: doc.firstName,
-      lastName: doc.lastName,
-      email: doc.email,
-      phoneNumber: doc.phoneNumber,
-      isEmailVerified: !!doc.isEmailVerified,
-      termsAccepted: doc.termsAccepted,
-      createdAt: doc.createdAt,
-    }))
+    const docs = await User.find({}).populate('role').lean()
+    const usersSafe = docs.map((doc) => {
+      const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+      return {
+        id: String(doc._id),
+        role: roleSlug,
+        firstName: doc.firstName,
+        lastName: doc.lastName,
+        email: doc.email,
+        phoneNumber: doc.phoneNumber,
+        isEmailVerified: !!doc.isEmailVerified,
+        termsAccepted: doc.termsAccepted,
+        createdAt: doc.createdAt,
+      }
+    })
     return res.json(usersSafe)
   } catch (err) {
     console.error('GET /api/auth/users error:', err)
@@ -474,12 +477,13 @@ router.get('/users', requireJwt, requireRole(['admin']), async (req, res) => {
 // GET /api/auth/me - return current user's profile
 router.get('/me', requireJwt, async (req, res) => {
   try {
-    const doc = await User.findById(req._userId).lean()
+    const doc = await User.findById(req._userId).populate('role').lean()
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
     const userSafe = {
       id: String(doc._id),
-      role: doc.role,
+      role: roleSlug,
       firstName: doc.firstName,
       lastName: doc.lastName,
       email: doc.email,
@@ -520,15 +524,25 @@ router.patch('/profile', requireJwt, validateBody(updateProfileSchema), async (r
 
     await doc.save()
 
+    // Ensure role is returned as a slug, consistent with other endpoints
+    // If doc.role is an ID (not populated), we can't get the slug easily without fetching.
+    // However, usually PATCH /profile doesn't change role.
+    // We should ideally populate it or return what we have if it's already populated (unlikely after save).
+    // But since we didn't populate in findById above, doc.role is the ID.
+    // We can try to fetch the role or just return 'user' if we can't be sure? 
+    // Or better: refetch the user with populate.
+    const updatedDoc = await User.findById(doc._id).populate('role').lean()
+    const roleSlug = (updatedDoc.role && updatedDoc.role.slug) ? updatedDoc.role.slug : 'user'
+
     const userSafe = {
-      id: String(doc._id),
-      role: doc.role,
-      firstName: doc.firstName,
-      lastName: doc.lastName,
-      email: doc.email,
-      phoneNumber: doc.phoneNumber,
-      termsAccepted: doc.termsAccepted,
-      createdAt: doc.createdAt,
+      id: String(updatedDoc._id),
+      role: roleSlug,
+      firstName: updatedDoc.firstName,
+      lastName: updatedDoc.lastName,
+      email: updatedDoc.email,
+      phoneNumber: updatedDoc.phoneNumber,
+      termsAccepted: updatedDoc.termsAccepted,
+      createdAt: updatedDoc.createdAt,
     }
     return res.json({ updated: true, user: userSafe })
   } catch (err) {

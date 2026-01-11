@@ -52,7 +52,7 @@ router.post('/verify-email-token', async (req, res) => {
       return respond.error(res, 400, 'invalid_token_purpose', 'Invalid token purpose')
     }
 
-    const user = await User.findById(decoded.sub)
+    const user = await User.findById(decoded.sub).populate('role')
     if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
 
     if (!user.isEmailVerified) {
@@ -62,7 +62,7 @@ router.post('/verify-email-token', async (req, res) => {
 
     const safe = {
       id: String(user._id),
-      role: user.role,
+      role: user.role && user.role.slug ? user.role.slug : user.role,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,

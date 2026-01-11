@@ -26,5 +26,5 @@ export function useLogoutForm() {
     }
   }
 
-  return { name, role: role || 'unknown', handleLogout }
+  return { name, role: (role?.slug || role || 'unknown').toString(), handleLogout }
 }

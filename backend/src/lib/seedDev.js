@@ -2,6 +2,7 @@ const fs = require('fs')
 const path = require('path')
 const bcrypt = require('bcryptjs')
 const User = require('../models/User')
+const Role = require('../models/Role')
 // Removed provider seeding; unified user model
 
 async function seedDevDataIfEmpty() {
@@ -36,6 +37,20 @@ async function seedDevDataIfEmpty() {
 
     const userCount = await User.countDocuments()
 
+    // Seed Roles first
+    const roles = [
+      { name: 'Admin', slug: 'admin' },
+      { name: 'Business Owner', slug: 'business_owner' },
+      { name: 'LGU Manager', slug: 'lgu_manager' },
+      { name: 'LGU Officer', slug: 'lgu_officer' },
+      { name: 'LGU Inspector', slug: 'inspector' },
+      { name: 'CSO', slug: 'cso' },
+    ]
+
+    for (const r of roles) {
+      await Role.findOneAndUpdate({ slug: r.slug }, r, { upsert: true, new: true })
+    }
+
     // Seed users if empty
     if (userCount === 0) {
       const usersPath = path.join(__dirname, '..', 'data', 'seeds', 'users.json')
@@ -51,8 +66,15 @@ async function seedDevDataIfEmpty() {
         const docs = []
         for (const u of usersSeed) {
           const passwordHash = await bcrypt.hash(u.passwordPlain || 'changeme', 10)
+          const roleSlug = u.role || 'business_owner'
+          const roleDoc = await Role.findOne({ slug: roleSlug })
+          if (!roleDoc) {
+            console.warn(`Skipping user ${u.email}: role '${roleSlug}' not found`)
+            continue
+          }
+
           docs.push({
-            role: u.role || 'user',
+            role: roleDoc._id,
             firstName: u.firstName,
             lastName: u.lastName,
             email: u.email,
@@ -65,6 +87,8 @@ async function seedDevDataIfEmpty() {
       }
 
       // Always ensure dev admin (email: "1", password: "1") exists
+      // Removed automatic creation of admin user "1" as per request
+      /*
       let adminDoc = await User.findOne({ email: '1' }).lean()
       if (!adminDoc) {
         const passwordHash = await bcrypt.hash('1', 10)
@@ -78,6 +102,7 @@ async function seedDevDataIfEmpty() {
           passwordHash,
         })
       }
+      */
     }
 
     // Provider seeding removed

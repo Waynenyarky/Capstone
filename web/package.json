@@ -8,7 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
@@ -37,6 +39,18 @@
     "jsdom": "^27.1.0",
     "recast": "^0.23.11",
     "vite": "^7.1.7",
-    "vitest": "^4.0.6"
+    "vitest": "^4.0.6",
+    "storybook": "^10.1.11",
+    "@storybook/react-vite": "^10.1.11",
+    "@chromatic-com/storybook": "^4.1.3",
+    "@storybook/addon-vitest": "^10.1.11",
+    "@storybook/addon-a11y": "^10.1.11",
+    "@storybook/addon-docs": "^10.1.11",
+    "@storybook/addon-onboarding": "^10.1.11",
+    "prop-types": "^15.8.1",
+    "eslint-plugin-storybook": "^10.1.11",
+    "playwright": "^1.57.0",
+    "@vitest/browser-playwright": "^4.0.6",
+    "@vitest/coverage-v8": "^4.0.6"
   }
 }
