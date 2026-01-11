@@ -25,7 +25,7 @@ const PaymentsDue = ({ data }) => {
       render: status => {
         let color = 'default'
         if (status === 'Overdue') color = 'red'
-        if (status === 'Unpaid') color = 'orange'
+        if (status === 'Unpaid') color = '#faad14'
         if (status === 'Paid') color = 'green'
         return <Tag color={color}>{status}</Tag>
       }
@@ -34,9 +34,9 @@ const PaymentsDue = ({ data }) => {
 
   return (
     <Card 
-      title={<Space><DollarCircleOutlined style={{ color: '#faad14' }} /> Payments Due</Space>}
+      title={<Space><DollarCircleOutlined style={{ color: '#003a70' }} /> Payments Due</Space>}
       extra={<Button type="link" size="small">History</Button>}
-      style={{ height: '100%' }}
+      style={{ height: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderRadius: 8 }}
     >
       <Row gutter={[16, 24]}>
         <Col span={24}>
@@ -61,7 +61,7 @@ const PaymentsDue = ({ data }) => {
 
         <Col span={24} style={{ marginTop: 'auto' }}>
           <Space style={{ width: '100%' }} direction="vertical">
-            <Button type="primary" block style={{ background: '#001529', borderColor: '#001529' }}>Pay Now</Button>
+            <Button type="primary" block style={{ background: '#003a70', borderColor: '#003a70' }}>Pay Now</Button>
             <Button block>View Receipts</Button>
           </Space>
         </Col>

@@ -20,9 +20,9 @@ const ComplianceStatus = ({ data }) => {
 
   return (
     <Card 
-      title={<Space><SafetyCertificateOutlined style={{ color: '#1890ff' }} /> Compliance Status</Space>}
+      title={<Space><SafetyCertificateOutlined style={{ color: '#003a70' }} /> Compliance Status</Space>}
       extra={<Tag color={statusColor} style={{ fontSize: 14, padding: '4px 10px' }}>{data.status}</Tag>}
-      style={{ height: '100%', borderTop: `4px solid ${statusColor === 'green' ? '#52c41a' : statusColor === 'orange' ? '#faad14' : '#ff4d4f'}` }}
+      style={{ height: '100%', borderTop: `4px solid ${statusColor === 'green' ? '#52c41a' : statusColor === 'orange' ? '#faad14' : '#ff4d4f'}`, borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
     >
       <Row gutter={[24, 24]} align="middle">
         <Col xs={24} md={10}>
@@ -54,7 +54,7 @@ const ComplianceStatus = ({ data }) => {
               </div>
 
               <div style={{ paddingTop: 8 }}>
-                 <Button type="primary" size="large" block danger={data.status !== 'Compliant'} style={data.status === 'Compliant' ? { background: '#001529', borderColor: '#001529' } : {}}>
+                 <Button type="primary" size="large" block danger={data.status !== 'Compliant'} style={data.status === 'Compliant' ? { background: '#003a70', borderColor: '#003a70' } : {}}>
                    {data.status === 'Compliant' ? 'View Certificate' : 'Resolve Issue'}
                  </Button>
               </div>

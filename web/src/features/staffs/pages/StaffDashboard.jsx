@@ -1,11 +1,11 @@
 import React from 'react'
 import { useAuthSession } from '@/features/authentication'
 import { Navigate } from 'react-router-dom'
-import LGUOfficerDashboard from './LGUOfficerDashboard'
-import LGUManagerDashboard from './LGUManagerDashboard'
-import InspectorDashboard from './InspectorDashboard'
-import CSODashboard from './CSODashboard'
-import PlaceholderPage from './PlaceholderPage'
+import LGUOfficerDashboard from '../lgu-officer/pages/LGUOfficerDashboard'
+import LGUManagerDashboard from '../lgu-manager/pages/LGUManagerDashboard'
+import InspectorDashboard from '../inspector/pages/InspectorDashboard'
+import CSODashboard from '../cso/pages/CSODashboard'
+import { PlaceholderPage } from '@/features/shared'
 
 export default function StaffDashboard() {
   const { role, currentUser } = useAuthSession()

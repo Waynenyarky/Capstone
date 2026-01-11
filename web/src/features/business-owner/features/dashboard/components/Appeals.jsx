@@ -21,9 +21,9 @@ const Appeals = ({ data }) => {
 
   return (
     <Card 
-      title={<Space><ContainerOutlined /> Appeals</Space>}
+      title={<Space><ContainerOutlined style={{ color: '#003a70' }} /> Appeals</Space>}
       extra={<Button type="link" size="small">All Appeals</Button>}
-      style={{ height: '100%' }}
+      style={{ height: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderRadius: 8 }}
     >
       <Row gutter={[16, 16]}>
         <Col span={8}>
@@ -48,7 +48,7 @@ const Appeals = ({ data }) => {
 
         <Col span={24}>
           <Space style={{ width: '100%' }}>
-            <Button type="primary" block style={{ background: '#001529', borderColor: '#001529' }}>File Appeal</Button>
+            <Button type="primary" block style={{ background: '#003a70', borderColor: '#003a70' }}>File Appeal</Button>
             <Button block>Status</Button>
           </Space>
         </Col>

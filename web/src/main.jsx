@@ -8,6 +8,7 @@ import "@/index.css"
 import App from "@/App.jsx"
 import ErrorBoundary from "@/shared/errors/ErrorBoundary.jsx"
 import { initializeGlobalErrorHandlers } from "@/shared/errors/globalErrorHandlers.js"
+import GlobalNotificationInit from "@/shared/errors/GlobalNotificationInit.jsx"
 
 // Initialize browser-wide error listeners so you get toasts without DevTools
 initializeGlobalErrorHandlers()
@@ -21,6 +22,7 @@ createRoot(document.getElementById('root')).render(
       }
     }}>
       <AntdApp>
+        <GlobalNotificationInit />
         <BrowserRouter>
           <ErrorBoundary>
             <App />

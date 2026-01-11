@@ -1,7 +1,7 @@
 // UserSignUpForm.jsx
 import React from 'react'
 import { Form, Input, Card, Flex, Button, Checkbox, Typography, Row, Col } from 'antd'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 
 import { useUserSignUp, useUserSignUpFlow, useAuthSession } from '@/features/authentication/hooks'
 import { SignUpVerificationForm } from '@/features/authentication'
@@ -19,7 +19,7 @@ import { preventNonNumericKeyDown, sanitizePhonePaste, sanitizePhoneInput } from
 
 const { Title, Text, Paragraph } = Typography
 
-export default function UserSignUpForm() {
+export default function UserSignUpForm({ extraContent }) {
   const navigate = useNavigate()
   const { login } = useAuthSession()
 
@@ -125,7 +125,7 @@ export default function UserSignUpForm() {
 
         <Form.Item name="termsAndConditions" valuePropName="checked" rules={termsRules} style={{ marginBottom: 24 }}>
           <Checkbox>
-            I have read and agree to the <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+            I have read and agree to the <Link to="/terms">Terms of Service</Link> and <Link to="/privacy">Privacy Policy</Link>.
           </Checkbox>
         </Form.Item>
 

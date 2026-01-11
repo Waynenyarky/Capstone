@@ -130,6 +130,17 @@ export function useLoginFlow({ onSubmit } = {}) {
 
   const initialValues = React.useMemo(() => ({ rememberMe: !!initialEmail, email: initialEmail }), [initialEmail])
 
+  // Dev helpers to prefill login form
+  const prefill = (email, password) => {
+    form.setFieldsValue({ email, password })
+  }
+  const prefillAdmin = () => prefill('admin@example.com', 'password123')
+  const prefillUser = () => prefill('business@example.com', 'password123')
+  const prefillLguOfficer = () => prefill('officer@example.com', 'password123')
+  const prefillLguManager = () => prefill('manager@example.com', 'password123')
+  const prefillInspector = () => prefill('inspector@example.com', 'password123')
+  const prefillCso = () => prefill('cso@example.com', 'password123')
+
   const verificationProps = {
     email: emailForVerify,
     title: 'Login Verification',
@@ -146,5 +157,11 @@ export function useLoginFlow({ onSubmit } = {}) {
     initialValues,
     verificationProps,
     serverLockedUntil,
+    prefillAdmin,
+    prefillUser,
+    prefillLguOfficer,
+    prefillLguManager,
+    prefillInspector,
+    prefillCso,
   }
 }

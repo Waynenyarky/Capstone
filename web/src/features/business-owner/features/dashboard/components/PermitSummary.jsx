@@ -34,9 +34,9 @@ const PermitSummary = ({ data }) => {
 
   return (
     <Card 
-      title={<Space><FileProtectOutlined style={{ color: '#001529' }} /> Permit Summary</Space>}
+      title={<Space><FileProtectOutlined style={{ color: '#003a70' }} /> Permit Summary</Space>}
       extra={<Button type="link" size="small">View All</Button>}
-      style={{ height: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
+      style={{ height: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderRadius: 8 }}
     >
       <Row gutter={[16, 24]}>
         <Col span={24}>
@@ -66,7 +66,7 @@ const PermitSummary = ({ data }) => {
 
         <Col span={24} style={{ marginTop: 'auto' }}>
           <Space style={{ width: '100%' }} direction="vertical">
-            <Button type="primary" block style={{ background: '#001529', borderColor: '#001529' }}>Apply for New Permit</Button>
+            <Button type="primary" block style={{ background: '#003a70', borderColor: '#003a70' }}>Apply for New Permit</Button>
             <Button block>Renew Existing Permits</Button>
           </Space>
         </Col>

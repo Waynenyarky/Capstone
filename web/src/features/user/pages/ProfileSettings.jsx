@@ -138,37 +138,37 @@ export default function ProfileSettings() {
 
       <Layout.Content style={{ 
         padding: isMobile ? '24px 16px' : '40px 60px', 
-        background: '#f8fafc',
+        background: '#F0F2F5',
         minHeight: '100vh'
       }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           
           <div style={{ marginBottom: 32 }}>
-            <Title level={2} style={{ marginBottom: 8, fontSize: isMobile ? 24 : 30 }}>Profile & Settings</Title>
+            <Title level={2} style={{ marginBottom: 8, fontSize: isMobile ? 24 : 30, color: '#003a70' }}>Profile & Settings</Title>
             <Text type="secondary" style={{ fontSize: 16 }}>Manage your personal information, security preferences, and account settings.</Text>
           </div>
 
-          <Row gutter={[32, 32]}>
+          <Row gutter={[24, 24]}>
             {/* Left Column: User Summary Card */}
             <Col xs={24} lg={8}>
               <Card 
                 variant="borderless" 
                 style={{ 
                   textAlign: 'center', 
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)', 
-                  borderRadius: 16,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)', 
+                  borderRadius: 8,
                   overflow: 'hidden'
                 }}
                 styles={{ body: { padding: 0 } }}
               >
-                <div style={{ background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)', height: 100 }}></div>
+                <div style={{ background: 'linear-gradient(135deg, #003a70 0%, #001529 100%)', height: 100 }}></div>
                 <div style={{ padding: '0 24px 24px', marginTop: -50 }}>
                   <div style={{ position: 'relative', display: 'inline-block', marginBottom: 16 }}>
                     <Avatar 
                       size={100} 
                       src={user?.avatar ? <img src={resolveAvatarUrl(user?.avatar)} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null}
                       style={{ 
-                        backgroundColor: '#1890ff',
+                        backgroundColor: '#003a70',
                         border: '4px solid #fff',
                         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                         fontSize: 36
@@ -200,17 +200,17 @@ export default function ProfileSettings() {
                       }}
                       title="Change profile photo"
                       >
-                        {uploading ? <LoadingOutlined style={{ fontSize: 16, color: '#1890ff' }} /> : <CameraOutlined style={{ fontSize: 18, color: '#595959' }} />}
+                        {uploading ? <LoadingOutlined style={{ fontSize: 16, color: '#001529' }} /> : <CameraOutlined style={{ fontSize: 18, color: '#595959' }} />}
                       </div>
                     </Upload>
                   </div>
-                  <Title level={4} style={{ marginBottom: 4 }}>{user?.name || 'User'}</Title>
+                  <Title level={4} style={{ marginBottom: 4, color: '#003a70' }}>{user?.name || 'User'}</Title>
                   <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>{user?.email}</Text>
                   <Space size={[8, 8]} wrap style={{ justifyContent: 'center' }}>
-                    <Tag color="blue" style={{ margin: 0, padding: '4px 12px', borderRadius: 12 }}>{user?.role ? user.role.toUpperCase() : 'USER'}</Tag>
+                    <Tag color="#003a70" style={{ margin: 0, padding: '4px 12px', borderRadius: 4 }}>{user?.role ? user.role.toUpperCase() : 'USER'}</Tag>
                     {user?.mfaEnabled ? 
-                      <Tag color="success" style={{ margin: 0, padding: '4px 12px', borderRadius: 12 }}>MFA ENABLED</Tag> : 
-                      <Tag color="warning" style={{ margin: 0, padding: '4px 12px', borderRadius: 12 }}>MFA DISABLED</Tag>
+                      <Tag color="success" style={{ margin: 0, padding: '4px 12px', borderRadius: 4 }}>MFA ENABLED</Tag> : 
+                      <Tag color="warning" style={{ margin: 0, padding: '4px 12px', borderRadius: 4 }}>MFA DISABLED</Tag>
                     }
                   </Space>
                 </div>
@@ -222,8 +222,8 @@ export default function ProfileSettings() {
               <Card 
                 variant="borderless" 
                 style={{ 
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)', 
-                  borderRadius: 16, 
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)', 
+                  borderRadius: 8, 
                   minHeight: 600 
                 }}
                 styles={{ body: { padding: isMobile ? 12 : 32 } }}

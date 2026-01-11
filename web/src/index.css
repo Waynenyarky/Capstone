@@ -16,3 +16,24 @@ h1, h2, h3, h4, h5, h6 {
   font-family: 'Raleway', sans-serif;
   font-weight: 600;
 }
+
+@media print {
+  .ant-layout-header,
+  .ant-layout-footer,
+  .no-print {
+    display: none !important;
+  }
+
+  .ant-layout-content {
+    padding: 0 !important;
+  }
+
+  .ant-card {
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  body {
+    background: white !important;
+  }
+}

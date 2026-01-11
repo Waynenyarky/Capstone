@@ -1,7 +1,7 @@
 import React from 'react'
 import { Layout, Row, Col, Typography, ConfigProvider, theme, Button, Card } from 'antd'
 import { ArrowLeftOutlined, SafetyCertificateOutlined, FileProtectOutlined, BankOutlined, ScheduleOutlined, SyncOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 
 const { Title, Paragraph, Text } = Typography
 
@@ -46,7 +46,7 @@ export default function AuthLayout({
         <Col 
           xs={0} md={12} lg={12} 
           style={{ 
-            background: 'linear-gradient(135deg, #001529 0%, #003a70 100%)', // Home Page Gradient
+            background: 'radial-gradient(circle at 50% -20%, #0050b3 0%, transparent 40%), linear-gradient(135deg, #001529 0%, #003a70 100%)', // Home Page Gradient
             display: 'flex', 
             flexDirection: 'column',
             justifyContent: 'space-between',
@@ -56,6 +56,9 @@ export default function AuthLayout({
             height: '100%'
           }}
         >
+          {/* Decorative Elements */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'url("https://gw.alipayobjects.com/zos/rmsportal/FfdJeJRQWjEeGTpqgBKj.png") center top no-repeat', opacity: 0.1, pointerEvents: 'none' }} />
+
           {/* Top Navigation */}
           <div style={{ zIndex: 2 }}>
             <Button 
@@ -70,16 +73,17 @@ export default function AuthLayout({
             <div style={{ marginTop: 40, display: 'flex', alignItems: 'center', gap: 12 }}>
                {/* Logo Icon matching Home */}
                <div style={{ 
-                 width: 40, 
-                 height: 40, 
+                 width: 44, 
+                 height: 44, 
                  background: 'linear-gradient(135deg, #003a70 0%, #0050b3 100%)', 
-                 borderRadius: '8px', 
+                 borderRadius: '12px', 
                  display: 'flex', 
                  alignItems: 'center', 
                  justifyContent: 'center',
-                 border: '1px solid rgba(255,255,255,0.2)'
+                 boxShadow: '0 4px 12px rgba(0, 58, 112, 0.25)',
+                 border: '1px solid rgba(255,255,255,0.1)'
                }}>
-                  <BankOutlined style={{ fontSize: '24px', color: '#fff' }} />
+                  <BankOutlined style={{ fontSize: '26px', color: '#fff' }} />
                </div>
                <div>
                  <Text strong style={{ color: 'white', fontSize: 20, display: 'block', lineHeight: 1 }}>{title}</Text>
@@ -132,8 +136,8 @@ export default function AuthLayout({
           <div style={{ marginTop: 40, display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
              <span>© 2026 City Government of Dagupan. All Rights Reserved.</span>
              <div style={{ display: 'flex', gap: 24 }}>
-                <a href="#" style={{ color: 'inherit' }}>Privacy</a>
-                <a href="#" style={{ color: 'inherit' }}>Terms</a>
+                <Link to="/privacy" style={{ color: 'inherit' }}>Privacy Policy</Link>
+                <Link to="/terms" style={{ color: 'inherit' }}>Terms of Service</Link>
                 <a href="#" style={{ color: 'inherit' }}>Support</a>
              </div>
           </div>

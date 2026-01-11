@@ -41,7 +41,7 @@ export default function AppealsPage() {
       key: 'status',
       render: (status) => {
         let color = 'default'
-        if (status === 'Pending') color = 'orange'
+        if (status === 'Pending') color = '#faad14'
         if (status === 'Reviewed') color = 'blue'
         if (status === 'Approved') color = 'green'
         if (status === 'Rejected') color = 'red'
@@ -67,15 +67,15 @@ export default function AppealsPage() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
             <div>
-              <Title level={2}>Appeals & Disputes</Title>
+              <Title level={2} style={{ color: '#003a70' }}>Appeals & Disputes</Title>
               <Paragraph type="secondary">Contest rejected permits, fines, or inspection results.</Paragraph>
             </div>
-            <Button type="primary" icon={<ExclamationCircleOutlined />} onClick={() => setIsModalVisible(true)}>
+            <Button type="primary" icon={<ExclamationCircleOutlined />} onClick={() => setIsModalVisible(true)} style={{ background: '#003a70', borderColor: '#003a70' }}>
               File New Appeal
             </Button>
           </div>
 
-          <Card>
+          <Card style={{ borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
             <Table columns={columns} dataSource={appeals} rowKey="id" loading={loading} />
           </Card>
 

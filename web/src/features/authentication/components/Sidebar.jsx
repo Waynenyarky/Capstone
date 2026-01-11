@@ -32,13 +32,12 @@ const SidebarContent = ({
         justifyContent: collapsed ? 'center' : 'flex-start',
         padding: collapsed ? '0' : '0 24px',
         borderBottom: '1px solid rgba(255,255,255,0.1)',
-        borderBottom: '1px solid rgba(255,255,255,0.1)',
         transition: 'all 0.2s'
       }}>
         <div style={{ 
           width: 32, 
           height: 32, 
-          background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)', 
+          background: 'linear-gradient(135deg, #003a70 0%, #001529 100%)', 
           borderRadius: 8, 
           display: 'flex', 
           alignItems: 'center', 
@@ -48,7 +47,7 @@ const SidebarContent = ({
           fontSize: 18,
           flexShrink: 0,
           cursor: 'default',
-          boxShadow: '0 2px 6px rgba(24, 144, 255, 0.3)'
+          boxShadow: '0 2px 6px rgba(0, 58, 112, 0.3)'
         }}>
           {import.meta.env.VITE_APP_BRAND_NAME?.[0] || 'B'}
         </div>
@@ -57,7 +56,6 @@ const SidebarContent = ({
             marginLeft: 12, 
             fontWeight: 700, 
             fontSize: 16, 
-            color: '#fff',
             color: '#fff',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
@@ -72,7 +70,6 @@ const SidebarContent = ({
 
       <Menu
         mode="inline"
-        theme="dark"
         theme="dark"
         selectedKeys={[activeKey]}
         onClick={({ key }) => {
@@ -241,7 +238,6 @@ export default function Sidebar({ hiddenKeys = [], renamedKeys = {}, itemOverrid
         <Sider
           width={260}
           theme="dark"
-          theme="dark"
           collapsible
           collapsed={collapsed}
           onCollapse={(value) => setCollapsed(value)}
@@ -252,8 +248,6 @@ export default function Sidebar({ hiddenKeys = [], renamedKeys = {}, itemOverrid
             position: 'sticky',
             top: 0,
             left: 0,
-            background: '#001529',
-            boxShadow: '2px 0 8px rgba(0,0,0,0.15)',
             background: '#001529',
             boxShadow: '2px 0 8px rgba(0,0,0,0.15)',
             zIndex: 10,

@@ -1,21 +1,17 @@
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
-import Home from "@/pages/Home.jsx"
-import Dashboard from "@/pages/Dashboard.jsx"
+import { Home, TermsOfService, PrivacyPolicy } from "@/features/public"
+import { Dashboard } from "@/features/user"
 import { Login, SignUp, ForgotPassword, ProtectedRoute, PublicRoute } from "@/features/authentication"
 import MfaSetup from "@/features/authentication/components/MfaSetup.jsx"
-import AdminDashboard from "@/pages/AdminDashboard.jsx"
-import AdminCreateRole from "@/pages/AdminCreateRole.jsx"
-import AdminFullDashboard from "@/pages/AdminFullDashboard.jsx"
-import AdminUsers from "@/pages/AdminUsers.jsx"
+import { AdminDashboard, AdminCreateRole, AdminFullDashboard, AdminUsers } from "@/features/admin"
 import { BusinessOwnerDashboard } from "@/features/business-owner"
 import PermitApplicationPage from "@/features/business-owner/features/permits/pages/PermitApplicationPage.jsx"
 import CessationPage from "@/features/business-owner/features/cessation/pages/CessationPage.jsx"
 import PaymentsPage from "@/features/business-owner/features/payments/pages/PaymentsPage.jsx"
 import AppealsPage from "@/features/business-owner/features/appeals/pages/AppealsPage.jsx"
-import StaffDashboard from "@/pages/StaffDashboard.jsx"
-import StaffOnboarding from "@/pages/StaffOnboarding.jsx"
-import ProfileSettings from "@/pages/ProfileSettings.jsx"
-import PlaceholderPage from "@/pages/PlaceholderPage.jsx"
+import { StaffDashboard, StaffOnboarding } from "@/features/staffs"
+import { ProfileSettings } from "@/features/user"
+import { PlaceholderPage } from "@/features/shared"
 import { useNavigationNotifications } from "@/features/authentication/hooks"
 
 function App() {
@@ -24,6 +20,8 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<PublicRoute><Home /></PublicRoute>} />
+      <Route path="/terms" element={<PublicRoute><TermsOfService /></PublicRoute>} />
+      <Route path="/privacy" element={<PublicRoute><PrivacyPolicy /></PublicRoute>} />
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
       <Route path="/sign-up" element={<PublicRoute><SignUp /></PublicRoute>} />

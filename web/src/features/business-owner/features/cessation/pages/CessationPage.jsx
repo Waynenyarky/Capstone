@@ -54,7 +54,7 @@ export default function CessationPage() {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      render: (status) => <Tag color={status === 'Pending' ? 'orange' : 'green'}>{status}</Tag>
+      render: (status) => <Tag color={status === 'Pending' ? '#faad14' : 'green'}>{status}</Tag>
     },
     {
       title: 'Blockchain',
@@ -74,7 +74,7 @@ export default function CessationPage() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
             <div>
-              <Title level={2}>Cessation Requests</Title>
+              <Title level={2} style={{ color: '#003a70' }}>Cessation Requests</Title>
               <Paragraph type="secondary">Request for business closure or temporary halt.</Paragraph>
             </div>
             {requests.length > 0 && (
@@ -84,7 +84,7 @@ export default function CessationPage() {
             )}
           </div>
 
-          <Card>
+          <Card style={{ borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
             {requests.length === 0 && !loading ? (
               <Empty
                 description="No cessation requests found. Operating normally."

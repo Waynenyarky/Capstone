@@ -300,7 +300,10 @@ export default function BusinessRegistrationWizard({ onComplete }) {
                   </Form.Item>
                 </Col>
                 <Col span={16}>
-                  <Form.Item name="mobileNumber" label="Mobile Number" rules={[{ required: true, message: 'Mobile number required' }]}>
+                  <Form.Item name="mobileNumber" label="Mobile Number" rules={[
+                    { required: true, message: 'Mobile number required' },
+                    { pattern: /^[9]\d{9}$/, message: 'Please enter a valid mobile number starting with 9 (e.g., 9123456789)' }
+                  ]}>
                      <Input prefix="+63" placeholder="9123456789" />
                   </Form.Item>
                 </Col>

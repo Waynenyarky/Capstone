@@ -55,7 +55,7 @@ export default function PermitApplicationPage() {
       render: (status) => {
         let color = 'default'
         if (status === 'Approved') color = 'success'
-        if (status === 'Pending') color = 'processing'
+        if (status === 'Pending') color = '#faad14'
         if (status === 'Rejected') color = 'error'
         return <Tag color={color}>{status}</Tag>
       }
@@ -66,7 +66,7 @@ export default function PermitApplicationPage() {
       key: 'blockchainTimestamp',
       render: (hash) => (
         <Space>
-          <FileTextOutlined style={{ color: '#1890ff' }} />
+          <FileTextOutlined style={{ color: '#003a70' }} />
           <Typography.Text ellipsis style={{ maxWidth: 100 }} type="secondary">{hash}</Typography.Text>
         </Space>
       )
@@ -87,15 +87,15 @@ export default function PermitApplicationPage() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
             <div>
-              <Title level={2}>Permit Applications</Title>
+              <Title level={2} style={{ color: '#003a70' }}>Permit Applications</Title>
               <Paragraph type="secondary">Manage your business permit applications and renewals.</Paragraph>
             </div>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)} style={{ background: '#003a70', borderColor: '#003a70' }}>
               New Application
             </Button>
           </div>
 
-          <Card>
+          <Card style={{ borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
             <Table columns={columns} dataSource={permits} rowKey="id" loading={loading} />
           </Card>
 

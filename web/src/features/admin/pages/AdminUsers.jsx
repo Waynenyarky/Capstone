@@ -236,7 +236,7 @@ export default function AdminUsers() {
           open={createOpen}
           onCancel={() => setCreateOpen(false)}
           footer={null}
-          destroyOnClose
+          destroyOnHidden
         >
           <Form form={form} layout="vertical" onFinish={handleCreateSubmit}>
             <Form.Item name="email" label="Staff Email" rules={[{ required: true, message: 'Enter an email' }, { type: 'email', message: 'Enter a valid email' }]}>
@@ -289,7 +289,7 @@ export default function AdminUsers() {
               </Button>
             </Space>
           }
-          destroyOnClose
+          destroyOnHidden
         >
           <div style={{ display: 'grid', gap: 8 }}>
             <div>
@@ -337,7 +337,7 @@ export default function AdminUsers() {
               </Button>
             </Space>
           }
-          destroyOnClose
+          destroyOnHidden
         >
           <div style={{ display: 'grid', gap: 8 }}>
             <div>

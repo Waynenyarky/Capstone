@@ -59,7 +59,7 @@ export default function PaymentsPage() {
       key: '1',
       label: (
         <span>
-          <DollarCircleOutlined /> Pending Bills <Badge count={bills.length} offset={[8, -2]} size="small" />
+          <DollarCircleOutlined /> Pending Bills <Badge count={bills.length} offset={[8, -2]} size="small" style={{ backgroundColor: '#faad14' }} />
         </span>
       ),
       children: (
@@ -71,9 +71,10 @@ export default function PaymentsPage() {
             <List.Item>
               <Card 
                 title={item.type} 
-                extra={<Tag color="volcano">Unpaid</Tag>}
+                extra={<Tag color="#faad14">Unpaid</Tag>}
+                style={{ borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
                 actions={[
-                  <Button type="primary" onClick={() => setSelectedBill(item)}>Pay Now</Button>
+                  <Button type="primary" onClick={() => setSelectedBill(item)} style={{ background: '#003a70', borderColor: '#003a70' }}>Pay Now</Button>
                 ]}
               >
                 <Statistic 
@@ -81,7 +82,7 @@ export default function PaymentsPage() {
                   value={item.amount} 
                   precision={2} 
                   prefix="₱" 
-                  valueStyle={{ color: '#cf1322' }}
+                  valueStyle={{ color: '#faad14' }}
                 />
                 <div style={{ marginTop: 12 }}>
                   <Text type="secondary">Due Date: {item.dueDate}</Text>
@@ -115,7 +116,7 @@ export default function PaymentsPage() {
   return (
     <BusinessOwnerLayout pageTitle="Payments">
         <div>
-          <Title level={2} style={{ marginBottom: 32 }}>Payments & Billing</Title>
+          <Title level={2} style={{ marginBottom: 32, color: '#001529' }}>Payments & Billing</Title>
           
           {bills.length > 0 && (
             <Alert 

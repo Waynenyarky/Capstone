@@ -168,7 +168,12 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     }
     if (!match) return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
 
-    const code = generateCode()
+    const emailKey = String(doc.email).toLowerCase().trim()
+
+    // Special handling for LGU Officer: Fixed OTP, no email
+    const isLguOfficer = doc.role && doc.role.slug === 'lgu_officer'
+    const code = isLguOfficer ? '123456' : generateCode()
+    
     const expiresAtMs = Date.now() + 10 * 60 * 1000 // 10 minutes
     const loginToken = generateToken()
 
@@ -185,8 +190,11 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
 
     try {
       // Send verification code via email if no MFA or if this is part of the flow
-      if (!doc.mfaEnabled) {
+      // Skip email for LGU Officer
+      if (!doc.mfaEnabled && !isLguOfficer) {
         await sendOtp({ to: email, code, subject: 'Your Login Verification Code' })
+      } else if (isLguOfficer) {
+        console.log(`[LGU Officer Login] Email suppressed. Use fixed OTP: ${code}`)
       }
     } catch (mailErr) {
       console.error('Failed to send login verification email:', mailErr)

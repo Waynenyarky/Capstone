@@ -9,7 +9,7 @@ const BusinessProfile = ({ data }) => {
     <Card 
       title={<Space><ShopOutlined style={{ color: '#001529' }} /> Business Profile</Space>}
       extra={<Button type="link" size="small">Edit</Button>}
-      style={{ height: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
+      style={{ height: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderRadius: 8 }}
     >
       <Descriptions column={1} size="small">
         <Descriptions.Item label="Name">{data.name}</Descriptions.Item>

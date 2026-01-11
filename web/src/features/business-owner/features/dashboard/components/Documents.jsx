@@ -7,9 +7,9 @@ const Documents = ({ data }) => {
 
   return (
     <Card 
-      title={<Space><FolderOpenOutlined style={{ color: '#001529' }} /> Recent Documents</Space>}
+      title={<Space><FolderOpenOutlined style={{ color: '#003a70' }} /> Recent Documents</Space>}
       extra={<Button type="link" size="small">All Files</Button>}
-      style={{ height: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
+      style={{ height: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderRadius: 8 }}
     >
       <List
         dataSource={data}
@@ -25,7 +25,7 @@ const Documents = ({ data }) => {
               description={
                 <Space>
                    <Tag>{item.type}</Tag>
-                   <Tag color={item.status === 'Verified' ? 'green' : item.status === 'Expired' ? 'red' : 'orange'}>
+                   <Tag color={item.status === 'Verified' ? 'green' : item.status === 'Expired' ? 'red' : '#faad14'}>
                      {item.status}
                    </Tag>
                 </Space>

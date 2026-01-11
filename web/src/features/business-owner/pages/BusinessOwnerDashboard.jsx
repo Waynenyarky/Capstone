@@ -146,11 +146,11 @@ export default function BusinessOwnerDashboard() {
           <div style={{ paddingBottom: 24 }}>
             <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'end' }}>
               <div>
-                <Title level={2} style={{ margin: 0, color: '#001529' }}>Welcome back, {currentUser?.firstName || 'Owner'}</Title>
+                <Title level={2} style={{ margin: 0, color: '#003a70' }}>Welcome back, {currentUser?.firstName || 'Owner'}</Title>
                 <Paragraph type="secondary" style={{ fontSize: 16, margin: 0 }}>Here is your business overview for {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</Paragraph>
               </div>
               <Space>
-                 <Button type="primary" size="large" style={{ background: '#001529', borderColor: '#001529' }}>New Application</Button>
+                 <Button type="primary" size="large" style={{ background: '#003a70', borderColor: '#003a70' }}>New Application</Button>
               </Space>
             </div>
 

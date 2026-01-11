@@ -15,7 +15,8 @@ const AISuggestions = ({ data }) => {
         marginTop: 24, 
         background: 'linear-gradient(to right, #f0f5ff, #ffffff)', 
         border: '1px solid #d6e4ff',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+        borderRadius: 8
       }}
       extra={<Badge count={data.length} style={{ backgroundColor: '#faad14' }} />}
     >
@@ -25,7 +26,7 @@ const AISuggestions = ({ data }) => {
              <Card 
                hoverable 
                style={{ height: '100%', borderColor: item.type === 'warning' ? '#ffccc7' : '#d9f7be' }}
-               bodyStyle={{ padding: '16px' }}
+               styles={{ body: { padding: '16px' } }}
              >
                <Space direction="vertical" style={{ width: '100%' }}>
                  <Space align="start">

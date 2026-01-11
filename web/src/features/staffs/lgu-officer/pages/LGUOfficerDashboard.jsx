@@ -2,6 +2,7 @@ import React from 'react'
 import { Layout, Row, Col, Card, Button, Typography, Space } from 'antd'
 import { Link } from 'react-router-dom'
 import Sidebar from '@/features/authentication/components/Sidebar'
+import TopBar from '@/features/business-owner/components/TopBar'
 
 const { Title, Paragraph } = Typography
 
@@ -9,19 +10,21 @@ export default function LGUOfficerDashboard() {
   return (
     <Layout style={{ minHeight: '100vh', background: '#f5f7fb' }}>
       <Sidebar />
-      <Layout.Content style={{ padding: 32 }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-          <div style={{ marginBottom: 18 }}>
-            <Title level={2}>LGU Officer</Title>
-            <Paragraph type="secondary">Quick links for LGU Officer workspace.</Paragraph>
-            <div style={{ marginTop: 12 }}>
-              <Link to="/">
-                <Button type="default">Back</Button>
-              </Link>
+      <Layout>
+        <TopBar title="LGU Officer Workspace" roleLabel="LGU Officer" />
+        <Layout.Content style={{ padding: 32 }}>
+          <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+            <div style={{ marginBottom: 18 }}>
+              <Title level={2}>LGU Officer</Title>
+              <Paragraph type="secondary">Quick links for LGU Officer workspace.</Paragraph>
+              <div style={{ marginTop: 12 }}>
+                <Link to="/">
+                  <Button type="default">Back</Button>
+                </Link>
+              </div>
             </div>
-          </div>
 
-          <Row gutter={[16, 16]}>
+            <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} md={8}>
               <Card hoverable styles={{ body: { padding: 12 } }}>
                 <Space direction="vertical">
@@ -96,6 +99,7 @@ export default function LGUOfficerDashboard() {
           </Row>
         </div>
       </Layout.Content>
+      </Layout>
     </Layout>
   )
 }
