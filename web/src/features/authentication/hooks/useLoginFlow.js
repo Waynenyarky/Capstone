@@ -128,16 +128,6 @@ export function useLoginFlow({ onSubmit } = {}) {
     setStep('login')
   }, [login, rememberMe, emailForVerify, rememberEmail, clearRememberedEmail, success, onSubmit])
 
-  const prefillAdmin = React.useCallback(() => {
-    form.setFieldsValue({ email: '1', password: '1', rememberMe: true })
-    success('Admin credentials prefilled')
-  }, [form, success])
-
-  const prefillUser = React.useCallback(() => {
-    form.setFieldsValue({ email: 'jane@example.com', password: 'password123', rememberMe: true })
-    success('User credentials prefilled')
-  }, [form, success])
-
   const initialValues = React.useMemo(() => ({ rememberMe: !!initialEmail, email: initialEmail }), [initialEmail])
 
   const verificationProps = {
@@ -154,8 +144,6 @@ export function useLoginFlow({ onSubmit } = {}) {
     handleFinish,
     isSubmitting,
     initialValues,
-    prefillAdmin,
-    prefillUser,
     verificationProps,
     serverLockedUntil,
   }

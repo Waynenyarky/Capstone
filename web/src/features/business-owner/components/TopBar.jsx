@@ -55,6 +55,7 @@ export default function TopBar({ title, businessName, hideNotifications, hidePro
   return (
     <Header style={{ 
       background: 'linear-gradient(135deg, #001529 0%, #003a70 100%)', 
+      background: 'linear-gradient(135deg, #001529 0%, #003a70 100%)', 
       padding: '0 24px', 
       display: 'flex', 
       alignItems: 'center', 
@@ -65,10 +66,13 @@ export default function TopBar({ title, businessName, hideNotifications, hidePro
       zIndex: 10,
       width: '100%',
       boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+      width: '100%',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
     }}>
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <Text strong style={{ fontSize: 18, marginRight: 16, textTransform: 'capitalize', color: '#fff' }}>{title === 'Business Registration' ? 'BizClear' : title}</Text>
         {businessName && (
+          <Tag icon={<ShopOutlined />} color="gold">
           <Tag icon={<ShopOutlined />} color="gold">
             {businessName}
           </Tag>
@@ -86,16 +90,20 @@ export default function TopBar({ title, businessName, hideNotifications, hidePro
 
         <Dropdown menu={{ items: userMenu.props.items }} placement="bottomRight">
           <Space style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 4 }} className="hover-bg-dark">
+          <Space style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 4 }} className="hover-bg-dark">
             <Avatar 
               src={currentUser?.avatar ? <img src={resolveAvatarUrl(currentUser?.avatar)} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null} 
+              style={{ backgroundColor: '#0050b3', border: '1px solid rgba(255,255,255,0.2)' }}
               style={{ backgroundColor: '#0050b3', border: '1px solid rgba(255,255,255,0.2)' }}
             >
               {!currentUser?.avatar && initials}
             </Avatar>
             <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
               <Text strong style={{ fontSize: 14, color: '#fff' }}>
+              <Text strong style={{ fontSize: 14, color: '#fff' }}>
                 {currentUser?.firstName || currentUser?.name || 'User'}
               </Text>
+              <Text type="secondary" style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)' }}>
               <Text type="secondary" style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)' }}>
                 Business Owner
               </Text>
