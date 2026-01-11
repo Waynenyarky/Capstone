@@ -4,6 +4,8 @@ const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const { seedDevDataIfEmpty } = require('./lib/seedDev');
 const http = require('http');
+// Trigger restart
+
 
 dotenv.config();
 

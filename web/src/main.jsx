@@ -14,7 +14,12 @@ initializeGlobalErrorHandlers()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <ConfigProvider theme={{ algorithm: theme.defaultAlgorithm }}>
+    <ConfigProvider theme={{ 
+      algorithm: theme.defaultAlgorithm,
+      token: {
+        fontFamily: 'Raleway, sans-serif'
+      }
+    }}>
       <AntdApp>
         <BrowserRouter>
           <ErrorBoundary>
