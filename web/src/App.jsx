@@ -6,12 +6,14 @@ import MfaSetup from "@/features/authentication/components/MfaSetup.jsx"
 import AdminDashboard from "@/pages/AdminDashboard.jsx"
 import AdminCreateRole from "@/pages/AdminCreateRole.jsx"
 import AdminFullDashboard from "@/pages/AdminFullDashboard.jsx"
+import AdminUsers from "@/pages/AdminUsers.jsx"
 import { BusinessOwnerDashboard } from "@/features/business-owner"
 import PermitApplicationPage from "@/features/business-owner/features/permits/pages/PermitApplicationPage.jsx"
 import CessationPage from "@/features/business-owner/features/cessation/pages/CessationPage.jsx"
 import PaymentsPage from "@/features/business-owner/features/payments/pages/PaymentsPage.jsx"
 import AppealsPage from "@/features/business-owner/features/appeals/pages/AppealsPage.jsx"
 import StaffDashboard from "@/pages/StaffDashboard.jsx"
+import StaffOnboarding from "@/pages/StaffOnboarding.jsx"
 import ProfileSettings from "@/pages/ProfileSettings.jsx"
 import PlaceholderPage from "@/pages/PlaceholderPage.jsx"
 import { useNavigationNotifications } from "@/features/authentication/hooks"
@@ -33,7 +35,7 @@ function App() {
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="create-role" element={<AdminCreateRole />} />
         <Route path="full" element={<AdminFullDashboard />} />
-        <Route path="users" element={<PlaceholderPage title="User Management" />} />
+        <Route path="users" element={<AdminUsers />} />
       </Route>
 
       {/* Business Owner Routes */}
@@ -48,6 +50,7 @@ function App() {
       {/* Staff Routes */}
       <Route path="/staff" element={<ProtectedRoute allowedRoles={['staff', 'lgu_officer', 'lgu_manager', 'inspector', 'cso']}><Outlet /></ProtectedRoute>}>
         <Route index element={<StaffDashboard />} />
+        <Route path="onboarding" element={<StaffOnboarding />} />
         <Route path="inspections" element={<PlaceholderPage title="Inspections" />} />
         <Route path="applications" element={<PlaceholderPage title="Applications Review" />} />
         <Route path="cessation" element={<PlaceholderPage title="Cessation Review" />} />

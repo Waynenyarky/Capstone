@@ -3,7 +3,7 @@ import { Form, Input, Card, Flex, Button, Typography } from 'antd'
 import { useEditUserProfileForm } from "@/features/user/hooks/useEditUserProfileForm.js"
 import { firstNameRules, lastNameRules, phoneNumberRules } from "@/features/authentication/validations"
 import { useAuthSession } from "@/features/authentication"
-import { preventNonNumericKeyDown, sanitizeNumericPaste, sanitizeNumericInput, sanitizePhonePaste, sanitizePhoneInput } from "@/shared/forms"
+import { preventNonNumericKeyDown, sanitizePhonePaste, sanitizePhoneInput } from "@/shared/forms"
 
 export default function EditUserProfileForm({ embedded = false }) {
   const initialValuesRef = React.useRef({})

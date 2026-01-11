@@ -60,7 +60,7 @@ export default function PermitApplicationForm({ onSubmit, onCancel, initialValue
       await onSubmit({ ...values, fees: fee })
       message.success('Application submitted successfully!')
       form.resetFields()
-    } catch (error) {
+    } catch {
       message.error('Submission failed')
     } finally {
       setLoading(false)

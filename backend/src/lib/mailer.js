@@ -4,7 +4,7 @@ function createTransport() {
   const host = process.env.EMAIL_HOST || process.env.SMTP_HOST
   const port = Number(process.env.EMAIL_PORT || process.env.SMTP_PORT || 587)
   const useSSL = String(process.env.EMAIL_USE_SSL || 'false').toLowerCase() === 'true'
-  const useTLS = String(process.env.EMAIL_USE_TLS || 'false').toLowerCase() === 'true'
+  const useTLS = String(process.env.EMAIL_USE_TLS || 'false').toString().toLowerCase() === 'true'
   const user = process.env.EMAIL_HOST_USER || process.env.SMTP_USER
   const pass = process.env.EMAIL_HOST_PASSWORD || process.env.SMTP_PASS
   if (!host || !user || !pass) {
@@ -153,6 +153,7 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
   </div>
   `
   try {
+    if (!transporter) throw new Error('SMTP not configured')
     await transporter.sendMail({ from, to, subject, text, html })
   } catch (err) {
     console.log('--------------------------------------------------')

@@ -19,7 +19,6 @@ export default function AuthLayout({
   illustration, // Optional
   formMaxWidth = 440 // Default width for form container
 }) {
-  const { token } = theme.useToken();
   const navigate = useNavigate();
 
   const features = [

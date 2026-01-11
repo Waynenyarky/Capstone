@@ -1,11 +1,12 @@
 import React from 'react'
 import { useAuthSession } from './useAuthSession.js'
 import { mfaSetup, mfaVerify, mfaStatus, mfaDisable } from '@/features/authentication/services/mfaService'
+import { getProfile } from '@/features/authentication/services/authService.js'
 import { useNotifier } from '@/shared/notifications'
 
 // Hook that encapsulates MFA setup/verify/disable logic for the MfaSetup page
 export default function useMfaSetup() {
-  const { currentUser } = useAuthSession()
+  const { currentUser, login } = useAuthSession()
   const email = currentUser?.email
   const { success, error } = useNotifier()
 
@@ -79,20 +80,43 @@ export default function useMfaSetup() {
   }, [secret, success, error])
 
   const handleVerify = React.useCallback(async () => {
-    if (!email) return error('Signed-in email missing')
-    if (!code || !/^[0-9]{6}$/.test(code)) return error('Enter a valid 6-digit code')
+    if (!email) {
+      error('Signed-in email missing')
+      return false
+    }
+    if (!code || !/^[0-9]{6}$/.test(code)) {
+      error('Enter a valid 6-digit code')
+      return false
+    }
     setLoading(true)
     try {
-      await mfaVerify(email, code)
+      const res = await mfaVerify(email, code)
       success('MFA enabled')
       setEnabled(true)
+      const updatedUser = res?.user
+      if (updatedUser && typeof updatedUser === 'object') {
+        const raw = localStorage.getItem('auth__currentUser')
+        const remember = !!raw
+        const merged = { ...currentUser, ...updatedUser }
+        login(merged, { remember })
+      } else {
+        try {
+          const fresh = await getProfile()
+          const raw = localStorage.getItem('auth__currentUser')
+          const remember = !!raw
+          const merged = { ...fresh, token: currentUser?.token }
+          login(merged, { remember })
+        } catch (e) { void e }
+      }
+      return true
     } catch (e) {
       console.error('MFA verify error:', e)
       try { error(e, 'Failed to verify code') } catch { /* ignore */ }
+      return false
     } finally {
       setLoading(false)
     }
-  }, [email, code, error, success])
+  }, [email, code, error, success, currentUser, login])
 
   const handleDisable = React.useCallback(async () => {
     if (!email) return error('Signed-in email missing')

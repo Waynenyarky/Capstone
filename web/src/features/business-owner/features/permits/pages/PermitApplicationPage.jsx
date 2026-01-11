@@ -74,7 +74,7 @@ export default function PermitApplicationPage() {
     {
       title: 'Action',
       key: 'action',
-      render: (_, record) => (
+      render: () => (
         <Space size="middle">
           <a>View</a>
         </Space>

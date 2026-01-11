@@ -6,7 +6,7 @@ export default function Login() {
   const navigate = useNavigate()
 
   const handleLoginSuccess = React.useCallback((user) => {
-    const role = String(user?.role || '').toLowerCase()
+    const role = String(user?.role?.slug || user?.role || '').toLowerCase()
     
     if (role === 'admin') {
       navigate('/admin/dashboard')
@@ -20,7 +20,11 @@ export default function Login() {
 
     const staffRoles = ['staff', 'lgu_manager', 'lgu_officer', 'inspector', 'cso']
     if (staffRoles.includes(role)) {
-      navigate('/staff')
+      if (user?.mustChangeCredentials || user?.mustSetupMfa) {
+        navigate('/staff/onboarding')
+      } else {
+        navigate('/staff')
+      }
       return
     }
 

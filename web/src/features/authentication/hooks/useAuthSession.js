@@ -74,6 +74,7 @@ export function useAuthSession() {
       localStorage.removeItem(LOCAL_KEY)
       sessionStorage.removeItem(SESSION_KEY)
     } catch (err) { void err }
+    setTimeout(() => setIsLoggingOut(false), 0)
   }, [])
 
   const role = currentUser?.role

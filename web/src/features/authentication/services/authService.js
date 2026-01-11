@@ -209,3 +209,13 @@ export async function getProfile() {
     headers,
   })
 }
+
+export async function firstLoginChangeCredentials(payload) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  return await fetchJsonWithFallback('/api/auth/first-login/change-credentials', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  })
+}

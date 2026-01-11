@@ -16,7 +16,7 @@ export default function AppealModal({ open, onCancel, onSubmit }) {
       message.success('Appeal submitted successfully!')
       form.resetFields()
       onCancel()
-    } catch (error) {
+    } catch {
       message.error('Submission failed')
     } finally {
       setLoading(false)

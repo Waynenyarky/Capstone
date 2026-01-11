@@ -7,6 +7,12 @@ const UserSchema = new mongoose.Schema(
     lastName: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     phoneNumber: { type: String, default: '', unique: true, sparse: true },
+    username: { type: String, unique: true, sparse: true, lowercase: true, trim: true },
+    office: { type: String, default: '' },
+    isStaff: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true },
+    mustChangeCredentials: { type: Boolean, default: false },
+    mustSetupMfa: { type: Boolean, default: false },
     avatarUrl: { type: String, default: '' },
     passwordHash: { type: String, required: true },
     termsAccepted: { type: Boolean, default: false },
@@ -24,6 +30,17 @@ const UserSchema = new mongoose.Schema(
     // OAuth provider metadata
     authProvider: { type: String, default: '' },
     providerId: { type: String, default: '' },
+    webauthnCredentials: {
+      type: [
+        {
+          credId: { type: String, required: true },
+          publicKey: { type: String, required: true },
+          counter: { type: Number, default: 0 },
+          transports: { type: [String], default: [] },
+        },
+      ],
+      default: [],
+    },
     isEmailVerified: { type: Boolean, default: false },
     lastLoginAt: { type: Date, default: null },
     // Account deletion scheduling (30-day waiting period)

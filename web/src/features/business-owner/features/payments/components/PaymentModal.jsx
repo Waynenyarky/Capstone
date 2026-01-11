@@ -15,7 +15,7 @@ export default function PaymentModal({ open, bill, onCancel, onPay }) {
       await onPay(bill.id, values.method, values.transactionId)
       message.success('Payment processed successfully! Receipt generated.')
       onCancel()
-    } catch (error) {
+    } catch {
       message.error('Payment failed')
     } finally {
       setLoading(false)

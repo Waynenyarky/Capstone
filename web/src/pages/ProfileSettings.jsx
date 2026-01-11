@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Layout, Typography, Card, Tabs, Row, Col, Avatar, Tag, Space, Grid, Upload, message } from 'antd'
 import { UserOutlined, SecurityScanOutlined, SettingOutlined, CameraOutlined, LoadingOutlined } from '@ant-design/icons'
 import Sidebar from '@/features/authentication/components/Sidebar'

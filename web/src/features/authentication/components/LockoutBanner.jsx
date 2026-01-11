@@ -3,8 +3,8 @@ import { Alert, Typography } from 'antd'
 import useOtpCountdown from '@/features/authentication/hooks/useOtpCountdown.js'
 
 export default function LockoutBanner({ lockedUntil } = {}) {
-  if (!lockedUntil) return null
   const { remaining, isExpired } = useOtpCountdown(lockedUntil)
+  if (!lockedUntil) return null
 
   const message = isExpired
     ? 'Account lock has expired — you may try again.'

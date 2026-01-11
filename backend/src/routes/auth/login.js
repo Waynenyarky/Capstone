@@ -19,9 +19,35 @@ try { ({ OAuth2Client } = require('google-auth-library')) } catch (_) { OAuth2Cl
 
 const router = express.Router()
 
+function displayPhoneNumber(value) {
+  const s = typeof value === 'string' ? value : ''
+  if (s.startsWith('__unset__')) return ''
+  return s
+}
+
+function normalizeLoginIdentifier(raw) {
+  return String(raw || '').toLowerCase().trim()
+}
+
+function isEmailIdentifier(identifier) {
+  if (identifier === '1') return true
+  return identifier.includes('@')
+}
+
+async function findUserByIdentifier(identifier, { populateRole = false, lean = true } = {}) {
+  const key = normalizeLoginIdentifier(identifier)
+  const query = isEmailIdentifier(key) ? { email: key } : { username: key }
+  let q = User.findOne(query)
+  if (populateRole) q = q.populate('role')
+  if (lean) q = q.lean()
+  const doc = await q
+  const emailKey = doc && doc.email ? String(doc.email).toLowerCase().trim() : ''
+  return { doc, emailKey }
+}
+
 const loginCredentialsSchema = Joi.object({
   // Support dev admin shorthand: email === '1' with a very short password
-  email: Joi.alternatives().try(Joi.string().email(), Joi.string().valid('1')).required(),
+  email: Joi.string().trim().min(1).max(200).required(),
   password: Joi.string()
     .max(200)
     .when('email', { is: '1', then: Joi.string().min(1), otherwise: Joi.string().min(6) })
@@ -30,13 +56,13 @@ const loginCredentialsSchema = Joi.object({
 
 const verifyCodeSchema = Joi.object({
   // Allow dev admin shorthand email '1' in verification as well
-  email: Joi.alternatives().try(Joi.string().email(), Joi.string().valid('1')).required(),
+  email: Joi.string().trim().min(1).max(200).required(),
   // Be forgiving of accidental whitespace
   code: Joi.string().trim().pattern(/^[0-9]{6}$/).required(),
 })
 
 const verifyTotpSchema = Joi.object({
-  email: Joi.string().email().required(),
+  email: Joi.string().trim().min(1).max(200).required(),
   code: Joi.string().trim().pattern(/^[0-9]{6}$/).required(),
 })
 
@@ -84,11 +110,10 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     const bypass = String(req.headers['x-bypass-fingerprint'] || '').toLowerCase() === 'true'
     // already validated
 
-    // Ensure email is lowercased for consistency
-    if (email) email = String(email).toLowerCase().trim()
+    const identifier = normalizeLoginIdentifier(email)
 
     // Ensure admin seed for testing if email is "1"
-    if (String(email) === '1') {
+    if (String(identifier) === '1') {
       let adminDoc = await User.findOne({ email: '1' }).lean()
       if (!adminDoc) {
         const passwordHash = await bcrypt.hash('1', 10)
@@ -146,7 +171,6 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     const code = generateCode()
     const expiresAtMs = Date.now() + 10 * 60 * 1000 // 10 minutes
     const loginToken = generateToken()
-    const emailKey = String(email).toLowerCase()
 
     const useDB = mongoose.connection && mongoose.connection.readyState === 1
     if (useDB) {
@@ -181,6 +205,7 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       payload.mfaMethod = method
       payload.isFingerprintEnabled = !!doc.fprintEnabled || method.includes('fingerprint')
     } catch (_) {}
+    payload.loginEmail = emailKey
     if (process.env.NODE_ENV !== 'production') payload.devCode = code
     return res.json(payload)
   } catch (err) {
@@ -244,7 +269,9 @@ router.post('/login/resend', loginStartLimiter, validateBody(resendCodeSchema), 
 router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema), async (req, res) => {
   try {
     let { email, code } = req.body || {}
-    const emailKey = String(email).toLowerCase().trim()
+    const identifier = normalizeLoginIdentifier(email)
+    const { doc: userDoc, emailKey } = await findUserByIdentifier(identifier, { populateRole: true, lean: true })
+    if (!userDoc) return respond.error(res, 404, 'user_not_found', 'User not found')
     const useDB = mongoose.connection && mongoose.connection.readyState === 1
     let reqObj = null
     if (useDB) {
@@ -290,13 +317,19 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
       firstName: doc.firstName,
       lastName: doc.lastName,
       email: doc.email,
-      phoneNumber: doc.phoneNumber,
+      phoneNumber: displayPhoneNumber(doc.phoneNumber),
       termsAccepted: doc.termsAccepted,
       createdAt: doc.createdAt,
       deletionPending: !!doc.deletionPending,
       deletionRequestedAt: doc.deletionRequestedAt,
       deletionScheduledFor: doc.deletionScheduledFor,
       avatarUrl: doc.avatarUrl || '',
+      username: doc.username || '',
+      office: doc.office || '',
+      isActive: doc.isActive !== false,
+      isStaff: !!doc.isStaff,
+      mustChangeCredentials: !!doc.mustChangeCredentials,
+      mustSetupMfa: !!doc.mustSetupMfa,
     }
     try {
       const { token, expiresAtMs } = signAccessToken(doc)
@@ -324,8 +357,8 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
 router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, res) => {
   try {
     let { email, code } = req.body || {}
-    const emailKey = String(email).toLowerCase().trim()
-    const doc = await User.findOne({ email: emailKey }).populate('role')
+    const identifier = normalizeLoginIdentifier(email)
+    const { doc, emailKey } = await findUserByIdentifier(identifier, { populateRole: true, lean: false })
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
     if (doc.mfaEnabled !== true || !doc.mfaSecret) {
       return respond.error(res, 400, 'mfa_not_enabled', 'MFA is not enabled for this account')
@@ -351,12 +384,18 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
       firstName: doc.firstName,
       lastName: doc.lastName,
       email: doc.email,
-      phoneNumber: doc.phoneNumber,
+      phoneNumber: displayPhoneNumber(doc.phoneNumber),
       avatarUrl: doc.avatarUrl || '',
       termsAccepted: doc.termsAccepted,
       deletionPending: !!doc.deletionPending,
       deletionScheduledFor: doc.deletionScheduledFor,
       createdAt: doc.createdAt,
+      username: doc.username || '',
+      office: doc.office || '',
+      isActive: doc.isActive !== false,
+      isStaff: !!doc.isStaff,
+      mustChangeCredentials: !!doc.mustChangeCredentials,
+      mustSetupMfa: !!doc.mustSetupMfa,
     }
     try {
       const { token, expiresAtMs } = signAccessToken(doc)
@@ -438,10 +477,16 @@ router.post('/google', validateBody(googleLoginSchema), async (req, res) => {
       firstName: doc.firstName,
       lastName: doc.lastName,
       email: doc.email,
-      phoneNumber: doc.phoneNumber,
+      phoneNumber: displayPhoneNumber(doc.phoneNumber),
       termsAccepted: doc.termsAccepted,
       createdAt: doc.createdAt,
       avatarUrl: doc.avatarUrl || '',
+      username: doc.username || '',
+      office: doc.office || '',
+      isActive: doc.isActive !== false,
+      isStaff: !!doc.isStaff,
+      mustChangeCredentials: !!doc.mustChangeCredentials,
+      mustSetupMfa: !!doc.mustSetupMfa,
     }
     try {
       const { token, expiresAtMs } = signAccessToken(doc)

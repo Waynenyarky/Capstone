@@ -1,11 +1,9 @@
 import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuthSession } from '@/features/authentication'
 import { notifyUserSignedUp } from '@/features/admin/users/lib/usersEvents.js'
 
 export function useUserSignUpFlow() {
   const navigate = useNavigate()
-  const { /* login */ } = useAuthSession()
   const [step, setStep] = useState('form')
   const [emailForVerify, setEmailForVerify] = useState('')
   const [devCodeForVerify, setDevCodeForVerify] = useState('')
