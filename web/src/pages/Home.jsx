@@ -1,4 +1,4 @@
-import { Layout, Button, Typography, Card, Row, Col, Space, Divider, Alert, List, Badge, theme } from 'antd'
+import { Layout, Button, Typography, Card, Row, Col, Space, Divider, Alert, List, Badge, theme, Grid } from 'antd'
 import { Link } from 'react-router-dom'
 import { 
   BankOutlined, 
@@ -10,15 +10,18 @@ import {
   UserAddOutlined,
   ArrowRightOutlined,
   BellOutlined,
-  GlobalOutlined
+  GlobalOutlined,
+  MenuOutlined
 } from '@ant-design/icons'
 
 const { Header, Content, Footer } = Layout
 const { Title, Text, Paragraph } = Typography
 const { useToken } = theme
+const { useBreakpoint } = Grid
 
 export default function Home() {
   const { token } = useToken()
+  const screens = useBreakpoint()
   
   const infoCards = [
     {
@@ -64,7 +67,7 @@ export default function Home() {
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'space-between',
-        padding: '0 50px', 
+        padding: screens.md ? '0 50px' : '0 16px', 
         height: '72px',
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
         position: 'sticky',
@@ -84,16 +87,16 @@ export default function Home() {
             <BankOutlined style={{ fontSize: '24px', color: '#fff' }} />
           </div>
           <div>
-            <Title level={4} style={{ margin: 0, lineHeight: 1.2, color: '#003a70' }}>BizClear</Title>
-            <Text type="secondary" style={{ fontSize: '11px', letterSpacing: '0.5px' }}>DAGUPAN CITY PORTAL</Text>
+            <Title level={4} style={{ margin: 0, lineHeight: 1.2, color: '#003a70', fontSize: screens.sm ? '20px' : '18px' }}>BizClear</Title>
+            <Text type="secondary" style={{ fontSize: '11px', letterSpacing: '0.5px', display: screens.xs ? 'none' : 'block' }}>DAGUPAN CITY PORTAL</Text>
           </div>
         </div>
-        <Space>
+        <Space size={screens.sm ? 'middle' : 'small'}>
           <Link to="/login">
             <Button type="text" icon={<LoginOutlined />}>Log In</Button>
           </Link>
           <Link to="/sign-up">
-            <Button type="primary" style={{ background: '#003a70' }}>Register Business</Button>
+            <Button type="primary" style={{ background: '#003a70' }}>{screens.sm ? 'Register Business' : 'Register'}</Button>
           </Link>
         </Space>
       </Header>
@@ -102,30 +105,40 @@ export default function Home() {
         {/* 2. Hero Section with Gradient */}
         <div style={{ 
           background: 'linear-gradient(135deg, #001529 0%, #003a70 100%)', 
-          padding: '80px 50px',
+          padding: screens.md ? '80px 50px' : '48px 20px',
           textAlign: 'center',
           color: '#fff'
         }}>
           <div style={{ maxWidth: '800px', margin: '0 auto' }}>
             <Badge.Ribbon text="Official Portal" color="#faad14">
               <div style={{ padding: '20px' }}>
-                <Title level={1} style={{ color: '#fff', marginBottom: '24px', fontSize: '48px', fontWeight: 700 }}>
+                <Title level={1} style={{ 
+                  color: '#fff', 
+                  marginBottom: '24px', 
+                  fontSize: screens.md ? '48px' : '32px', 
+                  fontWeight: 700 
+                }}>
                   Streamlined Business Compliance
                 </Title>
               </div>
             </Badge.Ribbon>
-            <Paragraph style={{ fontSize: '18px', color: 'rgba(255,255,255,0.85)', marginBottom: '40px', lineHeight: 1.8 }}>
+            <Paragraph style={{ 
+              fontSize: screens.md ? '18px' : '16px', 
+              color: 'rgba(255,255,255,0.85)', 
+              marginBottom: '40px', 
+              lineHeight: 1.8 
+            }}>
               Welcome to the <b>BizClear Portal</b> of Dagupan City. 
               Securely manage your business permits, schedule inspections, and stay compliant with local regulations—all in one place.
             </Paragraph>
-            <Space size="middle">
-              <Link to="/sign-up">
-                <Button type="primary" size="large" icon={<UserAddOutlined />} style={{ height: '56px', padding: '0 40px', fontSize: '18px', borderRadius: '4px' }}>
+            <Space size="middle" direction={screens.xs ? 'vertical' : 'horizontal'} style={{ width: screens.xs ? '100%' : 'auto' }}>
+              <Link to="/sign-up" style={{ width: '100%' }}>
+                <Button type="primary" size="large" icon={<UserAddOutlined />} block={screens.xs} style={{ height: '56px', padding: screens.xs ? '0 20px' : '0 40px', fontSize: '18px', borderRadius: '4px' }}>
                   Get Started
                 </Button>
               </Link>
-              <Link to="/login">
-                <Button ghost size="large" style={{ height: '56px', padding: '0 40px', fontSize: '18px', borderRadius: '4px' }}>
+              <Link to="/login" style={{ width: '100%' }}>
+                <Button ghost size="large" block={screens.xs} style={{ height: '56px', padding: screens.xs ? '0 20px' : '0 40px', fontSize: '18px', borderRadius: '4px' }}>
                   Access Account
                 </Button>
               </Link>
@@ -134,7 +147,13 @@ export default function Home() {
         </div>
 
         {/* 3. Services Grid */}
-        <div style={{ maxWidth: '1200px', margin: '-40px auto 0', padding: '0 24px', position: 'relative', zIndex: 1 }}>
+        <div style={{ 
+          maxWidth: '1200px', 
+          margin: screens.md ? '-40px auto 0' : '24px auto 0', 
+          padding: '0 24px', 
+          position: 'relative', 
+          zIndex: 1 
+        }}>
           <Row gutter={[24, 24]}>
             {infoCards.map((card, index) => (
               <Col xs={24} md={8} key={index}>
@@ -170,7 +189,7 @@ export default function Home() {
         </div>
 
         {/* 4. Secondary Content Area */}
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '80px 24px' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: screens.md ? '80px 24px' : '40px 20px' }}>
           <Row gutter={[48, 48]}>
             {/* Notices Panel */}
             <Col xs={24} lg={14}>

@@ -7,9 +7,9 @@ const BusinessProfile = ({ data }) => {
 
   return (
     <Card 
-      title={<Space><ShopOutlined /> Business Profile</Space>}
+      title={<Space><ShopOutlined style={{ color: '#001529' }} /> Business Profile</Space>}
       extra={<Button type="link" size="small">Edit</Button>}
-      style={{ height: '100%' }}
+      style={{ height: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
     >
       <Descriptions column={1} size="small">
         <Descriptions.Item label="Name">{data.name}</Descriptions.Item>
@@ -24,7 +24,7 @@ const BusinessProfile = ({ data }) => {
       
       <div style={{ marginTop: 16 }}>
         <Space style={{ width: '100%' }}>
-           <Button type="primary" ghost block>Request Update</Button>
+           <Button type="primary" ghost block style={{ color: '#001529', borderColor: '#001529' }}>Request Update</Button>
            <Button block>View Full Profile</Button>
         </Space>
       </div>

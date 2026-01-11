@@ -1,6 +1,6 @@
 import React from 'react'
 import { Layout, Row, Col, Typography, ConfigProvider, theme, Button, Card } from 'antd'
-import { ArrowLeftOutlined, SafetyCertificateOutlined, FileProtectOutlined, BankOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, SafetyCertificateOutlined, FileProtectOutlined, BankOutlined, ScheduleOutlined, SyncOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 
 const { Title, Paragraph, Text } = Typography
@@ -14,8 +14,8 @@ const { Title, Paragraph, Text } = Typography
 export default function AuthLayout({ 
   children, 
   title = "BizClear",
-  subtitle = "Business Permit & Inspection System",
-  description = "BizClear is a secure digital system that helps local government units manage business permits, inspections, violations, and appeals in a clear, transparent, and efficient way by using AI to assist in document validation and blockchain technology to ensure records are tamper-proof, traceable, and trustworthy.",
+  subtitle = "DAGUPAN CITY PORTAL",
+  description = "Welcome to the BizClear Portal of Dagupan City. Securely manage your business permits, schedule inspections, and stay compliant with local regulations—all in one place.",
   illustration, // Optional
   formMaxWidth = 440 // Default width for form container
 }) {
@@ -24,19 +24,19 @@ export default function AuthLayout({
 
   const features = [
     {
-      icon: <BankOutlined style={{ fontSize: 24 }} />,
-      title: "Efficient LGU Management",
-      desc: "Streamline permits, inspections, violations, and appeals in a clear and transparent way."
-    },
-    {
-      icon: <FileProtectOutlined style={{ fontSize: 24 }} />,
-      title: "AI-Powered Validation",
-      desc: "Intelligent document analysis to assist and accelerate the validation process."
-    },
-    {
       icon: <SafetyCertificateOutlined style={{ fontSize: 24 }} />,
-      title: "Blockchain Security",
-      desc: "Tamper-proof, traceable, and trustworthy records ensuring data integrity."
+      title: "Permit Application",
+      desc: "Submit new business permit applications digitally. Upload requirements and track status in real-time."
+    },
+    {
+      icon: <ScheduleOutlined style={{ fontSize: 24 }} />,
+      title: "Inspection Scheduling",
+      desc: "Schedule and monitor inspections. Receive digital updates and results directly in the system."
+    },
+    {
+      icon: <SyncOutlined style={{ fontSize: 24 }} />,
+      title: "Permit Renewal",
+      desc: "Renew existing permits before expiry. Automated reminders and simplified renewal tracking."
     }
   ];
 
@@ -47,7 +47,7 @@ export default function AuthLayout({
         <Col 
           xs={0} md={12} lg={12} 
           style={{ 
-            background: 'linear-gradient(135deg, #3182ce 0%, #2c5282 100%)', // Professional Blue Gradient
+            background: 'linear-gradient(135deg, #001529 0%, #003a70 100%)', // Home Page Gradient
             display: 'flex', 
             flexDirection: 'column',
             justifyContent: 'space-between',
@@ -69,13 +69,22 @@ export default function AuthLayout({
             </Button>
             
             <div style={{ marginTop: 40, display: 'flex', alignItems: 'center', gap: 12 }}>
-               {/* Placeholder Logo Icon */}
-               <div style={{ width: 40, height: 40, background: 'rgba(255,255,255,0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <img src="/assets/bizclear-logo-white.png" alt="Logo" style={{ width: 24 }} />
+               {/* Logo Icon matching Home */}
+               <div style={{ 
+                 width: 40, 
+                 height: 40, 
+                 background: 'linear-gradient(135deg, #003a70 0%, #0050b3 100%)', 
+                 borderRadius: '8px', 
+                 display: 'flex', 
+                 alignItems: 'center', 
+                 justifyContent: 'center',
+                 border: '1px solid rgba(255,255,255,0.2)'
+               }}>
+                  <BankOutlined style={{ fontSize: '24px', color: '#fff' }} />
                </div>
                <div>
-                 <Text strong style={{ color: 'white', fontSize: 18, display: 'block', lineHeight: 1 }}>{title}</Text>
-                 <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>Project Management Platform</Text>
+                 <Text strong style={{ color: 'white', fontSize: 20, display: 'block', lineHeight: 1 }}>{title}</Text>
+                 <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, letterSpacing: '0.5px' }}>{subtitle}</Text>
                </div>
             </div>
           </div>
@@ -83,9 +92,9 @@ export default function AuthLayout({
           {/* Main Content */}
           <div style={{ position: 'relative', zIndex: 1, marginTop: 40 }}>
             <Title style={{ color: '#fff', fontSize: 48, fontWeight: 700, marginBottom: 16, lineHeight: 1.2 }}>
-              Join Our <br/> Enterprise Platform
+              Streamlined <br/> Business Compliance
             </Title>
-            <Paragraph style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: 16, maxWidth: 500, marginBottom: 40 }}>
+            <Paragraph style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: 16, maxWidth: 500, marginBottom: 40, lineHeight: 1.8 }}>
               {description}
             </Paragraph>
             
@@ -122,7 +131,7 @@ export default function AuthLayout({
 
           {/* Footer */}
           <div style={{ marginTop: 40, display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
-             <span>© 2025 {title}. All rights reserved.</span>
+             <span>© 2026 City Government of Dagupan. All Rights Reserved.</span>
              <div style={{ display: 'flex', gap: 24 }}>
                 <a href="#" style={{ color: 'inherit' }}>Privacy</a>
                 <a href="#" style={{ color: 'inherit' }}>Terms</a>
@@ -135,7 +144,7 @@ export default function AuthLayout({
         <Col 
           xs={24} md={12} lg={12} 
           style={{ 
-            background: '#f0f2f5', 
+            background: '#fff', // Match Home background
             height: '100%',
             overflowY: 'auto',
             display: 'flex', 
@@ -146,18 +155,16 @@ export default function AuthLayout({
             <ConfigProvider
               theme={{
                 token: {
-                  colorPrimary: '#3182ce',
+                  colorPrimary: '#003a70', // Match Home primary color
                   borderRadius: 8,
-                  fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
-                  fontSize: 14,
-                  colorText: '#1f2937',
+                  // Removed explicit font family to match Home's default
                 },
                 components: {
                    Button: {
                       controlHeightLG: 50,
                       fontSizeLG: 16,
                       fontWeight: 600,
-                      defaultBg: '#fff',
+                      // defaultBg: '#fff', // Let it inherit or default
                       borderRadiusLG: 8,
                    },
                    Input: {
@@ -165,7 +172,7 @@ export default function AuthLayout({
                       paddingInlineLG: 16,
                       fontSizeLG: 16,
                       colorBgContainer: '#fff',
-                      activeBorderColor: '#3182ce',
+                      activeBorderColor: '#003a70',
                       borderRadiusLG: 8,
                    },
                    Typography: {

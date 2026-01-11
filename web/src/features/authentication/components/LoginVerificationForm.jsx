@@ -1,8 +1,9 @@
-import { Form, Button, Card, Flex, Typography } from 'antd'
+import { Form, Button, Card, Flex, Typography, Input } from 'antd'
 import { useLoginVerificationForm, useResendLoginCode } from "@/features/authentication/hooks"
 import React from 'react'
-import OtpInput from '@/features/authentication/components/OtpInput.jsx'
 import useOtpCountdown from '@/features/authentication/hooks/useOtpCountdown.js'
+
+const { Title, Text, Paragraph } = Typography
 
 export default function LoginVerificationForm({ email, onSubmit, title, otpExpiresAt, devCode } = {}) {
   const { form, handleFinish, isSubmitting } = useLoginVerificationForm({ email, onSubmit })
@@ -15,38 +16,63 @@ export default function LoginVerificationForm({ email, onSubmit, title, otpExpir
   }
 
   return (
-    <Card title={cardTitle}>
-      <Form name="loginVerification" form={form} layout="vertical" onFinish={handleFinish}>
-        <Form.Item name="verificationCode" label="Verification Code" hasFeedback rules={[{ required: true, message: 'Enter the code' }] }>
-          <OtpInput />
+    <Card 
+      variant="borderless"
+      style={{ 
+        maxWidth: 480, 
+        margin: '0 auto', 
+        boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+        borderRadius: 16
+      }}
+      styles={{ body: { padding: 40 } }}
+    >
+      <div style={{ textAlign: 'center', marginBottom: 32 }}>
+        <Title level={2} style={{ marginBottom: 8, fontWeight: 700 }}>{cardTitle}</Title>
+        <Text type="secondary" style={{ fontSize: 16 }}>
+          We sent a verification code to <Text strong style={{ color: '#1890ff' }}>{email}</Text>
+        </Text>
+      </div>
+
+      <Form name="loginVerification" form={form} layout="vertical" onFinish={handleFinish} size="large">
+        <Form.Item 
+          name="verificationCode" 
+          label={<Text strong>Verification Code</Text>}
+          rules={[
+            { required: true, message: 'Please enter the verification code' },
+            { len: 6, message: 'Code must be 6 digits' }
+          ]}
+          style={{ marginBottom: 32 }}
+        >
+          <Input.OTP size="large" length={6} style={{ width: '100%', justifyContent: 'center' }} />
         </Form.Item>
-        {otpRemaining != null ? (
-          <div style={{ marginBottom: 8 }}>
-            <Typography.Text type={isExpired ? 'danger' : 'secondary'}>
-              {isExpired ? 'Code expired' : `Code expires in: ${Math.floor(otpRemaining / 60)}:${String(otpRemaining % 60).padStart(2, '0')}`}
-            </Typography.Text>
-          </div>
-        ) : null}
 
-        {/* Dev Prefill Button */}
-        {devCode && (
-          <div style={{ marginBottom: 16 }}>
-            <Button size="small" type="dashed" onClick={prefillDevCode} block>
-              Dev: Prefill Code ({devCode})
-            </Button>
-          </div>
-        )}
+        <Flex vertical gap="middle">
+          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block size="large" style={{ height: 48, fontSize: 16 }}>
+            Verify
+          </Button>
 
-        <Flex justify="space-between" align="center">
-          <div>
-            <Typography.Text type="secondary">Max attempts: 5 • Rate-limited on repeated failures</Typography.Text>
-          </div>
-          <div>
-            <Button size="small" onClick={handleResend} loading={isResending} disabled={isCooling || isResending} style={{ marginRight: 8 }}>
-              {isCooling ? `Resend (${remaining}s)` : 'Resend code'}
+          <Flex justify="space-between" align="center" style={{ marginTop: 8 }}>
+            <Text type={isExpired ? 'danger' : 'secondary'} style={{ fontSize: 13 }}>
+              {otpRemaining != null ? (
+                 isExpired ? 'Code expired' : `Code expires in: ${Math.floor(otpRemaining / 60)}:${String(otpRemaining % 60).padStart(2, '0')}`
+              ) : ''}
+            </Text>
+            <Button 
+              type="link" 
+              onClick={handleResend} 
+              loading={isResending} 
+              disabled={isCooling || isResending}
+              style={{ padding: 0, height: 'auto' }}
+            >
+              {isCooling ? `Resend available in ${remaining}s` : 'Resend Code'}
             </Button>
-            <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting}>Verify</Button>
-          </div>
+          </Flex>
+
+          {devCode && (
+            <Button type="dashed" onClick={prefillDevCode} block>
+              Prefill Code (Dev: {devCode})
+            </Button>
+          )}
         </Flex>
       </Form>
     </Card>

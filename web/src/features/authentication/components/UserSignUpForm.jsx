@@ -3,7 +3,7 @@ import React from 'react'
 import { Form, Input, Card, Flex, Button, Checkbox, Typography, Row, Col } from 'antd'
 import { useNavigate } from 'react-router-dom'
 
-import { useUserSignUp, useUserSignUpFlow } from '@/features/authentication/hooks'
+import { useUserSignUp, useUserSignUpFlow, useAuthSession } from '@/features/authentication/hooks'
 import { SignUpVerificationForm } from '@/features/authentication'
 import {
   emailRules,
@@ -13,7 +13,6 @@ import {
   signUpPasswordRules as passwordRules,
   signUpConfirmPasswordRules,
   termsRules,
-  businessOwnerRequiredRules,
 } from '@/features/authentication/validations'
 
 import { preventNonNumericKeyDown, sanitizePhonePaste, sanitizePhoneInput } from '@/shared/forms'
@@ -22,12 +21,18 @@ const { Title, Text, Paragraph } = Typography
 
 export default function UserSignUpForm() {
   const navigate = useNavigate()
+  const { login } = useAuthSession()
 
-  // Signup flow hooks (keeps existing behavior)
+  // Signup flow hooks (direct signup with auto-login, skipping verification)
   const { step, emailForVerify, devCodeForVerify, verifyEmail, handleVerificationSubmit } = useUserSignUpFlow()
   const { form, handleFinish, isSubmitting, prefillDemo } = useUserSignUp({
-    onBegin: verifyEmail,
-    onSubmit: console.log,
+    onBegin: ({ email, serverData }) => {
+      verifyEmail({ email, devCode: serverData?.devCode })
+    },
+    onSubmit: (response) => {
+      // Do not auto-login. Navigate to login page so user can sign in manually.
+      navigate('/login')
+    },
   })
 
   if (step === 'verify') {
@@ -40,14 +45,6 @@ export default function UserSignUpForm() {
       />
     )
   }
-
-  const extraContent = (
-    <Flex gap="small" align="center">
-      <Button size="small" onClick={() => navigate('/')}>Home</Button>
-      <Button size="small" type="link" onClick={() => navigate('/login')}>Login</Button>
-      <Button size="small" onClick={prefillDemo}>Prefill Demo</Button>
-    </Flex>
-  )
 
   // Render verification step if required by the flow
   if (step === 'verify') {
@@ -123,25 +120,15 @@ export default function UserSignUpForm() {
           </Col>
         </Row>
 
-        <Form.Item name="termsAndConditions" valuePropName="checked" rules={termsRules} style={{ marginBottom: 12 }}>
+        <Form.Item name="termsAndConditions" valuePropName="checked" rules={termsRules} style={{ marginBottom: 24 }}>
           <Checkbox>
-            I accept the <a href="/terms" target="_blank" rel="noopener noreferrer">Terms and Conditions</a>
+            I have read and agree to the <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
           </Checkbox>
         </Form.Item>
 
-        <Form.Item name="isBusinessOwner" valuePropName="checked" rules={businessOwnerRequiredRules} style={{ marginBottom: 12 }}>
-          <Checkbox>Sign up as Business Owner</Checkbox>
-        </Form.Item>
-
-        <div style={{ marginTop: 8, marginBottom: 24 }}>
-          <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 0, textAlign: 'center' }}>
-            By clicking "Send Verification Code", you agree to our <a href="/privacy">Privacy Policy</a>.
-          </Paragraph>
-        </div>
-
         <Form.Item style={{ marginBottom: 16 }}>
           <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block size="large">
-            Send Verification Code
+            Continue
           </Button>
         </Form.Item>
 

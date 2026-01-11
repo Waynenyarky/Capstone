@@ -9,9 +9,9 @@ const Notifications = ({ data }) => {
 
   return (
     <Card 
-      title={<Space><BellOutlined style={{ color: '#1890ff' }} /> Notifications <Badge count={data.length} overflowCount={9} style={{ backgroundColor: '#1890ff' }} /></Space>}
+      title={<Space><BellOutlined style={{ color: '#001529' }} /> Notifications <Badge count={data.length} overflowCount={9} style={{ backgroundColor: '#faad14' }} /></Space>}
       extra={<Button type="link" size="small">Mark all as read</Button>}
-      style={{ height: '100%' }}
+      style={{ height: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
       styles={{ body: { padding: 0 } }}
     >
       <List

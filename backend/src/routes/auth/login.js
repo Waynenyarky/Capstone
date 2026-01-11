@@ -1,9 +1,12 @@
 const express = require('express')
+const fs = require('fs')
+const path = require('path')
 const bcrypt = require('bcryptjs')
 const mongoose = require('mongoose')
 const User = require('../../models/User')
 const Role = require('../../models/Role')
 const { generateCode, generateToken } = require('../../lib/codes')
+const { sendOtp } = require('../../lib/mailer')
 const { loginRequests } = require('../../lib/authRequestsStore')
 const { signAccessToken } = require('../../middleware/auth')
 const LoginRequest = require('../../models/LoginRequest')
@@ -46,6 +49,10 @@ const googleLoginSchema = Joi.object({
   lastName: Joi.string().min(1).max(100),
 }).or('idToken', 'email')
 
+const resendCodeSchema = Joi.object({
+  email: Joi.alternatives().try(Joi.string().email(), Joi.string().valid('1')).required(),
+})
+
 // Allow disabling or relaxing rate limits in development/testing
 const DISABLE_LIMITS = process.env.DISABLE_RATE_LIMIT === 'true' || process.env.NODE_ENV !== 'production'
 const passthrough = (req, res, next) => next()
@@ -68,296 +75,13 @@ const loginVerifyLimiter = DISABLE_LIMITS
       message: 'Too many login verification attempts; try again later.',
     })
 
-// POST /api/auth/login
-router.post('/login', validateBody(loginCredentialsSchema), async (req, res) => {
-  try {
-    let { email, password } = req.body || {}
-    const bypass = String(req.headers['x-bypass-fingerprint'] || '').toLowerCase() === 'true'
-    // already validated
-
-    // Ensure email is lowercased for consistency
-    if (email) email = String(email).toLowerCase().trim()
-
-    const doc = await User.findOne({ email }).populate('role').lean()
-    if (!doc || typeof doc.passwordHash !== 'string' || !doc.passwordHash) {
-      return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
-    }
-    let match = false
-    const isBcrypt = /^\$2[aby]\$/.test(String(doc.passwordHash))
-    if (isBcrypt) {
-      match = await bcrypt.compare(password, doc.passwordHash)
-    } else {
-      match = String(password) === String(doc.passwordHash)
-      if (match) {
-        try {
-          const dbDoc = await User.findById(doc._id)
-          if (dbDoc) {
-            dbDoc.passwordHash = await bcrypt.hash(password, 10)
-            await dbDoc.save()
-          }
-        } catch (_) {}
-      }
-    }
-    if (!match) return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
-
-    if (doc.mfaEnabled === true) {
-      const method = String(doc.mfaMethod || '').toLowerCase()
-      const hasTotp = !!doc.mfaSecret
-      // Allow fingerprint if enabled, regardless of TOTP status.
-      // If both are enabled, we prefer fingerprint but allow fallback to TOTP via client logic.
-      const isFingerprint = !!doc.fprintEnabled || method.includes('fingerprint')
-      if (isFingerprint && !bypass) {
-        const loginToken = generateToken()
-        const expiresAtMs = Date.now() + 5 * 60 * 1000
-        const emailKey = String(email).toLowerCase()
-        const useDB = mongoose.connection && mongoose.connection.readyState === 1
-        if (useDB) {
-          await LoginRequest.findOneAndUpdate(
-            { email: emailKey },
-            { expiresAt: new Date(expiresAtMs), verified: false, loginToken, userId: String(doc._id) },
-            { upsert: true, new: true, setDefaultsOnInsert: true }
-          )
-        } else {
-          loginRequests.set(emailKey, { expiresAt: expiresAtMs, verified: false, loginToken, userId: String(doc._id) })
-        }
-        return respond.error(res, 401, 'fingerprint_required', 'Fingerprint verification required', { loginToken })
-      }
-      if (!isFingerprint) return respond.error(res, 401, 'mfa_required', 'Multi-factor authentication required')
-    }
-
-    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
-
-    const safe = {
-      id: String(doc._id),
-      role: roleSlug,
-      firstName: doc.firstName,
-      lastName: doc.lastName,
-      email: doc.email,
-      phoneNumber: doc.phoneNumber,
-      termsAccepted: doc.termsAccepted,
-      createdAt: doc.createdAt,
-      deletionPending: !!doc.deletionPending,
-      deletionRequestedAt: doc.deletionRequestedAt,
-      deletionScheduledFor: doc.deletionScheduledFor,
-      isEmailVerified: !!doc.isEmailVerified,
-      avatarUrl: doc.avatarUrl || '',
-    }
-    try {
-      const { token, expiresAtMs } = signAccessToken(doc)
-      safe.token = token
-      safe.expiresAt = new Date(expiresAtMs).toISOString()
-    } catch (_) {}
-    return res.json(safe)
-  } catch (err) {
-    console.error('POST /api/auth/login error:', err)
-    return respond.error(res, 500, 'login_failed', 'Failed to login')
-  }
-})
-
-router.post('/login/google', validateBody(googleLoginSchema), async (req, res) => {
-  try {
-    const { idToken, email: emailInput, providerId: providerIdInput, emailVerified: emailVerifiedInput, firstName: firstNameInput, lastName: lastNameInput } = req.body || {}
-    let email = ''
-    let firstName = 'User'
-    let lastName = ''
-    let avatarUrl = ''
-    let providerId = ''
-    let isEmailVerified = false
-
-    const CLIENT_ID = process.env.GOOGLE_SERVER_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || ''
-  const hasOauth = !!OAuth2Client && !!CLIENT_ID
-  if (idToken && hasOauth && !String(idToken).startsWith('none:')) {
-    try {
-      const client = new OAuth2Client(CLIENT_ID)
-      const ticket = await client.verifyIdToken({
-        idToken,
-        audience: CLIENT_ID,
-      })
-      const payload = ticket.getPayload()
-      if (!payload || !payload.email) {
-        // fallthrough
-      }
-      if (payload && payload.email) {
-        email = String(payload.email)
-        const given = String(payload.given_name || '').trim()
-        const family = String(payload.family_name || '').trim()
-        const fullName = String(payload.name || '').trim()
-        if (given || family) {
-          firstName = given || firstName
-          lastName = family || lastName
-        } else if (fullName) {
-          try {
-            const parts = fullName.split(/\s+/)
-            if (parts.length >= 2) {
-              firstName = `${(parts[0] || '').trim()} ${(parts[1] || '').trim()}`.trim() || firstName
-              lastName = parts.length > 2 ? parts.slice(2).join(' ').trim() : (lastName || '')
-            } else {
-              firstName = parts[0] || firstName
-              lastName = (lastName || '')
-            }
-          } catch (_) {
-            // leave defaults
-          }
-        }
-        avatarUrl = String(payload.picture || '')
-        providerId = String(payload.sub || providerId)
-        isEmailVerified = !!payload.email_verified
-      }
-    } catch (e) {
-      // fallthrough
-      try {
-        const msg = String(e && e.message ? e.message : '')
-        const code = msg.includes('audience') ? 'invalid_audience' : 'invalid_id_token'
-        if (!email && !emailInput) {
-          return respond.error(res, 400, code, 'Invalid Google ID token')
-        }
-      } catch (_) {}
-    }
-  }
-    if (!email && emailInput) {
-      email = String(emailInput)
-    }
-    if (!providerId && providerIdInput) {
-      providerId = String(providerIdInput)
-    }
-    if (!isEmailVerified && typeof emailVerifiedInput === 'boolean') {
-      isEmailVerified = emailVerifiedInput === true
-    }
-    if (typeof firstNameInput === 'string' && String(firstNameInput).trim().length > 0) {
-      firstName = String(firstNameInput).trim()
-    }
-    if (typeof lastNameInput === 'string' && String(lastNameInput).trim().length > 0) {
-      lastName = String(lastNameInput).trim()
-    }
-    // Default Google accounts as verified when using Google Sign-In flow
-    if (!isEmailVerified) isEmailVerified = true
-    if (!email) {
-      return respond.error(res, 400, 'google_login_unavailable', 'Google login not available')
-    }
-
-    let doc = null
-    try {
-      doc = await User.findOne({ email }).lean()
-      if (!doc) {
-        try {
-          const localPart = String(email).split('@')[0] || ''
-          let fn = String(firstName || '').trim()
-          let ln = String(lastName || '').trim()
-          if (!fn || fn.toLowerCase() === 'user') {
-            const tokens = localPart.split(/[._\- ]+/).filter(Boolean)
-            if (tokens.length > 0) fn = tokens[0]
-            if (!ln && tokens.length > 1) ln = tokens.slice(1).join(' ')
-          }
-          firstName = fn || localPart || 'User'
-          lastName = ln || ''
-        } catch (_) {
-          firstName = (String(firstName || '').trim() || 'User')
-          lastName = (String(lastName || '').trim() || '')
-        }
-        const passwordHash = await bcrypt.hash(generateToken(), 10)
-        const userRole = await Role.findOne({ slug: 'user' })
-        const created = await User.create({
-          role: userRole ? userRole._id : undefined,
-          firstName,
-          lastName,
-          email,
-          phoneNumber: '',
-          termsAccepted: true,
-          passwordHash,
-          avatarUrl,
-          authProvider: 'google',
-          providerId,
-          isEmailVerified,
-          lastLoginAt: new Date(),
-        })
-        doc = await User.findById(created._id).populate('role').lean()
-      } else {
-        try {
-          const dbDoc = await User.findById(doc._id)
-          if (dbDoc) {
-            let newFirst = String(firstName || '').trim()
-            let newLast = String(lastName || '').trim()
-            if (!newFirst || newFirst.toLowerCase() === 'user') {
-              const localPart = String(email).split('@')[0] || ''
-              const tokens = localPart.split(/[._\- ]+/).filter(Boolean)
-              if (tokens.length > 0) newFirst = tokens[0]
-              if (!newLast && tokens.length > 1) newLast = tokens.slice(1).join(' ')
-            }
-            if (newFirst && (!dbDoc.firstName || String(dbDoc.firstName).trim() !== newFirst)) {
-              dbDoc.firstName = newFirst
-              doc.firstName = newFirst
-            }
-            if (newLast && (!dbDoc.lastName || String(dbDoc.lastName).trim() !== newLast)) {
-              dbDoc.lastName = newLast
-              doc.lastName = newLast
-            }
-            if (avatarUrl && !dbDoc.avatarUrl) {
-              dbDoc.avatarUrl = avatarUrl
-              doc.avatarUrl = avatarUrl
-            }
-            dbDoc.authProvider = 'google'
-            if (providerId) dbDoc.providerId = providerId
-            dbDoc.isEmailVerified = isEmailVerified
-            dbDoc.lastLoginAt = new Date()
-            await dbDoc.save()
-            try {
-              doc = await User.findById(doc._id).populate('role').lean()
-            } catch (_) {}
-          }
-        } catch (_) {}
-      }
-      /* else if (avatarUrl && (!doc.avatarUrl || String(doc.avatarUrl) !== avatarUrl)) {
-        try {
-          const dbDoc = await User.findById(doc._id)
-          if (dbDoc) {
-            dbDoc.avatarUrl = avatarUrl
-            await dbDoc.save()
-            doc.avatarUrl = avatarUrl
-          }
-        } catch (_) {}
-      } */
-    } catch (dbErr) {
-      console.error('Google login DB error:', dbErr)
-      return respond.error(res, 500, 'db_error', 'Database error during Google login')
-    }
-    
-    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
-
-    const safe = {
-      id: String(doc._id),
-      role: roleSlug,
-      firstName: doc.firstName,
-      lastName: doc.lastName,
-      email: doc.email,
-      phoneNumber: doc.phoneNumber,
-      termsAccepted: doc.termsAccepted,
-      createdAt: doc.createdAt,
-      avatarUrl: doc.avatarUrl || '',
-      authProvider: doc.authProvider,
-      providerId: doc.providerId,
-      isEmailVerified: doc.isEmailVerified,
-      lastLoginAt: doc.lastLoginAt,
-      deletionPending: !!doc.deletionPending,
-      deletionRequestedAt: doc.deletionRequestedAt,
-      deletionScheduledFor: doc.deletionScheduledFor,
-    }
-    try {
-      const { token, expiresAtMs } = signAccessToken(doc)
-      safe.token = token
-      safe.expiresAt = new Date(expiresAtMs).toISOString()
-    } catch (_) {}
-    return res.json(safe)
-  } catch (err) {
-    console.error('POST /api/auth/login/google error:', err)
-    return respond.error(res, 500, 'google_login_failed', 'Failed to login with Google')
-  }
-})
-
 // POST /api/auth/login/start
-// Step 1 of two-step login: verify credentials, send verification code
+// Step 1 of two-step login: validate credentials, send verification code
+// Also handles '1' shorthand for dev admin
 router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSchema), async (req, res) => {
   try {
     let { email, password } = req.body || {}
+    const bypass = String(req.headers['x-bypass-fingerprint'] || '').toLowerCase() === 'true'
     // already validated
 
     // Ensure email is lowercased for consistency
@@ -382,7 +106,21 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       }
     }
 
-    const doc = await User.findOne({ email })
+    // Use manual populate to handle potential schema mismatches
+    let doc = await User.findOne({ email }).lean()
+    if (doc && doc.role && typeof doc.role === 'string' && !mongoose.Types.ObjectId.isValid(doc.role)) {
+       // Auto-fix bad role data
+       try {
+         const r = await Role.findOne({ slug: doc.role }).lean()
+         if (r) {
+           await User.updateOne({ _id: doc._id }, { role: r._id })
+           doc.role = r
+         }
+       } catch (_) {}
+    } else if (doc && doc.role) {
+       doc.role = await Role.findById(doc.role).lean()
+    }
+
     if (!doc || typeof doc.passwordHash !== 'string' || !doc.passwordHash) {
       return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
     }
@@ -394,8 +132,12 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       match = String(password) === String(doc.passwordHash)
       if (match) {
         try {
-          doc.passwordHash = await bcrypt.hash(password, 10)
-          await doc.save()
+          // doc is plain object, need to find doc to save
+          const dbDoc = await User.findById(doc._id)
+          if (dbDoc) {
+            dbDoc.passwordHash = await bcrypt.hash(password, 10)
+            await dbDoc.save()
+          }
         } catch (_) {}
       }
     }
@@ -417,6 +159,16 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       loginRequests.set(emailKey, { code, expiresAt: expiresAtMs, verified: false, loginToken, userId: String(doc._id) })
     }
 
+    try {
+      // Send verification code via email if no MFA or if this is part of the flow
+      if (!doc.mfaEnabled) {
+        await sendOtp({ to: email, code, subject: 'Your Login Verification Code' })
+      }
+    } catch (mailErr) {
+      console.error('Failed to send login verification email:', mailErr)
+      // Don't block login, but log it. Frontend might need to handle this.
+    }
+
     const payload = { sent: true }
     payload.mfaEnabled = doc.mfaEnabled === true
     try {
@@ -433,7 +185,57 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     return res.json(payload)
   } catch (err) {
     console.error('POST /api/auth/login/start error:', err)
-    return respond.error(res, 500, 'login_start_failed', 'Failed to start login')
+    return respond.error(res, 500, 'login_start_failed', `Failed to start login: ${err.message}`)
+  }
+})
+
+// POST /api/auth/login/resend
+// Resend verification code for an existing login request
+router.post('/login/resend', loginStartLimiter, validateBody(resendCodeSchema), async (req, res) => {
+  try {
+    const { email } = req.body || {}
+    const emailKey = String(email).toLowerCase().trim()
+    const useDB = mongoose.connection && mongoose.connection.readyState === 1
+    let reqObj = null
+    
+    if (useDB) {
+      reqObj = await LoginRequest.findOne({ email: emailKey }).lean()
+    } else {
+      reqObj = loginRequests.get(emailKey)
+    }
+
+    if (!reqObj) return respond.error(res, 404, 'request_not_found', 'No pending login request found. Please log in again.')
+    
+    // Allow resending even if expired, but update expiration. 
+    // Or if strictly expired, force login again. 
+    // Let's force login again if expired significantly, but here we just refresh it.
+    // Actually, if it's expired, the record might be gone if we had TTL, but we handle it manually.
+    
+    const code = generateCode()
+    const expiresAtMs = Date.now() + 10 * 60 * 1000 // 10 minutes refreshed
+    
+    if (useDB) {
+      await LoginRequest.findOneAndUpdate(
+        { email: emailKey },
+        { code, expiresAt: new Date(expiresAtMs) }
+      )
+    } else {
+      reqObj.code = code
+      reqObj.expiresAt = expiresAtMs
+      loginRequests.set(emailKey, reqObj)
+    }
+
+    try {
+      await sendOtp({ to: email, code, subject: 'Your Login Verification Code (Resend)' })
+    } catch (mailErr) {
+      console.error('Failed to resend login email:', mailErr)
+      return respond.error(res, 500, 'email_failed', 'Failed to send email')
+    }
+
+    return res.json({ sent: true })
+  } catch (err) {
+    console.error('POST /api/auth/login/resend error:', err)
+    return respond.error(res, 500, 'resend_failed', 'Failed to resend code')
   }
 })
 
@@ -458,8 +260,27 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
     }
 
     // Load user and return safe object
-    const doc = await User.findOne({ email: emailKey }).populate('role').lean()
+    // Use manual populate to handle potential schema mismatches (e.g. role as string "admin")
+    let doc = await User.findOne({ email: emailKey }).lean()
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+
+    // Auto-fix for legacy/bad data where role is a string slug instead of ObjectId
+    if (doc.role && typeof doc.role === 'string' && !mongoose.Types.ObjectId.isValid(doc.role)) {
+      try {
+        const slug = doc.role
+        const roleDoc = await Role.findOne({ slug }).lean()
+        if (roleDoc) {
+          console.log(`[Auto-Fix] Updating user ${doc.email} role from "${slug}" to ObjectId(${roleDoc._id})`)
+          await User.updateOne({ _id: doc._id }, { role: roleDoc._id })
+          doc.role = roleDoc
+        }
+      } catch (err) {
+        console.warn('Failed to auto-fix user role:', err)
+      }
+    } else if (doc.role) {
+      // Manual populate
+      doc.role = await Role.findById(doc.role).lean()
+    }
     
     const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
 
@@ -489,8 +310,13 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
 
     return res.json(safe)
   } catch (err) {
+    try {
+      const logPath = path.join(process.cwd(), 'backend-error.log')
+      const logMsg = `[${new Date().toISOString()}] login/verify error: ${err.message}\n${err.stack}\n\n`
+      fs.appendFileSync(logPath, logMsg)
+    } catch (_) {}
     console.error('POST /api/auth/login/verify error:', err)
-    return respond.error(res, 500, 'login_verify_failed', 'Failed to verify login code')
+    return respond.error(res, 500, 'login_verify_failed', `Failed to verify login code: ${err.message}`)
   }
 })
 
@@ -540,73 +366,72 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
     return res.json(safe)
   } catch (err) {
     console.error('POST /api/auth/login/verify-totp error:', err)
-    return respond.error(res, 500, 'login_mfa_failed', 'Failed to verify MFA login')
+    return respond.error(res, 500, 'totp_failed', 'Failed to verify TOTP')
   }
 })
 
-const fingerprintCompleteSchema = Joi.object({
-  email: Joi.string().email().required(),
-  token: Joi.string().min(10).required(),
-})
-
-const fingerprintStartSchema = Joi.object({
-  email: Joi.string().email().required(),
-})
-
-router.post('/login/start-fingerprint', validateBody(fingerprintStartSchema), async (req, res) => {
+// POST /api/auth/google
+// Exchange Google ID Token for session
+router.post('/google', validateBody(googleLoginSchema), async (req, res) => {
   try {
-    const { email } = req.body || {}
-    const doc = await User.findOne({ email })
-    if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
-    if (doc.mfaEnabled !== true || (!doc.fprintEnabled && !(String(doc.mfaMethod || '').toLowerCase().includes('fingerprint') || !doc.mfaSecret))) {
-      return respond.error(res, 400, 'fingerprint_not_enabled', 'Fingerprint is not enabled for this account')
-    }
-    const loginToken = generateToken()
-    const expiresAtMs = Date.now() + 5 * 60 * 1000
-    const emailKey = String(email).toLowerCase()
-    const useDB = mongoose.connection && mongoose.connection.readyState === 1
-    if (useDB) {
-      await LoginRequest.findOneAndUpdate(
-        { email: emailKey },
-        { expiresAt: new Date(expiresAtMs), verified: false, loginToken, userId: String(doc._id) },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      )
-    } else {
-      loginRequests.set(emailKey, { expiresAt: expiresAtMs, verified: false, loginToken, userId: String(doc._id) })
-    }
-    return res.json({ token: loginToken, expiresAt: new Date(expiresAtMs).toISOString() })
-  } catch (err) {
-    console.error('POST /api/auth/login/start-fingerprint error:', err)
-    return respond.error(res, 500, 'fingerprint_start_failed', 'Failed to start fingerprint login')
-  }
-})
+    const { idToken, email, providerId, emailVerified, firstName, lastName } = req.body || {}
+    let finalEmail = email
+    let finalSub = providerId
 
-router.post('/login/complete-fingerprint', validateBody(fingerprintCompleteSchema), async (req, res) => {
-  try {
-    const { email, token } = req.body || {}
-    const emailKey = String(email).toLowerCase()
-    const useDB = mongoose.connection && mongoose.connection.readyState === 1
-    let reqObj = null
-    if (useDB) {
-      reqObj = await LoginRequest.findOne({ email: emailKey }).lean()
-      if (!reqObj) return respond.error(res, 404, 'login_request_not_found', 'No login verification request found')
-      if (Date.now() > new Date(reqObj.expiresAt).getTime()) return respond.error(res, 410, 'fingerprint_token_expired', 'Fingerprint login session expired')
-      if (String(reqObj.loginToken) !== String(token)) return respond.error(res, 401, 'invalid_fingerprint_token', 'Invalid fingerprint token')
-    } else {
-      reqObj = loginRequests.get(emailKey)
-      if (!reqObj) return respond.error(res, 404, 'login_request_not_found', 'No login verification request found')
-      if (Date.now() > reqObj.expiresAt) return respond.error(res, 410, 'fingerprint_token_expired', 'Fingerprint login session expired')
-      if (String(reqObj.loginToken) !== String(token)) return respond.error(res, 401, 'invalid_fingerprint_token', 'Invalid fingerprint token')
+    // Verify ID token if provided
+    if (idToken && OAuth2Client) {
+      try {
+        const client = new OAuth2Client()
+        const ticket = await client.verifyIdToken({ idToken, audience: process.env.GOOGLE_CLIENT_ID })
+        const payload = ticket.getPayload()
+        if (payload) {
+          finalEmail = payload.email
+          finalSub = payload.sub
+        }
+      } catch (e) {
+        console.error('Google ID Token verification failed:', e)
+        return respond.error(res, 401, 'invalid_token', 'Invalid Google ID Token')
+      }
     }
+    
+    if (!finalEmail) return respond.error(res, 400, 'email_required', 'Email is required')
 
-  const doc = await User.findOne({ email }).populate('role')
-    if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
-    if (doc.mfaEnabled !== true || (!doc.fprintEnabled && !(String(doc.mfaMethod || '').toLowerCase().includes('fingerprint') || !doc.mfaSecret))) {
-      return respond.error(res, 400, 'fingerprint_not_enabled', 'Fingerprint is not enabled for this account')
+    const emailKey = String(finalEmail).toLowerCase().trim()
+    let doc = await User.findOne({ email: emailKey }).populate('role')
+    
+    if (!doc) {
+      // Create new user via Google
+      const roleSlug = 'user'
+      let roleDoc = await Role.findOne({ slug: roleSlug })
+      if (!roleDoc) roleDoc = await Role.findOne({ slug: 'user' })
+
+      const passwordHash = await bcrypt.hash(generateCode(16), 10) // random password
+      doc = await User.create({
+        role: roleDoc ? roleDoc._id : undefined,
+        firstName: firstName || 'Google',
+        lastName: lastName || 'User',
+        email: emailKey,
+        phoneNumber: '',
+        termsAccepted: true,
+        passwordHash,
+        authProvider: 'google',
+        providerId: finalSub,
+        isEmailVerified: true, // Google verified
+      })
+      // Reload to populate role
+      doc = await User.findById(doc._id).populate('role')
+    } else {
+      // Update existing user
+      if (!doc.authProvider) {
+        doc.authProvider = 'google'
+        doc.providerId = finalSub
+      }
+      doc.isEmailVerified = true
+      doc.lastLoginAt = new Date()
+      await doc.save()
     }
 
     const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
-
     const safe = {
       id: String(doc._id),
       role: roleSlug,
@@ -616,9 +441,6 @@ router.post('/login/complete-fingerprint', validateBody(fingerprintCompleteSchem
       phoneNumber: doc.phoneNumber,
       termsAccepted: doc.termsAccepted,
       createdAt: doc.createdAt,
-      deletionPending: !!doc.deletionPending,
-      deletionRequestedAt: doc.deletionRequestedAt,
-      deletionScheduledFor: doc.deletionScheduledFor,
       avatarUrl: doc.avatarUrl || '',
     }
     try {
@@ -627,13 +449,10 @@ router.post('/login/complete-fingerprint', validateBody(fingerprintCompleteSchem
       safe.expiresAt = new Date(expiresAtMs).toISOString()
     } catch (_) {}
 
-    if (useDB) await LoginRequest.deleteOne({ email: emailKey })
-    else loginRequests.delete(emailKey)
-
     return res.json(safe)
   } catch (err) {
-    console.error('POST /api/auth/login/complete-fingerprint error:', err)
-    return respond.error(res, 500, 'fingerprint_login_failed', 'Failed to complete fingerprint login')
+    console.error('POST /api/auth/google error:', err)
+    return respond.error(res, 500, 'google_login_failed', 'Failed to login with Google')
   }
 })
 

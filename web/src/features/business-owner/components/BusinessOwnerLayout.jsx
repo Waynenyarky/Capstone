@@ -10,23 +10,35 @@ export default function BusinessOwnerLayout({
   pageTitle, 
   businessName,
   sidebarOverrides = {}, 
-  hiddenSidebarKeys = [] 
+  hiddenSidebarKeys = [],
+  hideSidebar = false,
+  hideNotifications = false,
+  hideProfileSettings = false
 }) {
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sidebar 
-        itemOverrides={sidebarOverrides} 
-        hiddenKeys={hiddenSidebarKeys} 
-      />
+      {!hideSidebar && (
+        <Sidebar 
+          itemOverrides={sidebarOverrides} 
+          hiddenKeys={hiddenSidebarKeys} 
+        />
+      )}
       <Layout>
-        <TopBar title={pageTitle} businessName={businessName} />
+        <TopBar 
+          title={pageTitle} 
+          businessName={businessName} 
+          hideNotifications={hideNotifications}
+          hideProfileSettings={hideProfileSettings}
+        />
         <Content style={{ 
-          padding: '24px 40px', 
-          background: '#f5f7fb',
+          padding: '40px', 
+          background: '#f0f2f5',
           overflowY: 'auto',
           height: 'calc(100vh - 64px)'
         }}>
-          {children}
+          <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+            {children}
+          </div>
         </Content>
       </Layout>
     </Layout>

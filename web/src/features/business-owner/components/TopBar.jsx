@@ -1,6 +1,6 @@
 import React from 'react'
 import { Layout, Avatar, Dropdown, Menu, Space, Typography, Badge, Button, Tag } from 'antd'
-import { UserOutlined, BellOutlined, LogoutOutlined, ShopOutlined } from '@ant-design/icons'
+import { UserOutlined, BellOutlined, LogoutOutlined, ShopOutlined, DownOutlined } from '@ant-design/icons'
 import { useAuthSession } from '@/features/authentication'
 import { Link } from 'react-router-dom'
 import { resolveAvatarUrl } from '@/lib/utils'
@@ -8,7 +8,7 @@ import { resolveAvatarUrl } from '@/lib/utils'
 const { Header } = Layout
 const { Text } = Typography
 
-export default function TopBar({ title, businessName }) {
+export default function TopBar({ title, businessName, hideNotifications, hideProfileSettings }) {
   const { currentUser, logout } = useAuthSession()
 
   const initials = React.useMemo(() => {
@@ -21,25 +21,30 @@ export default function TopBar({ title, businessName }) {
     return currentUser?.email?.[0]?.toUpperCase() || 'U'
   }, [currentUser])
 
-  const userMenu = (
-    <Menu items={[
-      {
-        key: 'profile',
-        label: <Link to="/settings-profile">Profile Settings</Link>,
-        icon: <UserOutlined />
-      },
-      {
-        type: 'divider'
-      },
-      {
-        key: 'logout',
-        label: 'Logout',
-        icon: <LogoutOutlined />,
-        danger: true,
-        onClick: logout
-      }
-    ]} />
-  )
+  const userMenuItems = [
+    {
+      key: 'profile',
+      label: <Link to="/settings-profile">Profile Settings</Link>,
+      icon: <UserOutlined />
+    },
+    {
+      type: 'divider'
+    },
+    {
+      key: 'logout',
+      label: 'Logout',
+      icon: <LogoutOutlined />,
+      danger: true,
+      onClick: logout
+    }
+  ]
+
+  // Filter items if hideProfileSettings is true
+  const filteredUserItems = hideProfileSettings 
+    ? userMenuItems.filter(item => item.key === 'logout') 
+    : userMenuItems
+
+  const userMenu = <Menu items={filteredUserItems} />
 
   const notificationMenu = (
     <Menu items={[
@@ -49,50 +54,53 @@ export default function TopBar({ title, businessName }) {
 
   return (
     <Header style={{ 
-      background: '#fff', 
+      background: 'linear-gradient(135deg, #001529 0%, #003a70 100%)', 
       padding: '0 24px', 
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'space-between',
-      borderBottom: '1px solid #f0f0f0',
       height: 64,
       position: 'sticky',
       top: 0,
       zIndex: 10,
-      width: '100%'
+      width: '100%',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
     }}>
       <div style={{ display: 'flex', alignItems: 'center' }}>
-        <Text strong style={{ fontSize: 18, marginRight: 16, textTransform: 'capitalize' }}>{title}</Text>
+        <Text strong style={{ fontSize: 18, marginRight: 16, textTransform: 'capitalize', color: '#fff' }}>{title === 'Business Registration' ? 'BizClear' : title}</Text>
         {businessName && (
-          <Tag icon={<ShopOutlined />} color="blue">
+          <Tag icon={<ShopOutlined />} color="gold">
             {businessName}
           </Tag>
         )}
       </div>
 
       <Space size={24}>
-        <Dropdown menu={{ items: notificationMenu.props.items }} trigger={['click']} placement="bottomRight">
-          <Badge count={0} size="small">
-            <Button type="text" shape="circle" icon={<BellOutlined style={{ fontSize: 20, color: '#666' }} />} />
-          </Badge>
-        </Dropdown>
+        {!hideNotifications && (
+          <Dropdown menu={{ items: notificationMenu.props.items }} trigger={['click']} placement="bottomRight">
+            <Badge count={0} size="small">
+              <Button type="text" shape="circle" icon={<BellOutlined style={{ fontSize: 20, color: '#fff' }} />} />
+            </Badge>
+          </Dropdown>
+        )}
 
         <Dropdown menu={{ items: userMenu.props.items }} placement="bottomRight">
-          <Space style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 4 }} className="hover-bg">
+          <Space style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 4 }} className="hover-bg-dark">
             <Avatar 
               src={currentUser?.avatar ? <img src={resolveAvatarUrl(currentUser?.avatar)} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null} 
-              style={{ backgroundColor: '#1890ff' }}
+              style={{ backgroundColor: '#0050b3', border: '1px solid rgba(255,255,255,0.2)' }}
             >
               {!currentUser?.avatar && initials}
             </Avatar>
             <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-              <Text strong style={{ fontSize: 14 }}>
+              <Text strong style={{ fontSize: 14, color: '#fff' }}>
                 {currentUser?.firstName || currentUser?.name || 'User'}
               </Text>
-              <Text type="secondary" style={{ fontSize: 11 }}>
+              <Text type="secondary" style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)' }}>
                 Business Owner
               </Text>
             </div>
+            <DownOutlined style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', marginLeft: 4 }} />
           </Space>
         </Dropdown>
       </Space>

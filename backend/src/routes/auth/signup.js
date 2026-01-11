@@ -12,6 +12,7 @@ const SignUpRequest = require('../../models/SignUpRequest')
 const respond = require('../../middleware/respond')
 const { validateBody, Joi } = require('../../middleware/validation')
 const { perEmailRateLimit } = require('../../middleware/rateLimit')
+const { signAccessToken } = require('../../middleware/auth')
 
 const router = express.Router()
 
@@ -62,8 +63,13 @@ async function checkExistingEmailBeforeLimiter(req, res, next) {
     if (existing) return respond.error(res, 409, 'email_exists', 'Email already exists')
     return next()
   } catch (err) {
+    try {
+      const logPath = path.join(process.cwd(), 'backend-error.log')
+      const logMsg = `[${new Date().toISOString()}] signup/start checkExistingEmail error: ${err.message}\n${err.stack}\n\n`
+      fs.appendFileSync(logPath, logMsg)
+    } catch (_) {}
     console.error('signup/start duplicate check error:', err)
-    return respond.error(res, 500, 'signup_start_failed', 'Failed to start sign up')
+    return respond.error(res, 500, 'signup_start_failed', `Failed to start sign up: ${err.message}`)
   }
 }
 
@@ -100,37 +106,29 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
       passwordHash,
     })
 
-    // Send verification email automatically
+    const response = {
+      user: {
+        id: String(doc._id),
+        firstName: doc.firstName,
+        lastName: doc.lastName,
+        email: doc.email,
+        phoneNumber: doc.phoneNumber,
+        role: roleSlug,
+        termsAccepted: doc.termsAccepted,
+        isEmailVerified: !!doc.isEmailVerified,
+      }
+    }
+
     try {
-      const secret = process.env.JWT_SECRET || 'dev_secret_change_me'
-      const token = jwt.sign(
-        { sub: doc._id, purpose: 'email-verification' },
-        secret,
-        { expiresIn: '1d' }
-      )
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
-      const link = `${frontendUrl}/verify-email?token=${token}`
-      
-      // Fire and forget - don't block response
-      sendVerificationEmail({ to: doc.email, link }).catch(err => 
-        console.error('Failed to send auto-verification email:', err)
-      )
-    } catch (err) {
-      console.error('Auto-verification setup failed:', err)
-    }
+      // Manually attach role slug for token signing
+      const docForToken = doc.toObject()
+      docForToken.role = { slug: roleSlug }
+      const { token, expiresAtMs } = signAccessToken(docForToken)
+      response.user.token = token
+      response.user.expiresAt = new Date(expiresAtMs).toISOString()
+    } catch (_) {}
 
-    const created = {
-      id: String(doc._id),
-      role: roleSlug,
-      firstName: doc.firstName,
-      lastName: doc.lastName,
-      email: doc.email,
-      phoneNumber: doc.phoneNumber,
-      termsAccepted: doc.termsAccepted,
-      createdAt: doc.createdAt,
-    }
-
-    return res.status(201).json(created)
+    return respond.success(res, 201, response, 'Account created successfully')
   } catch (err) {
     if (err && err.code === 11000) {
       return respond.error(res, 409, 'email_exists', 'Email already exists')
@@ -197,8 +195,13 @@ router.post('/signup/start', validateBody(signupPayloadSchema), checkExistingEma
     await sendOtp({ to: email, code, subject: 'Verify your email' })
     return res.json({ sent: true })
   } catch (err) {
+    try {
+      const logPath = path.join(process.cwd(), 'backend-error.log')
+      const logMsg = `[${new Date().toISOString()}] signup/start error: ${err.message}\n${err.stack}\n\n`
+      fs.appendFileSync(logPath, logMsg)
+    } catch (_) {}
     console.error('POST /api/auth/signup/start error:', err)
-    return respond.error(res, 500, 'signup_start_failed', 'Failed to start sign up')
+    return respond.error(res, 500, 'signup_start_failed', `Failed to start sign up: ${err.message}`)
   }
 })
 

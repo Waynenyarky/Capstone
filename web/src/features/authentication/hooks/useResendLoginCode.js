@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { loginStart } from '@/features/authentication/services/authService'
+import { loginStart, loginResend } from '@/features/authentication/services/authService'
 import { useNotifier } from '@/shared/notifications'
 import useCooldown from './useCooldown'
 
@@ -13,7 +13,7 @@ export function useResendLoginCode({ email, cooldownSec = 60, onSent } = {}) {
     if (isCooling) return
     try {
       setSending(true)
-      const data = await loginStart({ email, password: '' })
+      const data = await loginResend({ email })
       success('Verification code sent')
         // If server provided retry/lock info, prefer it for cooldown
         let cooldownToStart = cooldownSec

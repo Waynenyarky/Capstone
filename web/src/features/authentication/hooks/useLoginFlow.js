@@ -18,16 +18,6 @@ export function useLoginFlow({ onSubmit } = {}) {
   const [serverLockedUntil, setServerLockedUntil] = React.useState(null)
   const [devCode, setDevCode] = React.useState(null)
 
-  const handleVerificationSubmit = React.useCallback((user) => {
-    const remember = rememberMe === true
-    login(user, { remember })
-    success('Logged in successfully')
-    if (remember) rememberEmail(user?.email || emailForVerify)
-    else clearRememberedEmail()
-    if (typeof onSubmit === 'function') onSubmit(user)
-    setStep('login')
-  }, [rememberMe, login, success, rememberEmail, clearRememberedEmail, onSubmit, emailForVerify])
-
   const { form, handleFinish, isSubmitting } = useLogin({
     onBegin: async ({ email, rememberMe: rm, serverData } = {}) => {
       // Called after loginStart succeeds. Decide which verification UI to show.
@@ -126,46 +116,36 @@ export function useLoginFlow({ onSubmit } = {}) {
     }
   })
 
-  const prefillAdmin = () => {
-    form.setFieldsValue({
-      email: 'admin@example.com',
-      password: 'password123',
-    })
-  }
+  const handleVerificationSubmit = React.useCallback((user) => {
+    // Complete login after verification
+    login(user, { remember: rememberMe })
+    // Show success toast on final login completion
+    success('Logged in successfully')
+    if (rememberMe) rememberEmail(emailForVerify)
+    else clearRememberedEmail()
+    if (typeof onSubmit === 'function') onSubmit(user)
+    // Reset step for next time
+    setStep('login')
+  }, [login, rememberMe, emailForVerify, rememberEmail, clearRememberedEmail, success, onSubmit])
 
-  const prefillUser = () => {
-    form.setFieldsValue({
-      email: 'business@example.com',
-      password: 'password123',
-    })
-  }
+  const prefillAdmin = React.useCallback(() => {
+    form.setFieldsValue({ email: '1', password: '1', rememberMe: true })
+    success('Admin credentials prefilled')
+  }, [form, success])
 
-  const prefillLguOfficer = () => {
-    form.setFieldsValue({
-      email: 'officer@example.com',
-      password: 'password123',
-    })
-  }
+  const prefillUser = React.useCallback(() => {
+    form.setFieldsValue({ email: 'jane@example.com', password: 'password123', rememberMe: true })
+    success('User credentials prefilled')
+  }, [form, success])
 
-  const prefillLguManager = () => {
-    form.setFieldsValue({
-      email: 'manager@example.com',
-      password: 'password123',
-    })
-  }
+  const initialValues = React.useMemo(() => ({ rememberMe: !!initialEmail, email: initialEmail }), [initialEmail])
 
-  const prefillInspector = () => {
-    form.setFieldsValue({
-      email: 'inspector@example.com',
-      password: 'password123',
-    })
-  }
-
-  const prefillCso = () => {
-    form.setFieldsValue({
-      email: 'cso@example.com',
-      password: 'password123',
-    })
+  const verificationProps = {
+    email: emailForVerify,
+    title: 'Login Verification',
+    onSubmit: handleVerificationSubmit,
+    otpExpiresAt,
+    serverLockedUntil,
   }
 
   return {
@@ -173,23 +153,10 @@ export function useLoginFlow({ onSubmit } = {}) {
     form,
     handleFinish,
     isSubmitting,
-    initialValues: {
-      email: initialEmail || '',
-      rememberMe: !!initialEmail,
-    },
+    initialValues,
     prefillAdmin,
     prefillUser,
-    prefillLguOfficer,
-    prefillLguManager,
-    prefillInspector,
-    prefillCso,
-    verificationProps: {
-      email: emailForVerify,
-      otpExpiresAt,
-      devCode,
-      onBack: () => setStep('login'),
-      onSubmit: handleVerificationSubmit,
-    },
+    verificationProps,
     serverLockedUntil,
   }
 }

@@ -38,30 +38,6 @@ export default function LoginForm({ onSubmit } = {}) {
   // Show lockout banner above login form when server indicates account is locked
   const banner = serverLockedUntil ? <LockoutBanner lockedUntil={serverLockedUntil} /> : null
 
-  const extraContent = (
-    <Flex gap="small" align="center">
-      <Button size="small" onClick={() => navigate('/')}>Home</Button>
-      <Button size="small" type="link" onClick={() => navigate('/sign-up')}>Sign Up</Button>
-      {import.meta.env.MODE !== 'production' ? (
-        <Dropdown
-          menu={{
-            items: [
-              { key: 'admin', label: 'Admin' },
-              { key: 'user', label: 'User' },
-            ],
-            onClick: ({ key }) => {
-              if (key === 'admin') prefillAdmin()
-              else if (key === 'user') prefillUser()
-            },
-          }}
-          trigger={['click']}
-        >
-          <Button size="small" type="text">Prefill</Button>
-        </Dropdown>
-      ) : null}
-    </Flex>
-  )
-
   return (
     <>
       {banner}
@@ -112,7 +88,6 @@ export default function LoginForm({ onSubmit } = {}) {
             <Text type="secondary">Don't have an account? </Text>
             <Button type="link" onClick={() => navigate('/sign-up')} style={{ padding: 0, fontWeight: 600 }}>Sign up</Button>
           </div>
-
           {/* Dev Prefill Controls - Hidden in production */}
           {import.meta.env.MODE !== 'production' && (
              <div style={{ marginTop: 24, textAlign: 'center', opacity: 0.5 }}>

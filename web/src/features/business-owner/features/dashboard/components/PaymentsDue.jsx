@@ -61,7 +61,7 @@ const PaymentsDue = ({ data }) => {
 
         <Col span={24} style={{ marginTop: 'auto' }}>
           <Space style={{ width: '100%' }} direction="vertical">
-            <Button type="primary" block>Pay Now</Button>
+            <Button type="primary" block style={{ background: '#001529', borderColor: '#001529' }}>Pay Now</Button>
             <Button block>View Receipts</Button>
           </Space>
         </Col>

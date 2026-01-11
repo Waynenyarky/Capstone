@@ -1,5 +1,6 @@
 const express = require('express')
 const bcrypt = require('bcryptjs')
+const mongoose = require('mongoose')
 const User = require('../../models/User')
 const { decryptWithHash, encryptWithHash } = require('../../lib/secretCipher')
 const respond = require('../../middleware/respond')
@@ -452,10 +453,36 @@ router.post('/change-email/confirm/verify', requireJwt, validateBody(changeEmail
 // GET /api/auth/users
 router.get('/users', requireJwt, requireRole(['admin']), async (req, res) => {
   try {
-    const docs = await User.find({}).populate('role').lean()
-    const usersSafe = docs.map((doc) => {
-      const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
-      return {
+    const docs = await User.find({}).lean()
+    
+    // Manually fetch all roles to avoid populate errors with bad data
+    const Role = require('../../models/Role')
+    const allRoles = await Role.find({}).lean()
+    const roleMap = new Map(allRoles.map(r => [String(r._id), r]))
+    const roleSlugMap = new Map(allRoles.map(r => [r.slug, r]))
+
+    const usersSafe = []
+    for (const doc of docs) {
+      let roleData = null
+      
+      // Handle ObjectId reference
+      if (doc.role && mongoose.Types.ObjectId.isValid(doc.role)) {
+        roleData = roleMap.get(String(doc.role))
+      } 
+      // Handle string slug reference (legacy/bad data)
+      else if (doc.role && typeof doc.role === 'string') {
+        roleData = roleSlugMap.get(doc.role)
+        // Auto-fix if we found the role object for this string
+        if (roleData) {
+          try {
+            await User.updateOne({ _id: doc._id }, { role: roleData._id })
+          } catch (_) {}
+        }
+      }
+
+      const roleSlug = roleData ? roleData.slug : 'user'
+      
+      usersSafe.push({
         id: String(doc._id),
         role: roleSlug,
         firstName: doc.firstName,
@@ -465,8 +492,9 @@ router.get('/users', requireJwt, requireRole(['admin']), async (req, res) => {
         isEmailVerified: !!doc.isEmailVerified,
         termsAccepted: doc.termsAccepted,
         createdAt: doc.createdAt,
-      }
-    })
+      })
+    }
+    
     return res.json(usersSafe)
   } catch (err) {
     console.error('GET /api/auth/users error:', err)

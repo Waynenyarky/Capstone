@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import Home from "@/pages/Home.jsx"
 import Dashboard from "@/pages/Dashboard.jsx"
-import { Login, SignUp, ForgotPassword, VerifyEmail, ProtectedRoute, PublicRoute } from "@/features/authentication"
+import { Login, SignUp, ForgotPassword, ProtectedRoute, PublicRoute } from "@/features/authentication"
 import MfaSetup from "@/features/authentication/components/MfaSetup.jsx"
 import AdminDashboard from "@/pages/AdminDashboard.jsx"
 import AdminCreateRole from "@/pages/AdminCreateRole.jsx"
@@ -25,7 +25,6 @@ function App() {
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
       <Route path="/sign-up" element={<PublicRoute><SignUp /></PublicRoute>} />
-      <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/mfa/setup" element={<ProtectedRoute><MfaSetup /></ProtectedRoute>} />
       
       {/* Admin Routes */}

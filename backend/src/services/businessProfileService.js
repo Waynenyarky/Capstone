@@ -64,63 +64,27 @@ class BusinessProfileService {
 
   async updateStep(userId, step, data) {
     let update = {}
+    // If Step 2 (Identity), next is 3 (Consent). If Step 3 (Consent), we are done.
     let nextStep = step + 1
-    let extraData = {}
-
+    
     switch (step) {
       case 2: // Owner Identity
         // System Action: Basic identity validation (e.g. ID number format)
         update['ownerIdentity'] = { ...data, isSubmitted: true }
         break
 
-      case 3: // Business Registration
-        this.validateRegistration(data)
-        update['businessRegistration'] = { ...data, isSubmitted: true }
-        break
-
-      case 4: // Location
-        const jurisdiction = this.determineJurisdiction(data)
-        const inspections = this.determineInspections(data.natureOfBusiness, data.riskCategory)
-        
-        // Merge system-determined data into location (or separate field)
-        // For Clean Arch, we might store this in a separate 'administrative' field, 
-        // but for now we'll append to location or log it.
-        update['location'] = { 
-          ...data, 
-          isSubmitted: true,
-          _assignedLgu: jurisdiction,
-          _requiredInspections: inspections
-        }
-        break
-
-      case 5: // Compliance
-        update['compliance'] = { ...data, isSubmitted: true }
-        break
-
-      case 6: // Profile Details
-        const riskLevel = this.assessRisk(data)
-        update['profileDetails'] = { 
-          ...data, 
-          isSubmitted: true,
-          _assessedRisk: riskLevel
-        }
-        break
-
-      case 7: // Notifications
-        update['notifications'] = { ...data, isSubmitted: true }
-        break
-
-      case 8: // Consent
+      case 3: // Legal Consent (Final Step)
         update['consent'] = { ...data, isSubmitted: true }
-        update['status'] = 'pending_review'
         // System Action: Lock submitted data is implied by status change
+        update['status'] = 'pending_review'
         break
 
       default:
         throw new Error('Invalid step')
     }
 
-    if (step < 8) {
+    // Only advance step if not the final step
+    if (step < 3) {
       update['currentStep'] = nextStep
     }
 

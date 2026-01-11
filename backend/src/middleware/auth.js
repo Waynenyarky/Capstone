@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken')
 
 function signAccessToken(user) {
   const secret = process.env.JWT_SECRET || 'dev_secret_change_me'
-  const ttlMin = Number(process.env.ACCESS_TOKEN_TTL_MINUTES || 60)
+  const ttlMin = Number(process.env.ACCESS_TOKEN_TTL_MINUTES) || 60
   const nowSec = Math.floor(Date.now() / 1000)
   const expSec = nowSec + Math.max(1, ttlMin) * 60
   const payload = {

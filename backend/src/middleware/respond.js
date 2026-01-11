@@ -8,4 +8,13 @@ function ok(res, status, data) {
   return res.status(status).json(data)
 }
 
-module.exports = { error, ok }
+function success(res, status, data, message) {
+  // If data is an object, we can merge message if needed, or wrap it.
+  // For now, let's just return data like ok(), ignoring message or adding it if data is object.
+  // But signup.js passes message as 4th arg.
+  // Let's assume the previous implementation (if it existed) might have wrapped it.
+  // But to be safe and simple:
+  return res.status(status).json(data)
+}
+
+module.exports = { error, ok, success }

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { Layout, Row, Col, Card, Button, Typography, Space, Spin, message, Result } from 'antd'
+import { Layout, Row, Col, Card, Button, Typography, Space, Spin, message } from 'antd'
 import { Link, useNavigate } from 'react-router-dom'
-import { FormOutlined, MailOutlined } from '@ant-design/icons'
+import { FormOutlined } from '@ant-design/icons'
 import { useAuthSession } from '@/features/authentication/hooks'
 import BusinessOwnerLayout from '../components/BusinessOwnerLayout'
 import BusinessRegistrationWizard from '../components/BusinessRegistrationWizard'
@@ -30,47 +30,9 @@ export default function BusinessOwnerDashboard() {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(null)
-  const [sending, setSending] = useState(false)
-  const [checking, setChecking] = useState(false)
   
   // Dashboard Data Hook
   const { loading: dashboardLoading, data: dashboardData } = useDashboardData()
-
-  const handleSendLink = async () => {
-    try {
-      setSending(true)
-      await post('/api/auth/send-verification-email')
-      message.success('Verification link sent! Please check your email.')
-    } catch (err) {
-      if (err.message && (err.message.includes('Unauthorized') || err.message.includes('missing token'))) {
-        logout()
-        return
-      }
-      message.error(err.message || 'Failed to send verification link.')
-    } finally {
-      setSending(false)
-    }
-  }
-
-  const handleCheckVerified = async () => {
-    try {
-      setChecking(true)
-      const freshUser = await get('/api/auth/me')
-      if (freshUser && freshUser.isEmailVerified) {
-        // Preserve the existing token!
-        login({ ...freshUser, token: currentUser?.token })
-        message.success('Verified! Refreshing...')
-        window.location.reload()
-      } else {
-        message.warning('Email still not verified. Please check your inbox.')
-      }
-    } catch (err) {
-      console.error(err)
-      message.error('Failed to check status. Please reload.')
-    } finally {
-      setChecking(false)
-    }
-  }
 
   // Listen for verification from other tabs
   useEffect(() => {
@@ -132,44 +94,6 @@ export default function BusinessOwnerDashboard() {
   // Hide everything except dashboard (which shows the wizard) and logout
   const RESTRICTED_SIDEBAR_KEYS = ['permit-apps', 'cessation', 'payments', 'appeals', 'profile']
 
-  // Ensure email is verified before allowing business registration
-  if (!currentUser.isEmailVerified) {
-    return (
-      <Layout style={{ minHeight: '100vh', background: '#f5f7fb' }}>
-        <Sidebar 
-          hiddenKeys={RESTRICTED_SIDEBAR_KEYS} 
-          itemOverrides={{ dashboard: { label: 'Verification', icon: <MailOutlined /> } }}
-        />
-        <Layout.Content style={{ padding: '40px 60px' }}>
-          <div style={{ margin: '48px auto', textAlign: 'center' }}>
-            <Card>
-              <Result
-                status="info"
-                title="Please Verify Your Email"
-                subTitle={
-                  <span>
-                  To proceed with your business registration, you must verify your email address. <br />
-                  Click the button below to send a verification link to <b>{currentUser.email}</b>.
-                </span>
-                }
-                extra={
-                  <Space>
-                  <Button loading={sending} onClick={handleSendLink}>
-                    Send Verification Link
-                  </Button>
-                  <Button type="primary" loading={checking} onClick={handleCheckVerified}>
-                    I have verified my email
-                  </Button>
-                </Space>
-                }
-              />
-            </Card>
-          </div>
-        </Layout.Content>
-      </Layout>
-    )
-  }
-
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -197,6 +121,9 @@ export default function BusinessOwnerDashboard() {
         pageTitle="Business Registration"
         hiddenSidebarKeys={RESTRICTED_SIDEBAR_KEYS}
         sidebarOverrides={{ dashboard: { label: 'Business Registration', icon: <FormOutlined /> } }}
+        hideSidebar={true}
+        hideNotifications={true}
+        hideProfileSettings={true}
       >
           <div>
             <Title level={2} style={{ marginBottom: 32 }}>Complete Business Registration</Title>
@@ -219,11 +146,11 @@ export default function BusinessOwnerDashboard() {
           <div style={{ paddingBottom: 24 }}>
             <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'end' }}>
               <div>
-                <Title level={2} style={{ margin: 0 }}>Welcome back, {currentUser?.firstName || 'Owner'}</Title>
+                <Title level={2} style={{ margin: 0, color: '#001529' }}>Welcome back, {currentUser?.firstName || 'Owner'}</Title>
                 <Paragraph type="secondary" style={{ fontSize: 16, margin: 0 }}>Here is your business overview for {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</Paragraph>
               </div>
               <Space>
-                 <Button type="primary" size="large">New Application</Button>
+                 <Button type="primary" size="large" style={{ background: '#001529', borderColor: '#001529' }}>New Application</Button>
               </Space>
             </div>
 

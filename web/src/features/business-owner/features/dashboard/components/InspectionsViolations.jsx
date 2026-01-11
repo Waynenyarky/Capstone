@@ -80,7 +80,7 @@ const InspectionsViolations = ({ data }) => {
         <Col span={24} style={{ marginTop: 'auto' }}>
           <Space style={{ width: '100%' }} direction="vertical">
             <Button block>View Inspection Reports</Button>
-            <Button type="primary" ghost block>Submit Compliance Evidence</Button>
+            <Button type="primary" ghost block style={{ color: '#001529', borderColor: '#001529' }}>Submit Compliance Evidence</Button>
           </Space>
         </Col>
       </Row>

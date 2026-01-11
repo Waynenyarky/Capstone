@@ -54,7 +54,7 @@ const ComplianceStatus = ({ data }) => {
               </div>
 
               <div style={{ paddingTop: 8 }}>
-                 <Button type="primary" size="large" block danger={data.status !== 'Compliant'}>
+                 <Button type="primary" size="large" block danger={data.status !== 'Compliant'} style={data.status === 'Compliant' ? { background: '#001529', borderColor: '#001529' } : {}}>
                    {data.status === 'Compliant' ? 'View Certificate' : 'Resolve Issue'}
                  </Button>
               </div>

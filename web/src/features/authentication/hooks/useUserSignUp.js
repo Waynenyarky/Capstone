@@ -19,7 +19,7 @@ export function useUserSignUp({ onBegin, onSubmit } = {}) {
       phoneNumber: values.phoneNumber,
       password: values.password,
       termsAccepted: values.termsAndConditions === true,
-      role: values.role || (values.isBusinessOwner ? 'business_owner' : 'user'),
+      role: values.role || 'business_owner',
     }
 
     try {
@@ -61,20 +61,5 @@ export function useUserSignUp({ onBegin, onSubmit } = {}) {
     }
   }
 
-  const prefillDemo = () => {
-    try {
-      form.setFieldsValue({
-        firstName: 'Jane',
-        lastName: 'Doe',
-        email: 'jane@example.com',
-        phoneNumber: '5550101',
-        password: 'StrongPass1!',
-        confirmPassword: 'StrongPass1!',
-        termsAndConditions: true,
-        isBusinessOwner: true,
-      })
-    } catch (err) { void err }
-  }
-
-  return { form, handleFinish, isSubmitting, prefillDemo }
+  return { form, handleFinish, isSubmitting }
 }

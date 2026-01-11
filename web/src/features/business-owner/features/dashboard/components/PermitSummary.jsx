@@ -34,9 +34,9 @@ const PermitSummary = ({ data }) => {
 
   return (
     <Card 
-      title={<Space><FileProtectOutlined style={{ color: '#1890ff' }} /> Permit Summary</Space>}
+      title={<Space><FileProtectOutlined style={{ color: '#001529' }} /> Permit Summary</Space>}
       extra={<Button type="link" size="small">View All</Button>}
-      style={{ height: '100%' }}
+      style={{ height: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
     >
       <Row gutter={[16, 24]}>
         <Col span={24}>
@@ -45,7 +45,7 @@ const PermitSummary = ({ data }) => {
               <Statistic title="Active" value={data.active} valueStyle={{ color: '#3f8600' }} />
             </Col>
             <Col span={8} style={{ textAlign: 'center', borderLeft: '1px solid #f0f0f0', borderRight: '1px solid #f0f0f0' }}>
-              <Statistic title="Pending" value={data.pending} valueStyle={{ color: '#1890ff' }} />
+              <Statistic title="Pending" value={data.pending} valueStyle={{ color: '#faad14' }} />
             </Col>
             <Col span={8} style={{ textAlign: 'center' }}>
               <Statistic title="Expiring" value={data.expiring} valueStyle={{ color: '#cf1322' }} />
@@ -66,7 +66,7 @@ const PermitSummary = ({ data }) => {
 
         <Col span={24} style={{ marginTop: 'auto' }}>
           <Space style={{ width: '100%' }} direction="vertical">
-            <Button type="primary" block>Apply for New Permit</Button>
+            <Button type="primary" block style={{ background: '#001529', borderColor: '#001529' }}>Apply for New Permit</Button>
             <Button block>Renew Existing Permits</Button>
           </Space>
         </Col>

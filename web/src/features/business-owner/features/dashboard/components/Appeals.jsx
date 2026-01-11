@@ -48,7 +48,7 @@ const Appeals = ({ data }) => {
 
         <Col span={24}>
           <Space style={{ width: '100%' }}>
-            <Button type="primary" block>File Appeal</Button>
+            <Button type="primary" block style={{ background: '#001529', borderColor: '#001529' }}>File Appeal</Button>
             <Button block>Status</Button>
           </Space>
         </Col>

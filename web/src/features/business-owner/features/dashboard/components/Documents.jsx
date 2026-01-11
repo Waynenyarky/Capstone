@@ -7,9 +7,9 @@ const Documents = ({ data }) => {
 
   return (
     <Card 
-      title={<Space><FolderOpenOutlined /> Recent Documents</Space>}
+      title={<Space><FolderOpenOutlined style={{ color: '#001529' }} /> Recent Documents</Space>}
       extra={<Button type="link" size="small">All Files</Button>}
-      style={{ height: '100%' }}
+      style={{ height: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
     >
       <List
         dataSource={data}

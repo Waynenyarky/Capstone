@@ -49,6 +49,14 @@ export async function loginStart(payload) {
   })
 }
 
+export async function loginResend(payload) {
+  return await fetchJsonWithFallback('/api/auth/login/resend', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function loginPost(payload) {
   return await fetchJsonWithFallback('/api/auth/login', {
     method: 'POST',

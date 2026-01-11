@@ -24,7 +24,7 @@ export default function Login() {
       return
     }
 
-    navigate('/dashboard')
+    navigate('/owner')
   }, [navigate])
 
   return (

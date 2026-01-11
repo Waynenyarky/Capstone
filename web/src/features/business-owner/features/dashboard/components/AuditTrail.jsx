@@ -9,8 +9,8 @@ const AuditTrail = ({ data }) => {
 
   return (
     <Card 
-      title={<Space><HistoryOutlined style={{ color: '#1890ff' }} /> Recent Activities</Space>}
-      style={{ height: '100%' }}
+      title={<Space><HistoryOutlined style={{ color: '#001529' }} /> Recent Activities</Space>}
+      style={{ height: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
       extra={<Button type="link" size="small">View Full Log</Button>}
     >
       <Timeline

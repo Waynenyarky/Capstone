@@ -9,14 +9,15 @@ const AISuggestions = ({ data }) => {
 
   return (
     <Card 
-      title={<Space><BulbOutlined style={{ color: '#722ed1' }} /> Smart Insights</Space>}
+      title={<Space><BulbOutlined style={{ color: '#001529' }} /> Smart Insights</Space>}
       variant="borderless"
       style={{ 
         marginTop: 24, 
-        background: 'linear-gradient(to right, #f9f0ff, #ffffff)', 
-        border: '1px solid #d3adf7' 
+        background: 'linear-gradient(to right, #f0f5ff, #ffffff)', 
+        border: '1px solid #d6e4ff',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
       }}
-      extra={<Badge count={data.length} style={{ backgroundColor: '#722ed1' }} />}
+      extra={<Badge count={data.length} style={{ backgroundColor: '#faad14' }} />}
     >
       <Row gutter={[24, 24]}>
         {data.map(item => (
@@ -24,7 +25,7 @@ const AISuggestions = ({ data }) => {
              <Card 
                hoverable 
                style={{ height: '100%', borderColor: item.type === 'warning' ? '#ffccc7' : '#d9f7be' }}
-               styles={{ body: { padding: '16px' } }}
+               bodyStyle={{ padding: '16px' }}
              >
                <Space direction="vertical" style={{ width: '100%' }}>
                  <Space align="start">
