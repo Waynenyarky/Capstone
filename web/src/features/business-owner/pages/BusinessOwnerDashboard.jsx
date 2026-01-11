@@ -1,11 +1,26 @@
 import React, { useEffect, useState } from 'react'
 import { Layout, Row, Col, Card, Button, Typography, Space, Spin, message, Result } from 'antd'
 import { Link, useNavigate } from 'react-router-dom'
-import Sidebar from '@/features/authentication/components/Sidebar'
+import { FormOutlined, MailOutlined } from '@ant-design/icons'
 import { useAuthSession } from '@/features/authentication/hooks'
+import BusinessOwnerLayout from '../components/BusinessOwnerLayout'
 import BusinessRegistrationWizard from '../components/BusinessRegistrationWizard'
+import Sidebar from '@/features/authentication/components/Sidebar'
 import { getBusinessProfile } from '../services/businessProfileService'
 import { post, get } from '@/lib/http'
+
+// Dashboard Feature Imports
+import { useDashboardData } from '../features/dashboard/hooks/useDashboardData'
+import ComplianceStatus from '../features/dashboard/components/ComplianceStatus'
+import PermitSummary from '../features/dashboard/components/PermitSummary'
+import PaymentsDue from '../features/dashboard/components/PaymentsDue'
+import InspectionsViolations from '../features/dashboard/components/InspectionsViolations'
+import Appeals from '../features/dashboard/components/Appeals'
+import Notifications from '../features/dashboard/components/Notifications'
+import BusinessProfile from '../features/dashboard/components/BusinessProfile'
+import Documents from '../features/dashboard/components/Documents'
+import AuditTrail from '../features/dashboard/components/AuditTrail'
+import AISuggestions from '../features/dashboard/components/AISuggestions'
 
 const { Title, Paragraph } = Typography
 
@@ -17,6 +32,9 @@ export default function BusinessOwnerDashboard() {
   const [fetchError, setFetchError] = useState(null)
   const [sending, setSending] = useState(false)
   const [checking, setChecking] = useState(false)
+  
+  // Dashboard Data Hook
+  const { loading: dashboardLoading, data: dashboardData } = useDashboardData()
 
   const handleSendLink = async () => {
     try {
@@ -24,6 +42,10 @@ export default function BusinessOwnerDashboard() {
       await post('/api/auth/send-verification-email')
       message.success('Verification link sent! Please check your email.')
     } catch (err) {
+      if (err.message && (err.message.includes('Unauthorized') || err.message.includes('missing token'))) {
+        logout()
+        return
+      }
       message.error(err.message || 'Failed to send verification link.')
     } finally {
       setSending(false)
@@ -88,11 +110,15 @@ export default function BusinessOwnerDashboard() {
         .then(setProfile)
         .catch(err => {
           console.error(err)
+          if (err.message && (err.message.includes('Unauthorized') || err.message.includes('missing token'))) {
+             logout()
+             return
+          }
           setFetchError(err)
         })
         .finally(() => setLoading(false))
     }
-  }, [currentUser, role, navigate])
+  }, [currentUser, role, navigate, logout])
 
   if (!currentUser || role !== 'business_owner') {
     return (
@@ -102,15 +128,20 @@ export default function BusinessOwnerDashboard() {
     )
   }
 
+  // Keys to hide if business registration is not complete
+  // Hide everything except dashboard (which shows the wizard) and logout
+  const RESTRICTED_SIDEBAR_KEYS = ['permit-apps', 'cessation', 'payments', 'appeals', 'profile']
+
   // Ensure email is verified before allowing business registration
   if (!currentUser.isEmailVerified) {
     return (
       <Layout style={{ minHeight: '100vh', background: '#f5f7fb' }}>
-        <Layout.Sider width={260} style={{ background: '#fff' }}>
-          <Sidebar />
-        </Layout.Sider>
-        <Layout.Content style={{ padding: 32 }}>
-          <div style={{ maxWidth: 800, margin: '48px auto', textAlign: 'center' }}>
+        <Sidebar 
+          hiddenKeys={RESTRICTED_SIDEBAR_KEYS} 
+          itemOverrides={{ dashboard: { label: 'Verification', icon: <MailOutlined /> } }}
+        />
+        <Layout.Content style={{ padding: '40px 60px' }}>
+          <div style={{ margin: '48px auto', textAlign: 'center' }}>
             <Card>
               <Result
                 status="info"
@@ -149,118 +180,104 @@ export default function BusinessOwnerDashboard() {
 
   if (fetchError) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <Title level={4} type="danger">Failed to load profile</Title>
-        <Paragraph>{fetchError.message || 'Unknown error occurred'}</Paragraph>
-        <Button type="primary" onClick={() => window.location.reload()}>Retry</Button>
-      </div>
+      <BusinessOwnerLayout pageTitle="Error">
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+          <Title level={4} type="danger">Failed to load profile</Title>
+          <Paragraph>{fetchError.message || 'Unknown error occurred'}</Paragraph>
+          <Button type="primary" onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      </BusinessOwnerLayout>
     )
   }
 
   // If profile is not yet created (null) or in draft/revision mode, show the registration wizard
   if (!profile || profile.status === 'draft' || profile.status === 'needs_revision') {
     return (
-      <Layout style={{ minHeight: '100vh', background: '#f5f7fb' }}>
-        <Layout.Sider width={260} style={{ background: '#fff' }}>
-          <Sidebar />
-        </Layout.Sider>
-        <Layout.Content style={{ padding: 32 }}>
-          <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+      <BusinessOwnerLayout
+        pageTitle="Business Registration"
+        hiddenSidebarKeys={RESTRICTED_SIDEBAR_KEYS}
+        sidebarOverrides={{ dashboard: { label: 'Business Registration', icon: <FormOutlined /> } }}
+      >
+          <div>
             <Title level={2} style={{ marginBottom: 32 }}>Complete Business Registration</Title>
             <BusinessRegistrationWizard onComplete={() => window.location.reload()} />
           </div>
-        </Layout.Content>
-      </Layout>
+      </BusinessOwnerLayout>
     )
   }
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#f5f7fb' }}>
-      <Layout.Sider width={260} style={{ background: '#fff' }}>
-        <Sidebar />
-      </Layout.Sider>
-      <Layout.Content style={{ padding: 32 }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-          <div style={{ marginBottom: 18 }}>
-            <Title level={2}>Business Owner</Title>
-            <Paragraph type="secondary">Quick links for Business Owner workspace.</Paragraph>
+    <BusinessOwnerLayout 
+      pageTitle="Dashboard" 
+      businessName={profile?.businessName}
+    >
+        {dashboardLoading ? (
+           <div style={{ textAlign: 'center', padding: 50 }}>
+             <Spin size="large" />
+           </div>
+        ) : (
+          <div style={{ paddingBottom: 24 }}>
+            <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'end' }}>
+              <div>
+                <Title level={2} style={{ margin: 0 }}>Welcome back, {currentUser?.firstName || 'Owner'}</Title>
+                <Paragraph type="secondary" style={{ fontSize: 16, margin: 0 }}>Here is your business overview for {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</Paragraph>
+              </div>
+              <Space>
+                 <Button type="primary" size="large">New Application</Button>
+              </Space>
+            </div>
+
+            {/* Compliance Status (Top Priority) */}
+            <div style={{ marginBottom: 24 }}>
+               <ComplianceStatus data={dashboardData?.compliance} />
+            </div>
+
+            <Row gutter={[24, 24]}>
+              {/* Permit Summary */}
+              <Col xs={24} lg={12} xl={8}>
+                 <PermitSummary data={dashboardData?.permits} />
+              </Col>
+
+              {/* Payments Due */}
+              <Col xs={24} lg={12} xl={8}>
+                 <PaymentsDue data={dashboardData?.payments} />
+              </Col>
+
+              {/* Inspections & Violations */}
+              <Col xs={24} lg={12} xl={8}>
+                 <InspectionsViolations data={dashboardData?.inspections} />
+              </Col>
+
+              {/* Appeals */}
+              <Col xs={24} lg={12} xl={8}>
+                 <Appeals data={dashboardData?.appeals} />
+              </Col>
+
+              {/* Notifications */}
+              <Col xs={24} lg={12} xl={8}>
+                 <Notifications data={dashboardData?.notifications} />
+              </Col>
+
+              {/* Business Profile */}
+              <Col xs={24} lg={12} xl={8}>
+                 <BusinessProfile data={dashboardData?.businessProfile} />
+              </Col>
+
+              {/* Documents */}
+              <Col xs={24} lg={12} xl={12}>
+                 <Documents data={dashboardData?.documents} />
+              </Col>
+
+              {/* Audit Trail */}
+              <Col xs={24} lg={12} xl={12}>
+                 <AuditTrail data={dashboardData?.auditTrail} />
+              </Col>
+            </Row>
+
+            {/* AI Suggestions (Bottom) */}
+            <AISuggestions data={dashboardData?.aiSuggestions} />
           </div>
-
-          <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
-                <Space direction="vertical">
-                  <Title level={5} style={{ margin: 0 }}>Dashboard</Title>
-                  <Paragraph type="secondary" style={{ margin: 0 }}>Overview and stats</Paragraph>
-                  <div style={{ marginTop: 8 }}>
-                    <Button type="primary">Open</Button>
-                  </div>
-                </Space>
-              </Card>
-            </Col>
-
-            <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
-                <Space direction="vertical">
-                  <Title level={5} style={{ margin: 0 }}>Permit Applications</Title>
-                  <Paragraph type="secondary" style={{ margin: 0 }}>View and manage permits</Paragraph>
-                  <div style={{ marginTop: 8 }}>
-                    <Button>Open</Button>
-                  </div>
-                </Space>
-              </Card>
-            </Col>
-
-            <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
-                <Space direction="vertical">
-                  <Title level={5} style={{ margin: 0 }}>Cessation</Title>
-                  <Paragraph type="secondary" style={{ margin: 0 }}>Manage cessations</Paragraph>
-                  <div style={{ marginTop: 8 }}>
-                    <Button>Open</Button>
-                  </div>
-                </Space>
-              </Card>
-            </Col>
-
-            <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
-                <Space direction="vertical">
-                  <Title level={5} style={{ margin: 0 }}>Payments</Title>
-                  <Paragraph type="secondary" style={{ margin: 0 }}>Payment history and actions</Paragraph>
-                  <div style={{ marginTop: 8 }}>
-                    <Button>Open</Button>
-                  </div>
-                </Space>
-              </Card>
-            </Col>
-
-            <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
-                <Space direction="vertical">
-                  <Title level={5} style={{ margin: 0 }}>Appeals</Title>
-                  <Paragraph type="secondary" style={{ margin: 0 }}>Submit or track appeals</Paragraph>
-                  <div style={{ marginTop: 8 }}>
-                    <Button>Open</Button>
-                  </div>
-                </Space>
-              </Card>
-            </Col>
-
-            <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
-                <Space direction="vertical">
-                  <Title level={5} style={{ margin: 0 }}>Profile / Settings</Title>
-                  <Paragraph type="secondary" style={{ margin: 0 }}>Manage profile and MFA</Paragraph>
-                  <div style={{ marginTop: 8 }}>
-                    <Link to="/profile-static"><Button>Open</Button></Link>
-                  </div>
-                </Space>
-              </Card>
-            </Col>
-          </Row>
-        </div>
-      </Layout.Content>
-    </Layout>
+        )}
+    </BusinessOwnerLayout>
   )
 }

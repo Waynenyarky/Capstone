@@ -19,7 +19,7 @@ export default function AdminCreateRole() {
             </div>
           </div>
 
-          <Card bodyStyle={{ padding: 20, borderRadius: 8 }}>
+          <Card styles={{ body: { padding: 20, borderRadius: 8 } }}>
             <Form layout="vertical" onFinish={noop}>
               <Form.Item label="Name" name="name" rules={[{ required: true, message: 'Please enter a name' }]}>
                 <Input placeholder="Full name" />

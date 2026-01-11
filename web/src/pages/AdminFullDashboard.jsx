@@ -8,9 +8,7 @@ const { Title, Paragraph } = Typography
 export default function AdminFullDashboard() {
   return (
     <Layout style={{ minHeight: '100vh', background: '#f5f7fb' }}>
-      <Layout.Sider width={260} style={{ background: '#fff' }}>
-        <Sidebar />
-      </Layout.Sider>
+      <Sidebar />
       <Layout.Content style={{ padding: 32 }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ marginBottom: 18 }}>
@@ -23,7 +21,7 @@ export default function AdminFullDashboard() {
 
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
+              <Card hoverable styles={{ body: { padding: 12 } }}>
                 <Space direction="vertical">
                   <Title level={5} style={{ margin: 0 }}>Dashboard</Title>
                   <Paragraph type="secondary" style={{ margin: 0 }}>System overview and metrics</Paragraph>
@@ -35,7 +33,7 @@ export default function AdminFullDashboard() {
             </Col>
 
             <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
+              <Card hoverable styles={{ body: { padding: 12 } }}>
                 <Space direction="vertical">
                   <Title level={5} style={{ margin: 0 }}>User Management</Title>
                   <Paragraph type="secondary" style={{ margin: 0 }}>Manage user accounts and roles</Paragraph>
@@ -47,7 +45,7 @@ export default function AdminFullDashboard() {
             </Col>
 
             <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
+              <Card hoverable styles={{ body: { padding: 12 } }}>
                 <Space direction="vertical">
                   <Title level={5} style={{ margin: 0 }}>Permit Applications</Title>
                   <Paragraph type="secondary" style={{ margin: 0 }}>View and manage permit applications</Paragraph>
@@ -59,7 +57,7 @@ export default function AdminFullDashboard() {
             </Col>
 
             <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
+              <Card hoverable styles={{ body: { padding: 12 } }}>
                 <Space direction="vertical">
                   <Title level={5} style={{ margin: 0 }}>Cessation</Title>
                   <Paragraph type="secondary" style={{ margin: 0 }}>Manage cessations and related workflow</Paragraph>
@@ -71,7 +69,7 @@ export default function AdminFullDashboard() {
             </Col>
 
             <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
+              <Card hoverable styles={{ body: { padding: 12 } }}>
                 <Space direction="vertical">
                   <Title level={5} style={{ margin: 0 }}>Payments</Title>
                   <Paragraph type="secondary" style={{ margin: 0 }}>Review and reconcile payments</Paragraph>
@@ -83,7 +81,7 @@ export default function AdminFullDashboard() {
             </Col>
 
             <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
+              <Card hoverable styles={{ body: { padding: 12 } }}>
                 <Space direction="vertical">
                   <Title level={5} style={{ margin: 0 }}>Violations / Inspections</Title>
                   <Paragraph type="secondary" style={{ margin: 0 }}>Manage violations and inspection records</Paragraph>
@@ -95,7 +93,7 @@ export default function AdminFullDashboard() {
             </Col>
 
             <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
+              <Card hoverable styles={{ body: { padding: 12 } }}>
                 <Space direction="vertical">
                   <Title level={5} style={{ margin: 0 }}>Appeals</Title>
                   <Paragraph type="secondary" style={{ margin: 0 }}>Review and manage appeals</Paragraph>
@@ -107,7 +105,7 @@ export default function AdminFullDashboard() {
             </Col>
 
             <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
+              <Card hoverable styles={{ body: { padding: 12 } }}>
                 <Space direction="vertical">
                   <Title level={5} style={{ margin: 0 }}>Reports / Analytics</Title>
                   <Paragraph type="secondary" style={{ margin: 0 }}>Generate reports and analytics</Paragraph>
@@ -119,7 +117,7 @@ export default function AdminFullDashboard() {
             </Col>
 
             <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
+              <Card hoverable styles={{ body: { padding: 12 } }}>
                 <Space direction="vertical">
                   <Title level={5} style={{ margin: 0 }}>Profile / Settings</Title>
                   <Paragraph type="secondary" style={{ margin: 0 }}>Manage admin profile and MFA</Paragraph>

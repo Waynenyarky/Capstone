@@ -1,6 +1,6 @@
 // UserSignUpForm.jsx
 import React from 'react'
-import { Form, Input, Card, Flex, Button, Checkbox, Typography } from 'antd'
+import { Form, Input, Card, Flex, Button, Checkbox, Typography, Row, Col } from 'antd'
 import { useNavigate } from 'react-router-dom'
 
 import { useUserSignUp, useUserSignUpFlow } from '@/features/authentication/hooks'
@@ -13,9 +13,12 @@ import {
   signUpPasswordRules as passwordRules,
   signUpConfirmPasswordRules,
   termsRules,
+  businessOwnerRequiredRules,
 } from '@/features/authentication/validations'
 
 import { preventNonNumericKeyDown, sanitizePhonePaste, sanitizePhoneInput } from '@/shared/forms'
+
+const { Title, Text, Paragraph } = Typography
 
 export default function UserSignUpForm() {
   const navigate = useNavigate()
@@ -38,52 +41,13 @@ export default function UserSignUpForm() {
     )
   }
 
-  const navButtonStyle = {
-    background: 'transparent',
-    border: '1px solid rgba(255,255,255,0.08)',
-    color: '#bfc6ff',
-    padding: '4px 10px',
-    borderRadius: 6,
-  }
-
-  const linkButtonStyle = {
-    color: '#9bd1ff',
-    padding: '4px 8px',
-  }
-
-  const demoButtonStyle = {
-    background: 'linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))',
-    border: '1px solid rgba(255,255,255,0.04)',
-    color: '#dfe8ff',
-    padding: '4px 10px',
-    borderRadius: 6,
-  }
-
   const extraContent = (
     <Flex gap="small" align="center">
-      <Button size="small" onClick={() => navigate('/')} style={navButtonStyle} aria-label="Home">Home</Button>
-      <Button size="small" type="link" onClick={() => navigate('/login')} style={linkButtonStyle} aria-label="Login">Login</Button>
-      <Button size="small" onClick={prefillDemo} style={demoButtonStyle} aria-label="Prefill Demo">Prefill Demo</Button>
+      <Button size="small" onClick={() => navigate('/')}>Home</Button>
+      <Button size="small" type="link" onClick={() => navigate('/login')}>Login</Button>
+      <Button size="small" onClick={prefillDemo}>Prefill Demo</Button>
     </Flex>
   )
-
-  // Styles
-  const inputStyle = {
-    background: 'rgba(255,255,255,0.03)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    color: '#ffffff',
-    borderRadius: 6,
-    paddingLeft: 12,
-  }
-
-  const labelStyle = { color: '#c9d0ff', fontWeight: 600 }
-
-  const sendButtonStyle = {
-    backgroundColor: '#9bd1ff',
-    borderColor: '#9bd1ff',
-    color: '#071033',
-    fontWeight: 700,
-  }
 
   // Render verification step if required by the flow
   if (step === 'verify') {
@@ -98,103 +62,94 @@ export default function UserSignUpForm() {
   }
 
   return (
-    <Card
-      extra={extraContent}
-      style={{ background: 'transparent', border: 'none' }}
-      bodyStyle={{ background: 'rgba(10,8,24,0.6)', borderRadius: 8, padding: 16 }}
-    >
-      {/* Placeholder styles for inputs (ensure Password placeholders are white too) */}
-      <style>{`
-        .bizclear-input::placeholder,
-        .bizclear-input input::placeholder,
-        .ant-input::placeholder,
-        .ant-input input::placeholder,
-        .ant-input-password input::placeholder {
-          color: #ffffff !important;
-          opacity: 1;
-        }
-        .bizclear-input::-webkit-input-placeholder,
-        .bizclear-input input::-webkit-input-placeholder,
-        .ant-input::-webkit-input-placeholder,
-        .ant-input input::-webkit-input-placeholder,
-        .ant-input-password input::-webkit-input-placeholder {
-          color: #ffffff !important;
-        }
-        .bizclear-input:-ms-input-placeholder,
-        .bizclear-input input:-ms-input-placeholder,
-        .ant-input:-ms-input-placeholder,
-        .ant-input input:-ms-input-placeholder,
-        .ant-input-password input:-ms-input-placeholder {
-          color: #ffffff !important;
-        }
-        .bizclear-input::-ms-input-placeholder,
-        .bizclear-input input::-ms-input-placeholder,
-        .ant-input::-ms-input-placeholder,
-        .ant-input input::-ms-input-placeholder,
-        .ant-input-password input::-ms-input-placeholder {
-          color: #ffffff !important;
-        }
-      `}</style>
-      <Form name="userSignUp" form={form} layout="vertical" onFinish={handleFinish}>
-        <Form.Item name="firstName" label={<span style={labelStyle}></span>} rules={firstNameRules}>
-          <Input placeholder="First name" style={inputStyle} className="bizclear-input" />
-        </Form.Item>
+    <div>
+      <div style={{ textAlign: 'center', marginBottom: 40 }}>
+        <Title level={2} style={{ marginBottom: 12, fontWeight: 700, fontSize: 32 }}>Register</Title>
+        <Text type="secondary" style={{ fontSize: 16 }}>Create your account to get started</Text>
+      </div>
 
-        <Form.Item name="lastName" label={<span style={labelStyle}></span>} rules={lastNameRules}>
-          <Input placeholder="Last name" style={inputStyle} className="bizclear-input" />
-        </Form.Item>
+      <Form name="userSignUp" form={form} layout="vertical" onFinish={handleFinish} size="large" requiredMark={false}>
+        <Row gutter={24}>
+          <Col xs={24} md={12}>
+            <Form.Item name="firstName" label={<Text strong>First Name</Text>} rules={firstNameRules} style={{ marginBottom: 24 }}>
+              <Input placeholder="First name" variant="filled" />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item name="lastName" label={<Text strong>Last Name</Text>} rules={lastNameRules} style={{ marginBottom: 24 }}>
+              <Input placeholder="Last name" variant="filled" />
+            </Form.Item>
+          </Col>
+        </Row>
 
-        <Form.Item name="email" label={<span style={labelStyle}></span>} rules={emailRules}>
-          <Input placeholder="Email" style={inputStyle} className="bizclear-input" />
-        </Form.Item>
+        <Row gutter={24}>
+          <Col xs={24} md={12}>
+            <Form.Item name="email" label={<Text strong>Email</Text>} rules={emailRules} style={{ marginBottom: 24 }}>
+              <Input placeholder="Email address" variant="filled" />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item name="phoneNumber" label={<Text strong>Phone Number</Text>} rules={phoneNumberRules} style={{ marginBottom: 24 }}>
+              <Input
+                placeholder="Mobile number"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                onKeyDown={preventNonNumericKeyDown}
+                onPaste={sanitizePhonePaste}
+                onInput={sanitizePhoneInput}
+                variant="filled"
+              />
+            </Form.Item>
+          </Col>
+        </Row>
 
-        <Form.Item name="phoneNumber" label={<span style={labelStyle}></span>} rules={phoneNumberRules}>
-          <Input
-            placeholder="Phone Number"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            onKeyDown={preventNonNumericKeyDown}
-            onPaste={sanitizePhonePaste}
-            onInput={sanitizePhoneInput}
-            style={inputStyle}
-            className="bizclear-input"
-          />
-        </Form.Item>
-
-        <Form.Item name="password" label={<span style={labelStyle}>Password</span>} rules={passwordRules}>
-          <Input.Password placeholder="Password" style={inputStyle} className="bizclear-input" />
-        </Form.Item>
-
-        <Form.Item
-          name="confirmPassword"
-          label={<span style={labelStyle}>Confirm Password</span>}
-          dependencies={["password"]}
-          hasFeedback
-          rules={signUpConfirmPasswordRules}
-        >
-          <Input.Password placeholder="Confirm password" style={inputStyle} className="bizclear-input" />
-        </Form.Item>
+        <Row gutter={24}>
+          <Col xs={24} md={12}>
+            <Form.Item name="password" label={<Text strong>Password</Text>} rules={passwordRules} style={{ marginBottom: 24 }}>
+              <Input.Password placeholder="Create password" variant="filled" />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item
+              name="confirmPassword"
+              label={<Text strong>Confirm Password</Text>}
+              dependencies={["password"]}
+              hasFeedback
+              rules={signUpConfirmPasswordRules}
+              style={{ marginBottom: 24 }}
+            >
+              <Input.Password placeholder="Confirm password" variant="filled" />
+            </Form.Item>
+          </Col>
+        </Row>
 
         <Form.Item name="termsAndConditions" valuePropName="checked" rules={termsRules} style={{ marginBottom: 12 }}>
-          <Checkbox style={{ color: '#c9d0ff' }}>Accept Terms and Conditions</Checkbox>
+          <Checkbox>
+            I accept the <a href="/terms" target="_blank" rel="noopener noreferrer">Terms and Conditions</a>
+          </Checkbox>
         </Form.Item>
 
-        <Form.Item name="isBusinessOwner" valuePropName="checked" style={{ marginBottom: 12 }}>
-          <Checkbox style={{ color: '#c9d0ff' }}>Sign up as Business Owner</Checkbox>
+        <Form.Item name="isBusinessOwner" valuePropName="checked" rules={businessOwnerRequiredRules} style={{ marginBottom: 12 }}>
+          <Checkbox>Sign up as Business Owner</Checkbox>
         </Form.Item>
 
-        <div style={{ marginTop: 8, marginBottom: 10 }}>
-          <Typography.Paragraph style={{ color: '#bfc6ff', fontSize: 12, marginBottom: 10 }}>
-            In accordance with our <a href="/privacy" style={{ color: '#9bd1ff' }}>Privacy Policy</a> you may be contacted about BizClear or related products and services. You can unsubscribe at any time by visiting our <a href="/preferences" style={{ color: '#9bd1ff' }}>Preference Center</a>.
-          </Typography.Paragraph>
+        <div style={{ marginTop: 8, marginBottom: 24 }}>
+          <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 0, textAlign: 'center' }}>
+            By clicking "Send Verification Code", you agree to our <a href="/privacy">Privacy Policy</a>.
+          </Paragraph>
         </div>
 
-        <Flex justify="end">
-          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} style={sendButtonStyle}>
+        <Form.Item style={{ marginBottom: 16 }}>
+          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block size="large">
             Send Verification Code
           </Button>
-        </Flex>
+        </Form.Item>
+
+        <div style={{ textAlign: 'center' }}>
+          <Text type="secondary">Already have an account? </Text>
+          <Button type="link" onClick={() => navigate('/login')} style={{ padding: 0, fontWeight: 600 }}>Login</Button>
+        </div>
       </Form>
-    </Card>
+    </div>
   )
 }

@@ -1,0 +1,54 @@
+import React from 'react'
+import { Card, Alert, Button, Space, Row, Col, Typography, Badge } from 'antd'
+import { BulbOutlined, ArrowRightOutlined } from '@ant-design/icons'
+
+const { Text } = Typography
+
+const AISuggestions = ({ data }) => {
+  if (!data) return null
+
+  return (
+    <Card 
+      title={<Space><BulbOutlined style={{ color: '#722ed1' }} /> Smart Insights</Space>}
+      variant="borderless"
+      style={{ 
+        marginTop: 24, 
+        background: 'linear-gradient(to right, #f9f0ff, #ffffff)', 
+        border: '1px solid #d3adf7' 
+      }}
+      extra={<Badge count={data.length} style={{ backgroundColor: '#722ed1' }} />}
+    >
+      <Row gutter={[24, 24]}>
+        {data.map(item => (
+          <Col xs={24} md={8} key={item.id}>
+             <Card 
+               hoverable 
+               style={{ height: '100%', borderColor: item.type === 'warning' ? '#ffccc7' : '#d9f7be' }}
+               styles={{ body: { padding: '16px' } }}
+             >
+               <Space direction="vertical" style={{ width: '100%' }}>
+                 <Space align="start">
+                    <Alert 
+                      type={item.type} 
+                      message={null} 
+                      showIcon 
+                      style={{ background: 'transparent', padding: 0, border: 'none' }} 
+                    />
+                    <Text strong style={{ fontSize: 15 }}>{item.text}</Text>
+                 </Space>
+                 
+                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                   <Button type="link" size="small" style={{ padding: 0 }} icon={<ArrowRightOutlined />}>
+                     Action
+                   </Button>
+                 </div>
+               </Space>
+             </Card>
+          </Col>
+        ))}
+      </Row>
+    </Card>
+  )
+}
+
+export default AISuggestions

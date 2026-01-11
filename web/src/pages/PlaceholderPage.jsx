@@ -1,18 +1,14 @@
 import React from 'react'
 import { Layout, Typography, Button, Result } from 'antd'
 import { useNavigate } from 'react-router-dom'
-import Sidebar from '@/features/authentication/components/Sidebar'
 
-const { Content, Sider } = Layout
+const { Content } = Layout
 
 export default function PlaceholderPage({ title = "Under Construction" }) {
   const navigate = useNavigate()
 
   return (
     <Layout style={{ minHeight: '100vh', background: '#f5f7fb' }}>
-      <Sider width={260} style={{ background: '#fff' }}>
-        <Sidebar />
-      </Sider>
       <Content style={{ padding: 32 }}>
         <div style={{ background: '#fff', padding: 48, borderRadius: 8, minHeight: '80vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <Result

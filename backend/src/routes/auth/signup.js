@@ -23,18 +23,18 @@ const emailWithTld = (value, helpers) => {
 }
 
 const signupPayloadSchema = Joi.object({
-  firstName: Joi.string().min(1).max(100).required(),
-  lastName: Joi.string().min(1).max(100).required(),
-  email: Joi.string().email().custom(emailWithTld, 'require domain TLD').required(),
-  phoneNumber: Joi.string().allow('', null),
+  firstName: Joi.string().trim().min(1).max(100).required(),
+  lastName: Joi.string().trim().min(1).max(100).required(),
+  email: Joi.string().trim().email().custom(emailWithTld, 'require domain TLD').required(),
+  phoneNumber: Joi.string().trim().allow('', null),
   password: Joi.string().min(6).max(200).required(),
   termsAccepted: Joi.boolean().truthy('true', 'TRUE', 'True', 1, '1').valid(true).required(),
   role: Joi.string().valid('user', 'business_owner').default('user'),
 })
 
 const verifyCodeSchema = Joi.object({
-  email: Joi.string().email().custom(emailWithTld, 'require domain TLD').required(),
-  code: Joi.string().pattern(/^[0-9]{6}$/).required(),
+  email: Joi.string().trim().email().custom(emailWithTld, 'require domain TLD').required(),
+  code: Joi.string().trim().pattern(/^[0-9]{6}$/).required(),
 })
 
 const signupStartLimiter = perEmailRateLimit({
@@ -186,6 +186,11 @@ router.post('/signup/start', validateBody(signupPayloadSchema), checkExistingEma
       signUpRequests.set(emailKey, { code, expiresAt: expiresAtMs, payload })
     }
 
+    // Reset verification attempts since a new code is generated
+    if (signupVerifyLimiter.resetKey) {
+      signupVerifyLimiter.resetKey(emailKey)
+    }
+
     await sendOtp({ to: email, code, subject: 'Verify your email' })
     return res.json({ sent: true })
   } catch (err) {
@@ -194,9 +199,56 @@ router.post('/signup/start', validateBody(signupPayloadSchema), checkExistingEma
   }
 })
 
+// POST /api/auth/signup/resend
+// Resend verification code for an existing signup request
+router.post('/signup/resend', validateBody(Joi.object({ email: Joi.string().email().required() })), signupStartLimiter, async (req, res) => {
+  try {
+    const { email } = req.body || {}
+    const emailKey = String(email).toLowerCase().trim()
+    const useDB = mongoose.connection && mongoose.connection.readyState === 1
+    
+    let reqObj = null
+    if (useDB) {
+      reqObj = await SignUpRequest.findOne({ email: emailKey })
+    } else {
+      reqObj = signUpRequests.get(emailKey)
+    }
+
+    if (!reqObj) {
+      return respond.error(res, 404, 'signup_request_not_found', 'Request expired, please sign up again')
+    }
+
+    const code = generateCode()
+    const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10)
+    const expiresAtMs = Date.now() + ttlMin * 60 * 1000
+
+    if (useDB) {
+      reqObj.code = code
+      reqObj.expiresAt = new Date(expiresAtMs)
+      await reqObj.save()
+    } else {
+      reqObj.code = code
+      reqObj.expiresAt = expiresAtMs
+      signUpRequests.set(emailKey, reqObj)
+    }
+
+    // Reset verification attempts since a new code is generated
+    if (signupVerifyLimiter.resetKey) {
+      signupVerifyLimiter.resetKey(emailKey)
+      console.log(`Reset verification attempts for ${emailKey} (resend)`)
+    }
+
+    await sendOtp({ to: email, code, subject: 'Verify your email' })
+    return res.json({ sent: true })
+  } catch (err) {
+    console.error('POST /api/auth/signup/resend error:', err)
+    return respond.error(res, 500, 'resend_failed', 'Failed to resend code')
+  }
+})
+
 // POST /api/auth/signup/verify
 // Step 2 for sign-up: verify code and create account
-router.post('/signup/verify', signupVerifyLimiter, validateBody(verifyCodeSchema), async (req, res) => {
+router.post('/signup/verify', validateBody(verifyCodeSchema), signupVerifyLimiter, async (req, res) => {
   try {
     const { email, code } = req.body || {}
     const emailKey = String(email).toLowerCase()

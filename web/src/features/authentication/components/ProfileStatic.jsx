@@ -12,9 +12,7 @@ export default function ProfileStatic() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Layout.Sider width={260} style={{ background: '#fff' }}>
-        <Sidebar />
-      </Layout.Sider>
+      <Sidebar />
       <Layout.Content style={{ padding: 40, background: '#f6f8fb' }}>
         <div style={{ maxWidth: 820, margin: '0 auto' }}>
           <div style={{ marginBottom: 12 }}>
@@ -22,7 +20,7 @@ export default function ProfileStatic() {
             <Paragraph type="secondary">All fields are visible. Editable fields are visually indicated but do not submit changes.</Paragraph>
           </div>
 
-          <Card bodyStyle={{ padding: 20 }}>
+          <Card styles={{ body: { padding: 20 } }}>
             <Form layout="vertical" onFinish={noop}>
               <Row gutter={16}>
                 <Col span={12}>

@@ -33,4 +33,18 @@ function requireJwt(req, res, next) {
   }
 }
 
-module.exports = { signAccessToken, requireJwt }
+function requireRole(allowedRoles) {
+  return (req, res, next) => {
+    // Ensure requireJwt has run or user info is available
+    if (!req._userRole) {
+      return res.status(401).json({ error: { code: 'unauthorized', message: 'Unauthorized: missing role information' } })
+    }
+
+    if (!allowedRoles.includes(req._userRole)) {
+      return res.status(403).json({ error: { code: 'forbidden', message: 'Forbidden: insufficient permissions' } })
+    }
+    next()
+  }
+}
+
+module.exports = { signAccessToken, requireJwt, requireRole }

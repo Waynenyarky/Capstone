@@ -8,9 +8,7 @@ const { Title, Paragraph } = Typography
 export default function LGUOfficerDashboard() {
   return (
     <Layout style={{ minHeight: '100vh', background: '#f5f7fb' }}>
-      <Layout.Sider width={260} style={{ background: '#fff' }}>
-        <Sidebar />
-      </Layout.Sider>
+      <Sidebar />
       <Layout.Content style={{ padding: 32 }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
           <div style={{ marginBottom: 18 }}>
@@ -25,7 +23,7 @@ export default function LGUOfficerDashboard() {
 
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
+              <Card hoverable styles={{ body: { padding: 12 } }}>
                 <Space direction="vertical">
                   <Title level={5} style={{ margin: 0 }}>Dashboard</Title>
                   <Paragraph type="secondary" style={{ margin: 0 }}>Overview and stats</Paragraph>
@@ -37,7 +35,7 @@ export default function LGUOfficerDashboard() {
             </Col>
 
             <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
+              <Card hoverable styles={{ body: { padding: 12 } }}>
                 <Space direction="vertical">
                   <Title level={5} style={{ margin: 0 }}>Permit Applications (Review)</Title>
                   <Paragraph type="secondary" style={{ margin: 0 }}>Review permit applications</Paragraph>
@@ -49,7 +47,7 @@ export default function LGUOfficerDashboard() {
             </Col>
 
             <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
+              <Card hoverable styles={{ body: { padding: 12 } }}>
                 <Space direction="vertical">
                   <Title level={5} style={{ margin: 0 }}>Cessation (Review)</Title>
                   <Paragraph type="secondary" style={{ margin: 0 }}>Review cessations</Paragraph>
@@ -61,7 +59,7 @@ export default function LGUOfficerDashboard() {
             </Col>
 
             <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
+              <Card hoverable styles={{ body: { padding: 12 } }}>
                 <Space direction="vertical">
                   <Title level={5} style={{ margin: 0 }}>Violations / Inspections</Title>
                   <Paragraph type="secondary" style={{ margin: 0 }}>Log and review inspections</Paragraph>
@@ -73,7 +71,7 @@ export default function LGUOfficerDashboard() {
             </Col>
 
             <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
+              <Card hoverable styles={{ body: { padding: 12 } }}>
                 <Space direction="vertical">
                   <Title level={5} style={{ margin: 0 }}>Appeals</Title>
                   <Paragraph type="secondary" style={{ margin: 0 }}>Submit or track appeals</Paragraph>
@@ -85,7 +83,7 @@ export default function LGUOfficerDashboard() {
             </Col>
 
             <Col xs={24} sm={12} md={8}>
-              <Card hoverable bodyStyle={{ padding: 12 }}>
+              <Card hoverable styles={{ body: { padding: 12 } }}>
                 <Space direction="vertical">
                   <Title level={5} style={{ margin: 0 }}>Profile / Settings</Title>
                   <Paragraph type="secondary" style={{ margin: 0 }}>Manage profile and MFA</Paragraph>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getCurrentUser, setCurrentUser, subscribeAuth } from "@/features/authentication/lib/authEvents.js"
+import { getCurrentUser, setCurrentUser, subscribeAuth, setIsLoggingOut } from "@/features/authentication/lib/authEvents.js"
 
 const LOCAL_KEY = 'auth__currentUser'
 const SESSION_KEY = 'auth__sessionUser'
@@ -68,6 +68,7 @@ export function useAuthSession() {
   }, [])
 
   const logout = useCallback(() => {
+    setIsLoggingOut(true)
     setCurrentUser(null)
     try {
       localStorage.removeItem(LOCAL_KEY)

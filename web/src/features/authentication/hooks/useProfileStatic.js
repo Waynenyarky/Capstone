@@ -11,9 +11,14 @@ export default function useProfileStatic() {
       role: 'Business Owner',
       mfaEnabled: true,
     }
+    const displayName = (currentUser?.firstName || currentUser?.lastName) 
+      ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim()
+      : (currentUser?.name || currentUser?.email || 'User')
+
     return {
-      name: currentUser.name || currentUser.email || 'User',
-      email: currentUser.email || '',
+      name: displayName,
+      email: currentUser?.email || '',
+      avatar: currentUser?.avatar,
       role: currentUser.role || 'user',
       mfaEnabled: !!currentUser.mfaEnabled,
     }
