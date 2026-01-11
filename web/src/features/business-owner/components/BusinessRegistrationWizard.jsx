@@ -302,7 +302,7 @@ export default function BusinessRegistrationWizard({ onComplete }) {
           </>
         )
 
-      case 4: // Compliance
+      case 4: { // Compliance
         const renderComplianceField = (name, label) => (
           <Form.Item label={label} style={{ marginBottom: 0 }}>
             <Form.Item
@@ -340,6 +340,7 @@ export default function BusinessRegistrationWizard({ onComplete }) {
             </Typography.Text>
           </>
         )
+      }
 
       case 5: // Profile Details
         return (

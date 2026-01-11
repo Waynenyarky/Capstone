@@ -11,7 +11,7 @@ export default function PublicRoute({ children }) {
   }
 
   if (currentUser && currentUser.token) {
-    const r = String(role || '').toLowerCase()
+    const r = String(role?.slug || role || '').toLowerCase()
     const state = location.state // Preserve state (e.g. notifications) during redirect
 
     if (r === 'admin') {
@@ -24,6 +24,9 @@ export default function PublicRoute({ children }) {
 
     const staffRoles = ['staff', 'lgu_manager', 'lgu_officer', 'inspector', 'cso']
     if (staffRoles.includes(r)) {
+      if (currentUser?.mustChangeCredentials || currentUser?.mustSetupMfa) {
+        return <Navigate to="/staff/onboarding" replace state={state} />
+      }
       return <Navigate to="/staff" replace state={state} />
     }
 

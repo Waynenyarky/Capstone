@@ -5,7 +5,8 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon src/index.js",
+    "test": "NODE_ENV=test jest --runInBand"
   },
   "keywords": [
     "express",
@@ -40,6 +41,9 @@
     "openid-client": "^5.7.1"
   },
   "devDependencies": {
+    "jest": "^29.7.0",
+    "mongodb-memory-server": "^9.0.0",
+    "supertest": "^6.3.3",
     "nodemon": "^3.0.1"
   }
 }

@@ -33,7 +33,7 @@ export default function VerifyEmail() {
             const bc = new BroadcastChannel('auth_channel')
             bc.postMessage({ type: 'email-verified' })
             bc.close()
-          } catch (e) { /* ignore */ }
+          } catch { void 0 }
         }
         setStatus('success')
         // No auto-redirect so user can choose to close tab
@@ -55,7 +55,7 @@ export default function VerifyEmail() {
   const handleClose = () => {
     // Try to focus the opener (original tab) if accessible
     if (window.opener) {
-      try { window.opener.focus() } catch (_) {}
+      try { window.opener.focus() } catch { void 0 }
     }
 
     // Determine target path based on role
@@ -65,9 +65,7 @@ export default function VerifyEmail() {
     // Note: This often fails if the tab wasn't opened by a script
     try {
       window.close()
-    } catch (e) {
-      // ignore
-    }
+    } catch { void 0 }
     
     // Immediately redirect if the window is still open (close failed or blocked)
     navigate(target)

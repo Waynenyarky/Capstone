@@ -7,7 +7,9 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
   const { currentUser, role, isLoading } = useAuthSession()
   const location = useLocation()
 
-  const isUnauthorized = !isLoading && currentUser && allowedRoles.length > 0 && !allowedRoles.includes(role)
+  const roleKey = String(role?.slug || role || '').toLowerCase()
+  const allowed = allowedRoles.map((r) => String(r || '').toLowerCase())
+  const isUnauthorized = !isLoading && currentUser && allowed.length > 0 && !allowed.includes(roleKey)
 
   if (isLoading) {
     // You might want a spinner here, but for now we'll just return null or a simple div
@@ -43,11 +45,6 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
     
     // We can check if the current navigation action is a POP (browser back/forward) or PUSH/REPLACE.
     // But better yet, we can check if the current location is something "deep" that implies intent.
-    
-    // If the user is being redirected to login because they are NOT authenticated:
-    // We should only show the message if they were TRYING to go somewhere specific.
-    
-    const isRestrictedPath = location.pathname !== '/' && location.pathname !== '/login'
     
     // However, even on logout, the location might still be the protected page for a split second.
     // To distinguish, the logout function should probably navigate to /login manually.
@@ -147,15 +144,21 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
     )
   }
 
+  const staffRoles = ['staff', 'lgu_manager', 'lgu_officer', 'inspector', 'cso']
+  const needsOnboarding = staffRoles.includes(roleKey) && (currentUser?.mustChangeCredentials || currentUser?.mustSetupMfa)
+  const onboardingAllowedPaths = ['/staff/onboarding', '/mfa/setup']
+  if (needsOnboarding && !onboardingAllowedPaths.includes(location.pathname)) {
+    return <Navigate to="/staff/onboarding" replace state={{ from: location }} />
+  }
+
   // If roles are specified and user doesn't match
   if (isUnauthorized) {
     // Determine target dashboard based on role to avoid redirect loops or intermediate pages
-    const r = String(role || '').toLowerCase()
     let target = '/dashboard' // fallback
     
-    if (r === 'admin') target = '/admin/dashboard'
-    else if (r === 'business_owner') target = '/owner'
-    else if (['staff', 'lgu_manager', 'lgu_officer', 'inspector', 'cso'].includes(r)) target = '/staff'
+    if (roleKey === 'admin') target = '/admin/dashboard'
+    else if (roleKey === 'business_owner') target = '/owner'
+    else if (staffRoles.includes(roleKey)) target = '/staff'
 
     return (
       <Navigate 

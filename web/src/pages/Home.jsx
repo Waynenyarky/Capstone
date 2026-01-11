@@ -1,4 +1,4 @@
-import { Layout, Button, Typography, Card, Row, Col, Space, Divider, Alert, List, Badge, theme } from 'antd'
+import { Layout, Button, Typography, Card, Row, Col, Space, Divider, Alert, List, Badge } from 'antd'
 import { Link } from 'react-router-dom'
 import { 
   BankOutlined, 
@@ -15,11 +15,8 @@ import {
 
 const { Header, Content, Footer } = Layout
 const { Title, Text, Paragraph } = Typography
-const { useToken } = theme
 
 export default function Home() {
-  const { token } = useToken()
-  
   const infoCards = [
     {
       title: 'Permit Application',

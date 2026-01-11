@@ -1,4 +1,3 @@
-import { App } from 'antd'
 import { useNotifier } from '@/shared/notifications.js'
 import { useAuthSession } from "@/features/authentication/hooks/useAuthSession.js"
 import { useNavigate } from 'react-router-dom'
@@ -14,8 +13,6 @@ export function useLogoutForm() {
 
   const handleLogout = async () => {
     try {
-      // Navigate away from protected route FIRST to avoid "Restricted Access" warnings
-      // triggered by ProtectedRoute re-rendering with no user.
       navigate('/login')
       
       logout()

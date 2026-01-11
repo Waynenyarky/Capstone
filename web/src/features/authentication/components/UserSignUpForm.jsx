@@ -67,6 +67,9 @@ export default function UserSignUpForm() {
         <Title level={2} style={{ marginBottom: 12, fontWeight: 700, fontSize: 32 }}>Register</Title>
         <Text type="secondary" style={{ fontSize: 16 }}>Create your account to get started</Text>
       </div>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+        {extraContent}
+      </div>
 
       <Form name="userSignUp" form={form} layout="vertical" onFinish={handleFinish} size="large" requiredMark={false}>
         <Row gutter={24}>

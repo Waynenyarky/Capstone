@@ -1,15 +1,45 @@
 const express = require('express')
 const bcrypt = require('bcryptjs')
+const crypto = require('crypto')
 const User = require('../../models/User')
+const Role = require('../../models/Role')
 const { decryptWithHash, encryptWithHash } = require('../../lib/secretCipher')
 const respond = require('../../middleware/respond')
 const { requireJwt, requireRole } = require('../../middleware/auth')
 const { validateBody, Joi } = require('../../middleware/validation')
-const { generateCode } = require('../../lib/codes')
-const { sendOtp } = require('../../lib/mailer')
+const { generateCode, generateToken } = require('../../lib/codes')
+const { sendOtp, sendStaffCredentialsEmail } = require('../../lib/mailer')
 const { changeEmailRequests } = require('../../lib/authRequestsStore')
 
 const router = express.Router()
+
+function displayPhoneNumber(value) {
+  const s = typeof value === 'string' ? value : ''
+  if (s.startsWith('__unset__')) return ''
+  return s
+}
+
+function generateTempPassword() {
+  return crypto.randomBytes(12).toString('base64url')
+}
+
+function generateTempUsername(length = 12) {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz'
+  const bytes = crypto.randomBytes(Math.max(3, Math.min(40, Number(length) || 12)))
+  let out = ''
+  for (let i = 0; i < bytes.length; i++) {
+    out += alphabet[bytes[i] % alphabet.length]
+  }
+  return out
+}
+
+function deriveNamesFromEmail(email) {
+  const local = String(email || '').split('@')[0] || ''
+  const tokens = local.split(/[._\- ]+/).filter(Boolean)
+  const first = tokens[0] || 'Staff'
+  const last = tokens.length > 1 ? tokens.slice(1).join(' ') : 'User'
+  return { firstName: first, lastName: last }
+}
 
 const changePasswordAuthenticatedSchema = Joi.object({
   currentPassword: Joi.string().min(6).max(200).required(),
@@ -176,6 +206,43 @@ router.post('/profile/avatar/delete', requireJwt, async (req, res) => {
 const changeEmailAuthenticatedSchema = Joi.object({
   password: Joi.string().min(6).max(200).required(),
   newEmail: Joi.string().email().required(),
+})
+
+const staffOfficeList = [
+  'OSBC',
+  'CHO',
+  'BFP',
+  'CEO / ZC',
+  'BH',
+  'DTI',
+  'SEC',
+  'CDA',
+  'PNP-FEU',
+  'PNP‑FEU',
+  'FDA / BFAD / DOH',
+  'PRC / PTR',
+  'NTC',
+  'POEA',
+  'NIC',
+  'ECC / ENV',
+  'CTO',
+  'MD',
+  'CLO',
+]
+
+const staffCreateSchema = Joi.object({
+  email: Joi.string().email().required(),
+  firstName: Joi.string().trim().min(1).max(100).optional(),
+  lastName: Joi.string().trim().min(1).max(100).optional(),
+  phoneNumber: Joi.string().trim().allow('', null).optional(),
+  office: Joi.string().valid(...staffOfficeList).required(),
+  role: Joi.string().valid('lgu_officer', 'lgu_manager', 'inspector', 'cso').required(),
+})
+
+const firstLoginChangeCredentialsSchema = Joi.object({
+  currentPassword: Joi.string().min(1).max(200).optional(),
+  newPassword: Joi.string().min(6).max(200).required(),
+  newUsername: Joi.string().trim().lowercase().pattern(/^[a-z0-9][a-z0-9._-]{2,39}$/).required(),
 })
 
 // POST /api/auth/change-password-authenticated
@@ -461,7 +528,13 @@ router.get('/users', requireJwt, requireRole(['admin']), async (req, res) => {
         firstName: doc.firstName,
         lastName: doc.lastName,
         email: doc.email,
-        phoneNumber: doc.phoneNumber,
+        phoneNumber: displayPhoneNumber(doc.phoneNumber),
+        username: doc.username || '',
+        office: doc.office || '',
+        isActive: doc.isActive !== false,
+        isStaff: !!doc.isStaff,
+        mustChangeCredentials: !!doc.mustChangeCredentials,
+        mustSetupMfa: !!doc.mustSetupMfa,
         isEmailVerified: !!doc.isEmailVerified,
         termsAccepted: doc.termsAccepted,
         createdAt: doc.createdAt,
@@ -471,6 +544,113 @@ router.get('/users', requireJwt, requireRole(['admin']), async (req, res) => {
   } catch (err) {
     console.error('GET /api/auth/users error:', err)
     return respond.error(res, 500, 'users_load_failed', 'Failed to load users')
+  }
+})
+
+router.get('/staff', requireJwt, requireRole(['admin']), async (req, res) => {
+  try {
+    const staffRoles = await Role.find({ slug: { $in: ['lgu_officer', 'lgu_manager', 'inspector', 'cso'] } }).lean()
+    const ids = staffRoles.map((r) => r._id)
+    const docs = await User.find({ role: { $in: ids } }).populate('role').lean()
+    const staffSafe = docs.map((doc) => {
+      const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+      return {
+        id: String(doc._id),
+        role: roleSlug,
+        firstName: doc.firstName,
+        lastName: doc.lastName,
+        email: doc.email,
+        username: doc.username || '',
+        office: doc.office || '',
+        phoneNumber: displayPhoneNumber(doc.phoneNumber),
+        isActive: doc.isActive !== false,
+        mustChangeCredentials: !!doc.mustChangeCredentials,
+        mustSetupMfa: !!doc.mustSetupMfa,
+        createdAt: doc.createdAt,
+      }
+    })
+    return res.json(staffSafe)
+  } catch (err) {
+    console.error('GET /api/auth/staff error:', err)
+    return respond.error(res, 500, 'staff_load_failed', 'Failed to load staff')
+  }
+})
+
+router.post('/staff', requireJwt, requireRole(['admin']), validateBody(staffCreateSchema), async (req, res) => {
+  try {
+    const { email, firstName, lastName, phoneNumber, office, role } = req.body || {}
+    const emailKey = String(email).toLowerCase().trim()
+
+    const exists = await User.findOne({ email: emailKey }).lean()
+    if (exists) return respond.error(res, 409, 'email_exists', 'Email already exists')
+
+    const roleDoc = await Role.findOne({ slug: role }).lean()
+    if (!roleDoc) return respond.error(res, 400, 'role_not_found', 'Role not found')
+
+    let username = ''
+    for (let i = 0; i < 20; i++) {
+      const candidate = generateTempUsername(12)
+      const taken = await User.findOne({ username: candidate }).lean()
+      if (!taken) {
+        username = candidate
+        break
+      }
+    }
+    if (!username) return respond.error(res, 500, 'username_generation_failed', 'Failed to generate a unique username')
+
+    const tempPassword = generateTempPassword()
+    const passwordHash = await bcrypt.hash(tempPassword, 10)
+    const storedPhone = phoneNumber && String(phoneNumber).trim() ? String(phoneNumber).trim() : `__unset__${generateToken().slice(0, 16)}`
+    const canonicalOffice = String(office || '').replace('PNP‑FEU', 'PNP-FEU')
+
+    const derived = deriveNamesFromEmail(emailKey)
+    const safeFirstName = String(firstName || '').trim() || derived.firstName
+    const safeLastName = String(lastName || '').trim() || derived.lastName
+
+    const created = await User.create({
+      role: roleDoc._id,
+      firstName: safeFirstName,
+      lastName: safeLastName,
+      email: emailKey,
+      phoneNumber: storedPhone,
+      username,
+      office: canonicalOffice,
+      isStaff: true,
+      isActive: false,
+      mustChangeCredentials: true,
+      mustSetupMfa: true,
+      termsAccepted: true,
+      passwordHash,
+      isEmailVerified: true,
+    })
+
+    const roleLabel = roleDoc.name || role
+    await sendStaffCredentialsEmail({ to: emailKey, username, tempPassword, office: canonicalOffice, roleLabel })
+
+    const safe = {
+      id: String(created._id),
+      role,
+      firstName: created.firstName,
+      lastName: created.lastName,
+      email: created.email,
+      username: created.username || '',
+      office: created.office || '',
+      phoneNumber: displayPhoneNumber(created.phoneNumber),
+      isActive: created.isActive !== false,
+      mustChangeCredentials: !!created.mustChangeCredentials,
+      mustSetupMfa: !!created.mustSetupMfa,
+      createdAt: created.createdAt,
+    }
+    if (process.env.NODE_ENV !== 'production') {
+      safe.devTempPassword = tempPassword
+    }
+    return res.status(201).json(safe)
+  } catch (err) {
+    if (err && err.code === 11000) {
+      return respond.error(res, 409, 'duplicate_key', 'Duplicate user field')
+    }
+    console.error('POST /api/auth/staff error:', err)
+    return respond.error(res, 500, 'staff_create_failed', 'Failed to create staff account')
   }
 })
 
@@ -487,7 +667,13 @@ router.get('/me', requireJwt, async (req, res) => {
       firstName: doc.firstName,
       lastName: doc.lastName,
       email: doc.email,
-      phoneNumber: doc.phoneNumber,
+      phoneNumber: displayPhoneNumber(doc.phoneNumber),
+      username: doc.username || '',
+      office: doc.office || '',
+      isActive: doc.isActive !== false,
+      isStaff: !!doc.isStaff,
+      mustChangeCredentials: !!doc.mustChangeCredentials,
+      mustSetupMfa: !!doc.mustSetupMfa,
       isEmailVerified: !!doc.isEmailVerified,
       termsAccepted: doc.termsAccepted,
       createdAt: doc.createdAt,
@@ -508,6 +694,71 @@ router.get('/me', requireJwt, async (req, res) => {
   } catch (err) {
     console.error('GET /api/auth/me error:', err)
     return respond.error(res, 500, 'profile_load_failed', 'Failed to load profile')
+  }
+})
+
+router.post('/first-login/change-credentials', requireJwt, validateBody(firstLoginChangeCredentialsSchema), async (req, res) => {
+  try {
+    const { currentPassword, newPassword, newUsername } = req.body || {}
+    const doc = await User.findById(req._userId).populate('role')
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    if (!doc.mustChangeCredentials) {
+      return respond.error(res, 400, 'credentials_already_updated', 'Credentials already updated')
+    }
+
+    const hasCurrentPassword = typeof currentPassword === 'string' && currentPassword.length > 0
+    if (hasCurrentPassword) {
+      const ok = await bcrypt.compare(String(currentPassword || ''), String(doc.passwordHash || ''))
+      if (!ok) return respond.error(res, 401, 'invalid_current_password', 'Invalid current password')
+    }
+
+    const usernameKey = String(newUsername).toLowerCase().trim()
+    const exists = await User.findOne({ username: usernameKey, _id: { $ne: doc._id } }).lean()
+    if (exists) return respond.error(res, 409, 'username_exists', 'Username already exists')
+
+    const oldHash = String(doc.passwordHash)
+    let mfaPlain = ''
+    try {
+      if (doc.mfaSecret) mfaPlain = decryptWithHash(oldHash, doc.mfaSecret)
+    } catch (_) {
+      mfaPlain = ''
+    }
+
+    doc.username = usernameKey
+    doc.passwordHash = await bcrypt.hash(String(newPassword), 10)
+    if (mfaPlain) {
+      try {
+        doc.mfaSecret = encryptWithHash(doc.passwordHash, mfaPlain)
+      } catch (_) {}
+    }
+
+    doc.mustChangeCredentials = false
+    if (doc.isStaff) doc.isActive = doc.mustSetupMfa ? false : true
+    await doc.save()
+
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+    const userSafe = {
+      id: String(doc._id),
+      role: roleSlug,
+      firstName: doc.firstName,
+      lastName: doc.lastName,
+      email: doc.email,
+      phoneNumber: displayPhoneNumber(doc.phoneNumber),
+      username: doc.username || '',
+      office: doc.office || '',
+      isActive: doc.isActive !== false,
+      isStaff: !!doc.isStaff,
+      mustChangeCredentials: !!doc.mustChangeCredentials,
+      mustSetupMfa: !!doc.mustSetupMfa,
+      isEmailVerified: !!doc.isEmailVerified,
+      termsAccepted: doc.termsAccepted,
+      createdAt: doc.createdAt,
+    }
+    return res.json({ updated: true, user: userSafe })
+  } catch (err) {
+    console.error('POST /api/auth/first-login/change-credentials error:', err)
+    return respond.error(res, 500, 'first_login_failed', 'Failed to update credentials')
   }
 })
 
@@ -540,7 +791,9 @@ router.patch('/profile', requireJwt, validateBody(updateProfileSchema), async (r
       firstName: updatedDoc.firstName,
       lastName: updatedDoc.lastName,
       email: updatedDoc.email,
-      phoneNumber: updatedDoc.phoneNumber,
+      phoneNumber: displayPhoneNumber(updatedDoc.phoneNumber),
+      username: updatedDoc.username || '',
+      office: updatedDoc.office || '',
       termsAccepted: updatedDoc.termsAccepted,
       createdAt: updatedDoc.createdAt,
     }

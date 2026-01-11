@@ -17,10 +17,16 @@ import {
 
 // Role keys used across the app: 'business_owner', 'admin', 'inspector', 'lgu_officer', 'lgu_manager', 'cso', 'user'
 export default function useSidebar() {
-  const { role } = useAuthSession()
+  const { role, currentUser } = useAuthSession()
 
   const items = useMemo(() => {
     // Items are objects: { key, label, to?, type?, icon? }
+    const staffOnboardingItems = [
+      { key: 'onboarding', label: 'Account Setup', to: '/staff/onboarding', icon: <SafetyCertificateOutlined /> },
+      { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
+      { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
+    ]
+
     const businessItems = [
       { key: 'dashboard', label: 'Dashboard', to: '/owner', icon: <DashboardOutlined /> },
       { key: 'permit-apps', label: 'Permit Applications', to: '/owner/permits', icon: <FileTextOutlined /> },
@@ -86,10 +92,14 @@ export default function useSidebar() {
       ],
     }
 
-    const roleKey = (role?.slug || role || 'user').toString()
+    const roleKey = (role?.slug || role || 'user').toString().toLowerCase()
+    const isStaffRole = ['staff', 'lgu_officer', 'lgu_manager', 'inspector', 'cso'].includes(roleKey)
+    if (isStaffRole && (currentUser?.mustChangeCredentials || currentUser?.mustSetupMfa)) {
+      return staffOnboardingItems
+    }
     const result = perRole[roleKey] || perRole.user
     return Array.isArray(result) ? result : []
-  }, [role])
+  }, [role, currentUser])
 
   const [selected, setSelected] = useState(items[0]?.key ?? 'dashboard')
 

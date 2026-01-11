@@ -19,7 +19,7 @@ function bufferToBase64(buffer) {
 }
 
 export default function useWebAuthn() {
-  const { success, error } = useNotifier()
+  const { success } = useNotifier()
 
   const register = React.useCallback(async ({ email } = {}) => {
     if (!('credentials' in navigator)) throw new Error('WebAuthn not supported')

@@ -1,6 +1,5 @@
 const express = require('express')
 const { generateRegistrationOptions, verifyRegistrationResponse, generateAuthenticationOptions, verifyAuthenticationResponse } = require('@simplewebauthn/server')
-const base64url = require('base64url')
 const User = require('../../models/User')
 const respond = require('../../middleware/respond')
 const { validateBody, Joi } = require('../../middleware/validation')
@@ -20,7 +19,7 @@ router.post('/webauthn/register/start', validateBody(emailSchema), async (req, r
       const user = await User.findOne({ email }).populate('role')
       if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
 
-      const userId = base64url.encode(String(user._id))
+      const userId = Buffer.from(String(user._id))
       const rpName = String(process.env.WEBAUTHN_RP_NAME || process.env.DEFAULT_FROM_EMAIL || 'Capstone').replace(/<.*?>/g, '').trim()
 
       const options = generateRegistrationOptions({

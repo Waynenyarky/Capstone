@@ -1,7 +1,7 @@
 import React from 'react'
 import { Card, Button, Space, Typography, Modal, Input } from 'antd'
 import { useAuthSession } from '@/features/authentication/hooks'
-import { mfaStatus, mfaDisable, mfaDisableRequest, mfaDisableUndo, mfaVerify } from '@/features/authentication/services/mfaService'
+import { mfaStatus, mfaDisableRequest, mfaDisableUndo, mfaVerify } from '@/features/authentication/services/mfaService'
 import { useNotifier } from '@/shared/notifications'
 import { useNavigate } from 'react-router-dom'
 
@@ -32,7 +32,7 @@ export default function LoggedInMfaManager() {
         setEnabled(!!res?.enabled)
         setDisablePending(!!res?.disablePending)
         setScheduledFor(res?.scheduledFor || null)
-      } catch (err) {
+      } catch {
         if (!mounted) return
         setStatusFetchFailed(true)
         // Non-blocking notice to user
@@ -40,7 +40,7 @@ export default function LoggedInMfaManager() {
       }
     })()
     return () => { mounted = false }
-  }, [email])
+  }, [email, error])
 
   // Countdown for scheduled disable
   React.useEffect(() => {
@@ -54,7 +54,7 @@ export default function LoggedInMfaManager() {
       if (until <= 0) {
         setCountdown('Finalizing disable...')
         // refresh status once
-        (async () => {
+        ;(async () => {
           try {
             const res = await mfaStatus(email)
             if (cancelled) return
@@ -202,4 +202,3 @@ export default function LoggedInMfaManager() {
     </div>
   )
 }
-

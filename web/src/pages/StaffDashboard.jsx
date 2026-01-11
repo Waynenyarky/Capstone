@@ -8,7 +8,11 @@ import CSODashboard from './CSODashboard'
 import PlaceholderPage from './PlaceholderPage'
 
 export default function StaffDashboard() {
-  const { role } = useAuthSession()
+  const { role, currentUser } = useAuthSession()
+
+  if (currentUser?.mustChangeCredentials || currentUser?.mustSetupMfa) {
+    return <Navigate to="/staff/onboarding" replace />
+  }
 
   switch (role) {
     case 'lgu_officer':

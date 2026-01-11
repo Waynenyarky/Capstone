@@ -4,12 +4,10 @@ function createTransport() {
   const host = process.env.EMAIL_HOST || process.env.SMTP_HOST
   const port = Number(process.env.EMAIL_PORT || process.env.SMTP_PORT || 587)
   const useSSL = String(process.env.EMAIL_USE_SSL || 'false').toLowerCase() === 'true'
-  const useTLS = String(process.env.EMAIL_USE_TLS || 'false').toLowerCase() === 'true'
+  const useTLS = String(process.env.EMAIL_USE_TLS || 'false').toString().toLowerCase() === 'true'
   const user = process.env.EMAIL_HOST_USER || process.env.SMTP_USER
   const pass = process.env.EMAIL_HOST_PASSWORD || process.env.SMTP_PASS
-  if (!host || !user || !pass) {
-    throw new Error('SMTP configuration missing: set EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD')
-  }
+  if (!host || !user || !pass) return null
   const secure = useSSL || port === 465
   const transporter = nodemailer.createTransport({
     host,
@@ -73,6 +71,7 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
   </div>
   `
   try {
+    if (!transporter) throw new Error('SMTP not configured')
     await transporter.sendMail({ from, to, subject, text, html })
   } catch (err) {
     console.log('--------------------------------------------------')
@@ -139,7 +138,8 @@ async function sendVerificationEmail({ to, link, subject = 'Verify your email' }
   </div>
   `
   try {
-    await transporter.sendMail({ from: process.env.EMAIL_HOST_USER, to, subject, text, html })
+    if (!transporter) throw new Error('SMTP not configured')
+    await transporter.sendMail({ from: process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER, to, subject, text, html })
   } catch (err) {
     console.log('--------------------------------------------------')
     console.log('⚠️  SMTP FAILED (Mocking Send) ⚠️')
@@ -150,4 +150,76 @@ async function sendVerificationEmail({ to, link, subject = 'Verify your email' }
   }
 }
 
-module.exports = { sendOtp, sendVerificationEmail }
+async function sendStaffCredentialsEmail({ to, username, tempPassword, office, roleLabel }) {
+  const transporter = createTransport()
+  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
+  const subject = `${brandName} Staff Account Created`
+
+  const text = [
+    'Hello,',
+    '',
+    'Your staff account has been created.',
+    '',
+    `Office: ${office || ''}`,
+    `Role: ${roleLabel || ''}`,
+    '',
+    `Username: ${username}`,
+    `Temporary password: ${tempPassword}`,
+    '',
+    'On first login, you will be required to change your username and password, then set up MFA using an authenticator app.',
+    '',
+    'If you did not expect this email, please contact support.',
+    '',
+    'Thank you,',
+    brandName,
+  ]
+    .filter((l) => l !== undefined)
+    .join('\n')
+
+  const html = `
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
+      <div style="background:#001529;padding:32px;text-align:center;">
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:600;letter-spacing:1px;">${brandName}</h1>
+      </div>
+      <div style="padding:32px;">
+        <h2 style="margin:0 0 16px;font-size:20px;color:#1f1f1f;font-weight:600;">Staff Account Created</h2>
+        <p style="margin:0 0 16px;color:#595959;font-size:14px;line-height:1.6;">
+          Your staff account has been created.
+        </p>
+        <div style="background:#fafafa;border:1px solid #f0f0f0;border-radius:8px;padding:16px;margin:0 0 16px;">
+          <div style="font-size:14px;color:#1f1f1f;line-height:1.8;">
+            <div><strong>Office:</strong> ${office || ''}</div>
+            <div><strong>Role:</strong> ${roleLabel || ''}</div>
+            <div><strong>Username:</strong> ${username}</div>
+            <div><strong>Temporary password:</strong> ${tempPassword}</div>
+          </div>
+        </div>
+        <p style="margin:0;color:#8c8c8c;font-size:13px;line-height:1.6;">
+          On first login, you will be required to change your username and password, then set up MFA using an authenticator app.
+        </p>
+      </div>
+      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
+        <p style="margin:0;color:#bfbfbf;font-size:12px;">
+          © ${new Date().getFullYear()} ${brandName}. All rights reserved.
+        </p>
+      </div>
+    </div>
+  </div>
+  `
+
+  try {
+    if (!transporter) throw new Error('SMTP not configured')
+    await transporter.sendMail({ from: process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER, to, subject, text, html })
+  } catch (err) {
+    console.log('--------------------------------------------------')
+    console.log('⚠️  SMTP FAILED (Mocking Send) ⚠️')
+    console.log('To:', to)
+    console.log('Username:', username)
+    console.log('Temp password:', tempPassword)
+    console.log('Error:', err.message)
+    console.log('--------------------------------------------------')
+  }
+}
+
+module.exports = { sendOtp, sendVerificationEmail, sendStaffCredentialsEmail }

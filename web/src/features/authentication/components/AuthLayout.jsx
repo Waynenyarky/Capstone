@@ -1,5 +1,5 @@
 import React from 'react'
-import { Layout, Row, Col, Typography, ConfigProvider, theme, Button, Card } from 'antd'
+import { Layout, Row, Col, Typography, ConfigProvider, Button, Card } from 'antd'
 import { ArrowLeftOutlined, SafetyCertificateOutlined, FileProtectOutlined, BankOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 
@@ -14,12 +14,9 @@ const { Title, Paragraph, Text } = Typography
 export default function AuthLayout({ 
   children, 
   title = "BizClear",
-  subtitle = "Business Permit & Inspection System",
   description = "BizClear is a secure digital system that helps local government units manage business permits, inspections, violations, and appeals in a clear, transparent, and efficient way by using AI to assist in document validation and blockchain technology to ensure records are tamper-proof, traceable, and trustworthy.",
-  illustration, // Optional
   formMaxWidth = 440 // Default width for form container
 }) {
-  const { token } = theme.useToken();
   const navigate = useNavigate();
 
   const features = [

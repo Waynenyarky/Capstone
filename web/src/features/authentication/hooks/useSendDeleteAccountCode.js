@@ -1,4 +1,3 @@
-import { App } from 'antd'
 import { useState } from 'react'
 import { useAuthSession } from "@/features/authentication"
 import { fetchJsonWithFallback } from "@/lib/http.js"
@@ -20,7 +19,7 @@ export function useSendDeleteAccountCode({ email, onSent } = {}) {
     const headers = authHeaders(currentUser, null, { 'Content-Type': 'application/json' })
     try {
       setSending(true)
-      const data = await fetchJsonWithFallback('/api/auth/delete-account/send-code', {
+      await fetchJsonWithFallback('/api/auth/delete-account/send-code', {
         method: 'POST',
         headers,
         body: JSON.stringify(payload),

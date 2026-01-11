@@ -1,18 +1,30 @@
 import React from 'react'
-import { Layout, Row, Col, Button, Card, Input, Spin, Typography, Space, Tooltip, Checkbox } from 'antd'
+import { Layout, Row, Col, Button, Card, Input, Spin, Space, Tooltip, Checkbox } from 'antd'
 import QrDisplay from '@/features/authentication/components/QrDisplay.jsx'
-import { useMfaSetup } from '@/features/authentication/hooks'
+import { useAuthSession, useMfaSetup } from '@/features/authentication/hooks'
 import { useNavigate } from 'react-router-dom'
 
 export default function MfaSetup() {
+  const { currentUser, role } = useAuthSession()
   const {
     loading, qrDataUrl, uri, secret, code, setCode, enabled,
     // statusFetchFailed,
     handleSetup, handleVerify, handleDisable, 
-   } = useMfaSetup()
-
-  const { showSecret, toggleShowSecret, confirmedSaved, setConfirmedSaved, handleCopy } = useMfaSetup()
+    showSecret, toggleShowSecret, confirmedSaved, setConfirmedSaved, handleCopy,
+  } = useMfaSetup()
   const navigate = useNavigate()
+
+  const roleKey = String(role?.slug || role || '').toLowerCase()
+  const isStaffRole = ['lgu_officer', 'lgu_manager', 'inspector', 'cso', 'staff'].includes(roleKey)
+  const needsOnboarding = isStaffRole && (!!currentUser?.mustSetupMfa || !!currentUser?.mustChangeCredentials)
+
+  const handleVerifyAndContinue = async () => {
+    const ok = await handleVerify()
+    if (!ok) return
+    if (needsOnboarding) {
+      navigate('/staff/onboarding', { replace: true })
+    }
+  }
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -53,7 +65,7 @@ export default function MfaSetup() {
                       <label>Enter code from app</label>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
                         <Input value={code} onChange={(e) => setCode(e.target.value.replace(/\D+/g, '').slice(0,6))} style={{ width: 160 }} />
-                        <Button type="primary" onClick={handleVerify} disabled={!confirmedSaved}>Verify & Enable</Button>
+                        <Button type="primary" onClick={handleVerifyAndContinue} disabled={!confirmedSaved || loading}>Verify & Enable</Button>
                       </div>
                       <div style={{ marginTop: 8 }}>
                         <Checkbox checked={confirmedSaved} onChange={(e) => setConfirmedSaved(e.target.checked)}>I have saved the secret in a secure place</Checkbox>

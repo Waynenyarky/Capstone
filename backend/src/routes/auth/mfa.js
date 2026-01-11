@@ -102,7 +102,7 @@ router.post('/mfa/verify', requireJwt, validateBody(verifySchema), async (req, r
   try {
     const email = req._userEmail
     const { code } = req.body || {}
-    const doc = await User.findOne({ email })
+    const doc = await User.findOne({ email }).populate('role')
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
     if (!doc.mfaSecret) return respond.error(res, 400, 'mfa_not_setup', 'MFA not set up')
 
@@ -114,8 +114,30 @@ router.post('/mfa/verify', requireJwt, validateBody(verifySchema), async (req, r
     doc.mfaMethod = doc.fprintEnabled ? 'authenticator,fingerprint' : 'authenticator'
     doc.mfaLastUsedTotpCounter = resVerify.counter
     doc.mfaLastUsedTotpAt = new Date()
+    if (doc.mustSetupMfa) doc.mustSetupMfa = false
+    if (doc.isStaff) {
+      doc.isActive = !(doc.mustChangeCredentials || doc.mustSetupMfa)
+    }
     await doc.save()
-    return res.json({ enabled: true })
+    return res.json({
+      enabled: true,
+      user: {
+        id: String(doc._id),
+        role: doc.role && doc.role.slug ? doc.role.slug : doc.role,
+        firstName: doc.firstName,
+        lastName: doc.lastName,
+        email: doc.email,
+        phoneNumber: doc.phoneNumber,
+        username: doc.username || '',
+        office: doc.office || '',
+        isActive: doc.isActive !== false,
+        isStaff: !!doc.isStaff,
+        mustChangeCredentials: !!doc.mustChangeCredentials,
+        mustSetupMfa: !!doc.mustSetupMfa,
+        mfaEnabled: !!doc.mfaEnabled,
+        mfaMethod: doc.mfaMethod || '',
+      },
+    })
   } catch (err) {
     console.error('POST /api/auth/mfa/verify error:', err)
     return respond.error(res, 500, 'mfa_verify_failed', 'Failed to verify MFA')
@@ -200,7 +222,7 @@ router.post('/mfa/fingerprint/verify', requireJwt, validateBody(verifySchema), a
     if (Date.now() > reqObj.expiresAt) return respond.error(res, 410, 'code_expired', 'Code expired')
     if (String(reqObj.code) !== String(code)) return respond.error(res, 401, 'invalid_code', 'Invalid code')
 
-    const doc = await User.findOne({ email })
+    const doc = await User.findOne({ email }).populate('role')
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
 
     doc.mfaEnabled = true
@@ -208,9 +230,31 @@ router.post('/mfa/fingerprint/verify', requireJwt, validateBody(verifySchema), a
     const hasTotp = !!doc.mfaSecret
     doc.mfaMethod = hasTotp ? 'authenticator,fingerprint' : 'fingerprint'
     doc.tokenFprint = generateToken()
+    if (doc.mustSetupMfa) doc.mustSetupMfa = false
+    if (doc.isStaff) {
+      doc.isActive = !(doc.mustChangeCredentials || doc.mustSetupMfa)
+    }
     await doc.save()
     mfaRequests.delete(key)
-    return res.json({ enabled: true })
+    return res.json({
+      enabled: true,
+      user: {
+        id: String(doc._id),
+        role: doc.role && doc.role.slug ? doc.role.slug : doc.role,
+        firstName: doc.firstName,
+        lastName: doc.lastName,
+        email: doc.email,
+        phoneNumber: doc.phoneNumber,
+        username: doc.username || '',
+        office: doc.office || '',
+        isActive: doc.isActive !== false,
+        isStaff: !!doc.isStaff,
+        mustChangeCredentials: !!doc.mustChangeCredentials,
+        mustSetupMfa: !!doc.mustSetupMfa,
+        mfaEnabled: !!doc.mfaEnabled,
+        mfaMethod: doc.mfaMethod || '',
+      },
+    })
   } catch (err) {
     console.error('POST /api/auth/mfa/fingerprint/verify error:', err)
     return respond.error(res, 500, 'fingerprint_verify_failed', 'Failed to verify fingerprint')

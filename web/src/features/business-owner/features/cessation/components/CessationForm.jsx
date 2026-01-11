@@ -22,7 +22,7 @@ export default function CessationForm({ onSubmit, onCancel }) {
       await onSubmit(values)
       message.success('Cessation request submitted successfully!')
       form.resetFields()
-    } catch (error) {
+    } catch {
       message.error('Submission failed')
     } finally {
       setLoading(false)

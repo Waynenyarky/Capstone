@@ -113,7 +113,11 @@ async function start() {
   }
 }
 
-start();
+if (require.main === module) {
+  start();
+}
+
+module.exports = { app, start }
 const path = require('path');
 const fs = require('fs');
 const uploadsDir = path.join(__dirname, '..', 'uploads');
