@@ -1,7 +1,7 @@
 import React from 'react'
 import { Layout, Row, Col, Card, Button, Typography, Space } from 'antd'
 import { Link } from 'react-router-dom'
-import Sidebar from '@/features/authentication/components/Sidebar'
+import { AppSidebar as Sidebar } from '@/features/authentication'
 
 const { Title, Paragraph } = Typography
 

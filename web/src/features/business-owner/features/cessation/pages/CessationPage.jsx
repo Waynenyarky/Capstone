@@ -1,36 +1,21 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { Table, Button, Tag, Space, Typography, Modal, Card, Empty } from 'antd'
 import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
 import { StopOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import CessationForm from '../components/CessationForm'
-import { getCessationRequests, createCessationRequest } from '../services/cessationService'
+import { useCessation } from '../hooks/useCessation'
 
 const { Title, Paragraph } = Typography
 
 export default function CessationPage() {
-  const [requests, setRequests] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [isModalVisible, setIsModalVisible] = useState(false)
-
-  const fetchRequests = async () => {
-    setLoading(true)
-    try {
-      const data = await getCessationRequests()
-      setRequests(data)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchRequests()
-  }, [])
-
-  const handleCreate = async (values) => {
-    await createCessationRequest(values)
-    setIsModalVisible(false)
-    fetchRequests()
-  }
+  const { 
+    requests, 
+    loading, 
+    isModalVisible, 
+    openModal, 
+    closeModal, 
+    handleCreate 
+  } = useCessation()
 
   const columns = [
     {
@@ -78,7 +63,7 @@ export default function CessationPage() {
               <Paragraph type="secondary">Request for business closure or temporary halt.</Paragraph>
             </div>
             {requests.length > 0 && (
-              <Button type="primary" danger icon={<StopOutlined />} onClick={() => setIsModalVisible(true)}>
+              <Button type="primary" danger icon={<StopOutlined />} onClick={openModal}>
                 New Request
               </Button>
             )}
@@ -89,7 +74,7 @@ export default function CessationPage() {
               <Empty
                 description="No cessation requests found. Operating normally."
               >
-                <Button type="primary" danger icon={<StopOutlined />} onClick={() => setIsModalVisible(true)}>
+                <Button type="primary" danger icon={<StopOutlined />} onClick={openModal}>
                   Request Cessation
                 </Button>
               </Empty>
@@ -101,7 +86,7 @@ export default function CessationPage() {
           <Modal
             title="Request Business Cessation"
             open={isModalVisible}
-            onCancel={() => setIsModalVisible(false)}
+            onCancel={closeModal}
             footer={null}
             width={800}
           >

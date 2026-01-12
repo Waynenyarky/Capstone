@@ -1,38 +1,23 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { Tabs, Table, Card, Button, Typography, Tag, Space, List, Statistic, Alert, Badge } from 'antd'
 import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
 import { DollarCircleOutlined, HistoryOutlined, RobotOutlined, CheckCircleOutlined, FilePdfOutlined } from '@ant-design/icons'
-import { getPendingBills, getPaymentHistory, processPayment } from '../services/paymentService'
 import PaymentModal from '../components/PaymentModal'
+import { usePayments } from '../hooks/usePayments'
 
 const { Title, Text } = Typography
 
 export default function PaymentsPage() {
-  const [activeTab, setActiveTab] = useState('1')
-  const [bills, setBills] = useState([])
-  const [history, setHistory] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [selectedBill, setSelectedBill] = useState(null)
-
-  const fetchData = async () => {
-    setLoading(true)
-    try {
-      const [b, h] = await Promise.all([getPendingBills(), getPaymentHistory()])
-      setBills(b)
-      setHistory(h)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  const handlePay = async (id, method, txId) => {
-    await processPayment(id, method, txId)
-    fetchData()
-  }
+  const {
+    activeTab,
+    setActiveTab,
+    bills,
+    history,
+    loading,
+    selectedBill,
+    setSelectedBill,
+    handlePay
+  } = usePayments()
 
   const columns = [
     { title: 'Invoice #', dataIndex: 'invoiceNumber', key: 'invoiceNumber' },

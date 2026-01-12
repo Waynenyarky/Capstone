@@ -44,9 +44,9 @@ export default function ServicesSection() {
           <Col xs={24} md={8} key={index}>
             <Card 
               hoverable
-              bordered={false}
+              variant="borderless"
               style={{ height: '100%', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', borderRadius: '8px' }}
-              bodyStyle={{ padding: '32px 24px' }}
+              styles={{ body: { padding: '32px 24px' } }}
             >
               <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ 

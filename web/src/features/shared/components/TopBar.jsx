@@ -1,16 +1,21 @@
 import React from 'react'
 import { Layout, Avatar, Dropdown, Menu, Space, Typography, Badge, Button, Tag } from 'antd'
 import { UserOutlined, BellOutlined, LogoutOutlined, ShopOutlined, DownOutlined } from '@ant-design/icons'
-import { useAuthSession } from '@/features/authentication'
 import { Link } from 'react-router-dom'
 import { resolveAvatarUrl } from '@/lib/utils'
 
 const { Header } = Layout
 const { Text } = Typography
 
-export default function TopBar({ title, businessName, hideNotifications, hideProfileSettings, roleLabel }) {
-  const { currentUser, logout } = useAuthSession()
-
+export default function TopBar({ 
+  title, 
+  businessName, 
+  hideNotifications, 
+  hideProfileSettings, 
+  roleLabel,
+  currentUser,
+  onLogout
+}) {
   const initials = React.useMemo(() => {
     if (currentUser?.firstName && currentUser?.lastName) {
       return `${currentUser.firstName[0]}${currentUser.lastName[0]}`.toUpperCase()
@@ -43,7 +48,7 @@ export default function TopBar({ title, businessName, hideNotifications, hidePro
       label: 'Logout',
       icon: <LogoutOutlined />,
       danger: true,
-      onClick: logout
+      onClick: onLogout
     }
   ]
 

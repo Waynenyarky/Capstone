@@ -1,22 +1,24 @@
 import React from 'react'
 import { Layout, Card, Form, Button, Typography, Row, Col, Tag } from 'antd'
 import { Link } from 'react-router-dom'
-import useProfileStatic from '@/features/authentication/hooks/useProfileStatic'
-import Sidebar from '@/features/authentication/components/Sidebar'
+import useProfile from '@/features/authentication/hooks/useProfile'
+import AppSidebar from './AppSidebar'
 import EditUserProfileForm from '@/features/user/components/EditUserProfileForm.jsx'
 
 const { Title, Paragraph, Text } = Typography
 
-export default function ProfileStatic() {
-  const { user, noop, editableStyle } = useProfileStatic()
+export default function Profile() {
+  const { user } = useProfile()
+  const noop = (e) => { e && e.preventDefault() }
+  const editableStyle = { border: '1px dashed rgba(0,0,0,0.12)', padding: 8, borderRadius: 6, background: '#fff' }
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sidebar />
+      <AppSidebar />
       <Layout.Content style={{ padding: 40, background: '#f6f8fb' }}>
         <div style={{ maxWidth: 820, margin: '0 auto' }}>
           <div style={{ marginBottom: 12 }}>
-            <Title level={3}>Profile (Static)</Title>
+            <Title level={3}>Profile</Title>
             <Paragraph type="secondary">All fields are visible. Editable fields are visually indicated but do not submit changes.</Paragraph>
           </div>
 

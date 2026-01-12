@@ -1,36 +1,21 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { Table, Button, Tag, Space, Typography, Modal, Card } from 'antd'
 import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
 import { PlusOutlined, FileTextOutlined } from '@ant-design/icons'
 import PermitApplicationForm from '../components/PermitApplicationForm'
-import { getPermits, createPermit } from '../services/permitService'
+import { usePermitApplications } from '../hooks/usePermitApplications'
 
 const { Title, Paragraph } = Typography
 
 export default function PermitApplicationPage() {
-  const [permits, setPermits] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [isModalVisible, setIsModalVisible] = useState(false)
-
-  const fetchPermits = async () => {
-    setLoading(true)
-    try {
-      const data = await getPermits()
-      setPermits(data)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchPermits()
-  }, [])
-
-  const handleCreate = async (values) => {
-    await createPermit(values)
-    setIsModalVisible(false)
-    fetchPermits()
-  }
+  const { 
+    permits, 
+    loading, 
+    isModalVisible, 
+    openModal, 
+    closeModal, 
+    handleCreate 
+  } = usePermitApplications()
 
   const columns = [
     {
@@ -90,7 +75,7 @@ export default function PermitApplicationPage() {
               <Title level={2} style={{ color: '#003a70' }}>Permit Applications</Title>
               <Paragraph type="secondary">Manage your business permit applications and renewals.</Paragraph>
             </div>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)} style={{ background: '#003a70', borderColor: '#003a70' }}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openModal} style={{ background: '#003a70', borderColor: '#003a70' }}>
               New Application
             </Button>
           </div>
@@ -102,7 +87,7 @@ export default function PermitApplicationPage() {
           <Modal
             title="New Permit Application"
             open={isModalVisible}
-            onCancel={() => setIsModalVisible(false)}
+            onCancel={closeModal}
             footer={null}
             width={800}
           >

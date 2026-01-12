@@ -1,66 +1,27 @@
 import React from 'react'
 import { Layout, Row, Col, Card, Form, Input, Button, Typography, Steps } from 'antd'
-import { useNavigate } from 'react-router-dom'
-import { useAuthSession } from '@/features/authentication'
-import { firstLoginChangeCredentials } from '@/features/authentication/services/authService.js'
 import { passwordRules, confirmPasswordRules } from '@/features/authentication/validations/changePasswordRules.js'
-import { useNotifier } from '@/shared/notifications'
+import { useStaffOnboarding } from '../hooks/useStaffOnboarding'
 
 const { Title, Text } = Typography
 
 export default function StaffOnboarding() {
-  const navigate = useNavigate()
-  const { currentUser, role, login } = useAuthSession()
-  const { success, error } = useNotifier()
-  const [form] = Form.useForm()
-  const [submitting, setSubmitting] = React.useState(false)
-
-  const roleKey = String(role?.slug || role || '').toLowerCase()
-  const isStaffRole = ['lgu_officer', 'lgu_manager', 'inspector', 'cso', 'staff'].includes(roleKey)
-  const mustChange = !!currentUser?.mustChangeCredentials
-  const mustMfa = !!currentUser?.mustSetupMfa
-  const homePath = '/staff'
-
-  React.useEffect(() => {
-    if (!currentUser?.token) return
-    if (!isStaffRole) {
-      navigate('/dashboard', { replace: true })
-      return
-    }
-  }, [currentUser, isStaffRole, navigate])
-
-  const stepKey = mustChange ? 'credentials' : (mustMfa ? 'mfa' : 'done')
-  const stepIndex = stepKey === 'credentials' ? 0 : (stepKey === 'mfa' ? 1 : 2)
+  const {
+    form,
+    submitting,
+    stepIndex,
+    mustChange,
+    mustMfa,
+    currentUser,
+    homePath,
+    handleCredentialsFinish,
+    navigate
+  } = useStaffOnboarding()
 
   const usernameRules = [
     { required: true, message: 'Please enter a new username' },
     { pattern: /^[a-z0-9][a-z0-9._-]{2,39}$/, message: '3–40 chars: letters, numbers, dot, underscore, hyphen' },
   ]
-
-  const handleCredentialsFinish = async (values) => {
-    try {
-      setSubmitting(true)
-      const res = await firstLoginChangeCredentials({
-        newPassword: values.password,
-        newUsername: values.username,
-      })
-      const updated = res?.user
-      if (updated && typeof updated === 'object') {
-        const raw = localStorage.getItem('auth__currentUser')
-        const remember = !!raw
-        const merged = { ...currentUser, ...updated }
-        login(merged, { remember })
-      }
-      form.resetFields()
-      success('Credentials updated')
-      navigate('/mfa/setup', { replace: true })
-    } catch (e) {
-      console.error('First login change credentials error:', e)
-      error(e, 'Failed to update credentials')
-    } finally {
-      setSubmitting(false)
-    }
-  }
 
   return (
     <Layout style={{ minHeight: '100vh', background: '#f5f7fb' }}>

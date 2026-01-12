@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom'
 import { LogoutForm, DeletionScheduledBanner, useAuthSession } from "@/features/authentication"
 import { UserWorkspaceGate } from "@/features/user"
 import { AdminWorkspaceGate } from "@/features/admin"
-import Sidebar from '@/features/authentication/components/Sidebar'
+import { AppSidebar as Sidebar } from '@/features/authentication'
 
 
 export default function Dashboard() {

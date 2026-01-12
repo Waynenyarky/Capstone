@@ -2,7 +2,7 @@ import React from 'react'
 import { Layout, Row, Col, Button, Space } from 'antd'
 import { Link } from 'react-router-dom'
 import { AdminWorkspaceGate } from '@/features/admin'
-import Sidebar from '@/features/authentication/components/Sidebar'
+import { AppSidebar as Sidebar } from '@/features/authentication'
 
 export default function AdminDashboard() {
   return (

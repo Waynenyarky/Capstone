@@ -128,6 +128,14 @@ export default function useMfaSetup() {
       setQrDataUrl('')
       setSecret('')
       setCode('')
+
+      try {
+        const fresh = await getProfile()
+        const raw = localStorage.getItem('auth__currentUser')
+        const remember = !!raw
+        const merged = { ...fresh, token: currentUser?.token }
+        login(merged, { remember })
+      } catch (e) { console.error('Failed to update session after disabling MFA', e) }
     } catch (e) {
       console.error('MFA disable error:', e)
       try { error(e, 'Failed to disable MFA') } catch { /* ignore */ }

@@ -5,23 +5,27 @@ import { useNavigate } from 'react-router-dom'
 
 const { Title, Text } = Typography
 
-export default function ChangePasswordForm({ email, resetToken, onSubmit } = {}) {
+export default function ChangePasswordForm({ email, resetToken, onSubmit, isLoggedInFlow = false } = {}) {
   const { form, handleFinish, isSubmitting } = useChangePasswordForm({ email, resetToken, onSubmit })
   const navigate = useNavigate()
   
-  const isResetFlow = !!resetToken
+  const isResetFlow = !!resetToken && !isLoggedInFlow
 
   return (
     <div style={{ maxWidth: 400, margin: '0 auto' }}>
-      <div style={{ textAlign: 'center', marginBottom: 48 }}>
-        <Title level={2} style={{ marginBottom: 16, fontWeight: 700, fontSize: 30 }}>{isResetFlow ? 'Reset Password' : 'Change Password'}</Title>
+      <div style={{ textAlign: 'center', marginBottom: 32 }}>
+        <Title level={3} style={{ marginBottom: 8 }}>
+          {isLoggedInFlow ? 'Set New Password' : (isResetFlow ? 'Reset Password' : 'Change Password')}
+        </Title>
         <Text type="secondary" style={{ fontSize: 16, lineHeight: 1.6 }}>
-          {isResetFlow ? 'Please enter a new password for your account.' : 'Update your password to keep your account secure.'}
+          {isLoggedInFlow 
+            ? 'Create a strong password for your account.' 
+            : (isResetFlow ? 'Please enter a new password for your account.' : 'Update your password to keep your account secure.')}
         </Text>
       </div>
 
       <Form name="changePassword" form={form} layout="vertical" onFinish={handleFinish} size="large" requiredMark={false}>
-        {!isResetFlow && (
+        {!isResetFlow && !isLoggedInFlow && (
           <Form.Item 
             name="currentPassword" 
             label={<Text strong>Current Password</Text>}

@@ -43,7 +43,7 @@ export default function PrivacyPolicy() {
             </Button>
           </div>
 
-          <Card bordered={false} style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.05)', borderRadius: 12, overflow: 'hidden' }}>
+          <Card variant="borderless" style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.05)', borderRadius: 12, overflow: 'hidden' }}>
             <div style={{ background: 'linear-gradient(135deg, #001529 0%, #003a70 100%)', padding: '40px 32px', color: '#fff', margin: '-24px -24px 32px -24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 }}>
                 <LockOutlined style={{ fontSize: 32, color: '#40a9ff' }} />

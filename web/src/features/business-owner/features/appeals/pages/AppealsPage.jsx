@@ -1,35 +1,21 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { Table, Button, Tag, Space, Typography, Card } from 'antd'
 import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
 import { ExclamationCircleOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
-import { getAppeals, createAppeal } from '../services/appealService'
 import AppealModal from '../components/AppealModal'
+import { useAppeals } from '../hooks/useAppeals'
 
 const { Title, Paragraph } = Typography
 
 export default function AppealsPage() {
-  const [appeals, setAppeals] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [isModalVisible, setIsModalVisible] = useState(false)
-
-  const fetchAppeals = async () => {
-    setLoading(true)
-    try {
-      const data = await getAppeals()
-      setAppeals(data)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchAppeals()
-  }, [])
-
-  const handleCreate = async (values) => {
-    await createAppeal(values)
-    fetchAppeals()
-  }
+  const { 
+    appeals, 
+    loading, 
+    isModalVisible, 
+    openModal, 
+    closeModal, 
+    handleCreate 
+  } = useAppeals()
 
   const columns = [
     { title: 'Reference #', dataIndex: 'referenceNumber', key: 'referenceNumber' },
@@ -70,7 +56,7 @@ export default function AppealsPage() {
               <Title level={2} style={{ color: '#003a70' }}>Appeals & Disputes</Title>
               <Paragraph type="secondary">Contest rejected permits, fines, or inspection results.</Paragraph>
             </div>
-            <Button type="primary" icon={<ExclamationCircleOutlined />} onClick={() => setIsModalVisible(true)} style={{ background: '#003a70', borderColor: '#003a70' }}>
+            <Button type="primary" icon={<ExclamationCircleOutlined />} onClick={openModal} style={{ background: '#003a70', borderColor: '#003a70' }}>
               File New Appeal
             </Button>
           </div>
@@ -81,7 +67,7 @@ export default function AppealsPage() {
 
           <AppealModal 
             open={isModalVisible} 
-            onCancel={() => setIsModalVisible(false)} 
+            onCancel={closeModal} 
             onSubmit={handleCreate} 
           />
         </div>

@@ -98,18 +98,15 @@ export async function adminLoginStart(payload) {
 }
 
 export async function adminVerifyLoginCode(payload) {
-  const res = await fetchWithFallback('/api/auth/login/verify', {
+  return await fetchJsonWithFallback('/api/auth/login/verify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
+}
 
-  if (!res || !res.ok) {
-    let body = null
-    try { body = await res.json() } catch { /* ignore */ }
-    return Promise.reject({ status: res?.status || 0, body })
-  }
-  return res.json()
+export async function getMe() {
+  return await fetchJsonWithFallback('/api/auth/me', { method: 'GET' })
 }
 
 // Password reset
@@ -197,6 +194,30 @@ export async function changeEmailConfirmVerify(payload) {
   return await fetchJsonWithFallback('/api/auth/change-email/confirm/verify', {
     method: 'POST',
     headers,
+    body: JSON.stringify(payload),
+  })
+}
+
+// Account Deletion
+export async function cancelAccountDeletion() {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  // Return the raw response or handle error logic here, but keeping consistent with other methods that might return result or throw
+  // The hook expects to handle the response object for error parsing, so we'll return the raw response for now or standard json.
+  // Looking at useCancelDeleteAccount, it manually parses response. Let's standardize to return JSON or throw.
+  // Actually, let's stick to the pattern of returning the promise of the fetch result or the parsed JSON.
+  // Most methods here return `fetchJsonWithFallback` which returns the parsed JSON or throws.
+  
+  return await fetchJsonWithFallback('/api/auth/delete-account/cancel', {
+    method: 'POST',
+    headers,
+  })
+}
+
+export async function confirmAccountDeletion(payload) {
+  return await fetchJsonWithFallback('/api/auth/delete-account/confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
 }

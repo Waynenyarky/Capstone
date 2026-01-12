@@ -2,6 +2,7 @@ import React from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuthSession } from '@/features/authentication'
 import { getIsLoggingOut } from '@/features/authentication/lib/authEvents.js'
+import DeletionPendingScreen from './DeletionPendingScreen.jsx'
 
 export default function ProtectedRoute({ children, allowedRoles = [] }) {
   const { currentUser, role, isLoading } = useAuthSession()
@@ -145,6 +146,31 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
   }
 
   const staffRoles = ['staff', 'lgu_manager', 'lgu_officer', 'inspector', 'cso']
+
+  // Handle Deletion Pending State
+  if (currentUser?.deletionPending) {
+    if (location.pathname !== '/deletion-pending') {
+      return <Navigate to="/deletion-pending" replace state={{ from: location }} />
+    }
+    return children
+  }
+
+  // Prevent access to Deletion Pending screen if not pending
+  if (!currentUser?.deletionPending && location.pathname === '/deletion-pending') {
+    // Try to restore the previous location if available
+    if (location.state?.from?.pathname) {
+      return <Navigate to={location.state.from.pathname} replace />
+    }
+
+    // Default to role-based dashboard
+    let target = '/dashboard'
+    if (roleKey === 'admin') target = '/admin/dashboard'
+    else if (roleKey === 'business_owner') target = '/owner'
+    else if (staffRoles.includes(roleKey)) target = '/staff'
+    
+    return <Navigate to={target} replace />
+  }
+
   const needsOnboarding = staffRoles.includes(roleKey) && (currentUser?.mustChangeCredentials || currentUser?.mustSetupMfa)
   const onboardingAllowedPaths = ['/staff/onboarding', '/mfa/setup']
   if (needsOnboarding && !onboardingAllowedPaths.includes(location.pathname)) {

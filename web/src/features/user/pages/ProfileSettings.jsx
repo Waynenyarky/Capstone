@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import { Layout, Typography, Card, Tabs, Row, Col, Avatar, Tag, Space, Grid, Upload, message } from 'antd'
 import { UserOutlined, SecurityScanOutlined, SettingOutlined, CameraOutlined, LoadingOutlined } from '@ant-design/icons'
-import Sidebar from '@/features/authentication/components/Sidebar'
-import useProfileStatic from '@/features/authentication/hooks/useProfileStatic'
+import { AppSidebar as Sidebar } from '@/features/authentication'
+import useProfile from '@/features/authentication/hooks/useProfile'
 import EditUserProfileForm from '@/features/user/components/EditUserProfileForm.jsx'
 import LoggedInMfaManager from '@/features/authentication/components/LoggedInMfaManager.jsx'
 import LoggedInEmailChangeFlow from '@/features/authentication/flows/LoggedInEmailChangeFlow.jsx'
@@ -17,7 +17,7 @@ const { TabPane } = Tabs
 const { useBreakpoint } = Grid
 
 export default function ProfileSettings() {
-  const { user } = useProfileStatic()
+  const { user } = useProfile()
   const { currentUser, login, role } = useAuthSession()
   const [uploading, setUploading] = useState(false)
   const screens = useBreakpoint()
@@ -70,11 +70,15 @@ export default function ProfileSettings() {
       label: <span><UserOutlined />General</span>,
       children: (
         <div>
-          <div style={{ marginBottom: 24, borderBottom: '1px solid #f0f0f0', paddingBottom: 16 }}>
-            <Title level={4} style={{ margin: 0 }}>Personal Information</Title>
-            <Text type="secondary">Update your photo and personal details here.</Text>
+          <div style={{ marginBottom: 40 }}>
+            <Title level={4} style={{ marginBottom: 16 }}>Personal Information</Title>
+            <Card type="inner" title="Edit Profile Details">
+              <Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
+                Update your personal details here. Your profile photo can be updated in the sidebar.
+              </Text>
+              <EditUserProfileForm embedded={true} />
+            </Card>
           </div>
-          <EditUserProfileForm embedded={true} />
         </div>
       )
     },
@@ -119,13 +123,17 @@ export default function ProfileSettings() {
 
           <div style={{ paddingTop: 32, borderTop: '1px solid #f0f0f0' }}>
             <Title level={4} type="danger" style={{ marginBottom: 16 }}>Danger Zone</Title>
-            <div style={{ border: '1px solid #ffccc7', background: '#fff1f0', padding: 24, borderRadius: 8 }}>
-              <Title level={5} type="danger">Delete Account</Title>
+            <Card 
+              type="inner" 
+              title={<span style={{ color: '#cf1322' }}>Delete Account</span>}
+              style={{ border: '1px solid #ffccc7' }}
+              styles={{ header: { background: '#fff1f0', borderBottom: '1px solid #ffccc7' } }}
+            >
               <Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
                 Permanently delete your account and all of its data. This action cannot be undone.
               </Text>
               <DeleteAccountFlow />
-            </div>
+            </Card>
           </div>
         </div>
       )
@@ -137,11 +145,11 @@ export default function ProfileSettings() {
       <Sidebar />
 
       <Layout.Content style={{ 
-        padding: isMobile ? '24px 16px' : '40px 60px', 
+        padding: isMobile ? '16px' : '24px', 
         background: '#F0F2F5',
         minHeight: '100vh'
       }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <div>
           
           <div style={{ marginBottom: 32 }}>
             <Title level={2} style={{ marginBottom: 8, fontSize: isMobile ? 24 : 30, color: '#003a70' }}>Profile & Settings</Title>

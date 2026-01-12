@@ -1,11 +1,6 @@
 import React, { useState } from 'react'
 import { Layout, Menu, Typography, Grid, Drawer, Button } from 'antd'
-import { useNavigate, useLocation } from 'react-router-dom'
-import { MenuOutlined, DownOutlined } from '@ant-design/icons'
-import useSidebar from '@/features/authentication/hooks/useSidebar'
-import { useAuthSession } from '@/features/authentication'
-import ConfirmLogoutModal from '@/features/authentication/components/ConfirmLogoutModal.jsx'
-import { useConfirmLogoutModal } from '@/features/authentication/hooks'
+import { MenuOutlined } from '@ant-design/icons'
 
 const { Sider } = Layout
 const { Text } = Typography
@@ -15,13 +10,9 @@ const SidebarContent = ({
   collapsed, 
   items, 
   activeKey, 
-  onSelect, 
   handleItemClick, 
-  currentUser, 
-  role 
+  currentUser,
 }) => {
-
-
   return (
     <>
       {/* Brand / Logo */}
@@ -66,8 +57,6 @@ const SidebarContent = ({
         )}
       </div>
 
-
-
       <Menu
         mode="inline"
         theme="dark"
@@ -75,7 +64,6 @@ const SidebarContent = ({
         onClick={({ key }) => {
             const item = items.find(i => i.key === key)
             if (item) {
-                onSelect({ key })
                 handleItemClick(item)
             }
         }}
@@ -109,94 +97,26 @@ const SidebarContent = ({
   )
 }
 
-export default function Sidebar({ hiddenKeys = [], renamedKeys = {}, itemOverrides = {}, ...siderProps }) {
-  const { items: rawItems, selected, onSelect, role } = useSidebar()
+/**
+ * Pure Sidebar Component (UI Only)
+ * @param {object[]} items - Menu items
+ * @param {string} activeKey - Currently selected key
+ * @param {function} onItemClick - Callback when item is clicked
+ * @param {object} currentUser - Current user object
+ * @param {object} siderProps - Props passed to Antd Sider
+ */
+export default function Sidebar({ items = [], activeKey, onItemClick, currentUser, ...siderProps }) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const screens = useBreakpoint()
   
-  // Double safety check: ensure items is always an array
-  // Also filter out hidden keys and apply renamed labels
-  const items = React.useMemo(() => {
-    let arr = Array.isArray(rawItems) ? rawItems : []
-
-    // Apply renames
-    if (Object.keys(renamedKeys).length > 0) {
-      arr = arr.map(item => {
-        if (renamedKeys[item.key]) {
-          return { ...item, label: renamedKeys[item.key] }
-        }
-        return item
-      })
-    }
-
-    // Apply overrides (label, icon, etc)
-    if (Object.keys(itemOverrides).length > 0) {
-      arr = arr.map(item => {
-        if (itemOverrides[item.key]) {
-          return { ...item, ...itemOverrides[item.key] }
-        }
-        return item
-      })
-    }
-
-    if (hiddenKeys.length > 0) {
-      return arr.filter(i => !hiddenKeys.includes(i.key))
-    }
-    return arr
-  }, [rawItems, hiddenKeys, renamedKeys, itemOverrides])
-  
-  const { currentUser, logout } = useAuthSession()
-  const navigate = useNavigate()
-  const location = useLocation()
-
-  // derive the active key from the current location so route changes
-  // (via Link) immediately reflect as the selected/highlighted item
-  const activeKey = React.useMemo(() => {
-    // Find all items that match the current path prefix
-    const matches = items.filter(i => i.to && location.pathname.startsWith(i.to))
-    
-    // If multiple matches, pick the one with the longest 'to' path (most specific match)
-    // e.g. '/owner/permits' should match 'permit-apps' instead of 'dashboard' ('/owner')
-    if (matches.length > 0) {
-      matches.sort((a, b) => b.to.length - a.to.length)
-      return matches[0].key
-    }
-    
-    return selected
-  }, [items, location.pathname, selected])
-
-  const { open, show, hide, confirming, handleConfirm } = useConfirmLogoutModal({
-    onConfirm: async () => {
-      // perform logout and navigate
-      try {
-        // Navigate for immediate feedback, but logout() will also trigger a redirect
-        // handled gracefully by ProtectedRoute's isLoggingOut check.
-        navigate('/login')
-        logout()
-      } catch (err) {
-        void err
-      }
-    }
-  })
-
-  const handleItemClick = (item) => {
-    if (item.type === 'action' && item.key === 'logout') {
-      show()
-      return
-    }
-    
-    // Programmatic navigation for better click handling
-    if (item.to) {
-      navigate(item.to)
-      setMobileOpen(false) // Close mobile drawer on navigation
-    }
-  }
-
   // Determine if we are on a mobile screen (md breakpoint = 768px)
-  // If screens.md is undefined, it might be initial render. Default to desktop (false) or true?
-  // Usually Antd defaults to desktop.
   const isMobile = (screens.md === false)
+
+  const handleMobileClick = (item) => {
+    setMobileOpen(false)
+    if (onItemClick) onItemClick(item)
+  }
 
   return (
     <>
@@ -227,10 +147,8 @@ export default function Sidebar({ hiddenKeys = [], renamedKeys = {}, itemOverrid
               collapsed={false}
               items={items}
               activeKey={activeKey}
-              onSelect={onSelect}
-              handleItemClick={handleItemClick}
+              handleItemClick={handleMobileClick}
               currentUser={currentUser}
-              role={role}
             />
           </Drawer>
         </>
@@ -259,15 +177,11 @@ export default function Sidebar({ hiddenKeys = [], renamedKeys = {}, itemOverrid
             collapsed={collapsed}
             items={items}
             activeKey={activeKey}
-            onSelect={onSelect}
-            handleItemClick={handleItemClick}
+            handleItemClick={onItemClick}
             currentUser={currentUser}
-            role={role}
           />
         </Sider>
       )}
-      
-      <ConfirmLogoutModal open={open} onConfirm={handleConfirm} onCancel={hide} confirmLoading={confirming} />
     </>
   )
 }

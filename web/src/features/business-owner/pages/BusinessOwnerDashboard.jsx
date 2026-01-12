@@ -1,16 +1,13 @@
-import React, { useEffect, useState } from 'react'
-import { Layout, Row, Col, Card, Button, Typography, Space, Spin, message } from 'antd'
-import { Link, useNavigate } from 'react-router-dom'
+import React from 'react'
+import { Layout, Row, Col, Card, Button, Typography, Space, Spin } from 'antd'
+import { Link } from 'react-router-dom'
 import { FormOutlined } from '@ant-design/icons'
-import { useAuthSession } from '@/features/authentication/hooks'
+import { AppSidebar as Sidebar } from '@/features/authentication'
 import BusinessOwnerLayout from '../components/BusinessOwnerLayout'
 import BusinessRegistrationWizard from '../components/BusinessRegistrationWizard'
-import Sidebar from '@/features/authentication/components/Sidebar'
-import { getBusinessProfile } from '../services/businessProfileService'
-import { post, get } from '@/lib/http'
+import { useBusinessOwnerDashboard } from '../hooks/useBusinessOwnerDashboard'
 
 // Dashboard Feature Imports
-import { useDashboardData } from '../features/dashboard/hooks/useDashboardData'
 import ComplianceStatus from '../features/dashboard/components/ComplianceStatus'
 import PermitSummary from '../features/dashboard/components/PermitSummary'
 import PaymentsDue from '../features/dashboard/components/PaymentsDue'
@@ -25,62 +22,15 @@ import AISuggestions from '../features/dashboard/components/AISuggestions'
 const { Title, Paragraph } = Typography
 
 export default function BusinessOwnerDashboard() {
-  const { currentUser, role, login, logout } = useAuthSession()
-  const navigate = useNavigate()
-  const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [fetchError, setFetchError] = useState(null)
-  
-  // Dashboard Data Hook
-  const { loading: dashboardLoading, data: dashboardData } = useDashboardData()
-
-  // Listen for verification from other tabs
-  useEffect(() => {
-    const bc = new BroadcastChannel('auth_channel')
-    let processing = false
-
-    bc.onmessage = async (event) => {
-      if (event.data.type === 'email-verified' && !processing) {
-        processing = true
-        message.success('Email verified! Syncing...')
-        try {
-          // Force fetch fresh user data to update THIS tab's session
-          // This is crucial if using sessionStorage (which isn't shared between tabs)
-          const freshUser = await get('/api/auth/me')
-          if (freshUser && freshUser.isEmailVerified) {
-            // Preserve the existing token!
-            login({ ...freshUser, token: currentUser?.token })
-            setLoading(true) // Trigger profile fetch
-          }
-        } catch (err) {
-          console.error('Failed to sync verified status:', err)
-        } finally {
-          setTimeout(() => { processing = false }, 2000)
-        }
-      }
-    }
-    return () => bc.close()
-  }, [login])
-
-  useEffect(() => {
-    if (!currentUser) navigate('/login')
-    else if (role !== 'business_owner') navigate('/dashboard')
-    else {
-      // Fetch business profile to check status
-      setLoading(true)
-      getBusinessProfile()
-        .then(setProfile)
-        .catch(err => {
-          console.error(err)
-          if (err.message && (err.message.includes('Unauthorized') || err.message.includes('missing token'))) {
-             logout()
-             return
-          }
-          setFetchError(err)
-        })
-        .finally(() => setLoading(false))
-    }
-  }, [currentUser, role, navigate, logout])
+  const { 
+    currentUser, 
+    role, 
+    profile, 
+    loading, 
+    fetchError, 
+    dashboardLoading, 
+    dashboardData 
+  } = useBusinessOwnerDashboard()
 
   if (!currentUser || role !== 'business_owner') {
     return (

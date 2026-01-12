@@ -20,9 +20,13 @@ export { default as SendCodeForCurrentUserConfirm } from './components/SendCodeF
 export { default as VerificationConfirmForm } from './components/VerificationConfirmForm.jsx'
 export { default as VerificationNewEmailForm } from './components/VerificationNewEmailForm.jsx'
 export { default as AuthLayout } from './components/AuthLayout.jsx'
+export { default as AppSidebar } from './components/AppSidebar.jsx'
 
 // Hooks — re-export from hooks barrel to avoid duplication
 export * from './hooks/index.js'
+
+// Services
+export * from './services/index.js'
 
 // Lib
 export * from './lib/authEvents.js'
@@ -33,6 +37,7 @@ export { default as LoggedInEmailChangeFlow } from './flows/LoggedInEmailChangeF
 export { default as LoggedInPasswordChangeFlow } from './flows/LoggedInPasswordChangeFlow.jsx'
 export { default as ConfirmDeleteAccountForm } from './components/ConfirmDeleteAccountForm.jsx'
 export { default as DeletionScheduledBanner } from './components/DeletionScheduledBanner.jsx'
+export { default as DeletionPendingScreen } from './components/DeletionPendingScreen.jsx'
 export { default as SendDeleteCodeForCurrentUser } from './components/SendDeleteCodeForCurrentUser.jsx'
 export { default as VerifyDeleteCodeForm } from './components/VerifyDeleteCodeForm.jsx'
 

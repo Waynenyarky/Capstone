@@ -1,203 +1,215 @@
 import React from 'react'
-import { Card, Button, Space, Typography, Modal, Input } from 'antd'
-import { useAuthSession } from '@/features/authentication/hooks'
-import { mfaStatus, mfaDisableRequest, mfaDisableUndo, mfaVerify } from '@/features/authentication/services/mfaService'
-import { useNotifier } from '@/shared/notifications'
-import { useNavigate } from 'react-router-dom'
+import { Button, Space, Typography, Modal, Input, Alert, Flex, theme } from 'antd'
+import { 
+  ClockCircleOutlined, 
+  UndoOutlined,
+  WarningOutlined,
+  SafetyCertificateOutlined,
+  SecurityScanOutlined,
+  LockOutlined
+} from '@ant-design/icons'
+import { useLoggedInMfaManager } from '@/features/authentication/hooks'
+
+const { Text, Paragraph, Title } = Typography
 
 export default function LoggedInMfaManager() {
-  const { currentUser, role } = useAuthSession()
-  const navigate = useNavigate()
-  const { success, error } = useNotifier()
-  const email = currentUser?.email
-
-  const [loading, setLoading] = React.useState(false)
-  const [enabled, setEnabled] = React.useState(false)
-  const [statusFetchFailed, setStatusFetchFailed] = React.useState(false)
-  const [disablePending, setDisablePending] = React.useState(false)
-  const [scheduledFor, setScheduledFor] = React.useState(null)
-  const [countdown, setCountdown] = React.useState('')
-  const [confirmModalVisible, setConfirmModalVisible] = React.useState(false)
-  const [confirmCode, setConfirmCode] = React.useState('')
-  const [undoModalVisible, setUndoModalVisible] = React.useState(false)
-  const [undoCode, setUndoCode] = React.useState('')
-
-  React.useEffect(() => {
-    let mounted = true
-    if (!email) return
-    ;(async () => {
-      try {
-        const res = await mfaStatus(email)
-        if (!mounted) return
-        setEnabled(!!res?.enabled)
-        setDisablePending(!!res?.disablePending)
-        setScheduledFor(res?.scheduledFor || null)
-      } catch {
-        if (!mounted) return
-        setStatusFetchFailed(true)
-        // Non-blocking notice to user
-        error('Could not retrieve MFA status — continuing offline; some actions may fail.')
-      }
-    })()
-    return () => { mounted = false }
-  }, [email, error])
-
-  // Countdown for scheduled disable
-  React.useEffect(() => {
-    if (!scheduledFor) {
-      setCountdown('')
-      return
-    }
-    let cancelled = false
-    const tick = () => {
-      const until = new Date(scheduledFor).getTime() - Date.now()
-      if (until <= 0) {
-        setCountdown('Finalizing disable...')
-        // refresh status once
-        ;(async () => {
-          try {
-            const res = await mfaStatus(email)
-            if (cancelled) return
-            setEnabled(!!res?.enabled)
-            setDisablePending(!!res?.disablePending)
-            setScheduledFor(res?.scheduledFor || null)
-          } catch {
-            // ignore
-          }
-        })()
-        return
-      }
-      const seconds = Math.floor(until / 1000)
-      const days = Math.floor(seconds / (24 * 3600))
-      const hrs = Math.floor((seconds % (24 * 3600)) / 3600)
-      const mins = Math.floor((seconds % 3600) / 60)
-      const secs = seconds % 60
-      const parts = []
-      if (days > 0) parts.push(`${days}d`)
-      parts.push(String(hrs).padStart(2, '0') + 'h')
-      parts.push(String(mins).padStart(2, '0') + 'm')
-      parts.push(String(secs).padStart(2, '0') + 's')
-      setCountdown(parts.join(' '))
-    }
-    tick()
-    const iv = setInterval(tick, 1000)
-    return () => { cancelled = true; clearInterval(iv) }
-  }, [scheduledFor, email])
-
-  const confirmUndo = async () => {
-    if (!email) return error('Signed-in email missing')
-    setLoading(true)
-    try {
-      const res = await mfaDisableUndo(email, undoCode)
-      if (res?.canceled) {
-        setDisablePending(false)
-        setScheduledFor(null)
-        success('MFA disable canceled')
-      } else {
-        // if backend returned no canceled flag, just refresh
-        const s = await mfaStatus(email)
-        setDisablePending(!!s?.disablePending)
-        setScheduledFor(s?.scheduledFor || null)
-      }
-    } catch (err) {
-      console.error('Undo disable error', err)
-      error(err, 'Failed to cancel disable')
-    } finally {
-      setLoading(false)
-      setUndoModalVisible(false)
-    }
-  }
+  const { token } = theme.useToken()
+  const {
+    currentUser,
+    role,
+    loading,
+    enabled,
+    statusFetchFailed,
+    disablePending,
+    scheduledFor,
+    countdown,
+    confirmModalVisible,
+    setConfirmModalVisible,
+    confirmCode,
+    setConfirmCode,
+    undoModalVisible,
+    setUndoModalVisible,
+    undoCode,
+    setUndoCode,
+    handleOpenSetup,
+    handleDisable,
+    confirmDisable,
+    confirmUndo
+  } = useLoggedInMfaManager()
 
   if (!currentUser) return null
-  // Do not render for admin accounts
-  if (String(role || '').toLowerCase() === 'admin') return null
-
-  const handleOpenSetup = () => navigate('/mfa/setup')
-
-  // Start the confirm flow (show modal to enter current TOTP code)
-  const handleDisable = () => {
-    setConfirmCode('')
-    setConfirmModalVisible(true)
-  }
-
-  const confirmDisable = async () => {
-    if (!email) return error('Signed-in email missing')
-    setLoading(true)
-    try {
-      // Verify code first to ensure holder intends to disable
-      await mfaVerify(email, confirmCode)
-      // Request disable which schedules it 24 hours from now
-      const res = await mfaDisableRequest(email)
-      setDisablePending(!!res?.disablePending)
-      setScheduledFor(res?.scheduledFor || null)
-      success('MFA disable scheduled — will be disabled in 24 hours')
-    } catch (err) {
-      console.error('Disable MFA request error', err)
-      error(err, 'Failed to schedule MFA disable')
-    } finally {
-      setLoading(false)
-      setConfirmModalVisible(false)
-    }
-  }
 
   return (
     <div>
-      {disablePending && scheduledFor ? (
-        <div style={{ marginBottom: 12 }}>
-          <Typography.Text type="danger">Disable requested — scheduled for: {new Date(scheduledFor).toLocaleString()}</Typography.Text>
-          <div>{countdown}</div>
-        </div>
-      ) : null}
-      {statusFetchFailed ? (
-        <Typography.Paragraph type="warning" style={{ marginBottom: 12 }}>
-          Could not retrieve MFA status — continuing offline; some actions may fail.
-        </Typography.Paragraph>
-      ) : null}
+      {statusFetchFailed && (
+        <Alert 
+          type="warning" 
+          showIcon 
+          message="Connection Issue"
+          description="Could not retrieve MFA status. Some actions may be unavailable."
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      {disablePending && scheduledFor && (
+        <Alert
+          type="error"
+          showIcon
+          icon={<ClockCircleOutlined />}
+          message="MFA Disable Requested"
+          description={
+            <div style={{ marginTop: 4 }}>
+               <Paragraph style={{ marginBottom: 0 }}>
+                 Your request to disable MFA is pending. It will be disabled on <strong>{new Date(scheduledFor).toLocaleString()}</strong>.
+               </Paragraph>
+               <div style={{ marginTop: 8, fontWeight: 600, color: token.colorError }}>
+                 Time remaining: {countdown}
+               </div>
+            </div>
+          }
+          style={{ marginBottom: 24, border: `1px solid ${token.colorErrorBorder}` }}
+          action={
+            <Button 
+              size="small" 
+              type="primary" 
+              danger 
+              ghost 
+              icon={<UndoOutlined />} 
+              onClick={() => setUndoModalVisible(true)}
+            >
+              Undo Request
+            </Button>
+          }
+        />
+      )}
       
-      <div style={{ marginTop: 12, marginBottom: 16 }}>
-        <strong>Status:</strong> {enabled ? <span style={{ color: 'green', marginLeft: 8 }}>Enabled</span> : <span style={{ color: 'red', marginLeft: 8 }}>Disabled</span>}
+      {/* Status Card */}
+      <div style={{ 
+        padding: 24, 
+        background: enabled ? '#f6ffed' : '#fffbe6', 
+        border: `1px solid ${enabled ? '#b7eb8f' : '#ffe58f'}`,
+        borderRadius: token.borderRadiusLG,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16
+      }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, maxWidth: '70%' }}>
+          {enabled ? (
+            <SafetyCertificateOutlined style={{ fontSize: 32, color: '#52c41a', marginTop: 4 }} />
+          ) : (
+            <SecurityScanOutlined style={{ fontSize: 32, color: '#faad14', marginTop: 4 }} />
+          )}
+          <div>
+            <Title level={5} style={{ margin: 0, marginBottom: 4 }}>
+              {enabled ? 'Two-Factor Authentication is active' : 'Two-Factor Authentication is not enabled'}
+            </Title>
+            <Text type="secondary">
+              {enabled 
+                ? 'Your account is protected with an extra layer of security.' 
+                : 'Protect your account by requiring a verification code when signing in.'}
+            </Text>
+          </div>
+        </div>
+        
+        <div>
+          {enabled ? (
+            <Button 
+              danger 
+              onClick={handleDisable} 
+              disabled={loading || disablePending}
+              icon={<LockOutlined />}
+            >
+              Disable MFA
+            </Button>
+          ) : (
+            <Button 
+              type="primary" 
+              onClick={handleOpenSetup} 
+              disabled={loading}
+              icon={<SafetyCertificateOutlined />}
+            >
+              Setup MFA
+            </Button>
+          )}
+        </div>
       </div>
 
-      <Space>
-        <Button type="primary" onClick={handleOpenSetup} disabled={loading || enabled}>Setup / Manage MFA</Button>
-        <Button danger onClick={handleDisable} disabled={loading || !enabled || disablePending}>Disable MFA</Button>
-        {disablePending ? (
-          <Button onClick={() => setUndoModalVisible(true)}>Undo Disable</Button>
-        ) : null}
-      </Space>
-
+      {/* Confirm Disable Modal */}
       <Modal
-        title="Confirm disable MFA"
+        title={
+          <Space>
+            <WarningOutlined style={{ color: token.colorWarning, fontSize: 22 }} />
+            <span>Disable Two-Factor Authentication</span>
+          </Space>
+        }
         open={confirmModalVisible}
         onOk={confirmDisable}
         onCancel={() => setConfirmModalVisible(false)}
-        okText="Confirm"
-        cancelText="Cancel"
+        okText="Disable MFA"
+        okButtonProps={{ danger: true, size: 'large' }}
+        cancelButtonProps={{ size: 'large' }}
+        width={480}
+        centered
       >
-        <p>Enter your current authenticator code to confirm disabling MFA. This will schedule disable in 24 hours.</p>
-        <Input
-          value={confirmCode}
-          onChange={(e) => setConfirmCode((e.target.value || '').replace(/\D+/g, '').slice(0,6))}
-          placeholder="123456"
-          maxLength={6}
-        />
+        <div style={{ padding: '24px 0' }}>
+          <Alert 
+            type="warning" 
+            showIcon
+            message="Security Delay"
+            description="For your security, disabling MFA requires a 24-hour waiting period. You can cancel this request at any time during the countdown."
+            style={{ marginBottom: 24 }}
+          />
+          
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <Paragraph style={{ fontSize: 16 }}>
+              Enter the 6-digit code from your authenticator app
+            </Paragraph>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <Input.OTP 
+                length={6} 
+                value={confirmCode}
+                onChange={(text) => setConfirmCode(text)}
+                size="large"
+              />
+            </div>
+          </div>
+        </div>
       </Modal>
 
+      {/* Undo Disable Modal */}
       <Modal
-        title="Undo disable request"
+        title={
+          <Space>
+            <UndoOutlined style={{ color: token.colorPrimary, fontSize: 22 }} />
+            <span>Cancel Disable Request</span>
+          </Space>
+        }
         open={undoModalVisible}
         onOk={confirmUndo}
         onCancel={() => setUndoModalVisible(false)}
-        okText="Undo"
-        cancelText="Cancel"
+        okText="Keep MFA Enabled"
+        okButtonProps={{ type: 'primary', size: 'large' }}
+        cancelButtonProps={{ size: 'large' }}
+        width={480}
+        centered
       >
-        <p>Enter your current authenticator code to cancel the pending disable.</p>
-        <Input
-          value={undoCode}
-          onChange={(e) => setUndoCode((e.target.value || '').replace(/\D+/g, '').slice(0,6))}
-          placeholder="123456"
-          maxLength={6}
-        />
+        <div style={{ padding: '24px 0' }}>
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <Paragraph type="secondary" style={{ marginBottom: 24 }}>
+              Verify your identity to cancel the pending disable request.
+            </Paragraph>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <Input.OTP 
+                length={6} 
+                value={undoCode}
+                onChange={(text) => setUndoCode(text)}
+                size="large"
+              />
+            </div>
+          </div>
+        </div>
       </Modal>
     </div>
   )

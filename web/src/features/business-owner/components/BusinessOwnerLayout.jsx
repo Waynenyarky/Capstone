@@ -1,9 +1,10 @@
 import React from 'react'
-import { Layout } from 'antd'
-import Sidebar from '@/features/authentication/components/Sidebar'
-import TopBar from './TopBar'
+import { Layout, Grid } from 'antd'
+import { TopBar } from '@/features/shared'
+import { AppSidebar as Sidebar, useAuthSession } from '@/features/authentication'
 
 const { Content } = Layout
+const { useBreakpoint } = Grid
 
 export default function BusinessOwnerLayout({ 
   children, 
@@ -15,6 +16,10 @@ export default function BusinessOwnerLayout({
   hideNotifications = false,
   hideProfileSettings = false
 }) {
+  const { currentUser, logout } = useAuthSession()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       {!hideSidebar && (
@@ -29,14 +34,16 @@ export default function BusinessOwnerLayout({
           businessName={businessName} 
           hideNotifications={hideNotifications}
           hideProfileSettings={hideProfileSettings}
+          currentUser={currentUser}
+          onLogout={logout}
         />
-        <Content style={{ 
-          padding: '40px', 
+        <Content style={{  
+          padding: isMobile ? '16px' : '24px', 
           background: '#f0f2f5',
           overflowY: 'auto',
           height: 'calc(100vh - 64px)'
         }}>
-          <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <div style={{ minHeight: '100%' }}>
             {children}
           </div>
         </Content>

@@ -1,5 +1,5 @@
 import { Form } from 'antd'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAuthSession } from "@/features/authentication"
 import { getUserProfile, updateUserProfile } from "@/features/user/services/userService.js"
 import { useNotifier } from '@/shared/notifications.js'
@@ -10,16 +10,22 @@ export function useEditUserProfileForm({ onSubmit } = {}) {
   const [isSubmitting, setSubmitting] = useState(false)
   const { currentUser, role, login } = useAuthSession()
   const { success, error } = useNotifier()
+  
+  const initialValuesRef = useRef({})
+  const [isDirty, setDirty] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const data = await getUserProfile(currentUser, role)
-      form.setFieldsValue({
+      const values = {
         firstName: data?.firstName || '',
         lastName: data?.lastName || '',
         phoneNumber: data?.phoneNumber || '09',
-      })
+      }
+      form.setFieldsValue(values)
+      initialValuesRef.current = values
+      setDirty(false)
     } catch (err) {
       console.error('Load user profile error:', err)
       error(err, 'Failed to load profile')
@@ -32,11 +38,24 @@ export function useEditUserProfileForm({ onSubmit } = {}) {
     load()
   }, [load])
 
+  const handleValuesChange = useCallback((_, allValues) => {
+    try {
+      const dirty = JSON.stringify(allValues) !== JSON.stringify(initialValuesRef.current)
+      setDirty(dirty)
+    } catch (err) {
+      // ignore
+    }
+  }, [])
+
   const handleFinish = async (values) => {
     try {
       setSubmitting(true)
       const data = await updateUserProfile(values, currentUser, role)
       success('Profile updated')
+      
+      // Update snapshot
+      initialValuesRef.current = form.getFieldsValue(true)
+      setDirty(false)
 
       try {
         const localRaw = localStorage.getItem('auth__currentUser')
@@ -73,5 +92,5 @@ export function useEditUserProfileForm({ onSubmit } = {}) {
     }
   }
 
-  return { form, isLoading, isSubmitting, handleFinish, reload: load }
+  return { form, isLoading, isSubmitting, handleFinish, reload: load, isDirty, handleValuesChange }
 }

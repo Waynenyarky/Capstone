@@ -24,13 +24,6 @@ export default function UsersTable() {
     return words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
   }
 
-  useEffect(() => {
-    const unsubscribe = subscribeUserSignedUp(() => {
-      reloadUsers()
-    })
-    return unsubscribe
-  }, [reloadUsers])
-
   const columns = [
     {
       title: 'Name',

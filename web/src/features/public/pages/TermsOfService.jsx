@@ -45,7 +45,7 @@ export default function TermsOfService() {
             </Button>
           </div>
 
-          <Card bordered={false} style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.05)', borderRadius: 12, overflow: 'hidden' }}>
+          <Card variant="borderless" style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.05)', borderRadius: 12, overflow: 'hidden' }}>
             <div style={{ background: 'linear-gradient(135deg, #001529 0%, #003a70 100%)', padding: '40px 32px', color: '#fff', margin: '-24px -24px 32px -24px' }}>
               <Title level={1} style={{ color: '#fff', margin: 0 }}>Terms of Service</Title>
               <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16, marginTop: 8, display: 'block' }}>

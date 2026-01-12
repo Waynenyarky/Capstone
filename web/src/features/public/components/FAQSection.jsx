@@ -39,24 +39,20 @@ export default function FAQSection() {
           bordered={false} 
           expandIconPosition="end"
           style={{ background: 'transparent' }}
-        >
-          {faqs.map((faq, index) => (
-            <Panel 
-              header={<span style={{ fontWeight: 600, fontSize: 16 }}>{faq.question}</span>} 
-              key={index}
-              extra={<QuestionCircleOutlined style={{ color: '#1890ff' }} />}
-              style={{ 
-                marginBottom: 16, 
-                background: '#fff', 
-                borderRadius: 8, 
-                border: 'none',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-              }}
-            >
-              <p style={{ color: '#666', lineHeight: 1.6, margin: 0 }}>{faq.answer}</p>
-            </Panel>
-          ))}
-        </Collapse>
+          items={faqs.map((faq, index) => ({
+            key: index,
+            label: <span style={{ fontWeight: 600, fontSize: 16 }}>{faq.question}</span>,
+            extra: <QuestionCircleOutlined style={{ color: '#1890ff' }} />,
+            children: <p style={{ color: '#666', lineHeight: 1.6, margin: 0 }}>{faq.answer}</p>,
+            style: { 
+              marginBottom: 16, 
+              background: '#fff', 
+              borderRadius: 8, 
+              border: 'none',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+            }
+          }))}
+        />
       </div>
     </div>
   )

@@ -16,9 +16,10 @@ export { default as VerifyDeleteCodeForm } from './VerifyDeleteCodeForm.jsx'
 export { default as SendCodeForCurrentUser } from './SendCodeForCurrentUser.jsx'
 export { default as SendDeleteCodeForCurrentUser } from './SendDeleteCodeForCurrentUser.jsx'
 export { default as DeletionScheduledBanner } from './DeletionScheduledBanner.jsx'
+export { default as DeletionPendingScreen } from './DeletionPendingScreen.jsx'
 export { default as WebAuthnRegister } from './WebAuthnRegister.jsx'
 export { default as WebAuthnAuthenticate } from './WebAuthnAuthenticate.jsx'
-export { default as ProfileStatic } from './ProfileStatic.jsx'
+export { default as Profile } from './Profile.jsx'
 export { default as AuthLayout } from './AuthLayout.jsx'
 
  

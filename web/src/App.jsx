@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { Home, TermsOfService, PrivacyPolicy } from "@/features/public"
 import { Dashboard } from "@/features/user"
-import { Login, SignUp, ForgotPassword, ProtectedRoute, PublicRoute } from "@/features/authentication"
+import { Login, SignUp, ForgotPassword, ProtectedRoute, PublicRoute, DeletionPendingScreen } from "@/features/authentication"
 import MfaSetup from "@/features/authentication/components/MfaSetup.jsx"
 import { AdminDashboard, AdminCreateRole, AdminFullDashboard, AdminUsers } from "@/features/admin"
 import { BusinessOwnerDashboard } from "@/features/business-owner"
@@ -25,6 +25,7 @@ function App() {
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
       <Route path="/sign-up" element={<PublicRoute><SignUp /></PublicRoute>} />
+      <Route path="/deletion-pending" element={<ProtectedRoute><DeletionPendingScreen /></ProtectedRoute>} />
       <Route path="/mfa/setup" element={<ProtectedRoute><MfaSetup /></ProtectedRoute>} />
       
       {/* Admin Routes */}
