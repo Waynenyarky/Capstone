@@ -1,5 +1,5 @@
 import React from 'react'
-import { Steps, Form, Input, Button, DatePicker, Select, Upload, Checkbox, Card, Typography, Row, Col, Spin, Alert } from 'antd'
+import { Steps, Form, Input, Button, DatePicker, Select, Upload, Checkbox, Card, Typography, Row, Col, Spin, Alert, theme } from 'antd'
 import { UploadOutlined, SafetyCertificateOutlined, IdcardOutlined, MobileOutlined, FileTextOutlined, CheckCircleOutlined, UserOutlined } from '@ant-design/icons'
 import { useBusinessRegistration } from '../hooks/useBusinessRegistration'
 
@@ -20,6 +20,7 @@ export default function BusinessRegistrationWizard({ onComplete }) {
     handlePrev,
     handleStepClick
   } = useBusinessRegistration({ onComplete })
+  const { token } = theme.useToken()
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -27,8 +28,8 @@ export default function BusinessRegistrationWizard({ onComplete }) {
         return (
           <div style={{ padding: '40px 60px' }}>
             <div style={{ textAlign: 'center', marginBottom: 48 }}>
-              <SafetyCertificateOutlined style={{ fontSize: 56, color: '#1890ff', marginBottom: 24, filter: 'drop-shadow(0 4px 6px rgba(24, 144, 255, 0.2))' }} />
-              <Title level={2} style={{ color: '#001529', margin: '0 0 8px', letterSpacing: '-0.5px' }}>Welcome to BizClear Registration</Title>
+              <SafetyCertificateOutlined style={{ fontSize: 56, color: token.colorPrimary, marginBottom: 24, filter: `drop-shadow(0 4px 6px ${token.colorPrimary}33)` }} />
+              <Title level={2} style={{ color: token.colorTextHeading, margin: '0 0 8px', letterSpacing: '-0.5px' }}>Welcome to BizClear Registration</Title>
               <Typography.Paragraph type="secondary" style={{ fontSize: 18, maxWidth: 600, margin: '0 auto', lineHeight: '1.6' }}>
                 Complete your registration efficiently and securely in just a few steps.
               </Typography.Paragraph>
@@ -39,7 +40,7 @@ export default function BusinessRegistrationWizard({ onComplete }) {
               description="Please ensure you have the following documents ready to complete the registration process."
               type="info"
               showIcon
-              style={{ marginBottom: 40, borderRadius: 8, border: '1px solid #bae7ff', background: '#e6f7ff' }}
+              style={{ marginBottom: 40, borderRadius: 8, border: `1px solid ${token.colorInfoBg}`, background: token.colorInfoBg }}
             />
 
             <Row gutter={[32, 32]}>
@@ -47,12 +48,12 @@ export default function BusinessRegistrationWizard({ onComplete }) {
                 <Card 
                   hoverable 
                   variant="borderless"
-                  style={{ height: '100%', borderRadius: 16, border: '1px solid #f0f0f0', transition: 'all 0.3s' }}
+                  style={{ height: '100%', borderRadius: 16, border: `1px solid ${token.colorBorderSecondary}`, transition: 'all 0.3s' }}
                   styles={{ body: { padding: 32, textAlign: 'center' } }}
                 >
                   <div style={{ 
                     marginBottom: 24, 
-                    background: '#ffffff', 
+                    background: token.colorBgContainer, 
                     width: 80, 
                     height: 80, 
                     borderRadius: '50%', 
@@ -61,11 +62,11 @@ export default function BusinessRegistrationWizard({ onComplete }) {
                     justifyContent: 'center', 
                     margin: '0 auto 24px',
                     boxShadow: '0 8px 20px rgba(0,0,0,0.06)',
-                    border: '1px solid #f5f5f5'
+                    border: `1px solid ${token.colorBorder}`
                   }}>
-                    <IdcardOutlined style={{ fontSize: 36, color: '#1890ff' }} />
+                    <IdcardOutlined style={{ fontSize: 36, color: token.colorPrimary }} />
                   </div>
-                  <Title level={5} style={{ marginBottom: 12, color: '#001529', fontWeight: 600 }}>Valid Government ID</Title>
+                  <Title level={5} style={{ marginBottom: 12, color: token.colorTextHeading, fontWeight: 600 }}>Valid Government ID</Title>
                   <Typography.Text type="secondary" style={{ fontSize: 14, lineHeight: '1.5' }}>
                     Driver's License, Passport, SSS, or other valid government-issued IDs.
                   </Typography.Text>
@@ -75,12 +76,12 @@ export default function BusinessRegistrationWizard({ onComplete }) {
                 <Card 
                   hoverable 
                   variant="borderless"
-                  style={{ height: '100%', borderRadius: 16, border: '1px solid #f0f0f0', transition: 'all 0.3s' }}
+                  style={{ height: '100%', borderRadius: 16, border: `1px solid ${token.colorBorderSecondary}`, transition: 'all 0.3s' }}
                   styles={{ body: { padding: 32, textAlign: 'center' } }}
                 >
                   <div style={{ 
                     marginBottom: 24, 
-                    background: '#ffffff', 
+                    background: token.colorBgContainer, 
                     width: 80, 
                     height: 80, 
                     borderRadius: '50%', 
@@ -89,11 +90,11 @@ export default function BusinessRegistrationWizard({ onComplete }) {
                     justifyContent: 'center', 
                     margin: '0 auto 24px',
                     boxShadow: '0 8px 20px rgba(0,0,0,0.06)',
-                    border: '1px solid #f5f5f5'
+                    border: `1px solid ${token.colorBorder}`
                   }}>
-                    <FileTextOutlined style={{ fontSize: 36, color: '#1890ff' }} />
+                    <FileTextOutlined style={{ fontSize: 36, color: token.colorPrimary }} />
                   </div>
-                  <Title level={5} style={{ marginBottom: 12, color: '#001529', fontWeight: 600 }}>Digital Documents</Title>
+                  <Title level={5} style={{ marginBottom: 12, color: token.colorTextHeading, fontWeight: 600 }}>Digital Documents</Title>
                   <Typography.Text type="secondary" style={{ fontSize: 14, lineHeight: '1.5' }}>
                     Clear, readable digital copies (Front & Back) of your identification.
                   </Typography.Text>

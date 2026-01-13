@@ -1,9 +1,10 @@
 import React from 'react'
-import { Tabs, Table, Card, Button, Typography, Tag, Space, List, Statistic, Alert, Badge } from 'antd'
+import { Tabs, Table, Card, Button, Typography, Tag, Space, List, Statistic, Alert, Badge, theme } from 'antd'
 import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
 import { DollarCircleOutlined, HistoryOutlined, RobotOutlined, CheckCircleOutlined, FilePdfOutlined } from '@ant-design/icons'
 import PaymentModal from '../components/PaymentModal'
 import { usePayments } from '../hooks/usePayments'
+import { useAppTheme, THEMES } from '@/shared/theme/ThemeProvider'
 
 const { Title, Text } = Typography
 
@@ -18,6 +19,11 @@ export default function PaymentsPage() {
     setSelectedBill,
     handlePay
   } = usePayments()
+  
+  const { token } = theme.useToken()
+  const { currentTheme } = useAppTheme()
+
+  const brandColor = currentTheme === THEMES.DEFAULT ? '#001529' : token.colorPrimary
 
   const columns = [
     { title: 'Invoice #', dataIndex: 'invoiceNumber', key: 'invoiceNumber' },
@@ -59,7 +65,7 @@ export default function PaymentsPage() {
                 extra={<Tag color="#faad14">Unpaid</Tag>}
                 style={{ borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
                 actions={[
-                  <Button type="primary" onClick={() => setSelectedBill(item)} style={{ background: '#003a70', borderColor: '#003a70' }}>Pay Now</Button>
+                  <Button type="primary" onClick={() => setSelectedBill(item)} style={{ background: token.colorPrimary, borderColor: token.colorPrimary }}>Pay Now</Button>
                 ]}
               >
                 <Statistic 
@@ -101,7 +107,7 @@ export default function PaymentsPage() {
   return (
     <BusinessOwnerLayout pageTitle="Payments">
         <div>
-          <Title level={2} style={{ marginBottom: 32, color: '#001529' }}>Payments & Billing</Title>
+          <Title level={2} style={{ marginBottom: 32, color: brandColor }}>Payments & Billing</Title>
           
           {bills.length > 0 && (
             <Alert 

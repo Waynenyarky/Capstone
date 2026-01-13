@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <defs>
+    <!-- Professional Modern Building Complex: Main tower with angled roof and two side wings -->
+    <path id="complex" d="M4 21h16V10h-4V4L8 7v5H4z" />
+  </defs>
+  
+  <!-- Thick White Outline (Outer Stroke) -->
+  <use href="#complex" stroke="white" stroke-width="3" stroke-linejoin="round" />
+  
+  <!-- BizClear Blue Fill -->
+  <use href="#complex" fill="#003a70" />
+</svg>

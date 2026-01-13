@@ -1,7 +1,8 @@
 import React from 'react'
 import { Layout, Row, Col, Typography, ConfigProvider, theme, Button, Card } from 'antd'
-import { ArrowLeftOutlined, SafetyCertificateOutlined, FileProtectOutlined, BankOutlined, ScheduleOutlined, SyncOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, SafetyCertificateOutlined, ScheduleOutlined, SyncOutlined } from '@ant-design/icons'
 import { useNavigate, Link } from 'react-router-dom'
+import BizClearLogo from '@/logo/BizClear.png'
 
 const { Title, Paragraph, Text } = Typography
 
@@ -20,6 +21,8 @@ export default function AuthLayout({
   formMaxWidth = 440 // Default width for form container
 }) {
   const navigate = useNavigate();
+
+  const { token } = theme.useToken()
 
   const features = [
     {
@@ -73,17 +76,28 @@ export default function AuthLayout({
             <div style={{ marginTop: 40, display: 'flex', alignItems: 'center', gap: 12 }}>
                {/* Logo Icon matching Home */}
                <div style={{ 
-                 width: 44, 
-                 height: 44, 
-                 background: 'linear-gradient(135deg, #003a70 0%, #0050b3 100%)', 
+                 width: 50, 
+                 height: 50, 
+                 background: '#fff', 
                  borderRadius: '12px', 
                  display: 'flex', 
                  alignItems: 'center', 
                  justifyContent: 'center',
-                 boxShadow: '0 4px 12px rgba(0, 58, 112, 0.25)',
-                 border: '1px solid rgba(255,255,255,0.1)'
+                 boxShadow: '0 4px 12px rgba(0, 58, 112, 0.4)',
+                 border: '1px solid rgba(255,255,255,0.1)',
+                 overflow: 'hidden',
+                 padding: '0px' // Add slight padding so it doesn't touch edges uncomfortably
                }}>
-                  <BankOutlined style={{ fontSize: '26px', color: '#fff' }} />
+                  <img 
+                    src={BizClearLogo} 
+                    alt="BizClear Logo" 
+                    style={{ 
+                      height: '100%', 
+                      width: '100%',
+                      objectFit: 'cover',
+                      transform: 'scale(1.2)' // Zoom in the image slightly to make it appear larger
+                    }} 
+                  />
                </div>
                <div>
                  <Text strong style={{ color: 'white', fontSize: 20, display: 'block', lineHeight: 1 }}>{title}</Text>

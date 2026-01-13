@@ -1,8 +1,9 @@
 import React from 'react'
-import { Card, Table, Tag, Button, Space, Statistic, Row, Col } from 'antd'
+import { Card, Table, Tag, Button, Space, Statistic, Row, Col, theme } from 'antd'
 import { DollarCircleOutlined } from '@ant-design/icons'
 
 const PaymentsDue = ({ data }) => {
+  const { token } = theme.useToken();
   if (!data) return null
 
   const columns = [
@@ -34,15 +35,15 @@ const PaymentsDue = ({ data }) => {
 
   return (
     <Card 
-      title={<Space><DollarCircleOutlined style={{ color: '#003a70' }} /> Payments Due</Space>}
+      title={<Space><DollarCircleOutlined style={{ color: token.colorPrimary }} /> Payments Due</Space>}
       extra={<Button type="link" size="small">History</Button>}
-      style={{ height: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderRadius: 8 }}
+      style={{ height: '100%', boxShadow: token.boxShadowSecondary, borderRadius: token.borderRadiusLG }}
     >
       <Row gutter={[16, 24]}>
         <Col span={24}>
-          <div style={{ textAlign: 'center', background: '#fffbe6', padding: '16px', borderRadius: '8px', border: '1px solid #ffe58f' }}>
-             <Statistic title="Total Outstanding" value={data.totalOutstanding} prefix="₱" precision={2} valueStyle={{ color: '#faad14' }} />
-             <div style={{ marginTop: 8, fontSize: 12, color: '#8c8c8c' }}>
+          <div style={{ textAlign: 'center', background: token.colorWarningBg, padding: '16px', borderRadius: '8px', border: `1px solid ${token.colorWarningBorder}` }}>
+             <Statistic title="Total Outstanding" value={data.totalOutstanding} prefix="₱" precision={2} valueStyle={{ color: token.colorWarningText }} />
+             <div style={{ marginTop: 8, fontSize: 12, color: token.colorTextSecondary }}>
                Next due: {new Date(data.nearestDueDate).toLocaleDateString()}
              </div>
           </div>
@@ -61,7 +62,7 @@ const PaymentsDue = ({ data }) => {
 
         <Col span={24} style={{ marginTop: 'auto' }}>
           <Space style={{ width: '100%' }} direction="vertical">
-            <Button type="primary" block style={{ background: '#003a70', borderColor: '#003a70' }}>Pay Now</Button>
+            <Button type="primary" block style={{ background: token.colorPrimary, borderColor: token.colorPrimary }}>Pay Now</Button>
             <Button block>View Receipts</Button>
           </Space>
         </Col>

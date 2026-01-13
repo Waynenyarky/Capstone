@@ -1,5 +1,5 @@
 import React from 'react'
-import { Layout, Grid } from 'antd'
+import { Layout, Grid, theme } from 'antd'
 import { TopBar } from '@/features/shared'
 import { AppSidebar as Sidebar, useAuthSession } from '@/features/authentication'
 
@@ -18,6 +18,7 @@ export default function BusinessOwnerLayout({
 }) {
   const { currentUser, logout } = useAuthSession()
   const screens = useBreakpoint()
+  const { token } = theme.useToken()
   const isMobile = !screens.md
 
   return (
@@ -36,10 +37,11 @@ export default function BusinessOwnerLayout({
           hideProfileSettings={hideProfileSettings}
           currentUser={currentUser}
           onLogout={logout}
+          viewNotificationsPath="/owner/notifications"
         />
         <Content style={{  
           padding: isMobile ? '16px' : '24px', 
-          background: '#f0f2f5',
+          background: token.colorBgLayout,
           overflowY: 'auto',
           height: 'calc(100vh - 64px)'
         }}>

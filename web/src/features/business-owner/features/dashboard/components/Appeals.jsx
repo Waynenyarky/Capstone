@@ -1,8 +1,9 @@
 import React from 'react'
-import { Card, Table, Tag, Button, Space, Statistic, Row, Col } from 'antd'
+import { Card, Table, Tag, Button, Space, Statistic, Row, Col, theme } from 'antd'
 import { ContainerOutlined } from '@ant-design/icons'
 
 const Appeals = ({ data }) => {
+  const { token } = theme.useToken();
   if (!data) return null
 
   const columns = [
@@ -21,9 +22,9 @@ const Appeals = ({ data }) => {
 
   return (
     <Card 
-      title={<Space><ContainerOutlined style={{ color: '#003a70' }} /> Appeals</Space>}
+      title={<Space><ContainerOutlined style={{ color: token.colorPrimary }} /> Appeals</Space>}
       extra={<Button type="link" size="small">All Appeals</Button>}
-      style={{ height: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderRadius: 8 }}
+      style={{ height: '100%', boxShadow: token.boxShadowSecondary, borderRadius: token.borderRadiusLG }}
     >
       <Row gutter={[16, 16]}>
         <Col span={8}>
@@ -48,7 +49,7 @@ const Appeals = ({ data }) => {
 
         <Col span={24}>
           <Space style={{ width: '100%' }}>
-            <Button type="primary" block style={{ background: '#003a70', borderColor: '#003a70' }}>File Appeal</Button>
+            <Button type="primary" block style={{ background: token.colorPrimary, borderColor: token.colorPrimary }}>File Appeal</Button>
             <Button block>Status</Button>
           </Space>
         </Col>

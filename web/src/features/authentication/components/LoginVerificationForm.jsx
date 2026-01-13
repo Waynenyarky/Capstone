@@ -1,4 +1,4 @@
-import { Form, Button, Card, Flex, Typography, Input } from 'antd'
+import { Form, Button, Card, Flex, Typography, Input, theme } from 'antd'
 import { useLoginVerificationForm, useResendLoginCode } from "@/features/authentication/hooks"
 import React from 'react'
 import useOtpCountdown from '@/features/authentication/hooks/useOtpCountdown.js'
@@ -10,6 +10,7 @@ export default function LoginVerificationForm({ email, onSubmit, title, otpExpir
   const cardTitle = title || 'Verify Login'
   const { isSending: isResending, handleResend, isCooling, remaining } = useResendLoginCode({ email, cooldownSec: 60 })
   const { remaining: otpRemaining, isExpired } = useOtpCountdown(otpExpiresAt)
+  const { token } = theme.useToken()
 
   const prefillDevCode = () => {
     if (devCode) form.setFieldsValue({ verificationCode: devCode })
@@ -29,7 +30,7 @@ export default function LoginVerificationForm({ email, onSubmit, title, otpExpir
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <Title level={2} style={{ marginBottom: 8, fontWeight: 700 }}>{cardTitle}</Title>
         <Text type="secondary" style={{ fontSize: 16 }}>
-          We sent a verification code to <Text strong style={{ color: '#1890ff' }}>{email}</Text>
+          We sent a verification code to <Text strong style={{ color: token.colorPrimary }}>{email}</Text>
         </Text>
       </div>
 

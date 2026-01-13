@@ -1,6 +1,7 @@
 import { Layout, Button, Typography, Space, theme, Grid } from 'antd'
 import { Link } from 'react-router-dom'
-import { BankOutlined, LoginOutlined } from '@ant-design/icons'
+import { LoginOutlined } from '@ant-design/icons'
+import BizClearLogo from '@/logo/BizClear.png'
 
 const { Header } = Layout
 const { Title, Text } = Typography
@@ -24,19 +25,27 @@ export default function HomeHeader() {
       top: 0,
       zIndex: 1000
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <div style={{ 
-          width: '44px', 
-          height: '44px', 
-          background: 'linear-gradient(135deg, #003a70 0%, #0050b3 100%)', 
-          borderRadius: '12px',
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0px' }}>
+        <div style={{
+          width: '80px', // Larger than header height to overflow slightly if needed, or just max out visually
+          height: '80px',
+          borderRadius: '50%',
+          overflow: 'hidden',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 4px 12px rgba(0, 58, 112, 0.25)',
-          border: '1px solid rgba(255,255,255,0.1)'
+          marginLeft: '-10px', // Pull it slightly left if it's too big
+          zIndex: 1
         }}>
-          <BankOutlined style={{ fontSize: '26px', color: '#fff' }} />
+          <img 
+            src={BizClearLogo} 
+            alt="BizClear Logo" 
+            style={{ 
+              height: '100%', 
+              width: '100%',
+              objectFit: 'cover' // Changed to cover to fill the circle, or use 'contain' if you want the whole logo visible inside
+            }} 
+          />
         </div>
         <div>
           <Title level={4} style={{ margin: 0, lineHeight: 1.2, color: '#003a70', fontSize: screens.sm ? '20px' : '18px' }}>BizClear</Title>

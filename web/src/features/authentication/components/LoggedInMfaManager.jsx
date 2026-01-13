@@ -9,11 +9,15 @@ import {
   LockOutlined
 } from '@ant-design/icons'
 import { useLoggedInMfaManager } from '@/features/authentication/hooks'
+import { useAppTheme, THEMES } from '@/shared/theme/ThemeProvider'
 
 const { Text, Paragraph, Title } = Typography
 
 export default function LoggedInMfaManager() {
   const { token } = theme.useToken()
+  const { currentTheme } = useAppTheme()
+  const isDarkTheme = currentTheme === THEMES.DARK
+
   const {
     currentUser,
     role,
@@ -86,8 +90,12 @@ export default function LoggedInMfaManager() {
       {/* Status Card */}
       <div style={{ 
         padding: 24, 
-        background: enabled ? '#f6ffed' : '#fffbe6', 
-        border: `1px solid ${enabled ? '#b7eb8f' : '#ffe58f'}`,
+        background: enabled 
+            ? (isDarkTheme ? 'rgba(82, 196, 26, 0.15)' : '#f6ffed') 
+            : (isDarkTheme ? 'rgba(250, 173, 20, 0.15)' : '#fffbe6'), 
+        border: `1px solid ${enabled 
+            ? (isDarkTheme ? '#237804' : '#b7eb8f') 
+            : (isDarkTheme ? '#d48806' : '#ffe58f')}`,
         borderRadius: token.borderRadiusLG,
         display: 'flex',
         alignItems: 'center',
@@ -102,10 +110,10 @@ export default function LoggedInMfaManager() {
             <SecurityScanOutlined style={{ fontSize: 32, color: '#faad14', marginTop: 4 }} />
           )}
           <div>
-            <Title level={5} style={{ margin: 0, marginBottom: 4 }}>
+            <Title level={5} style={{ margin: 0, marginBottom: 4, color: isDarkTheme ? '#fff' : undefined }}>
               {enabled ? 'Two-Factor Authentication is active' : 'Two-Factor Authentication is not enabled'}
             </Title>
-            <Text type="secondary">
+            <Text type="secondary" style={{ color: isDarkTheme ? 'rgba(255, 255, 255, 0.65)' : undefined }}>
               {enabled 
                 ? 'Your account is protected with an extra layer of security.' 
                 : 'Protect your account by requiring a verification code when signing in.'}

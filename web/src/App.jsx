@@ -9,6 +9,8 @@ import PermitApplicationPage from "@/features/business-owner/features/permits/pa
 import CessationPage from "@/features/business-owner/features/cessation/pages/CessationPage.jsx"
 import PaymentsPage from "@/features/business-owner/features/payments/pages/PaymentsPage.jsx"
 import AppealsPage from "@/features/business-owner/features/appeals/pages/AppealsPage.jsx"
+import NotificationsPage from "@/features/business-owner/features/notifications/pages/NotificationsPage.jsx"
+import InspectionsPage from "@/features/business-owner/features/inspections/pages/InspectionsPage.jsx"
 import { StaffDashboard, StaffOnboarding } from "@/features/staffs"
 import { ProfileSettings } from "@/features/user"
 import { PlaceholderPage } from "@/features/shared"
@@ -44,6 +46,8 @@ function App() {
         <Route path="cessation" element={<CessationPage />} />
         <Route path="payments" element={<PaymentsPage />} />
         <Route path="appeals" element={<AppealsPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="inspections" element={<InspectionsPage />} />
       </Route>
       
       {/* Staff Routes */}

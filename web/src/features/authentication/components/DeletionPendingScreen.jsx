@@ -95,7 +95,7 @@ export default function DeletionPendingScreen() {
                 <Text type="secondary" style={{ fontSize: '12px' }}>
                   If this action was a mistake, please restore your account immediately.
                   <br />
-                  For further assistance, contact <a href="#" style={{ color: '#1890ff' }}>IT Support</a>.
+                  For further assistance, contact <a href="#" style={{ color: '#cf1322' }}>IT Support</a>.
                 </Text>
               </Space>
             </div>

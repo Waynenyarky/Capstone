@@ -1,13 +1,14 @@
 import React from 'react'
-import { Card, List, Tag, Button, Space, Tooltip } from 'antd'
+import { Card, List, Tag, Button, Space, Tooltip, theme } from 'antd'
 import { FolderOpenOutlined, DownloadOutlined, EyeOutlined } from '@ant-design/icons'
 
 const Documents = ({ data }) => {
   if (!data) return null
+  const { token } = theme.useToken()
 
   return (
     <Card 
-      title={<Space><FolderOpenOutlined style={{ color: '#003a70' }} /> Recent Documents</Space>}
+      title={<Space><FolderOpenOutlined style={{ color: token.colorPrimary }} /> Recent Documents</Space>}
       extra={<Button type="link" size="small">All Files</Button>}
       style={{ height: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderRadius: 8 }}
     >

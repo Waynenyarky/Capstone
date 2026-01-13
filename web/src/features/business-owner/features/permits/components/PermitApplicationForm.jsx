@@ -78,7 +78,7 @@ export default function PermitApplicationForm({ onSubmit, onCancel, initialValue
     setAiValidating(true)
     setTimeout(() => {
       setAiValidating(false)
-      message.success({ content: 'AI Validation Complete: Document appears valid.', icon: <RobotOutlined style={{ color: '#1890ff' }} /> })
+      message.success({ content: 'AI Validation Complete: Document appears valid.', icon: <RobotOutlined style={{ color: token.colorPrimary }} /> })
       onSuccess("ok")
     }, 1500)
   }

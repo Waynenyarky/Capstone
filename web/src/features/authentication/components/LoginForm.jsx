@@ -28,6 +28,49 @@ export default function LoginForm({ onSubmit } = {}) {
     serverLockedUntil,
   } = useLoginFlow({ onSubmit })
 
+  // State to manage readOnly hack for autofill prevention
+  const [fieldsReadOnly, setFieldsReadOnly] = React.useState(true)
+  // State to force form remounting (defeats browser bfcache/restoration)
+  const [formKey, setFormKey] = React.useState(Date.now())
+
+  // Aggressive clearing mechanism for back/forward navigation and refresh
+  React.useEffect(() => {
+    // Generate a new key to force React to discard the old DOM nodes
+    // This is the most effective way to prevent browser restoration of old values
+    setFormKey(Date.now())
+    
+    const clearFields = () => {
+      setFieldsReadOnly(false) // Enable editing
+      
+      // If we have remember me values, use them
+      if (initialValues && initialValues.email) {
+        form.setFieldsValue(initialValues)
+      } else {
+        // Otherwise, nuclear option: force clear everything
+        form.resetFields()
+        form.setFieldsValue({ email: '', password: '' })
+      }
+    }
+
+    // Run on mount
+    const timer = setTimeout(clearFields, 50)
+
+    // Run on page show (bfcache restoration)
+    const handlePageShow = (event) => {
+        if (event.persisted) {
+            setFormKey(Date.now()) // Remount form
+            setTimeout(clearFields, 50)
+        }
+    }
+
+    window.addEventListener('pageshow', handlePageShow)
+
+    return () => {
+        clearTimeout(timer)
+        window.removeEventListener('pageshow', handlePageShow)
+    }
+  }, [form, initialValues])
+
   if (step === 'verify' || step === 'verify-totp') {
     const VerificationComponent = step === 'verify' ? LoginVerificationForm : TotpVerificationForm
     return <VerificationComponent {...verificationProps} />
@@ -45,14 +88,20 @@ export default function LoginForm({ onSubmit } = {}) {
           <Text type="secondary" style={{ fontSize: 16 }}>Please enter your details to sign in</Text>
         </div>
         
-        <Form name="login" form={form} layout="vertical" onFinish={handleFinish} initialValues={initialValues} size="large" requiredMark={false}>
+        <Form key={formKey} name="login" form={form} layout="vertical" onFinish={handleFinish} initialValues={initialValues} size="large" requiredMark={false} autoComplete="off">
           <Form.Item
             name="email"
             label={<Text strong>Email</Text>}
             rules={loginEmailRules}
             style={{ marginBottom: 24 }}
           >
-            <Input placeholder="Enter your email" variant="filled" />
+            <Input 
+              placeholder="Enter your email" 
+              variant="filled" 
+              autoComplete="off" 
+              readOnly={fieldsReadOnly}
+              onFocus={() => setFieldsReadOnly(false)}
+            />
           </Form.Item>
           <Form.Item
             name="password"
@@ -60,14 +109,20 @@ export default function LoginForm({ onSubmit } = {}) {
             rules={loginPasswordRules}
             style={{ marginBottom: 24 }}
           >
-            <Input.Password placeholder="Enter your password" variant="filled" />
+            <Input.Password 
+              placeholder="Enter your password" 
+              variant="filled" 
+              autoComplete="new-password"
+              readOnly={fieldsReadOnly}
+              onFocus={() => setFieldsReadOnly(false)}
+            />
           </Form.Item>
           
           <Flex justify="space-between" align="center" style={{ marginBottom: 24 }}>
             <Form.Item name="rememberMe" valuePropName="checked" noStyle>
               <Checkbox>Remember me</Checkbox>
             </Form.Item>
-            <Button type="link" onClick={() => navigate('/forgot-password')} style={{ padding: 0 }}>
+            <Button type="link" onClick={() => navigate('/forgot-password')} style={{ padding: 0, color: '#001529' }} className="auth-link-hover">
               Forgot password?
             </Button>
           </Flex>
@@ -84,7 +139,7 @@ export default function LoginForm({ onSubmit } = {}) {
 
           <div style={{ textAlign: 'center' }}>
             <Text type="secondary">Don't have an account? </Text>
-            <Button type="link" onClick={() => navigate('/sign-up')} style={{ padding: 0, fontWeight: 600 }}>Sign up</Button>
+            <Button type="link" onClick={() => navigate('/sign-up')} style={{ padding: 0, fontWeight: 600, color: '#001529' }} className="auth-link-hover">Sign up</Button>
           </div>
           {/* Dev Prefill Controls - Hidden in production */}
           {import.meta.env.MODE !== 'production' && (

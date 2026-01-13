@@ -1,8 +1,10 @@
 import React from 'react'
-import { Card, Table, Tag, Button, Space, Statistic, Row, Col } from 'antd'
+import { Card, Table, Tag, Button, Space, Statistic, Row, Col, theme } from 'antd'
 import { FileProtectOutlined } from '@ant-design/icons'
+import { Link } from 'react-router-dom'
 
 const PermitSummary = ({ data }) => {
+  const { token } = theme.useToken();
   if (!data) return null
 
   const columns = [
@@ -34,21 +36,21 @@ const PermitSummary = ({ data }) => {
 
   return (
     <Card 
-      title={<Space><FileProtectOutlined style={{ color: '#003a70' }} /> Permit Summary</Space>}
+      title={<Space><FileProtectOutlined style={{ color: token.colorPrimary }} /> Permit Summary</Space>}
       extra={<Button type="link" size="small">View All</Button>}
-      style={{ height: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderRadius: 8 }}
+      style={{ height: '100%', boxShadow: token.boxShadowSecondary, borderRadius: token.borderRadiusLG }}
     >
       <Row gutter={[16, 24]}>
         <Col span={24}>
            <Row gutter={16}>
             <Col span={8} style={{ textAlign: 'center' }}>
-              <Statistic title="Active" value={data.active} valueStyle={{ color: '#3f8600' }} />
+              <Statistic title="Active" value={data.active} valueStyle={{ color: token.colorSuccess }} />
             </Col>
-            <Col span={8} style={{ textAlign: 'center', borderLeft: '1px solid #f0f0f0', borderRight: '1px solid #f0f0f0' }}>
-              <Statistic title="Pending" value={data.pending} valueStyle={{ color: '#faad14' }} />
+            <Col span={8} style={{ textAlign: 'center', borderLeft: `1px solid ${token.colorBorderSecondary}`, borderRight: `1px solid ${token.colorBorderSecondary}` }}>
+              <Statistic title="Pending" value={data.pending} valueStyle={{ color: token.colorWarning }} />
             </Col>
             <Col span={8} style={{ textAlign: 'center' }}>
-              <Statistic title="Expiring" value={data.expiring} valueStyle={{ color: '#cf1322' }} />
+              <Statistic title="Expiring" value={data.expiring} valueStyle={{ color: token.colorError }} />
             </Col>
            </Row>
         </Col>
@@ -66,7 +68,7 @@ const PermitSummary = ({ data }) => {
 
         <Col span={24} style={{ marginTop: 'auto' }}>
           <Space style={{ width: '100%' }} direction="vertical">
-            <Button type="primary" block style={{ background: '#003a70', borderColor: '#003a70' }}>Apply for New Permit</Button>
+            <Button type="primary" block style={{ background: token.colorPrimary, borderColor: token.colorPrimary }}>Apply for New Permit</Button>
             <Button block>Renew Existing Permits</Button>
           </Space>
         </Col>

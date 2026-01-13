@@ -1,10 +1,12 @@
 import React from 'react'
-import { Card, Table, Tag, Button, Space, Typography, Row, Col, Alert } from 'antd'
+import { Card, Table, Tag, Button, Space, Typography, Row, Col, Alert, theme } from 'antd'
 import { SafetyCertificateOutlined } from '@ant-design/icons'
+import { Link } from 'react-router-dom'
 
 const { Text } = Typography
 
 const InspectionsViolations = ({ data }) => {
+  const { token } = theme.useToken();
   if (!data) return null
 
   const columns = [
@@ -30,9 +32,9 @@ const InspectionsViolations = ({ data }) => {
 
   return (
     <Card 
-      title={<Space><SafetyCertificateOutlined style={{ color: '#003a70' }} /> Inspections & Violations</Space>}
-      extra={<Button type="link" size="small">Details</Button>}
-      style={{ height: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderRadius: 8 }}
+      title={<Space><SafetyCertificateOutlined style={{ color: token.colorPrimary }} /> Inspections & Violations</Space>}
+      extra={<Link to="/owner/inspections"><Button type="link" size="small">Details</Button></Link>}
+      style={{ height: '100%', boxShadow: token.boxShadowSecondary, borderRadius: token.borderRadiusLG }}
     >
       <Row gutter={[16, 24]}>
         <Col span={24}>
@@ -42,24 +44,24 @@ const InspectionsViolations = ({ data }) => {
                description={`${new Date(data.upcoming.date).toLocaleDateString()} - ${data.upcoming.inspector}`}
                type="info" 
                showIcon 
-               style={{ border: '1px solid #91d5ff', background: '#e6f7ff' }}
+               style={{ border: `1px solid ${token.colorInfoBorder}`, background: token.colorInfoBg }}
              />
            )}
         </Col>
 
         <Col span={24}>
-           <Row gutter={16} align="middle" style={{ background: '#fafafa', padding: 16, borderRadius: 8 }}>
-             <Col span={12} style={{ textAlign: 'center', borderRight: '1px solid #f0f0f0' }}>
+           <Row gutter={16} align="middle" style={{ background: token.colorFillAlter, padding: 16, borderRadius: 8 }}>
+             <Col span={12} style={{ textAlign: 'center', borderRight: `1px solid ${token.colorBorderSecondary}` }}>
                <Text type="secondary" style={{ fontSize: 12 }}>Last Inspection Result</Text>
                <div style={{ marginTop: 4 }}>
-                 <Tag color={data.recentResult === 'Passed' ? 'success' : data.recentResult === 'Failed' ? 'error' : '#faad14'} style={{ fontSize: 14, padding: '4px 10px' }}>
+                 <Tag color={data.recentResult === 'Passed' ? 'success' : data.recentResult === 'Failed' ? 'error' : 'warning'} style={{ fontSize: 14, padding: '4px 10px' }}>
                     {data.recentResult}
                  </Tag>
                </div>
              </Col>
              <Col span={12} style={{ textAlign: 'center' }}>
                <Text type="secondary" style={{ fontSize: 12 }}>Open Violations</Text>
-               <div style={{ fontSize: 24, fontWeight: 'bold', color: data.openViolations > 0 ? '#cf1322' : '#3f8600', lineHeight: 1 }}>
+               <div style={{ fontSize: 24, fontWeight: 'bold', color: data.openViolations > 0 ? token.colorError : token.colorSuccess, lineHeight: 1 }}>
                  {data.openViolations}
                </div>
              </Col>
@@ -79,8 +81,8 @@ const InspectionsViolations = ({ data }) => {
 
         <Col span={24} style={{ marginTop: 'auto' }}>
           <Space style={{ width: '100%' }} direction="vertical">
-            <Button block>View Inspection Reports</Button>
-            <Button type="primary" ghost block style={{ color: '#003a70', borderColor: '#003a70' }}>Submit Compliance Evidence</Button>
+            <Link to="/owner/inspections"><Button block>View Inspection Reports</Button></Link>
+            <Link to="/owner/inspections"><Button type="primary" ghost block style={{ color: token.colorPrimary, borderColor: token.colorPrimary }}>Submit Compliance Evidence</Button></Link>
           </Space>
         </Col>
       </Row>

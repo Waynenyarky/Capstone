@@ -1,5 +1,5 @@
 import React from 'react'
-import { Table, Button, Tag, Space, Typography, Modal, Card } from 'antd'
+import { Table, Button, Tag, Space, Typography, Modal, Card, theme } from 'antd'
 import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
 import { PlusOutlined, FileTextOutlined } from '@ant-design/icons'
 import PermitApplicationForm from '../components/PermitApplicationForm'
@@ -16,6 +16,8 @@ export default function PermitApplicationPage() {
     closeModal, 
     handleCreate 
   } = usePermitApplications()
+  
+  const { token } = theme.useToken()
 
   const columns = [
     {
@@ -51,7 +53,7 @@ export default function PermitApplicationPage() {
       key: 'blockchainTimestamp',
       render: (hash) => (
         <Space>
-          <FileTextOutlined style={{ color: '#003a70' }} />
+          <FileTextOutlined style={{ color: token.colorPrimary }} />
           <Typography.Text ellipsis style={{ maxWidth: 100 }} type="secondary">{hash}</Typography.Text>
         </Space>
       )
@@ -72,10 +74,10 @@ export default function PermitApplicationPage() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
             <div>
-              <Title level={2} style={{ color: '#003a70' }}>Permit Applications</Title>
+              <Title level={2} style={{ color: token.colorPrimary }}>Permit Applications</Title>
               <Paragraph type="secondary">Manage your business permit applications and renewals.</Paragraph>
             </div>
-            <Button type="primary" icon={<PlusOutlined />} onClick={openModal} style={{ background: '#003a70', borderColor: '#003a70' }}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openModal} style={{ background: token.colorPrimary, borderColor: token.colorPrimary }}>
               New Application
             </Button>
           </div>

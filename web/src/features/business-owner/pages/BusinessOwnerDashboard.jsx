@@ -1,5 +1,5 @@
 import React from 'react'
-import { Layout, Row, Col, Card, Button, Typography, Space, Spin } from 'antd'
+import { Layout, Row, Col, Card, Button, Typography, Space, Spin, theme } from 'antd'
 import { Link } from 'react-router-dom'
 import { FormOutlined } from '@ant-design/icons'
 import { AppSidebar as Sidebar } from '@/features/authentication'
@@ -31,6 +31,8 @@ export default function BusinessOwnerDashboard() {
     dashboardLoading, 
     dashboardData 
   } = useBusinessOwnerDashboard()
+  
+  const { token } = theme.useToken()
 
   if (!currentUser || role !== 'business_owner') {
     return (
@@ -96,11 +98,11 @@ export default function BusinessOwnerDashboard() {
           <div style={{ paddingBottom: 24 }}>
             <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'end' }}>
               <div>
-                <Title level={2} style={{ margin: 0, color: '#003a70' }}>Welcome back, {currentUser?.firstName || 'Owner'}</Title>
+                <Title level={2} style={{ margin: 0, color: token.colorPrimary }}>Welcome back, {currentUser?.firstName || 'Owner'}</Title>
                 <Paragraph type="secondary" style={{ fontSize: 16, margin: 0 }}>Here is your business overview for {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</Paragraph>
               </div>
               <Space>
-                 <Button type="primary" size="large" style={{ background: '#003a70', borderColor: '#003a70' }}>New Application</Button>
+                 <Button type="primary" size="large" style={{ background: token.colorPrimary, borderColor: token.colorPrimary }}>New Application</Button>
               </Space>
             </div>
 

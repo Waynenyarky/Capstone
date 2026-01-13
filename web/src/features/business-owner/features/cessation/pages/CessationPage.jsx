@@ -1,5 +1,5 @@
 import React from 'react'
-import { Table, Button, Tag, Space, Typography, Modal, Card, Empty } from 'antd'
+import { Table, Button, Tag, Space, Typography, Modal, Card, Empty, theme } from 'antd'
 import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
 import { StopOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import CessationForm from '../components/CessationForm'
@@ -16,6 +16,8 @@ export default function CessationPage() {
     closeModal, 
     handleCreate 
   } = useCessation()
+  
+  const { token } = theme.useToken()
 
   const columns = [
     {
@@ -59,7 +61,7 @@ export default function CessationPage() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
             <div>
-              <Title level={2} style={{ color: '#003a70' }}>Cessation Requests</Title>
+              <Title level={2} style={{ color: token.colorPrimary }}>Cessation Requests</Title>
               <Paragraph type="secondary">Request for business closure or temporary halt.</Paragraph>
             </div>
             {requests.length > 0 && (

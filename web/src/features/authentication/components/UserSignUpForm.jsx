@@ -125,7 +125,7 @@ export default function UserSignUpForm({ extraContent }) {
 
         <Form.Item name="termsAndConditions" valuePropName="checked" rules={termsRules} style={{ marginBottom: 24 }}>
           <Checkbox>
-            I have read and agree to the <Link to="/terms">Terms of Service</Link> and <Link to="/privacy">Privacy Policy</Link>.
+            I have read and agree to the <Link to="/terms" style={{ color: '#001529', textDecoration: 'underline', fontWeight: 600 }}>Terms of Service</Link> and <Link to="/privacy" style={{ color: '#001529', textDecoration: 'underline', fontWeight: 600 }}>Privacy Policy</Link>.
           </Checkbox>
         </Form.Item>
 
@@ -137,7 +137,7 @@ export default function UserSignUpForm({ extraContent }) {
 
         <div style={{ textAlign: 'center' }}>
           <Text type="secondary">Already have an account? </Text>
-          <Button type="link" onClick={() => navigate('/login')} style={{ padding: 0, fontWeight: 600 }}>Login</Button>
+          <Button type="link" onClick={() => navigate('/login')} style={{ padding: 0, fontWeight: 600, color: '#001529' }} className="auth-link-hover">Login</Button>
         </div>
       </Form>
     </div>

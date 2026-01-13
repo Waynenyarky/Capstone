@@ -1,5 +1,5 @@
 import React from 'react'
-import { Table, Button, Tag, Space, Typography, Card } from 'antd'
+import { Table, Button, Tag, Space, Typography, Card, theme } from 'antd'
 import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
 import { ExclamationCircleOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import AppealModal from '../components/AppealModal'
@@ -16,6 +16,8 @@ export default function AppealsPage() {
     closeModal, 
     handleCreate 
   } = useAppeals()
+  
+  const { token } = theme.useToken()
 
   const columns = [
     { title: 'Reference #', dataIndex: 'referenceNumber', key: 'referenceNumber' },
@@ -53,10 +55,10 @@ export default function AppealsPage() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
             <div>
-              <Title level={2} style={{ color: '#003a70' }}>Appeals & Disputes</Title>
+              <Title level={2} style={{ color: token.colorPrimary }}>Appeals & Disputes</Title>
               <Paragraph type="secondary">Contest rejected permits, fines, or inspection results.</Paragraph>
             </div>
-            <Button type="primary" icon={<ExclamationCircleOutlined />} onClick={openModal} style={{ background: '#003a70', borderColor: '#003a70' }}>
+            <Button type="primary" icon={<ExclamationCircleOutlined />} onClick={openModal} style={{ background: token.colorPrimary, borderColor: token.colorPrimary }}>
               File New Appeal
             </Button>
           </div>

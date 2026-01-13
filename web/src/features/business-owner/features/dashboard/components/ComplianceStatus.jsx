@@ -1,10 +1,11 @@
 import React from 'react'
-import { Card, Tag, Typography, Button, Space, Row, Col } from 'antd'
+import { Card, Tag, Typography, Button, Space, Row, Col, theme } from 'antd'
 import { CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 
 const { Title, Text, Paragraph } = Typography
 
 const ComplianceStatus = ({ data }) => {
+  const { token } = theme.useToken();
   if (!data) return null
 
   let statusColor = 'green'
@@ -20,9 +21,9 @@ const ComplianceStatus = ({ data }) => {
 
   return (
     <Card 
-      title={<Space><SafetyCertificateOutlined style={{ color: '#003a70' }} /> Compliance Status</Space>}
+      title={<Space><SafetyCertificateOutlined style={{ color: token.colorPrimary }} /> Compliance Status</Space>}
       extra={<Tag color={statusColor} style={{ fontSize: 14, padding: '4px 10px' }}>{data.status}</Tag>}
-      style={{ height: '100%', borderTop: `4px solid ${statusColor === 'green' ? '#52c41a' : statusColor === 'orange' ? '#faad14' : '#ff4d4f'}`, borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+      style={{ height: '100%', borderTop: `4px solid ${statusColor === 'green' ? '#52c41a' : statusColor === 'orange' ? '#faad14' : '#ff4d4f'}`, borderRadius: token.borderRadiusLG, boxShadow: token.boxShadowSecondary }}
     >
       <Row gutter={[24, 24]} align="middle">
         <Col xs={24} md={10}>
@@ -36,7 +37,7 @@ const ComplianceStatus = ({ data }) => {
         </Col>
         
         <Col xs={24} md={14}>
-          <Card type="inner" variant="borderless" style={{ background: '#fafafa', borderRadius: 8 }}>
+          <Card type="inner" variant="borderless" style={{ background: token.colorFillAlter, borderRadius: 8 }}>
             <Space direction="vertical" style={{ width: '100%' }} size="large">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text type="secondary">Verification</Text>
@@ -54,7 +55,7 @@ const ComplianceStatus = ({ data }) => {
               </div>
 
               <div style={{ paddingTop: 8 }}>
-                 <Button type="primary" size="large" block danger={data.status !== 'Compliant'} style={data.status === 'Compliant' ? { background: '#003a70', borderColor: '#003a70' } : {}}>
+                 <Button type="primary" size="large" block danger={data.status !== 'Compliant'} style={data.status === 'Compliant' ? { background: token.colorPrimary, borderColor: token.colorPrimary } : {}}>
                    {data.status === 'Compliant' ? 'View Certificate' : 'Resolve Issue'}
                  </Button>
               </div>

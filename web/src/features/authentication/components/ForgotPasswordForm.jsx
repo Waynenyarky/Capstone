@@ -35,7 +35,7 @@ export default function ForgotPasswordForm({ onSubmit } = {}) {
         </Form.Item>
 
         <div style={{ textAlign: 'center', marginTop: 24 }}>
-          <Button type="link" onClick={() => navigate('/login')} style={{ padding: 0, fontWeight: 600, fontSize: 15 }}>
+          <Button type="link" onClick={() => navigate('/login')} style={{ padding: 0, fontWeight: 600, fontSize: 15, color: '#001529' }} className="auth-link-hover">
             Back to Login
           </Button>
         </div>
