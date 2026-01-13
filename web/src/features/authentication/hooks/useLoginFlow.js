@@ -23,6 +23,7 @@ export function useLoginFlow({ onSubmit } = {}) {
       // Called after loginStart succeeds. Decide which verification UI to show.
       setEmailForVerify(email || '')
       setRememberMe(!!rm)
+      setDevCode(null)
       // capture OTP expiry info from server response if present
       try {
         if (serverData) {
@@ -126,6 +127,7 @@ export function useLoginFlow({ onSubmit } = {}) {
     if (typeof onSubmit === 'function') onSubmit(user)
     // Reset step for next time
     setStep('login')
+    setDevCode(null)
   }, [login, rememberMe, emailForVerify, rememberEmail, clearRememberedEmail, success, onSubmit])
 
   const initialValues = React.useMemo(() => ({ rememberMe: !!initialEmail, email: initialEmail }), [initialEmail])
@@ -147,6 +149,7 @@ export function useLoginFlow({ onSubmit } = {}) {
     onSubmit: handleVerificationSubmit,
     otpExpiresAt,
     serverLockedUntil,
+    devCode,
   }
 
   return {
