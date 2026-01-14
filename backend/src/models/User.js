@@ -16,6 +16,8 @@ const UserSchema = new mongoose.Schema(
     avatarUrl: { type: String, default: '' },
     passwordHash: { type: String, required: true },
     termsAccepted: { type: Boolean, default: false },
+    theme: { type: String, default: 'default', enum: ['default', 'dark', 'document', 'blossom', 'sunset', 'royal'] },
+    themeColorPrimary: { type: String, default: '#003a70' },
     // MFA (Time-based One-Time Password)
     mfaEnabled: { type: Boolean, default: false },
     mfaMethod: { type: String, default: '' },

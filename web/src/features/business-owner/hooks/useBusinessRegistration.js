@@ -2,8 +2,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { Form, message } from 'antd'
 import dayjs from 'dayjs'
 import { getBusinessProfile, updateBusinessProfile } from '../services/businessProfileService'
+import { getMe } from '@/features/authentication/services/authService'
+import { useAuthSession } from '@/features/authentication'
 
 export function useBusinessRegistration({ onComplete } = {}) {
+  const { login, currentUser } = useAuthSession()
   const [currentStep, setCurrentStep] = useState(0) 
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(true)
@@ -136,6 +139,19 @@ export function useBusinessRegistration({ onComplete } = {}) {
           window.scrollTo(0, 0)
         } else {
           message.success('Registration submitted successfully!')
+          // Refresh user session to get updated themeColorPrimary
+          try {
+            const freshUser = await getMe()
+            if (freshUser) {
+              const nextUser = { ...freshUser }
+              if (currentUser?.token && !nextUser.token) {
+                nextUser.token = currentUser.token
+              }
+              login(nextUser)
+            }
+          } catch (err) {
+            console.error('Failed to refresh user session after registration:', err)
+          }
           if (onComplete) onComplete()
         }
       }

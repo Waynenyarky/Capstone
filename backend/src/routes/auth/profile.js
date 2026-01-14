@@ -806,6 +806,8 @@ router.post('/staff', requireJwt, requireRole(['admin']), validateBody(staffCrea
       termsAccepted: true,
       passwordHash,
       isEmailVerified: true,
+      theme: 'default',
+      themeColorPrimary: '#003a70',
     })
 
     const roleLabel = roleDoc.name || role
@@ -864,6 +866,8 @@ router.get('/profile', requireJwt, async (req, res) => {
       deletionPending: !!doc.deletionPending,
       deletionRequestedAt: doc.deletionRequestedAt,
       deletionScheduledFor: doc.deletionScheduledFor,
+      theme: doc.theme || 'default',
+      themeColorPrimary: doc.themeColorPrimary || '#003a70',
     }
 
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
@@ -904,6 +908,8 @@ router.get('/me', requireJwt, async (req, res) => {
       deletionPending: !!doc.deletionPending,
       deletionRequestedAt: doc.deletionRequestedAt,
       deletionScheduledFor: doc.deletionScheduledFor,
+      theme: doc.theme || 'default',
+      themeColorPrimary: doc.themeColorPrimary || '#003a70',
     }
 
     // Force 200 by adding a cache-busting header or modifying response headers

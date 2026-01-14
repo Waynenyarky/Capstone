@@ -108,6 +108,8 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
       phoneNumber: phoneNumber || '',
       termsAccepted: !!termsAccepted,
       passwordHash,
+      theme: 'default',
+      themeColorPrimary: '#003a70',
     })
 
     const response = {
@@ -120,6 +122,8 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
         role: roleSlug,
         termsAccepted: doc.termsAccepted,
         isEmailVerified: !!doc.isEmailVerified,
+        theme: doc.theme || 'default',
+        themeColorPrimary: doc.themeColorPrimary || '#003a70',
       }
     }
 
@@ -301,6 +305,8 @@ router.post('/signup/verify', validateBody(verifyCodeSchema), signupVerifyLimite
       phoneNumber: p.phoneNumber || '',
       termsAccepted: !!p.termsAccepted,
       passwordHash,
+      theme: 'default',
+      themeColorPrimary: '#003a70',
     })
     
     // Manually attach role slug for token signing
@@ -317,6 +323,8 @@ router.post('/signup/verify', validateBody(verifyCodeSchema), signupVerifyLimite
       phoneNumber: doc.phoneNumber,
       termsAccepted: doc.termsAccepted,
       createdAt: doc.createdAt,
+      theme: doc.theme || 'default',
+      themeColorPrimary: doc.themeColorPrimary || '#003a70',
     }
 
     try {
