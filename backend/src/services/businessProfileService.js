@@ -86,12 +86,6 @@ class BusinessProfileService {
         update['consent'] = { ...data, isSubmitted: true }
         // System Action: Lock submitted data is implied by status change
         update['status'] = 'pending_review'
-        // Update user theme color to #003a70 when registration is completed
-        try {
-          await User.findByIdAndUpdate(userId, { themeColorPrimary: '#003a70' })
-        } catch (err) {
-          console.error('Failed to update user theme color on registration completion:', err)
-        }
         break
 
       default:

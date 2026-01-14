@@ -28,7 +28,7 @@ const themeConfig = {
       algorithm: theme.defaultAlgorithm,
       token: {
         fontFamily: 'Raleway, sans-serif',
-        colorPrimary: '#003a70', // Default theme color for business owners
+        colorPrimary: '#001529', // Explicitly set Default theme to Navy
       },
     },
   },

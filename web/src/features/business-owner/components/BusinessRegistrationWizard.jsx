@@ -120,7 +120,7 @@ export default function BusinessRegistrationWizard({ onComplete }) {
                     boxShadow: '0 8px 20px rgba(0,0,0,0.06)',
                     border: '1px solid #f5f5f5'
                   }}>
-                    <UserOutlined style={{ fontSize: 36, color: '#003a70' }} />
+                    <UserOutlined style={{ fontSize: 36, color: '#1890ff' }} />
                   </div>
                   <Title level={5} style={{ marginBottom: 12, color: '#001529', fontWeight: 600 }}>Personal Information</Title>
                   <Typography.Text type="secondary" style={{ fontSize: 14, lineHeight: '1.5' }}>

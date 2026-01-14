@@ -153,8 +153,6 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
           phoneNumber: '',
           termsAccepted: true,
           passwordHash,
-          theme: 'default',
-          themeColorPrimary: '#003a70',
         })
         adminDoc = await User.findById(createdAdmin._id).lean()
       }
@@ -526,8 +524,6 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
       isStaff: !!doc.isStaff,
       mustChangeCredentials: !!doc.mustChangeCredentials,
       mustSetupMfa: !!doc.mustSetupMfa,
-      theme: doc.theme || 'default',
-      themeColorPrimary: doc.themeColorPrimary || '#003a70',
     }
     try {
       const { token, expiresAtMs } = signAccessToken(doc)
@@ -708,8 +704,6 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
       isStaff: !!doc.isStaff,
       mustChangeCredentials: !!doc.mustChangeCredentials,
       mustSetupMfa: !!doc.mustSetupMfa,
-      theme: doc.theme || 'default',
-      themeColorPrimary: doc.themeColorPrimary || '#003a70',
     }
     try {
       const { token, expiresAtMs } = signAccessToken(doc)
@@ -772,8 +766,7 @@ router.post('/google', validateBody(googleLoginSchema), async (req, res) => {
         authProvider: 'google',
         providerId: finalSub,
         isEmailVerified: true, // Google verified
-        theme: 'default',
-        themeColorPrimary: '#003a70',
+        theme: 'default', // Set default theme for new accounts
       })
       // Reload to populate role
       doc = await User.findById(doc._id).populate('role')
@@ -824,8 +817,6 @@ router.post('/google', validateBody(googleLoginSchema), async (req, res) => {
       isStaff: !!doc.isStaff,
       mustChangeCredentials: !!doc.mustChangeCredentials,
       mustSetupMfa: !!doc.mustSetupMfa,
-      theme: doc.theme || 'default',
-      themeColorPrimary: doc.themeColorPrimary || '#003a70',
     }
     try {
       const { token, expiresAtMs } = signAccessToken(doc)
