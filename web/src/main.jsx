@@ -10,6 +10,8 @@ import ErrorBoundary from "@/shared/errors/ErrorBoundary.jsx"
 import { initializeGlobalErrorHandlers } from "@/shared/errors/globalErrorHandlers.js"
 import GlobalNotificationInit from "@/shared/errors/GlobalNotificationInit.jsx"
 import { ThemeProvider } from "@/shared/theme/ThemeProvider.jsx"
+import { DevToolsProvider } from "@/features/devtools/DevToolsProvider.jsx"
+import DevFab from "@/features/devtools/DevFab.jsx"
 
 // Initialize browser-wide error listeners so you get toasts without DevTools
 initializeGlobalErrorHandlers()
@@ -21,7 +23,10 @@ createRoot(document.getElementById('root')).render(
         <AntdApp>
           <GlobalNotificationInit />
           <ErrorBoundary>
-            <App />
+            <DevToolsProvider>
+              <App />
+              <DevFab />
+            </DevToolsProvider>
           </ErrorBoundary>
         </AntdApp>
       </ThemeProvider>

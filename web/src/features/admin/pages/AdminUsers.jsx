@@ -1,8 +1,11 @@
-import React from 'react'
-import { Layout, Row, Col, Card, Tabs, Table, Button, Modal, Form, Input, Select, Tag, Space, Typography } from 'antd'
+import React, { useState } from 'react'
+import { Layout, Row, Col, Card, Tabs, Table, Button, Modal, Form, Input, Select, Tag, Space, Typography, Switch } from 'antd'
 import { AppSidebar as Sidebar } from '@/features/authentication'
 import { UsersTable } from '@/features/admin/users'
 import { useStaffManagement, officeGroups, roleOptions, roleLabel, officeLabel } from '../hooks'
+import { RecoveryRequestsTable, SecurityEventsTable, AdminAuditActivity } from '../components'
+import { updateStaff, resetStaffPassword } from '../services'
+import { useNotifier } from '@/shared/notifications'
 
 const { Text } = Typography
 
@@ -27,6 +30,76 @@ export default function AdminUsers() {
     successData,
     closeSuccessModal
   } = useStaffManagement()
+  const { success, error } = useNotifier()
+
+  const [editOpen, setEditOpen] = useState(false)
+  const [editForm] = Form.useForm()
+  const [editLoading, setEditLoading] = useState(false)
+  const [editTarget, setEditTarget] = useState(null)
+
+  const [resetOpen, setResetOpen] = useState(false)
+  const [resetForm] = Form.useForm()
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetTarget, setResetTarget] = useState(null)
+
+  const openEditModal = (record) => {
+    setEditTarget(record)
+    editForm.setFieldsValue({
+      firstName: record.firstName,
+      lastName: record.lastName,
+      email: record.email,
+      phoneNumber: record.phoneNumber || '',
+      office: record.office || undefined,
+      role: record.role || undefined,
+      isActive: record.isActive !== false,
+      reason: '',
+    })
+    setEditOpen(true)
+  }
+
+  const handleEditSubmit = async () => {
+    try {
+      const values = await editForm.validateFields()
+      if (!editTarget?.id) return
+      setEditLoading(true)
+      await updateStaff(editTarget.id, values)
+      success('Staff updated')
+      setEditOpen(false)
+      setEditTarget(null)
+      await loadStaff()
+    } catch (e) {
+      if (e?.errorFields) return
+      console.error('Update staff error:', e)
+      error(e, 'Failed to update staff')
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  const openResetModal = (record) => {
+    setResetTarget(record)
+    resetForm.setFieldsValue({ reason: '' })
+    setResetOpen(true)
+  }
+
+  const handleResetSubmit = async () => {
+    try {
+      const values = await resetForm.validateFields()
+      if (!resetTarget?.id) return
+      setResetLoading(true)
+      await resetStaffPassword(resetTarget.id, values)
+      success('Temporary password issued')
+      setResetOpen(false)
+      setResetTarget(null)
+      await loadStaff()
+    } catch (e) {
+      if (e?.errorFields) return
+      console.error('Reset staff password error:', e)
+      error(e, 'Failed to reset password')
+    } finally {
+      setResetLoading(false)
+    }
+  }
 
   const staffColumns = [
     {
@@ -55,6 +128,16 @@ export default function AdminUsers() {
       },
     },
     { title: 'Created', dataIndex: 'createdAt', key: 'createdAt', render: (v) => (v ? new Date(v).toLocaleString() : '') },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_v, rec) => (
+        <Space size="small">
+          <Button size="small" onClick={() => openEditModal(rec)}>Edit</Button>
+          <Button size="small" onClick={() => openResetModal(rec)}>Reset Password</Button>
+        </Space>
+      ),
+    },
   ]
 
   return (
@@ -99,11 +182,97 @@ export default function AdminUsers() {
                     label: 'All Users',
                     children: <UsersTable />,
                   },
+                  {
+                    key: 'recovery',
+                    label: 'Recovery Requests',
+                    children: (
+                      <Space direction="vertical" style={{ width: '100%' }}>
+                        <RecoveryRequestsTable />
+                        <SecurityEventsTable events={[]} />
+                      </Space>
+                    ),
+                  },
+                  {
+                    key: 'activity',
+                    label: 'Admin Activity',
+                    children: <AdminAuditActivity />,
+                  },
                 ]}
               />
             </Card>
           </Col>
         </Row>
+
+        <Modal
+          title="Edit Staff Account"
+          open={editOpen}
+          onCancel={() => setEditOpen(false)}
+          onOk={handleEditSubmit}
+          confirmLoading={editLoading}
+          okText="Save Changes"
+          destroyOnClose
+        >
+          <Form form={editForm} layout="vertical">
+            <Form.Item name="firstName" label="First Name" rules={[{ required: true, message: 'Enter first name' }]}>
+              <Input placeholder="First name" />
+            </Form.Item>
+            <Form.Item name="lastName" label="Last Name" rules={[{ required: true, message: 'Enter last name' }]}>
+              <Input placeholder="Last name" />
+            </Form.Item>
+            <Form.Item name="email" label="Email" rules={[{ required: true, message: 'Enter email' }, { type: 'email', message: 'Enter a valid email' }]}>
+              <Input placeholder="email@example.com" />
+            </Form.Item>
+            <Form.Item name="phoneNumber" label="Contact Number" rules={[{ min: 7, message: 'Enter a valid number' }]}>
+              <Input placeholder="+63..." />
+            </Form.Item>
+            <Form.Item name="office" label="Office" rules={[{ required: true, message: 'Select an office' }]}>
+              <Select
+                placeholder="Select office"
+                showSearch
+                optionFilterProp="label"
+                options={officeGroups.map(g => ({
+                  label: g.label,
+                  options: g.options.map(o => ({ value: o.value, label: o.label })),
+                }))}
+              />
+            </Form.Item>
+            <Form.Item name="role" label="Role" rules={[{ required: true, message: 'Select a role' }]}>
+              <Select placeholder="Select role" options={roleOptions} />
+            </Form.Item>
+            <Form.Item name="isActive" label="Active" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+            <Form.Item
+              name="reason"
+              label="Reason for change"
+              rules={[{ required: true, message: 'Provide a reason' }, { min: 5, message: 'Reason must be at least 5 characters' }]}
+              extra="Required for audit trail"
+            >
+              <Input.TextArea rows={3} maxLength={500} showCount />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        <Modal
+          title="Reset Staff Password"
+          open={resetOpen}
+          onCancel={() => setResetOpen(false)}
+          onOk={handleResetSubmit}
+          confirmLoading={resetLoading}
+          okText="Issue Temporary Password"
+          destroyOnClose
+        >
+          <Form form={resetForm} layout="vertical">
+            <Form.Item
+              name="reason"
+              label="Reason for reset"
+              rules={[{ required: true, message: 'Provide a reason' }, { min: 5, message: 'Reason must be at least 5 characters' }]}
+              extra="Required for audit trail"
+            >
+              <Input.TextArea rows={3} maxLength={500} showCount placeholder="Why are you resetting this account?" />
+            </Form.Item>
+          </Form>
+        </Modal>
 
         <Modal
           title="Create Staff Account"

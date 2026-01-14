@@ -19,29 +19,62 @@ export default defineConfig({
     }
   },
   test: {
-    environment: 'jsdom',
-    setupFiles: ['src/test.setup.js'],
-    projects: [{
-      extends: true,
-      plugins: [
-      // The plugin will run tests for the stories defined in your Storybook config
-      // See options at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon#storybooktest
-      storybookTest({
-        configDir: path.join(__dirname, '.storybook')
-      })],
-      test: {
-        name: 'storybook',
-        browser: {
-          enabled: true,
-          headless: true,
-          provider: playwright({}),
-          instances: [{
-            browser: 'chromium'
-          }]
+    projects: [
+      {
+        test: {
+          name: 'unit',
+          environment: 'jsdom',
+          setupFiles: ['src/test.setup.js'],
+          globals: true,
+          include: [
+            'src/**/*.{test,spec}.{js,jsx,ts,tsx}',
+            'src/**/__tests__/**/*.{js,jsx,ts,tsx}'
+          ],
+          exclude: [
+            'src/**/*.stories.@(js|jsx|ts|tsx)',
+            'src/**/*.mdx'
+          ],
+          coverage: {
+            provider: 'v8',
+            reporter: ['text', 'html'],
+            reportsDirectory: './coverage',
+            thresholds: {
+              lines: 60,
+              statements: 60,
+              branches: 50,
+              functions: 55
+            }
+          },
         },
-        setupFiles: ['.storybook/vitest.setup.js']
+        resolve: {
+          alias: {
+            '@': path.resolve(__dirname, 'src')
+          }
+        }
+      },
+      {
+        extends: true,
+        plugins: [
+          // The plugin will run tests for the stories defined in your Storybook config
+          // See options at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon#storybooktest
+          storybookTest({
+            configDir: path.join(__dirname, '.storybook')
+          })
+        ],
+        test: {
+          name: 'storybook',
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: playwright({}),
+            instances: [{
+              browser: 'chromium'
+            }]
+          },
+          setupFiles: ['.storybook/vitest.setup.js']
+        }
       }
-    }]
+    ]
   },
   server: {
     host: '0.0.0.0', // Listen on all network interfaces (required for mobile device access)

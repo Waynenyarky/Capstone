@@ -21,5 +21,11 @@ export { default as WebAuthnRegister } from './WebAuthnRegister.jsx'
 export { default as WebAuthnAuthenticate } from './WebAuthnAuthenticate.jsx'
 export { default as Profile } from './Profile.jsx'
 export { default as AuthLayout } from './AuthLayout.jsx'
+export { default as RecoverySuspiciousActivityAlert } from './RecoverySuspiciousActivityAlert.jsx'
+export { default as RecoveryLockoutBanner } from './RecoveryLockoutBanner.jsx'
+export { default as PasswordStrengthIndicator } from './PasswordStrengthIndicator.jsx'
+export { default as SessionTimeoutWarning } from './SessionTimeoutWarning.jsx'
+export { default as SessionActivityIndicator } from './SessionActivityIndicator.jsx'
+export { default as SuspiciousActivityAlert } from './SuspiciousActivityAlert.jsx'
 
  

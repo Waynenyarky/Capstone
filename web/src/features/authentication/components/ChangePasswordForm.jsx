@@ -1,15 +1,26 @@
-import { Form, Input, Button, Typography } from 'antd'
+import { Form, Input, Button, Typography, Checkbox } from 'antd'
 import { changeConfirmPasswordRules as confirmPasswordRules, changePasswordRules as passwordRules } from "@/features/authentication/validations"
 import { useChangePasswordForm } from "@/features/authentication/hooks"
 import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import PasswordStrengthIndicator from './PasswordStrengthIndicator.jsx'
 
 const { Title, Text } = Typography
 
 export default function ChangePasswordForm({ email, resetToken, onSubmit, isLoggedInFlow = false } = {}) {
   const { form, handleFinish, isSubmitting } = useChangePasswordForm({ email, resetToken, onSubmit })
   const navigate = useNavigate()
+  const [passwordValue, setPasswordValue] = useState('')
   
   const isResetFlow = !!resetToken && !isLoggedInFlow
+  
+  const passwordStrength = getPasswordStrength(passwordValue)
+  const passwordValidation = validatePasswordRequirements(passwordValue)
+  
+  const handlePasswordChange = (e) => {
+    const value = e?.target?.value || ''
+    setPasswordValue(value)
+  }
 
   return (
     <div style={{ maxWidth: 400, margin: '0 auto' }}>
@@ -42,8 +53,15 @@ export default function ChangePasswordForm({ email, resetToken, onSubmit, isLogg
           rules={passwordRules}
           style={{ marginBottom: 24 }}
         >
-          <Input.Password placeholder="Enter new password" variant="filled" style={{ padding: '10px 16px' }} />
+          <Input.Password 
+            placeholder="Enter new password" 
+            variant="filled" 
+            style={{ padding: '10px 16px' }}
+            onChange={handlePasswordChange}
+          />
         </Form.Item>
+        
+        {passwordValue && <PasswordStrengthIndicator value={passwordValue} />}
         
         <Form.Item 
           name="confirmPassword" 

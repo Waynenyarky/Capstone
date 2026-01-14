@@ -67,6 +67,9 @@ const authRouter = require('./routes/auth')
 const businessRouter = require('./routes/business/profile') // Direct import for now
 const adminRouter = require('./routes/admin/approvals')
 const monitoringRouter = require('./routes/admin/monitoring')
+const adminMaintenanceRouter = require('./routes/admin/maintenance')
+const tamperIncidentsRouter = require('./routes/admin/tamperIncidents')
+const maintenanceRouter = require('./routes/maintenance')
 // Mirror session user id into request headers for existing handlers
 try {
   const { attachSessionUser } = require('./middleware/sessionAuth')
@@ -77,6 +80,9 @@ app.use('/api/auth', authRouter)
 app.use('/api/business', businessRouter)
 app.use('/api/admin', adminRouter)
 app.use('/api/admin/monitoring', monitoringRouter)
+app.use('/api/admin/maintenance', adminMaintenanceRouter)
+app.use('/api/admin/tamper', tamperIncidentsRouter)
+app.use('/api/maintenance', maintenanceRouter)
 
 // Phase 5: Global Error Handler (must be last middleware)
 const errorHandlerMiddleware = require('./middleware/errorHandler');
@@ -107,6 +113,16 @@ async function start() {
 
     // Optionally seed development data from JSON files when enabled
     await seedDevDataIfEmpty();
+
+    // Initialize background jobs after DB connection
+    if (process.env.NODE_ENV !== 'test') {
+      try {
+        const { startJobs } = require('./jobs')
+        startJobs()
+      } catch (error) {
+        logger.warn('Failed to start background jobs', { error })
+      }
+    }
 
     async function startOnPort(port) {
       return new Promise((resolve) => {
@@ -141,6 +157,25 @@ async function start() {
     });
     logger.error('Server start failed', { error: err });
     process.exit(1);
+  }
+}
+
+// Initialize background jobs
+try {
+  const { startJobs } = require('./jobs')
+  startJobs()
+} catch (error) {
+  logger.warn('Failed to start background jobs', { error })
+  // Don't fail server startup if jobs fail
+}
+
+// Initialize background jobs
+if (process.env.NODE_ENV !== 'test') {
+  try {
+    const { startJobs } = require('./jobs')
+    startJobs()
+  } catch (error) {
+    logger.warn('Failed to start background jobs', { error })
   }
 }
 

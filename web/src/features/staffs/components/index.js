@@ -1,1 +1,5 @@
 export { default as StaffLayout } from './StaffLayout'
+export { default as RecoveryRequestForm } from './RecoveryRequestForm.jsx'
+export { default as RecoveryRequestStatus } from './RecoveryRequestStatus.jsx'
+export { default as TemporaryCredentialsLogin } from './TemporaryCredentialsLogin.jsx'
+export { default as TempLoginMfaPrompt } from './TempLoginMfaPrompt.jsx'

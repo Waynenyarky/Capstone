@@ -4,6 +4,7 @@ export { default as LoginForm } from './components/LoginForm.jsx'
 export { default as LogoutForm } from './components/LogoutForm.jsx'
 export { default as UserSignUpForm } from './components/UserSignUpForm.jsx'
 export { default as LoginVerificationForm } from './components/LoginVerificationForm.jsx'
+export { default as TotpVerificationForm } from './components/TotpVerificationForm.jsx'
 export { default as SignUpVerificationForm } from './components/SignUpVerificationForm.jsx'
 export { default as ChangePasswordForm } from './components/ChangePasswordForm.jsx'
 export { default as ForgotPasswordForm } from './components/ForgotPasswordForm.jsx'
@@ -40,6 +41,8 @@ export { default as DeletionScheduledBanner } from './components/DeletionSchedul
 export { default as DeletionPendingScreen } from './components/DeletionPendingScreen.jsx'
 export { default as SendDeleteCodeForCurrentUser } from './components/SendDeleteCodeForCurrentUser.jsx'
 export { default as VerifyDeleteCodeForm } from './components/VerifyDeleteCodeForm.jsx'
+export { default as EmailChangeGracePeriod } from './components/EmailChangeGracePeriod.jsx'
+export { default as MfaReenrollmentAlert } from './components/MfaReenrollmentAlert.jsx'
 
 // Pages
 export { default as Login } from './pages/Login.jsx'

@@ -9,6 +9,11 @@ const { sendOtp } = require('../../lib/mailer')
 const respond = require('../../middleware/respond')
 const { validateBody, Joi } = require('../../middleware/validation')
 const { perEmailRateLimit } = require('../../middleware/rateLimit')
+const { createAuditLog } = require('../../lib/auditLogger')
+const { trackIP, isUnusualIP } = require('../../lib/ipTracker')
+const { checkLockout, incrementFailedAttempts } = require('../../lib/accountLockout')
+const securityMonitor = require('../../middleware/securityMonitor')
+const { isBusinessOwnerRole } = require('../../lib/roleHelpers')
 
 const router = express.Router()
 
@@ -24,6 +29,9 @@ const verifyCodeSchema = Joi.object({
 const confirmDeleteSchema = Joi.object({
   email: Joi.string().email().required(),
   deleteToken: Joi.string().required(),
+  legalAcknowledgment: Joi.boolean().valid(true).required().messages({
+    'any.only': 'You must acknowledge that this action is irreversible',
+  }),
 })
 
 const passwordOnlySchema = Joi.object({
@@ -160,8 +168,16 @@ router.post('/delete-account/verify-code', verifyLimiter, validateBody(verifyCod
 // Schedules account deletion in 30 days after verifying deleteToken
 router.post('/delete-account/confirm', validateBody(confirmDeleteSchema), async (req, res) => {
   try {
-    const { email, deleteToken } = req.body || {}
+    const { email, deleteToken, legalAcknowledgment } = req.body || {}
     const emailKey = String(email).toLowerCase()
+    const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+    const userAgent = req.headers['user-agent'] || 'unknown'
+
+    // Verify legal acknowledgment
+    if (!legalAcknowledgment) {
+      return respond.error(res, 400, 'legal_acknowledgment_required', 'You must acknowledge that this action is irreversible')
+    }
+
     const useDB = mongoose.connection && mongoose.connection.readyState === 1
     let valid = false
     if (useDB) {
@@ -175,17 +191,58 @@ router.post('/delete-account/confirm', validateBody(confirmDeleteSchema), async 
       return respond.error(res, 401, 'invalid_delete_token', 'Invalid or missing delete token')
     }
 
-    const doc = await User.findOne({ email })
+    const doc = await User.findOne({ email }).populate('role')
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
 
+    // Check account lockout
+    const lockoutCheck = await checkLockout(doc._id)
+    if (lockoutCheck.locked) {
+      return respond.error(res, 423, 'account_locked', `Account is temporarily locked. Try again in ${lockoutCheck.remainingMinutes} minutes.`)
+    }
+
+    // Check for suspicious activity: unusual IP
+    const ipCheck = await isUnusualIP(doc._id, ipAddress)
+    const suspiciousActivity = ipCheck.isUnusual
+
+    // Track IP
+    await trackIP(doc._id, ipAddress)
+
+    // Detect suspicious patterns
+    if (suspiciousActivity) {
+      securityMonitor.detectSuspiciousActivity(req)
+      await incrementFailedAttempts(doc._id)
+    }
+
+    // Generate undo token (valid for 7 days)
+    const undoToken = generateToken()
+    const undoExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+
     const requestedAt = new Date()
-    const scheduledFor = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    const scheduledFor = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
     doc.deletionRequestedAt = requestedAt
     doc.deletionScheduledFor = scheduledFor
     doc.deletionPending = true
+    doc.deletionUndoToken = undoToken
+    doc.deletionUndoExpiresAt = undoExpiresAt
     await doc.save()
 
-    // Provider mirror removed
+    // Log to audit trail
+    const roleSlug = doc.role?.slug || 'user'
+    await createAuditLog(
+      doc._id,
+      'account_deletion_scheduled',
+      'account',
+      '',
+      'deletion_scheduled',
+      roleSlug,
+      {
+        ip: ipAddress,
+        userAgent,
+        scheduledFor: scheduledFor.toISOString(),
+        undoExpiresAt: undoExpiresAt.toISOString(),
+        suspiciousActivityDetected: suspiciousActivity,
+      }
+    )
 
     // Cleanup delete request state
     if (useDB) await DeleteRequest.deleteOne({ email: emailKey })
@@ -193,7 +250,7 @@ router.post('/delete-account/confirm', validateBody(confirmDeleteSchema), async 
 
     const userSafe = {
       id: String(doc._id),
-      role: doc.role,
+      role: doc.role?.slug || doc.role,
       firstName: doc.firstName,
       lastName: doc.lastName,
       email: doc.email,
@@ -203,9 +260,16 @@ router.post('/delete-account/confirm', validateBody(confirmDeleteSchema), async 
       deletionPending: !!doc.deletionPending,
       deletionRequestedAt: doc.deletionRequestedAt,
       deletionScheduledFor: doc.deletionScheduledFor,
+      undoToken, // Include undo token so user can cancel
+      undoExpiresAt: undoExpiresAt.toISOString(),
     }
 
-    return res.json({ scheduled: true, user: userSafe })
+    return res.json({ 
+      scheduled: true, 
+      user: userSafe,
+      message: 'Account deletion scheduled. You can undo this within 7 days.',
+      warning: suspiciousActivity ? 'Unusual activity detected. If this wasn\'t you, contact support immediately.' : undefined,
+    })
   } catch (err) {
     console.error('POST /api/auth/delete-account/confirm error:', err)
     return respond.error(res, 500, 'delete_confirm_failed', 'Failed to schedule account deletion')
@@ -213,44 +277,91 @@ router.post('/delete-account/confirm', validateBody(confirmDeleteSchema), async 
 })
 
 // POST /api/auth/delete-account/cancel
-// Cancels a previously scheduled account deletion. Requires header-based identification.
-router.post('/delete-account/cancel', async (req, res) => {
+// Cancels a previously scheduled account deletion. Requires header-based identification or undo token.
+const cancelDeleteSchema = Joi.object({
+  undoToken: Joi.string().optional(),
+})
+router.post('/delete-account/cancel', validateBody(cancelDeleteSchema), async (req, res) => {
   try {
+    const { undoToken } = req.body || {}
     const idHeader = req.headers['x-user-id']
     const emailHeader = req.headers['x-user-email']
+    const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+    const userAgent = req.headers['user-agent'] || 'unknown'
 
     let doc = null
-    if (idHeader) {
-      try {
-        doc = await User.findById(idHeader)
-      } catch (_) {
-        doc = null
+    
+    // If undo token provided, use it
+    if (undoToken) {
+      doc = await User.findOne({ 
+        deletionUndoToken: undoToken,
+        deletionPending: true,
+      }).populate('role')
+      
+      if (!doc) {
+        return respond.error(res, 401, 'invalid_undo_token', 'Invalid or expired undo token')
+      }
+
+      // Check if undo token is expired
+      if (doc.deletionUndoExpiresAt && Date.now() > doc.deletionUndoExpiresAt.getTime()) {
+        return respond.error(res, 401, 'undo_token_expired', 'Undo token has expired. Deletion cannot be cancelled.')
+      }
+    } else {
+      // Use header-based identification
+      if (idHeader) {
+        try {
+          doc = await User.findById(idHeader).populate('role')
+        } catch (_) {
+          doc = null
+        }
+      }
+      if (!doc && emailHeader) {
+        doc = await User.findOne({ email: emailHeader }).populate('role')
       }
     }
-    if (!doc && emailHeader) {
-      doc = await User.findOne({ email: emailHeader })
-    }
+
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
+    if (!doc.deletionPending) {
+      return respond.error(res, 400, 'no_deletion_pending', 'No deletion is currently scheduled')
+    }
+
+    // Cancel deletion
     doc.deletionRequestedAt = null
     doc.deletionScheduledFor = null
     doc.deletionPending = false
+    doc.deletionUndoToken = null
+    doc.deletionUndoExpiresAt = null
     await doc.save()
 
-    // Provider mirror removed
+    // Log to audit trail
+    const roleSlug = doc.role?.slug || 'user'
+    await createAuditLog(
+      doc._id,
+      'account_deletion_undone',
+      'account',
+      'deletion_scheduled',
+      'deletion_cancelled',
+      roleSlug,
+      {
+        ip: ipAddress,
+        userAgent,
+        method: undoToken ? 'undo_token' : 'manual',
+      }
+    )
 
     const userSafe = {
       id: String(doc._id),
-      role: doc.role,
+      role: doc.role?.slug || doc.role,
       firstName: doc.firstName,
       lastName: doc.lastName,
       email: doc.email,
       phoneNumber: doc.phoneNumber,
       termsAccepted: doc.termsAccepted,
       createdAt: doc.createdAt,
-      deletionPending: !!doc.deletionPending,
-      deletionRequestedAt: doc.deletionRequestedAt,
-      deletionScheduledFor: doc.deletionScheduledFor,
+      deletionPending: false,
+      deletionRequestedAt: null,
+      deletionScheduledFor: null,
     }
 
     return res.json({ cancelled: true, user: userSafe })

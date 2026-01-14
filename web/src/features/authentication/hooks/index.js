@@ -37,3 +37,6 @@ export { default as useNavigationNotifications } from './useNavigationNotificati
 export { useLoggedInMfaManager } from './useLoggedInMfaManager.js'
 export { usePasskeyLogin } from './usePasskeyLogin.js'
 export { default as useWebAuthn } from './useWebAuthn.js'
+export { useSessionActivity } from './useSessionActivity.js'
+export { useSessionTimeout } from './useSessionTimeout.js'
+export { useMaintenanceStatus } from './useMaintenanceStatus.js'

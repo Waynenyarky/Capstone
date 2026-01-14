@@ -21,6 +21,7 @@ const createApprovalRequestSchema = Joi.object({
       'id_verification',
       'account_status_change',
       'role_change',
+      'maintenance_mode',
       'other'
     )
     .required(),
@@ -46,7 +47,7 @@ router.post('/approvals', requireJwt, requireRole(['admin']), async (req, res) =
       return respond.error(res, 400, 'validation_error', 'requestType and userId are required');
     }
 
-    const validRequestTypes = ['email_change', 'password_change', 'personal_info_change', 'id_verification', 'account_status_change', 'role_change', 'other'];
+    const validRequestTypes = ['email_change', 'password_change', 'personal_info_change', 'id_verification', 'account_status_change', 'role_change', 'maintenance_mode', 'other'];
     if (!validRequestTypes.includes(requestType)) {
       return respond.error(res, 400, 'validation_error', `requestType must be one of: ${validRequestTypes.join(', ')}`);
     }
@@ -251,10 +252,11 @@ router.post('/approvals/:approvalId/approve', requireJwt, requireRole(['admin'])
 // GET /api/admin/approvals - Get all approval requests
 router.get('/approvals', requireJwt, requireRole(['admin']), async (req, res) => {
   try {
-    const { status, userId } = req.query;
+    const { status, userId, requestType } = req.query;
     const query = {};
     if (status) query.status = status;
     if (userId) query.userId = userId;
+    if (requestType) query.requestType = requestType;
 
     const approvals = await AdminApproval.find(query)
       .populate('userId', 'firstName lastName email')

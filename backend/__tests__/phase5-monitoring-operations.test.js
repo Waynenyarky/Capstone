@@ -338,6 +338,9 @@ describe('Phase 5: Monitoring & Operations', () => {
         trackFailedLogin(ip, userId)
       }
 
+      // Allow async audit logging to flush
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
       // Check if security event was logged
       const auditLogs = await AuditLog.find({
         eventType: 'security_event',

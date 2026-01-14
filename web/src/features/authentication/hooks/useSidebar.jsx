@@ -44,11 +44,13 @@ export default function useSidebar() {
         { key: 'dashboard', label: 'Dashboard', to: '/admin/dashboard', icon: <DashboardOutlined /> },
         { key: 'admin-full', label: 'Admin — Full', to: '/admin/full', icon: <SafetyCertificateOutlined /> },
         { key: 'admin-users', label: 'User Management', to: '/admin/users', icon: <TeamOutlined /> },
+        { key: 'maintenance', label: 'Maintenance', to: '/admin/maintenance', icon: <SafetyCertificateOutlined /> },
         { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
         { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
       ],
       staff: [
         { key: 'dashboard', label: 'Dashboard', to: '/staff', icon: <DashboardOutlined /> },
+        { key: 'recovery', label: 'Request Recovery', to: '/staff/recovery-request', icon: <SafetyCertificateOutlined /> },
         { key: 'inspections', label: 'Violations / Inspections', to: '/staff/inspections', icon: <SolutionOutlined /> },
         { key: 'applications', label: 'Permit Applications (Review)', to: '/staff/applications', icon: <FileTextOutlined /> },
         { key: 'cessation', label: 'Cessation (Review)', to: '/staff/cessation', icon: <StopOutlined /> },

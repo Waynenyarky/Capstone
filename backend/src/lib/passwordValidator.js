@@ -15,9 +15,9 @@ function validatePasswordStrength(password) {
     return { valid: false, errors: ['Password is required'] }
   }
 
-  // Minimum length: 8 characters
-  if (password.length < 8) {
-    errors.push('Password must be at least 8 characters long')
+  // Minimum length: 12 characters (security requirement)
+  if (password.length < 12) {
+    errors.push('Password must be at least 12 characters long')
   }
 
   // Must contain at least one lowercase letter

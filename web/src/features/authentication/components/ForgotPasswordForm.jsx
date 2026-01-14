@@ -1,4 +1,4 @@
-import { Form, Input, Button, Typography } from 'antd'
+import { Form, Input, Button, Typography, Alert } from 'antd'
 import { useForgotPasswordForm } from "@/features/authentication/hooks"
 import { forgotPasswordEmailRules } from "@/features/authentication/validations"
 import { useNavigate } from 'react-router-dom'
@@ -17,6 +17,14 @@ export default function ForgotPasswordForm({ onSubmit } = {}) {
           Enter your email address and we'll send you a code to reset your password.
         </Text>
       </div>
+
+      <Alert
+        showIcon
+        type="info"
+        message="Security check"
+        description="We log the IP and device for recovery attempts to keep your account safe."
+        style={{ marginBottom: 16 }}
+      />
 
       <Form name="forgotPassword" form={form} layout="vertical" onFinish={handleFinish} size="large" requiredMark={false}>
         <Form.Item

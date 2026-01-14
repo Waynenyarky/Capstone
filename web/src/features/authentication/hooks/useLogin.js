@@ -56,10 +56,15 @@ export function useLogin({ onBegin, onSubmit, onError } = {}) {
         if (typeof onSubmit === 'function') onSubmit(user, values)
       }
     } catch (err) {
+      let handled = false
       // Notify caller about structured server errors (e.g., locked accounts)
       try {
-        if (typeof onError === 'function') onError(err)
+        if (typeof onError === 'function') {
+          handled = onError(err) === true
+        }
       } catch { /* ignore onError failures */ }
+      if (handled) return
+
       console.error('Login error:', err)
       const msg = String(err?.message || '').toLowerCase()
       // Prefer field-level errors for invalid credentials

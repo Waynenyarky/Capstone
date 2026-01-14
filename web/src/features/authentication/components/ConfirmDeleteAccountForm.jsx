@@ -1,6 +1,7 @@
 import { Form, Button, Flex, Typography, List } from 'antd'
 import { WarningOutlined, InfoCircleOutlined, CheckCircleOutlined, HistoryOutlined, ScheduleOutlined } from '@ant-design/icons'
 import { useConfirmDeleteAccountForm } from "@/features/authentication/hooks"
+import { LegalAcknowledgmentCheckbox, DeletionWarningMessage } from '@/features/user'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -29,6 +30,8 @@ export default function ConfirmDeleteAccountForm({ email, deleteToken, onSubmit 
       <Paragraph style={{ fontSize: '16px', marginBottom: '24px', textAlign: 'center', color: '#595959' }}>
         Your account will be scheduled for deletion in 30 days.
       </Paragraph>
+
+      <DeletionWarningMessage />
 
       {/* Info Box */}
       <div style={{
@@ -65,6 +68,7 @@ export default function ConfirmDeleteAccountForm({ email, deleteToken, onSubmit 
 
       <Form name="confirmDeleteAccount" form={form} layout="vertical" onFinish={handleFinish}>
         <Flex vertical gap="large">
+          <LegalAcknowledgmentCheckbox />
           <Button 
             type="primary" 
             danger 

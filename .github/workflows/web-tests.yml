@@ -1,0 +1,69 @@
+name: Web Frontend Tests
+
+on:
+  push:
+    paths:
+      - 'web/**'
+      - '.github/workflows/web-tests.yml'
+  pull_request:
+    paths:
+      - 'web/**'
+      - '.github/workflows/web-tests.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: web
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Lint
+        working-directory: web
+        run: npm run lint
+
+      - name: Unit tests
+        working-directory: web
+        run: npm run test:unit
+        env:
+          CI: true
+
+      - name: E2E tests
+        working-directory: web
+        run: npm run test:e2e -- --reporter=line
+        env:
+          CI: true
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-coverage
+          path: web/coverage
+          if-no-files-found: ignore
+
+      - name: Upload Playwright traces and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-playwright-artifacts
+          path: |
+            web/playwright-report
+            web/test-results
+          if-no-files-found: ignore

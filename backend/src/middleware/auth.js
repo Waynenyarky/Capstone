@@ -42,6 +42,7 @@ async function requireJwt(req, res, next) {
     req._userId = String(decoded.sub || '')
     req._userEmail = String(decoded.email || '')
     req._userRole = String(decoded.role || '')
+    req._tokenVersion = Number(decoded.tokenVersion || 0)
     next()
   } catch (err) {
     return res.status(401).json({ error: { code: 'invalid_token', message: 'Unauthorized: invalid or expired token' } })

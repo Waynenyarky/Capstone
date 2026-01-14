@@ -1,0 +1,21 @@
+.devtools-drawer .ant-drawer-body {
+  padding-top: 12px;
+}
+
+.devtools-section {
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fafafa;
+}
+
+.devtools-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.devtools-action .ant-list-item-meta-title {
+  margin-bottom: 4px;
+}

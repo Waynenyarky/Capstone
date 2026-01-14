@@ -26,6 +26,7 @@ const { isBusinessOwnerRole, isAdminRole, isStaffRole } = require('../../lib/rol
 const { verificationRateLimit, profileUpdateRateLimit, passwordChangeRateLimit, idUploadRateLimit, adminApprovalRateLimit } = require('../../middleware/rateLimit')
 const { validateImageFile } = require('../../lib/fileValidator')
 const { sendEmailChangeNotification, sendPasswordChangeNotification } = require('../../lib/notificationService')
+const MaintenanceWindow = require('../../models/MaintenanceWindow')
 
 /**
  * Calculate hash for audit log
@@ -2988,6 +2989,49 @@ async function applyApprovedChange(approval) {
             mfaReEnrollmentRequired: true,
           },
         })
+
+        return { success: true }
+      }
+
+      case 'maintenance_mode': {
+        const { action, message, expectedResumeAt } = approval.requestDetails || {}
+        const approvedBy = approval.approvals.map((a) => String(a.adminId))
+        const now = new Date()
+
+        if (action === 'enable') {
+          await MaintenanceWindow.updateMany({ isActive: true }, { isActive: false, status: 'ended', deactivatedAt: now })
+          await MaintenanceWindow.create({
+            status: 'active',
+            isActive: true,
+            message: message || '',
+            expectedResumeAt: expectedResumeAt ? new Date(expectedResumeAt) : null,
+            requestedBy: approval.requestedBy,
+            approvedBy,
+            activatedAt: now,
+            metadata: { approvalId: approval.approvalId },
+          })
+        } else if (action === 'disable') {
+          await MaintenanceWindow.findOneAndUpdate(
+            { isActive: true },
+            { isActive: false, status: 'ended', deactivatedAt: now },
+            { sort: { createdAt: -1 } }
+          )
+        }
+
+        await createAuditLog(
+          approval.requestedBy,
+          'maintenance_mode',
+          'maintenance',
+          '',
+          action,
+          'admin',
+          {
+            approvalId: approval.approvalId,
+            message: message || '',
+            expectedResumeAt: expectedResumeAt || null,
+            approvedBy,
+          }
+        )
 
         return { success: true }
       }

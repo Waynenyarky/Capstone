@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BizClear Wireframes</title>
+  <style>
+    :root {
+      --bg: #f2f3f5;
+      --panel: #ffffff;
+      --ink: #1f2933;
+      --muted: #6b7280;
+      --stroke: #c7cdd4;
+      --stroke-dark: #9aa4b1;
+      --shadow: 0 12px 30px rgba(31, 41, 51, 0.08);
+      --radius: 12px;
+      --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background: linear-gradient(145deg, #f6f7f9 0%, #eff1f4 35%, #fdfdfd 100%);
+      color: var(--ink);
+      padding: 32px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 20px;
+      letter-spacing: -0.2px;
+    }
+    .brand-badge {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #e5e7eb, #cfd3d9);
+      border: 1px solid #d5d9df;
+      display: grid;
+      place-items: center;
+      color: #1f2933;
+      font-weight: 800;
+    }
+    h1 { margin: 10px 0 6px; font-size: 24px; letter-spacing: -0.2px; }
+    p.lead { margin: 0 0 14px; color: var(--muted); max-width: 980px; }
+    .grid {
+      display: grid;
+      gap: 28px;
+      margin-top: 8px;
+    }
+    .page {
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      display: grid;
+      gap: 14px;
+    }
+    .page h2 { margin: 0; font-size: 18px; letter-spacing: -0.1px; }
+    .browser {
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: #fbfbfb;
+      overflow: hidden;
+    }
+    .chrome {
+      height: 36px;
+      border-bottom: 1px solid var(--stroke);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      background: #f3f4f6;
+    }
+    .dots { display: flex; gap: 6px; }
+    .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      border: 1px solid var(--stroke);
+      background: #e5e7eb;
+    }
+    .urlbar {
+      flex: 1;
+      height: 20px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 400px;
+    }
+    .sidebar {
+      border-right: 1px solid var(--stroke);
+      background: #f9f9f9;
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+    .nav-item {
+      padding: 8px 10px;
+      border: 1px solid var(--stroke);
+      border-radius: 6px;
+      background: #fff;
+      font-size: 13px;
+      color: #4b5563;
+    }
+    .main {
+      padding: 18px;
+      display: grid;
+      gap: 16px;
+      background: #fff;
+    }
+    .topbar {
+      min-height: 46px;
+      border: 1px dashed var(--stroke);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      gap: 10px;
+      font-size: 13px;
+      color: #374151;
+    }
+    .button {
+      height: 28px;
+      min-width: 110px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: #f7f7f7;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      color: #374151;
+    }
+    .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+    .card {
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: #fafafa;
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+    .card h4 { margin: 0; font-size: 14px; letter-spacing: -0.05px; }
+    .line {
+      padding: 8px;
+      border: 1px solid var(--stroke);
+      border-radius: 6px;
+      background: #fff;
+      font-size: 12px;
+      color: #4b5563;
+    }
+    .table {
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      overflow: hidden;
+      font-size: 12px;
+      color: #374151;
+    }
+    .thead, .trow {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      border-bottom: 1px solid var(--stroke);
+    }
+    .thead div {
+      padding: 10px;
+      border-right: 1px solid var(--stroke);
+      background: #f3f4f6;
+      font-weight: 700;
+    }
+    .trow div {
+      padding: 10px;
+      border-right: 1px solid var(--stroke);
+      background: #fff;
+    }
+    .chart {
+      height: 160px;
+      border: 1px dashed var(--stroke-dark);
+      border-radius: 10px;
+      background: repeating-linear-gradient(90deg, #f7f7f7, #f7f7f7 14px, #ececec 14px, #ececec 28px);
+      position: relative;
+      display: grid;
+      place-items: center;
+      color: #6b7280;
+      font-size: 12px;
+    }
+    .mobile {
+      width: 380px;
+      border: 1px solid var(--stroke);
+      border-radius: 24px;
+      background: #fff;
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.05);
+    }
+    .section-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="brand-badge">BC</div>
+      BizClear Wireframes
+    </div>
+    <div class="section-label">Grayscale wireframes • Desktop-first (plus mobile inspection)</div>
+  </header>
+
+  <h1>Presentation Wireframes with Labels</h1>
+  <p class="lead">Each page uses real text labels (not just boxes) so it reads like a UI mock. Screenshot directly for slides or import into Figma.</p>
+
+  <div class="grid">
+    <div class="page">
+      <h2>Login + MFA + RBAC</h2>
+      <div class="browser">
+        <div class="chrome">
+          <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+          <div class="urlbar"></div>
+        </div>
+        <div class="layout">
+          <div class="sidebar">
+            <div class="section-label">Menu</div>
+            <div class="nav-item">Login</div>
+            <div class="nav-item">Register</div>
+            <div class="nav-item">Support</div>
+            <div class="nav-item">Status</div>
+          </div>
+          <div class="main">
+            <div class="topbar">
+              <div>BizClear Sign-in</div>
+              <div class="button">Need help?</div>
+              <div class="button">Maintenance notice</div>
+            </div>
+            <div class="row">
+              <div class="card">
+                <h4>Credentials</h4>
+                <div class="line">Email: business@example.com</div>
+                <div class="line">Password: ••••••••</div>
+                <div class="button">Sign in</div>
+                <div class="line">Use passkey • Forgot password</div>
+              </div>
+              <div class="card">
+                <h4>MFA Step</h4>
+                <div class="line">Enter 6-digit code • 00:30 timer</div>
+                <div class="line">Backup: SMS / Email / Codes</div>
+                <div class="line">Remember device (30 days)</div>
+                <div class="button">Verify MFA</div>
+              </div>
+            </div>
+            <div class="card">
+              <h4>RBAC Redirect</h4>
+              <div class="line">Business Owner → Applicant Dashboard</div>
+              <div class="line">LGU Officer → Review Queue</div>
+              <div class="line">Manager/Admin → Oversight & Reports</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page">
+      <h2>Applicant Dashboard + Permit Wizard</h2>
+      <div class="browser">
+        <div class="chrome">
+          <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+          <div class="urlbar"></div>
+        </div>
+        <div class="layout">
+          <div class="sidebar">
+            <div class="section-label">Applicant</div>
+            <div class="nav-item">Dashboard</div>
+            <div class="nav-item">Applications</div>
+            <div class="nav-item">Payments</div>
+            <div class="nav-item">Support</div>
+          </div>
+          <div class="main">
+            <div class="topbar">
+              <div>My Business • Status</div>
+              <div class="button">New Permit</div>
+              <div class="button">Start Cessation</div>
+            </div>
+            <div class="row">
+              <div class="card">
+                <h4>Status</h4>
+                <div class="line">Active permits: 2</div>
+                <div class="line">Renewal due: D-5 (urgent)</div>
+                <div class="line">Violations: 0</div>
+              </div>
+              <div class="card">
+                <h4>Quick Actions</h4>
+                <div class="line">Pay outstanding fees</div>
+                <div class="line">Upload requested documents</div>
+                <div class="line">Contact support</div>
+              </div>
+            </div>
+            <div class="card">
+              <h4>Permit Wizard (Step 2/4: Documents)</h4>
+              <div class="row">
+                <div class="card" style="border-style:dashed;">
+                  <div class="line">Business Registration ✔</div>
+                  <div class="line">PDF uploaded</div>
+                </div>
+                <div class="card" style="border-style:dashed;">
+                  <div class="line">Government ID ⚠ Missing page 2</div>
+                  <div class="line">Prompt: re-upload clearer scan</div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="card" style="border-style:dashed;">
+                  <div class="line">Fire Safety Cert ✔</div>
+                  <div class="line">AI check: pass</div>
+                </div>
+                <div class="card" style="border-style:dashed;">
+                  <div class="line">Location Map ✔</div>
+                  <div class="line">PDF uploaded</div>
+                </div>
+              </div>
+              <div class="line">AI assist: flags missing/blurred docs; suggests fixes.</div>
+              <div class="button">Next Step: Review & Submit</div>
+            </div>
+            <div class="card">
+              <h4>Applications</h4>
+              <div class="line">#BC-1023 • In Review • Est. 3d • Upload requested docs</div>
+              <div class="line">#BC-0991 • Pending Payment • Resume checkout</div>
+              <div class="line">Draft #BC-1044 • Step 2/4 • Saved 10m ago</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page">
+      <h2>Payments & Receipt</h2>
+      <div class="browser">
+        <div class="chrome">
+          <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+          <div class="urlbar"></div>
+        </div>
+        <div class="layout">
+          <div class="sidebar">
+            <div class="section-label">Payments</div>
+            <div class="nav-item">Checkout</div>
+            <div class="nav-item">Receipts</div>
+            <div class="nav-item">History</div>
+          </div>
+          <div class="main">
+            <div class="topbar">
+              <div>Secure Checkout</div>
+              <div class="button">Saved Methods</div>
+              <div class="button">Help</div>
+            </div>
+            <div class="row">
+              <div class="card">
+                <h4>Fee Summary</h4>
+                <div class="line">Permit fee • 2,500</div>
+                <div class="line">Surcharges • 150</div>
+                <div class="line">Total • 2,650</div>
+              </div>
+              <div class="card">
+                <h4>Payment Method</h4>
+                <div class="line">Card • **** 4242</div>
+                <div class="line">GCash • optional</div>
+                <div class="line">Bank OTC • upload slip</div>
+                <div class="button">Pay now</div>
+              </div>
+            </div>
+            <div class="card">
+              <h4>Receipt & Notifications</h4>
+              <div class="line">Receipt #RC-4432 • Download PDF • Email sent</div>
+              <div class="line">Push + Email: Payment success</div>
+              <div class="line">If failed: retry link + support contact</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page">
+      <h2>Violations + Appeals</h2>
+      <div class="browser">
+        <div class="chrome">
+          <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+          <div class="urlbar"></div>
+        </div>
+        <div class="layout">
+          <div class="sidebar">
+            <div class="section-label">Compliance</div>
+            <div class="nav-item">Violations</div>
+            <div class="nav-item">Appeals</div>
+            <div class="nav-item">Payments</div>
+          </div>
+          <div class="main">
+            <div class="topbar">
+              <div>Filters: status • type • date</div>
+              <div class="button">New Appeal</div>
+              <div class="button">Export</div>
+            </div>
+            <div class="table">
+              <div class="thead">
+                <div>ID</div><div>Type</div><div>Status</div><div>SLA</div>
+              </div>
+              <div class="trow"><div>V-2201</div><div>Fire code</div><div>Pending appeal</div><div>5d</div></div>
+              <div class="trow"><div>V-2178</div><div>Zoning</div><div>Paid • Closed</div><div>—</div></div>
+              <div class="trow"><div>V-2199</div><div>Sanitation</div><div>Unpaid</div><div>2d</div></div>
+            </div>
+            <div class="card">
+              <h4>Appeal Detail (V-2201)</h4>
+              <div class="line">Reason: Compliance completed • Photos attached</div>
+              <div class="line">Evidence: Before/After images • PDF report</div>
+              <div class="line">Status: In Review • Est. 5d</div>
+              <div class="button">Add evidence / Withdraw</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page">
+      <h2>Officer / Manager Workspace</h2>
+      <div class="browser">
+        <div class="chrome">
+          <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+          <div class="urlbar"></div>
+        </div>
+        <div class="layout">
+          <div class="sidebar">
+            <div class="section-label">Officer</div>
+            <div class="nav-item">Queue</div>
+            <div class="nav-item">Assignments</div>
+            <div class="nav-item">Reports</div>
+            <div class="nav-item">Audit</div>
+          </div>
+          <div class="main">
+            <div class="topbar">
+              <div>Queue • Sort by SLA / priority</div>
+              <div class="button">Bulk assign</div>
+              <div class="button">Pause</div>
+            </div>
+            <div class="table">
+              <div class="thead"><div>ID</div><div>Type</div><div>Status</div><div>SLA</div></div>
+              <div class="trow"><div>BC-1023</div><div>Permit</div><div>Docs pending</div><div>3d</div></div>
+              <div class="trow"><div>AP-441</div><div>Appeal</div><div>Needs review</div><div>1d</div></div>
+              <div class="trow"><div>BC-1008</div><div>Permit</div><div>Auto-routed</div><div>5d</div></div>
+            </div>
+            <div class="card">
+              <h4>Review Panel (BC-1023)</h4>
+              <div class="row">
+                <div class="button">Request info</div>
+                <div class="button">Approve</div>
+                <div class="button">Deny</div>
+              </div>
+              <div class="line">Officer note: Missing updated fire cert.</div>
+              <div class="line">Audit: LGO1 updated status • Timestamp • IP</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page">
+      <h2>Inspections (Mobile)</h2>
+      <div class="mobile">
+        <div class="topbar" style="height:38px; border-style:solid; justify-content:space-between;">
+          <div>Assignments • Today</div>
+          <div class="button" style="width:90px; height:22px;">Filter</div>
+        </div>
+        <div class="card" style="padding:12px; border-style:dashed;">
+          <h4>Visits</h4>
+          <div class="line">09:00 • BC Motors • Map • Start</div>
+          <div class="line">14:00 • Cafe Azul • Map • Start</div>
+        </div>
+        <div class="card">
+          <h4>Inspection Detail</h4>
+          <div class="line">Upload photos • Notes</div>
+          <div class="line">Findings • Link to violation</div>
+          <div class="line">Offline capture • Sync later</div>
+          <div class="button" style="width:100%;">Submit inspection report</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page">
+      <h2>Reports & SLA</h2>
+      <div class="browser">
+        <div class="chrome">
+          <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+          <div class="urlbar"></div>
+        </div>
+        <div class="layout">
+          <div class="sidebar">
+            <div class="section-label">Reports</div>
+            <div class="nav-item">Overview</div>
+            <div class="nav-item">Permits</div>
+            <div class="nav-item">Appeals</div>
+          </div>
+          <div class="main">
+            <div class="topbar">
+              <div>SLA & Volumes</div>
+              <div class="button">Export CSV</div>
+              <div class="button">Email weekly</div>
+            </div>
+            <div class="row">
+              <div class="chart">Trend chart</div>
+              <div class="card">
+                <h4>Highlights</h4>
+                <div class="line">Avg permit SLA: 4.2d</div>
+                <div class="line">Appeals backlog: 12</div>
+                <div class="line">Inspections passed: 86%</div>
+                <div class="line">Payments success: 97%</div>
+              </div>
+            </div>
+            <div class="button" style="width:200px;">Download PDF</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page">
+      <h2>Blockchain Audit Log</h2>
+      <div class="browser">
+        <div class="chrome">
+          <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+          <div class="urlbar"></div>
+        </div>
+        <div class="layout">
+          <div class="sidebar">
+            <div class="section-label">Audit</div>
+            <div class="nav-item">On-chain log</div>
+            <div class="nav-item">Integrity</div>
+            <div class="nav-item">Settings</div>
+          </div>
+          <div class="main">
+            <div class="topbar">
+              <div>Immutable events</div>
+              <div class="button">Filter</div>
+              <div class="button">Retry anchor</div>
+            </div>
+            <div class="table">
+              <div class="thead"><div>Entity</div><div>Action</div><div>Hash status</div><div>Timestamp</div></div>
+              <div class="trow"><div>#1023</div><div>Status change</div><div>Verified</div><div>12:01</div></div>
+              <div class="trow"><div>RC-4432</div><div>Payment</div><div>Verified</div><div>12:04</div></div>
+              <div class="trow"><div>AP-441</div><div>Note added</div><div>Pending anchor</div><div>12:08</div></div>
+            </div>
+            <div class="line">Each row: entity • action • hash • status • link to explorer</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page">
+      <h2>AI Validation & Insights</h2>
+      <div class="browser">
+        <div class="chrome">
+          <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+          <div class="urlbar"></div>
+        </div>
+        <div class="layout">
+          <div class="sidebar">
+            <div class="section-label">AI Panels</div>
+            <div class="nav-item">Doc Check</div>
+            <div class="nav-item">Triage</div>
+            <div class="nav-item">Chatbot</div>
+          </div>
+          <div class="main">
+            <div class="topbar">
+              <div>Assistive AI</div>
+              <div class="button">Refresh</div>
+              <div class="button">Export</div>
+            </div>
+            <div class="row">
+              <div class="card">
+                <h4>Document Validation</h4>
+                <div class="line">Gov ID • Missing page 2 • Conf 0.83</div>
+                <div class="line">Fire Cert • Low-res upload • Conf 0.71</div>
+                <div class="line">Risk: Medium • Suggest re-upload</div>
+              </div>
+              <div class="card">
+                <h4>Triage & Insights</h4>
+                <div class="line">Queue suggestion: High priority (risk ↑)</div>
+                <div class="line">Bottleneck: Fire inspections</div>
+                <div class="line">Recommendation: Auto-assign to Team B</div>
+              </div>
+            </div>
+            <div class="card">
+              <h4>Chatbot Assist</h4>
+              <div class="line">Q: “What docs for renewal?”</div>
+              <div class="line">A: Checklist + upload links</div>
+              <div class="button" style="width:170px;">Escalate to human</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

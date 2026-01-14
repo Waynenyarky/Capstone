@@ -57,6 +57,17 @@ const UserSchema = new mongoose.Schema(
     lastFailedAttemptAt: { type: Date, default: null },
     // MFA re-enrollment flag
     mfaReEnrollmentRequired: { type: Boolean, default: false },
+    // IP tracking for suspicious activity detection
+    recentLoginIPs: [
+      {
+        ip: { type: String, required: true },
+        timestamp: { type: Date, required: true },
+        location: { type: String, default: '' }, // Optional: geolocation data
+      },
+    ],
+    // Deletion undo token
+    deletionUndoToken: { type: String, default: null },
+    deletionUndoExpiresAt: { type: Date, default: null },
   },
   { timestamps: true }
 )

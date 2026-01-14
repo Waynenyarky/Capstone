@@ -12,3 +12,19 @@ export async function createStaff(payload) {
     body: JSON.stringify(payload),
   })
 }
+
+export async function updateStaff(staffId, payload) {
+  return await fetchJsonWithFallback(`/api/auth/admin/staff/${staffId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function resetStaffPassword(staffId, payload) {
+  return await fetchJsonWithFallback(`/api/auth/admin/staff/${staffId}/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}

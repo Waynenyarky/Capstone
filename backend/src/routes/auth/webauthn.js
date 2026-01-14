@@ -48,15 +48,17 @@ const authenticationChallenges = new Map()
 const crossDeviceSessions = new Map()
 const CROSS_DEVICE_SESSION_TIMEOUT = 5 * 60 * 1000 // 5 minutes
 
-// Cleanup expired sessions periodically
-setInterval(() => {
-  const now = Date.now()
-  for (const [sessionId, session] of crossDeviceSessions.entries()) {
-    if (now - session.createdAt > CROSS_DEVICE_SESSION_TIMEOUT) {
-      crossDeviceSessions.delete(sessionId)
+// Cleanup expired sessions periodically (skip in test to avoid open handles)
+if (process.env.NODE_ENV !== 'test') {
+  setInterval(() => {
+    const now = Date.now()
+    for (const [sessionId, session] of crossDeviceSessions.entries()) {
+      if (now - session.createdAt > CROSS_DEVICE_SESSION_TIMEOUT) {
+        crossDeviceSessions.delete(sessionId)
+      }
     }
-  }
-}, 60000) // Check every minute
+  }, 60000) // Check every minute
+}
 
 const emailSchema = Joi.object({ 
   email: Joi.string().email().required(),
@@ -430,6 +432,27 @@ router.post('/webauthn/register/complete', validateBody(registrationCompleteSche
       if (currentMethod.includes('fingerprint')) methods.add('fingerprint')
       methods.add('passkey')
       user.mfaMethod = Array.from(methods).join(',')
+
+      // If this user is staff/admin and was pending MFA, clear the flag and
+      // activate the account unless credentials still need to be changed.
+      let roleSlug = ''
+      try {
+        if (user.role && user.role.slug) {
+          roleSlug = user.role.slug
+        } else if (user.role) {
+          const roleDoc = await Role.findById(user.role).lean()
+          roleSlug = roleDoc?.slug || ''
+        }
+      } catch (roleErr) {
+        console.warn('[WebAuthn] Failed to load role for MFA activation:', roleErr.message)
+      }
+      const requiresMfa = user.isStaff === true || roleSlug === 'admin'
+      if (user.mustSetupMfa || requiresMfa) {
+        user.mustSetupMfa = false
+        if (user.isStaff) {
+          user.isActive = !(user.mustChangeCredentials === true)
+        }
+      }
       
       await user.save()
       
@@ -1598,11 +1621,31 @@ router.post('/webauthn/cross-device/complete', validateBody(crossDeviceCompleteS
       if (currentMethod.includes('fingerprint')) methods.add('fingerprint')
       methods.add('passkey')
       dbUser.mfaMethod = Array.from(methods).join(',')
+
+      // Clear MFA setup flag and activate staff/admin users once passkey is registered
+      let roleSlugValue = ''
+      try {
+        if (dbUser.role && dbUser.role.slug) {
+          roleSlugValue = dbUser.role.slug
+        } else if (dbUser.role) {
+          const roleDoc = await Role.findById(dbUser.role).lean()
+          roleSlugValue = roleDoc?.slug || ''
+        }
+      } catch (roleErr) {
+        console.warn('[WebAuthn] Failed to load role for MFA activation (cross-device):', roleErr.message)
+      }
+      const requiresMfa = dbUser.isStaff === true || roleSlugValue === 'admin'
+      if (dbUser.mustSetupMfa || requiresMfa) {
+        dbUser.mustSetupMfa = false
+        if (dbUser.isStaff) {
+          dbUser.isActive = !(dbUser.mustChangeCredentials === true)
+        }
+      }
       await dbUser.save()
 
       // After registration, authenticate the user
       const populatedUser = await User.findById(dbUser._id).populate('role')
-      const roleSlug = (populatedUser.role && populatedUser.role.slug) ? populatedUser.role.slug : 'user'
+      const roleSlug = (populatedUser.role && populatedUser.role.slug) ? populatedUser.role.slug : (roleSlugValue || 'user')
       const safe = {
         id: String(populatedUser._id),
         role: roleSlug,

@@ -14,6 +14,8 @@ const respond = require('../../middleware/respond')
 const { validateBody, Joi } = require('../../middleware/validation')
 const { perEmailRateLimit } = require('../../middleware/rateLimit')
 const { decryptWithHash } = require('../../lib/secretCipher')
+const Session = require('../../models/Session')
+const { trackIP } = require('../../lib/ipTracker')
 let OAuth2Client = null
 try { ({ OAuth2Client } = require('google-auth-library')) } catch (_) { OAuth2Client = null }
 
@@ -101,6 +103,31 @@ const loginVerifyLimiter = DISABLE_LIMITS
       message: 'Too many login verification attempts; try again later.',
     })
 
+async function createSessionForUser(doc, roleSlug, req) {
+  try {
+    const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+    const userAgent = req.headers['user-agent'] || 'unknown'
+    await trackIP(doc._id, ipAddress)
+    const getSessionTimeout = (slug) => {
+      if (slug === 'admin') return 10 * 60 * 1000 // 10 minutes
+      return 60 * 60 * 1000 // 1 hour for BO/Staff
+    }
+    const timeout = getSessionTimeout(roleSlug)
+    const expiresAt = new Date(Date.now() + timeout)
+    await Session.create({
+      userId: doc._id,
+      tokenVersion: doc.tokenVersion || 0,
+      ipAddress,
+      userAgent,
+      lastActivityAt: new Date(),
+      expiresAt,
+      isActive: true,
+    })
+  } catch (sessionError) {
+    console.warn('Failed to create session on login:', sessionError)
+  }
+}
+
 // POST /api/auth/login/start
 // Step 1 of two-step login: validate credentials, send verification code
 // Also handles '1' shorthand for dev admin
@@ -177,6 +204,77 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     }
 
     const emailKey = String(doc.email).toLowerCase().trim()
+
+    // Enforce MFA requirement for staff and admins before proceeding.
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+    const requiresMfa = doc.isStaff === true || roleSlug === 'admin'
+    const hasPasskey = Array.isArray(doc.webauthnCredentials) && doc.webauthnCredentials.length > 0
+    const hasTotpMfa = !!doc.mfaSecret
+    // Default allow in non-production unless explicitly disabled
+    const allowSeededMfaSetup =
+      process.env.ALLOW_SEEDED_MFA_SETUP === 'true' ||
+      (process.env.ALLOW_SEEDED_MFA_SETUP !== 'false' && process.env.NODE_ENV !== 'production')
+    const isFirstLoginMfaSetup = doc.mustSetupMfa === true
+    if (requiresMfa && !hasPasskey && !hasTotpMfa && !(allowSeededMfaSetup && isFirstLoginMfaSetup)) {
+      return respond.error(
+        res,
+        403,
+        'mfa_required',
+        'MFA required for this account. Contact an administrator to bootstrap MFA.',
+        { allowedMethods: ['authenticator', 'passkey'] }
+      )
+    }
+
+    // If this is a seeded first-login path (mustSetupMfa) allow bypass of email OTP to reach onboarding
+    if (allowSeededMfaSetup && requiresMfa && isFirstLoginMfaSetup) {
+      try {
+        const dbDoc = await User.findById(doc._id)
+        if (dbDoc) {
+          dbDoc.lastLoginAt = new Date()
+          await dbDoc.save()
+        }
+      } catch (_) {}
+
+      try {
+        // Create session and token, return safe user to force onboarding (password change + MFA setup)
+        const { token, expiresAtMs } = signAccessToken(doc)
+        await createSessionForUser(doc, roleSlug, req)
+        return res.json({
+          id: String(doc._id),
+          role: roleSlug,
+          firstName: doc.firstName,
+          lastName: doc.lastName,
+          email: doc.email,
+          phoneNumber: displayPhoneNumber(doc.phoneNumber),
+          termsAccepted: doc.termsAccepted,
+          createdAt: doc.createdAt,
+          username: doc.username || '',
+          office: doc.office || '',
+          isActive: doc.isActive !== false,
+          isStaff: !!doc.isStaff,
+          mustChangeCredentials: true,
+          mustSetupMfa: true,
+          mfaEnabled: false,
+          mfaMethod: '',
+          onboardingRequired: true,
+          skipEmailVerification: true,
+          token,
+          expiresAt: new Date(expiresAtMs).toISOString(),
+        })
+      } catch (err) {
+        console.error('Failed to bypass OTP for first-login MFA setup:', err)
+        // Fall through to normal flow if something goes wrong
+      }
+    }
+
+    // Update last login timestamp
+    try {
+      const dbDoc = await User.findById(doc._id)
+      if (dbDoc) {
+        dbDoc.lastLoginAt = new Date()
+        await dbDoc.save()
+      }
+    } catch (_) {}
 
     // Special handling for LGU Officer: Fixed OTP, no email
     const isLguOfficer = doc.role && doc.role.slug === 'lgu_officer'
@@ -333,6 +431,20 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
     let doc = await User.findOne({ email: emailKey }).lean()
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
 
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+    const requiresMfa = doc.isStaff === true || roleSlug === 'admin'
+    const hasPasskey = Array.isArray(doc.webauthnCredentials) && doc.webauthnCredentials.length > 0
+    const hasTotp = !!doc.mfaSecret
+    if (requiresMfa && !hasPasskey && !hasTotp && !(allowSeededMfaSetup && doc.mustSetupMfa === true)) {
+      return respond.error(
+        res,
+        403,
+        'mfa_required',
+        'MFA required for this account. Contact an administrator to bootstrap MFA.',
+        { allowedMethods: ['authenticator', 'passkey'] }
+      )
+    }
+
     // Auto-fix for legacy/bad data where role is a string slug instead of ObjectId
     if (doc.role && typeof doc.role === 'string' && !mongoose.Types.ObjectId.isValid(doc.role)) {
       try {
@@ -351,8 +463,6 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
       doc.role = await Role.findById(doc.role).lean()
     }
     
-    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
-
     const safe = {
       id: String(doc._id),
       role: roleSlug,
@@ -377,6 +487,39 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
       const { token, expiresAtMs } = signAccessToken(doc)
       safe.token = token
       safe.expiresAt = new Date(expiresAtMs).toISOString()
+      
+      // Create session for successful login
+      try {
+        const Session = require('../../models/Session')
+        const { trackIP } = require('../../lib/ipTracker')
+        const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+        const userAgent = req.headers['user-agent'] || 'unknown'
+        
+        // Track IP
+        await trackIP(doc._id, ipAddress)
+        
+        // Determine session timeout based on role
+        const getSessionTimeout = (roleSlug) => {
+          if (roleSlug === 'admin') return 10 * 60 * 1000 // 10 minutes
+          return 60 * 60 * 1000 // 1 hour for BO/Staff
+        }
+        
+        const timeout = getSessionTimeout(roleSlug)
+        const expiresAt = new Date(Date.now() + timeout)
+        
+        await Session.create({
+          userId: doc._id,
+          tokenVersion: doc.tokenVersion || 0,
+          ipAddress,
+          userAgent,
+          lastActivityAt: new Date(),
+          expiresAt,
+          isActive: true,
+        })
+      } catch (sessionError) {
+        // Don't fail login if session creation fails
+        console.warn('Failed to create session on login:', sessionError)
+      }
     } catch (_) {}
 
     // Cleanup login state
@@ -429,9 +572,44 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
   if (doc.fprintEnabled) methods.add('fingerprint')
   if (currentMethod.includes('passkey')) methods.add('passkey')
   doc.mfaMethod = Array.from(methods).join(',')
-  doc.mfaLastUsedTotpCounter = resVerify.counter
-  doc.mfaLastUsedTotpAt = new Date()
-  await doc.save()
+    doc.mfaLastUsedTotpCounter = resVerify.counter
+    doc.mfaLastUsedTotpAt = new Date()
+    doc.lastLoginAt = new Date()
+    await doc.save()
+    
+    // Create session for successful login
+    try {
+      const Session = require('../../models/Session')
+      const { trackIP } = require('../../lib/ipTracker')
+      const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+      const userAgent = req.headers['user-agent'] || 'unknown'
+      
+      // Track IP
+      await trackIP(doc._id, ipAddress)
+      
+      // Determine session timeout based on role
+      const getSessionTimeout = (roleSlug) => {
+        if (roleSlug === 'admin') return 10 * 60 * 1000 // 10 minutes
+        return 60 * 60 * 1000 // 1 hour for BO/Staff
+      }
+      
+      const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+      const timeout = getSessionTimeout(roleSlug)
+      const expiresAt = new Date(Date.now() + timeout)
+      
+      await Session.create({
+        userId: doc._id,
+        tokenVersion: doc.tokenVersion || 0,
+        ipAddress,
+        userAgent,
+        lastActivityAt: new Date(),
+        expiresAt,
+        isActive: true,
+      })
+    } catch (sessionError) {
+      // Don't fail login if session creation fails
+      console.warn('Failed to create session on login:', sessionError)
+    }
 
     const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
 

@@ -3,6 +3,7 @@ import { Layout, Row, Col, Button, Space } from 'antd'
 import { Link } from 'react-router-dom'
 import { AdminWorkspaceGate } from '@/features/admin'
 import { AppSidebar as Sidebar } from '@/features/authentication'
+import { SecurityAlertsWidget, TamperIncidentsPanel } from '@/features/admin'
 
 export default function AdminDashboard() {
   return (
@@ -18,6 +19,12 @@ export default function AdminDashboard() {
               <Link to="/admin/full"><Button>Open Full Dashboard</Button></Link>
             </Space>
             <AdminWorkspaceGate />
+            <div style={{ marginTop: 16 }}>
+              <SecurityAlertsWidget alerts={[]} />
+              <div style={{ marginTop: 12 }}>
+                <TamperIncidentsPanel />
+              </div>
+            </div>
           </Col>
         </Row>
       </Layout.Content>

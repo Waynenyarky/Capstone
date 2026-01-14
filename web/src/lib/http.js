@@ -1,4 +1,5 @@
 import { getCurrentUser } from '@/features/authentication/lib/authEvents.js'
+import { authHeaders } from './authHeaders.js'
 
 export async function fetchWithFallback(path, options = {}) {
   const BACKEND_ORIGIN = import.meta.env.VITE_BACKEND_ORIGIN
@@ -136,3 +137,6 @@ export const put = (path, body, options) => fetchJsonWithFallback(path, {
 })
 
 export const del = (path, options) => fetchJsonWithFallback(path, { ...options, method: 'DELETE' })
+
+// Re-export shared header helper for convenience across feature services
+export { authHeaders }

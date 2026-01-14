@@ -13,7 +13,9 @@ const path = require('path')
 const connectDB = require('../src/config/db')
 const { seedDevDataIfEmpty } = require('../src/lib/seedDev')
 const User = require('../src/models/User')
+const Role = require('../src/models/Role')
 const { signAccessToken } = require('../src/middleware/auth')
+const bcrypt = require('bcryptjs')
 
 jest.setTimeout(60000)
 
@@ -160,8 +162,35 @@ describe('API endpoint smoke tests', () => {
     await connectDB(process.env.MONGO_URI)
     await seedDevDataIfEmpty()
 
-    const admin = await User.findOne({ email: 'admin@example.com' }).populate('role')
-    const business = await User.findOne({ email: 'business@example.com' }).populate('role')
+    let admin = await User.findOne({ email: 'admin@example.com' }).populate('role')
+    let business = await User.findOne({ email: 'business@example.com' }).populate('role')
+
+    // Fallback creation to keep smoke tests stable if seeding skipped
+    if (!admin) {
+      const adminRole = await Role.findOne({ slug: 'admin' }) || await Role.create({ name: 'Admin', slug: 'admin' })
+      admin = await User.create({
+        role: adminRole._id,
+        firstName: 'Alice',
+        lastName: 'Admin',
+        email: 'admin@example.com',
+        passwordHash: await bcrypt.hash('password123', 10),
+        termsAccepted: true,
+      })
+      admin = await User.findById(admin._id).populate('role')
+    }
+
+    if (!business) {
+      const boRole = await Role.findOne({ slug: 'business_owner' }) || await Role.create({ name: 'Business Owner', slug: 'business_owner' })
+      business = await User.create({
+        role: boRole._id,
+        firstName: 'Bob',
+        lastName: 'Business',
+        email: 'business@example.com',
+        passwordHash: await bcrypt.hash('password123', 10),
+        termsAccepted: true,
+      })
+      business = await User.findById(business._id).populate('role')
+    }
     adminToken = signAccessToken(admin).token
     businessOwnerToken = signAccessToken(business).token
 

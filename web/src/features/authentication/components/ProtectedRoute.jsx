@@ -1,20 +1,25 @@
 import React from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { useAuthSession } from '@/features/authentication'
+import { useAuthSession, useMaintenanceStatus } from '@/features/authentication'
 import { getIsLoggingOut } from '@/features/authentication/lib/authEvents.js'
 import DeletionPendingScreen from './DeletionPendingScreen.jsx'
 
 export default function ProtectedRoute({ children, allowedRoles = [] }) {
   const { currentUser, role, isLoading } = useAuthSession()
   const location = useLocation()
+  const maintenance = useMaintenanceStatus()
 
   const roleKey = String(role?.slug || role || '').toLowerCase()
   const allowed = allowedRoles.map((r) => String(r || '').toLowerCase())
   const isUnauthorized = !isLoading && currentUser && allowed.length > 0 && !allowed.includes(roleKey)
 
-  if (isLoading) {
+  if (isLoading || maintenance.loading) {
     // You might want a spinner here, but for now we'll just return null or a simple div
     return null 
+  }
+
+  if (maintenance.active && roleKey !== 'admin') {
+    return <Navigate to="/maintenance" replace state={{ from: location }} />
   }
 
   // If not authenticated, redirect to login

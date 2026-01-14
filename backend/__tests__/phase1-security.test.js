@@ -74,10 +74,10 @@ describe('Phase 1: Security Foundations', () => {
       expect(result.errors).toHaveLength(0)
     })
 
-    it('should reject password shorter than 8 characters', () => {
+    it('should reject password shorter than 12 characters', () => {
       const result = validatePasswordStrength('Short1!')
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.includes('8 characters'))).toBe(true)
+      expect(result.errors.some((e) => e.includes('12 characters'))).toBe(true)
     })
 
     it('should reject password without uppercase letter', () => {

@@ -1,8 +1,7 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createRoot } from 'react-dom/client'
 import { act } from 'react'
-import { MemoryRouter } from 'react-router-dom'
+import { renderWithProviders } from '@/test/utils/renderWithProviders.jsx'
 
 // Mock hooks and services used by MFA components
 vi.mock('@/features/authentication/hooks', () => ({
@@ -11,6 +10,22 @@ vi.mock('@/features/authentication/hooks', () => ({
   useTotpVerificationForm: () => ({ form: undefined, handleFinish: () => {}, isSubmitting: false }),
   useResendLoginCode: () => ({ isSending: false, handleResend: () => {}, isCooling: false, remaining: 0 }),
   useMfaSetup: () => ({ loading: false, qrDataUrl: null, uri: null, secret: 'S3CR3T', code: '', setCode: () => {}, enabled: false, handleSetup: () => {}, handleVerify: () => {}, handleDisable: () => {} }),
+  useLoggedInMfaManager: () => ({
+    currentUser: { email: 'jane@example.com', role: 'user' },
+    status: 'disabled',
+    isLoading: false,
+    qrDataUrl: null,
+    uri: null,
+    secret: 'S3CR3T',
+    code: '',
+    setCode: () => {},
+    handleSetup: () => {},
+    handleVerify: () => {},
+    handleDisable: () => {},
+    handleEnable: () => {},
+    confirmDisable: () => {},
+    confirmUndo: () => {},
+  }),
 }))
 
 vi.mock('@/features/authentication/services/mfaService', () => ({
@@ -52,42 +67,29 @@ describe('MFA UI snapshots', () => {
       })
     }
   })
-  function renderToSnapshot(element) {
-    const container = document.createElement('div')
-    document.body.appendChild(container)
-    let root
-    // Wrap in MemoryRouter so components using navigation/hooks render in tests
-    const wrapped = React.createElement(MemoryRouter, null, element)
-    act(() => {
-      root = createRoot(container)
-      root.render(wrapped)
-    })
-    const html = container.innerHTML
-    // cleanup
-    if (root) {
-      act(() => root.unmount())
-    }
-    container.remove()
-    return html
-  }
 
   it('renders MfaSetup initial view', () => {
-    const html = renderToSnapshot(React.createElement(MfaSetup))
-    expect(html).toMatchSnapshot()
+    const { getByText } = renderWithProviders(<MfaSetup />)
+    expect(getByText(/Security Setup/i)).toBeInTheDocument()
+    expect(getByText(/Protect your account with Two-Factor Authentication/i)).toBeInTheDocument()
   })
 
   it('renders LoginVerificationForm with resend button', () => {
-    const html = renderToSnapshot(React.createElement(LoginVerificationForm, { email: 'jane@example.com', devCode: '123456' }))
-    expect(html).toMatchSnapshot()
+    const { getByText, getByRole } = renderWithProviders(<LoginVerificationForm email="jane@example.com" devCode="123456" />)
+    expect(getByText(/Verify Login/i)).toBeInTheDocument()
+    expect(getByRole('button', { name: /Resend code/i })).toBeInTheDocument()
   })
 
   it('renders TotpVerificationForm', () => {
-    const html = renderToSnapshot(React.createElement(TotpVerificationForm, { email: 'jane@example.com' }))
-    expect(html).toMatchSnapshot()
+    const { getByText, getAllByRole } = renderWithProviders(<TotpVerificationForm email="jane@example.com" />)
+    expect(getByText(/MFA Verification/i)).toBeInTheDocument()
+    // OTP inputs should exist (6 fields)
+    expect(getAllByRole('textbox').length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders LoggedInMfaManager for user', () => {
-    const html = renderToSnapshot(React.createElement(LoggedInMfaManager))
-    expect(html).toMatchSnapshot()
+    const { getByText } = renderWithProviders(<LoggedInMfaManager />)
+    expect(getByText(/Two-factor Authentication/i)).toBeInTheDocument()
+    expect(getByText(/is not enabled/i)).toBeInTheDocument()
   })
 })

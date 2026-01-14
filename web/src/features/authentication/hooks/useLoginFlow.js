@@ -10,6 +10,10 @@ export function useLoginFlow({ onSubmit } = {}) {
   const { success } = useNotifier()
   const { login } = useAuthSession()
   const { initialEmail, rememberEmail, clearRememberedEmail } = useRememberedEmail()
+  const devPassword =
+    (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SEED_TEMP_PASSWORD) ||
+    (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SEED_TEMP_PASSWORD) ||
+    'TempPass123!'
 
   const [step, setStep] = React.useState('login')
   const [emailForVerify, setEmailForVerify] = React.useState(initialEmail || '')
@@ -17,13 +21,31 @@ export function useLoginFlow({ onSubmit } = {}) {
   const [otpExpiresAt, setOtpExpiresAt] = React.useState(null)
   const [serverLockedUntil, setServerLockedUntil] = React.useState(null)
   const [devCode, setDevCode] = React.useState(null)
+  const [mfaRequired, setMfaRequired] = React.useState(null)
 
   const { form, handleFinish, isSubmitting } = useLogin({
     onBegin: async ({ email, rememberMe: rm, serverData } = {}) => {
-      // Called after loginStart succeeds. Decide which verification UI to show.
+      setMfaRequired(null)
       setEmailForVerify(email || '')
       setRememberMe(!!rm)
       setDevCode(null)
+
+      // If backend already issued a session (seeded first-login path), finish immediately and skip email OTP
+      if (serverData && serverData.skipEmailVerification && (serverData.token || serverData.accessToken)) {
+        try {
+          const remember = rm === true
+          login(serverData, { remember })
+          success('Logged in successfully')
+          if (remember && email) rememberEmail(email)
+          else clearRememberedEmail()
+          setStep('login')
+          return { showVerificationSent: false }
+        } catch (e) {
+          console.error('Prefilled login auto-complete failed:', e)
+          // fall through to normal flow if something goes wrong
+        }
+      }
+
       // capture OTP expiry info from server response if present
       try {
         if (serverData) {
@@ -36,6 +58,7 @@ export function useLoginFlow({ onSubmit } = {}) {
           }
         }
       } catch { /* ignore */ }
+
       if (serverData && serverData.mfaEnabled === true) {
         setStep('verify-totp')
         return { showVerificationSent: false }
@@ -44,7 +67,6 @@ export function useLoginFlow({ onSubmit } = {}) {
         setStep('verify')
         return { showVerificationSent: true }
       }
-      // If server did not provide MFA status, fall back to email verification
       setStep('verify')
       return { showVerificationSent: true }
     },
@@ -57,7 +79,20 @@ export function useLoginFlow({ onSubmit } = {}) {
           const lu = Number(locked) || Date.parse(locked)
           if (!Number.isNaN(lu)) setServerLockedUntil(Number(lu))
         }
+        const code = maybe?.error?.code || maybe?.code
+        if (code === 'mfa_required') {
+          const allowed = maybe?.error?.details?.allowedMethods || []
+          const message = maybe?.error?.message || 'Multi-factor authentication is required. Use a passkey or authenticator app.'
+          setMfaRequired({
+            message,
+            allowedMethods: Array.isArray(allowed) && allowed.length ? allowed : ['authenticator', 'passkey'],
+            email: form?.getFieldValue('email') || ''
+          })
+          setStep('login')
+          return true
+        }
       } catch { /* ignore */ }
+      return false
     },
     onSubmit: async (user, values, opts = {}) => {
       // If the call was a delegation request (no user, but caller asked us
@@ -136,12 +171,14 @@ export function useLoginFlow({ onSubmit } = {}) {
   const prefill = (email, password) => {
     form.setFieldsValue({ email, password })
   }
-  const prefillAdmin = () => prefill('admin@example.com', 'password123')
-  const prefillUser = () => prefill('business@example.com', 'password123')
-  const prefillLguOfficer = () => prefill('officer@example.com', 'password123')
-  const prefillLguManager = () => prefill('manager@example.com', 'password123')
-  const prefillInspector = () => prefill('inspector@example.com', 'password123')
-  const prefillCso = () => prefill('cso@example.com', 'password123')
+  const prefillAdmin = () => prefill('admin@example.com', devPassword)
+  const prefillAdmin2 = () => prefill('admin2@example.com', devPassword)
+  const prefillAdmin3 = () => prefill('admin3@example.com', devPassword)
+  const prefillUser = () => prefill('business@example.com', devPassword)
+  const prefillLguOfficer = () => prefill('officer@example.com', devPassword)
+  const prefillLguManager = () => prefill('manager@example.com', devPassword)
+  const prefillInspector = () => prefill('inspector@example.com', devPassword)
+  const prefillCso = () => prefill('cso@example.com', devPassword)
 
   const verificationProps = {
     email: emailForVerify,
@@ -160,11 +197,14 @@ export function useLoginFlow({ onSubmit } = {}) {
     initialValues,
     verificationProps,
     serverLockedUntil,
+    mfaRequired,
     prefillAdmin,
     prefillUser,
     prefillLguOfficer,
     prefillLguManager,
     prefillInspector,
     prefillCso,
+    prefillAdmin2,
+    prefillAdmin3,
   }
 }

@@ -1,5 +1,5 @@
 import { Steps, theme, Result, Button } from 'antd'
-import { SendCodeForCurrentUserConfirm, VerificationConfirmForm, ChangeEmailForm, VerificationNewEmailForm } from "@/features/authentication"
+import { SendCodeForCurrentUserConfirm, VerificationConfirmForm, ChangeEmailForm, VerificationNewEmailForm, EmailChangeGracePeriod } from "@/features/authentication"
 import { useLoggedInEmailChangeFlow } from "@/features/authentication/hooks"
 import { MailOutlined, SafetyCertificateOutlined, EditOutlined, CheckCircleOutlined } from '@ant-design/icons'
 
@@ -78,21 +78,24 @@ export default function LoggedInEmailChangeFlow() {
         )}
 
         {step === 'done' && (
-          <Result
-            status="success"
-            title="Email Address Updated"
-            subTitle={
-              <span>
-                Your email has been successfully updated to <strong>{verifyNewProps?.email || ''}</strong>. 
-                <br/>Please use this email for future logins.
-              </span>
-            }
-            extra={[
-              <Button type="primary" key="done" onClick={reset}>
-                Done
-              </Button>,
-            ]}
-          />
+          <div>
+            <Result
+              status="success"
+              title="Email Address Updated"
+              subTitle={
+                <span>
+                  Your email has been successfully updated to <strong>{verifyNewProps?.email || ''}</strong>. 
+                  <br/>Please use this email for future logins.
+                </span>
+              }
+              extra={[
+                <Button type="primary" key="done" onClick={reset}>
+                  Done
+                </Button>,
+              ]}
+            />
+            <EmailChangeGracePeriod onReverted={reset} />
+          </div>
         )}
       </div>
     </div>

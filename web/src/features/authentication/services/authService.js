@@ -98,11 +98,18 @@ export async function adminLoginStart(payload) {
 }
 
 export async function adminVerifyLoginCode(payload) {
-  return await fetchJsonWithFallback('/api/auth/login/verify', {
+  const res = await fetchWithFallback('/api/auth/login/verify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
+
+  if (!res || !res.ok) {
+    let body = null
+    try { body = await res?.json() } catch { /* ignore */ }
+    return Promise.reject({ status: res?.status || 0, body })
+  }
+  return res.json()
 }
 
 export async function getMe() {
@@ -173,6 +180,26 @@ export async function changeEmailVerify(payload) {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
+  })
+}
+
+// Get email change status (for grace period)
+export async function getEmailChangeStatus() {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null)
+  return await fetchJsonWithFallback('/api/auth/profile/email/change-status', {
+    method: 'GET',
+    headers,
+  })
+}
+
+// Revert email change within grace period
+export async function revertEmailChange() {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  return await fetchJsonWithFallback('/api/auth/profile/email/revert', {
+    method: 'POST',
+    headers,
   })
 }
 

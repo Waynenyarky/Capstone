@@ -1,10 +1,10 @@
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
-import { Home, TermsOfService, PrivacyPolicy } from "@/features/public"
+import { Home, TermsOfService, PrivacyPolicy, Maintenance } from "@/features/public"
 import { Dashboard } from "@/features/user"
 import { Login, SignUp, ForgotPassword, ProtectedRoute, PublicRoute, DeletionPendingScreen } from "@/features/authentication"
 import PasskeyMobileAuth from "@/features/authentication/pages/PasskeyMobileAuth.jsx"
 import MfaSetup from "@/features/authentication/components/MfaSetup.jsx"
-import { AdminDashboard, AdminCreateRole, AdminFullDashboard, AdminUsers } from "@/features/admin"
+import { AdminDashboard, AdminCreateRole, AdminFullDashboard, AdminUsers, AdminMaintenance } from "@/features/admin"
 import { BusinessOwnerDashboard } from "@/features/business-owner"
 import PermitApplicationPage from "@/features/business-owner/features/permits/pages/PermitApplicationPage.jsx"
 import CessationPage from "@/features/business-owner/features/cessation/pages/CessationPage.jsx"
@@ -12,7 +12,7 @@ import PaymentsPage from "@/features/business-owner/features/payments/pages/Paym
 import AppealsPage from "@/features/business-owner/features/appeals/pages/AppealsPage.jsx"
 import NotificationsPage from "@/features/business-owner/features/notifications/pages/NotificationsPage.jsx"
 import InspectionsPage from "@/features/business-owner/features/inspections/pages/InspectionsPage.jsx"
-import { StaffDashboard, StaffOnboarding } from "@/features/staffs"
+import { StaffDashboard, StaffOnboarding, StaffRecoveryRequest } from "@/features/staffs"
 import { ProfileSettings } from "@/features/user"
 import { PlaceholderPage } from "@/features/shared"
 import { useNavigationNotifications } from "@/features/authentication/hooks"
@@ -25,6 +25,7 @@ function App() {
       <Route path="/" element={<PublicRoute><Home /></PublicRoute>} />
       <Route path="/terms" element={<PublicRoute><TermsOfService /></PublicRoute>} />
       <Route path="/privacy" element={<PublicRoute><PrivacyPolicy /></PublicRoute>} />
+      <Route path="/maintenance" element={<PublicRoute><Maintenance /></PublicRoute>} />
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
       <Route path="/sign-up" element={<PublicRoute><SignUp /></PublicRoute>} />
@@ -39,6 +40,7 @@ function App() {
         <Route path="create-role" element={<AdminCreateRole />} />
         <Route path="full" element={<AdminFullDashboard />} />
         <Route path="users" element={<AdminUsers />} />
+        <Route path="maintenance" element={<AdminMaintenance />} />
       </Route>
 
       {/* Business Owner Routes */}
@@ -56,6 +58,7 @@ function App() {
       <Route path="/staff" element={<ProtectedRoute allowedRoles={['staff', 'lgu_officer', 'lgu_manager', 'inspector', 'cso']}><Outlet /></ProtectedRoute>}>
         <Route index element={<StaffDashboard />} />
         <Route path="onboarding" element={<StaffOnboarding />} />
+        <Route path="recovery-request" element={<StaffRecoveryRequest />} />
         <Route path="inspections" element={<PlaceholderPage title="Inspections" />} />
         <Route path="applications" element={<PlaceholderPage title="Applications Review" />} />
         <Route path="cessation" element={<PlaceholderPage title="Cessation Review" />} />
