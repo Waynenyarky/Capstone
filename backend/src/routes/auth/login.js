@@ -205,8 +205,26 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
 
     const emailKey = String(doc.email).toLowerCase().trim()
 
+    // Ensure role is properly populated before extracting slug
+    if (!doc.role || !doc.role.slug) {
+      if (doc.role && mongoose.Types.ObjectId.isValid(doc.role)) {
+        doc.role = await Role.findById(doc.role).lean()
+      } else if (doc.role && typeof doc.role === 'string') {
+        doc.role = await Role.findOne({ slug: doc.role }).lean()
+      } else {
+        // If no role found, try to get from user document
+        const userWithRole = await User.findById(doc._id).populate('role').lean()
+        if (userWithRole && userWithRole.role) {
+          doc.role = userWithRole.role
+        }
+      }
+    }
+
     // Enforce MFA requirement for staff and admins before proceeding.
-    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : null
+    if (!roleSlug) {
+      return respond.error(res, 500, 'role_not_found', 'User role not found. Please contact support.')
+    }
     const requiresMfa = doc.isStaff === true || roleSlug === 'admin'
     const hasPasskey = Array.isArray(doc.webauthnCredentials) && doc.webauthnCredentials.length > 0
     const hasTotpMfa = !!doc.mfaSecret
@@ -431,20 +449,6 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
     let doc = await User.findOne({ email: emailKey }).lean()
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
 
-    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
-    const requiresMfa = doc.isStaff === true || roleSlug === 'admin'
-    const hasPasskey = Array.isArray(doc.webauthnCredentials) && doc.webauthnCredentials.length > 0
-    const hasTotp = !!doc.mfaSecret
-    if (requiresMfa && !hasPasskey && !hasTotp && !(allowSeededMfaSetup && doc.mustSetupMfa === true)) {
-      return respond.error(
-        res,
-        403,
-        'mfa_required',
-        'MFA required for this account. Contact an administrator to bootstrap MFA.',
-        { allowedMethods: ['authenticator', 'passkey'] }
-      )
-    }
-
     // Auto-fix for legacy/bad data where role is a string slug instead of ObjectId
     if (doc.role && typeof doc.role === 'string' && !mongoose.Types.ObjectId.isValid(doc.role)) {
       try {
@@ -461,6 +465,44 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
     } else if (doc.role) {
       // Manual populate
       doc.role = await Role.findById(doc.role).lean()
+    }
+
+    // Ensure role is properly populated before extracting slug
+    if (!doc.role || !doc.role.slug) {
+      if (doc.role && mongoose.Types.ObjectId.isValid(doc.role)) {
+        doc.role = await Role.findById(doc.role).lean()
+      } else if (doc.role && typeof doc.role === 'string') {
+        doc.role = await Role.findOne({ slug: doc.role }).lean()
+      } else {
+        // If no role found, try to get from user document
+        const userWithRole = await User.findById(doc._id).populate('role').lean()
+        if (userWithRole && userWithRole.role) {
+          doc.role = userWithRole.role
+        }
+      }
+    }
+
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : null
+    if (!roleSlug) {
+      return respond.error(res, 500, 'role_not_found', 'User role not found. Please contact support.')
+    }
+
+    // Default allow in non-production unless explicitly disabled
+    const allowSeededMfaSetup =
+      process.env.ALLOW_SEEDED_MFA_SETUP === 'true' ||
+      (process.env.ALLOW_SEEDED_MFA_SETUP !== 'false' && process.env.NODE_ENV !== 'production')
+
+    const requiresMfa = doc.isStaff === true || roleSlug === 'admin'
+    const hasPasskey = Array.isArray(doc.webauthnCredentials) && doc.webauthnCredentials.length > 0
+    const hasTotp = !!doc.mfaSecret
+    if (requiresMfa && !hasPasskey && !hasTotp && !(allowSeededMfaSetup && doc.mustSetupMfa === true)) {
+      return respond.error(
+        res,
+        403,
+        'mfa_required',
+        'MFA required for this account. Contact an administrator to bootstrap MFA.',
+        { allowedMethods: ['authenticator', 'passkey'] }
+      )
     }
     
     const safe = {
@@ -593,25 +635,56 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
         return 60 * 60 * 1000 // 1 hour for BO/Staff
       }
       
-      const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
-      const timeout = getSessionTimeout(roleSlug)
-      const expiresAt = new Date(Date.now() + timeout)
+      // Ensure role is populated before extracting slug
+      if (!doc.role || !doc.role.slug) {
+        if (doc.role && mongoose.Types.ObjectId.isValid(doc.role)) {
+          doc.role = await Role.findById(doc.role).lean()
+        } else {
+          const userWithRole = await User.findById(doc._id).populate('role').lean()
+          if (userWithRole && userWithRole.role) {
+            doc.role = userWithRole.role
+          }
+        }
+      }
       
-      await Session.create({
-        userId: doc._id,
-        tokenVersion: doc.tokenVersion || 0,
-        ipAddress,
-        userAgent,
-        lastActivityAt: new Date(),
-        expiresAt,
-        isActive: true,
-      })
+      const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : null
+      if (!roleSlug) {
+        console.warn(`User ${doc.email} has no valid role`)
+      } else {
+        const timeout = getSessionTimeout(roleSlug)
+        const expiresAt = new Date(Date.now() + timeout)
+        
+        await Session.create({
+          userId: doc._id,
+          tokenVersion: doc.tokenVersion || 0,
+          ipAddress,
+          userAgent,
+          lastActivityAt: new Date(),
+          expiresAt,
+          isActive: true,
+        })
+      }
     } catch (sessionError) {
       // Don't fail login if session creation fails
       console.warn('Failed to create session on login:', sessionError)
     }
 
-    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+    // Ensure role is populated before extracting slug
+    if (!doc.role || !doc.role.slug) {
+      if (doc.role && mongoose.Types.ObjectId.isValid(doc.role)) {
+        doc.role = await Role.findById(doc.role).lean()
+      } else {
+        const userWithRole = await User.findById(doc._id).populate('role').lean()
+        if (userWithRole && userWithRole.role) {
+          doc.role = userWithRole.role
+        }
+      }
+    }
+    
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : null
+    if (!roleSlug) {
+      return respond.error(res, 500, 'role_not_found', 'User role not found. Please contact support.')
+    }
 
     const safe = {
       id: String(doc._id),
@@ -674,14 +747,16 @@ router.post('/google', validateBody(googleLoginSchema), async (req, res) => {
     let doc = await User.findOne({ email: emailKey }).populate('role')
     
     if (!doc) {
-      // Create new user via Google
-      const roleSlug = 'user'
+      // Create new user via Google - assign business_owner role for signup
+      const roleSlug = 'business_owner'
       let roleDoc = await Role.findOne({ slug: roleSlug })
-      if (!roleDoc) roleDoc = await Role.findOne({ slug: 'user' })
+      if (!roleDoc) {
+        return respond.error(res, 500, 'role_not_configured', 'Business owner role not configured')
+      }
 
       const passwordHash = await bcrypt.hash(generateCode(16), 10) // random password
       doc = await User.create({
-        role: roleDoc ? roleDoc._id : undefined,
+        role: roleDoc._id,
         firstName: firstName || 'Google',
         lastName: lastName || 'User',
         email: emailKey,
@@ -703,9 +778,28 @@ router.post('/google', validateBody(googleLoginSchema), async (req, res) => {
       doc.isEmailVerified = true
       doc.lastLoginAt = new Date()
       await doc.save()
+      // Ensure role is populated
+      if (!doc.role || !doc.role.slug) {
+        doc = await User.findById(doc._id).populate('role')
+      }
     }
 
-    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+    // Ensure role is populated before extracting slug
+    if (!doc.role || !doc.role.slug) {
+      if (doc.role && mongoose.Types.ObjectId.isValid(doc.role)) {
+        doc.role = await Role.findById(doc.role).lean()
+      } else {
+        const userWithRole = await User.findById(doc._id).populate('role').lean()
+        if (userWithRole && userWithRole.role) {
+          doc.role = userWithRole.role
+        }
+      }
+    }
+    
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : null
+    if (!roleSlug) {
+      return respond.error(res, 500, 'role_not_found', 'User role not found. Please contact support.')
+    }
     const safe = {
       id: String(doc._id),
       role: roleSlug,

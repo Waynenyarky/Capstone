@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Layout, Typography, Card, Tabs, Row, Col, Avatar, Tag, Space, Grid, Upload, message, theme, Slider, InputNumber, Radio, Tooltip, ColorPicker, Collapse } from 'antd'
+import { Layout, Typography, Card, Tabs, Row, Col, Avatar, Tag, Space, Grid, Upload, message, theme, Slider, InputNumber, Radio, Tooltip, ColorPicker, Collapse, Button } from 'antd'
 import { UserOutlined, SafetyCertificateOutlined, SettingOutlined, ControlOutlined, CameraOutlined, LoadingOutlined, BgColorsOutlined, CheckCircleFilled, InfoCircleOutlined, TabletOutlined, ScanOutlined, CheckOutlined, KeyOutlined, EditOutlined, MailOutlined, DeleteOutlined, WarningOutlined, LockOutlined, BellOutlined } from '@ant-design/icons'
 import { AppSidebar as Sidebar } from '@/features/authentication'
 import useProfile from '@/features/authentication/hooks/useProfile'
@@ -71,7 +71,8 @@ export default function ProfileSettings() {
         delete overridesWithoutColor.colorPrimary;
         setPreviewOverrides(overridesWithoutColor);
     } else {
-        // Ensure we also preview the current pending overrides with the new theme
+        // For Blossom, Sunset, and Royal themes, preserve the current colorPrimary override
+        // This allows users to see their custom color with the theme preview
         setPreviewOverrides(pendingOverrides);
     }
   };
@@ -95,7 +96,24 @@ export default function ProfileSettings() {
       setPendingOverrides(overridesWithoutColor);
       setPreviewOverrides(overridesWithoutColor);
     } else {
-      setPreviewOverrides(pendingOverrides);
+      // For Blossom, Sunset, and Royal themes, preserve existing colorPrimary override if set
+      // If no colorPrimary is set, initialize with the theme's default color
+      // This allows users to customize colors for these themes
+      const themeDefaults = {
+        [THEMES.BLOSSOM]: '#eb2f96',
+        [THEMES.SUNSET]: '#fa541c',
+        [THEMES.ROYAL]: '#722ed1',
+      };
+      
+      // If no colorPrimary is currently set, initialize with theme's default
+      if (!pendingOverrides.colorPrimary && themeDefaults[key]) {
+        const newOverrides = { ...pendingOverrides, colorPrimary: themeDefaults[key] };
+        setPendingOverrides(newOverrides);
+        setPreviewOverrides(newOverrides);
+      } else {
+        // Preserve existing colorPrimary override
+        setPreviewOverrides(pendingOverrides);
+      }
     }
   };
 
@@ -761,31 +779,75 @@ export default function ProfileSettings() {
       label: <span><BgColorsOutlined />Theme</span>,
       children: (
         <div>
-          <div style={{ marginBottom: 40 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-               <Title level={4} style={{ margin: 0 }}>Customize Theme</Title>
-               <div 
-                 onClick={handleApplyTheme}
-                 style={{ 
-                   background: token.colorPrimary, 
-                   color: '#fff', 
-                   padding: '6px 16px', 
-                   borderRadius: 6, 
-                   cursor: 'pointer',
-                   fontWeight: 500,
-                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                   transition: 'all 0.2s'
-                 }}
-               >
-                 Apply Changes
-               </div>
+          {/* Header Section */}
+          <Card
+            style={{
+              marginBottom: 24,
+              border: `1px solid ${token.colorBorderSecondary}`,
+              borderRadius: token.borderRadiusLG,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+            }}
+            styles={{
+              body: {
+                padding: screens.xs ? 16 : 24
+              }
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: screens.xs ? 'column' : 'row', justifyContent: 'space-between', alignItems: screens.xs ? 'flex-start' : 'center', gap: screens.xs ? 16 : 0, marginBottom: 24 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                  <div
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: token.borderRadius,
+                      background: `linear-gradient(135deg, ${token.colorPrimary}20, ${token.colorPrimary}10)`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: `1px solid ${token.colorPrimary}30`
+                    }}
+                  >
+                    <BgColorsOutlined style={{ fontSize: 24, color: token.colorPrimary }} />
+                  </div>
+                  <div>
+                    <Title level={4} style={{ margin: 0, marginBottom: 4 }}>Customize Theme</Title>
+                    <Text type="secondary" style={{ fontSize: 14 }}>
+                      Personalize your application appearance
+                    </Text>
+                  </div>
+                </div>
+              </div>
+              <Button
+                type="primary"
+                size="large"
+                onClick={handleApplyTheme}
+                style={{
+                  minWidth: screens.xs ? '100%' : 140,
+                  height: 40,
+                  fontWeight: 500,
+                  boxShadow: `0 2px 8px ${token.colorPrimary}30`
+                }}
+              >
+                Apply Changes
+              </Button>
             </div>
-            <Card type="inner">
-              <div style={{ marginBottom: 32 }}>
-                <Text strong style={{ display: 'block', marginBottom: 16 }}>Theme</Text>
-                <Row gutter={[16, 16]}>
-                  {themeOptions.map(option => (
-                    <Col xs={12} md={6} lg={4} key={option.key}>
+
+            {/* Theme Selection Section */}
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ marginBottom: 20 }}>
+                <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>Choose Theme</Text>
+                <Text type="secondary" style={{ fontSize: 13, lineHeight: 1.6 }}>
+                  Select a base theme that defines the overall look and feel of your application
+                </Text>
+              </div>
+              <Row gutter={[16, 20]}>
+                {themeOptions.map(option => {
+                  const isSelected = pendingTheme === option.key
+                  const isHovered = hoveredTheme === option.key
+                  
+                  return (
+                    <Col xs={12} sm={8} md={6} lg={4} key={option.key}>
                       <Tooltip title={option.label}>
                         <div
                           onClick={() => handleSelectTheme(option.key)}
@@ -794,78 +856,192 @@ export default function ProfileSettings() {
                           style={{
                             cursor: 'pointer',
                             position: 'relative',
-                            borderRadius: 6,
+                            borderRadius: token.borderRadiusLG,
                             overflow: 'hidden',
-                            border: pendingTheme === option.key 
+                            border: isSelected 
                               ? `2px solid ${option.active}` 
-                              : (hoveredTheme === option.key ? `2px solid ${option.active}` : '1px solid #d9d9d9'),
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                            transform: hoveredTheme === option.key ? 'translateY(-2px)' : 'none',
-                            transition: 'all 0.3s ease',
+                              : (isHovered ? `2px solid ${option.active}80` : `1px solid ${token.colorBorderSecondary}`),
+                            boxShadow: isSelected 
+                              ? `0 4px 12px ${option.active}25` 
+                              : (isHovered ? `0 4px 8px ${token.colorBorderSecondary}40` : '0 2px 4px rgba(0,0,0,0.04)'),
+                            transform: isHovered ? 'translateY(-4px)' : 'none',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            backgroundColor: token.colorBgContainer
                           }}
                         >
-                          <div style={{ height: 14, background: option.header, borderBottom: `1px solid ${option.border}` }}></div>
-                          <div style={{ display: 'flex', height: 50 }}>
-                            <div style={{ width: '25%', background: option.side, borderRight: `1px solid ${option.border}` }}></div>
-                            <div style={{ width: '75%', background: option.content, position: 'relative' }}>
-                               {pendingTheme === option.key && (
-                                <div style={{ position: 'absolute', bottom: 6, right: 6 }}>
-                                  <CheckCircleFilled style={{ color: option.active, fontSize: 16 }} />
-                                </div>
-                               )}
+                          {/* Preview Header */}
+                          <div style={{ 
+                            height: 20, 
+                            background: option.header, 
+                            borderBottom: `1px solid ${option.border}`,
+                            position: 'relative'
+                          }}>
+                            {isSelected && (
+                              <div style={{ 
+                                position: 'absolute', 
+                                top: 4, 
+                                right: 4,
+                                width: 12,
+                                height: 12,
+                                borderRadius: '50%',
+                                background: option.active,
+                                border: '2px solid #fff',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                              }} />
+                            )}
+                          </div>
+                          
+                          {/* Preview Body */}
+                          <div style={{ display: 'flex', height: 60 }}>
+                            <div style={{ 
+                              width: '25%', 
+                              background: option.side, 
+                              borderRight: `1px solid ${option.border}` 
+                            }}></div>
+                            <div style={{ 
+                              width: '75%', 
+                              background: option.content, 
+                              position: 'relative',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              {isSelected && (
+                                <CheckCircleFilled style={{ 
+                                  color: option.active, 
+                                  fontSize: 18,
+                                  filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
+                                }} />
+                              )}
                             </div>
                           </div>
                         </div>
-                        <div style={{ textAlign: 'center', marginTop: 8 }}>
-                           <Text style={{ fontSize: 13, fontWeight: pendingTheme === option.key ? 600 : 400 }}>{option.label}</Text>
-                        </div>
                       </Tooltip>
-                    </Col>
-                  ))}
-                </Row>
-              </div>
-
-              <div>
-                 <Text strong style={{ display: 'block', marginBottom: 16 }}>Primary Color</Text>
-                 <Space size={16} wrap style={{ alignItems: 'center' }}>
-                    {presetColors.map(color => (
-                        <div
-                          key={color}
-                          onClick={() => handleColorChange(color)}
-                          onMouseEnter={() => handleColorMouseEnter(color)}
-                          onMouseLeave={handleColorMouseLeave}
-                          style={{
-                             width: 24,
-                             height: 24,
-                             borderRadius: 4,
-                             background: color,
-                             cursor: 'pointer',
-                             display: 'flex',
-                             alignItems: 'center',
-                             justifyContent: 'center',
-                             boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                             border: currentPrimaryColor === color ? '2px solid rgba(0,0,0,0.2)' : 'none'
+                      <div style={{ textAlign: 'center', marginTop: 12 }}>
+                        <Text 
+                          strong={isSelected}
+                          style={{ 
+                            fontSize: 13, 
+                            color: isSelected ? option.active : token.colorText,
+                            transition: 'all 0.2s'
                           }}
                         >
-                           {currentPrimaryColor === color && <CheckCircleFilled style={{ color: '#fff', fontSize: 14 }} />}
-                        </div>
-                    ))}
-                    
-                    {/* Custom Color Picker */}
-                    <div style={{ display: 'flex', alignItems: 'center', marginLeft: 8, borderLeft: '1px solid #f0f0f0', paddingLeft: 16 }}>
-                      <Text type="secondary" style={{ marginRight: 8, fontSize: 13 }}>Custom:</Text>
-                      <ColorPicker 
-                        value={currentPrimaryColor}
-                        onChange={handleColorChange}
-                        showText
-                        disabledAlpha
-                        trigger="hover"
-                      />
-                    </div>
-                 </Space>
+                          {option.label}
+                        </Text>
+                      </div>
+                    </Col>
+                  )
+                })}
+              </Row>
+            </div>
+
+            {/* Primary Color Section */}
+            <div style={{
+              paddingTop: 32,
+              borderTop: `1px solid ${token.colorBorderSecondary}`
+            }}>
+              <div style={{ marginBottom: 20 }}>
+                <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>Primary Color</Text>
+                <Text type="secondary" style={{ fontSize: 13, lineHeight: 1.6 }}>
+                  Customize the primary accent color used throughout the application
+                </Text>
               </div>
-            </Card>
-          </div>
+              
+              <div style={{
+                display: 'flex',
+                flexDirection: screens.xs ? 'column' : 'row',
+                gap: screens.xs ? 20 : 24,
+                alignItems: screens.xs ? 'stretch' : 'center',
+                flexWrap: 'wrap'
+              }}>
+                {/* Preset Colors */}
+                <div style={{ flex: 1, minWidth: screens.xs ? '100%' : 300 }}>
+                  <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 12 }}>
+                    Preset Colors
+                  </Text>
+                  <div style={{ 
+                    display: 'flex', 
+                    flexWrap: 'wrap', 
+                    gap: 12,
+                    padding: 16,
+                    borderRadius: token.borderRadius,
+                    backgroundColor: token.colorFillAlter,
+                    border: `1px solid ${token.colorBorderSecondary}`
+                  }}>
+                    {presetColors.map(color => {
+                      const isSelected = currentPrimaryColor === color
+                      return (
+                        <Tooltip key={color} title={color}>
+                          <div
+                            onClick={() => handleColorChange(color)}
+                            onMouseEnter={() => handleColorMouseEnter(color)}
+                            onMouseLeave={handleColorMouseLeave}
+                            style={{
+                              width: 36,
+                              height: 36,
+                              borderRadius: token.borderRadius,
+                              background: color,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              boxShadow: isSelected 
+                                ? `0 0 0 3px ${token.colorBgContainer}, 0 0 0 5px ${color}` 
+                                : '0 2px 4px rgba(0,0,0,0.1)',
+                              border: `2px solid ${token.colorBgContainer}`,
+                              transform: isSelected ? 'scale(1.1)' : 'scale(1)',
+                              transition: 'all 0.2s ease',
+                              position: 'relative'
+                            }}
+                          >
+                            {isSelected && (
+                              <CheckCircleFilled style={{ 
+                                color: '#fff', 
+                                fontSize: 18,
+                                filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                              }} />
+                            )}
+                          </div>
+                        </Tooltip>
+                      )
+                    })}
+                  </div>
+                </div>
+                
+                {/* Custom Color Picker */}
+                <div style={{ 
+                  flex: 1, 
+                  minWidth: screens.xs ? '100%' : 200,
+                  padding: screens.xs ? 0 : '0 0 0 24px',
+                  borderLeft: screens.xs ? 'none' : `1px solid ${token.colorBorderSecondary}`,
+                  paddingLeft: screens.xs ? 0 : 24
+                }}>
+                  <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 12 }}>
+                    Custom Color
+                  </Text>
+                  <div style={{
+                    padding: 16,
+                    borderRadius: token.borderRadius,
+                    backgroundColor: token.colorFillAlter,
+                    border: `1px solid ${token.colorBorderSecondary}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <ColorPicker 
+                      value={currentPrimaryColor}
+                      onChange={handleColorChange}
+                      showText
+                      disabledAlpha
+                      trigger="click"
+                      size="large"
+                      format="hex"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
         </div>
       )
     },
@@ -883,7 +1059,7 @@ export default function ProfileSettings() {
             }}
             styles={{
               body: {
-                padding: 24
+                padding: screens.xs ? 16 : 24
               }
             }}
           >
@@ -899,7 +1075,7 @@ export default function ProfileSettings() {
             }}
             styles={{
               body: {
-                padding: 24
+                padding: screens.xs ? 16 : 24
               }
             }}
           >
@@ -914,7 +1090,7 @@ export default function ProfileSettings() {
             }}
             styles={{
               body: {
-                padding: 24
+                padding: screens.xs ? 16 : 24
               }
             }}
           >

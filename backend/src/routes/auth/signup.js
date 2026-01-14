@@ -15,6 +15,7 @@ const { perEmailRateLimit } = require('../../middleware/rateLimit')
 const { signAccessToken } = require('../../middleware/auth')
 
 const router = express.Router()
+const BUSINESS_OWNER_ROLE_SLUG = 'business_owner'
 
 const emailWithTld = (value, helpers) => {
   const parts = String(value || '').split('@')
@@ -31,7 +32,7 @@ const signupPayloadSchema = Joi.object({
   phoneNumber: Joi.string().trim().allow('', null),
   password: Joi.string().min(6).max(200).required(),
   termsAccepted: Joi.boolean().truthy('true', 'TRUE', 'True', 1, '1').valid(true).required(),
-  role: Joi.string().valid('business_owner').default('business_owner'),
+  role: Joi.string().valid(BUSINESS_OWNER_ROLE_SLUG).default(BUSINESS_OWNER_ROLE_SLUG),
 })
 
 const verifyCodeSchema = Joi.object({
@@ -83,7 +84,7 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
       phoneNumber,
       password,
       termsAccepted,
-      role = 'user',
+      role = BUSINESS_OWNER_ROLE_SLUG,
     } = req.body || {}
 
     const passwordHash = await bcrypt.hash(password, 10)
@@ -94,10 +95,13 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
     }
     if (existing) return respond.error(res, 409, 'email_exists', 'Email already exists')
 
-    const roleSlug = role || 'business_owner'
+    const roleSlug = BUSINESS_OWNER_ROLE_SLUG
     const roleDoc = await Role.findOne({ slug: roleSlug })
+    if (!roleDoc) {
+      return respond.error(res, 500, 'role_not_configured', 'Business owner role not configured')
+    }
     const doc = await User.create({
-      role: roleDoc ? roleDoc._id : undefined,
+      role: roleDoc._id,
       firstName,
       lastName,
       email,
@@ -149,7 +153,6 @@ router.post('/signup/start', validateBody(signupPayloadSchema), checkExistingEma
       phoneNumber,
       password,
       termsAccepted,
-      role = 'user',
     } = req.body || {}
 
     const emailKey = String(email).toLowerCase().trim()
@@ -168,7 +171,7 @@ router.post('/signup/start', validateBody(signupPayloadSchema), checkExistingEma
       phoneNumber: phoneNumber || '',
       password,
       termsAccepted: !!termsAccepted,
-      role: role || 'user',
+      role: BUSINESS_OWNER_ROLE_SLUG,
     }
 
     const code = generateCode()
@@ -284,17 +287,14 @@ router.post('/signup/verify', validateBody(verifyCodeSchema), signupVerifyLimite
     }
 
     const passwordHash = await bcrypt.hash(p.password, 10)
-    const roleSlug = p.role || 'user'
-    let roleDoc = await Role.findOne({ slug: roleSlug })
-    
-    // Fallback to 'user' role if requested role not found
-    if (!roleDoc && roleSlug !== 'user') {
-      roleDoc = await Role.findOne({ slug: 'user' })
+    const roleSlug = BUSINESS_OWNER_ROLE_SLUG
+    const roleDoc = await Role.findOne({ slug: roleSlug })
+    if (!roleDoc) {
+      return respond.error(res, 500, 'role_not_configured', 'Business owner role not configured')
     }
-    // If even 'user' role is missing, this will fail validation (required: true), which is correct.
     
     const doc = await User.create({
-      role: roleDoc ? roleDoc._id : undefined,
+      role: roleDoc._id,
       firstName: p.firstName,
       lastName: p.lastName,
       email: p.email,
@@ -328,7 +328,8 @@ router.post('/signup/verify', validateBody(verifyCodeSchema), signupVerifyLimite
     // Cleanup pending state
     if (useDB) await SignUpRequest.deleteOne({ email: emailKey })
     else signUpRequests.delete(emailKey)
-    return res.status(201).json(created)  } catch (err) {
+    return res.status(201).json(created)
+  } catch (err) {
     if (err && err.code === 11000) {
       return respond.error(res, 409, 'email_exists', 'Email already exists')
     }

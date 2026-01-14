@@ -1,12 +1,57 @@
 import { useState, useEffect } from 'react'
-import { Card, Switch, Typography, Space, Divider, message } from 'antd'
-import { BellOutlined, MailOutlined, SafetyCertificateOutlined, LockOutlined } from '@ant-design/icons'
+import { Switch, Typography, Space, Row, Col, theme, Badge, Tooltip } from 'antd'
+import { BellOutlined, MailOutlined, SafetyCertificateOutlined, LockOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { useAuthSession } from '@/features/authentication'
 import { useNotifier } from '@/shared/notifications.js'
 
-const { Title, Text, Paragraph } = Typography
+const { Title, Text } = Typography
+
+const notificationTypes = [
+  {
+    key: 'emailOnPasswordChange',
+    title: 'Password Changes',
+    description: 'Get notified when your password is changed or reset',
+    icon: <LockOutlined />,
+    color: '#ff4d4f',
+    category: 'Security'
+  },
+  {
+    key: 'emailOnEmailChange',
+    title: 'Email Address Changes',
+    description: 'Get notified when your email address is updated',
+    icon: <MailOutlined />,
+    color: '#1890ff',
+    category: 'Account'
+  },
+  {
+    key: 'emailOnMfaChange',
+    title: 'MFA Changes',
+    description: 'Get notified when multi-factor authentication is enabled or disabled',
+    icon: <SafetyCertificateOutlined />,
+    color: '#52c41a',
+    category: 'Security'
+  },
+  {
+    key: 'emailOnProfileUpdate',
+    title: 'Profile Updates',
+    description: 'Get notified when your profile information is updated',
+    icon: <BellOutlined />,
+    color: '#722ed1',
+    category: 'Account'
+  },
+  {
+    key: 'emailOnCriticalChanges',
+    title: 'Critical Security Changes',
+    description: 'Always receive notifications for critical security changes (cannot be disabled)',
+    icon: <SafetyCertificateOutlined />,
+    color: '#faad14',
+    category: 'Security',
+    required: true
+  }
+]
 
 export default function NotificationPreferences() {
+  const { token } = theme.useToken()
   const { currentUser } = useAuthSession()
   const { success, error } = useNotifier()
   const [preferences, setPreferences] = useState({
@@ -51,96 +96,138 @@ export default function NotificationPreferences() {
 
   return (
     <div>
-      <Title level={4} style={{ marginBottom: 24 }}>Email Notifications</Title>
-      <Paragraph type="secondary" style={{ marginBottom: 24 }}>
-        Choose which email notifications you want to receive about your account changes.
-      </Paragraph>
+      <div style={{ marginBottom: 32 }}>
+        <Title level={4} style={{ margin: 0, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <BellOutlined style={{ color: token.colorPrimary }} />
+          Email Notification Preferences
+        </Title>
+        <Text type="secondary" style={{ fontSize: 14 }}>
+          Manage which email notifications you receive about your account activity and security changes.
+        </Text>
+      </div>
 
-      <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0' }}>
-          <Space>
-            <LockOutlined style={{ fontSize: 18, color: '#1890ff' }} />
-            <div>
-              <Text strong>Password Changes</Text>
-              <br />
-              <Text type="secondary" style={{ fontSize: 12 }}>Get notified when your password is changed</Text>
-            </div>
-          </Space>
-          <Switch
-            checked={preferences.emailOnPasswordChange}
-            onChange={() => handleToggle('emailOnPasswordChange')}
-          />
+      <Row gutter={[16, 16]}>
+        {notificationTypes.map((item) => {
+          const isEnabled = preferences[item.key]
+          const isRequired = item.required || false
+
+          return (
+            <Col xs={24} sm={24} md={12} lg={12} key={item.key}>
+              <div
+                style={{
+                  padding: 20,
+                  borderRadius: token.borderRadiusLG,
+                  border: `1px solid ${isEnabled ? token.colorPrimary : token.colorBorderSecondary}`,
+                  backgroundColor: isEnabled ? token.colorPrimaryBg : token.colorBgContainer,
+                  transition: 'all 0.3s ease',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}
+              >
+                {/* Background accent */}
+                {isEnabled && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: 3,
+                      background: `linear-gradient(90deg, ${item.color}, ${token.colorPrimary})`,
+                    }}
+                  />
+                )}
+
+                <div style={{ paddingTop: isEnabled ? 8 : 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
+                      <div
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: token.borderRadius,
+                          backgroundColor: isEnabled ? `${item.color}15` : token.colorFillTertiary,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 18,
+                          color: isEnabled ? item.color : token.colorTextTertiary,
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        {item.icon}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <Text strong style={{ fontSize: 15, color: isEnabled ? token.colorText : token.colorTextSecondary }}>
+                            {item.title}
+                          </Text>
+                          {isRequired && (
+                            <Tooltip title="This notification cannot be disabled for security reasons">
+                              <Badge status="warning" />
+                            </Tooltip>
+                          )}
+                        </div>
+                        <Text
+                          type="secondary"
+                          style={{
+                            fontSize: 13,
+                            lineHeight: 1.5,
+                            display: 'block',
+                            color: isEnabled ? token.colorTextSecondary : token.colorTextTertiary
+                          }}
+                        >
+                          {item.description}
+                        </Text>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
+                    <div>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        Category: <Text strong style={{ fontSize: 12 }}>{item.category}</Text>
+                      </Text>
+                    </div>
+                    <Switch
+                      checked={isEnabled}
+                      onChange={() => !isRequired && handleToggle(item.key)}
+                      disabled={isRequired}
+                      size="default"
+                    />
+                  </div>
+                </div>
+              </div>
+            </Col>
+          )
+        })}
+      </Row>
+
+      <div
+        style={{
+          marginTop: 24,
+          padding: 16,
+          borderRadius: token.borderRadius,
+          backgroundColor: token.colorInfoBg,
+          border: `1px solid ${token.colorInfoBorder}`
+        }}
+      >
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <InfoCircleOutlined style={{ color: token.colorInfo, fontSize: 18, marginTop: 2 }} />
+          <div>
+            <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 4, color: token.colorInfo }}>
+              About Email Notifications
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12, lineHeight: 1.6 }}>
+              Email notifications help you stay informed about important account changes. Critical security notifications cannot be disabled to ensure your account remains secure. All notifications are sent to your registered email address.
+            </Text>
+          </div>
         </div>
-
-        <Divider style={{ margin: 0 }} />
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0' }}>
-          <Space>
-            <MailOutlined style={{ fontSize: 18, color: '#1890ff' }} />
-            <div>
-              <Text strong>Email Address Changes</Text>
-              <br />
-              <Text type="secondary" style={{ fontSize: 12 }}>Get notified when your email address is changed</Text>
-            </div>
-          </Space>
-          <Switch
-            checked={preferences.emailOnEmailChange}
-            onChange={() => handleToggle('emailOnEmailChange')}
-          />
-        </div>
-
-        <Divider style={{ margin: 0 }} />
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0' }}>
-          <Space>
-            <SafetyCertificateOutlined style={{ fontSize: 18, color: '#1890ff' }} />
-            <div>
-              <Text strong>MFA Changes</Text>
-              <br />
-              <Text type="secondary" style={{ fontSize: 12 }}>Get notified when MFA is enabled or disabled</Text>
-            </div>
-          </Space>
-          <Switch
-            checked={preferences.emailOnMfaChange}
-            onChange={() => handleToggle('emailOnMfaChange')}
-          />
-        </div>
-
-        <Divider style={{ margin: 0 }} />
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0' }}>
-          <Space>
-            <BellOutlined style={{ fontSize: 18, color: '#1890ff' }} />
-            <div>
-              <Text strong>Profile Updates</Text>
-              <br />
-              <Text type="secondary" style={{ fontSize: 12 }}>Get notified when your profile information is updated</Text>
-            </div>
-          </Space>
-          <Switch
-            checked={preferences.emailOnProfileUpdate}
-            onChange={() => handleToggle('emailOnProfileUpdate')}
-          />
-        </div>
-
-        <Divider style={{ margin: 0 }} />
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0' }}>
-          <Space>
-            <SafetyCertificateOutlined style={{ fontSize: 18, color: '#faad14' }} />
-            <div>
-              <Text strong>Critical Security Changes</Text>
-              <br />
-              <Text type="secondary" style={{ fontSize: 12 }}>Always receive notifications for critical security changes</Text>
-            </div>
-          </Space>
-          <Switch
-            checked={preferences.emailOnCriticalChanges}
-            onChange={() => handleToggle('emailOnCriticalChanges')}
-            disabled
-          />
-        </div>
-      </Space>
+      </div>
     </div>
   )
 }
