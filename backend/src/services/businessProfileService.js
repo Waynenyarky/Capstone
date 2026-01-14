@@ -1,5 +1,7 @@
 const BusinessProfile = require('../models/BusinessProfile')
 const User = require('../models/User')
+const AuditLog = require('../models/AuditLog')
+const blockchainService = require('../lib/blockchainService')
 
 class BusinessProfileService {
   async getProfile(userId) {
@@ -62,10 +64,17 @@ class BusinessProfileService {
     return 'low'
   }
 
-  async updateStep(userId, step, data) {
+  async updateStep(userId, step, data, metadata = {}) {
     let update = {}
     // If Step 2 (Identity), next is 3 (Consent). If Step 3 (Consent), we are done.
     let nextStep = step + 1
+    
+    // Get user role for audit logging
+    const user = await User.findById(userId).populate('role').lean()
+    const roleSlug = (user && user.role && user.role.slug) ? user.role.slug : 'business_owner'
+    
+    // Get old profile for comparison
+    const oldProfile = await BusinessProfile.findOne({ userId }).lean()
     
     switch (step) {
       case 2: // Owner Identity
@@ -93,6 +102,53 @@ class BusinessProfileService {
       { $set: update },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     )
+    
+    // Create audit log for business profile update
+    try {
+      const stepName = step === 2 ? 'ownerIdentity' : step === 3 ? 'consent' : `step_${step}`
+      const oldValue = oldProfile ? JSON.stringify(oldProfile[stepName] || {}) : ''
+      const newValue = JSON.stringify(data)
+      
+      const auditLog = await AuditLog.create({
+        userId,
+        eventType: 'profile_update',
+        fieldChanged: stepName,
+        oldValue,
+        newValue,
+        role: roleSlug,
+        metadata: {
+          ...metadata,
+          step,
+          profileType: 'business',
+        },
+      })
+
+      // Log hash to blockchain (non-blocking)
+      if (blockchainService.isAvailable()) {
+        // Use blockchain queue for non-blocking operations
+        const blockchainQueue = require('../lib/blockchainQueue')
+        blockchainQueue.queueBlockchainOperation(
+          'logAuditHash',
+          [auditLog.hash, 'profile_update'],
+          String(auditLog._id)
+        )
+          .then((result) => {
+            if (result.success) {
+              auditLog.txHash = result.txHash
+              auditLog.blockNumber = result.blockNumber
+              auditLog.save().catch((err) => {
+                console.error('Failed to update audit log with txHash:', err)
+              })
+            }
+          })
+          .catch((err) => {
+            console.error('Error logging to blockchain:', err)
+          })
+      }
+    } catch (error) {
+      // Don't throw - audit logging failure shouldn't break profile updates
+      console.error('Error creating audit log for business profile:', error)
+    }
     
     return profile
   }

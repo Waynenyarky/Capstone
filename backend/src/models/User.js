@@ -47,6 +47,16 @@ const UserSchema = new mongoose.Schema(
     deletionRequestedAt: { type: Date, default: null },
     deletionScheduledFor: { type: Date, default: null },
     deletionPending: { type: Boolean, default: false },
+    // Session invalidation - increment to invalidate all existing tokens
+    tokenVersion: { type: Number, default: 0 },
+    // Password history - store last 5 password hashes to prevent reuse
+    passwordHistory: [{ type: String }],
+    // Account lockout - track failed verification attempts
+    failedVerificationAttempts: { type: Number, default: 0 },
+    accountLockedUntil: { type: Date, default: null },
+    lastFailedAttemptAt: { type: Date, default: null },
+    // MFA re-enrollment flag
+    mfaReEnrollmentRequired: { type: Boolean, default: false },
   },
   { timestamps: true }
 )

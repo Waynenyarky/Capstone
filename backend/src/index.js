@@ -3,13 +3,27 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const { seedDevDataIfEmpty } = require('./lib/seedDev');
+const blockchainService = require('./lib/blockchainService');
+const blockchainQueue = require('./lib/blockchainQueue');
 const http = require('http');
 // Trigger restart
 
+// Phase 5: Monitoring & Operations
+const logger = require('./lib/logger');
+const errorTracking = require('./lib/errorTracking');
+const correlationIdMiddleware = require('./middleware/correlationId');
+const { performanceMonitorMiddleware } = require('./middleware/performanceMonitor');
+const { securityMonitorMiddleware } = require('./middleware/securityMonitor');
 
 dotenv.config();
 
 const app = express();
+
+// Phase 5: Structured Logging & Monitoring Middleware
+// Must be early in the middleware chain to capture all requests
+app.use(correlationIdMiddleware);
+app.use(performanceMonitorMiddleware);
+app.use(securityMonitorMiddleware);
 
 // Middleware
 app.use(cors());
@@ -38,7 +52,7 @@ try {
     })
   )
 } catch (err) {
-  console.warn('Session middleware not available; install express-session and cookie-parser to enable SSO sessions')
+  logger.warn('Session middleware not available; install express-session and cookie-parser to enable SSO sessions', { error: err });
 }
 
 // Health check route
@@ -51,6 +65,8 @@ app.get('/api/health', (req, res) => {
 // Auth API routes (DB-aware with in-memory fallback)
 const authRouter = require('./routes/auth')
 const businessRouter = require('./routes/business/profile') // Direct import for now
+const adminRouter = require('./routes/admin/approvals')
+const monitoringRouter = require('./routes/admin/monitoring')
 // Mirror session user id into request headers for existing handlers
 try {
   const { attachSessionUser } = require('./middleware/sessionAuth')
@@ -59,6 +75,12 @@ try {
 
 app.use('/api/auth', authRouter)
 app.use('/api/business', businessRouter)
+app.use('/api/admin', adminRouter)
+app.use('/api/admin/monitoring', monitoringRouter)
+
+// Phase 5: Global Error Handler (must be last middleware)
+const errorHandlerMiddleware = require('./middleware/errorHandler');
+app.use(errorHandlerMiddleware);
 
 // Optionally mount SSO at top-level if other routers expect session
 
@@ -76,9 +98,12 @@ async function start() {
     // Print the resolved MONGO_URI for debugging (useful to confirm which DB is being used)
     // NOTE: avoid logging credentials in production. This is a development debug statement.
     const uri = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URL || ''
-    console.log('Using Mongo URI:', uri ? '<set>' : '<not-set>');
+    logger.info('Server starting', { mongoUri: uri ? '<set>' : '<not-set>' });
 
     await connectDB(uri);
+
+    // Initialize blockchain service for audit logging
+    await blockchainService.initialize();
 
     // Optionally seed development data from JSON files when enabled
     await seedDevDataIfEmpty();
@@ -88,14 +113,17 @@ async function start() {
         const server = http.createServer(app);
         server.on('error', (err) => {
           if (err && err.code === 'EADDRINUSE') {
-            console.warn(`Port ${port} in use, skipping`);
+            logger.warn(`Port ${port} in use, skipping`);
           } else {
-            console.error(`Server error on port ${port}:`, err);
+            errorTracking.trackError(err, {
+              context: { port, event: 'server_start_error' },
+            });
+            logger.error(`Server error on port ${port}`, { error: err });
           }
           resolve(null);
         });
         server.listen(port, () => {
-          console.log(`API server listening on http://localhost:${port}`);
+          logger.info(`API server listening on http://localhost:${port}`);
           resolve(server);
         });
       });
@@ -108,7 +136,10 @@ async function start() {
     }
     await Promise.all(unique.map((p) => startOnPort(p)));
   } catch (err) {
-    console.error('Server start failed:', err);
+    errorTracking.trackError(err, {
+      context: { event: 'server_start_failed' },
+    });
+    logger.error('Server start failed', { error: err });
     process.exit(1);
   }
 }

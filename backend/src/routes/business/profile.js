@@ -23,7 +23,12 @@ router.post('/profile', requireJwt, requireRole(['business_owner']), async (req,
 
     if (!step || !data) return respond.error(res, 400, 'missing_data', 'Step and data are required')
 
-    const profile = await businessProfileService.updateStep(userId, parseInt(step), data)
+    // Extract metadata for audit logging
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+    const userAgent = req.headers['user-agent'] || 'unknown'
+    const metadata = { ip, userAgent }
+
+    const profile = await businessProfileService.updateStep(userId, parseInt(step), data, metadata)
     res.json(profile)
   } catch (err) {
     console.error('POST /api/business/profile error:', err)

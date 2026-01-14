@@ -147,6 +147,9 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     }
 
     if (!doc || typeof doc.passwordHash !== 'string' || !doc.passwordHash) {
+      // Track failed login attempt
+      const securityMonitor = require('../../middleware/securityMonitor')
+      securityMonitor.trackFailedLogin(req.ip || req.connection.remoteAddress, null)
       return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
     }
     let match = false
@@ -166,7 +169,12 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
         } catch (_) {}
       }
     }
-    if (!match) return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
+    if (!match) {
+      // Track failed login attempt
+      const securityMonitor = require('../../middleware/securityMonitor')
+      securityMonitor.trackFailedLogin(req.ip || req.connection.remoteAddress, doc._id ? String(doc._id) : null)
+      return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
+    }
 
     const emailKey = String(doc.email).toLowerCase().trim()
 
@@ -302,12 +310,22 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
       reqObj = await LoginRequest.findOne({ email: emailKey }).lean()
       if (!reqObj) return respond.error(res, 404, 'login_request_not_found', 'No login verification request found')
       if (Date.now() > new Date(reqObj.expiresAt).getTime()) return respond.error(res, 410, 'code_expired', 'Code expired')
-      if (String(reqObj.code) !== String(code)) return respond.error(res, 401, 'invalid_code', 'Invalid code')
+      if (String(reqObj.code) !== String(code)) {
+        // Track failed login attempt
+        const securityMonitor = require('../../middleware/securityMonitor')
+        securityMonitor.trackFailedLogin(req.ip || req.connection.remoteAddress, userDoc._id ? String(userDoc._id) : null)
+        return respond.error(res, 401, 'invalid_code', 'Invalid code')
+      }
     } else {
       reqObj = loginRequests.get(emailKey)
       if (!reqObj) return respond.error(res, 404, 'login_request_not_found', 'No login verification request found')
       if (Date.now() > reqObj.expiresAt) return respond.error(res, 410, 'code_expired', 'Code expired')
-      if (String(reqObj.code) !== String(code)) return respond.error(res, 401, 'invalid_code', 'Invalid code')
+      if (String(reqObj.code) !== String(code)) {
+        // Track failed login attempt
+        const securityMonitor = require('../../middleware/securityMonitor')
+        securityMonitor.trackFailedLogin(req.ip || req.connection.remoteAddress, userDoc._id ? String(userDoc._id) : null)
+        return respond.error(res, 401, 'invalid_code', 'Invalid code')
+      }
     }
 
     // Load user and return safe object
@@ -391,8 +409,16 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
   const { verifyTotpWithCounter } = require('../../lib/totp')
   const secretPlain = decryptWithHash(String(doc.passwordHash || ''), String(doc.mfaSecret))
   const resVerify = verifyTotpWithCounter({ secret: secretPlain, token: String(code), window: 1, period: 30, digits: 6 })
-  if (!resVerify.ok) return respond.error(res, 401, 'invalid_mfa_code', 'Invalid verification code')
+  if (!resVerify.ok) {
+    // Track failed login attempt
+    const securityMonitor = require('../../middleware/securityMonitor')
+    securityMonitor.trackFailedLogin(req.ip || req.connection.remoteAddress, doc._id ? String(doc._id) : null)
+    return respond.error(res, 401, 'invalid_mfa_code', 'Invalid verification code')
+  }
   if (typeof doc.mfaLastUsedTotpCounter === 'number' && doc.mfaLastUsedTotpCounter === resVerify.counter) {
+    // Track failed login attempt
+    const securityMonitor = require('../../middleware/securityMonitor')
+    securityMonitor.trackFailedLogin(req.ip || req.connection.remoteAddress, doc._id ? String(doc._id) : null)
     return respond.error(res, 401, 'totp_replayed', 'Verification code already used')
   }
   

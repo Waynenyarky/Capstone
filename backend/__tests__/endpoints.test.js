@@ -221,6 +221,10 @@ describe('API endpoint smoke tests', () => {
         throw e
       }
 
+      if (res.status === 500 || isDefaultExpress404(res)) {
+        // Log failing route for debugging
+        console.error(`Endpoint check failed: ${r.method.toUpperCase()} ${r.path} -> ${res.status} ${res.text || ''}`)
+      }
       expect(res.status).not.toBe(500)
       expect(isDefaultExpress404(res)).toBe(false)
     }

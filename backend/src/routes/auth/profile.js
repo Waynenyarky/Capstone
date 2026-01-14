@@ -4,6 +4,10 @@ const bcrypt = require('bcryptjs')
 const mongoose = require('mongoose')
 const User = require('../../models/User')
 const Role = require('../../models/Role')
+const AuditLog = require('../../models/AuditLog')
+const IdVerification = require('../../models/IdVerification')
+const AdminApproval = require('../../models/AdminApproval')
+const EmailChangeRequest = require('../../models/EmailChangeRequest')
 const { decryptWithHash, encryptWithHash } = require('../../lib/secretCipher')
 const respond = require('../../middleware/respond')
 const { requireJwt, requireRole } = require('../../middleware/auth')
@@ -11,6 +15,35 @@ const { validateBody, Joi } = require('../../middleware/validation')
 const { generateCode, generateToken } = require('../../lib/codes')
 const { sendOtp, sendStaffCredentialsEmail } = require('../../lib/mailer')
 const { changeEmailRequests } = require('../../lib/authRequestsStore')
+const blockchainService = require('../../lib/blockchainService')
+const blockchainQueue = require('../../lib/blockchainQueue')
+const { validatePasswordStrength } = require('../../lib/passwordValidator')
+const { checkPasswordHistory, addToPasswordHistory } = require('../../lib/passwordHistory')
+const { sanitizeString, sanitizeEmail, sanitizePhoneNumber, sanitizeName, sanitizeIdNumber, containsSqlInjection, containsXss } = require('../../lib/sanitizer')
+const { requestVerification, verifyCode, checkVerificationStatus, clearVerificationRequest } = require('../../lib/verificationService')
+const { requireFieldPermission, requireVerification } = require('../../middleware/fieldPermissions')
+const { isBusinessOwnerRole, isAdminRole, isStaffRole } = require('../../lib/roleHelpers')
+const { verificationRateLimit, profileUpdateRateLimit, passwordChangeRateLimit, idUploadRateLimit, adminApprovalRateLimit } = require('../../middleware/rateLimit')
+const { validateImageFile } = require('../../lib/fileValidator')
+const { sendEmailChangeNotification, sendPasswordChangeNotification } = require('../../lib/notificationService')
+
+/**
+ * Calculate hash for audit log
+ */
+function calculateAuditHash(userId, eventType, fieldChanged, oldValue, newValue, role, metadata, timestamp) {
+  const hashableData = {
+    userId: String(userId),
+    eventType,
+    fieldChanged: fieldChanged || '',
+    oldValue: oldValue || '',
+    newValue: newValue || '',
+    role,
+    metadata: JSON.stringify(metadata || {}),
+    timestamp: timestamp || new Date().toISOString(),
+  }
+  const dataString = JSON.stringify(hashableData)
+  return crypto.createHash('sha256').update(dataString).digest('hex')
+}
 
 const router = express.Router()
 
@@ -42,6 +75,63 @@ function deriveNamesFromEmail(email) {
   return { firstName: first, lastName: last }
 }
 
+/**
+ * Helper function to create audit log and log to blockchain
+ * Non-blocking - profile update succeeds even if blockchain logging fails
+ */
+async function createAuditLog(userId, eventType, fieldChanged, oldValue, newValue, role, metadata = {}) {
+  try {
+    // Prepare metadata
+    const fullMetadata = {
+      ...metadata,
+      ip: metadata.ip || 'unknown',
+      userAgent: metadata.userAgent || 'unknown',
+    }
+    
+    // Calculate hash before creating document (to avoid validation issues)
+    const timestamp = new Date().toISOString()
+    const hash = calculateAuditHash(
+      userId,
+      eventType,
+      fieldChanged,
+      oldValue || '',
+      newValue || '',
+      role,
+      fullMetadata,
+      timestamp
+    )
+    
+    // Create audit log entry with hash already calculated
+    const auditLog = await AuditLog.create({
+      userId,
+      eventType,
+      fieldChanged,
+      oldValue: oldValue || '',
+      newValue: newValue || '',
+      role,
+      metadata: fullMetadata,
+      hash, // Set hash directly
+    })
+
+        // Queue blockchain operation (non-blocking, with retry)
+        if (blockchainService.isAvailable()) {
+          blockchainQueue.queueBlockchainOperation(
+            'logAuditHash',
+            [auditLog.hash, eventType],
+            String(auditLog._id)
+          )
+        } else {
+          console.warn('Blockchain service not available, audit log created but not logged to blockchain')
+        }
+
+    return auditLog
+  } catch (error) {
+    // Don't throw - audit logging failure shouldn't break profile updates
+    console.error('Error creating audit log:', error)
+    return null
+  }
+}
+
 const changePasswordAuthenticatedSchema = Joi.object({
   currentPassword: Joi.string().min(6).max(200).required(),
   newPassword: Joi.string().min(6).max(200).required(),
@@ -51,6 +141,9 @@ const updateProfileSchema = Joi.object({
   firstName: Joi.string().min(1).max(100).optional(),
   lastName: Joi.string().min(1).max(100).optional(),
   phoneNumber: Joi.string().optional(),
+  role: Joi.any().forbidden().messages({
+    'any.unknown': 'Role cannot be changed through this endpoint',
+  }), // Explicitly forbid role changes
 })
 
 const uploadAvatarSchema = Joi.object({
@@ -252,6 +345,10 @@ router.post('/change-password-authenticated', requireJwt, validateBody(changePas
   try {
     const { currentPassword, newPassword } = req.body || {}
 
+    // Sanitize inputs
+    const sanitizedCurrentPassword = sanitizeString(currentPassword || '')
+    const sanitizedNewPassword = sanitizeString(newPassword || '')
+
     const idHeader = req.headers['x-user-id']
     const emailHeader = req._userEmail || req.headers['x-user-email']
 
@@ -268,19 +365,77 @@ router.post('/change-password-authenticated', requireJwt, validateBody(changePas
     }
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
-    const ok = await bcrypt.compare(currentPassword, doc.passwordHash)
+    // Verify current password
+    const ok = await bcrypt.compare(sanitizedCurrentPassword, doc.passwordHash)
     if (!ok) return respond.error(res, 401, 'invalid_current_password', 'Invalid current password')
+
+    // Validate new password strength
+    const passwordValidation = validatePasswordStrength(sanitizedNewPassword)
+    if (!passwordValidation.valid) {
+      return respond.error(res, 400, 'weak_password', 'Password does not meet requirements', passwordValidation.errors)
+    }
+
+    // Check if new password is in history
+    const historyCheck = await checkPasswordHistory(sanitizedNewPassword, doc.passwordHistory || [])
+    if (historyCheck.inHistory) {
+      return respond.error(res, 400, 'password_reused', 'You cannot reuse a recently used password. Please choose a different password.')
+    }
 
     const oldHash = String(doc.passwordHash)
     let mfaPlain = ''
     try { if (doc.mfaSecret) mfaPlain = decryptWithHash(oldHash, doc.mfaSecret) } catch (_) { mfaPlain = '' }
 
-    doc.passwordHash = await bcrypt.hash(newPassword, 10)
+    // Hash new password
+    const newPasswordHash = await bcrypt.hash(sanitizedNewPassword, 10)
+
+    // Add old password to history
+    const updatedHistory = addToPasswordHistory(oldHash, doc.passwordHistory || [])
+
+    // Update user
+    doc.passwordHash = newPasswordHash
+    doc.passwordHistory = updatedHistory
+    doc.tokenVersion = (doc.tokenVersion || 0) + 1 // Invalidate all sessions
+    doc.mfaReEnrollmentRequired = true // Require MFA re-enrollment
+    doc.mfaEnabled = false
+    doc.mfaSecret = ''
+    doc.fprintEnabled = false
+    doc.mfaMethod = ''
+    doc.mfaDisablePending = false
+    doc.mfaDisableRequestedAt = null
+    doc.mfaDisableScheduledFor = null
+    doc.tokenFprint = ''
 
     if (mfaPlain) {
       try { doc.mfaSecret = encryptWithHash(doc.passwordHash, mfaPlain) } catch (_) {}
     }
     await doc.save()
+
+    // Create audit log
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+    const userAgent = req.headers['user-agent'] || 'unknown'
+    
+    await createAuditLog(
+      doc._id,
+      'password_change',
+      'password',
+      '[REDACTED]', // Don't log actual passwords
+      '[REDACTED]',
+      roleSlug,
+      {
+        ip,
+        userAgent,
+        tokenVersion: doc.tokenVersion,
+        mfaReEnrollmentRequired: true,
+      }
+    )
+
+    // Send password change notification (non-blocking)
+    sendPasswordChangeNotification(doc._id, {
+      timestamp: new Date(),
+    }).catch((err) => {
+      console.error('Failed to send password change notification:', err)
+    })
 
     const userSafe = {
       id: String(doc._id),
@@ -682,6 +837,46 @@ router.post('/staff', requireJwt, requireRole(['admin']), validateBody(staffCrea
   }
 })
 
+// GET /api/auth/profile - return current user's profile (alias for /me)
+router.get('/profile', requireJwt, async (req, res) => {
+  try {
+    const doc = await User.findById(req._userId).populate('role').lean()
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+    const userSafe = {
+      id: String(doc._id),
+      role: roleSlug,
+      firstName: doc.firstName,
+      lastName: doc.lastName,
+      email: doc.email,
+      phoneNumber: displayPhoneNumber(doc.phoneNumber),
+      username: doc.username || '',
+      office: doc.office || '',
+      isActive: doc.isActive !== false,
+      isStaff: !!doc.isStaff,
+      mustChangeCredentials: !!doc.mustChangeCredentials,
+      mustSetupMfa: !!doc.mustSetupMfa,
+      isEmailVerified: !!doc.isEmailVerified,
+      termsAccepted: doc.termsAccepted,
+      createdAt: doc.createdAt,
+      deletionPending: !!doc.deletionPending,
+      deletionRequestedAt: doc.deletionRequestedAt,
+      deletionScheduledFor: doc.deletionScheduledFor,
+    }
+
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    res.set('Pragma', 'no-cache')
+    res.set('Expires', '0')
+    res.set('Surrogate-Control', 'no-store')
+
+    return res.json(userSafe)
+  } catch (err) {
+    console.error('GET /api/auth/profile error:', err)
+    return respond.error(res, 500, 'profile_load_failed', 'Failed to load profile')
+  }
+})
+
 // GET /api/auth/me - return current user's profile
 router.get('/me', requireJwt, async (req, res) => {
   try {
@@ -793,29 +988,106 @@ router.post('/first-login/change-credentials', requireJwt, validateBody(firstLog
 // PATCH /api/auth/profile - update current user's profile (excluding email/password)
 router.patch('/profile', requireJwt, validateBody(updateProfileSchema), async (req, res) => {
   try {
-    const doc = await User.findById(req._userId)
+    const doc = await User.findById(req._userId).populate('role')
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
     const { firstName, lastName, phoneNumber } = req.body || {}
-    if (typeof firstName === 'string') doc.firstName = firstName.trim()
-    if (typeof lastName === 'string') doc.lastName = lastName.trim()
-    if (typeof phoneNumber === 'string') doc.phoneNumber = phoneNumber.trim()
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+    
+    // Prevent role changes (only admins can change roles via admin endpoints)
+    // Note: Joi schema already forbids this, but double-check for safety
+    // Check original body before Joi validation strips it
+    const originalBody = req.body
+    if (originalBody && originalBody.role !== undefined) {
+      const { isStaffRole } = require('../../lib/roleHelpers')
+      if (isStaffRole(roleSlug)) {
+        return respond.error(res, 403, 'field_restricted', 'Role cannot be changed by staff users')
+      }
+      return respond.error(res, 403, 'field_restricted', 'Role cannot be changed through this endpoint')
+    }
+    
+    // Check if staff is trying to change restricted fields
+    if (isStaffRole(roleSlug)) {
+      const { isRestrictedFieldForStaff } = require('../../lib/roleHelpers')
+      if (req.body.password !== undefined && isRestrictedFieldForStaff('password')) {
+        return respond.error(res, 403, 'field_restricted', 'Password cannot be edited by staff users')
+      }
+    }
+    
+    // Track changes for audit logging
+    const changes = []
+    const oldValues = {}
+    const newValues = {}
+    
+    if (typeof firstName === 'string' && firstName.trim() !== doc.firstName) {
+      oldValues.firstName = doc.firstName
+      newValues.firstName = firstName.trim()
+      doc.firstName = firstName.trim()
+      changes.push('firstName')
+    }
+    
+    if (typeof lastName === 'string' && lastName.trim() !== doc.lastName) {
+      oldValues.lastName = doc.lastName
+      newValues.lastName = lastName.trim()
+      doc.lastName = lastName.trim()
+      changes.push('lastName')
+    }
+    
+    if (typeof phoneNumber === 'string' && phoneNumber.trim() !== doc.phoneNumber) {
+      oldValues.phoneNumber = doc.phoneNumber
+      newValues.phoneNumber = phoneNumber.trim()
+      doc.phoneNumber = phoneNumber.trim()
+      changes.push('phoneNumber')
+    }
+
+    // If no changes, return early
+    if (changes.length === 0) {
+      const updatedDoc = await User.findById(doc._id).populate('role').lean()
+      const roleSlugFinal = (updatedDoc.role && updatedDoc.role.slug) ? updatedDoc.role.slug : 'user'
+      const userSafe = {
+        id: String(updatedDoc._id),
+        role: roleSlugFinal,
+        firstName: updatedDoc.firstName,
+        lastName: updatedDoc.lastName,
+        email: updatedDoc.email,
+        phoneNumber: displayPhoneNumber(updatedDoc.phoneNumber),
+        username: updatedDoc.username || '',
+        office: updatedDoc.office || '',
+        termsAccepted: updatedDoc.termsAccepted,
+        createdAt: updatedDoc.createdAt,
+      }
+      return res.json({ updated: true, user: userSafe })
+    }
 
     await doc.save()
 
-    // Ensure role is returned as a slug, consistent with other endpoints
-    // If doc.role is an ID (not populated), we can't get the slug easily without fetching.
-    // However, usually PATCH /profile doesn't change role.
-    // We should ideally populate it or return what we have if it's already populated (unlikely after save).
-    // But since we didn't populate in findById above, doc.role is the ID.
-    // We can try to fetch the role or just return 'user' if we can't be sure? 
-    // Or better: refetch the user with populate.
+    // Create audit logs for each changed field
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+    const userAgent = req.headers['user-agent'] || 'unknown'
+    
+    for (const field of changes) {
+      await createAuditLog(
+        doc._id,
+        field === 'firstName' || field === 'lastName' ? 'name_update' : 'contact_update',
+        field,
+        oldValues[field] || '',
+        newValues[field] || '',
+        roleSlug,
+        {
+          ip,
+          userAgent,
+          allChanges: changes,
+        }
+      )
+    }
+
+    // Refetch to ensure we have the latest data
     const updatedDoc = await User.findById(doc._id).populate('role').lean()
-    const roleSlug = (updatedDoc.role && updatedDoc.role.slug) ? updatedDoc.role.slug : 'user'
+    const roleSlugFinal = (updatedDoc.role && updatedDoc.role.slug) ? updatedDoc.role.slug : 'user'
 
     const userSafe = {
       id: String(updatedDoc._id),
-      role: roleSlug,
+      role: roleSlugFinal,
       firstName: updatedDoc.firstName,
       lastName: updatedDoc.lastName,
       email: updatedDoc.email,
@@ -832,4 +1104,1904 @@ router.patch('/profile', requireJwt, validateBody(updateProfileSchema), async (r
   }
 })
 
+// ============================================
+// Business Owner Profile Edit Endpoints
+// ============================================
+
+// POST /api/auth/profile/verification/request
+// Request verification code for a field change
+const requestVerificationSchema = Joi.object({
+  field: Joi.string().required(),
+  method: Joi.string().valid('otp', 'mfa').default('otp'),
+})
+
+// Alias route: /api/auth/verification/request -> /api/auth/profile/verification/request
+router.post(
+  '/verification/request',
+  requireJwt,
+  verificationRateLimit(),
+  validateBody(Joi.object({
+    method: Joi.string().valid('otp', 'mfa').default('otp'),
+    purpose: Joi.string().required(),
+  })),
+  async (req, res) => {
+    try {
+      // Map purpose to field for compatibility with profile verification handler
+      const purposeToField = {
+        'email_change': 'email',
+        'password_change': 'password',
+      }
+      const field = purposeToField[req.body.purpose] || req.body.purpose
+      
+      // Call the verification service directly
+      const { requestVerification } = require('../../lib/verificationService')
+      const result = await requestVerification(req._userId, field, req.body.method || 'otp')
+      
+      if (!result.success) {
+        return respond.error(res, 400, 'verification_request_failed', result.error)
+      }
+
+      return res.json({
+        success: true,
+        method: result.method,
+        expiresAt: result.expiresAt,
+      })
+    } catch (err) {
+      console.error('POST /api/auth/verification/request error:', err)
+      return respond.error(res, 500, 'verification_request_failed', 'Failed to request verification')
+    }
+  }
+)
+
+router.post(
+  '/profile/verification/request',
+  requireJwt,
+  verificationRateLimit(),
+  validateBody(requestVerificationSchema),
+  async (req, res) => {
+    try {
+      const { field, method } = req.body || {}
+      const doc = await User.findById(req._userId).populate('role')
+      if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+      const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+
+      // Check if user is business owner
+      if (!isBusinessOwnerRole(roleSlug)) {
+        return respond.error(res, 403, 'forbidden', 'This endpoint is only available for business owners')
+      }
+
+      // Check field permission
+      const { checkFieldPermission } = require('../../middleware/fieldPermissions')
+      const permission = checkFieldPermission(roleSlug, field)
+      if (!permission || !permission.requiresVerification) {
+        return respond.error(res, 400, 'verification_not_required', `Field '${field}' does not require verification`)
+      }
+
+      const purpose = `${field}_change`
+      const result = await requestVerification(doc._id, method, purpose)
+
+      if (!result.success) {
+        return respond.error(res, 400, 'verification_request_failed', result.error)
+      }
+
+      return res.json({
+        success: true,
+        method: result.method,
+        expiresAt: result.expiresAt,
+        ...(result.devCode && { devCode: result.devCode }),
+      })
+    } catch (err) {
+      console.error('POST /api/auth/profile/verification/request error:', err)
+      return respond.error(res, 500, 'verification_request_failed', 'Failed to request verification')
+    }
+  }
+)
+
+// PATCH /api/auth/profile/email
+// Update email (requires verification)
+const updateEmailSchema = Joi.object({
+  newEmail: Joi.string().email().required(),
+  verificationCode: Joi.string().optional(),
+  mfaCode: Joi.string().optional(),
+})
+
+router.patch(
+  '/profile/email',
+  requireJwt,
+  profileUpdateRateLimit(),
+  validateBody(updateEmailSchema),
+  requireFieldPermission('email'),
+  requireVerification(),
+  async (req, res) => {
+    try {
+      const { newEmail } = req.body || {}
+      const doc = await User.findById(req._userId).populate('role')
+      if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+      const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+      if (!isBusinessOwnerRole(roleSlug)) {
+        return respond.error(res, 403, 'forbidden', 'This endpoint is only available for business owners')
+      }
+
+      const sanitizedEmail = sanitizeEmail(newEmail)
+
+      // Check if email already exists
+      const existing = await User.findOne({ email: sanitizedEmail })
+      if (existing && String(existing._id) !== String(doc._id)) {
+        return respond.error(res, 409, 'email_exists', 'Email already exists')
+      }
+
+      const oldEmail = doc.email
+
+      // Check if there's a pending email change request
+      const pendingRequest = await EmailChangeRequest.findOne({
+        userId: doc._id,
+        reverted: false,
+        applied: false,
+        expiresAt: { $gt: new Date() },
+      })
+
+      if (pendingRequest) {
+        return respond.error(
+          res,
+          400,
+          'email_change_pending',
+          'You have a pending email change request. Please wait for it to be applied or revert it first.',
+          { expiresAt: pendingRequest.expiresAt }
+        )
+      }
+
+      // Create email change request (grace period)
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+      const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
+      const revertUrl = `${appUrl}/profile/email/revert`
+
+      const emailChangeRequest = await EmailChangeRequest.create({
+        userId: doc._id,
+        oldEmail,
+        newEmail: sanitizedEmail,
+        requestedAt: new Date(),
+        expiresAt,
+        reverted: false,
+        applied: false,
+      })
+
+      // Update email immediately (but allow revert within grace period)
+      doc.email = sanitizedEmail
+      doc.isEmailVerified = false // Require re-verification
+      doc.mfaReEnrollmentRequired = true // Require MFA re-enrollment
+      doc.mfaEnabled = false
+      doc.mfaSecret = ''
+      doc.mfaMethod = ''
+      await doc.save()
+
+      // Clear verification request
+      clearVerificationRequest(doc._id, 'email_change')
+
+      // Send notifications to both old and new email (non-blocking)
+      sendEmailChangeNotification(doc._id, oldEmail, sanitizedEmail, {
+        gracePeriodHours: 24,
+        revertUrl,
+      }).catch((err) => {
+        console.error('Failed to send email change notifications:', err)
+      })
+
+      // Create audit log
+      const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+      const userAgent = req.headers['user-agent'] || 'unknown'
+      await createAuditLog(
+        doc._id,
+        'email_change',
+        'email',
+        oldEmail,
+        sanitizedEmail,
+        roleSlug,
+        {
+          ip,
+          userAgent,
+          mfaReEnrollmentRequired: true,
+          emailChangeRequestId: String(emailChangeRequest._id),
+          expiresAt,
+        }
+      )
+
+      // Get email change request info
+      const emailChangeRequestInfo = await EmailChangeRequest.findOne({
+        userId: doc._id,
+        reverted: false,
+        applied: false,
+        expiresAt: { $gt: new Date() },
+      }).sort({ createdAt: -1 })
+
+      const userSafe = {
+        id: String(doc._id),
+        role: roleSlug,
+        firstName: doc.firstName,
+        lastName: doc.lastName,
+        email: doc.email,
+        phoneNumber: doc.phoneNumber,
+        isEmailVerified: doc.isEmailVerified,
+        mfaReEnrollmentRequired: doc.mfaReEnrollmentRequired,
+        emailChangeRequest: emailChangeRequestInfo
+          ? {
+              id: String(emailChangeRequestInfo._id),
+              oldEmail: emailChangeRequestInfo.oldEmail,
+              newEmail: emailChangeRequestInfo.newEmail,
+              expiresAt: emailChangeRequestInfo.expiresAt,
+              canRevert: emailChangeRequestInfo.isWithinGracePeriod(),
+            }
+          : null,
+      }
+
+      return res.json({ updated: true, user: userSafe })
+    } catch (err) {
+      console.error('PATCH /api/auth/profile/email error:', err)
+      return respond.error(res, 500, 'email_update_failed', 'Failed to update email')
+    }
+  }
+)
+
+// POST /api/auth/profile/email/revert
+// Revert email change within grace period
+router.post('/profile/email/revert', requireJwt, async (req, res) => {
+  try {
+    const doc = await User.findById(req._userId).populate('role')
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+    if (!isBusinessOwnerRole(roleSlug)) {
+      return respond.error(res, 403, 'forbidden', 'This endpoint is only available for business owners')
+    }
+
+    // Find active email change request
+    const emailChangeRequest = await EmailChangeRequest.findOne({
+      userId: doc._id,
+      reverted: false,
+      applied: false,
+      expiresAt: { $gt: new Date() },
+    }).sort({ createdAt: -1 })
+
+    if (!emailChangeRequest) {
+      return respond.error(
+        res,
+        404,
+        'no_pending_change',
+        'No pending email change request found or grace period has expired'
+      )
+    }
+
+    if (!emailChangeRequest.isWithinGracePeriod()) {
+      return respond.error(res, 400, 'grace_period_expired', 'Grace period has expired. Email change cannot be reverted.')
+    }
+
+    // Revert email
+    const revertedEmail = emailChangeRequest.oldEmail
+    doc.email = revertedEmail
+    doc.isEmailVerified = true // Keep verification status since reverting to old email
+    await doc.save()
+
+    // Mark request as reverted
+    emailChangeRequest.reverted = true
+    emailChangeRequest.revertedAt = new Date()
+    await emailChangeRequest.save()
+
+    // Send notification (non-blocking)
+    sendEmailChangeNotification(doc._id, emailChangeRequest.newEmail, revertedEmail, {
+      gracePeriodHours: 0,
+      type: 'old_email',
+    }).catch((err) => {
+      console.error('Failed to send revert notification:', err)
+    })
+
+    // Create audit log
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+    const userAgent = req.headers['user-agent'] || 'unknown'
+    await createAuditLog(
+      doc._id,
+      'email_change_reverted',
+      'email',
+      emailChangeRequest.newEmail,
+      revertedEmail,
+      roleSlug,
+      {
+        ip,
+        userAgent,
+        emailChangeRequestId: String(emailChangeRequest._id),
+      }
+    )
+
+    return res.json({
+      success: true,
+      message: 'Email change reverted successfully',
+      user: {
+        id: String(doc._id),
+        email: doc.email,
+      },
+    })
+  } catch (err) {
+    console.error('POST /api/auth/profile/email/revert error:', err)
+    return respond.error(res, 500, 'revert_failed', 'Failed to revert email change')
+  }
+})
+
+// GET /api/auth/profile/email/change-status
+// Get email change request status
+router.get('/profile/email/change-status', requireJwt, async (req, res) => {
+  try {
+    const doc = await User.findById(req._userId).populate('role')
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+    if (!isBusinessOwnerRole(roleSlug)) {
+      return respond.error(res, 403, 'forbidden', 'This endpoint is only available for business owners')
+    }
+
+    const emailChangeRequest = await EmailChangeRequest.findOne({
+      userId: doc._id,
+      reverted: false,
+      applied: false,
+      expiresAt: { $gt: new Date() },
+    }).sort({ createdAt: -1 })
+
+    if (!emailChangeRequest) {
+      return res.json({
+        hasPendingChange: false,
+      })
+    }
+
+    return res.json({
+      hasPendingChange: true,
+      emailChangeRequest: {
+        id: String(emailChangeRequest._id),
+        oldEmail: emailChangeRequest.oldEmail,
+        newEmail: emailChangeRequest.newEmail,
+        requestedAt: emailChangeRequest.requestedAt,
+        expiresAt: emailChangeRequest.expiresAt,
+        canRevert: emailChangeRequest.isWithinGracePeriod(),
+        remainingHours: Math.ceil((emailChangeRequest.expiresAt.getTime() - Date.now()) / (60 * 60 * 1000)),
+      },
+    })
+  } catch (err) {
+    console.error('GET /api/auth/profile/email/change-status error:', err)
+    return respond.error(res, 500, 'status_check_failed', 'Failed to check email change status')
+  }
+})
+
+// PATCH /api/auth/profile/name
+// Update name and date of birth (no verification required, but system verified)
+const updateNameSchema = Joi.object({
+  firstName: Joi.string()
+    .min(1)
+    .max(100)
+    .custom((value, helpers) => {
+      if (!value) return value
+      if (containsSqlInjection(value)) {
+        return helpers.error('string.sqlInjection');
+      }
+      if (containsXss(value)) {
+        return helpers.error('string.xss');
+      }
+      return value;
+    })
+    .optional(),
+  lastName: Joi.string()
+    .min(1)
+    .max(100)
+    .custom((value, helpers) => {
+      if (!value) return value
+      if (containsSqlInjection(value)) {
+        return helpers.error('string.sqlInjection');
+      }
+      if (containsXss(value)) {
+        return helpers.error('string.xss');
+      }
+      return value;
+    })
+    .optional(),
+  dateOfBirth: Joi.date().optional(),
+}).min(1).messages({
+  'object.min': 'At least one field must be provided',
+  'string.sqlInjection': 'Invalid input: SQL injection attempt detected',
+  'string.xss': 'Invalid input: XSS attempt detected',
+})
+
+router.patch(
+  '/profile/name',
+  requireJwt,
+  profileUpdateRateLimit(),
+  validateBody(updateNameSchema),
+  async (req, res) => {
+    try {
+      const { firstName, lastName, dateOfBirth } = req.body || {}
+      
+      // Additional validation for SQL injection and XSS (double-check after Joi)
+      if (firstName !== undefined) {
+        if (containsSqlInjection(String(firstName))) {
+          return respond.error(res, 400, 'validation_error', 'Invalid input: SQL injection attempt detected')
+        }
+        if (containsXss(String(firstName))) {
+          return respond.error(res, 400, 'validation_error', 'Invalid input: XSS attempt detected')
+        }
+      }
+      
+      if (lastName !== undefined) {
+        if (containsSqlInjection(String(lastName))) {
+          return respond.error(res, 400, 'validation_error', 'Invalid input: SQL injection attempt detected')
+        }
+        if (containsXss(String(lastName))) {
+          return respond.error(res, 400, 'validation_error', 'Invalid input: XSS attempt detected')
+        }
+      }
+      
+      const doc = await User.findById(req._userId).populate('role')
+      if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+      const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+      if (!isBusinessOwnerRole(roleSlug)) {
+        return respond.error(res, 403, 'forbidden', 'This endpoint is only available for business owners')
+      }
+
+      const changes = []
+      const oldValues = {}
+
+      if (firstName !== undefined) {
+        const sanitized = sanitizeName(firstName)
+        if (sanitized !== doc.firstName) {
+          oldValues.firstName = doc.firstName
+          doc.firstName = sanitized
+          changes.push('firstName')
+        }
+      }
+
+      if (lastName !== undefined) {
+        const sanitized = sanitizeName(lastName)
+        if (sanitized !== doc.lastName) {
+          oldValues.lastName = doc.lastName
+          doc.lastName = sanitized
+          changes.push('lastName')
+        }
+      }
+
+      if (dateOfBirth !== undefined) {
+        const dob = new Date(dateOfBirth)
+        if (dob.getTime() !== doc.dateOfBirth?.getTime()) {
+          oldValues.dateOfBirth = doc.dateOfBirth
+          doc.dateOfBirth = dob
+          changes.push('dateOfBirth')
+        }
+      }
+
+      if (changes.length === 0) {
+        return res.json({ updated: false, message: 'No changes detected' })
+      }
+
+      await doc.save()
+
+      // Create audit log
+      const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+      const userAgent = req.headers['user-agent'] || 'unknown'
+      // Use first field for fieldChanged (enum constraint), full list in metadata
+      const primaryField = changes[0] || 'firstName'
+      await createAuditLog(
+        doc._id,
+        'name_update',
+        primaryField,
+        JSON.stringify(oldValues),
+        JSON.stringify(changes.reduce((acc, field) => {
+          acc[field] = doc[field]
+          return acc
+        }, {})),
+        roleSlug,
+        {
+          ip,
+          userAgent,
+          allChanges: changes,
+        }
+      )
+
+      const userSafe = {
+        id: String(doc._id),
+        role: roleSlug,
+        firstName: doc.firstName,
+        lastName: doc.lastName,
+        email: doc.email,
+        dateOfBirth: doc.dateOfBirth,
+      }
+
+      return res.json({ updated: true, user: userSafe })
+    } catch (err) {
+      console.error('PATCH /api/auth/profile/name error:', err)
+      return respond.error(res, 500, 'name_update_failed', 'Failed to update name')
+    }
+  }
+)
+
+// PATCH /api/auth/profile/contact
+// Update contact number (no verification required)
+const updateContactSchema = Joi.object({
+  phoneNumber: Joi.alternatives()
+    .try(
+      Joi.string()
+        .min(4)
+        .max(15)
+        .pattern(/^[0-9+\-() ]+$/, { name: 'phone' })
+        .custom((value, helpers) => {
+          // Must contain at least one digit
+          if (!/\d/.test(value)) {
+            return helpers.error('string.pattern.base', { pattern: 'phone' });
+          }
+          // Check for invalid patterns like 'abc123' (contains letters) - pattern should catch this, but double-check
+          if (/[a-zA-Z]/.test(value)) {
+            return helpers.error('string.pattern.base', { pattern: 'phone' });
+          }
+          return value;
+        })
+        .required(),
+      Joi.string().valid('', null).optional()
+    )
+    .messages({
+      'alternatives.match': 'Phone number must be 4-15 characters and contain only digits, +, -, (, ), and spaces, or be empty',
+      'string.pattern.base': 'Phone number must contain only digits, +, -, (, ), and spaces',
+      'string.min': 'Phone number must be at least 4 characters',
+      'string.max': 'Phone number must be at most 15 characters',
+    }),
+})
+
+// Custom validation middleware for phone numbers (before Joi)
+// This MUST run before validateBody to catch invalid phone numbers that Joi alternatives might miss
+function validatePhoneNumberMiddleware(req, res, next) {
+  // Store original body before Joi processes it
+  if (!req._originalBody) {
+    req._originalBody = JSON.parse(JSON.stringify(req.body || {}))
+  }
+  
+  const { phoneNumber } = req.body || {}
+  // Only validate if phoneNumber is provided and not empty
+  if (phoneNumber !== undefined && phoneNumber !== null && phoneNumber !== '') {
+    const phoneStr = String(phoneNumber).trim()
+    // Check length first
+    if (phoneStr.length < 4) {
+      return respond.error(res, 400, 'validation_error', 'Phone number must be at least 4 characters')
+    }
+    if (phoneStr.length > 15) {
+      return respond.error(res, 400, 'validation_error', 'Phone number must be at most 15 characters')
+    }
+    // Check pattern (only digits, +, -, (, ), and spaces) - this will catch 'abc123'
+    if (!/^[0-9+\-() ]+$/.test(phoneStr)) {
+      return respond.error(res, 400, 'validation_error', 'Phone number must contain only digits, +, -, (, ), and spaces')
+    }
+    // Must contain at least one digit
+    if (!/\d/.test(phoneStr)) {
+      return respond.error(res, 400, 'validation_error', 'Phone number must contain at least one digit')
+    }
+  }
+  next()
+}
+
+router.patch(
+  '/profile/contact',
+  requireJwt,
+  profileUpdateRateLimit(),
+  validatePhoneNumberMiddleware,
+  validateBody(updateContactSchema),
+  async (req, res) => {
+    try {
+      // Double-check validation here as a safety net (in case middleware didn't catch it)
+      // Use original body if available, otherwise use req.body
+      const originalPhoneNumber = (req._originalBody && req._originalBody.phoneNumber !== undefined) 
+        ? req._originalBody.phoneNumber 
+        : req.body.phoneNumber
+      
+      if (originalPhoneNumber !== undefined && originalPhoneNumber !== null && originalPhoneNumber !== '') {
+        const phoneStr = String(originalPhoneNumber).trim()
+        if (phoneStr.length < 4 || phoneStr.length > 15) {
+          return respond.error(res, 400, 'validation_error', 'Phone number must be 4-15 characters')
+        }
+        if (!/^[0-9+\-() ]+$/.test(phoneStr)) {
+          return respond.error(res, 400, 'validation_error', 'Phone number must contain only digits, +, -, (, ), and spaces')
+        }
+        if (!/\d/.test(phoneStr)) {
+          return respond.error(res, 400, 'validation_error', 'Phone number must contain at least one digit')
+        }
+      }
+      
+      const { phoneNumber } = req.body || {}
+      
+      const doc = await User.findById(req._userId).populate('role')
+      if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+      const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+      if (!isBusinessOwnerRole(roleSlug)) {
+        return respond.error(res, 403, 'forbidden', 'This endpoint is only available for business owners')
+      }
+
+      const sanitized = sanitizePhoneNumber(phoneNumber || '')
+      const oldPhoneNumber = doc.phoneNumber
+
+      // If phoneNumber was provided but is invalid, reject it
+      if (phoneNumber !== undefined && phoneNumber !== null && phoneNumber !== '' && (sanitized.length < 4 || sanitized.length > 15)) {
+        return respond.error(res, 400, 'validation_error', 'Phone number must be 4-15 characters after sanitization')
+      }
+
+      if (sanitized === oldPhoneNumber) {
+        return res.json({ updated: false, message: 'No changes detected' })
+      }
+
+      // Check if phone number is already in use (if provided)
+      if (sanitized) {
+        const existing = await User.findOne({ phoneNumber: sanitized })
+        if (existing && String(existing._id) !== String(doc._id)) {
+          return respond.error(res, 409, 'phone_exists', 'Phone number already in use')
+        }
+      }
+
+      doc.phoneNumber = sanitized
+      await doc.save()
+
+      // Create audit log
+      const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+      const userAgent = req.headers['user-agent'] || 'unknown'
+      await createAuditLog(
+        doc._id,
+        'contact_update',
+        'phoneNumber',
+        oldPhoneNumber || '',
+        sanitized || '',
+        roleSlug,
+        {
+          ip,
+          userAgent,
+        }
+      )
+
+      const userSafe = {
+        id: String(doc._id),
+        role: roleSlug,
+        firstName: doc.firstName,
+        lastName: doc.lastName,
+        email: doc.email,
+        phoneNumber: doc.phoneNumber,
+      }
+
+      return res.json({ updated: true, user: userSafe })
+    } catch (err) {
+      console.error('PATCH /api/auth/profile/contact error:', err)
+      return respond.error(res, 500, 'contact_update_failed', 'Failed to update contact number')
+    }
+  }
+)
+
+// GET /api/auth/profile/audit-history
+// Get user's audit history
+router.get('/profile/audit-history', requireJwt, async (req, res) => {
+  try {
+    const doc = await User.findById(req._userId).populate('role')
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+    if (!isBusinessOwnerRole(roleSlug)) {
+      return respond.error(res, 403, 'forbidden', 'This endpoint is only available for business owners')
+    }
+
+    const { limit = 50, skip = 0, eventType, startDate, endDate } = req.query || {}
+
+    const query = { userId: doc._id }
+    if (eventType) {
+      query.eventType = eventType
+    }
+    if (startDate || endDate) {
+      query.createdAt = {}
+      if (startDate) query.createdAt.$gte = new Date(startDate)
+      if (endDate) query.createdAt.$lte = new Date(endDate)
+    }
+
+    const auditLogs = await AuditLog.find(query)
+      .sort({ createdAt: -1 })
+      .limit(Number(limit))
+      .skip(Number(skip))
+      .lean()
+
+    // Mask sensitive data
+    const safeLogs = auditLogs.map((log) => ({
+      id: String(log._id),
+      eventType: log.eventType,
+      fieldChanged: log.fieldChanged,
+      oldValue: log.fieldChanged === 'password' ? '[REDACTED]' : log.oldValue,
+      newValue: log.fieldChanged === 'password' ? '[REDACTED]' : log.newValue,
+      role: log.role,
+      createdAt: log.createdAt,
+      verified: log.verified,
+      txHash: log.txHash,
+      blockNumber: log.blockNumber,
+    }))
+
+    const total = await AuditLog.countDocuments(query)
+
+    return res.json({
+      logs: safeLogs,
+      total,
+      limit: Number(limit),
+      skip: Number(skip),
+    })
+  } catch (err) {
+    console.error('GET /api/auth/profile/audit-history error:', err)
+    return respond.error(res, 500, 'audit_history_failed', 'Failed to retrieve audit history')
+  }
+})
+
+// ============================================
+// ID Upload Endpoints (Business Owners)
+// ============================================
+
+// POST /api/auth/profile/id-upload
+// Upload ID front and back images (requires verification)
+router.post(
+  '/profile/id-upload',
+  requireJwt,
+  idUploadRateLimit(),
+  async (req, res) => {
+    try {
+      const doc = await User.findById(req._userId).populate('role')
+      if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+      const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+      if (!isBusinessOwnerRole(roleSlug)) {
+        return respond.error(res, 403, 'forbidden', 'This endpoint is only available for business owners')
+      }
+
+      // Check verification
+      const { verificationCode, mfaCode } = req.body || {}
+      const purpose = 'id_upload'
+      
+      if (verificationCode) {
+        const verifyResult = await verifyCode(doc._id, verificationCode, 'otp', purpose)
+        if (!verifyResult.verified) {
+          return respond.error(res, 401, 'verification_failed', verifyResult.error || 'Invalid verification code')
+        }
+      } else if (mfaCode) {
+        const verifyResult = await verifyCode(doc._id, mfaCode, 'mfa', purpose)
+        if (!verifyResult.verified) {
+          return respond.error(res, 401, 'verification_failed', verifyResult.error || 'Invalid MFA code')
+        }
+      } else {
+        const status = await checkVerificationStatus(doc._id, purpose)
+        if (!status.pending) {
+          return respond.error(
+            res,
+            428,
+            'verification_required',
+            'Verification required before uploading ID. Please request verification first.'
+          )
+        }
+        return respond.error(
+          res,
+          428,
+          'verification_required',
+          'Please provide verification code or MFA code'
+        )
+      }
+
+      // Setup multer for file uploads
+      const multer = require('multer')
+      const path = require('path')
+      const fs = require('fs')
+      const uploadsDir = path.join(__dirname, '..', '..', '..', 'uploads')
+      const idsDir = path.join(uploadsDir, 'ids')
+      try {
+        fs.mkdirSync(idsDir, { recursive: true })
+      } catch (_) {}
+
+      const storage = multer.diskStorage({
+        destination: (_req, _file, cb) => cb(null, idsDir),
+        filename: (_req, file, cb) => {
+          const ext = path.extname(file.originalname || '.jpg').toLowerCase() || '.jpg'
+          const side = file.fieldname === 'front' ? 'front' : 'back'
+          cb(null, `${String(doc._id)}_${side}_${Date.now()}${ext}`)
+        },
+      })
+
+      const upload = multer({
+        storage,
+        limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+      }).fields([
+        { name: 'front', maxCount: 1 },
+        { name: 'back', maxCount: 1 },
+      ])
+
+      upload(req, res, async (err) => {
+        if (err) {
+          if (err.code === 'LIMIT_FILE_SIZE') {
+            return respond.error(res, 400, 'file_too_large', 'File size exceeds 5MB limit')
+          }
+          return respond.error(res, 400, 'upload_failed', 'Upload failed: ' + err.message)
+        }
+
+        const files = req.files || {}
+        const frontFile = files.front && files.front[0]
+        const backFile = files.back && files.back[0]
+
+        if (!frontFile) {
+          return respond.error(res, 400, 'front_required', 'Front image is required')
+        }
+
+        // Validate front file
+        const frontValidation = await validateImageFile(frontFile)
+        if (!frontValidation.valid) {
+          // Clean up uploaded file
+          if (frontFile.path) {
+            try {
+              await fs.promises.unlink(frontFile.path)
+            } catch (_) {}
+          }
+          return respond.error(res, 400, 'invalid_file', frontValidation.error)
+        }
+
+        // Validate back file if provided
+        if (backFile) {
+          const backValidation = await validateImageFile(backFile)
+          if (!backValidation.valid) {
+            // Clean up uploaded files
+            if (frontFile.path) {
+              try {
+                await fs.promises.unlink(frontFile.path)
+              } catch (_) {}
+            }
+            if (backFile.path) {
+              try {
+                await fs.promises.unlink(backFile.path)
+              } catch (_) {}
+            }
+            return respond.error(res, 400, 'invalid_file', backValidation.error)
+          }
+        }
+
+        // Save or update ID verification record
+        const frontImageUrl = `/uploads/ids/${path.basename(frontFile.path)}`
+        const backImageUrl = backFile ? `/uploads/ids/${path.basename(backFile.path)}` : ''
+
+        // Delete old files if updating
+        const existing = await IdVerification.findOne({ userId: doc._id })
+        if (existing) {
+          if (existing.frontImageUrl) {
+            const oldFrontPath = path.join(uploadsDir, existing.frontImageUrl.replace('/uploads/', ''))
+            try {
+              await fs.promises.unlink(oldFrontPath)
+            } catch (_) {}
+          }
+          if (existing.backImageUrl) {
+            const oldBackPath = path.join(uploadsDir, existing.backImageUrl.replace('/uploads/', ''))
+            try {
+              await fs.promises.unlink(oldBackPath)
+            } catch (_) {}
+          }
+        }
+
+        const canRevertUntil = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+
+        const idVerification = await IdVerification.findOneAndUpdate(
+          { userId: doc._id },
+          {
+            frontImageUrl,
+            backImageUrl,
+            status: 'pending',
+            uploadedAt: new Date(),
+            canRevertUntil,
+            reverted: false,
+            verifiedBy: null,
+            verifiedAt: null,
+            rejectionReason: '',
+          },
+          { upsert: true, new: true }
+        )
+
+        // Clear verification request
+        clearVerificationRequest(doc._id, purpose)
+
+        // Create audit log
+        const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+        const userAgent = req.headers['user-agent'] || 'unknown'
+        await createAuditLog(
+          doc._id,
+          'id_upload',
+          'id_document',
+          existing ? 'updated' : 'new',
+          'uploaded',
+          roleSlug,
+          {
+            ip,
+            userAgent,
+            frontImageUrl,
+            backImageUrl: backImageUrl || 'not_provided',
+            canRevertUntil,
+          }
+        )
+
+        return res.json({
+          success: true,
+          idVerification: {
+            id: String(idVerification._id),
+            frontImageUrl,
+            backImageUrl,
+            status: idVerification.status,
+            uploadedAt: idVerification.uploadedAt,
+            canRevertUntil,
+          },
+        })
+      })
+    } catch (err) {
+      console.error('POST /api/auth/profile/id-upload error:', err)
+      return respond.error(res, 500, 'id_upload_failed', 'Failed to upload ID documents')
+    }
+  }
+)
+
+// PATCH /api/auth/profile/id-info
+// Update ID type and number (requires verification)
+const updateIdInfoSchema = Joi.object({
+  idType: Joi.string().optional(),
+  idNumber: Joi.string().optional(),
+  verificationCode: Joi.string().optional(),
+  mfaCode: Joi.string().optional(),
+})
+
+router.patch(
+  '/profile/id-info',
+  requireJwt,
+  profileUpdateRateLimit(),
+  validateBody(updateIdInfoSchema),
+  async (req, res) => {
+    try {
+      const { idType, idNumber } = req.body || {}
+      const doc = await User.findById(req._userId).populate('role')
+      if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+      const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+      if (!isBusinessOwnerRole(roleSlug)) {
+        return respond.error(res, 403, 'forbidden', 'This endpoint is only available for business owners')
+      }
+
+      // Check verification
+      const { verificationCode, mfaCode } = req.body || {}
+      const purpose = 'idType_change'
+      
+      if (verificationCode) {
+        const verifyResult = await verifyCode(doc._id, verificationCode, 'otp', purpose)
+        if (!verifyResult.verified) {
+          return respond.error(res, 401, 'verification_failed', verifyResult.error || 'Invalid verification code')
+        }
+      } else if (mfaCode) {
+        const verifyResult = await verifyCode(doc._id, mfaCode, 'mfa', purpose)
+        if (!verifyResult.verified) {
+          return respond.error(res, 401, 'verification_failed', verifyResult.error || 'Invalid MFA code')
+        }
+      } else {
+        const status = await checkVerificationStatus(doc._id, purpose)
+        if (!status.pending) {
+          return respond.error(
+            res,
+            428,
+            'verification_required',
+            'Verification required before updating ID information. Please request verification first.'
+          )
+        }
+        return respond.error(
+          res,
+          428,
+          'verification_required',
+          'Please provide verification code or MFA code'
+        )
+      }
+
+      // Get or create ID verification record
+      let idVerification = await IdVerification.findOne({ userId: doc._id })
+      if (!idVerification) {
+        idVerification = await IdVerification.create({
+          userId: doc._id,
+          status: 'pending',
+        })
+      }
+
+      const oldValues = {
+        idType: idVerification.idType || '',
+        idNumber: idVerification.idNumber || '',
+      }
+
+      const changes = []
+      if (idType !== undefined) {
+        const sanitized = sanitizeString(idType)
+        if (sanitized !== idVerification.idType) {
+          idVerification.idType = sanitized
+          changes.push('idType')
+        }
+      }
+
+      if (idNumber !== undefined) {
+        const sanitized = sanitizeIdNumber(idNumber)
+        if (sanitized !== idVerification.idNumber) {
+          idVerification.idNumber = sanitized
+          changes.push('idNumber')
+        }
+      }
+
+      if (changes.length === 0) {
+        return res.json({ updated: false, message: 'No changes detected' })
+      }
+
+      idVerification.status = 'pending' // Reset to pending when ID info changes
+      idVerification.verifiedBy = null
+      idVerification.verifiedAt = null
+      await idVerification.save()
+
+      // Clear verification request
+      clearVerificationRequest(doc._id, 'idType_change')
+
+      // Create audit log
+      const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+      const userAgent = req.headers['user-agent'] || 'unknown'
+      await createAuditLog(
+        doc._id,
+        'id_verification',
+        changes.join(','),
+        JSON.stringify(oldValues),
+        JSON.stringify({
+          idType: idVerification.idType,
+          idNumber: idVerification.idNumber,
+        }),
+        roleSlug,
+        {
+          ip,
+          userAgent,
+          allChanges: changes,
+        }
+      )
+
+      return res.json({
+        updated: true,
+        idVerification: {
+          id: String(idVerification._id),
+          idType: idVerification.idType,
+          idNumber: idVerification.idNumber,
+          status: idVerification.status,
+        },
+      })
+    } catch (err) {
+      console.error('PATCH /api/auth/profile/id-info error:', err)
+      return respond.error(res, 500, 'id_info_update_failed', 'Failed to update ID information')
+    }
+  }
+)
+
+// GET /api/auth/profile/id-verification
+// Get ID verification status
+router.get('/profile/id-verification', requireJwt, async (req, res) => {
+  try {
+    const doc = await User.findById(req._userId).populate('role')
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+    if (!isBusinessOwnerRole(roleSlug)) {
+      return respond.error(res, 403, 'forbidden', 'This endpoint is only available for business owners')
+    }
+
+    const idVerification = await IdVerification.findOne({ userId: doc._id }).lean()
+
+    if (!idVerification) {
+      return res.json({
+        exists: false,
+        status: 'not_uploaded',
+      })
+    }
+
+    const canRevert = idVerification.canRevertUntil && new Date() < new Date(idVerification.canRevertUntil) && !idVerification.reverted
+
+    return res.json({
+      exists: true,
+      id: String(idVerification._id),
+      idType: idVerification.idType,
+      idNumber: idVerification.idNumber,
+      frontImageUrl: idVerification.frontImageUrl,
+      backImageUrl: idVerification.backImageUrl,
+      status: idVerification.status,
+      uploadedAt: idVerification.uploadedAt,
+      verifiedAt: idVerification.verifiedAt,
+      canRevert,
+      canRevertUntil: idVerification.canRevertUntil,
+    })
+  } catch (err) {
+    console.error('GET /api/auth/profile/id-verification error:', err)
+    return respond.error(res, 500, 'id_verification_failed', 'Failed to retrieve ID verification status')
+  }
+})
+
+// POST /api/auth/profile/id-upload/revert
+// Revert ID upload (within 24 hours)
+router.post('/profile/id-upload/revert', requireJwt, async (req, res) => {
+  try {
+    const doc = await User.findById(req._userId).populate('role')
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+    if (!isBusinessOwnerRole(roleSlug)) {
+      return respond.error(res, 403, 'forbidden', 'This endpoint is only available for business owners')
+    }
+
+    const idVerification = await IdVerification.findOne({ userId: doc._id })
+    if (!idVerification) {
+      return respond.error(res, 404, 'not_found', 'No ID verification found')
+    }
+
+    if (idVerification.reverted) {
+      return respond.error(res, 400, 'already_reverted', 'ID upload has already been reverted')
+    }
+
+    const now = new Date()
+    if (!idVerification.canRevertUntil || now > new Date(idVerification.canRevertUntil)) {
+      return respond.error(res, 400, 'revert_expired', 'Revert period has expired (24 hours)')
+    }
+
+    // Delete uploaded files
+    const path = require('path')
+    const fs = require('fs').promises
+    const uploadsDir = path.join(__dirname, '..', '..', '..', 'uploads')
+
+    if (idVerification.frontImageUrl) {
+      const frontPath = path.join(uploadsDir, idVerification.frontImageUrl.replace('/uploads/', ''))
+      try {
+        await fs.unlink(frontPath)
+      } catch (_) {}
+    }
+
+    if (idVerification.backImageUrl) {
+      const backPath = path.join(uploadsDir, idVerification.backImageUrl.replace('/uploads/', ''))
+      try {
+        await fs.unlink(backPath)
+      } catch (_) {}
+    }
+
+    // Mark as reverted
+    idVerification.reverted = true
+    idVerification.frontImageUrl = ''
+    idVerification.backImageUrl = ''
+    idVerification.status = 'pending'
+    await idVerification.save()
+
+    // Create audit log
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+    const userAgent = req.headers['user-agent'] || 'unknown'
+    await createAuditLog(
+      doc._id,
+      'id_upload_reverted',
+      'id_document',
+      'uploaded',
+      'reverted',
+      roleSlug,
+      {
+        ip,
+        userAgent,
+      }
+    )
+
+    return res.json({
+      success: true,
+      message: 'ID upload reverted successfully',
+    })
+  } catch (err) {
+    console.error('POST /api/auth/profile/id-upload/revert error:', err)
+    return respond.error(res, 500, 'revert_failed', 'Failed to revert ID upload')
+  }
+})
+
+// POST /api/auth/profile/email/revert
+// Revert email change within grace period
+router.post('/profile/email/revert', requireJwt, async (req, res) => {
+  try {
+    const doc = await User.findById(req._userId).populate('role')
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+    if (!isBusinessOwnerRole(roleSlug)) {
+      return respond.error(res, 403, 'forbidden', 'This endpoint is only available for business owners')
+    }
+
+    // Find active email change request
+    const emailChangeRequest = await EmailChangeRequest.findOne({
+      userId: doc._id,
+      reverted: false,
+      applied: false,
+      expiresAt: { $gt: new Date() },
+    }).sort({ createdAt: -1 })
+
+    if (!emailChangeRequest) {
+      return respond.error(
+        res,
+        404,
+        'no_pending_change',
+        'No pending email change request found or grace period has expired'
+      )
+    }
+
+    if (!emailChangeRequest.isWithinGracePeriod()) {
+      return respond.error(res, 400, 'grace_period_expired', 'Grace period has expired. Email change cannot be reverted.')
+    }
+
+    // Revert email
+    const revertedEmail = emailChangeRequest.oldEmail
+    doc.email = revertedEmail
+    doc.isEmailVerified = true // Keep verification status since reverting to old email
+    await doc.save()
+
+    // Mark request as reverted
+    emailChangeRequest.reverted = true
+    emailChangeRequest.revertedAt = new Date()
+    await emailChangeRequest.save()
+
+    // Send notification (non-blocking)
+    sendEmailChangeNotification(doc._id, emailChangeRequest.newEmail, revertedEmail, {
+      gracePeriodHours: 0,
+      type: 'old_email',
+    }).catch((err) => {
+      console.error('Failed to send revert notification:', err)
+    })
+
+    // Create audit log
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+    const userAgent = req.headers['user-agent'] || 'unknown'
+    await createAuditLog(
+      doc._id,
+      'email_change_reverted',
+      'email',
+      emailChangeRequest.newEmail,
+      revertedEmail,
+      roleSlug,
+      {
+        ip,
+        userAgent,
+        emailChangeRequestId: String(emailChangeRequest._id),
+      }
+    )
+
+    return res.json({
+      success: true,
+      message: 'Email change reverted successfully',
+      user: {
+        id: String(doc._id),
+        email: doc.email,
+      },
+    })
+  } catch (err) {
+    console.error('POST /api/auth/profile/email/revert error:', err)
+    return respond.error(res, 500, 'revert_failed', 'Failed to revert email change')
+  }
+})
+
+// GET /api/auth/profile/email/change-status
+// Get email change request status
+router.get('/profile/email/change-status', requireJwt, async (req, res) => {
+  try {
+    const doc = await User.findById(req._userId).populate('role')
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+    if (!isBusinessOwnerRole(roleSlug)) {
+      return respond.error(res, 403, 'forbidden', 'This endpoint is only available for business owners')
+    }
+
+    const emailChangeRequest = await EmailChangeRequest.findOne({
+      userId: doc._id,
+      reverted: false,
+      applied: false,
+      expiresAt: { $gt: new Date() },
+    }).sort({ createdAt: -1 })
+
+    if (!emailChangeRequest) {
+      return res.json({
+        hasPendingChange: false,
+      })
+    }
+
+    return res.json({
+      hasPendingChange: true,
+      emailChangeRequest: {
+        id: String(emailChangeRequest._id),
+        oldEmail: emailChangeRequest.oldEmail,
+        newEmail: emailChangeRequest.newEmail,
+        requestedAt: emailChangeRequest.requestedAt,
+        expiresAt: emailChangeRequest.expiresAt,
+        canRevert: emailChangeRequest.isWithinGracePeriod(),
+        remainingHours: Math.ceil((emailChangeRequest.expiresAt.getTime() - Date.now()) / (60 * 60 * 1000)),
+      },
+    })
+  } catch (err) {
+    console.error('GET /api/auth/profile/email/change-status error:', err)
+    return respond.error(res, 500, 'status_check_failed', 'Failed to check email change status')
+  }
+})
+
+// ============================================
+// Admin Profile Edit Endpoints (with Approval Workflow)
+// ============================================
+
+// PATCH /api/auth/profile/contact (Admin only - no approval required)
+// Update contact number for admin
+const updateAdminContactSchema = Joi.object({
+  phoneNumber: Joi.string().optional().allow(''),
+})
+
+router.patch(
+  '/profile/contact',
+  requireJwt,
+  profileUpdateRateLimit(),
+  validateBody(updateAdminContactSchema),
+  async (req, res) => {
+    try {
+      const { phoneNumber } = req.body || {}
+      const doc = await User.findById(req._userId).populate('role')
+      if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+      const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+      if (!isAdminRole(roleSlug)) {
+        return respond.error(res, 403, 'forbidden', 'This endpoint is only available for admins')
+      }
+
+      const sanitized = sanitizePhoneNumber(phoneNumber || '')
+      const oldPhoneNumber = doc.phoneNumber
+
+      if (sanitized === oldPhoneNumber) {
+        return res.json({ updated: false, message: 'No changes detected' })
+      }
+
+      // Check if phone number is already in use (if provided)
+      if (sanitized) {
+        const existing = await User.findOne({ phoneNumber: sanitized })
+        if (existing && String(existing._id) !== String(doc._id)) {
+          return respond.error(res, 409, 'phone_exists', 'Phone number already in use')
+        }
+      }
+
+      doc.phoneNumber = sanitized
+      await doc.save()
+
+      // Create audit log
+      const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+      const userAgent = req.headers['user-agent'] || 'unknown'
+      await createAuditLog(
+        doc._id,
+        'contact_update',
+        'phoneNumber',
+        oldPhoneNumber || '',
+        sanitized || '',
+        roleSlug,
+        {
+          ip,
+          userAgent,
+          adminSelfUpdate: true,
+        }
+      )
+
+      const userSafe = {
+        id: String(doc._id),
+        role: roleSlug,
+        firstName: doc.firstName,
+        lastName: doc.lastName,
+        email: doc.email,
+        phoneNumber: doc.phoneNumber,
+      }
+
+      return res.json({ updated: true, user: userSafe })
+    } catch (err) {
+      console.error('PATCH /api/auth/profile/contact error:', err)
+      return respond.error(res, 500, 'contact_update_failed', 'Failed to update contact number')
+    }
+  }
+)
+
+// PATCH /api/auth/profile/personal-info (Admin only - requires 2 admin approvals)
+// Update name and contact info for admin
+const updateAdminPersonalInfoSchema = Joi.object({
+  firstName: Joi.string().min(1).max(100).optional(),
+  lastName: Joi.string().min(1).max(100).optional(),
+  phoneNumber: Joi.string().optional().allow(''),
+})
+
+router.patch(
+  '/profile/personal-info',
+  requireJwt,
+  adminApprovalRateLimit(),
+  validateBody(updateAdminPersonalInfoSchema),
+  async (req, res) => {
+    try {
+      const { firstName, lastName, phoneNumber } = req.body || {}
+      const doc = await User.findById(req._userId).populate('role')
+      if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+      const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+      if (!isAdminRole(roleSlug)) {
+        return respond.error(res, 403, 'forbidden', 'This endpoint is only available for admins')
+      }
+
+      // Prepare changes
+      const changes = {}
+      const oldValues = {}
+
+      if (firstName !== undefined && firstName !== doc.firstName) {
+        oldValues.firstName = doc.firstName
+        changes.firstName = sanitizeName(firstName)
+      }
+
+      if (lastName !== undefined && lastName !== doc.lastName) {
+        oldValues.lastName = doc.lastName
+        changes.lastName = sanitizeName(lastName)
+      }
+
+      if (phoneNumber !== undefined && phoneNumber !== doc.phoneNumber) {
+        oldValues.phoneNumber = doc.phoneNumber
+        changes.phoneNumber = sanitizePhoneNumber(phoneNumber || '')
+      }
+
+      if (Object.keys(changes).length === 0) {
+        return res.json({ updated: false, message: 'No changes detected' })
+      }
+
+      // Check if phone number is already in use
+      if (changes.phoneNumber) {
+        const existing = await User.findOne({ phoneNumber: changes.phoneNumber })
+        if (existing && String(existing._id) !== String(doc._id)) {
+          return respond.error(res, 409, 'phone_exists', 'Phone number already in use')
+        }
+      }
+
+      // Create approval request
+      const approvalId = AdminApproval.generateApprovalId()
+      const approval = await AdminApproval.create({
+        approvalId,
+        requestType: 'personal_info_change',
+        userId: doc._id,
+        requestedBy: doc._id,
+        requestDetails: {
+          oldValues,
+          newValues: changes,
+          fields: Object.keys(changes),
+        },
+        status: 'pending',
+        requiredApprovals: 2,
+        metadata: {
+          ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+          userAgent: req.headers['user-agent'] || 'unknown',
+        },
+      })
+
+      // Create audit log for approval request
+      const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+      const userAgent = req.headers['user-agent'] || 'unknown'
+      await createAuditLog(
+        doc._id,
+        'admin_approval_request',
+        Object.keys(changes).join(','),
+        JSON.stringify(oldValues),
+        JSON.stringify(changes),
+        roleSlug,
+        {
+          ip,
+          userAgent,
+          approvalId,
+          requestType: 'personal_info_change',
+        }
+      )
+
+      return res.json({
+        success: true,
+        approval: {
+          approvalId: approval.approvalId,
+          requestType: approval.requestType,
+          status: approval.status,
+          requiredApprovals: approval.requiredApprovals,
+          message: 'Approval request created. Waiting for 2 admin approvals.',
+        },
+      })
+    } catch (err) {
+      console.error('PATCH /api/auth/profile/personal-info error:', err)
+      return respond.error(res, 500, 'personal_info_update_failed', 'Failed to create approval request')
+    }
+  }
+)
+
+// PATCH /api/auth/profile/email (Admin only - requires OTP/MFA + 2 admin approvals)
+// Change email for admin
+const updateAdminEmailSchema = Joi.object({
+  newEmail: Joi.string().email().required(),
+  verificationCode: Joi.string().optional(),
+  mfaCode: Joi.string().optional(),
+})
+
+router.patch(
+  '/profile/email',
+  requireJwt,
+  adminApprovalRateLimit(),
+  validateBody(updateAdminEmailSchema),
+  async (req, res) => {
+    try {
+      const { newEmail, verificationCode, mfaCode } = req.body || {}
+      const doc = await User.findById(req._userId).populate('role')
+      if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+      const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+      if (!isAdminRole(roleSlug)) {
+        return respond.error(res, 403, 'forbidden', 'This endpoint is only available for admins')
+      }
+
+      // Check verification first
+      const purpose = 'email_change'
+      if (verificationCode) {
+        const verifyResult = await verifyCode(doc._id, verificationCode, 'otp', purpose)
+        if (!verifyResult.verified) {
+          return respond.error(res, 401, 'verification_failed', verifyResult.error || 'Invalid verification code')
+        }
+      } else if (mfaCode) {
+        const verifyResult = await verifyCode(doc._id, mfaCode, 'mfa', purpose)
+        if (!verifyResult.verified) {
+          return respond.error(res, 401, 'verification_failed', verifyResult.error || 'Invalid MFA code')
+        }
+      } else {
+        const status = await checkVerificationStatus(doc._id, purpose)
+        if (!status.pending) {
+          return respond.error(
+            res,
+            428,
+            'verification_required',
+            'Verification required before changing email. Please request verification first.'
+          )
+        }
+        return respond.error(
+          res,
+          428,
+          'verification_required',
+          'Please provide verification code or MFA code'
+        )
+      }
+
+      const sanitizedEmail = sanitizeEmail(newEmail)
+
+      // Check if email already exists
+      const existing = await User.findOne({ email: sanitizedEmail })
+      if (existing && String(existing._id) !== String(doc._id)) {
+        return respond.error(res, 409, 'email_exists', 'Email already exists')
+      }
+
+      const oldEmail = doc.email
+
+      // Create approval request
+      const approvalId = AdminApproval.generateApprovalId()
+      const approval = await AdminApproval.create({
+        approvalId,
+        requestType: 'email_change',
+        userId: doc._id,
+        requestedBy: doc._id,
+        requestDetails: {
+          oldEmail,
+          newEmail: sanitizedEmail,
+        },
+        status: 'pending',
+        requiredApprovals: 2,
+        metadata: {
+          ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+          userAgent: req.headers['user-agent'] || 'unknown',
+          verificationCompleted: true,
+        },
+      })
+
+      // Clear verification request
+      clearVerificationRequest(doc._id, purpose)
+
+      // Create audit log for approval request
+      const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+      const userAgent = req.headers['user-agent'] || 'unknown'
+      await createAuditLog(
+        doc._id,
+        'admin_approval_request',
+        'email',
+        oldEmail,
+        sanitizedEmail,
+        roleSlug,
+        {
+          ip,
+          userAgent,
+          approvalId,
+          requestType: 'email_change',
+        }
+      )
+
+      return res.json({
+        success: true,
+        approval: {
+          approvalId: approval.approvalId,
+          requestType: approval.requestType,
+          status: approval.status,
+          requiredApprovals: approval.requiredApprovals,
+          message: 'Approval request created. Waiting for 2 admin approvals.',
+        },
+      })
+    } catch (err) {
+      console.error('PATCH /api/auth/profile/email error:', err)
+      return respond.error(res, 500, 'email_update_failed', 'Failed to create approval request')
+    }
+  }
+)
+
+// PATCH /api/auth/profile/password (Admin only - requires OTP/MFA + 2 admin approvals)
+// Change password for admin
+const updateAdminPasswordSchema = Joi.object({
+  currentPassword: Joi.string().min(1).max(200).optional(),
+  newPassword: Joi.string().min(6).max(200).required(),
+  verificationCode: Joi.string().optional(),
+  mfaCode: Joi.string().optional(),
+})
+
+router.patch(
+  '/profile/password',
+  requireJwt,
+  passwordChangeRateLimit(),
+  validateBody(updateAdminPasswordSchema),
+  requireFieldPermission('password'),
+  async (req, res) => {
+    try {
+      const { currentPassword, newPassword, verificationCode, mfaCode } = req.body || {}
+      const doc = await User.findById(req._userId).populate('role')
+      if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+      const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+      if (!isAdminRole(roleSlug)) {
+        return respond.error(res, 403, 'forbidden', 'This endpoint is only available for admins')
+      }
+
+      // Verify current password if provided (alternative to OTP/MFA)
+      let verificationPassed = false
+      if (currentPassword) {
+        const ok = await bcrypt.compare(currentPassword, doc.passwordHash)
+        if (ok) {
+          verificationPassed = true
+        }
+      }
+
+      // Check OTP/MFA verification
+      if (!verificationPassed) {
+        const purpose = 'password_change'
+        if (verificationCode) {
+          const verifyResult = await verifyCode(doc._id, verificationCode, 'otp', purpose)
+          if (verifyResult.verified) {
+            verificationPassed = true
+          }
+        } else if (mfaCode) {
+          const verifyResult = await verifyCode(doc._id, mfaCode, 'mfa', purpose)
+          if (verifyResult.verified) {
+            verificationPassed = true
+          }
+        }
+
+        if (!verificationPassed) {
+          const status = await checkVerificationStatus(doc._id, purpose)
+          if (!status.pending) {
+            return respond.error(
+              res,
+              428,
+              'verification_required',
+              'Verification required. Provide current password, verification code, or MFA code.'
+            )
+          }
+          return respond.error(
+            res,
+            428,
+            'verification_required',
+            'Please provide current password, verification code, or MFA code'
+          )
+        }
+      }
+
+      // Validate new password strength
+      const passwordValidation = validatePasswordStrength(newPassword)
+      if (!passwordValidation.valid) {
+        return respond.error(res, 400, 'weak_password', 'Password does not meet requirements', passwordValidation.errors)
+      }
+
+      // Check password history
+      const historyCheck = await checkPasswordHistory(newPassword, doc.passwordHistory || [])
+      if (historyCheck.inHistory) {
+        return respond.error(res, 400, 'password_reused', 'You cannot reuse a recently used password. Please choose a different password.')
+      }
+
+      // Create approval request
+      const approvalId = AdminApproval.generateApprovalId()
+      const approval = await AdminApproval.create({
+        approvalId,
+        requestType: 'password_change',
+        userId: doc._id,
+        requestedBy: doc._id,
+        requestDetails: {
+          // Don't store actual passwords, just indicate change requested
+          passwordChangeRequested: true,
+          passwordStrengthValid: true,
+          passwordNotInHistory: true,
+        },
+        status: 'pending',
+        requiredApprovals: 2,
+        metadata: {
+          ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+          userAgent: req.headers['user-agent'] || 'unknown',
+          verificationCompleted: true,
+          // Store password hash temporarily (will be cleared after approval)
+          newPasswordHash: await bcrypt.hash(newPassword, 10),
+        },
+      })
+
+      // Clear verification request
+      clearVerificationRequest(doc._id, 'password_change')
+
+      // Create audit log for approval request
+      const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+      const userAgent = req.headers['user-agent'] || 'unknown'
+      await createAuditLog(
+        doc._id,
+        'admin_approval_request',
+        'password',
+        '[REDACTED]',
+        '[REDACTED]',
+        roleSlug,
+        {
+          ip,
+          userAgent,
+          approvalId,
+          requestType: 'password_change',
+        }
+      )
+
+      return res.json({
+        success: true,
+        approval: {
+          approvalId: approval.approvalId,
+          requestType: approval.requestType,
+          status: approval.status,
+          requiredApprovals: approval.requiredApprovals,
+          message: 'Approval request created. Waiting for 2 admin approvals.',
+        },
+      })
+    } catch (err) {
+      console.error('PATCH /api/auth/profile/password error:', err)
+      return respond.error(res, 500, 'password_update_failed', 'Failed to create approval request')
+    }
+  }
+)
+
+// Helper function to apply approved changes
+async function applyApprovedChange(approval) {
+  try {
+    const user = await User.findById(approval.userId).populate('role')
+    if (!user) {
+      console.error('User not found for approval:', approval.approvalId)
+      return { success: false, error: 'User not found' }
+    }
+
+    const roleSlug = (user.role && user.role.slug) ? user.role.slug : 'user'
+
+    switch (approval.requestType) {
+      case 'personal_info_change': {
+        const { newValues } = approval.requestDetails
+        if (newValues.firstName) user.firstName = newValues.firstName
+        if (newValues.lastName) user.lastName = newValues.lastName
+        if (newValues.phoneNumber !== undefined) user.phoneNumber = newValues.phoneNumber
+        await user.save()
+
+        // Create audit log
+        const AuditLog = require('../../models/AuditLog')
+        const changedFields = Object.keys(newValues)
+        // Use first field for fieldChanged (enum constraint), full list in metadata
+        const primaryField = changedFields[0] || 'firstName'
+        await AuditLog.create({
+          userId: user._id,
+          eventType: 'admin_approval_approved',
+          fieldChanged: primaryField,
+          oldValue: JSON.stringify(approval.requestDetails.oldValues),
+          newValue: JSON.stringify(newValues),
+          role: roleSlug,
+          metadata: {
+            approvalId: approval.approvalId,
+            requestType: approval.requestType,
+            approvedBy: approval.approvals.map((a) => String(a.adminId)),
+            allChangedFields: changedFields,
+          },
+        })
+
+        return { success: true }
+      }
+
+      case 'email_change': {
+        const { newEmail } = approval.requestDetails
+        const oldEmail = user.email
+        user.email = newEmail
+        user.isEmailVerified = false
+        user.mfaReEnrollmentRequired = true
+        user.mfaEnabled = false
+        user.mfaSecret = ''
+        user.mfaMethod = ''
+        await user.save()
+
+        // Create audit log
+        const AuditLog = require('../../models/AuditLog')
+        await AuditLog.create({
+          userId: user._id,
+          eventType: 'admin_approval_approved',
+          fieldChanged: 'email',
+          oldValue: oldEmail,
+          newValue: newEmail,
+          role: roleSlug,
+          metadata: {
+            approvalId: approval.approvalId,
+            requestType: approval.requestType,
+            approvedBy: approval.approvals.map((a) => String(a.adminId)),
+            mfaReEnrollmentRequired: true,
+          },
+        })
+
+        return { success: true }
+      }
+
+      case 'password_change': {
+        const { newPasswordHash } = approval.metadata
+        if (!newPasswordHash) {
+          return { success: false, error: 'Password hash not found in approval metadata' }
+        }
+
+        const oldHash = String(user.passwordHash)
+        const updatedHistory = addToPasswordHistory(oldHash, user.passwordHistory || [])
+
+        user.passwordHash = newPasswordHash
+        user.passwordHistory = updatedHistory
+        user.tokenVersion = (user.tokenVersion || 0) + 1 // Invalidate all sessions
+        user.mfaReEnrollmentRequired = true
+        user.mfaEnabled = false
+        user.mfaSecret = ''
+        user.fprintEnabled = false
+        user.mfaMethod = ''
+        user.mfaDisablePending = false
+        user.mfaDisableRequestedAt = null
+        user.mfaDisableScheduledFor = null
+        user.tokenFprint = ''
+        await user.save()
+
+        // Clear password hash from approval metadata (security)
+        approval.metadata.newPasswordHash = undefined
+        await approval.save()
+
+        // Create audit log
+        const AuditLog = require('../../models/AuditLog')
+        await AuditLog.create({
+          userId: user._id,
+          eventType: 'admin_approval_approved',
+          fieldChanged: 'password',
+          oldValue: '[REDACTED]',
+          newValue: '[REDACTED]',
+          role: roleSlug,
+          metadata: {
+            approvalId: approval.approvalId,
+            requestType: approval.requestType,
+            approvedBy: approval.approvals.map((a) => String(a.adminId)),
+            tokenVersion: user.tokenVersion,
+            mfaReEnrollmentRequired: true,
+          },
+        })
+
+        return { success: true }
+      }
+
+      default:
+        return { success: false, error: 'Unknown request type' }
+    }
+  } catch (error) {
+    console.error('Error applying approved change:', error)
+    return { success: false, error: error.message }
+  }
+}
+
 module.exports = router
+
+// Export helper function for use in approval route (after router export)
+module.exports.applyApprovedChange = applyApprovedChange

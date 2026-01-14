@@ -9,6 +9,7 @@ function signAccessToken(user) {
     sub: String(user._id || user.id || ''),
     email: String(user.email || ''),
     role: String(user.role && user.role.slug ? user.role.slug : (user.role || '')),
+    tokenVersion: Number(user.tokenVersion || 0), // Include token version for session invalidation
     iat: nowSec,
     exp: expSec,
   }
@@ -16,7 +17,7 @@ function signAccessToken(user) {
   return { token, expiresAtMs: expSec * 1000 }
 }
 
-function requireJwt(req, res, next) {
+async function requireJwt(req, res, next) {
   try {
     const auth = String(req.headers['authorization'] || '')
     const m = auth.match(/^Bearer\s+(.+)$/i)
@@ -24,6 +25,20 @@ function requireJwt(req, res, next) {
     if (!token) return res.status(401).json({ error: { code: 'unauthorized', message: 'Unauthorized: missing token' } })
     const secret = process.env.JWT_SECRET || 'dev_secret_change_me'
     const decoded = jwt.verify(token, secret)
+    
+    // Verify token version matches user's current token version (session invalidation check)
+    const User = require('../models/User')
+    const user = await User.findById(decoded.sub).select('tokenVersion').lean()
+    if (!user) {
+      return res.status(401).json({ error: { code: 'user_not_found', message: 'Unauthorized: user not found' } })
+    }
+    
+    const tokenVersion = Number(decoded.tokenVersion || 0)
+    const currentTokenVersion = Number(user.tokenVersion || 0)
+    if (tokenVersion !== currentTokenVersion) {
+      return res.status(401).json({ error: { code: 'token_invalidated', message: 'Unauthorized: session has been invalidated. Please log in again.' } })
+    }
+    
     req._userId = String(decoded.sub || '')
     req._userEmail = String(decoded.email || '')
     req._userRole = String(decoded.role || '')

@@ -284,4 +284,472 @@ async function sendStaffCredentialsEmail({ to, username, tempPassword, office, r
   }
 }
 
-module.exports = { sendOtp, sendStaffCredentialsEmail }
+/**
+ * Send email change notification
+ * @param {object} options - Notification options
+ * @param {string} options.to - Recipient email
+ * @param {string} options.oldEmail - Old email address
+ * @param {string} options.newEmail - New email address
+ * @param {number} options.gracePeriodHours - Grace period in hours (default: 24)
+ * @param {string} options.revertUrl - URL to revert email change
+ * @param {string} options.type - 'old_email' or 'new_email'
+ */
+async function sendEmailChangeNotification({ to, oldEmail, newEmail, gracePeriodHours = 24, revertUrl, type = 'old_email', subject, from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER }) {
+  const transporter = createTransport()
+  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
+  const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
+  const supportEmail = process.env.SUPPORT_EMAIL || process.env.EMAIL_HOST_USER || 'support@bizclear.com'
+  
+  const defaultSubject = type === 'old_email' 
+    ? `Email Change Requested - ${brandName}`
+    : `Welcome to ${brandName} - Email Change Confirmation`
+  
+  subject = subject || defaultSubject
+
+  const isOldEmail = type === 'old_email'
+  const text = [
+    `Hello,`,
+    '',
+    isOldEmail 
+      ? `We received a request to change the email address associated with your ${brandName} account.`
+      : `Your email address has been updated for your ${brandName} account.`,
+    '',
+    `Old Email: ${oldEmail}`,
+    `New Email: ${newEmail}`,
+    '',
+    isOldEmail
+      ? `You have ${gracePeriodHours} hours to revert this change if you didn't request it.`
+      : `If you didn't request this change, please contact support immediately.`,
+    '',
+    isOldEmail && revertUrl
+      ? `Revert this change: ${revertUrl}`
+      : '',
+    '',
+    `If you have any concerns, please contact support: ${supportEmail}`,
+    '',
+    'Thank you,',
+    brandName
+  ].filter(Boolean).join('\n')
+
+  const html = `
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
+      
+      <!-- Header -->
+      <div style="background:#003a70;padding:32px;text-align:center;">
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">${brandName}</h1>
+      </div>
+
+      <!-- Body -->
+      <div style="padding:40px 32px;">
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">${isOldEmail ? 'Email Change Requested' : 'Email Change Confirmed'}</h2>
+        
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          ${isOldEmail 
+            ? `We received a request to change the email address associated with your <strong>${brandName}</strong> account.`
+            : `Your email address has been successfully updated for your <strong>${brandName}</strong> account.`
+          }
+        </p>
+
+        <div style="background:#f8f9fa;padding:24px;border-radius:8px;border:1px solid #e8e8e8;margin-bottom:24px;">
+          <div style="margin-bottom:12px;">
+            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Old Email</span><br>
+            <span style="color:#1f1f1f;font-size:16px;">${oldEmail}</span>
+          </div>
+          <div>
+            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">New Email</span><br>
+            <span style="color:#003a70;font-size:16px;font-weight:600;">${newEmail}</span>
+          </div>
+        </div>
+
+        ${isOldEmail ? `
+        <div style="background:#fffbe6;border:1px solid #ffe58f;padding:16px;border-radius:4px;margin-bottom:24px;">
+          <p style="margin:0 0 8px;color:#d48806;font-weight:700;font-size:14px;">⏰ Grace Period</p>
+          <p style="margin:0;color:#595959;font-size:14px;line-height:1.5;">
+            You have <strong>${gracePeriodHours} hours</strong> to revert this change if you didn't request it.
+            ${revertUrl ? `<a href="${revertUrl}" style="color:#d48806;text-decoration:underline;font-weight:600;display:block;margin-top:8px;">Revert Email Change</a>` : ''}
+          </p>
+        </div>
+        ` : ''}
+
+        <div style="background:#f0f5ff;border:1px solid #adc6ff;padding:16px;border-radius:4px;margin-bottom:24px;">
+          <p style="margin:0 0 4px;color:#2f54eb;font-weight:700;font-size:14px;">${isOldEmail ? '⚠️' : '✅'} Important</p>
+          <p style="margin:0;color:#595959;font-size:13px;line-height:1.5;">
+            ${isOldEmail 
+              ? 'If you didn\'t request this change, please revert it immediately or contact support.'
+              : 'If you didn\'t request this change, please contact support immediately as your account may be at risk.'
+            }
+          </p>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
+        <p style="margin:0 0 8px;color:#8c8c8c;font-size:12px;">
+          Need help? <a href="mailto:${supportEmail}" style="color:#003a70;text-decoration:none;">Contact Support</a>
+        </p>
+        <p style="margin:16px 0 0;font-size:11px;color:#bfbfbf;">
+          © ${new Date().getFullYear()} ${brandName}. All rights reserved.
+        </p>
+      </div>
+    </div>
+  </div>
+  `
+
+  try {
+    if (!transporter) throw new Error('SMTP not configured')
+    await transporter.sendMail({ from, to, subject, text, html })
+  } catch (err) {
+    console.log('--------------------------------------------------')
+    console.log('⚠️  SMTP FAILED (Email Change Notification) ⚠️')
+    console.log('To:', to)
+    console.log('Type:', type)
+    console.log('Error:', err.message)
+    console.log('--------------------------------------------------')
+  }
+}
+
+/**
+ * Send password change notification
+ * @param {object} options - Notification options
+ * @param {string} options.to - Recipient email
+ * @param {string} options.firstName - User's first name
+ * @param {string} options.lastName - User's last name
+ * @param {Date} options.timestamp - When password was changed
+ */
+async function sendPasswordChangeNotification({ to, firstName, lastName, timestamp, subject, from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER }) {
+  const transporter = createTransport()
+  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
+  const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
+  const supportEmail = process.env.SUPPORT_EMAIL || process.env.EMAIL_HOST_USER || 'support@bizclear.com'
+  
+  subject = subject || `Password Changed - ${brandName}`
+
+  const changeTime = timestamp ? new Date(timestamp).toLocaleString() : new Date().toLocaleString()
+
+  const text = [
+    `Hello ${firstName},`,
+    '',
+    `Your password for ${brandName} has been successfully changed.`,
+    '',
+    `Change Time: ${changeTime}`,
+    '',
+    'If you didn\'t make this change, please contact support immediately.',
+    '',
+    `Support: ${supportEmail}`,
+    '',
+    'Thank you,',
+    brandName
+  ].join('\n')
+
+  const html = `
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
+      
+      <!-- Header -->
+      <div style="background:#003a70;padding:32px;text-align:center;">
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">${brandName}</h1>
+      </div>
+
+      <!-- Body -->
+      <div style="padding:40px 32px;">
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Password Changed Successfully</h2>
+        
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          Hello <strong>${firstName} ${lastName}</strong>,
+        </p>
+
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          Your password for <strong>${brandName}</strong> has been successfully changed.
+        </p>
+
+        <div style="background:#f8f9fa;padding:24px;border-radius:8px;border:1px solid #e8e8e8;margin-bottom:24px;">
+          <div>
+            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Change Time</span><br>
+            <span style="color:#1f1f1f;font-size:16px;">${changeTime}</span>
+          </div>
+        </div>
+
+        <div style="background:#fffbe6;border:1px solid #ffe58f;padding:16px;border-radius:4px;margin-bottom:24px;">
+          <p style="margin:0 0 4px;color:#d48806;font-weight:700;font-size:14px;">⚠️ Security Notice</p>
+          <p style="margin:0;color:#595959;font-size:13px;line-height:1.5;">
+            If you didn't make this change, your account may be at risk. Please contact support immediately.
+          </p>
+        </div>
+
+        <p style="margin:0;color:#595959;font-size:14px;">
+          All active sessions have been invalidated for security. You'll need to log in again with your new password.
+        </p>
+      </div>
+
+      <!-- Footer -->
+      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
+        <p style="margin:0 0 8px;color:#8c8c8c;font-size:12px;">
+          Need help? <a href="mailto:${supportEmail}" style="color:#003a70;text-decoration:none;">Contact Support</a>
+        </p>
+        <p style="margin:16px 0 0;font-size:11px;color:#bfbfbf;">
+          © ${new Date().getFullYear()} ${brandName}. All rights reserved.
+        </p>
+      </div>
+    </div>
+  </div>
+  `
+
+  try {
+    if (!transporter) throw new Error('SMTP not configured')
+    await transporter.sendMail({ from, to, subject, text, html })
+  } catch (err) {
+    console.log('--------------------------------------------------')
+    console.log('⚠️  SMTP FAILED (Password Change Notification) ⚠️')
+    console.log('To:', to)
+    console.log('Error:', err.message)
+    console.log('--------------------------------------------------')
+  }
+}
+
+/**
+ * Send admin alert email
+ * @param {object} options - Alert options
+ * @param {string} options.to - Admin email
+ * @param {string} options.adminName - Admin name
+ * @param {string} options.userId - User ID who attempted change
+ * @param {string} options.userName - User name
+ * @param {string} options.userEmail - User email
+ * @param {string} options.field - Field attempted
+ * @param {string} options.attemptedValue - Value attempted
+ * @param {string} options.roleSlug - User role
+ * @param {Date} options.timestamp - When attempt occurred
+ */
+async function sendAdminAlertEmail({ to, adminName, userId, userName, userEmail, field, attemptedValue, roleSlug, timestamp, subject, from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER }) {
+  const transporter = createTransport()
+  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
+  const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
+  
+  subject = subject || `🚨 Security Alert: Restricted Field Attempt - ${brandName}`
+
+  const attemptTime = timestamp ? new Date(timestamp).toLocaleString() : new Date().toLocaleString()
+
+  const text = [
+    `Hello ${adminName},`,
+    '',
+    'SECURITY ALERT: A staff user attempted to modify a restricted field.',
+    '',
+    `User: ${userName} (${userEmail})`,
+    `Role: ${roleSlug}`,
+    `Field Attempted: ${field}`,
+    `Attempted Value: ${attemptedValue}`,
+    `Time: ${attemptTime}`,
+    '',
+    'Please review this attempt and take appropriate action.',
+    '',
+    `View audit logs: ${appUrl}/admin/audit`,
+    '',
+    brandName
+  ].join('\n')
+
+  const html = `
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
+      
+      <!-- Header -->
+      <div style="background:#ff4d4f;padding:32px;text-align:center;">
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">🚨 Security Alert</h1>
+      </div>
+
+      <!-- Body -->
+      <div style="padding:40px 32px;">
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Restricted Field Attempt</h2>
+        
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          Hello <strong>${adminName}</strong>,
+        </p>
+
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          A staff user has attempted to modify a restricted field. This action has been blocked and logged.
+        </p>
+
+        <div style="background:#fff1f0;border:1px solid #ffccc7;padding:24px;border-radius:8px;margin-bottom:24px;">
+          <div style="margin-bottom:12px;">
+            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">User</span><br>
+            <span style="color:#1f1f1f;font-size:16px;font-weight:600;">${userName}</span><br>
+            <span style="color:#8c8c8c;font-size:14px;">${userEmail}</span>
+          </div>
+          <div style="margin-bottom:12px;">
+            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Role</span><br>
+            <span style="color:#1f1f1f;font-size:16px;">${roleSlug}</span>
+          </div>
+          <div style="margin-bottom:12px;">
+            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Field Attempted</span><br>
+            <span style="color:#ff4d4f;font-size:16px;font-weight:600;">${field}</span>
+          </div>
+          <div style="margin-bottom:12px;">
+            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Attempted Value</span><br>
+            <span style="color:#1f1f1f;font-size:14px;font-family:monospace;word-break:break-all;">${attemptedValue}</span>
+          </div>
+          <div>
+            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Time</span><br>
+            <span style="color:#1f1f1f;font-size:14px;">${attemptTime}</span>
+          </div>
+        </div>
+
+        <a href="${appUrl}/admin/audit" style="display:inline-block;background:#ff4d4f;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:4px;font-weight:600;font-size:16px;">View Audit Logs</a>
+      </div>
+
+      <!-- Footer -->
+      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
+        <p style="margin:0 0 8px;color:#8c8c8c;font-size:12px;">
+          <strong>${brandName}</strong> Security Team
+        </p>
+        <p style="margin:16px 0 0;font-size:11px;color:#bfbfbf;">
+          © ${new Date().getFullYear()} ${brandName}. All rights reserved.
+        </p>
+      </div>
+    </div>
+  </div>
+  `
+
+  try {
+    if (!transporter) throw new Error('SMTP not configured')
+    await transporter.sendMail({ from, to, subject, text, html })
+  } catch (err) {
+    console.log('--------------------------------------------------')
+    console.log('⚠️  SMTP FAILED (Admin Alert Email) ⚠️')
+    console.log('To:', to)
+    console.log('Error:', err.message)
+    console.log('--------------------------------------------------')
+  }
+}
+
+/**
+ * Send approval notification
+ * @param {object} options - Notification options
+ * @param {string} options.to - Admin email
+ * @param {string} options.adminName - Admin name
+ * @param {string} options.approvalId - Approval ID
+ * @param {string} options.status - 'approved' or 'rejected'
+ * @param {string} options.requestType - Type of request
+ * @param {string} options.comment - Approver comment
+ * @param {string} options.approverName - Name of approver
+ * @param {Date} options.timestamp - When approval occurred
+ */
+async function sendApprovalNotification({ to, adminName, approvalId, status, requestType, comment, approverName, timestamp, subject, from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER }) {
+  const transporter = createTransport()
+  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
+  const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
+  
+  const statusText = status === 'approved' ? 'Approved' : 'Rejected'
+  subject = subject || `Approval Request ${statusText} - ${brandName}`
+
+  const approvalTime = timestamp ? new Date(timestamp).toLocaleString() : new Date().toLocaleString()
+
+  const text = [
+    `Hello ${adminName},`,
+    '',
+    `Your approval request has been ${statusText.toLowerCase()}.`,
+    '',
+    `Approval ID: ${approvalId}`,
+    `Request Type: ${requestType}`,
+    `Status: ${statusText}`,
+    `Approved by: ${approverName}`,
+    `Time: ${approvalTime}`,
+    comment ? `Comment: ${comment}` : '',
+    '',
+    status === 'approved' 
+      ? 'Your requested changes have been applied.'
+      : 'Your requested changes have been rejected.',
+    '',
+    `View details: ${appUrl}/admin/approvals/${approvalId}`,
+    '',
+    brandName
+  ].filter(Boolean).join('\n')
+
+  const html = `
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
+      
+      <!-- Header -->
+      <div style="background:${status === 'approved' ? '#52c41a' : '#ff4d4f'};padding:32px;text-align:center;">
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">${status === 'approved' ? '✅' : '❌'} Request ${statusText}</h1>
+      </div>
+
+      <!-- Body -->
+      <div style="padding:40px 32px;">
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Approval Request ${statusText}</h2>
+        
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          Hello <strong>${adminName}</strong>,
+        </p>
+
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          Your approval request has been <strong>${statusText.toLowerCase()}</strong>${status === 'approved' ? ' and your requested changes have been applied.' : '.'}
+        </p>
+
+        <div style="background:#f8f9fa;padding:24px;border-radius:8px;border:1px solid #e8e8e8;margin-bottom:24px;">
+          <div style="margin-bottom:12px;">
+            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Approval ID</span><br>
+            <span style="color:#1f1f1f;font-size:16px;font-family:monospace;">${approvalId}</span>
+          </div>
+          <div style="margin-bottom:12px;">
+            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Request Type</span><br>
+            <span style="color:#1f1f1f;font-size:16px;">${requestType}</span>
+          </div>
+          <div style="margin-bottom:12px;">
+            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Status</span><br>
+            <span style="color:${status === 'approved' ? '#52c41a' : '#ff4d4f'};font-size:16px;font-weight:600;">${statusText}</span>
+          </div>
+          <div style="margin-bottom:12px;">
+            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Approved By</span><br>
+            <span style="color:#1f1f1f;font-size:16px;">${approverName}</span>
+          </div>
+          ${comment ? `
+          <div>
+            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Comment</span><br>
+            <span style="color:#595959;font-size:14px;line-height:1.5;">${comment}</span>
+          </div>
+          ` : ''}
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e8e8e8;">
+            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Time</span><br>
+            <span style="color:#8c8c8c;font-size:14px;">${approvalTime}</span>
+          </div>
+        </div>
+
+        <a href="${appUrl}/admin/approvals/${approvalId}" style="display:inline-block;background:#003a70;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:4px;font-weight:600;font-size:16px;">View Details</a>
+      </div>
+
+      <!-- Footer -->
+      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
+        <p style="margin:0 0 8px;color:#8c8c8c;font-size:12px;">
+          <strong>${brandName}</strong>
+        </p>
+        <p style="margin:16px 0 0;font-size:11px;color:#bfbfbf;">
+          © ${new Date().getFullYear()} ${brandName}. All rights reserved.
+        </p>
+      </div>
+    </div>
+  </div>
+  `
+
+  try {
+    if (!transporter) throw new Error('SMTP not configured')
+    await transporter.sendMail({ from, to, subject, text, html })
+  } catch (err) {
+    console.log('--------------------------------------------------')
+    console.log('⚠️  SMTP FAILED (Approval Notification) ⚠️')
+    console.log('To:', to)
+    console.log('Error:', err.message)
+    console.log('--------------------------------------------------')
+  }
+}
+
+module.exports = { 
+  sendOtp, 
+  sendStaffCredentialsEmail,
+  sendEmailChangeNotification,
+  sendPasswordChangeNotification,
+  sendAdminAlertEmail,
+  sendApprovalNotification,
+}
