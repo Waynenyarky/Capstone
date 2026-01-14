@@ -1,9 +1,10 @@
 import React from 'react'
-import { Button, Alert, Space, Typography, Modal, Steps, Divider, theme, Grid } from 'antd'
-import { SafetyCertificateOutlined, CheckCircleOutlined, CheckCircleFilled, MobileOutlined, AppleOutlined, WindowsOutlined } from '@ant-design/icons'
+import { Button, Alert, Space, Typography, Modal, theme, Grid, Form, Input, Steps } from 'antd'
+import { SafetyCertificateOutlined, CheckCircleOutlined, MobileOutlined } from '@ant-design/icons'
 import useWebAuthn from '../hooks/useWebAuthn.js'
 import { useAuthSession } from '../hooks/index.js'
 import { useNotifier } from '@/shared/notifications.js'
+import { authenticateStart } from '../services/webauthnService.js'
 
 const { Text, Title } = Typography
 
@@ -19,18 +20,126 @@ export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
   const [loading, setLoading] = React.useState(false)
   const [needsRegistration, setNeedsRegistration] = React.useState(false)
   const [guideModalVisible, setGuideModalVisible] = React.useState(false)
+  const [checkingPasskeys, setCheckingPasskeys] = React.useState(false)
+  const [currentEmail, setCurrentEmail] = React.useState('')
+  const [registrationForm] = Form.useForm()
+  
+  // Listen for email changes to check if user has passkeys
+  React.useEffect(() => {
+    if (!form) return
+    
+    let isCancelled = false
+    
+    const checkPasskeys = async () => {
+      // Use currentEmail state which is updated by the polling effect
+      // Normalize email to lowercase for consistent backend matching
+      const email = currentEmail ? String(currentEmail).trim().toLowerCase() : undefined
+      
+      // Only check if we have a valid email
+      if (!email || !email.includes('@')) {
+        // No email - don't show registration option (user can still use userless auth)
+        if (!isCancelled) {
+          setNeedsRegistration(false)
+          setCheckingPasskeys(false)
+        }
+        return
+      }
+      
+      if (!isCancelled) {
+        setCheckingPasskeys(true)
+      }
+      
+      try {
+        // Try to start authentication - if it fails with no_passkeys, show registration
+        // Normalize email before sending to backend
+        const response = await authenticateStart({ email: email.toLowerCase() })
+        // If successful, user has passkeys - hide registration option
+        if (!isCancelled) {
+          console.log('[PasskeySignInOptions] User has passkeys registered for:', email)
+          setNeedsRegistration(false)
+        }
+      } catch (e) {
+        if (isCancelled) return
+        
+        const errorCode = e?.code || 
+                         e?.originalError?.error?.code || 
+                         e?.originalError?.code ||
+                         (e?.originalError?.error && typeof e.originalError.error === 'object' ? e.originalError.error.code : null)
+        
+        const errorMsg = (e?.message || '').toLowerCase()
+        
+        console.log('[PasskeySignInOptions] Passkey check result for', email, ':', {
+          errorCode,
+          message: e?.message,
+          hasPasskeys: errorCode !== 'no_passkeys',
+          fullError: e
+        })
+        
+        // Check for no_passkeys error code or message
+        if (errorCode === 'no_passkeys' || 
+            errorMsg.includes('no passkeys registered') ||
+            errorMsg.includes('no passkey') ||
+            errorMsg.includes('register a passkey first')) {
+          console.log('[PasskeySignInOptions] No passkeys found for', email, '- showing registration option')
+          setNeedsRegistration(true)
+        } else if (errorCode === 'user_not_found') {
+          // User doesn't exist - don't show registration (they need to sign up first)
+          console.log('[PasskeySignInOptions] User not found for', email)
+          setNeedsRegistration(false)
+        } else {
+          // Other errors - if it's a successful response or network error, assume user might have passkeys
+          // Only show registration for explicit no_passkeys errors
+          console.log('[PasskeySignInOptions] Other error for', email, '- not showing registration. Error:', errorCode || e?.message)
+          setNeedsRegistration(false)
+        }
+      } finally {
+        if (!isCancelled) {
+          setCheckingPasskeys(false)
+        }
+      }
+    }
+    
+    // Debounce the check to avoid too many requests
+    const timer = setTimeout(checkPasskeys, 800)
+    return () => {
+      isCancelled = true
+      clearTimeout(timer)
+    }
+  }, [form, currentEmail])
+  
+  // Watch for email field changes by polling (since Ant Design Form doesn't expose onChange easily)
+  // This ensures we re-check when email is entered or changed
+  React.useEffect(() => {
+    if (!form) return
+    
+    const pollEmail = () => {
+      const email = form?.getFieldValue('email') || ''
+      setCurrentEmail(prev => {
+        // Only update if email actually changed
+        if (email !== prev) {
+          return email
+        }
+        return prev
+      })
+    }
+    
+    // Check immediately
+    pollEmail()
+    
+    // Poll every 800ms to detect email changes
+    const interval = setInterval(pollEmail, 800)
+    
+    return () => clearInterval(interval)
+  }, [form])
 
   const handlePasskeyAuth = async () => {
     try {
       setLoading(true)
-      setNeedsRegistration(false)
+      // Don't reset needsRegistration here - let the error handling determine it
 
-      const email = String(form?.getFieldValue('email') || '').trim()
-      if (!email) {
-        const errMsg = 'Enter your email before using a passkey'
-        notifyError(errMsg)
-        return
-      }
+      // Email is optional for passkey authentication
+      // If email is provided, use it; otherwise, pass undefined for userless authentication
+      const email = form?.getFieldValue('email') ? String(form.getFieldValue('email')).trim() : undefined
 
       // Use platform authenticator (Windows Hello, Touch ID, external security keys, etc.)
       // This will prompt for any FIDO2-compatible authenticator
@@ -91,18 +200,43 @@ export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
       }
       
       // Handle no_passkeys error - show registration option instead of error
-      // Check both error code and error message content (check original error message before modification)
+      // Following FIDO2/WebAuthn standard flow: if no passkeys exist, offer registration
       const originalErrorMsg = (e?.message || '').toLowerCase()
       const isNoPasskeysError = errorCode === 'no_passkeys' || 
                                 originalErrorMsg.includes('no passkeys registered') ||
                                 originalErrorMsg.includes('no passkey') ||
+                                originalErrorMsg.includes('no passkeys found') ||
                                 (originalErrorMsg.includes('passkey') && originalErrorMsg.includes('register') && originalErrorMsg.includes('first'))
       
-      if (isNoPasskeysError) {
-        // Show registration option instead of error
-        console.log('[PasskeySignInOptions] No passkeys detected, showing registration option', {
+      // Also check for credential_not_found when no email was provided (userless auth with no matching passkey)
+      const isCredentialNotFound = errorCode === 'credential_not_found' || 
+                                   originalErrorMsg.includes('credential not recognized') ||
+                                   originalErrorMsg.includes('credential not found')
+      
+      // Check if this is a "no passkeys" scenario
+      // This can happen when:
+      // 1. Email provided but user has no passkeys (no_passkeys error) - Standard FIDO2 flow
+      // 2. No email provided and credential not found in any user (userless auth) - Standard FIDO2 flow
+      // 3. 404 status with credential_not_found error
+      const emailProvided = form?.getFieldValue('email') ? String(form.getFieldValue('email')).trim() : undefined
+      const statusCode = e?.status || e?.originalError?.status
+      
+      // Determine if we should show registration option
+      // Per FIDO2 standard: if authentication fails due to no passkeys, offer registration
+      const shouldShowRegistration = isNoPasskeysError || 
+                                     (isCredentialNotFound && !emailProvided) ||
+                                     (statusCode === 404 && (isCredentialNotFound || originalErrorMsg.includes('credential')) && !emailProvided) ||
+                                     (errorCode === 'credential_not_found' && !emailProvided && originalErrorMsg.includes('no passkeys'))
+      
+      if (shouldShowRegistration) {
+        // Show registration option instead of error - this follows FIDO2 standard UX
+        console.log('[PasskeySignInOptions] No passkeys detected, showing registration option (FIDO2 standard flow)', {
           errorCode,
           originalErrorMsg,
+          isNoPasskeysError,
+          isCredentialNotFound,
+          emailProvided,
+          statusCode,
           error: e
         })
         setNeedsRegistration(true)
@@ -111,6 +245,7 @@ export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
       }
       // Handle specific backend error codes
       else if (errorCode === 'credential_not_found') {
+        // If email was provided, this means the passkey doesn't belong to this account
         errMsg = 'The passkey on this device is not registered for this account. Please use a different passkey or register a new one.'
       } else if (errorCode === 'challenge_missing') {
         errMsg = 'Authentication session expired. Please try again.'
@@ -138,9 +273,40 @@ export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
       
       // Check error message content for additional clues
       const errorMsgLower = errMsg.toLowerCase()
+      
+      // Additional check: if we get credential_not_found with no email, it likely means no passkeys exist
+      // This happens in userless mode when the credential doesn't match any user
+      if (isCredentialNotFound && !emailProvided) {
+        console.log('[PasskeySignInOptions] Credential not found in userless mode - showing registration')
+        setNeedsRegistration(true)
+        setLoading(false)
+        return
+      }
+      
+      // If credential not found and no email was provided, this likely means no passkeys exist
+      if ((errorMsgLower.includes('credential not recognized') || 
+           errorMsgLower.includes('credential not found') ||
+           errorMsgLower.includes('no passkeys found')) && 
+          !emailProvided && 
+          !errorMsgLower.includes('no passkeys')) {
+        // This is likely a "no passkeys" scenario in userless mode
+        console.log('[PasskeySignInOptions] No passkeys detected from error message - showing registration')
+        setNeedsRegistration(true)
+        setLoading(false)
+        return
+      }
+      
       if (errorMsgLower.includes('credential not recognized') || 
           (errorMsgLower.includes('credential not found') && !errorMsgLower.includes('no passkeys'))) {
-        errMsg = 'The passkey on this device is not registered for this account. Please use a different passkey or register a new one.'
+        // Only show this error if email was provided (means wrong passkey for this account)
+        if (emailProvided) {
+          errMsg = 'The passkey on this device is not registered for this account. Please use a different passkey or register a new one.'
+        } else {
+          // No email and credential not found - likely no passkeys exist
+          setNeedsRegistration(true)
+          setLoading(false)
+          return
+        }
       } else if (errorMsgLower.includes('not found') && !errorMsgLower.includes('passkey')) {
         if (errorMsgLower.includes('user')) {
           errMsg = 'Account not found. Please check your email and try again.'
@@ -163,40 +329,44 @@ export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
   }
 
   const handleRegister = async () => {
-    const email = String(form?.getFieldValue('email') || '').trim()
-    if (!email) {
-      const errMsg = 'Enter your email before registering a passkey'
-      notifyError(errMsg)
-      return
-    }
-
-    // Show guide modal first
+    // Show guide modal first - user will enter email in the modal
+    // Pre-fill email from login form if available, but allow them to change it
+    const loginFormEmail = form?.getFieldValue('email') ? String(form.getFieldValue('email')).trim() : ''
+    registrationForm.setFieldsValue({ email: loginFormEmail })
     setGuideModalVisible(true)
   }
 
   const handleStartRegistration = async () => {
-    setGuideModalVisible(false)
-    
     try {
-      setLoading(true)
-      setNeedsRegistration(false)
-
-      const email = String(form?.getFieldValue('email') || '').trim()
-      if (!email) {
-        const errMsg = 'Enter your email before registering a passkey'
-        notifyError(errMsg)
+      // Validate email from registration form
+      await registrationForm.validateFields(['email'])
+      const email = registrationForm.getFieldValue('email') ? String(registrationForm.getFieldValue('email')).trim() : undefined
+      
+      if (!email || !email.includes('@')) {
+        notifyError('Please enter a valid email address to register a passkey.')
         return
       }
 
+      setGuideModalVisible(false)
+      setLoading(true)
+      setNeedsRegistration(false)
+
       // Register a new passkey using platform authenticator
-      await register({ email })
+      // Email comes from registration form, not login form
+      // Normalize email to lowercase for consistency
+      const normalizedEmail = email.toLowerCase().trim()
+      await register({ email: normalizedEmail })
       success('Passkey registered successfully!')
+
+      // Update currentEmail state to trigger passkey check refresh
+      setCurrentEmail(normalizedEmail)
       
       // After registration, try to authenticate the user
       // Note: There might be a brief delay for the database to update, so we handle errors gracefully
       try {
-        const res = await authenticateWithPlatform({ email })
-        
+        // Use normalized email from registration form for authentication
+        const res = await authenticateWithPlatform({ email: normalizedEmail })
+
         if (res && typeof res === 'object') {
           const remember = !!form?.getFieldValue('rememberMe')
           login(res, { remember })
@@ -239,7 +409,7 @@ export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
   return (
     <>
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        {needsRegistration && (
+        {needsRegistration && !checkingPasskeys && (
           <Alert
             message="Register Your Passkey"
             description={
@@ -248,10 +418,10 @@ export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
                   You don't have a passkey registered yet. Register one now to enable passwordless sign-in with Windows Hello, Touch ID, Face ID, or a security key.
                 </Text>
                 <Text style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-                  <strong>What to expect:</strong> When you click "Register Passkey", you'll see a step-by-step guide first, then your browser will prompt you to select where to save your passkey.
+                  <strong>What to expect:</strong> When you click "Register Passkey", you'll be asked to enter your email address, then you'll see a step-by-step guide. Your browser will then prompt you to select where to save your passkey.
                 </Text>
                 <Text style={{ fontSize: 12, display: 'block' }}>
-                  After registration, you'll be automatically signed in and can use your passkey for future logins.
+                  After registration, you'll be automatically signed in and can use your passkey for future logins (with or without entering your email).
                 </Text>
               </div>
             }
@@ -267,9 +437,9 @@ export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
           type={needsRegistration ? "primary" : "default"}
           block
           size="large"
-          loading={loading}
-          disabled={loading}
-          icon={<span role="img" aria-label="passkey">🔑</span>}
+          loading={loading || checkingPasskeys}
+          disabled={loading || checkingPasskeys}
+          icon={<SafetyCertificateOutlined />}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -277,11 +447,27 @@ export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
             gap: 8
           }}
         >
-          {loading 
-            ? (needsRegistration ? 'Registering...' : 'Authenticating...')
-            : (needsRegistration ? 'Register Passkey' : 'Sign in with a passkey')
+          {checkingPasskeys 
+            ? 'Checking for passkeys...'
+            : loading 
+              ? (needsRegistration ? 'Registering passkey...' : 'Signing in...')
+              : (needsRegistration ? 'Register Passkey' : 'Sign in with Passkey')
           }
         </Button>
+        
+        {!needsRegistration && !checkingPasskeys && (
+          <Text type="secondary" style={{ fontSize: '12px', textAlign: 'center', display: 'block', marginTop: '8px' }}>
+            {currentEmail 
+              ? 'Use your passkey to sign in quickly and securely'
+              : 'You can sign in with your passkey without entering your email'}
+          </Text>
+        )}
+        
+        {needsRegistration && !checkingPasskeys && (
+          <Text type="secondary" style={{ fontSize: '12px', textAlign: 'center', display: 'block', marginTop: '8px' }}>
+            Register a passkey to enable passwordless sign-in
+          </Text>
+        )}
       </Space>
 
       {/* Registration Guide Modal */}
@@ -293,12 +479,28 @@ export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
           </Space>
         }
         open={guideModalVisible}
-        onCancel={() => setGuideModalVisible(false)}
+        onCancel={() => {
+          setGuideModalVisible(false)
+          registrationForm.resetFields()
+        }}
         footer={[
-          <Button key="cancel" onClick={() => setGuideModalVisible(false)}>
+          <Button 
+            key="cancel" 
+            onClick={() => {
+              setGuideModalVisible(false)
+              registrationForm.resetFields()
+            }}
+            disabled={loading}
+          >
             Cancel
           </Button>,
-          <Button key="start" type="primary" onClick={handleStartRegistration} loading={loading}>
+          <Button 
+            key="start" 
+            type="primary" 
+            onClick={handleStartRegistration} 
+            loading={loading}
+            disabled={loading}
+          >
             Start Registration
           </Button>
         ]}
@@ -310,79 +512,91 @@ export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
           }
         }}
       >
-        <div style={{ padding: '4px 0' }}>
-          <Alert
-            type="info"
-            showIcon
-            message="Before You Begin"
-            description="Ensure your device supports passkeys (Windows Hello, Touch ID, Face ID, or security keys) and you're using a compatible browser."
-            style={{ marginBottom: 12, fontSize: 13 }}
-            size="small"
-          />
-
-          <Title level={5} style={{ marginBottom: 10, fontSize: 15 }}>Quick Guide</Title>
+        <div style={{ padding: '8px 0' }}>
+          <Form
+            form={registrationForm}
+            layout="vertical"
+            requiredMark={false}
+            style={{ marginBottom: 20 }}
+          >
+            <Form.Item
+              name="email"
+              label={<Text strong style={{ fontSize: 14 }}>Email Address</Text>}
+              rules={[
+                { required: true, message: 'Please enter your email address' },
+                { type: 'email', message: 'Please enter a valid email address' }
+              ]}
+              style={{ marginBottom: 0 }}
+            >
+              <Input 
+                placeholder="Enter your email address"
+                size="large"
+                autoComplete="email"
+                disabled={loading}
+              />
+            </Form.Item>
+          </Form>
           
-          <Steps
-            direction="vertical"
-            size="small"
-            items={[
-              {
-                title: <Text strong style={{ fontSize: 13 }}>Device Compatibility</Text>,
-                description: (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    Supported: Windows Hello • Mac Touch ID/Face ID • Mobile biometrics • Security keys
-                  </Text>
-                ),
-                icon: <CheckCircleOutlined style={{ color: token.colorPrimary, fontSize: 16 }} />
-              },
-              {
-                title: <Text strong style={{ fontSize: 13 }}>Start Registration</Text>,
-                description: (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    Click "Start Registration" below. Your browser will prompt you to create a passkey.
-                  </Text>
-                ),
-                icon: <CheckCircleOutlined style={{ color: token.colorPrimary, fontSize: 16 }} />
-              },
-              {
-                title: <Text strong style={{ fontSize: 13 }}>Select Save Location</Text>,
-                description: (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    Choose <strong>This device</strong> (personal) or <strong>Security key</strong> (shared). You can register multiple passkeys later.
-                  </Text>
-                ),
-                icon: <CheckCircleOutlined style={{ color: token.colorPrimary, fontSize: 16 }} />
-              },
-              {
-                title: <Text strong style={{ fontSize: 13 }}>Authenticate</Text>,
-                description: (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    Use your device's biometrics, PIN, or security key to complete registration.
-                  </Text>
-                ),
-                icon: <CheckCircleOutlined style={{ color: token.colorPrimary, fontSize: 16 }} />
-              },
-              {
-                title: <Text strong style={{ fontSize: 13 }}>Done!</Text>,
-                description: (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    You'll be automatically signed in after successful registration.
-                  </Text>
-                ),
-                icon: <CheckCircleFilled style={{ color: '#52c41a', fontSize: 16 }} />
-              }
-            ]}
-          />
+          <div style={{ marginBottom: 16 }}>
+            <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 10, color: token.colorText }}>
+              Quick Steps
+            </Text>
+            <Steps
+              direction="vertical"
+              size="small"
+              items={[
+                {
+                  title: <Text strong style={{ fontSize: 12 }}>Enter Email & Start</Text>,
+                  description: (
+                    <Text type="secondary" style={{ fontSize: 11, lineHeight: 1.4 }}>
+                      Enter your email above and click "Start Registration". Your browser will prompt you to create a passkey.
+                    </Text>
+                  ),
+                  status: 'process',
+                  icon: <SafetyCertificateOutlined style={{ color: token.colorPrimary, fontSize: 14 }} />
+                },
+                {
+                  title: <Text strong style={{ fontSize: 12 }}>Choose Authenticator</Text>,
+                  description: (
+                    <Text type="secondary" style={{ fontSize: 11, lineHeight: 1.4 }}>
+                      Select <strong>This device</strong> (biometrics) or <strong>Security key</strong> (USB/NFC).
+                    </Text>
+                  ),
+                  status: 'wait'
+                },
+                {
+                  title: <Text strong style={{ fontSize: 12 }}>Complete & Sign In</Text>,
+                  description: (
+                    <Text type="secondary" style={{ fontSize: 11, lineHeight: 1.4 }}>
+                      Authenticate with your device's biometrics or PIN. You'll be signed in automatically.
+                    </Text>
+                  ),
+                  status: 'wait'
+                }
+              ]}
+            />
+          </div>
 
-          <Divider style={{ margin: '12px 0' }} />
-
-          <Alert
-            type="success"
-            showIcon={false}
-            message={<Text strong style={{ fontSize: 13 }}>Benefits: No passwords • More secure • Works across devices • Fast authentication</Text>}
-            style={{ background: '#f6ffed', border: '1px solid #b7eb8f', padding: '8px 12px', margin: 0 }}
-            size="small"
-          />
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${token.colorBorderSecondary}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <MobileOutlined style={{ fontSize: 15, color: token.colorPrimary }} />
+              <Text strong style={{ fontSize: 13, color: token.colorText }}>
+                ID Melon Authenticator
+              </Text>
+            </div>
+            
+            <Space direction="vertical" size={6} style={{ width: '100%', marginBottom: 10 }}>
+              <Text type="secondary" style={{ fontSize: 11, lineHeight: 1.5, display: 'block' }}>
+                <strong>1. Install:</strong> Download from <a href="https://play.google.com/store/apps/details?id=com.idmelon.authenticator" target="_blank" rel="noopener noreferrer" style={{ color: token.colorPrimary }}>Google Play</a> or <a href="https://apps.apple.com/la/app/idmelon-authenticator/id1511376376" target="_blank" rel="noopener noreferrer" style={{ color: token.colorPrimary }}>App Store</a>.
+              </Text>
+              <Text type="secondary" style={{ fontSize: 11, lineHeight: 1.5, display: 'block' }}>
+                <strong>2. Optional Pairing:</strong> Install <a href="https://www.idmelon.com" target="_blank" rel="noopener noreferrer" style={{ color: token.colorPrimary }}>Pairing Tool</a> for Bluetooth authentication (not required for QR code).
+              </Text>
+              <Text type="secondary" style={{ fontSize: 11, lineHeight: 1.5, display: 'block' }}>
+                <strong>3. Use:</strong> On login page, click "Use a phone or tablet" and scan QR code with ID Melon app to register or sign in.
+              </Text>
+            </Space>
+          </div>
         </div>
       </Modal>
     </>

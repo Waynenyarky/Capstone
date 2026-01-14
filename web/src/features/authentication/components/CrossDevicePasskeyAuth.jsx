@@ -30,13 +30,9 @@ export default function CrossDevicePasskeyAuth({ form, onAuthenticated, onCancel
       setSessionId(null)
       // Don't reset allowRegistration here - preserve it if we're in registration mode
 
-      const email = String(form?.getFieldValue('email') || '').trim()
-      if (!email) {
-        const errMsg = 'Enter your email before using a passkey'
-        setError(errMsg)
-        notifyError(errMsg)
-        return
-      }
+      // Email is optional for passkey authentication
+      // If email is provided, use it; otherwise, pass undefined for userless authentication
+      const email = form?.getFieldValue('email') ? String(form.getFieldValue('email')).trim() : undefined
 
       // Start cross-device authentication (or registration if no passkeys)
       const result = await authenticateCrossDevice({ email, allowRegistration: allowReg })
@@ -175,21 +171,50 @@ export default function CrossDevicePasskeyAuth({ form, onAuthenticated, onCancel
           stopPolling()
           // Extract error message from backend error format
           let errorMsg = 'Authentication failed. Please try again.'
+          
+          // Try multiple ways to extract error message
           if (status?.error) {
             if (typeof status.error === 'string') {
               errorMsg = status.error
             } else if (status.error?.message) {
               errorMsg = status.error.message
             } else if (status.error?.error) {
-              errorMsg = typeof status.error.error === 'string' 
-                ? status.error.error 
-                : status.error.error?.message || errorMsg
+              if (typeof status.error.error === 'string') {
+                errorMsg = status.error.error
+              } else if (status.error.error?.message) {
+                errorMsg = status.error.error.message
+              } else if (status.error.error?.code) {
+                // Map error codes to user-friendly messages
+                const codeMap = {
+                  'webauthn_verification_failed': 'Passkey verification failed. Please try scanning the QR code again.',
+                  'webauthn_verification_exception': 'Registration failed. Please try scanning the QR code again.',
+                  'webauthn_auth_failed': 'Authentication failed. Please try scanning the QR code again.',
+                  'credential_not_found': 'Passkey not found. Please register a passkey first.',
+                  'session_not_found': 'Session expired. Please scan the QR code again.',
+                  'session_expired': 'Session expired. Please scan the QR code again.',
+                  'challenge_missing': 'Session error. Please scan the QR code again.',
+                  'webauthn_invalid_publickey': 'Invalid passkey format. Please try again.',
+                }
+                errorMsg = codeMap[status.error.error.code] || `Authentication error: ${status.error.error.code}`
+              }
             }
           }
+          
+          // Also check for error at top level
+          if (errorMsg === 'Authentication failed. Please try again.' && status?.message) {
+            errorMsg = status.message
+          }
+          
           // Ensure we never show "Something went wrong"
           const finalErrorMsg = errorMsg.toLowerCase().includes('something went wrong') 
-            ? 'Authentication failed. Please try again.' 
+            ? 'Authentication failed. Please try scanning the QR code again.' 
             : errorMsg
+          
+          console.error('[CrossDevice] Backend returned error:', {
+            status,
+            extractedError: finalErrorMsg
+          })
+          
           setError(finalErrorMsg)
           notifyError(finalErrorMsg)
           return

@@ -61,7 +61,7 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 const emailSchema = Joi.object({ 
-  email: Joi.string().email().required(),
+  email: Joi.string().email().optional(),
   allowRegistration: Joi.boolean().optional()
 })
 
@@ -69,8 +69,20 @@ const emailSchema = Joi.object({
 router.post('/webauthn/register/start', validateBody(emailSchema), async (req, res) => {
   try {
       const { email } = req.body || {}
-      const user = await User.findOne({ email }).populate('role')
-      if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
+      
+      // Email is optional but recommended for registration
+      // If not provided, we can't register (need to know which user account)
+      if (!email) {
+        return respond.error(res, 400, 'email_required', 'Email is required for passkey registration. Please provide your email address.')
+      }
+      
+      // Normalize email to lowercase for consistent lookup
+      const normalizedEmail = String(email).toLowerCase().trim()
+      const user = await User.findOne({ email: normalizedEmail }).populate('role')
+      if (!user) {
+         console.log('[WebAuthn] User not found for email:', normalizedEmail)
+         return respond.error(res, 404, 'user_not_found', 'User not found')
+      }
 
       // Convert user ID to Uint8Array (simplewebauthn v13 expects Uint8Array or Buffer)
       // Use the user's MongoDB _id as bytes
@@ -81,7 +93,15 @@ router.post('/webauthn/register/start', validateBody(emailSchema), async (req, r
       
       // Determine rpID from origin or use environment variable
       // rpID should be the domain (e.g., 'localhost' or 'example.com') without protocol/port
+      // IMPORTANT: This must match the rpID used during authentication
       const rpID = process.env.WEBAUTHN_RPID || 'localhost'
+      
+      console.log('[WebAuthn] Registration start:', {
+         email: normalizedEmail,
+         rpID: rpID,
+         rpName: rpName,
+         existingCredentialsCount: (user.webauthnCredentials || []).length
+      })
 
       // Prepare excludeCredentials - convert credId from base64url to Buffer
       const excludeCredentials = (user.webauthnCredentials || []).map(c => {
@@ -164,7 +184,8 @@ router.post('/webauthn/register/start', validateBody(emailSchema), async (req, r
         challengeToStore = Buffer.from(challengeToStore)
       }
       
-      registrationChallenges.set(String(email).toLowerCase(), challengeToStore)
+      // Store challenge with normalized email
+      registrationChallenges.set(normalizedEmail, challengeToStore)
 
       // Ensure challenge and user.id are strings for JSON serialization
       // simplewebauthn should return them as base64url strings, but we'll ensure they're strings
@@ -200,7 +221,7 @@ router.post('/webauthn/register/start', validateBody(emailSchema), async (req, r
 })
 
 const registrationCompleteSchema = Joi.object({
-   email: Joi.string().email().required(),
+   email: Joi.string().email().optional(),
    credential: Joi.object().required(),
 })
 
@@ -208,8 +229,19 @@ const registrationCompleteSchema = Joi.object({
 router.post('/webauthn/register/complete', validateBody(registrationCompleteSchema), async (req, res) => {
   try {
       const { email, credential } = req.body || {}
-      const storedChallenge = registrationChallenges.get(String(email).toLowerCase())
-      if (!storedChallenge) return respond.error(res, 400, 'challenge_missing', 'No registration in progress')
+      
+      // Email is required for registration completion to identify the user
+      if (!email) {
+        return respond.error(res, 400, 'email_required', 'Email is required to complete passkey registration.')
+      }
+      
+      // Normalize email to lowercase for consistent lookup
+      const normalizedEmail = String(email).toLowerCase().trim()
+      const storedChallenge = registrationChallenges.get(normalizedEmail)
+      if (!storedChallenge) {
+        console.log('[WebAuthn] No registration challenge found for:', normalizedEmail)
+        return respond.error(res, 400, 'challenge_missing', 'No registration in progress')
+      }
 
       // Ensure challenge is in the correct format for verification
       // In simplewebauthn v13, verifyRegistrationResponse expects the challenge as a base64url string
@@ -399,8 +431,12 @@ router.post('/webauthn/register/complete', validateBody(registrationCompleteSche
         transports: regCredential.transports || []
       })
 
-      const user = await User.findOne({ email })
-      if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
+      // Use normalized email for user lookup
+      const user = await User.findOne({ email: normalizedEmail })
+      if (!user) {
+        console.log('[WebAuthn] User not found for email:', normalizedEmail)
+        return respond.error(res, 404, 'user_not_found', 'User not found')
+      }
 
       user.webauthnCredentials = user.webauthnCredentials || []
       
@@ -457,7 +493,7 @@ router.post('/webauthn/register/complete', validateBody(registrationCompleteSche
       await user.save()
       
       // Verify it was saved correctly
-      const savedUser = await User.findOne({ email })
+      const savedUser = await User.findOne({ email: normalizedEmail })
       const savedCred = savedUser.webauthnCredentials.find(c => c.credId === credID)
       if (savedCred && savedCred.publicKey.includes(',') && /^\d+(,\d+)*$/.test(savedCred.publicKey)) {
         console.error('[WebAuthn] CRITICAL: publicKey was saved as comma-separated despite conversion!', {
@@ -468,7 +504,8 @@ router.post('/webauthn/register/complete', validateBody(registrationCompleteSche
         await savedUser.save()
       }
 
-      registrationChallenges.delete(String(email).toLowerCase())
+      // Delete challenge using normalized email
+      registrationChallenges.delete(normalizedEmail)
       return res.json({ registered: true })
    } catch (err) {
       console.error('[WebAuthn] Register complete error:', err)
@@ -482,37 +519,65 @@ router.post('/webauthn/register/complete', validateBody(registrationCompleteSche
    }
 })
 
-const authStartSchema = Joi.object({ email: Joi.string().email().required() })
+const authStartSchema = Joi.object({ email: Joi.string().email().optional() })
 
 // POST /api/auth/webauthn/authenticate/start
 router.post('/webauthn/authenticate/start', validateBody(authStartSchema), async (req, res) => {
    try {
       const { email } = req.body || {}
-      const user = await User.findOne({ email })
-      if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
+      
+      // If email is provided, use it to find user and filter credentials
+      let allowCredentials = []
+      if (email) {
+         // Normalize email to lowercase for consistent lookup
+         const normalizedEmail = String(email).toLowerCase().trim()
+         const user = await User.findOne({ email: normalizedEmail })
+         if (!user) {
+            console.log('[WebAuthn] User not found for email:', normalizedEmail)
+            return respond.error(res, 404, 'user_not_found', 'User not found')
+         }
 
-      // Check if user has passkeys registered
-      const hasPasskeys = user.webauthnCredentials && user.webauthnCredentials.length > 0
-      if (!hasPasskeys) {
-         return respond.error(res, 400, 'no_passkeys', 'No passkeys registered for this account. Please register a passkey first.')
+         // Check if user has passkeys registered
+         const hasPasskeys = user.webauthnCredentials && user.webauthnCredentials.length > 0
+         console.log('[WebAuthn] Checking passkeys for:', normalizedEmail, '- Has passkeys:', hasPasskeys, '- Count:', user.webauthnCredentials?.length || 0)
+         
+         if (!hasPasskeys) {
+            console.log('[WebAuthn] No passkeys found for:', normalizedEmail)
+            return respond.error(res, 400, 'no_passkeys', 'No passkeys registered for this account. Please register a passkey first.')
+         }
+
+         // Build allowCredentials from user's registered passkeys
+         allowCredentials = (user.webauthnCredentials || []).map(c => {
+            // Ensure credId is a string (base64url format)
+            const credId = String(c.credId || '').trim()
+            if (!credId) return null
+            
+            return {
+               id: credId, // Pass as string - simplewebauthn will handle conversion internally
+               type: 'public-key',
+               transports: c.transports || []
+            }
+         }).filter(Boolean) // Remove any null entries
       }
+      // If email is not provided, allowCredentials will be empty array
+      // This enables userless/conditional UI authentication where the browser
+      // will prompt for any available passkey
 
-      const allowCredentials = (user.webauthnCredentials || []).map(c => {
-        // Ensure credId is a string (base64url format)
-        const credId = String(c.credId || '').trim()
-        if (!credId) return null
-        
-        return {
-          id: credId, // Pass as string - simplewebauthn will handle conversion internally
-          type: 'public-key',
-          transports: c.transports || []
-        }
-      }).filter(Boolean) // Remove any null entries
-
+      // Ensure rpID matches what was used during registration
+      // This is critical - if rpID doesn't match, the browser won't find the passkey
+      const rpID = process.env.WEBAUTHN_RPID || 'localhost'
+      
       const options = await generateAuthenticationOptions({
+         rpID: rpID, // Explicitly set rpID to match registration
          timeout: 60000,
-         allowCredentials: allowCredentials,
+         allowCredentials: allowCredentials.length > 0 ? allowCredentials : undefined, // undefined enables userless auth
          userVerification: 'preferred',
+      })
+      
+      console.log('[WebAuthn] Authentication options generated:', {
+         rpID: options.rpID,
+         allowCredentialsCount: allowCredentials.length,
+         hasEmail: !!email
       })
 
       // Store challenge as base64url string (consistent with registration)
@@ -530,7 +595,9 @@ router.post('/webauthn/authenticate/start', validateBody(authStartSchema), async
       }
       // If it's already a string, use it as-is (should be base64url)
       
-      authenticationChallenges.set(String(email).toLowerCase(), challengeToStore)
+      // Store challenge with email if provided, otherwise use a generic key for userless auth
+      const challengeKey = email ? String(email).toLowerCase() : 'userless'
+      authenticationChallenges.set(challengeKey, challengeToStore)
       return res.json({ publicKey: options })
    } catch (err) {
       console.error('webauthn authenticate start error', err)
@@ -539,7 +606,7 @@ router.post('/webauthn/authenticate/start', validateBody(authStartSchema), async
 })
 
 const authCompleteSchema = Joi.object({
-   email: Joi.string().email().required(),
+   email: Joi.string().email().optional(),
    credential: Joi.object().required(),
 })
 
@@ -564,9 +631,11 @@ router.post('/webauthn/authenticate/complete', validateBody(authCompleteSchema),
         return respond.error(res, 400, 'invalid_credential', 'Credential response is missing')
       }
       
-      let expectedChallenge = authenticationChallenges.get(String(email).toLowerCase())
+      // Get challenge - use email if provided, otherwise use 'userless' key
+      const challengeKey = email ? String(email).toLowerCase() : 'userless'
+      let expectedChallenge = authenticationChallenges.get(challengeKey)
       if (!expectedChallenge) {
-        console.error('[WebAuthn] No challenge found for email:', email)
+        console.error('[WebAuthn] No challenge found for:', challengeKey)
         return respond.error(res, 400, 'challenge_missing', 'No authentication in progress')
       }
 
@@ -584,42 +653,81 @@ router.post('/webauthn/authenticate/complete', validateBody(authCompleteSchema),
       }
       // If it's already a string, use it as-is (should be base64url)
 
-      // Fetch user fresh from database to ensure we have current data
-      const user = await User.findOne({ email }).populate('role')
-      if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
-
       // Normalize credential IDs for comparison (both stored and received should be base64url strings)
       const receivedCredId = String(credential.id || credential.rawId || '').trim()
       const receivedRawId = String(credential.rawId || credential.id || '').trim()
       
-      // Find credential record - compare both id and rawId, handle base64url padding variations
-      // Make sure we're working with the actual array from the user object
-      const userCreds = user.webauthnCredentials || []
-      const credRecord = userCreds.find(c => {
-        if (!c || !c.credId) return false
-        const storedCredId = String(c.credId).trim()
-        
-        // Direct comparison
-        if (storedCredId === receivedCredId || storedCredId === receivedRawId) return true
-        
-        // Compare without padding (base64url padding can vary)
-        const normalizedStored = storedCredId.replace(/=+$/, '')
-        const normalizedReceived = receivedCredId.replace(/=+$/, '')
-        const normalizedRaw = receivedRawId.replace(/=+$/, '')
-        
-        if (normalizedStored === normalizedReceived || normalizedStored === normalizedRaw) return true
-        
-        return false
-      })
+      // Find user and credential record
+      let user = null
+      let credRecord = null
       
-      if (!credRecord) {
-        console.error('[WebAuthn] Credential not found:', {
-          email,
-          receivedCredId: receivedCredId.substring(0, 30) + '...',
-          receivedRawId: receivedRawId.substring(0, 30) + '...',
-          availableCredIds: (user.webauthnCredentials || []).map(c => c.credId?.substring(0, 30) + '...')
-        })
-        return respond.error(res, 404, 'credential_not_found', 'Credential not recognized')
+      if (email) {
+         // If email is provided, find user by email
+         user = await User.findOne({ email }).populate('role')
+         if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
+         
+         // Find credential in user's registered credentials
+         const userCreds = user.webauthnCredentials || []
+         credRecord = userCreds.find(c => {
+            if (!c || !c.credId) return false
+            const storedCredId = String(c.credId).trim()
+            
+            // Direct comparison
+            if (storedCredId === receivedCredId || storedCredId === receivedRawId) return true
+            
+            // Compare without padding (base64url padding can vary)
+            const normalizedStored = storedCredId.replace(/=+$/, '')
+            const normalizedReceived = receivedCredId.replace(/=+$/, '')
+            const normalizedRaw = receivedRawId.replace(/=+$/, '')
+            
+            if (normalizedStored === normalizedReceived || normalizedStored === normalizedRaw) return true
+            
+            return false
+         })
+      } else {
+         // Userless authentication: find user by credential ID
+         // Search all users for a matching credential
+         const allUsers = await User.find({ 'webauthnCredentials.credId': { $exists: true } }).populate('role')
+         
+         for (const u of allUsers) {
+            const userCreds = u.webauthnCredentials || []
+            const found = userCreds.find(c => {
+               if (!c || !c.credId) return false
+               const storedCredId = String(c.credId).trim()
+               
+               // Direct comparison
+               if (storedCredId === receivedCredId || storedCredId === receivedRawId) return true
+               
+               // Compare without padding
+               const normalizedStored = storedCredId.replace(/=+$/, '')
+               const normalizedReceived = receivedCredId.replace(/=+$/, '')
+               const normalizedRaw = receivedRawId.replace(/=+$/, '')
+               
+               if (normalizedStored === normalizedReceived || normalizedStored === normalizedRaw) return true
+               
+               return false
+            })
+            
+            if (found) {
+               user = u
+               credRecord = found
+               break
+            }
+         }
+      }
+      
+      if (!user || !credRecord) {
+         console.error('[WebAuthn] Credential not found:', {
+            email: email || 'userless',
+            receivedCredId: receivedCredId.substring(0, 30) + '...',
+            receivedRawId: receivedRawId.substring(0, 30) + '...',
+         })
+         // If no email was provided (userless auth), this might mean no passkeys are registered
+         // Return a more helpful error code
+         if (!email) {
+            return respond.error(res, 400, 'no_passkeys', 'No passkeys found. Please register a passkey first.')
+         }
+         return respond.error(res, 404, 'credential_not_found', 'Credential not recognized')
       }
 
       // Validate credential record has required fields
@@ -1062,19 +1170,48 @@ router.post('/webauthn/cross-device/start', validateBody(emailSchema), async (re
 
     const hasPasskeys = user.webauthnCredentials && user.webauthnCredentials.length > 0
     
-    // If no passkeys and registration not allowed, return error
-    if (!hasPasskeys && !allowRegistration) {
+    // Always allow both registration and authentication for ID Melon compatibility
+    // ID Melon can have its own account setup, so we need to support both flows
+    // The mobile page will try authentication first, then fall back to registration if needed
+    const shouldAllowRegistration = allowRegistration || !hasPasskeys
+    
+    // If no passkeys and registration not allowed, return error (shouldn't happen now, but keep for safety)
+    if (!hasPasskeys && !shouldAllowRegistration) {
       return respond.error(res, 400, 'no_passkeys', 'No passkeys registered for this user')
     }
 
     // Generate session ID
     const sessionId = require('crypto').randomBytes(32).toString('base64url')
     
-    let challenge
-    let sessionType = 'authenticate' // 'authenticate' or 'register'
+    // Generate BOTH registration and authentication challenges
+    // This allows ID Melon to choose whether to register or authenticate
+    // Similar to how Google Lens works - it can do either based on what's available
+    let regChallenge = null
+    let authChallenge = null
+    let sessionType = hasPasskeys ? 'authenticate' : 'register' // Default type, but both are available
     
+    // Always generate registration challenge (for ID Melon that doesn't have account yet)
+    const userIdString = String(user._id)
+    const userId = new Uint8Array(Buffer.from(userIdString, 'utf8'))
+    const rpName = String(process.env.WEBAUTHN_RP_NAME || process.env.DEFAULT_FROM_EMAIL || 'Capstone').replace(/<.*?>/g, '').trim()
+    const rpID = process.env.WEBAUTHN_RPID || 'localhost'
+    
+    const regOptions = await generateRegistrationOptions({
+      rpName,
+      rpID: rpID,
+      userID: userId,
+      userName: user.email,
+      timeout: 60000,
+      attestationType: 'none',
+      authenticatorSelection: { 
+        userVerification: 'preferred',
+        residentKey: 'preferred'
+      },
+    })
+    regChallenge = regOptions.challenge
+    
+    // Generate authentication challenge if user has passkeys (for ID Melon that already has account)
     if (hasPasskeys) {
-      // Generate authentication options for the session
       const allowCredentials = (user.webauthnCredentials || []).map(c => {
         // Ensure credId is a string (base64url format)
         const credId = String(c.credId || '').trim()
@@ -1087,34 +1224,26 @@ router.post('/webauthn/cross-device/start', validateBody(emailSchema), async (re
         }
       }).filter(Boolean) // Remove any null entries
 
-      const options = await generateAuthenticationOptions({
+      const authOptions = await generateAuthenticationOptions({
         timeout: 60000,
         allowCredentials: allowCredentials,
         userVerification: 'preferred',
       })
-      challenge = options.challenge
-    } else {
-      // Generate registration options for first-time setup
-      const userIdString = String(user._id)
-      const userId = new Uint8Array(Buffer.from(userIdString, 'utf8'))
-      const rpName = String(process.env.WEBAUTHN_RP_NAME || process.env.DEFAULT_FROM_EMAIL || 'Capstone').replace(/<.*?>/g, '').trim()
-      const rpID = process.env.WEBAUTHN_RPID || 'localhost'
-      
-      const regOptions = await generateRegistrationOptions({
-        rpName,
-        rpID: rpID,
-        userID: userId,
-        userName: user.email,
-        timeout: 60000,
-        attestationType: 'none',
-        authenticatorSelection: { 
-          userVerification: 'preferred',
-          residentKey: 'preferred'
-        },
-      })
-      challenge = regOptions.challenge
-      sessionType = 'register'
+      authChallenge = authOptions.challenge
     }
+    
+    // Use authentication challenge if available, otherwise use registration challenge
+    // This is the default, but both are stored in session for flexibility
+    const challenge = authChallenge || regChallenge
+    
+    console.log('[WebAuthn] Cross-device session created (ID Melon compatible - supports both register and authenticate):', {
+      email: user.email,
+      sessionId: sessionId.substring(0, 20) + '...',
+      hasPasskeys,
+      hasRegChallenge: !!regChallenge,
+      hasAuthChallenge: !!authChallenge,
+      defaultType: sessionType
+    })
 
     // Generate QR code URL - points to mobile authentication page
     // For cross-device authentication, we need a URL accessible from mobile devices
@@ -1142,29 +1271,33 @@ router.post('/webauthn/cross-device/start', validateBody(emailSchema), async (re
     }
 
     // Store session with origin/baseUrl for verification later
+    // Store both challenges to support ID Melon's ability to register or authenticate
     crossDeviceSessions.set(sessionId, {
       email: String(email).toLowerCase(),
-      challenge: challenge,
+      challenge: challenge, // Default challenge (auth if available, otherwise reg)
+      regChallenge: regChallenge, // Registration challenge (always available)
+      authChallenge: authChallenge, // Authentication challenge (if user has passkeys)
       authenticated: false,
       user: null,
       createdAt: Date.now(),
-      type: sessionType, // Track if this is registration or authentication
+      type: sessionType, // Default type, but both are supported
+      supportsBoth: true, // Flag to indicate both registration and authentication are supported
       origin: baseUrl, // Store origin used in QR code for verification
       baseUrl: baseUrl, // Also store as baseUrl for compatibility
     })
     
     // Get RP ID for pairing information
-    let rpID = process.env.WEBAUTHN_RPID
-    if (!rpID) {
+    let finalRpID = rpIDValue
+    if (!finalRpID || finalRpID === 'localhost') {
       try {
         const url = new URL(baseUrl)
-        rpID = url.hostname
+        finalRpID = url.hostname
         // Remove port if present (RP ID should be just domain)
-        if (rpID.includes(':')) {
-          rpID = rpID.split(':')[0]
+        if (finalRpID.includes(':')) {
+          finalRpID = finalRpID.split(':')[0]
         }
       } catch (e) {
-        rpID = 'localhost'
+        finalRpID = 'localhost'
       }
     }
     
@@ -1182,7 +1315,7 @@ router.post('/webauthn/cross-device/start', validateBody(emailSchema), async (re
     // Create FIDO2 cross-device pairing data (Microsoft Authenticator & ID Melon compatible)
     // Microsoft Authenticator and other FIDO2 authenticators expect pairing fields in URL query parameters
     // This follows the standard FIDO2 cross-device authentication protocol
-    const rpName = String(process.env.WEBAUTHN_RP_NAME || process.env.DEFAULT_FROM_EMAIL || 'Capstone').replace(/<.*?>/g, '').trim()
+    const finalRpName = rpNameValue
     
     // Create FIDO2 pairing data for Microsoft Authenticator and other authenticators
     // Microsoft Authenticator supports standard FIDO2 cross-device authentication format
@@ -1206,13 +1339,15 @@ router.post('/webauthn/cross-device/start', validateBody(emailSchema), async (re
     const pairingUrl = new URL(`${baseUrl}/auth/passkey-mobile`)
     
     // Add all pairing fields as URL query parameters (Microsoft Authenticator & FIDO2 compatible)
+    // Use the default challenge (auth if available, otherwise reg)
     pairingUrl.searchParams.set('challenge', challengeString)
     pairingUrl.searchParams.set('rpId', rpID)
     pairingUrl.searchParams.set('rp_id', rpID) // Include both naming conventions for compatibility
     pairingUrl.searchParams.set('sessionId', sessionId)
     pairingUrl.searchParams.set('session_id', sessionId) // Include both naming conventions
     pairingUrl.searchParams.set('session', sessionId) // Also include 'session' for browser compatibility
-    pairingUrl.searchParams.set('type', sessionType)
+    pairingUrl.searchParams.set('type', sessionType) // Default type, but both are supported
+    pairingUrl.searchParams.set('supportsBoth', 'true') // Flag for ID Melon - indicates both register and authenticate are available
     pairingUrl.searchParams.set('rpName', rpName)
     pairingUrl.searchParams.set('rp_name', rpName) // Include both naming conventions
     pairingUrl.searchParams.set('protocol', 'FIDO2')
@@ -1258,10 +1393,11 @@ router.post('/webauthn/cross-device/start', validateBody(emailSchema), async (re
     console.log(`[WebAuthn] QR code format: HTTP URL with query parameters (Microsoft Authenticator & FIDO2 compatible)`)
     console.log(`[WebAuthn] Pairing fields in URL:`, {
       challenge: challengeString.substring(0, 30) + '... (length: ' + challengeString.length + ')',
-      rpId: rpID,
+      rpId: finalRpID,
       sessionId: sessionId.substring(0, 30) + '... (length: ' + sessionId.length + ')',
       type: sessionType,
-      rpName: rpName
+      rpName: finalRpName,
+      supportsBoth: true
     })
     console.log(`[WebAuthn] QR code URL (Microsoft Authenticator compatible):`, pairingUrl.toString())
 
@@ -1282,7 +1418,7 @@ router.post('/webauthn/cross-device/start', validateBody(emailSchema), async (re
 // POST /api/auth/webauthn/cross-device/auth-options
 router.post('/webauthn/cross-device/auth-options', async (req, res) => {
   try {
-    const { sessionId } = req.body || {}
+    const { sessionId, type } = req.body || {}
     const session = crossDeviceSessions.get(sessionId)
 
     if (!session) {
@@ -1298,12 +1434,19 @@ router.post('/webauthn/cross-device/auth-options', async (req, res) => {
     const user = await User.findOne({ email: session.email })
     if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
 
-    // Check if this is a registration session
-    if (session.type === 'register') {
+    // Check if this is a registration request or if we should try registration
+    // ID Melon can request either registration or authentication
+    // If supportsBoth is true, we can handle either based on the request
+    // Client can specify type in request body, or we use session default
+    const requestType = type || session.type // Allow client to specify type
+    
+    // If client requests registration, or if session is registration type and no type specified, use registration
+    if (requestType === 'register' || (session.type === 'register' && !type)) {
       // Return registration options
       // IMPORTANT: Reuse the challenge from QR code generation to ensure consistency
       // ID Melon and other authenticators use the challenge from the QR code URL
-      const existingChallenge = session.challenge
+      // Use regChallenge if available (for ID Melon registration), otherwise fall back to session challenge
+      const existingChallenge = session.regChallenge || session.challenge
       
       const userIdString = String(user._id)
       const userId = new Uint8Array(Buffer.from(userIdString, 'utf8'))
@@ -1371,7 +1514,42 @@ router.post('/webauthn/cross-device/auth-options', async (req, res) => {
       // Return authentication options
       // IMPORTANT: Reuse the challenge from QR code generation to ensure consistency
       // ID Melon and other authenticators use the challenge from the QR code URL
-      const existingChallenge = session.challenge
+      // Use authChallenge if available (for ID Melon authentication), otherwise fall back to session challenge
+      const existingChallenge = session.authChallenge || session.challenge
+      
+      // If no auth challenge and user has passkeys, this shouldn't happen, but handle gracefully
+      if (!existingChallenge && user.webauthnCredentials && user.webauthnCredentials.length > 0) {
+        console.warn('[WebAuthn] No auth challenge in session, generating new one')
+        // Generate a new auth challenge as fallback
+        const allowCredentials = (user.webauthnCredentials || []).map(c => {
+          const credId = String(c.credId || '').trim()
+          if (!credId) return null
+          return {
+            id: credId,
+            type: 'public-key',
+            transports: c.transports || []
+          }
+        }).filter(Boolean)
+        
+        const authOptions = await generateAuthenticationOptions({
+          timeout: 60000,
+          allowCredentials: allowCredentials,
+          userVerification: 'preferred',
+        })
+        session.authChallenge = authOptions.challenge
+        session.challenge = authOptions.challenge
+        const challengeBuffer = Buffer.isBuffer(authOptions.challenge) 
+          ? authOptions.challenge 
+          : Buffer.from(authOptions.challenge)
+        return res.json({
+          publicKey: {
+            ...authOptions,
+            challenge: authOptions.challenge.toString('base64url'),
+          },
+          email: session.email,
+          type: 'authenticate',
+        })
+      }
       
       const allowCredentials = (user.webauthnCredentials || []).map(c => {
         // Ensure credId is a string (base64url format)
@@ -1492,14 +1670,51 @@ router.post('/webauthn/cross-device/complete', validateBody(crossDeviceCompleteS
       return res.json({
         authenticated: true,
         user: session.user,
+        registered: session.registered || false,
       })
     }
 
     const user = await User.findOne({ email: session.email }).populate('role')
     if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
 
+    // Log credential format for debugging (especially for ID Melon)
+    console.log('[WebAuthn] Cross-device complete received:', {
+      sessionId: sessionId?.substring(0, 20) + '...',
+      sessionType: session.type,
+      email: session.email,
+      hasCredential: !!credential,
+      credentialId: credential?.id?.substring(0, 30) + '...',
+      credentialRawId: credential?.rawId?.substring(0, 30) + '...',
+      credentialType: credential?.type,
+      hasResponse: !!credential?.response,
+      responseKeys: credential?.response ? Object.keys(credential.response) : [],
+    })
+
+    // Auto-detect credential type based on credential structure
+    // ID Melon might send registration even if session type is 'authenticate' (or vice versa)
+    // Registration credentials have 'attestationObject', authentication has 'authenticatorData' and 'signature'
+    const hasAttestationObject = !!credential?.response?.attestationObject
+    const hasAuthenticatorData = !!credential?.response?.authenticatorData
+    const hasSignature = !!credential?.response?.signature
+    
+    // Determine if this is registration or authentication based on credential structure
+    const isRegistrationCredential = hasAttestationObject && !hasAuthenticatorData
+    const isAuthenticationCredential = hasAuthenticatorData && hasSignature && !hasAttestationObject
+    
+    // Use credential structure to determine type, but fall back to session type if unclear
+    let credentialType = session.type
+    if (isRegistrationCredential) {
+      credentialType = 'register'
+      console.log('[WebAuthn] Auto-detected registration credential (ID Melon registration)')
+    } else if (isAuthenticationCredential) {
+      credentialType = 'authenticate'
+      console.log('[WebAuthn] Auto-detected authentication credential (ID Melon authentication)')
+    } else {
+      console.warn('[WebAuthn] Could not auto-detect credential type, using session type:', session.type)
+    }
+    
     // Handle registration vs authentication
-    if (session.type === 'register') {
+    if (credentialType === 'register') {
       // Get the origin from session (stored when QR code was generated)
       const sessionOrigin = session.origin || session.baseUrl
       const expectedOrigin = sessionOrigin || process.env.WEBAUTHN_ORIGIN || process.env.FRONTEND_URL || `http://localhost:${process.env.FRONTEND_PORT || 5173}`
@@ -1519,9 +1734,15 @@ router.post('/webauthn/cross-device/complete', validateBody(crossDeviceCompleteS
       }
       
       // Convert challenge to Buffer if needed (verifyRegistrationResponse expects Buffer)
-      let expectedChallenge = session.challenge
+      // Use regChallenge if available (for ID Melon registration), otherwise fall back to session challenge
+      let expectedChallenge = session.regChallenge || session.challenge
       if (!expectedChallenge) {
-        return respond.error(res, 400, 'challenge_missing', 'No challenge found in session')
+        console.error('[WebAuthn] No registration challenge found in session:', {
+          hasRegChallenge: !!session.regChallenge,
+          hasChallenge: !!session.challenge,
+          sessionType: session.type
+        })
+        return respond.error(res, 400, 'challenge_missing', 'No registration challenge found in session')
       }
       
       // Ensure challenge is in Buffer format
@@ -1533,22 +1754,45 @@ router.post('/webauthn/cross-device/complete', validateBody(crossDeviceCompleteS
         expectedChallenge = Buffer.from(expectedChallenge)
       }
       
-      console.log('[WebAuthn] Verifying registration:', {
-        sessionId,
+      console.log('[WebAuthn] Verifying registration (ID Melon compatible):', {
+        sessionId: sessionId?.substring(0, 20) + '...',
         expectedOrigin,
         expectedRPID,
         hasChallenge: !!expectedChallenge,
-        challengeType: Buffer.isBuffer(expectedChallenge) ? 'Buffer' : typeof expectedChallenge
+        challengeType: Buffer.isBuffer(expectedChallenge) ? 'Buffer' : typeof expectedChallenge,
+        credentialId: credential?.id?.substring(0, 30) + '...',
+        credentialRawId: credential?.rawId?.substring(0, 30) + '...',
+        hasAttestationObject: !!credential?.response?.attestationObject,
+        hasClientDataJSON: !!credential?.response?.clientDataJSON,
       })
       
       // Handle registration flow
       // In simplewebauthn v13, the parameter is 'response', not 'credential'
-      const verification = await verifyRegistrationResponse({
-        response: credential,
-        expectedChallenge: expectedChallenge,
-        expectedOrigin: expectedOrigin,
-        expectedRPID: expectedRPID,
-      })
+      // ID Melon sends credential in standard WebAuthn format
+      let verification
+      try {
+        verification = await verifyRegistrationResponse({
+          response: credential,
+          expectedChallenge: expectedChallenge,
+          expectedOrigin: expectedOrigin,
+          expectedRPID: expectedRPID,
+        })
+      } catch (verifyErr) {
+        console.error('[WebAuthn] Registration verification threw exception:', {
+          error: verifyErr,
+          message: verifyErr?.message,
+          name: verifyErr?.name,
+          stack: verifyErr?.stack,
+          credentialStructure: {
+            hasId: !!credential?.id,
+            hasRawId: !!credential?.rawId,
+            hasType: !!credential?.type,
+            hasResponse: !!credential?.response,
+            responseKeys: credential?.response ? Object.keys(credential.response) : [],
+          }
+        })
+        return respond.error(res, 500, 'webauthn_verification_exception', `Registration verification failed: ${verifyErr?.message || 'Unknown error'}`)
+      }
 
       if (!verification.verified) {
         const errorDetails = {
@@ -1670,6 +1914,15 @@ router.post('/webauthn/cross-device/complete', validateBody(crossDeviceCompleteS
 
       session.authenticated = true
       session.user = safe
+      session.registered = true // Mark that registration occurred
+
+      console.log('[WebAuthn] Registration and login successful (ID Melon):', {
+        sessionId: sessionId?.substring(0, 20) + '...',
+        email: safe.email,
+        userId: safe.id,
+        registered: true,
+        authenticated: true,
+      })
 
       return res.json({
         authenticated: true,
@@ -1948,8 +2201,60 @@ router.post('/webauthn/cross-device/complete', validateBody(crossDeviceCompleteS
       })
     }
   } catch (err) {
-    console.error('cross-device complete error', err)
-    return respond.error(res, 500, 'cross_device_complete_failed', 'Failed to complete cross-device authentication')
+    // Comprehensive error logging for debugging ID Melon issues
+    console.error('[WebAuthn] Cross-device complete error (ID Melon debugging):', {
+      error: err,
+      message: err?.message,
+      name: err?.name,
+      stack: err?.stack,
+      sessionId: req.body?.sessionId?.substring(0, 20) + '...',
+      hasCredential: !!req.body?.credential,
+      credentialStructure: req.body?.credential ? {
+        hasId: !!req.body.credential.id,
+        hasRawId: !!req.body.credential.rawId,
+        hasType: !!req.body.credential.type,
+        hasResponse: !!req.body.credential.response,
+        responseKeys: req.body.credential.response ? Object.keys(req.body.credential.response) : [],
+        hasAttestationObject: !!req.body.credential.response?.attestationObject,
+        hasAuthenticatorData: !!req.body.credential.response?.authenticatorData,
+        hasSignature: !!req.body.credential.response?.signature,
+        hasClientDataJSON: !!req.body.credential.response?.clientDataJSON,
+      } : null,
+    })
+    
+    // Provide more specific error messages based on error type
+    let errorMessage = 'Failed to complete cross-device authentication. Please try scanning the QR code again.'
+    let errorCode = 'cross_device_complete_failed'
+    
+    if (err?.message) {
+      // Never use "Something went wrong" in error messages
+      const msg = String(err.message).trim()
+      if (msg && !msg.toLowerCase().includes('something went wrong')) {
+        errorMessage = msg
+      }
+    }
+    
+    // Map specific error types to user-friendly messages
+    if (err?.name === 'TypeError' || err?.name === 'ReferenceError') {
+      errorMessage = 'Invalid request format. Please try scanning the QR code again.'
+      errorCode = 'invalid_request_format'
+    } else if (err?.name === 'ValidationError') {
+      errorMessage = 'Invalid credential format. Please try scanning the QR code again.'
+      errorCode = 'invalid_credential_format'
+    } else if (err?.message?.includes('challenge')) {
+      errorMessage = 'Challenge verification failed. Please try scanning the QR code again.'
+      errorCode = 'challenge_verification_failed'
+    } else if (err?.message?.includes('credential') || err?.message?.includes('passkey')) {
+      errorMessage = 'Passkey verification failed. Please try scanning the QR code again.'
+      errorCode = 'credential_verification_failed'
+    }
+    
+    // Ensure error message never contains "Something went wrong"
+    if (errorMessage.toLowerCase().includes('something went wrong')) {
+      errorMessage = 'Authentication failed. Please try scanning the QR code again.'
+    }
+    
+    return respond.error(res, 500, errorCode, errorMessage)
   }
 })
 

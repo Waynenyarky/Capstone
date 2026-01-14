@@ -2215,6 +2215,132 @@ router.get('/profile/id-verification', requireJwt, async (req, res) => {
   }
 })
 
+// GET /api/auth/profile/id-info
+// Get ID verification status (alias for id-verification for frontend compatibility)
+router.get('/profile/id-info', requireJwt, async (req, res) => {
+  try {
+    const doc = await User.findById(req._userId).populate('role')
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+    if (!isBusinessOwnerRole(roleSlug)) {
+      return respond.error(res, 403, 'forbidden', 'This endpoint is only available for business owners')
+    }
+
+    const idVerification = await IdVerification.findOne({ userId: doc._id }).lean()
+
+    if (!idVerification) {
+      return res.json({
+        exists: false,
+        status: 'not_uploaded',
+      })
+    }
+
+    const canRevert = idVerification.canRevertUntil && new Date() < new Date(idVerification.canRevertUntil) && !idVerification.reverted
+
+    return res.json({
+      exists: true,
+      id: String(idVerification._id),
+      idType: idVerification.idType,
+      idNumber: idVerification.idNumber,
+      frontImageUrl: idVerification.frontImageUrl,
+      backImageUrl: idVerification.backImageUrl,
+      status: idVerification.status,
+      uploadedAt: idVerification.uploadedAt,
+      verifiedAt: idVerification.verifiedAt,
+      canRevert,
+      canRevertUntil: idVerification.canRevertUntil,
+    })
+  } catch (err) {
+    console.error('GET /api/auth/profile/id-info error:', err)
+    return respond.error(res, 500, 'id_info_failed', 'Failed to retrieve ID information')
+  }
+})
+
+// GET /api/auth/profile/approvals/pending
+// Get pending approval requests for current user
+router.get('/profile/approvals/pending', requireJwt, async (req, res) => {
+  try {
+    const doc = await User.findById(req._userId).populate('role')
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const AdminApproval = require('../../models/AdminApproval')
+    
+    // Find pending approvals for this user
+    const pendingApprovals = await AdminApproval.find({
+      userId: doc._id,
+      status: 'pending'
+    })
+      .populate('requestedBy', 'firstName lastName email')
+      .sort({ createdAt: -1 })
+      .lean()
+
+    return res.json({
+      success: true,
+      approvals: pendingApprovals.map(approval => ({
+        _id: approval._id,
+        approvalId: approval.approvalId,
+        requestType: approval.requestType,
+        status: approval.status,
+        requestDetails: approval.requestDetails,
+        createdAt: approval.createdAt,
+        requestedBy: approval.requestedBy ? {
+          firstName: approval.requestedBy.firstName,
+          lastName: approval.requestedBy.lastName,
+          email: approval.requestedBy.email
+        } : null,
+        requiredApprovals: approval.requiredApprovals,
+        currentApprovals: approval.approvals ? approval.approvals.length : 0
+      }))
+    })
+  } catch (err) {
+    console.error('GET /api/auth/profile/approvals/pending error:', err)
+    return respond.error(res, 500, 'fetch_pending_approvals_failed', 'Failed to fetch pending approvals')
+  }
+})
+
+// GET /api/auth/profile/approvals/pending
+// Get pending approval requests for current user
+router.get('/profile/approvals/pending', requireJwt, async (req, res) => {
+  try {
+    const doc = await User.findById(req._userId).populate('role')
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const AdminApproval = require('../../models/AdminApproval')
+    
+    // Find pending approvals for this user
+    const pendingApprovals = await AdminApproval.find({
+      userId: doc._id,
+      status: 'pending'
+    })
+      .populate('requestedBy', 'firstName lastName email')
+      .sort({ createdAt: -1 })
+      .lean()
+
+    return res.json({
+      success: true,
+      approvals: pendingApprovals.map(approval => ({
+        _id: approval._id,
+        approvalId: approval.approvalId,
+        requestType: approval.requestType,
+        status: approval.status,
+        requestDetails: approval.requestDetails,
+        createdAt: approval.createdAt,
+        requestedBy: approval.requestedBy ? {
+          firstName: approval.requestedBy.firstName,
+          lastName: approval.requestedBy.lastName,
+          email: approval.requestedBy.email
+        } : null,
+        requiredApprovals: approval.requiredApprovals,
+        currentApprovals: approval.approvals ? approval.approvals.length : 0
+      }))
+    })
+  } catch (err) {
+    console.error('GET /api/auth/profile/approvals/pending error:', err)
+    return respond.error(res, 500, 'fetch_pending_approvals_failed', 'Failed to fetch pending approvals')
+  }
+})
+
 // POST /api/auth/profile/id-upload/revert
 // Revert ID upload (within 24 hours)
 router.post('/profile/id-upload/revert', requireJwt, async (req, res) => {

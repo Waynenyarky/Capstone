@@ -41,6 +41,7 @@ export async function crossDeviceStart(payload) {
 }
 
 export async function crossDeviceAuthOptions(payload) {
+  // payload can include { sessionId, type?: 'register' | 'authenticate' }
   return await fetchJsonWithFallback('/api/auth/webauthn/cross-device/auth-options', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

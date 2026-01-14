@@ -36,7 +36,8 @@ export default function useWebAuthn() {
     if (!('credentials' in navigator)) throw new Error('WebAuthn not supported')
     
     try {
-      const start = await registerStart({ email })
+      // Email is optional - pass empty object if email is not provided
+      const start = await registerStart(email ? { email } : {})
       
       // server should return publicKeyCredentialCreationOptions in base64url fields
       // The backend wraps it in { publicKey: options }
@@ -119,7 +120,8 @@ export default function useWebAuthn() {
           attestationObject: bufferToBase64(att.attestationObject),
         }
       }
-      const res = await registerComplete({ email, credential: payload })
+      // Email is optional - pass empty object if email is not provided
+      const res = await registerComplete(email ? { email, credential: payload } : { credential: payload })
       success('Passkey registered')
       return res
     } catch (error) {
@@ -136,7 +138,8 @@ export default function useWebAuthn() {
     
     let start
     try {
-      start = await authenticateStart({ email })
+      // Email is optional - pass empty object if email is not provided
+      start = await authenticateStart(email ? { email } : {})
     } catch (startError) {
       // Handle "no_passkeys" error from authenticateStart
       const errorCode = startError?.code || 
@@ -214,7 +217,8 @@ export default function useWebAuthn() {
     }
     
     try {
-      const result = await authenticateComplete({ email, credential: payload })
+      // Email is optional - pass empty object if email is not provided
+      const result = await authenticateComplete(email ? { email, credential: payload } : { credential: payload })
       success('Passkey authentication succeeded')
       return result
     } catch (completeError) {
@@ -225,6 +229,16 @@ export default function useWebAuthn() {
       const errorCode = completeError?.code || 
                        completeError?.originalError?.error?.code || 
                        completeError?.originalError?.code
+      
+      const errorMsg = (completeError?.message || '').toLowerCase()
+      
+      // If credential not found and no email was provided, it might mean no passkeys exist
+      if ((errorCode === 'credential_not_found' || errorCode === 'no_passkeys') && !email) {
+        const error = new Error('No passkeys found. Please register a passkey first.')
+        error.code = 'no_passkeys'
+        error.originalError = completeError
+        throw error
+      }
       
       // Re-throw with better context
       if (errorCode === 'credential_not_found') {
@@ -285,10 +299,9 @@ export default function useWebAuthn() {
 
   // Start cross-device authentication
   const authenticateCrossDevice = React.useCallback(async ({ email, allowRegistration = false } = {}) => {
-    if (!email) throw new Error('Email is required for cross-device authentication')
-    
+    // Email is optional - pass empty object if email is not provided
     // Start cross-device authentication session (or registration if allowRegistration is true)
-    const result = await crossDeviceStart({ email, allowRegistration })
+    const result = await crossDeviceStart(email ? { email, allowRegistration } : { allowRegistration })
     
     // Accept either qrCodeImage (preferred, Microsoft-compatible) or qrCode/qrCodeUrl (fallback)
     const hasQrCode = result?.qrCodeImage || result?.qrCode || result?.qrCodeUrl

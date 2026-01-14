@@ -21,13 +21,9 @@ export default function PlatformPasskeyAuth({ form, onAuthenticated, onCancel } 
       setError(null)
       setNeedsRegistration(false)
 
-      const email = String(form?.getFieldValue('email') || '').trim()
-      if (!email) {
-        const errMsg = 'Enter your email before using a passkey'
-        setError(errMsg)
-        notifyError(errMsg)
-        return
-      }
+      // Email is optional for passkey authentication
+      // If email is provided, use it; otherwise, pass undefined for userless authentication
+      const email = form?.getFieldValue('email') ? String(form.getFieldValue('email')).trim() : undefined
 
       // Use platform authenticator (Windows Hello, Touch ID, external security keys, etc.)
       // This will prompt for any FIDO2-compatible authenticator
@@ -83,13 +79,9 @@ export default function PlatformPasskeyAuth({ form, onAuthenticated, onCancel } 
       setLoading(true)
       setError(null)
 
-      const email = String(form?.getFieldValue('email') || '').trim()
-      if (!email) {
-        const errMsg = 'Enter your email before registering a passkey'
-        setError(errMsg)
-        notifyError(errMsg)
-        return
-      }
+      // Email is optional for passkey registration
+      // If email is provided, use it; otherwise, pass undefined
+      const email = form?.getFieldValue('email') ? String(form.getFieldValue('email')).trim() : undefined
 
       // Register a new passkey using platform authenticator
       await register({ email })

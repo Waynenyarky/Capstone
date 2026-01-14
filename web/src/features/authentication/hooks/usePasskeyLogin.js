@@ -9,11 +9,9 @@ export function usePasskeyLogin(form) {
 
   const handlePasskeyLogin = async () => {
     try {
-      const email = String(form.getFieldValue('email') || '').trim()
-      if (!email) {
-        error('Enter your email before using a passkey')
-        return
-      }
+      // Email is optional for passkey authentication
+      // If email is provided, use it; otherwise, pass undefined for userless authentication
+      const email = form.getFieldValue('email') ? String(form.getFieldValue('email')).trim() : undefined
       const res = await authenticate({ email })
       // Expect server to return user object on successful authentication
       if (res && typeof res === 'object') {

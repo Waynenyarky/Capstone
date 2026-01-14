@@ -140,23 +140,57 @@ export default function PasskeyMobileAuth() {
       // Actually, we need to modify the flow - the backend should return email in status check
       
       // Get auth options from backend using session
+      // ID Melon can request either registration or authentication
+      // Try authentication first (if ID Melon has account), then fall back to registration
       console.log('[PasskeyMobileAuth] Getting auth options for sessionId:', sessionId?.substring(0, 20) + '...')
-      const { publicKey: pub, email, type } = await crossDeviceAuthOptions({ sessionId })
       
-      console.log('[PasskeyMobileAuth] Auth options received:', {
-        hasPublicKey: !!pub,
-        email: email,
-        type: type,
-        hasChallenge: !!pub?.challenge,
-        hasAllowCredentials: !!pub?.allowCredentials,
-        allowCredentialsCount: pub?.allowCredentials?.length || 0
-      })
+      let pub, email, type
+      let cred
+      
+      // First, try to get authentication options (if ID Melon already has account)
+      try {
+        const authResult = await crossDeviceAuthOptions({ sessionId, type: 'authenticate' })
+        pub = authResult.publicKey
+        email = authResult.email
+        type = authResult.type || 'authenticate'
+        
+        console.log('[PasskeyMobileAuth] Auth options received (authentication):', {
+          hasPublicKey: !!pub,
+          email: email,
+          type: type,
+          hasChallenge: !!pub?.challenge,
+          hasAllowCredentials: !!pub?.allowCredentials,
+          allowCredentialsCount: pub?.allowCredentials?.length || 0
+        })
+      } catch (authErr) {
+        // If authentication fails (e.g., no passkeys), try registration
+        console.log('[PasskeyMobileAuth] Authentication not available, trying registration:', authErr?.message)
+        
+        try {
+          const regResult = await crossDeviceAuthOptions({ sessionId, type: 'register' })
+          pub = regResult.publicKey
+          email = regResult.email
+          type = regResult.type || 'register'
+          
+          console.log('[PasskeyMobileAuth] Auth options received (registration):', {
+            hasPublicKey: !!pub,
+            email: email,
+            type: type,
+            hasChallenge: !!pub?.challenge,
+            hasUser: !!pub?.user
+          })
+        } catch (regErr) {
+          console.error('[PasskeyMobileAuth] Both authentication and registration failed:', {
+            authError: authErr?.message,
+            regError: regErr?.message
+          })
+          throw new Error('Failed to get authentication options. Please try scanning the QR code again.')
+        }
+      }
       
       if (!pub || !pub.challenge) {
         throw new Error('Invalid authentication options received from server')
       }
-      
-      let cred
       
       if (type === 'register') {
         // Handle registration flow
@@ -199,12 +233,38 @@ export default function PasskeyMobileAuth() {
           console.log('[PasskeyMobileAuth] Authentication credential retrieved successfully')
         } catch (webauthnErr) {
           console.error('[PasskeyMobileAuth] WebAuthn authentication failed:', webauthnErr)
-          if (webauthnErr.name === 'NotAllowedError') {
+          
+          // If authentication fails because no passkey found, try registration instead
+          // This allows ID Melon to register if it doesn't have an account yet (like Google Lens)
+          if (webauthnErr.name === 'NotFoundError' || webauthnErr.name === 'InvalidStateError') {
+            console.log('[PasskeyMobileAuth] No passkey found for authentication, trying registration instead...')
+            
+            try {
+              // Try to get registration options
+              const regResult = await crossDeviceAuthOptions({ sessionId, type: 'register' })
+              pub = regResult.publicKey
+              email = regResult.email
+              type = 'register'
+              
+              console.log('[PasskeyMobileAuth] Registration options received:', {
+                hasPublicKey: !!pub,
+                email: email,
+                type: type,
+                hasChallenge: !!pub?.challenge,
+                hasUser: !!pub?.user
+              })
+              
+              if (!pub || !pub.challenge) {
+                throw new Error('Invalid registration options received from server')
+              }
+              
+              // Continue with registration flow below
+            } catch (regErr) {
+              console.error('[PasskeyMobileAuth] Registration also failed:', regErr)
+              throw new Error('No passkey found. Please register a passkey first.')
+            }
+          } else if (webauthnErr.name === 'NotAllowedError') {
             throw new Error('Authentication was cancelled. No worries! You can try again whenever you\'re ready.')
-          } else if (webauthnErr.name === 'InvalidStateError') {
-            throw new Error('No passkey found. Please register a passkey first.')
-          } else if (webauthnErr.name === 'NotFoundError') {
-            throw new Error('No passkey found on this device. Please register a passkey first.')
           } else {
             throw new Error(`Authentication failed: ${webauthnErr.message || 'Unknown error'}`)
           }
@@ -479,17 +539,36 @@ export default function PasskeyMobileAuth() {
       
       console.log('[PasskeyMobileAuth] Final error message:', errMsg)
       
-      setError(errMsg)
+      // Ensure we never pass "Something went wrong" to the notifier
+      let finalErrorMsg = String(errMsg).trim() || 'Authentication failed. Please try again.'
+      
+      if (finalErrorMsg.toLowerCase().includes('something went wrong')) {
+        finalErrorMsg = 'Authentication failed. Please try scanning the QR code again.'
+      }
+      
+      // Log the full error for debugging (especially for ID Melon issues)
+      console.error('[PasskeyMobileAuth] Error details for debugging:', {
+        finalErrorMsg,
+        originalError: e,
+        errorCode: e?.code,
+        originalErrorStructure: e?.originalError,
+        errorMessage: e?.message,
+        errorName: e?.name,
+        errorStack: e?.stack,
+        fullError: JSON.stringify(e, Object.getOwnPropertyNames(e), 2)
+      })
+      
+      // Ensure finalErrorMsg never contains "Something went wrong"
+      let safeErrorMsg = finalErrorMsg
+      if (safeErrorMsg.toLowerCase().includes('something went wrong')) {
+        safeErrorMsg = 'Authentication failed. Please try scanning the QR code again.'
+        console.warn('[PasskeyMobileAuth] Replaced "Something went wrong" with:', safeErrorMsg)
+      }
+      
+      setError(safeErrorMsg)
       setStatus('error')
       // Pass the error message string directly, not the error object
-      // Use the error message directly to avoid "Something went wrong" fallback
-      const finalErrorMsg = String(errMsg).trim() || 'Authentication failed. Please try again.'
-      // Ensure we never pass "Something went wrong" to the notifier
-      if (finalErrorMsg.toLowerCase().includes('something went wrong')) {
-        notifyError('Authentication failed. Please try again.')
-      } else {
-        notifyError(finalErrorMsg)
-      }
+      notifyError(safeErrorMsg)
     }
   }
 

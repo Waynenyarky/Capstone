@@ -9,7 +9,9 @@
     "test": "NODE_ENV=test jest --runInBand"
   },
   "jest": {
-    "setupFilesAfterEnv": ["./jest.setup.js"],
+    "setupFilesAfterEnv": [
+      "./jest.setup.js"
+    ],
     "testTimeout": 30000,
     "forceExit": true,
     "detectOpenHandles": true

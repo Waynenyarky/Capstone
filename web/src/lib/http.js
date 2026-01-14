@@ -63,10 +63,12 @@ export async function fetchJsonWithFallback(path, options = {}) {
   const res = await fetchWithFallback(path, options)
   if (!res || !res.ok) {
     let errMsg = `Request failed: ${res?.status || 'network'}`
+    let errorCode = null
+    let statusCode = res?.status
+    
     try {
       const err = await res?.json()
       // Normalize common error response shapes into a string message
-      let errorCode = null
       if (err) {
         if (typeof err.error === 'string') {
           errMsg = err.error
@@ -91,14 +93,41 @@ export async function fetchJsonWithFallback(path, options = {}) {
         if (!errorCode && err.code) errorCode = err.code
       }
       
+      // Ensure error message is never "Something went wrong"
+      if (errMsg.toLowerCase().includes('something went wrong')) {
+        // Try to extract a better message from the error structure
+        if (err?.error?.message) {
+          errMsg = err.error.message
+        } else if (err?.error?.code) {
+          // Map error codes to user-friendly messages
+          const codeMap = {
+            'webauthn_verification_failed': 'Passkey verification failed. Please try again.',
+            'webauthn_verification_exception': 'Registration failed. Please try again.',
+            'webauthn_auth_failed': 'Authentication failed. Please try again.',
+            'webauthn_invalid_publickey': 'Invalid passkey format. Please try again.',
+            'credential_not_found': 'Passkey not found. Please register a passkey first.',
+            'session_not_found': 'Session expired. Please scan the QR code again.',
+            'session_expired': 'Session expired. Please scan the QR code again.',
+            'challenge_missing': 'Session error. Please scan the QR code again.',
+            'cross_device_complete_failed': 'Failed to complete authentication. Please try again.',
+          }
+          errMsg = codeMap[err.error.code] || `Request failed: ${res?.status || 'network'}`
+        } else {
+          errMsg = `Request failed: ${res?.status || 'network'}`
+        }
+      }
+      
       const errorObj = new Error(String(errMsg))
       if (err && err.details) errorObj.details = err.details
       if (errorCode) {
         errorObj.code = errorCode
       }
-      // Store the original error for more detailed inspection
+      // Store status code and original error for more detailed inspection
+      if (statusCode) {
+        errorObj.status = statusCode
+      }
       if (err) {
-        errorObj.originalError = err
+        errorObj.originalError = { ...err, status: statusCode }
         // Also try to extract code from originalError if not already set
         if (!errorObj.code && err.error && typeof err.error === 'object' && err.error.code) {
           errorObj.code = err.error.code
@@ -106,10 +135,15 @@ export async function fetchJsonWithFallback(path, options = {}) {
       }
       throw errorObj
     } catch (e) {
-      if (e.details) throw e // re-throw if it's the error we just created
-      // ignore JSON parse errors and fall back to status text
+      if (e.details || e.code || e.status) throw e // re-throw if it's the error we just created
+      // If JSON parsing failed, create error with status code
+      const errorObj = new Error(String(errMsg))
+      if (statusCode) {
+        errorObj.status = statusCode
+        errorObj.code = statusCode === 404 ? 'not_found' : statusCode === 400 ? 'bad_request' : null
+      }
+      throw errorObj
     }
-    throw new Error(String(errMsg))
   }
   return res.json()
 }

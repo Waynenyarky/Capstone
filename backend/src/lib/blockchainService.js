@@ -1,4 +1,4 @@
-const { ethers } = require('ethers');
+const ethers = require('ethers');
 const AuditLog = require('../models/AuditLog');
 
 /**
@@ -24,25 +24,45 @@ class BlockchainService {
     }
 
     const rpcUrl = process.env.GANACHE_RPC_URL || 'http://127.0.0.1:7545';
-    const privateKey = process.env.DEPLOYER_PRIVATE_KEY;
+    let privateKey = process.env.DEPLOYER_PRIVATE_KEY;
     this.contractAddress = process.env.AUDIT_CONTRACT_ADDRESS;
 
+    // Use development defaults if not set (for local Ganache)
     if (!privateKey) {
-      console.warn('⚠️  DEPLOYER_PRIVATE_KEY not set. Blockchain logging will be disabled.');
-      return;
+      console.warn('⚠️  DEPLOYER_PRIVATE_KEY not set. Using development default (first Ganache account).');
+      // Default private key from Ganache's first account (for development only)
+      // This is a well-known test private key - NEVER use in production
+      privateKey = '0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d';
+      console.warn('⚠️  Using test private key. Set DEPLOYER_PRIVATE_KEY in production!');
     }
 
     if (!this.contractAddress) {
-      console.warn('⚠️  AUDIT_CONTRACT_ADDRESS not set. Blockchain logging will be disabled.');
-      return;
+      console.warn('⚠️  AUDIT_CONTRACT_ADDRESS not set. Blockchain service will initialize but logging will be limited.');
+      // Don't return - allow service to initialize for read-only operations
+      this.contractAddress = null;
     }
 
     try {
-      // Connect to Ganache
+      // Connect to Ganache or specified RPC
       this.provider = new ethers.JsonRpcProvider(rpcUrl);
 
       // Create signer from private key
       this.signer = new ethers.Wallet(privateKey, this.provider);
+      
+      // If contract address is not set, still initialize provider and signer for potential future use
+      if (!this.contractAddress) {
+        const network = await this.provider.getNetwork();
+        const balance = await this.provider.getBalance(this.signer.address);
+        
+        console.log('✅ Blockchain service initialized (read-only mode)');
+        console.log(`   Network: ${network.name} (Chain ID: ${network.chainId})`);
+        console.log(`   Account: ${this.signer.address}`);
+        console.log(`   Balance: ${ethers.formatEther(balance)} ETH`);
+        console.log(`   ⚠️  Contract address not set. Set AUDIT_CONTRACT_ADDRESS to enable full logging.`);
+        
+        this.initialized = true;
+        return;
+      }
 
       // Contract ABI (minimal ABI for the functions we need)
       const contractABI = [

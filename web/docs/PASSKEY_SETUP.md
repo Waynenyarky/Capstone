@@ -2,6 +2,10 @@
 
 This document describes how to set up and use passkey authentication in the application, including requirements for different devices and platforms.
 
+> **📚 Related Documentation:**
+> - **[Passkey Flow (Technical)](./PASSKEY_FLOW.md)** - Complete technical implementation details
+> - **[Passkey User Guide](./PASSKEY_USER_GUIDE.md)** - Step-by-step user instructions
+
 ## Overview
 
 Passkey authentication uses WebAuthn/FIDO2 standards to provide passwordless authentication. Users can sign in using:
@@ -216,6 +220,12 @@ Cross-device authentication uses:
 
 ## Additional Resources
 
+### Internal Documentation
+- **[Passkey Flow (Technical)](./PASSKEY_FLOW.md)** - Complete technical flow documentation with diagrams
+- **[Passkey User Guide](./PASSKEY_USER_GUIDE.md)** - User-friendly step-by-step guide
+- **[Passkey Mobile Setup](./PASSKEY_MOBILE_SETUP.md)** - Mobile device setup instructions
+
+### External Resources
 - [WebAuthn Specification](https://www.w3.org/TR/webauthn-2/)
 - [FIDO2 Documentation](https://fidoalliance.org/fido2/)
 - [Passkeys.dev](https://passkeys.dev/) - Comprehensive passkey resources
@@ -224,5 +234,6 @@ Cross-device authentication uses:
 
 If you encounter issues with passkey authentication:
 1. Check this guide for troubleshooting steps
-2. Ensure your device and browser meet the requirements
-3. Contact support with details about your device, browser, and the error message
+2. Review the [User Guide](./PASSKEY_USER_GUIDE.md) for detailed instructions
+3. Ensure your device and browser meet the requirements
+4. Contact support with details about your device, browser, and the error message
