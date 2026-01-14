@@ -5,6 +5,7 @@ import ServicesSection from '../components/ServicesSection'
 import FAQSection from '../components/FAQSection'
 import HowItWorksSection from '../components/HowItWorksSection'
 import InfoSection from '../components/InfoSection'
+import ContactSupportSection from '../components/ContactSupportSection'
 import HomeFooter from '../components/HomeFooter'
 
 const { Content } = Layout
@@ -23,6 +24,9 @@ export default function Home() {
         <HowItWorksSection />
         
         <InfoSection />
+        
+        {/* Contact Support Section */}
+        <ContactSupportSection />
       </Content>
 
       <HomeFooter />

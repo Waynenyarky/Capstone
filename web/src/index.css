@@ -48,3 +48,28 @@ h1, h2, h3, h4, h5, h6 {
 .auth-link-hover:hover span {
   text-decoration: underline !important;
 }
+
+/* Custom Scrollbar Styling */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 58, 112, 0.3) rgba(0, 58, 112, 0.05);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 58, 112, 0.05);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 58, 112, 0.3);
+  border-radius: 10px;
+  transition: background 0.3s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 58, 112, 0.5);
+}
