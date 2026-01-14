@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BizClear Wireframes</title>
+  <title>BizClear Wireframes - Dagupan City Portal</title>
   <style>
     :root {
       --bg: #f2f3f5;
@@ -93,6 +93,11 @@
       border: 1px solid var(--stroke);
       border-radius: 8px;
       background: #fff;
+      padding: 0 8px;
+      font-size: 11px;
+      color: #6b7280;
+      display: flex;
+      align-items: center;
     }
     .layout {
       display: grid;
@@ -113,6 +118,13 @@
       background: #fff;
       font-size: 13px;
       color: #4b5563;
+      cursor: pointer;
+    }
+    .nav-item.active {
+      background: #e6f7ff;
+      border-color: #1890ff;
+      color: #1890ff;
+      font-weight: 600;
     }
     .main {
       padding: 18px;
@@ -141,6 +153,13 @@
       place-items: center;
       font-size: 12px;
       color: #374151;
+      cursor: pointer;
+    }
+    .button.primary {
+      background: #1890ff;
+      color: #fff;
+      border-color: #1890ff;
+      font-weight: 600;
     }
     .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
     .card {
@@ -151,7 +170,7 @@
       display: grid;
       gap: 8px;
     }
-    .card h4 { margin: 0; font-size: 14px; letter-spacing: -0.05px; }
+    .card h4 { margin: 0; font-size: 14px; letter-spacing: -0.05px; font-weight: 600; }
     .line {
       padding: 8px;
       border: 1px solid var(--stroke);
@@ -160,6 +179,9 @@
       font-size: 12px;
       color: #4b5563;
     }
+    .line.success { background: #f6ffed; border-color: #b7eb8f; color: #389e0d; }
+    .line.warning { background: #fffbe6; border-color: #ffe58f; color: #d48806; }
+    .line.error { background: #fff2f0; border-color: #ffccc7; color: #cf1322; }
     .table {
       border: 1px solid var(--stroke);
       border-radius: 10px;
@@ -209,398 +231,956 @@
       text-transform: uppercase;
       letter-spacing: 1px;
       color: var(--muted);
+      margin-bottom: 4px;
     }
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      background: #e6f7ff;
+      color: #1890ff;
+    }
+    .badge.success { background: #f6ffed; color: #52c41a; }
+    .badge.warning { background: #fffbe6; color: #faad14; }
+    .badge.error { background: #fff2f0; color: #ff4d4f; }
   </style>
 </head>
 <body>
   <header>
     <div class="brand">
       <div class="brand-badge">BC</div>
-      BizClear Wireframes
+      BizClear Wireframes — Dagupan City Portal
     </div>
-    <div class="section-label">Grayscale wireframes • Desktop-first (plus mobile inspection)</div>
+    <div class="section-label">Production UI Mockups • Real Text Labels • Connected to Project System</div>
   </header>
 
-  <h1>Presentation Wireframes with Labels</h1>
-  <p class="lead">Each page uses real text labels (not just boxes) so it reads like a UI mock. Screenshot directly for slides or import into Figma.</p>
+  <h1>BizClear System Wireframes with Real Labels</h1>
+  <p class="lead">Each wireframe uses actual text labels, navigation items, and feature names from the BizClear codebase. These reflect the real user interfaces for Business Owners, LGU Officers, Inspectors, Managers, CSOs, and Admins in the Dagupan City business permit management system.</p>
 
   <div class="grid">
+    <!-- Login + MFA + RBAC -->
     <div class="page">
-      <h2>Login + MFA + RBAC</h2>
+      <h2>Authentication: Login + MFA + Role-Based Redirect</h2>
       <div class="browser">
         <div class="chrome">
           <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-          <div class="urlbar"></div>
+          <div class="urlbar">https://bizclear.dagupan.gov.ph/login</div>
         </div>
         <div class="layout">
           <div class="sidebar">
-            <div class="section-label">Menu</div>
+            <div class="section-label">Public Navigation</div>
+            <div class="nav-item">Home</div>
             <div class="nav-item">Login</div>
-            <div class="nav-item">Register</div>
-            <div class="nav-item">Support</div>
-            <div class="nav-item">Status</div>
+            <div class="nav-item">Sign Up</div>
+            <div class="nav-item">Forgot Password</div>
+            <div class="nav-item">Terms of Service</div>
+            <div class="nav-item">Privacy Policy</div>
           </div>
           <div class="main">
             <div class="topbar">
-              <div>BizClear Sign-in</div>
-              <div class="button">Need help?</div>
-              <div class="button">Maintenance notice</div>
+              <div style="font-weight: 600;">BizClear Portal — Dagupan City</div>
+              <div class="button">Need Help?</div>
+              <div class="button">System Status</div>
             </div>
             <div class="row">
               <div class="card">
-                <h4>Credentials</h4>
+                <h4>Sign In to Your Account</h4>
                 <div class="line">Email: business@example.com</div>
-                <div class="line">Password: ••••••••</div>
-                <div class="button">Sign in</div>
-                <div class="line">Use passkey • Forgot password</div>
+                <div class="line">Password: ••••••••••</div>
+                <div class="button primary">Sign In</div>
+                <div class="line" style="font-size: 11px; text-align: center; padding: 4px;">Use Passkey • Forgot Password?</div>
               </div>
               <div class="card">
-                <h4>MFA Step</h4>
-                <div class="line">Enter 6-digit code • 00:30 timer</div>
-                <div class="line">Backup: SMS / Email / Codes</div>
-                <div class="line">Remember device (30 days)</div>
-                <div class="button">Verify MFA</div>
+                <h4>Multi-Factor Authentication</h4>
+                <div class="line">Enter 6-digit code from authenticator app</div>
+                <div class="line" style="text-align: center; font-weight: 600; font-size: 16px; letter-spacing: 4px;">4 2 8 5 7 1</div>
+                <div class="line" style="font-size: 11px;">Timer: 00:28 remaining</div>
+                <div class="line" style="font-size: 11px;">Backup options: SMS • Email • Recovery Codes</div>
+                <div class="line" style="font-size: 11px;">☑ Remember this device for 30 days</div>
+                <div class="button primary">Verify MFA Code</div>
               </div>
             </div>
             <div class="card">
-              <h4>RBAC Redirect</h4>
-              <div class="line">Business Owner → Applicant Dashboard</div>
-              <div class="line">LGU Officer → Review Queue</div>
-              <div class="line">Manager/Admin → Oversight & Reports</div>
+              <h4>Role-Based Access Control (RBAC) Redirect</h4>
+              <div class="line success">Business Owner → Redirected to /owner (Business Owner Dashboard)</div>
+              <div class="line success">LGU Officer → Redirected to /staff (Staff Dashboard → Applications Review)</div>
+              <div class="line success">LGU Manager → Redirected to /staff (Staff Dashboard → Reports & Analytics)</div>
+              <div class="line success">Inspector → Redirected to /staff (Staff Dashboard → Violations / Inspections)</div>
+              <div class="line success">CSO → Redirected to /staff (Staff Dashboard → Customer Support)</div>
+              <div class="line success">Admin → Redirected to /admin/dashboard (Admin Dashboard)</div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- Sign-Up: Registration Form + Email Verification -->
     <div class="page">
-      <h2>Applicant Dashboard + Permit Wizard</h2>
+      <h2>Sign-Up: Registration Form + Email Verification</h2>
       <div class="browser">
         <div class="chrome">
           <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-          <div class="urlbar"></div>
+          <div class="urlbar">https://bizclear.dagupan.gov.ph/sign-up</div>
         </div>
         <div class="layout">
           <div class="sidebar">
-            <div class="section-label">Applicant</div>
-            <div class="nav-item">Dashboard</div>
-            <div class="nav-item">Applications</div>
-            <div class="nav-item">Payments</div>
-            <div class="nav-item">Support</div>
+            <div class="section-label">Public Navigation</div>
+            <div class="nav-item">Home</div>
+            <div class="nav-item">Login</div>
+            <div class="nav-item active">Sign Up</div>
+            <div class="nav-item">Forgot Password</div>
+            <div class="nav-item">Terms of Service</div>
+            <div class="nav-item">Privacy Policy</div>
           </div>
           <div class="main">
             <div class="topbar">
-              <div>My Business • Status</div>
-              <div class="button">New Permit</div>
+              <div style="font-weight: 600;">BizClear Portal — Dagupan City</div>
+              <div class="button">Need Help?</div>
+              <div class="button">System Status</div>
+            </div>
+            
+            <!-- Step 1: Registration Form -->
+            <div class="card" style="border: 2px solid var(--stroke); background: #fafafa;">
+              <h4 style="text-align: center; margin-bottom: 16px;">Step 1: Create Your Account</h4>
+              <div class="row">
+                <div class="card" style="background: #fff;">
+                  <h4 style="font-size: 13px; margin-bottom: 8px;">Personal Information</h4>
+                  <div class="line">First Name: Wayne</div>
+                  <div class="line">Last Name: Enterprises</div>
+                </div>
+                <div class="card" style="background: #fff;">
+                  <h4 style="font-size: 13px; margin-bottom: 8px;">Contact Details</h4>
+                  <div class="line">Email: business@example.com</div>
+                  <div class="line">Phone Number: +63 912 345 6789</div>
+                </div>
+              </div>
+              <div class="row" style="margin-top: 12px;">
+                <div class="card" style="background: #fff;">
+                  <h4 style="font-size: 13px; margin-bottom: 8px;">Security</h4>
+                  <div class="line">Password: ••••••••••</div>
+                  <div class="line" style="font-size: 11px;">Must contain: 8+ chars, uppercase, lowercase, number</div>
+                </div>
+                <div class="card" style="background: #fff;">
+                  <h4 style="font-size: 13px; margin-bottom: 8px;">Confirm Password</h4>
+                  <div class="line">Confirm Password: ••••••••••</div>
+                  <div class="line success" style="font-size: 11px;">✓ Passwords match</div>
+                </div>
+              </div>
+              <div class="line" style="margin-top: 12px; background: #f9f9f9;">
+                ☑ I have read and agree to the <strong>Terms of Service</strong> and <strong>Privacy Policy</strong>.
+              </div>
+              <div class="button primary" style="margin-top: 12px; width: 100%;">Continue</div>
+              <div class="line" style="text-align: center; font-size: 11px; margin-top: 8px; padding: 4px;">
+                Already have an account? <strong>Login</strong>
+              </div>
+            </div>
+
+            <!-- Step 2: Email Verification (shown after form submission) -->
+            <div class="card" style="border: 2px dashed var(--stroke-dark); background: #fffbe6; margin-top: 16px;">
+              <h4 style="text-align: center; margin-bottom: 16px;">Step 2: Verify Your Email</h4>
+              <div style="text-align: center; margin-bottom: 16px;">
+                <div style="display: inline-block; width: 48px; height: 48px; border-radius: 50%; background: #e6f7ff; color: #1890ff; line-height: 48px; font-size: 24px; margin-bottom: 12px;">✉</div>
+                <div style="font-weight: 600; margin-bottom: 8px;">Verification code sent to your email</div>
+                <div class="line" style="background: #fff; margin-bottom: 12px;">
+                  Please enter the 6-digit code sent to<br/>
+                  <strong>business@example.com</strong>
+                </div>
+              </div>
+              <div class="card" style="background: #fff; text-align: center;">
+                <div style="font-size: 11px; margin-bottom: 8px; color: var(--muted);">Enter 6-digit verification code</div>
+                <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 16px;">
+                  <div class="line" style="width: 40px; height: 48px; text-align: center; line-height: 48px; font-size: 20px; font-weight: 600; letter-spacing: 2px;">4</div>
+                  <div class="line" style="width: 40px; height: 48px; text-align: center; line-height: 48px; font-size: 20px; font-weight: 600; letter-spacing: 2px;">2</div>
+                  <div class="line" style="width: 40px; height: 48px; text-align: center; line-height: 48px; font-size: 20px; font-weight: 600; letter-spacing: 2px;">8</div>
+                  <div class="line" style="width: 40px; height: 48px; text-align: center; line-height: 48px; font-size: 20px; font-weight: 600; letter-spacing: 2px;">5</div>
+                  <div class="line" style="width: 40px; height: 48px; text-align: center; line-height: 48px; font-size: 20px; font-weight: 600; letter-spacing: 2px;">7</div>
+                  <div class="line" style="width: 40px; height: 48px; text-align: center; line-height: 48px; font-size: 20px; font-weight: 600; letter-spacing: 2px;">1</div>
+                </div>
+              </div>
+              <div class="button primary" style="width: 100%; margin-bottom: 12px;">Verify Email</div>
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+                <div style="color: var(--muted);">Attempts remaining: <strong>5</strong></div>
+                <div class="button" style="min-width: auto; height: auto; padding: 4px 8px; font-size: 11px; background: transparent; border: none; color: #1890ff;">Resend Code</div>
+              </div>
+              <div class="line" style="font-size: 11px; margin-top: 8px; background: #f6ffed; border-color: #b7eb8f;">
+                💡 Code expires in 10 minutes. Didn't receive it? Check spam folder or click "Resend Code".
+              </div>
+            </div>
+
+            <!-- Success State (after verification) -->
+            <div class="card" style="border: 2px solid #52c41a; background: #f6ffed; margin-top: 16px;">
+              <h4 style="text-align: center; margin-bottom: 8px; color: #389e0d;">✓ Email Verified Successfully</h4>
+              <div class="line success" style="text-align: center;">
+                Your account has been created! Redirecting to login page...
+              </div>
+              <div class="line" style="font-size: 11px; text-align: center; margin-top: 8px;">
+                You can now sign in with your email and password.
+              </div>
+            </div>
+
+            <!-- Core Features Highlight -->
+            <div class="card" style="margin-top: 16px; background: #e6f7ff; border-color: #91d5ff;">
+              <h4 style="margin-bottom: 12px;">What You Can Do After Sign-Up:</h4>
+              <div class="row">
+                <div class="card" style="background: #fff;">
+                  <h4 style="font-size: 12px;">📋 Permit Applications</h4>
+                  <div class="line" style="font-size: 11px;">Submit new business permit applications digitally. Upload requirements and track status in real-time.</div>
+                </div>
+                <div class="card" style="background: #fff;">
+                  <h4 style="font-size: 12px;">📅 Inspection Scheduling</h4>
+                  <div class="line" style="font-size: 11px;">Schedule and monitor inspections. Receive digital updates and results directly in the system.</div>
+                </div>
+                <div class="card" style="background: #fff;">
+                  <h4 style="font-size: 12px;">🔄 Permit Renewal</h4>
+                  <div class="line" style="font-size: 11px;">Renew existing permits before expiry. Automated reminders and simplified renewal tracking.</div>
+                </div>
+              </div>
+              <div class="row" style="margin-top: 8px;">
+                <div class="card" style="background: #fff;">
+                  <h4 style="font-size: 12px;">💳 Online Payments</h4>
+                  <div class="line" style="font-size: 11px;">Pay permit fees securely using credit card, GCash, or bank transfer. Instant receipts.</div>
+                </div>
+                <div class="card" style="background: #fff;">
+                  <h4 style="font-size: 12px;">📱 Real-Time Notifications</h4>
+                  <div class="line" style="font-size: 11px;">Get push notifications and email alerts for application status, payments, and important updates.</div>
+                </div>
+                <div class="card" style="background: #fff;">
+                  <h4 style="font-size: 12px;">🔒 Blockchain Security</h4>
+                  <div class="line" style="font-size: 11px;">All transactions and records are secured with blockchain technology for tamper-proof audit trails.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Business Owner Dashboard -->
+    <div class="page">
+      <h2>Business Owner Dashboard — Welcome & Overview</h2>
+      <div class="browser">
+        <div class="chrome">
+          <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+          <div class="urlbar">https://bizclear.dagupan.gov.ph/owner</div>
+        </div>
+        <div class="layout">
+          <div class="sidebar">
+            <div class="section-label">Business Owner Menu</div>
+            <div class="nav-item active">Dashboard</div>
+            <div class="nav-item">Permit Applications</div>
+            <div class="nav-item">Cessation</div>
+            <div class="nav-item">Payments</div>
+            <div class="nav-item">Appeals</div>
+            <div class="nav-item">Profile / Settings</div>
+            <div class="nav-item">Logout</div>
+          </div>
+          <div class="main">
+            <div class="topbar">
+              <div style="font-weight: 600;">Welcome back, Wayne</div>
+              <div class="button primary">New Application</div>
               <div class="button">Start Cessation</div>
             </div>
             <div class="row">
               <div class="card">
-                <h4>Status</h4>
-                <div class="line">Active permits: 2</div>
-                <div class="line">Renewal due: D-5 (urgent)</div>
-                <div class="line">Violations: 0</div>
+                <h4>Compliance Status</h4>
+                <div class="line success">Active Permits: 2</div>
+                <div class="line warning">Renewal Due: 5 days (urgent)</div>
+                <div class="line success">Violations: 0</div>
+                <div class="line">Last Inspection: Passed (2024-01-15)</div>
               </div>
               <div class="card">
-                <h4>Quick Actions</h4>
-                <div class="line">Pay outstanding fees</div>
-                <div class="line">Upload requested documents</div>
-                <div class="line">Contact support</div>
+                <h4>Permit Summary</h4>
+                <div class="line">Active: 2 permits</div>
+                <div class="line">In Review: 1 application</div>
+                <div class="line">Pending Payment: 1 application</div>
+                <div class="line">Draft: 1 saved application</div>
+              </div>
+              <div class="card">
+                <h4>Payments Due</h4>
+                <div class="line error">Outstanding: ₱2,650.00</div>
+                <div class="line">Due Date: 2024-02-20</div>
+                <div class="line">Application: #BC-0991</div>
+                <div class="button primary" style="margin-top: 8px;">Pay Now</div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="card">
+                <h4>Inspections & Violations</h4>
+                <div class="line">Upcoming: 1 scheduled inspection</div>
+                <div class="line">Recent: Passed (2024-01-15)</div>
+                <div class="line success">Active Violations: 0</div>
+              </div>
+              <div class="card">
+                <h4>Appeals</h4>
+                <div class="line">Pending Appeal: V-2201 (Fire code)</div>
+                <div class="line">Status: In Review • Est. 5 days</div>
+                <div class="button" style="margin-top: 8px;">View Appeal</div>
+              </div>
+              <div class="card">
+                <h4>Notifications</h4>
+                <div class="line">3 unread notifications</div>
+                <div class="line" style="font-size: 11px;">• Document upload requested</div>
+                <div class="line" style="font-size: 11px;">• Payment reminder</div>
+                <div class="line" style="font-size: 11px;">• Inspection scheduled</div>
               </div>
             </div>
             <div class="card">
-              <h4>Permit Wizard (Step 2/4: Documents)</h4>
-              <div class="row">
-                <div class="card" style="border-style:dashed;">
-                  <div class="line">Business Registration ✔</div>
-                  <div class="line">PDF uploaded</div>
-                </div>
-                <div class="card" style="border-style:dashed;">
-                  <div class="line">Government ID ⚠ Missing page 2</div>
-                  <div class="line">Prompt: re-upload clearer scan</div>
-                </div>
-              </div>
-              <div class="row">
-                <div class="card" style="border-style:dashed;">
-                  <div class="line">Fire Safety Cert ✔</div>
-                  <div class="line">AI check: pass</div>
-                </div>
-                <div class="card" style="border-style:dashed;">
-                  <div class="line">Location Map ✔</div>
-                  <div class="line">PDF uploaded</div>
-                </div>
-              </div>
-              <div class="line">AI assist: flags missing/blurred docs; suggests fixes.</div>
-              <div class="button">Next Step: Review & Submit</div>
-            </div>
-            <div class="card">
-              <h4>Applications</h4>
-              <div class="line">#BC-1023 • In Review • Est. 3d • Upload requested docs</div>
-              <div class="line">#BC-0991 • Pending Payment • Resume checkout</div>
-              <div class="line">Draft #BC-1044 • Step 2/4 • Saved 10m ago</div>
+              <h4>Recent Applications</h4>
+              <div class="line">#BC-1023 • In Review • Est. 3 days • Upload requested documents</div>
+              <div class="line">#BC-0991 • Pending Payment • ₱2,650.00 • Resume checkout</div>
+              <div class="line">Draft #BC-1044 • Step 2/4 • Saved 10 minutes ago</div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- Business Registration Wizard -->
     <div class="page">
-      <h2>Payments & Receipt</h2>
+      <h2>Business Registration Wizard — Step-by-Step Setup</h2>
       <div class="browser">
         <div class="chrome">
           <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-          <div class="urlbar"></div>
+          <div class="urlbar">https://bizclear.dagupan.gov.ph/owner (First-time registration)</div>
         </div>
         <div class="layout">
           <div class="sidebar">
-            <div class="section-label">Payments</div>
-            <div class="nav-item">Checkout</div>
-            <div class="nav-item">Receipts</div>
-            <div class="nav-item">History</div>
+            <div class="section-label">Registration Steps</div>
+            <div class="nav-item active">Step 1: Welcome</div>
+            <div class="nav-item">Step 2: Business Info</div>
+            <div class="nav-item">Step 3: Documents</div>
+            <div class="nav-item">Step 4: Review</div>
           </div>
           <div class="main">
             <div class="topbar">
-              <div>Secure Checkout</div>
-              <div class="button">Saved Methods</div>
+              <div style="font-weight: 600;">Complete Business Registration</div>
+              <div class="button">Save Draft</div>
+              <div class="button">Cancel</div>
+            </div>
+            <div class="card">
+              <h4>Welcome to BizClear Registration</h4>
+              <div class="line">Complete your registration efficiently and securely in just a few steps.</div>
+              <div class="line" style="margin-top: 12px; font-weight: 600;">Before you start:</div>
+              <div class="line" style="font-size: 11px;">• Have your business registration documents ready</div>
+              <div class="line" style="font-size: 11px;">• Prepare government-issued ID (front and back)</div>
+              <div class="line" style="font-size: 11px;">• Fire Safety Certificate (if applicable)</div>
+              <div class="line" style="font-size: 11px;">• Location map or site plan</div>
+              <div class="button primary" style="margin-top: 12px;">Start Registration</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Permit Application Form -->
+    <div class="page">
+      <h2>Permit Application — New Application Form</h2>
+      <div class="browser">
+        <div class="chrome">
+          <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+          <div class="urlbar">https://bizclear.dagupan.gov.ph/owner/permits</div>
+        </div>
+        <div class="layout">
+          <div class="sidebar">
+            <div class="section-label">Business Owner</div>
+            <div class="nav-item">Dashboard</div>
+            <div class="nav-item active">Permit Applications</div>
+            <div class="nav-item">Cessation</div>
+            <div class="nav-item">Payments</div>
+            <div class="nav-item">Appeals</div>
+            <div class="nav-item">Profile / Settings</div>
+          </div>
+          <div class="main">
+            <div class="topbar">
+              <div style="font-weight: 600;">New Permit Application</div>
+              <div class="button">View All Applications</div>
+              <div class="button">Help</div>
+            </div>
+            <div class="card">
+              <h4>Application Details</h4>
+              <div class="row">
+                <div class="line">Application Number: APP-20240220-847</div>
+                <div class="line">Application Date: 2024-02-20</div>
+              </div>
+              <div class="line" style="margin-top: 8px; background: #f9f9f9;">Business Name: Wayne Enterprises</div>
+              <div class="line" style="background: #f9f9f9;">TIN: 123-456-789-000</div>
+              <div class="line" style="background: #f9f9f9;">Address: 123 Gotham St., Metro City</div>
+            </div>
+            <div class="card">
+              <h4>Permit Information</h4>
+              <div class="row">
+                <div class="line">Permit Type: Business Permit</div>
+                <div class="line">Business Size: Small</div>
+              </div>
+              <div class="line">Validity Period: 2024-02-20 to 2025-02-19</div>
+            </div>
+            <div class="card">
+              <h4>Required Documents <span class="badge">AI-Assisted Validation</span></h4>
+              <div class="row">
+                <div class="card" style="border-style: dashed;">
+                  <div class="line success">Business Registration ✔</div>
+                  <div class="line" style="font-size: 11px;">PDF uploaded • AI check: pass</div>
+                </div>
+                <div class="card" style="border-style: dashed;">
+                  <div class="line warning">Government ID ⚠ Missing page 2</div>
+                  <div class="line" style="font-size: 11px;">AI suggestion: re-upload clearer scan</div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="card" style="border-style: dashed;">
+                  <div class="line success">Fire Safety Certificate ✔</div>
+                  <div class="line" style="font-size: 11px;">PDF uploaded • AI check: pass</div>
+                </div>
+                <div class="card" style="border-style: dashed;">
+                  <div class="line success">Location Map ✔</div>
+                  <div class="line" style="font-size: 11px;">PDF uploaded</div>
+                </div>
+              </div>
+              <div class="line" style="font-size: 11px; margin-top: 8px;">AI assist: flags missing/blurred documents; suggests fixes automatically.</div>
+            </div>
+            <div class="card">
+              <h4>Estimated Fees (Auto-calculated)</h4>
+              <div class="line" style="font-weight: 600; font-size: 16px;">Total: ₱2,500.00</div>
+              <div class="line" style="font-size: 11px;">☑ Request Pre-approval Inspection?</div>
+            </div>
+            <div class="line" style="background: #f6ffed; border-color: #b7eb8f; color: #389e0d; margin-top: 8px;">
+              🔒 Blockchain Security: This application record will be timestamped and immutable upon submission.
+            </div>
+            <div class="button primary" style="margin-top: 12px;">Submit Application</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payments Page -->
+    <div class="page">
+      <h2>Payments — Secure Checkout & Receipts</h2>
+      <div class="browser">
+        <div class="chrome">
+          <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+          <div class="urlbar">https://bizclear.dagupan.gov.ph/owner/payments</div>
+        </div>
+        <div class="layout">
+          <div class="sidebar">
+            <div class="section-label">Business Owner</div>
+            <div class="nav-item">Dashboard</div>
+            <div class="nav-item">Permit Applications</div>
+            <div class="nav-item">Cessation</div>
+            <div class="nav-item active">Payments</div>
+            <div class="nav-item">Appeals</div>
+            <div class="nav-item">Profile / Settings</div>
+          </div>
+          <div class="main">
+            <div class="topbar">
+              <div style="font-weight: 600;">Secure Checkout</div>
+              <div class="button">Saved Payment Methods</div>
+              <div class="button">Payment History</div>
               <div class="button">Help</div>
             </div>
             <div class="row">
               <div class="card">
                 <h4>Fee Summary</h4>
-                <div class="line">Permit fee • 2,500</div>
-                <div class="line">Surcharges • 150</div>
-                <div class="line">Total • 2,650</div>
+                <div class="line">Permit Application Fee: ₱2,500.00</div>
+                <div class="line">Surcharges: ₱150.00</div>
+                <div class="line" style="border-top: 2px solid var(--stroke); margin-top: 8px; padding-top: 8px; font-weight: 600;">Total Amount: ₱2,650.00</div>
+                <div class="line" style="font-size: 11px; margin-top: 8px;">Application: #BC-0991</div>
               </div>
               <div class="card">
                 <h4>Payment Method</h4>
-                <div class="line">Card • **** 4242</div>
-                <div class="line">GCash • optional</div>
-                <div class="line">Bank OTC • upload slip</div>
-                <div class="button">Pay now</div>
+                <div class="line">💳 Credit/Debit Card • **** 4242</div>
+                <div class="line">📱 GCash • Available</div>
+                <div class="line">🏦 Bank Over-the-Counter • Upload payment slip</div>
+                <div class="button primary" style="margin-top: 12px;">Pay Now</div>
               </div>
             </div>
             <div class="card">
               <h4>Receipt & Notifications</h4>
-              <div class="line">Receipt #RC-4432 • Download PDF • Email sent</div>
-              <div class="line">Push + Email: Payment success</div>
-              <div class="line">If failed: retry link + support contact</div>
+              <div class="line success">Receipt #RC-4432 • Generated 2024-02-20 14:32</div>
+              <div class="line">📄 Download PDF Receipt</div>
+              <div class="line">📧 Email receipt sent to business@example.com</div>
+              <div class="line">📱 Push notification: Payment successful</div>
+              <div class="line" style="font-size: 11px; margin-top: 8px;">If payment failed: retry link available + support contact information</div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- Appeals Page -->
     <div class="page">
-      <h2>Violations + Appeals</h2>
+      <h2>Appeals — Violation Appeals Management</h2>
       <div class="browser">
         <div class="chrome">
           <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-          <div class="urlbar"></div>
+          <div class="urlbar">https://bizclear.dagupan.gov.ph/owner/appeals</div>
         </div>
         <div class="layout">
           <div class="sidebar">
-            <div class="section-label">Compliance</div>
-            <div class="nav-item">Violations</div>
-            <div class="nav-item">Appeals</div>
+            <div class="section-label">Business Owner</div>
+            <div class="nav-item">Dashboard</div>
+            <div class="nav-item">Permit Applications</div>
+            <div class="nav-item">Cessation</div>
             <div class="nav-item">Payments</div>
+            <div class="nav-item active">Appeals</div>
+            <div class="nav-item">Profile / Settings</div>
           </div>
           <div class="main">
             <div class="topbar">
-              <div>Filters: status • type • date</div>
-              <div class="button">New Appeal</div>
+              <div style="font-weight: 600;">My Appeals</div>
+              <div class="button">Filters: Status • Type • Date</div>
+              <div class="button primary">New Appeal</div>
               <div class="button">Export</div>
             </div>
             <div class="table">
               <div class="thead">
-                <div>ID</div><div>Type</div><div>Status</div><div>SLA</div>
+                <div>Violation ID</div><div>Type</div><div>Status</div><div>SLA Remaining</div>
               </div>
-              <div class="trow"><div>V-2201</div><div>Fire code</div><div>Pending appeal</div><div>5d</div></div>
-              <div class="trow"><div>V-2178</div><div>Zoning</div><div>Paid • Closed</div><div>—</div></div>
-              <div class="trow"><div>V-2199</div><div>Sanitation</div><div>Unpaid</div><div>2d</div></div>
+              <div class="trow">
+                <div>V-2201</div><div>Fire code violation</div><div><span class="badge warning">Pending appeal</span></div><div>5 days</div>
+              </div>
+              <div class="trow">
+                <div>V-2178</div><div>Zoning violation</div><div><span class="badge success">Paid • Closed</span></div><div>—</div>
+              </div>
+              <div class="trow">
+                <div>V-2199</div><div>Sanitation violation</div><div><span class="badge error">Unpaid</span></div><div>2 days</div>
+              </div>
             </div>
             <div class="card">
-              <h4>Appeal Detail (V-2201)</h4>
-              <div class="line">Reason: Compliance completed • Photos attached</div>
-              <div class="line">Evidence: Before/After images • PDF report</div>
-              <div class="line">Status: In Review • Est. 5d</div>
-              <div class="button">Add evidence / Withdraw</div>
+              <h4>Appeal Detail — Violation V-2201</h4>
+              <div class="line">Violation Type: Fire code violation</div>
+              <div class="line">Issue Date: 2024-02-15</div>
+              <div class="line">Appeal Reason: Compliance completed • Photos attached</div>
+              <div class="line">Evidence Submitted:</div>
+              <div class="line" style="font-size: 11px; margin-left: 16px;">• Before/After images (4 photos)</div>
+              <div class="line" style="font-size: 11px; margin-left: 16px;">• PDF compliance report</div>
+              <div class="line">Current Status: <span class="badge warning">In Review</span> • Estimated review: 5 days</div>
+              <div class="row" style="margin-top: 12px;">
+                <div class="button">Add More Evidence</div>
+                <div class="button">Withdraw Appeal</div>
+                <div class="button">Contact Support</div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- LGU Officer Dashboard -->
     <div class="page">
-      <h2>Officer / Manager Workspace</h2>
+      <h2>LGU Officer Workspace — Application Review Queue</h2>
       <div class="browser">
         <div class="chrome">
           <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-          <div class="urlbar"></div>
+          <div class="urlbar">https://bizclear.dagupan.gov.ph/staff/applications</div>
         </div>
         <div class="layout">
           <div class="sidebar">
-            <div class="section-label">Officer</div>
-            <div class="nav-item">Queue</div>
-            <div class="nav-item">Assignments</div>
-            <div class="nav-item">Reports</div>
-            <div class="nav-item">Audit</div>
+            <div class="section-label">LGU Officer Menu</div>
+            <div class="nav-item">Dashboard</div>
+            <div class="nav-item active">Permit Applications (Review)</div>
+            <div class="nav-item">Cessation (Review)</div>
+            <div class="nav-item">Violations / Inspections</div>
+            <div class="nav-item">Appeals</div>
+            <div class="nav-item">Profile / Settings</div>
+            <div class="nav-item">Logout</div>
           </div>
           <div class="main">
             <div class="topbar">
-              <div>Queue • Sort by SLA / priority</div>
-              <div class="button">Bulk assign</div>
-              <div class="button">Pause</div>
+              <div style="font-weight: 600;">Review Queue • Sort by: SLA / Priority</div>
+              <div class="button">Bulk Assign</div>
+              <div class="button">Filters</div>
+              <div class="button">Export</div>
             </div>
             <div class="table">
-              <div class="thead"><div>ID</div><div>Type</div><div>Status</div><div>SLA</div></div>
-              <div class="trow"><div>BC-1023</div><div>Permit</div><div>Docs pending</div><div>3d</div></div>
-              <div class="trow"><div>AP-441</div><div>Appeal</div><div>Needs review</div><div>1d</div></div>
-              <div class="trow"><div>BC-1008</div><div>Permit</div><div>Auto-routed</div><div>5d</div></div>
+              <div class="thead">
+                <div>Application ID</div><div>Type</div><div>Status</div><div>SLA Remaining</div>
+              </div>
+              <div class="trow">
+                <div>BC-1023</div><div>Permit Application</div><div><span class="badge warning">Docs pending</span></div><div>3 days</div>
+              </div>
+              <div class="trow">
+                <div>AP-441</div><div>Appeal</div><div><span class="badge warning">Needs review</span></div><div>1 day</div>
+              </div>
+              <div class="trow">
+                <div>BC-1008</div><div>Permit Application</div><div><span class="badge">Auto-routed</span></div><div>5 days</div>
+              </div>
             </div>
             <div class="card">
-              <h4>Review Panel (BC-1023)</h4>
-              <div class="row">
-                <div class="button">Request info</div>
-                <div class="button">Approve</div>
-                <div class="button">Deny</div>
+              <h4>Review Panel — Application BC-1023</h4>
+              <div class="line">Business: Wayne Enterprises</div>
+              <div class="line">Application Date: 2024-02-15</div>
+              <div class="line">Permit Type: Business Permit</div>
+              <div class="line warning">Officer Note: Missing updated fire safety certificate. Requested from applicant.</div>
+              <div class="row" style="margin-top: 12px;">
+                <div class="button">Request Additional Info</div>
+                <div class="button primary">Approve</div>
+                <div class="button" style="background: #fff2f0; color: #cf1322; border-color: #ffccc7;">Deny</div>
               </div>
-              <div class="line">Officer note: Missing updated fire cert.</div>
-              <div class="line">Audit: LGO1 updated status • Timestamp • IP</div>
+              <div class="line" style="font-size: 11px; margin-top: 12px; background: #f9f9f9;">
+                🔒 Audit Trail: LGU Officer (officer@example.com) updated status • 2024-02-20 14:32:15 • IP: 192.168.1.100
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- Inspector Mobile View -->
     <div class="page">
-      <h2>Inspections (Mobile)</h2>
+      <h2>Inspector Mobile App — Field Inspections</h2>
       <div class="mobile">
-        <div class="topbar" style="height:38px; border-style:solid; justify-content:space-between;">
-          <div>Assignments • Today</div>
+        <div class="topbar" style="height:38px; border-style:solid; justify-content:space-between; align-items:center;">
+          <div style="font-weight: 600;">Inspections • Today</div>
           <div class="button" style="width:90px; height:22px;">Filter</div>
         </div>
         <div class="card" style="padding:12px; border-style:dashed;">
-          <h4>Visits</h4>
-          <div class="line">09:00 • BC Motors • Map • Start</div>
-          <div class="line">14:00 • Cafe Azul • Map • Start</div>
+          <h4>Scheduled Visits</h4>
+          <div class="line">
+            <div style="font-weight: 600;">09:00 • BC Motors</div>
+            <div style="font-size: 11px; margin-top: 4px;">📍 Map • 🚗 Start Inspection</div>
+          </div>
+          <div class="line" style="margin-top: 8px;">
+            <div style="font-weight: 600;">14:00 • Cafe Azul</div>
+            <div style="font-size: 11px; margin-top: 4px;">📍 Map • 🚗 Start Inspection</div>
+          </div>
         </div>
         <div class="card">
-          <h4>Inspection Detail</h4>
-          <div class="line">Upload photos • Notes</div>
-          <div class="line">Findings • Link to violation</div>
-          <div class="line">Offline capture • Sync later</div>
-          <div class="button" style="width:100%;">Submit inspection report</div>
+          <h4>Inspection Detail — BC Motors</h4>
+          <div class="line">Business: BC Motors</div>
+          <div class="line">Address: 456 Main Street, Dagupan City</div>
+          <div class="line">Permit: #BC-1023</div>
+          <div class="line" style="margin-top: 12px; font-weight: 600;">Inspection Checklist:</div>
+          <div class="line" style="font-size: 11px;">☑ Fire Safety Compliance</div>
+          <div class="line" style="font-size: 11px;">☑ Sanitation Standards</div>
+          <div class="line" style="font-size: 11px;">☐ Zoning Compliance</div>
+          <div class="line" style="margin-top: 12px;">📷 Upload Photos (4/10)</div>
+          <div class="line">📝 Notes: Enter inspection findings...</div>
+          <div class="line" style="font-size: 11px; margin-top: 8px;">🔗 Link to violation (if applicable)</div>
+          <div class="line" style="font-size: 11px; background: #f6ffed; border-color: #b7eb8f;">📡 Offline mode: Data will sync when connection is available</div>
+          <div class="button primary" style="width:100%; margin-top: 12px;">Submit Inspection Report</div>
         </div>
       </div>
     </div>
 
+    <!-- LGU Manager Reports -->
     <div class="page">
-      <h2>Reports & SLA</h2>
+      <h2>LGU Manager — Reports & Analytics</h2>
       <div class="browser">
         <div class="chrome">
           <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-          <div class="urlbar"></div>
+          <div class="urlbar">https://bizclear.dagupan.gov.ph/staff/reports</div>
         </div>
         <div class="layout">
           <div class="sidebar">
-            <div class="section-label">Reports</div>
-            <div class="nav-item">Overview</div>
-            <div class="nav-item">Permits</div>
-            <div class="nav-item">Appeals</div>
+            <div class="section-label">LGU Manager Menu</div>
+            <div class="nav-item">Dashboard</div>
+            <div class="nav-item active">Reports / Analytics</div>
+            <div class="nav-item">Profile / Settings</div>
+            <div class="nav-item">Logout</div>
           </div>
           <div class="main">
             <div class="topbar">
-              <div>SLA & Volumes</div>
+              <div style="font-weight: 600;">SLA & Volume Reports</div>
               <div class="button">Export CSV</div>
-              <div class="button">Email weekly</div>
+              <div class="button">Email Weekly Report</div>
+              <div class="button">Custom Date Range</div>
             </div>
             <div class="row">
-              <div class="chart">Trend chart</div>
+              <div class="chart">📊 Trend Chart: Permit Applications (Last 6 Months)</div>
               <div class="card">
-                <h4>Highlights</h4>
-                <div class="line">Avg permit SLA: 4.2d</div>
-                <div class="line">Appeals backlog: 12</div>
-                <div class="line">Inspections passed: 86%</div>
-                <div class="line">Payments success: 97%</div>
+                <h4>Key Performance Indicators</h4>
+                <div class="line">Average Permit SLA: 4.2 days</div>
+                <div class="line">Appeals Backlog: 12 pending</div>
+                <div class="line success">Inspections Pass Rate: 86%</div>
+                <div class="line success">Payment Success Rate: 97%</div>
+                <div class="line">Total Applications This Month: 142</div>
+                <div class="line">Total Revenue: ₱355,000.00</div>
               </div>
             </div>
-            <div class="button" style="width:200px;">Download PDF</div>
+            <div class="card">
+              <h4>Department Performance</h4>
+              <div class="line">Fire Safety Reviews: 45 applications • Avg 3.8 days</div>
+              <div class="line">Zoning Reviews: 38 applications • Avg 4.5 days</div>
+              <div class="line">Sanitation Reviews: 32 applications • Avg 3.2 days</div>
+              <div class="line warning">Bottleneck Alert: Fire inspections queue (12 pending)</div>
+            </div>
+            <div class="button primary" style="width:200px; margin-top: 12px;">Download PDF Report</div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- CSO Dashboard -->
     <div class="page">
-      <h2>Blockchain Audit Log</h2>
+      <h2>CSO (Customer Support Officer) — Support Queue</h2>
       <div class="browser">
         <div class="chrome">
           <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-          <div class="urlbar"></div>
+          <div class="urlbar">https://bizclear.dagupan.gov.ph/staff/support</div>
         </div>
         <div class="layout">
           <div class="sidebar">
-            <div class="section-label">Audit</div>
-            <div class="nav-item">On-chain log</div>
-            <div class="nav-item">Integrity</div>
+            <div class="section-label">CSO Menu</div>
+            <div class="nav-item">Dashboard</div>
+            <div class="nav-item active">Customer Support / Inquiry</div>
+            <div class="nav-item">Profile / Settings</div>
+            <div class="nav-item">Logout</div>
+          </div>
+          <div class="main">
+            <div class="topbar">
+              <div style="font-weight: 600;">Support Queue • Sort by: Priority / Date</div>
+              <div class="button">Filters</div>
+              <div class="button">Assign to Me</div>
+              <div class="button">Export</div>
+            </div>
+            <div class="table">
+              <div class="thead">
+                <div>Ticket ID</div><div>Subject</div><div>Status</div><div>Priority</div>
+              </div>
+              <div class="trow">
+                <div>SUP-2024-001</div><div>Payment issue — cannot complete</div><div><span class="badge warning">Open</span></div><div><span class="badge error">High</span></div>
+              </div>
+              <div class="trow">
+                <div>SUP-2024-002</div><div>Document upload question</div><div><span class="badge warning">Open</span></div><div><span class="badge">Medium</span></div>
+              </div>
+              <div class="trow">
+                <div>SUP-2024-003</div><div>Appeal status inquiry</div><div><span class="badge success">Resolved</span></div><div>—</div>
+              </div>
+            </div>
+            <div class="card">
+              <h4>Support Ticket — SUP-2024-001</h4>
+              <div class="line">Customer: Wayne Enterprises (business@example.com)</div>
+              <div class="line">Subject: Payment issue — cannot complete transaction</div>
+              <div class="line">Status: <span class="badge warning">Open</span> • Assigned to: CSO (cso@example.com)</div>
+              <div class="line">Priority: <span class="badge error">High</span> • Created: 2024-02-20 10:15</div>
+              <div class="line" style="margin-top: 12px; font-weight: 600;">Customer Message:</div>
+              <div class="line" style="font-size: 11px; background: #f9f9f9;">"I'm trying to pay for application BC-0991 but the payment page keeps showing an error. I've tried multiple times. Please help."</div>
+              <div class="line" style="margin-top: 12px; font-weight: 600;">Response:</div>
+              <div class="line" style="font-size: 11px; background: #f9f9f9;">[Type response here...]</div>
+              <div class="row" style="margin-top: 12px;">
+                <div class="button primary">Send Response</div>
+                <div class="button">Escalate to Technical Team</div>
+                <div class="button">Mark as Resolved</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div class="page">
+      <h2>Admin Dashboard — System Administration</h2>
+      <div class="browser">
+        <div class="chrome">
+          <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+          <div class="urlbar">https://bizclear.dagupan.gov.ph/admin/dashboard</div>
+        </div>
+        <div class="layout">
+          <div class="sidebar">
+            <div class="section-label">Admin Menu</div>
+            <div class="nav-item active">Dashboard</div>
+            <div class="nav-item">Admin — Full</div>
+            <div class="nav-item">User Management</div>
+            <div class="nav-item">Maintenance</div>
+            <div class="nav-item">Profile / Settings</div>
+            <div class="nav-item">Logout</div>
+          </div>
+          <div class="main">
+            <div class="topbar">
+              <div style="font-weight: 600;">Admin Dashboard — System Overview</div>
+              <div class="button">Security Alerts</div>
+              <div class="button">System Status</div>
+            </div>
+            <div class="row">
+              <div class="card">
+                <h4>User Management</h4>
+                <div class="line">Total Users: 1,247</div>
+                <div class="line">Business Owners: 892</div>
+                <div class="line">Staff Members: 312</div>
+                <div class="line">Admins: 3</div>
+                <div class="button" style="margin-top: 8px;">Manage Users</div>
+              </div>
+              <div class="card">
+                <h4>Security Alerts</h4>
+                <div class="line error">Tamper Incidents: 0 (last 30 days)</div>
+                <div class="line">Failed Login Attempts: 12</div>
+                <div class="line">MFA Enrollment Rate: 94%</div>
+                <div class="line success">System Integrity: Verified</div>
+              </div>
+              <div class="card">
+                <h4>System Health</h4>
+                <div class="line success">Database: Connected</div>
+                <div class="line success">Blockchain: Synced</div>
+                <div class="line success">AI Services: Operational</div>
+                <div class="line">Uptime: 99.8%</div>
+              </div>
+            </div>
+            <div class="card">
+              <h4>Recent Admin Actions</h4>
+              <div class="line">2024-02-20 14:30 • Created new role: "Senior Inspector"</div>
+              <div class="line">2024-02-20 13:15 • Updated user permissions for LGU Officer role</div>
+              <div class="line">2024-02-20 12:00 • System maintenance window scheduled</div>
+            </div>
+            <div class="row" style="margin-top: 12px;">
+              <div class="button primary">Create Role</div>
+              <div class="button primary">Open Full Dashboard</div>
+              <div class="button">User Management</div>
+              <div class="button">Maintenance Mode</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Blockchain Audit Log -->
+    <div class="page">
+      <h2>Blockchain Audit Log — Immutable Event Tracking</h2>
+      <div class="browser">
+        <div class="chrome">
+          <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+          <div class="urlbar">https://bizclear.dagupan.gov.ph/admin/audit</div>
+        </div>
+        <div class="layout">
+          <div class="sidebar">
+            <div class="section-label">Audit & Compliance</div>
+            <div class="nav-item active">On-chain Log</div>
+            <div class="nav-item">Integrity Check</div>
             <div class="nav-item">Settings</div>
           </div>
           <div class="main">
             <div class="topbar">
-              <div>Immutable events</div>
-              <div class="button">Filter</div>
-              <div class="button">Retry anchor</div>
+              <div style="font-weight: 600;">Immutable Event Log</div>
+              <div class="button">Filter: Date • User • Action</div>
+              <div class="button">Retry Failed Anchors</div>
+              <div class="button">Export Audit Report</div>
             </div>
             <div class="table">
-              <div class="thead"><div>Entity</div><div>Action</div><div>Hash status</div><div>Timestamp</div></div>
-              <div class="trow"><div>#1023</div><div>Status change</div><div>Verified</div><div>12:01</div></div>
-              <div class="trow"><div>RC-4432</div><div>Payment</div><div>Verified</div><div>12:04</div></div>
-              <div class="trow"><div>AP-441</div><div>Note added</div><div>Pending anchor</div><div>12:08</div></div>
+              <div class="thead">
+                <div>Entity ID</div><div>Action</div><div>Hash Status</div><div>Timestamp</div>
+              </div>
+              <div class="trow">
+                <div>BC-1023</div><div>Status change (In Review → Approved)</div><div><span class="badge success">Verified</span></div><div>2024-02-20 12:01:15</div>
+              </div>
+              <div class="trow">
+                <div>RC-4432</div><div>Payment processed</div><div><span class="badge success">Verified</span></div><div>2024-02-20 12:04:32</div>
+              </div>
+              <div class="trow">
+                <div>AP-441</div><div>Appeal note added</div><div><span class="badge warning">Pending anchor</span></div><div>2024-02-20 12:08:47</div>
+              </div>
             </div>
-            <div class="line">Each row: entity • action • hash • status • link to explorer</div>
+            <div class="card">
+              <h4>Blockchain Integrity Details</h4>
+              <div class="line">Chain Status: <span class="badge success">Valid</span> • All blocks verified</div>
+              <div class="line">Total Blocks: 15,432</div>
+              <div class="line">Last Block Hash: 0x7a3f9e2b1c4d8a5f...</div>
+              <div class="line">Each event includes: Entity ID • Action type • User • Hash • Timestamp • IP address • Link to blockchain explorer</div>
+              <div class="line" style="font-size: 11px; margin-top: 8px; background: #f6ffed; border-color: #b7eb8f;">
+                🔒 Tamper Detection: Any modification to audit logs will be detected automatically. System integrity verified.
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- AI Validation & Insights -->
     <div class="page">
-      <h2>AI Validation & Insights</h2>
+      <h2>AI Validation & Insights — Document Check & Triage</h2>
       <div class="browser">
         <div class="chrome">
           <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-          <div class="urlbar"></div>
+          <div class="urlbar">https://bizclear.dagupan.gov.ph/owner/permits (AI Features)</div>
         </div>
         <div class="layout">
           <div class="sidebar">
-            <div class="section-label">AI Panels</div>
-            <div class="nav-item">Doc Check</div>
-            <div class="nav-item">Triage</div>
-            <div class="nav-item">Chatbot</div>
+            <div class="section-label">AI-Assisted Features</div>
+            <div class="nav-item active">Document Validation</div>
+            <div class="nav-item">Triage & Insights</div>
+            <div class="nav-item">Chatbot Assist</div>
           </div>
           <div class="main">
             <div class="topbar">
-              <div>Assistive AI</div>
-              <div class="button">Refresh</div>
-              <div class="button">Export</div>
+              <div style="font-weight: 600;">Assistive AI — Document Processing</div>
+              <div class="button">Refresh Analysis</div>
+              <div class="button">Export Report</div>
             </div>
             <div class="row">
               <div class="card">
-                <h4>Document Validation</h4>
-                <div class="line">Gov ID • Missing page 2 • Conf 0.83</div>
-                <div class="line">Fire Cert • Low-res upload • Conf 0.71</div>
-                <div class="line">Risk: Medium • Suggest re-upload</div>
+                <h4>Document Validation Results</h4>
+                <div class="line success">Government ID (Front) • Valid • Confidence: 0.95</div>
+                <div class="line warning">Government ID (Back) • Missing page 2 • Confidence: 0.83</div>
+                <div class="line warning">Fire Safety Certificate • Low-resolution upload • Confidence: 0.71</div>
+                <div class="line success">Business Registration • Valid • Confidence: 0.92</div>
+                <div class="line" style="margin-top: 8px; font-weight: 600;">Overall Risk: <span class="badge warning">Medium</span></div>
+                <div class="line" style="font-size: 11px;">AI Suggestion: Re-upload clearer scan of Government ID (back page) and Fire Safety Certificate</div>
               </div>
               <div class="card">
-                <h4>Triage & Insights</h4>
-                <div class="line">Queue suggestion: High priority (risk ↑)</div>
-                <div class="line">Bottleneck: Fire inspections</div>
-                <div class="line">Recommendation: Auto-assign to Team B</div>
+                <h4>Triage & Queue Insights</h4>
+                <div class="line warning">Queue Suggestion: High priority (risk ↑)</div>
+                <div class="line">Bottleneck Detected: Fire inspections queue (12 pending)</div>
+                <div class="line">Recommendation: Auto-assign to Team B (faster processing)</div>
+                <div class="line">Predicted SLA: 3.2 days (vs. average 4.2 days)</div>
+                <div class="line" style="margin-top: 8px; font-size: 11px;">AI Analysis: Document completeness 85% • Compliance risk: Low</div>
               </div>
             </div>
             <div class="card">
-              <h4>Chatbot Assist</h4>
-              <div class="line">Q: “What docs for renewal?”</div>
-              <div class="line">A: Checklist + upload links</div>
-              <div class="button" style="width:170px;">Escalate to human</div>
+              <h4>AI Chatbot Assistant</h4>
+              <div class="line" style="background: #f9f9f9;">User: "What documents do I need for permit renewal?"</div>
+              <div class="line" style="background: #e6f7ff; border-color: #91d5ff;">
+                AI: "For permit renewal, you'll need: 1) Updated Business Registration, 2) Current Fire Safety Certificate, 3) Updated Government ID (if expired), 4) Payment receipt from previous permit. Would you like me to generate a checklist with upload links?"
+              </div>
+              <div class="line" style="font-size: 11px; margin-top: 8px;">💡 AI can assist with: Document requirements • Application status • Payment questions • Appeal process</div>
+              <div class="button" style="width:170px; margin-top: 8px;">Escalate to Human Support</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cessation Page -->
+    <div class="page">
+      <h2>Business Cessation — Closure Application</h2>
+      <div class="browser">
+        <div class="chrome">
+          <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+          <div class="urlbar">https://bizclear.dagupan.gov.ph/owner/cessation</div>
+        </div>
+        <div class="layout">
+          <div class="sidebar">
+            <div class="section-label">Business Owner</div>
+            <div class="nav-item">Dashboard</div>
+            <div class="nav-item">Permit Applications</div>
+            <div class="nav-item active">Cessation</div>
+            <div class="nav-item">Payments</div>
+            <div class="nav-item">Appeals</div>
+            <div class="nav-item">Profile / Settings</div>
+          </div>
+          <div class="main">
+            <div class="topbar">
+              <div style="font-weight: 600;">Business Cessation Application</div>
+              <div class="button">View Cessation History</div>
+              <div class="button">Help</div>
+            </div>
+            <div class="card">
+              <h4>Start Business Closure Process</h4>
+              <div class="line">Business: Wayne Enterprises</div>
+              <div class="line">Active Permits: 2 (will be cancelled upon approval)</div>
+              <div class="line">Cessation Date: [Select date]</div>
+              <div class="line">Reason: [Select from dropdown: Relocation / Business Closure / Other]</div>
+              <div class="line" style="margin-top: 12px; font-weight: 600;">Required Documents:</div>
+              <div class="line" style="font-size: 11px;">• Closure notice or affidavit</div>
+              <div class="line" style="font-size: 11px;">• Final tax clearance</div>
+              <div class="line" style="font-size: 11px;">• Proof of payment for outstanding fees</div>
+              <div class="line warning" style="margin-top: 12px;">⚠️ Warning: This action cannot be undone. All active permits will be cancelled.</div>
+              <div class="button primary" style="margin-top: 12px;">Submit Cessation Application</div>
+            </div>
+            <div class="card">
+              <h4>Active Cessation Applications</h4>
+              <div class="line">CES-2024-001 • Pending Review • Submitted: 2024-02-18</div>
+              <div class="line">Status: Awaiting LGU Officer review • Est. 2 days</div>
             </div>
           </div>
         </div>
