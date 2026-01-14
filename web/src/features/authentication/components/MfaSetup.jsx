@@ -147,7 +147,7 @@ export default function MfaSetup() {
             border: `1px solid ${token.colorBorderSecondary}`,
             boxShadow: 'inset 0 0 20px rgba(0,0,0,0.02)'
           }}>
-            {loading ? <Spin /> : <QrDisplay dataUrl={qrDataUrl} uri={uri} size={200} />}
+            {loading ? <Spin /> : <QrDisplay dataUrl={qrDataUrl} size={200} />}
           </div>
 
           <div style={{ marginBottom: 32 }}>

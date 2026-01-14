@@ -11,7 +11,9 @@ export default function useProfile() {
     if (currentUser?.email) {
       mfaStatus(currentUser.email)
         .then(res => {
-          if (mounted) setRealMfaEnabled(!!res?.enabled)
+          if (mounted) {
+            setRealMfaEnabled(!!res?.enabled)
+          }
         })
         .catch(err => {
           console.error('Failed to fetch MFA status in static profile:', err)
@@ -36,7 +38,7 @@ export default function useProfile() {
       email: currentUser?.email || '',
       avatar: currentUser?.avatar,
       role: (currentUser?.role?.slug || currentUser?.role || 'user').toString(),
-      mfaEnabled: realMfaEnabled !== null ? realMfaEnabled : !!currentUser.mfaEnabled,
+      mfaEnabled: realMfaEnabled !== null ? realMfaEnabled : !!currentUser?.mfaEnabled,
     }
   }, [currentUser, realMfaEnabled])
 

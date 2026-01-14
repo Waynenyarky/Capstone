@@ -44,6 +44,8 @@ export default defineConfig({
     }]
   },
   server: {
+    host: '0.0.0.0', // Listen on all network interfaces (required for mobile device access)
+    port: 5173,
     proxy: {
       '/api': {
         target: 'http://localhost:5000',

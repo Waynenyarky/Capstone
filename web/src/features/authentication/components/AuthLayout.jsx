@@ -1,10 +1,11 @@
 import React from 'react'
-import { Layout, Row, Col, Typography, ConfigProvider, theme, Button, Card } from 'antd'
+import { Layout, Row, Col, Typography, ConfigProvider, theme, Button, Card, Grid } from 'antd'
 import { ArrowLeftOutlined, SafetyCertificateOutlined, ScheduleOutlined, SyncOutlined } from '@ant-design/icons'
 import { useNavigate, Link } from 'react-router-dom'
 import BizClearLogo from '@/logo/BizClear.png'
 
 const { Title, Paragraph, Text } = Typography
+const { useBreakpoint } = Grid
 
 /**
  * AuthLayout Component
@@ -21,6 +22,9 @@ export default function AuthLayout({
   formMaxWidth = 440 // Default width for form container
 }) {
   const navigate = useNavigate();
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
+  const isTablet = screens.md && !screens.lg
 
   const { token } = theme.useToken()
 
@@ -43,22 +47,27 @@ export default function AuthLayout({
   ];
 
   return (
-    <Layout style={{ height: '100vh', overflow: 'hidden' }}>
-      <Row style={{ height: '100%' }}>
-        {/* Left Side - Branding */}
-        <Col 
-          xs={0} md={12} lg={12} 
-          style={{ 
-            background: 'radial-gradient(circle at 50% -20%, #0050b3 0%, transparent 40%), linear-gradient(135deg, #001529 0%, #003a70 100%)', // Home Page Gradient
-            display: 'flex', 
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            padding: '40px 60px',
-            position: 'relative',
-            overflow: 'hidden',
-            height: '100%'
-          }}
-        >
+    <Layout style={{ minHeight: '100vh', height: isMobile ? 'auto' : '100vh', overflow: 'hidden', background: '#fff' }}>
+      <Row style={{ 
+        height: isMobile ? 'auto' : '100%', 
+        minHeight: isMobile ? '100vh' : '100%',
+        margin: 0
+      }}>
+        {/* Left Side - Branding (Hidden on Mobile) */}
+        {!isMobile && (
+          <Col 
+            md={12} lg={12} 
+            style={{ 
+              background: 'radial-gradient(circle at 50% -20%, #0050b3 0%, transparent 40%), linear-gradient(135deg, #001529 0%, #003a70 100%)',
+              display: 'flex', 
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              padding: '40px 60px',
+              position: 'relative',
+              overflow: 'hidden',
+              height: '100%'
+            }}
+          >
           {/* Decorative Elements */}
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'url("https://gw.alipayobjects.com/zos/rmsportal/FfdJeJRQWjEeGTpqgBKj.png") center top no-repeat', opacity: 0.1, pointerEvents: 'none' }} />
 
@@ -156,44 +165,121 @@ export default function AuthLayout({
              </div>
           </div>
         </Col>
+        )}
 
         {/* Right Side - Form Container */}
         <Col 
           xs={24} md={12} lg={12} 
           style={{ 
-            background: '#fff', // Match Home background
-            height: '100%',
-            overflowY: 'auto',
+            background: '#fff',
+            height: isMobile ? 'auto' : '100vh',
+            minHeight: isMobile ? '100vh' : '100%',
+            overflowY: isMobile ? 'auto' : 'auto',
             display: 'flex', 
-            flexDirection: 'column'
+            flexDirection: 'column',
+            justifyContent: isMobile ? 'flex-start' : 'center',
+            order: isMobile ? -1 : 0 // Ensure form appears first on mobile
           }}
         >
-          <div style={{ width: '100%', maxWidth: formMaxWidth, margin: 'auto', padding: '60px' }}>
+          {/* Mobile Header - Compact */}
+          {isMobile && (
+            <div style={{ 
+              padding: '16px 20px 12px',
+              borderBottom: `1px solid ${token.colorBorderSecondary}`,
+              background: '#fff',
+              position: 'sticky',
+              top: 0,
+              zIndex: 10
+            }}>
+              {/* Logo and Branding */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center' }}>
+                <div style={{ 
+                  width: 36, 
+                  height: 36, 
+                  background: '#003a70', 
+                  borderRadius: '8px', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(0, 58, 112, 0.2)',
+                  overflow: 'hidden',
+                  padding: '2px',
+                  flexShrink: 0
+                }}>
+                  <img 
+                    src={BizClearLogo} 
+                    alt="BizClear Logo" 
+                    style={{ 
+                      height: '100%', 
+                      width: '100%',
+                      objectFit: 'cover'
+                    }} 
+                  />
+                </div>
+                <div style={{ textAlign: 'left', flex: 1, minWidth: 0 }}>
+                  <Text strong style={{ fontSize: 16, display: 'block', lineHeight: 1.2, color: '#001529' }}>{title}</Text>
+                  <Text style={{ fontSize: 9, letterSpacing: '0.3px', color: '#8c8c8c', lineHeight: 1.2 }}>{subtitle}</Text>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div style={{ 
+            width: '100%', 
+            maxWidth: isMobile ? '100%' : (isTablet ? Math.min(formMaxWidth, 600) : formMaxWidth), 
+            margin: 'auto', 
+            paddingTop: isMobile ? '24px' : (isTablet ? '40px' : '60px'),
+            paddingRight: isMobile ? '20px' : (isTablet ? '32px' : '60px'),
+            paddingBottom: isMobile ? '24px' : (isTablet ? '40px' : '60px'),
+            paddingLeft: isMobile ? '20px' : (isTablet ? '32px' : '60px'),
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: isMobile ? 'flex-start' : 'center'
+          }}>
+            {/* Mobile Back Button - Inside Form Content */}
+            {isMobile && (
+              <div style={{ marginBottom: 20 }}>
+                <Button 
+                  type="text" 
+                  icon={<ArrowLeftOutlined />} 
+                  onClick={() => navigate('/')}
+                  style={{ 
+                    padding: '4px 8px',
+                    fontSize: 15,
+                    color: '#001529',
+                    display: 'flex',
+                    alignItems: 'center',
+                    height: 'auto'
+                  }}
+                >
+                  Back
+                </Button>
+              </div>
+            )}
             <ConfigProvider
               theme={{
                 token: {
-                  colorPrimary: '#003a70', // Match Home primary color
+                  colorPrimary: '#003a70',
                   borderRadius: 8,
-                  // Removed explicit font family to match Home's default
                 },
                 components: {
                    Button: {
-                      controlHeightLG: 50,
-                      fontSizeLG: 16,
+                      controlHeightLG: isMobile ? 48 : 50,
+                      fontSizeLG: isMobile ? 15 : 16,
                       fontWeight: 600,
-                      // defaultBg: '#fff', // Let it inherit or default
                       borderRadiusLG: 8,
                    },
                    Input: {
-                      controlHeightLG: 50,
-                      paddingInlineLG: 16,
-                      fontSizeLG: 16,
+                      controlHeightLG: isMobile ? 48 : 50,
+                      paddingInlineLG: isMobile ? 14 : 16,
+                      fontSizeLG: isMobile ? 15 : 16,
                       colorBgContainer: '#fff',
                       activeBorderColor: '#003a70',
                       borderRadiusLG: 8,
                    },
                    Typography: {
-                     fontSizeHeading2: 30,
+                     fontSizeHeading2: isMobile ? 26 : 30,
                    }
                 }
               }}

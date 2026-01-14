@@ -1,36 +1,29 @@
 import React from 'react'
-import { Image, Spin } from 'antd'
-import QRCode from 'qrcode'
+import { Image } from 'antd'
 
-export default function QrDisplay({ uri, dataUrl, size = 160, alt = 'QR Code' } = {}) {
-  const [src, setSrc] = React.useState(dataUrl || '')
-  const [loading, setLoading] = React.useState(false)
-
-  React.useEffect(() => {
-    let mounted = true
-    const produce = async () => {
-      if (dataUrl) {
-        setSrc(dataUrl)
-        return
-      }
-      if (!uri) return
-      try {
-        setLoading(true)
-        const d = await QRCode.toDataURL(uri)
-        if (!mounted) return
-        setSrc(d)
-      } catch (err) {
-        console.error('Failed to generate QR data URL', err)
-      } finally {
-        if (mounted) setLoading(false)
-      }
-    }
-    produce()
-    return () => { mounted = false }
-  }, [uri, dataUrl])
-
-  if (loading) return <Spin />
-  if (!src) return null
-
-  return <Image src={src} alt={alt} width={size} height={size} preview={false} />
+export default function QrDisplay({ dataUrl, src, size = 300, alt = 'QR Code' } = {}) {
+  const imageSrc = dataUrl || src
+  
+  if (!imageSrc) return null
+  
+  return (
+    <div style={{ 
+      display: 'inline-block',
+      padding: 20, 
+      background: '#FFFFFF', 
+      borderRadius: 12,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+    }}>
+      <Image 
+        src={imageSrc} 
+        alt={alt} 
+        width={size} 
+        height={size} 
+        preview={false}
+        style={{
+          display: 'block',
+        }}
+      />
+    </div>
+  )
 }

@@ -65,6 +65,7 @@ export async function fetchJsonWithFallback(path, options = {}) {
     try {
       const err = await res?.json()
       // Normalize common error response shapes into a string message
+      let errorCode = null
       if (err) {
         if (typeof err.error === 'string') {
           errMsg = err.error
@@ -72,15 +73,36 @@ export async function fetchJsonWithFallback(path, options = {}) {
           errMsg = err.message
         } else if (err.error && typeof err.error.message === 'string') {
           errMsg = err.error.message
+          // Extract error code from nested error structure (backend format: { ok: false, error: { code, message } })
+          if (err.error.code) {
+            errorCode = err.error.code
+          }
+        } else if (err.error && typeof err.error === 'object' && err.error.code) {
+          // Also check if error is an object with code property
+          errMsg = err.error.message || errMsg
+          errorCode = err.error.code
         } else if (Array.isArray(err.errors) && err.errors.length > 0) {
           const first = err.errors[0]
           if (typeof first === 'string') errMsg = first
           else if (typeof first?.message === 'string') errMsg = first.message
         }
+        // Check for code at top level
+        if (!errorCode && err.code) errorCode = err.code
       }
       
       const errorObj = new Error(String(errMsg))
       if (err && err.details) errorObj.details = err.details
+      if (errorCode) {
+        errorObj.code = errorCode
+      }
+      // Store the original error for more detailed inspection
+      if (err) {
+        errorObj.originalError = err
+        // Also try to extract code from originalError if not already set
+        if (!errorObj.code && err.error && typeof err.error === 'object' && err.error.code) {
+          errorObj.code = err.error.code
+        }
+      }
       throw errorObj
     } catch (e) {
       if (e.details) throw e // re-throw if it's the error we just created

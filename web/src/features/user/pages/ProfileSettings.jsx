@@ -1,10 +1,11 @@
-import React, { useState } from 'react'
-import { Layout, Typography, Card, Tabs, Row, Col, Avatar, Tag, Space, Grid, Upload, message, theme, Slider, InputNumber, Radio, Tooltip, ColorPicker } from 'antd'
-import { UserOutlined, SecurityScanOutlined, SettingOutlined, CameraOutlined, LoadingOutlined, BgColorsOutlined, CheckCircleFilled } from '@ant-design/icons'
+import React, { useState, useEffect } from 'react'
+import { Layout, Typography, Card, Tabs, Row, Col, Avatar, Tag, Space, Grid, Upload, message, theme, Slider, InputNumber, Radio, Tooltip, ColorPicker, Collapse } from 'antd'
+import { UserOutlined, SafetyCertificateOutlined, SettingOutlined, ControlOutlined, CameraOutlined, LoadingOutlined, BgColorsOutlined, CheckCircleFilled, InfoCircleOutlined, TabletOutlined, ScanOutlined, CheckOutlined, KeyOutlined, EditOutlined, MailOutlined, DeleteOutlined, WarningOutlined, LockOutlined } from '@ant-design/icons'
 import { AppSidebar as Sidebar } from '@/features/authentication'
 import useProfile from '@/features/authentication/hooks/useProfile'
 import EditUserProfileForm from '@/features/user/components/EditUserProfileForm.jsx'
 import LoggedInMfaManager from '@/features/authentication/components/LoggedInMfaManager.jsx'
+import PasskeyManager from '@/features/authentication/components/PasskeyManager.jsx'
 import LoggedInEmailChangeFlow from '@/features/authentication/flows/LoggedInEmailChangeFlow.jsx'
 import LoggedInPasswordChangeFlow from '@/features/authentication/flows/LoggedInPasswordChangeFlow.jsx'
 import DeleteAccountFlow from '@/features/authentication/flows/DeleteAccountFlow.jsx'
@@ -12,8 +13,9 @@ import { uploadUserAvatar } from '@/features/user/services/userService.js'
 import { useAuthSession } from '@/features/authentication'
 import { resolveAvatarUrl } from '@/lib/utils'
 import { useAppTheme, THEMES } from '@/shared/theme/ThemeProvider'
+import { listCredentials } from '@/features/authentication/services/webauthnService.js'
 
-const { Title, Text } = Typography
+const { Title, Text, Paragraph } = Typography
 const { TabPane } = Tabs
 const { useBreakpoint } = Grid
 
@@ -25,6 +27,8 @@ export default function ProfileSettings() {
   const [uploading, setUploading] = useState(false)
   const [messageApi, contextHolder] = message.useMessage()
   const screens = useBreakpoint()
+  const [passkeyEnabled, setPasskeyEnabled] = useState(false)
+  const [passkeyLoading, setPasskeyLoading] = useState(true)
 
   // Staging state for theme selection
   // Initialize with savedTheme to ensure we start with the persisted theme, not a preview
@@ -122,6 +126,51 @@ export default function ProfileSettings() {
 
   const isMobile = !screens.md
 
+  // Check passkey status
+  useEffect(() => {
+    let mounted = true
+    const checkPasskeyStatus = async () => {
+      if (!currentUser?.email) {
+        setPasskeyLoading(false)
+        return
+      }
+
+      try {
+        // First check mfaMethod for quick status
+        const mfaMethod = String(currentUser?.mfaMethod || '').toLowerCase()
+        const isPasskeyMethod = mfaMethod === 'passkey'
+        
+        if (isPasskeyMethod) {
+          setPasskeyEnabled(true)
+          setPasskeyLoading(false)
+        } else {
+          // If mfaMethod is not 'passkey', verify by checking credentials
+          try {
+            const response = await listCredentials()
+            if (mounted) {
+              setPasskeyEnabled((response.credentials || []).length > 0)
+              setPasskeyLoading(false)
+            }
+          } catch (err) {
+            // If API call fails, fall back to mfaMethod check
+            if (mounted) {
+              setPasskeyEnabled(false)
+              setPasskeyLoading(false)
+            }
+          }
+        }
+      } catch (err) {
+        if (mounted) {
+          setPasskeyEnabled(false)
+          setPasskeyLoading(false)
+        }
+      }
+    }
+
+    checkPasskeyStatus()
+    return () => { mounted = false }
+  }, [currentUser?.email, currentUser?.mfaMethod])
+
   const brandColor = currentTheme === THEMES.DEFAULT ? '#003a70' : token.colorPrimary
   const headerBackground = currentTheme === THEMES.DEFAULT 
     ? 'linear-gradient(135deg, #003a70 0%, #001529 100%)' 
@@ -188,39 +237,328 @@ export default function ProfileSettings() {
       label: <span><UserOutlined />General</span>,
       children: (
         <div>
-          <div style={{ marginBottom: 40 }}>
-            <Title level={4} style={{ marginBottom: 16 }}>Personal Information</Title>
-            <Card type="inner" title="Edit Profile Details">
-              <Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
-                Update your personal details here. Your profile photo can be updated in the sidebar.
-              </Text>
+          {/* Personal Information Section */}
+          <Card 
+            style={{ 
+              border: `1px solid ${token.colorBorderSecondary}`,
+              borderRadius: token.borderRadiusLG,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+            }}
+            styles={{
+              body: {
+                padding: 0
+              }
+            }}
+          >
+            {/* Header Section */}
+            <div style={{
+              padding: '24px 24px 20px',
+              background: token.colorFillAlter,
+              borderBottom: `1px solid ${token.colorBorderSecondary}`,
+              borderTopLeftRadius: token.borderRadiusLG,
+              borderTopRightRadius: token.borderRadiusLG
+            }}>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                <div style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 12,
+                  background: `linear-gradient(135deg, ${token.colorPrimary}20, ${token.colorPrimary}10)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: `1px solid ${token.colorPrimary}40`,
+                  flexShrink: 0,
+                  boxShadow: `0 2px 8px ${token.colorPrimary}15`
+                }}>
+                  <EditOutlined style={{ fontSize: 28, color: token.colorPrimary, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Title level={4} style={{ margin: 0, marginBottom: 8 }}>Personal Information</Title>
+                  <Text type="secondary" style={{ fontSize: 14, lineHeight: 1.6, display: 'block' }}>
+                    Update your personal details and profile information. Your profile photo can be updated in the sidebar.
+                  </Text>
+                </div>
+              </div>
+            </div>
+            
+            {/* Content Section */}
+            <div style={{ padding: 24 }}>
               <EditUserProfileForm embedded={true} />
-            </Card>
-          </div>
+            </div>
+          </Card>
         </div>
       )
     },
     {
       key: 'security',
-      label: <span><SecurityScanOutlined />Security</span>,
+      label: <span><SafetyCertificateOutlined />Security</span>,
       children: (
         <div>
-          <div style={{ marginBottom: 40 }}>
-            <Title level={4} style={{ marginBottom: 16 }}>Two-Factor Authentication</Title>
-            <Card type="inner" title="MFA Status" style={{ background: token.colorFillAlter }}>
-              <Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
-                Protect your account by enabling two-factor authentication. When enabled, you will be required to verify your identity using a second method during login.
-              </Text>
+          {/* Two-Factor Authentication Section */}
+          <Card 
+            style={{ 
+              marginBottom: 32,
+              border: `1px solid ${token.colorBorderSecondary}`,
+              borderRadius: token.borderRadiusLG,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+            }}
+            styles={{
+              body: {
+                padding: 0
+              }
+            }}
+          >
+            {/* Header Section */}
+            <div style={{
+              padding: '24px 24px 20px',
+              background: token.colorFillAlter,
+              borderBottom: `1px solid ${token.colorBorderSecondary}`,
+              borderTopLeftRadius: token.borderRadiusLG,
+              borderTopRightRadius: token.borderRadiusLG
+            }}>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                <div style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 12,
+                  background: `linear-gradient(135deg, ${token.colorPrimary}20, ${token.colorPrimary}10)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: `1px solid ${token.colorPrimary}40`,
+                  flexShrink: 0,
+                  boxShadow: `0 2px 8px ${token.colorPrimary}15`
+                }}>
+                  <TabletOutlined style={{ fontSize: 28, color: token.colorPrimary, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                    <Title level={4} style={{ margin: 0 }}>Two-Factor Authentication</Title>
+                    <Tag color="blue" style={{ margin: 0, fontSize: 12 }}>Authenticator App (TOTP)</Tag>
+                  </div>
+                  <Text type="secondary" style={{ fontSize: 14, lineHeight: 1.6, display: 'block' }}>
+                    Add an extra layer of security by requiring a verification code from your authenticator app (Microsoft Authenticator, Google Authenticator, or Authy) when signing in.
+                  </Text>
+                </div>
+              </div>
+            </div>
+            
+            {/* Content Section */}
+            <div style={{ padding: 24 }}>
+              <Collapse 
+                ghost 
+                style={{ marginBottom: 24, background: 'transparent' }}
+                items={[{
+                  key: 'mfa-steps',
+                  label: (
+                    <Space>
+                      <InfoCircleOutlined style={{ color: token.colorPrimary, fontSize: 16 }} />
+                      <Text strong style={{ fontSize: 14 }}>How to Enable Two-Factor Authentication</Text>
+                    </Space>
+                  ),
+                  children: (
+                    <div style={{ padding: 16, background: token.colorFillAlter, borderRadius: token.borderRadius, marginTop: 8 }}>
+                      <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                        {[
+                          { num: 1, title: 'Download an Authenticator App', desc: 'Install Microsoft Authenticator, Google Authenticator, or Authy on your smartphone (free on iOS and Android).' },
+                          { num: 2, title: 'Click "Setup MFA" Button', desc: 'Click the "Setup MFA" button below to start the setup process.' },
+                          { num: 3, title: 'Scan the QR Code', desc: 'Open your authenticator app and scan the QR code, or manually enter the setup key.' },
+                          { num: 4, title: 'Enter Verification Code', desc: 'Enter the 6-digit code from your app to verify and complete setup. Save your backup key securely.' },
+                          { num: 5, title: 'Complete Setup', desc: 'Two-Factor Authentication is now enabled. You will need a code from your app each time you sign in.' }
+                        ].map((step) => (
+                          <div key={step.num} style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                            <div style={{ 
+                              minWidth: 32, 
+                              height: 32, 
+                              borderRadius: '50%', 
+                              background: token.colorPrimary, 
+                              color: '#fff', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              fontWeight: 600,
+                              fontSize: 14,
+                              flexShrink: 0,
+                              boxShadow: `0 2px 4px ${token.colorPrimary}30`
+                            }}>
+                              {step.num}
+                            </div>
+                            <div style={{ flex: 1, paddingTop: 2 }}>
+                              <Text strong style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>{step.title}</Text>
+                              <Text type="secondary" style={{ fontSize: 13, lineHeight: 1.6 }}>
+                                {step.desc}
+                              </Text>
+                            </div>
+                          </div>
+                        ))}
+                      </Space>
+                    </div>
+                  )
+                }]}
+              />
+              
               <LoggedInMfaManager />
-            </Card>
-          </div>
+            </div>
+          </Card>
 
-          <div>
-             <Title level={4} style={{ marginBottom: 16 }}>Password</Title>
-             <Card type="inner" title="Change Password">
-                <LoggedInPasswordChangeFlow />
-             </Card>
-          </div>
+          {/* Passkey Authentication Section */}
+          <Card 
+            style={{ 
+              marginBottom: 32,
+              border: `1px solid ${token.colorBorderSecondary}`,
+              borderRadius: token.borderRadiusLG,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+            }}
+            styles={{
+              body: {
+                padding: 0
+              }
+            }}
+          >
+            {/* Header Section */}
+            <div style={{
+              padding: '24px 24px 20px',
+              background: token.colorFillAlter,
+              borderBottom: `1px solid ${token.colorBorderSecondary}`,
+              borderTopLeftRadius: token.borderRadiusLG,
+              borderTopRightRadius: token.borderRadiusLG
+            }}>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                <div style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 12,
+                  background: `linear-gradient(135deg, ${token.colorPrimary}20, ${token.colorPrimary}10)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: `1px solid ${token.colorPrimary}40`,
+                  flexShrink: 0,
+                  boxShadow: `0 2px 8px ${token.colorPrimary}15`
+                }}>
+                  <KeyOutlined style={{ fontSize: 28, color: token.colorPrimary, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                    <Title level={4} style={{ margin: 0 }}>Passkey Authentication</Title>
+                    <Tag color="green" style={{ margin: 0, fontSize: 12 }}>Passwordless</Tag>
+                  </div>
+                  <Text type="secondary" style={{ fontSize: 14, lineHeight: 1.6, display: 'block' }}>
+                    Sign in securely using your device's built-in authentication - Windows Hello, Touch ID, Face ID, or a security key. No passwords required.
+                  </Text>
+                </div>
+              </div>
+            </div>
+            
+            {/* Content Section */}
+            <div style={{ padding: 24 }}>
+              <Collapse 
+                ghost 
+                style={{ marginBottom: 24, background: 'transparent' }}
+                items={[{
+                  key: 'passkey-steps',
+                  label: (
+                    <Space>
+                      <InfoCircleOutlined style={{ color: token.colorPrimary, fontSize: 16 }} />
+                      <Text strong style={{ fontSize: 14 }}>How to Enable Passkey Authentication</Text>
+                    </Space>
+                  ),
+                  children: (
+                    <div style={{ padding: 16, background: token.colorFillAlter, borderRadius: token.borderRadius, marginTop: 8 }}>
+                      <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                        {[
+                          { num: 1, title: 'Verify Device Support', desc: 'Ensure your device supports passkeys (Windows Hello, Touch ID, Face ID, or security key) and your browser supports WebAuthn.' },
+                          { num: 2, title: 'Click "Register Passkey"', desc: 'Click the "Register Passkey" button below to begin the registration process.' },
+                          { num: 3, title: 'Authenticate with Device', desc: 'Use your device\'s authentication method (biometrics, PIN, or security key) to create and register your passkey.' },
+                          { num: 4, title: 'Complete Registration', desc: 'Your passkey will be registered successfully. You can register multiple passkeys for different devices.' },
+                          { num: 5, title: 'Sign In with Passkey', desc: 'On the login page, click "Sign in with a passkey" and use your device\'s biometrics or security key to authenticate.' }
+                        ].map((step) => (
+                          <div key={step.num} style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                            <div style={{ 
+                              minWidth: 32, 
+                              height: 32, 
+                              borderRadius: '50%', 
+                              background: token.colorPrimary, 
+                              color: '#fff', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              fontWeight: 600,
+                              fontSize: 14,
+                              flexShrink: 0,
+                              boxShadow: `0 2px 4px ${token.colorPrimary}30`
+                            }}>
+                              {step.num}
+                            </div>
+                            <div style={{ flex: 1, paddingTop: 2 }}>
+                              <Text strong style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>{step.title}</Text>
+                              <Text type="secondary" style={{ fontSize: 13, lineHeight: 1.6 }}>
+                                {step.desc}
+                              </Text>
+                            </div>
+                          </div>
+                        ))}
+                      </Space>
+                    </div>
+                  )
+                }]}
+              />
+              
+              <PasskeyManager />
+            </div>
+          </Card>
+
+          {/* Password Section */}
+          <Card 
+            style={{ 
+              border: `1px solid ${token.colorBorderSecondary}`,
+              borderRadius: token.borderRadiusLG,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+            }}
+            styles={{
+              body: {
+                padding: 0
+              }
+            }}
+          >
+            {/* Header Section */}
+            <div style={{
+              padding: '24px 24px 20px',
+              background: token.colorFillAlter,
+              borderBottom: `1px solid ${token.colorBorderSecondary}`,
+              borderTopLeftRadius: token.borderRadiusLG,
+              borderTopRightRadius: token.borderRadiusLG
+            }}>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                <div style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 12,
+                  background: `linear-gradient(135deg, ${token.colorPrimary}20, ${token.colorPrimary}10)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: `1px solid ${token.colorPrimary}40`,
+                  flexShrink: 0,
+                  boxShadow: `0 2px 8px ${token.colorPrimary}15`
+                }}>
+                  <LockOutlined style={{ fontSize: 28, color: token.colorPrimary, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Title level={4} style={{ margin: 0, marginBottom: 8 }}>Password Management</Title>
+                  <Text type="secondary" style={{ fontSize: 14, lineHeight: 1.6, display: 'block' }}>
+                    Update your account password to keep your account secure. Choose a strong, unique password.
+                  </Text>
+                </div>
+              </div>
+            </div>
+            
+            {/* Content Section */}
+            <div style={{ padding: 24 }}>
+              <LoggedInPasswordChangeFlow />
+            </div>
+          </Card>
         </div>
       )
     },
@@ -229,30 +567,114 @@ export default function ProfileSettings() {
       label: <span><SettingOutlined />Account</span>,
       children: (
         <div>
-          <div style={{ marginBottom: 48 }}>
-            <Title level={4} style={{ marginBottom: 16 }}>Email Address</Title>
-            <Card type="inner" title="Update Email">
-              <Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
-                Update the email address associated with your account. You will need to verify your current email before changing it.
-              </Text>
+          {/* Email Address Section */}
+          <Card 
+            style={{ 
+              marginBottom: 32,
+              border: `1px solid ${token.colorBorderSecondary}`,
+              borderRadius: token.borderRadiusLG,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+            }}
+            styles={{
+              body: {
+                padding: 0
+              }
+            }}
+          >
+            {/* Header Section */}
+            <div style={{
+              padding: '24px 24px 20px',
+              background: token.colorFillAlter,
+              borderBottom: `1px solid ${token.colorBorderSecondary}`,
+              borderTopLeftRadius: token.borderRadiusLG,
+              borderTopRightRadius: token.borderRadiusLG
+            }}>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                <div style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 12,
+                  background: `linear-gradient(135deg, ${token.colorPrimary}15, ${token.colorPrimary}08)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: `1px solid ${token.colorPrimary}30`,
+                  flexShrink: 0
+                }}>
+                  <MailOutlined style={{ fontSize: 28, color: token.colorPrimary }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Title level={4} style={{ margin: 0, marginBottom: 8 }}>Email Address</Title>
+                  <Text type="secondary" style={{ fontSize: 14, lineHeight: 1.6, display: 'block' }}>
+                    Update the email address associated with your account. You will need to verify your current email before changing it.
+                  </Text>
+                </div>
+              </div>
+            </div>
+            
+            {/* Content Section */}
+            <div style={{ padding: 24 }}>
               <LoggedInEmailChangeFlow />
-            </Card>
-          </div>
+            </div>
+          </Card>
 
-          <div style={{ paddingTop: 32, borderTop: `1px solid ${token.colorSplit}` }}>
-            <Title level={4} type="danger" style={{ marginBottom: 16 }}>Danger Zone</Title>
-            <Card 
-              type="inner" 
-              title={<span style={{ color: token.colorError }}>Delete Account</span>}
-              style={{ border: `1px solid ${token.colorErrorBorder}` }}
-              styles={{ header: { background: token.colorErrorBg, borderBottom: `1px solid ${token.colorErrorBorder}` } }}
+          {/* Danger Zone Section */}
+          <Card
+            style={{
+              border: `1px solid ${token.colorErrorBorder}`,
+              borderRadius: token.borderRadiusLG,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+            }}
+            styles={{
+              body: {
+                padding: 0
+              }
+            }}
+          >
+            {/* Header Section */}
+            <div
+              style={{
+                padding: '24px 24px 20px',
+                background: token.colorErrorBg,
+                borderBottom: `1px solid ${token.colorErrorBorder}`,
+                borderTopLeftRadius: token.borderRadiusLG,
+                borderTopRightRadius: token.borderRadiusLG
+              }}
             >
-              <Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
-                Permanently delete your account and all of its data. This action cannot be undone.
-              </Text>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                <div
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 12,
+                    background: `linear-gradient(135deg, ${token.colorError}20, ${token.colorError}10)`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: `1px solid ${token.colorError}40`,
+                    flexShrink: 0,
+                    boxShadow: `0 2px 8px ${token.colorError}15`
+                  }}
+                >
+                  <WarningOutlined style={{ fontSize: 28, color: token.colorError, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                    <Title level={4} style={{ margin: 0, color: token.colorError }}>Danger Zone</Title>
+                    <Tag color="error" style={{ margin: 0, fontSize: 12 }}>Irreversible</Tag>
+                  </div>
+                  <Text type="secondary" style={{ fontSize: 14, lineHeight: 1.6, display: 'block' }}>
+                    Permanently delete your account and all of its data. This action cannot be undone.
+                  </Text>
+                </div>
+              </div>
+            </div>
+
+            {/* Content Section */}
+            <div style={{ padding: 24 }}>
               <DeleteAccountFlow />
-            </Card>
-          </div>
+            </div>
+          </Card>
         </div>
       )
     },
@@ -445,13 +867,22 @@ export default function ProfileSettings() {
                     </Upload>
                   </div>
                   <Title level={4} style={{ marginBottom: 4, color: brandColor }}>{user?.name || 'User'}</Title>
-                  <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>{user?.email}</Text>
-                  <Space size={[8, 8]} wrap style={{ justifyContent: 'center' }}>
+                  <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>{user?.email}</Text>
+                  <div style={{ marginBottom: 12, textAlign: 'center' }}>
                     <Tag color={brandColor} style={{ margin: 0, padding: '4px 12px', borderRadius: 4 }}>{user?.role ? user.role.toUpperCase() : 'USER'}</Tag>
+                  </div>
+                  <Space size={[8, 8]} wrap style={{ justifyContent: 'center' }}>
                     {user?.mfaEnabled ? 
                       <Tag color="success" style={{ margin: 0, padding: '4px 12px', borderRadius: 4 }}>MFA ENABLED</Tag> : 
                       <Tag color="warning" style={{ margin: 0, padding: '4px 12px', borderRadius: 4 }}>MFA DISABLED</Tag>
                     }
+                    {passkeyLoading ? (
+                      <Tag color="default" style={{ margin: 0, padding: '4px 12px', borderRadius: 4 }}>...</Tag>
+                    ) : passkeyEnabled ? (
+                      <Tag color="success" style={{ margin: 0, padding: '4px 12px', borderRadius: 4 }}>PASSKEY ENABLED</Tag>
+                    ) : (
+                      <Tag color="warning" style={{ margin: 0, padding: '4px 12px', borderRadius: 4 }}>PASSKEY DISABLED</Tag>
+                    )}
                   </Space>
                 </div>
               </Card>

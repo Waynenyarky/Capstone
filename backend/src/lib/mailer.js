@@ -7,20 +7,31 @@ function createTransport() {
   const useTLS = String(process.env.EMAIL_USE_TLS || 'false').toString().toLowerCase() === 'true'
   const user = process.env.EMAIL_HOST_USER || process.env.SMTP_USER
   const pass = process.env.EMAIL_HOST_PASSWORD || process.env.SMTP_PASS
+  
   if (!host || !user || !pass) {
     if (process.env.NODE_ENV !== 'production') {
       console.warn('⚠️ SMTP configuration missing. Using mock transporter (logs to console).')
+      console.warn('Missing:', {
+        host: !host ? 'EMAIL_HOST or SMTP_HOST' : 'OK',
+        user: !user ? 'EMAIL_HOST_USER or SMTP_USER' : 'OK',
+        pass: !pass ? 'EMAIL_HOST_PASSWORD or SMTP_PASS' : 'OK'
+      })
       return {
         sendMail: async (opts) => {
           console.log('📧 [MOCK EMAIL] To:', opts.to)
           console.log('Subject:', opts.subject)
-          console.log('HTML:', opts.html)
-          return { messageId: 'mock-id' }
+          // Extract OTP code from HTML for easy viewing
+          const codeMatch = opts.html?.match(/(\d{6})/) || opts.text?.match(/(\d{6})/)
+          if (codeMatch) {
+            console.log('📧 [MOCK EMAIL] OTP Code:', codeMatch[1])
+          }
+          return { messageId: 'mock-id', accepted: [opts.to], rejected: [] }
         }
       }
     }
     throw new Error('SMTP configuration missing: set EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD')
   }
+  
   const secure = useSSL || port === 465
   const transporter = nodemailer.createTransport({
     host,
@@ -28,7 +39,15 @@ function createTransport() {
     secure,
     requireTLS: useTLS && !secure,
     auth: { user, pass },
+    // Add connection timeout and logging
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
+    debug: process.env.NODE_ENV !== 'production', // Enable debug in development
+    logger: process.env.NODE_ENV !== 'production' // Enable logger in development
   })
+  
+  console.log(`[SMTP] Transporter created: ${host}:${port} (secure: ${secure}, TLS: ${useTLS && !secure})`)
   return transporter
 }
 
@@ -113,15 +132,52 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
   </div>
   `
   try {
-    if (!transporter) throw new Error('SMTP not configured')
-    await transporter.sendMail({ from, to, subject, text, html })
+    if (!transporter) {
+      throw new Error('SMTP transporter not created')
+    }
+    
+    // Validate email address
+    if (!to || !to.includes('@')) {
+      throw new Error(`Invalid email address: ${to}`)
+    }
+    
+    // Ensure 'from' is set
+    const fromAddress = from || process.env.EMAIL_HOST_USER || 'noreply@example.com'
+    
+    console.log(`[Email] Attempting to send OTP to ${to}...`)
+    const result = await transporter.sendMail({ 
+      from: fromAddress, 
+      to, 
+      subject, 
+      text, 
+      html 
+    })
+    
+    console.log(`[Email] ✅ OTP email sent successfully to ${to}`, { 
+      messageId: result.messageId,
+      accepted: result.accepted,
+      rejected: result.rejected
+    })
   } catch (err) {
     console.log('--------------------------------------------------')
-    console.log('⚠️  SMTP FAILED (Mocking Send) ⚠️')
+    console.log('⚠️  SMTP FAILED ⚠️')
     console.log('To:', to)
     console.log('Code:', code)
+    console.log('Subject:', subject)
     console.log('Error:', err.message)
+    if (err.response) {
+      console.log('SMTP Response:', err.response)
+    }
+    if (err.responseCode) {
+      console.log('SMTP Response Code:', err.responseCode)
+    }
+    if (err.command) {
+      console.log('SMTP Command:', err.command)
+    }
+    console.log('Stack:', err.stack)
     console.log('--------------------------------------------------')
+    // Don't re-throw - allow login to continue even if email fails
+    // The code is still generated and can be used
   }
 }
 

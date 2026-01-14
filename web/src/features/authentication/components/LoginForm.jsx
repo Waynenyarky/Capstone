@@ -1,17 +1,20 @@
 import React from 'react'
-import { Form, Input, Button, Flex, Checkbox, Dropdown, Typography } from 'antd'
+import { Form, Input, Button, Flex, Checkbox, Dropdown, Typography, Grid } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { loginEmailRules, loginPasswordRules } from "@/features/authentication/validations"
 import { useLoginFlow } from "@/features/authentication/hooks"
 import { LoginVerificationForm } from "@/features/authentication"
 import TotpVerificationForm from '@/features/authentication/components/TotpVerificationForm.jsx'
 import LockoutBanner from '@/features/authentication/components/LockoutBanner.jsx'
-import PasskeyButton from './PasskeyButton.jsx'
+import PasskeySignInOptions from './PasskeySignInOptions.jsx'
 
 const { Title, Text } = Typography
+const { useBreakpoint } = Grid
 
 export default function LoginForm({ onSubmit } = {}) {
   const navigate = useNavigate()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const {
     step,
     form,
@@ -41,15 +44,9 @@ export default function LoginForm({ onSubmit } = {}) {
     
     const clearFields = () => {
       setFieldsReadOnly(false) // Enable editing
-      
-      // If we have remember me values, use them
-      if (initialValues && initialValues.email) {
-        form.setFieldsValue(initialValues)
-      } else {
-        // Otherwise, nuclear option: force clear everything
-        form.resetFields()
-        form.setFieldsValue({ email: '', password: '' })
-      }
+      // Always clear all fields
+      form.resetFields()
+      form.setFieldsValue({ email: '', password: '', rememberMe: false })
     }
 
     // Run on mount
@@ -69,7 +66,7 @@ export default function LoginForm({ onSubmit } = {}) {
         clearTimeout(timer)
         window.removeEventListener('pageshow', handlePageShow)
     }
-  }, [form, initialValues])
+  }, [form])
 
   if (step === 'verify' || step === 'verify-totp') {
     const VerificationComponent = step === 'verify' ? LoginVerificationForm : TotpVerificationForm
@@ -82,18 +79,18 @@ export default function LoginForm({ onSubmit } = {}) {
   return (
     <>
       {banner}
-      <div>
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <Title level={2} style={{ marginBottom: 12, fontWeight: 700, fontSize: 32 }}>Welcome Back</Title>
-          <Text type="secondary" style={{ fontSize: 16 }}>Please enter your details to sign in</Text>
+      <div style={{ width: '100%' }}>
+        <div style={{ textAlign: 'center', marginBottom: isMobile ? 28 : 32 }}>
+          <Title level={2} style={{ marginBottom: isMobile ? 6 : 8, fontWeight: 700, fontSize: isMobile ? 26 : undefined }}>Welcome Back</Title>
+          <Text type="secondary" style={{ fontSize: isMobile ? 14 : 15 }}>Please enter your details to sign in</Text>
         </div>
         
-        <Form key={formKey} name="login" form={form} layout="vertical" onFinish={handleFinish} initialValues={initialValues} size="large" requiredMark={false} autoComplete="off">
+        <Form key={formKey} name="login" form={form} layout="vertical" onFinish={handleFinish} initialValues={{ email: '', password: '', rememberMe: false }} size="large" requiredMark={false} autoComplete="off">
           <Form.Item
             name="email"
             label={<Text strong>Email</Text>}
             rules={loginEmailRules}
-            style={{ marginBottom: 24 }}
+            style={{ marginBottom: isMobile ? 20 : 24 }}
           >
             <Input 
               placeholder="Enter your email" 
@@ -107,7 +104,7 @@ export default function LoginForm({ onSubmit } = {}) {
             name="password"
             label={<Text strong>Password</Text>}
             rules={loginPasswordRules}
-            style={{ marginBottom: 24 }}
+            style={{ marginBottom: isMobile ? 20 : 24 }}
           >
             <Input.Password 
               placeholder="Enter your password" 
@@ -118,23 +115,23 @@ export default function LoginForm({ onSubmit } = {}) {
             />
           </Form.Item>
           
-          <Flex justify="space-between" align="center" style={{ marginBottom: 24 }}>
-            <Form.Item name="rememberMe" valuePropName="checked" noStyle>
-              <Checkbox>Remember me</Checkbox>
+          <Flex justify="space-between" align="center" style={{ marginBottom: isMobile ? 20 : 24, flexWrap: 'wrap', gap: 8 }}>
+            <Form.Item name="rememberMe" valuePropName="checked" noStyle style={{ marginBottom: 0 }}>
+              <Checkbox style={{ fontSize: isMobile ? 14 : undefined }}>Remember me</Checkbox>
             </Form.Item>
-            <Button type="link" onClick={() => navigate('/forgot-password')} style={{ padding: 0, color: '#001529' }} className="auth-link-hover">
+            <Button type="link" onClick={() => navigate('/forgot-password')} style={{ padding: 0, color: '#001529', fontSize: isMobile ? 14 : undefined }} className="auth-link-hover">
               Forgot password?
             </Button>
           </Flex>
 
-          <Form.Item style={{ marginBottom: 24 }}>
+          <Form.Item style={{ marginBottom: isMobile ? 20 : 24 }}>
             <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block size="large">
               Sign in
             </Button>
           </Form.Item>
 
-          <Flex justify="center" style={{ marginBottom: 24 }}>
-             <PasskeyButton form={form} />
+          <Flex justify="center" style={{ marginBottom: isMobile ? 20 : 24 }}>
+             <PasskeySignInOptions form={form} onAuthenticated={onSubmit} />
           </Flex>
 
           <div style={{ textAlign: 'center' }}>

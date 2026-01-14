@@ -1,4 +1,5 @@
 import React from 'react'
+import QRCode from 'qrcode'
 import { useAuthSession } from './useAuthSession.js'
 import { mfaSetup, mfaVerify, mfaStatus, mfaDisable } from '@/features/authentication/services/mfaService'
 import { getProfile } from '@/features/authentication/services/authService.js'
@@ -54,7 +55,29 @@ export default function useMfaSetup() {
       setSecret(data?.secret || '')
       const u = data?.otpauthUri || data?.otpauth || ''
       setUri(u)
-      setQrDataUrl('')
+      
+      // Generate QR code from the otpauth URI
+      if (u) {
+        try {
+          const qrDataUrl = await QRCode.toDataURL(u, {
+            errorCorrectionLevel: 'M',
+            type: 'image/png',
+            width: 300,
+            margin: 2,
+            color: {
+              dark: '#000000',
+              light: '#FFFFFF'
+            }
+          })
+          setQrDataUrl(qrDataUrl)
+        } catch (qrErr) {
+          console.error('Failed to generate QR code:', qrErr)
+          setQrDataUrl('')
+        }
+      } else {
+        setQrDataUrl('')
+      }
+      
       success('MFA setup initialized — scan QR with your authenticator app')
     } catch (e) {
       console.error('MFA setup error:', e)

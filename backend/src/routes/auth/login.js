@@ -188,11 +188,33 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       loginRequests.set(emailKey, { code, expiresAt: expiresAtMs, verified: false, loginToken, userId: String(doc._id) })
     }
 
+    // Determine which authentication method is enabled
+    const hasTotp = !!doc.mfaSecret
+    let method = String(doc.mfaMethod || '').toLowerCase()
+    if (!method) {
+      if (hasTotp) method = 'authenticator'
+      else if (doc.fprintEnabled) method = 'fingerprint'
+    }
+    const isPasskeyMethod = method === 'passkey' || method.includes('passkey')
+    const isTotpMethod = method === 'authenticator' || method.includes('authenticator') || method.includes('fingerprint')
+
     try {
-      // Send verification code via email if no MFA or if this is part of the flow
-      // Skip email for LGU Officer
+      // Send verification code via email ONLY if:
+      // 1. No MFA is enabled (regular email verification)
+      // 2. NOT using TOTP MFA (TOTP MFA uses authenticator app, not email)
+      // 3. NOT using passkey authentication (passkeys are used at login page)
+      // 4. NOT an LGU Officer
       if (!doc.mfaEnabled && !isLguOfficer) {
+        // No MFA enabled, send regular verification code via email
         await sendOtp({ to: email, code, subject: 'Your Login Verification Code' })
+      } else if (doc.mfaEnabled && isTotpMethod && !isLguOfficer) {
+        // TOTP MFA is enabled - DO NOT send email OTP
+        // User must use their authenticator app (Microsoft Authenticator, Google Authenticator, etc.)
+        console.log(`[Login] TOTP MFA enabled for ${email} - using authenticator app, skipping email OTP`)
+      } else if (isPasskeyMethod && !isLguOfficer) {
+        // Passkey authentication enabled - DO NOT send email OTP
+        // User will use passkey at login page
+        console.log(`[Login] Passkey authentication enabled for ${email} - skipping email OTP`)
       } else if (isLguOfficer) {
         console.log(`[LGU Officer Login] Email suppressed. Use fixed OTP: ${code}`)
       }
@@ -203,14 +225,8 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
 
     const payload = { sent: true }
     payload.mfaEnabled = doc.mfaEnabled === true
+    payload.mfaMethod = method
     try {
-      const hasTotp = !!doc.mfaSecret
-      let method = String(doc.mfaMethod || '').toLowerCase()
-      if (!method) {
-        if (hasTotp) method = 'authenticator'
-        else if (doc.fprintEnabled) method = 'fingerprint'
-      }
-      payload.mfaMethod = method
       payload.isFingerprintEnabled = !!doc.fprintEnabled || method.includes('fingerprint')
     } catch (_) {}
     payload.loginEmail = emailKey
@@ -379,7 +395,14 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
   if (typeof doc.mfaLastUsedTotpCounter === 'number' && doc.mfaLastUsedTotpCounter === resVerify.counter) {
     return respond.error(res, 401, 'totp_replayed', 'Verification code already used')
   }
-  doc.mfaMethod = doc.fprintEnabled ? 'authenticator,fingerprint' : 'authenticator'
+  
+  // Update mfaMethod to include authenticator, preserving existing methods (including passkey)
+  const currentMethod = String(doc.mfaMethod || '').toLowerCase()
+  const methods = new Set()
+  methods.add('authenticator')
+  if (doc.fprintEnabled) methods.add('fingerprint')
+  if (currentMethod.includes('passkey')) methods.add('passkey')
+  doc.mfaMethod = Array.from(methods).join(',')
   doc.mfaLastUsedTotpCounter = resVerify.counter
   doc.mfaLastUsedTotpAt = new Date()
   await doc.save()

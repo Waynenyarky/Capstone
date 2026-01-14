@@ -111,7 +111,14 @@ router.post('/mfa/verify', requireJwt, validateBody(verifySchema), async (req, r
     if (!resVerify.ok) return respond.error(res, 401, 'invalid_mfa_code', 'Invalid verification code')
 
     doc.mfaEnabled = true
-    doc.mfaMethod = doc.fprintEnabled ? 'authenticator,fingerprint' : 'authenticator'
+    
+    // Update mfaMethod to include authenticator, preserving existing methods (including passkey)
+    const currentMethod = String(doc.mfaMethod || '').toLowerCase()
+    const methods = new Set()
+    methods.add('authenticator')
+    if (doc.fprintEnabled) methods.add('fingerprint')
+    if (currentMethod.includes('passkey')) methods.add('passkey')
+    doc.mfaMethod = Array.from(methods).join(',')
     doc.mfaLastUsedTotpCounter = resVerify.counter
     doc.mfaLastUsedTotpAt = new Date()
     if (doc.mustSetupMfa) doc.mustSetupMfa = false
@@ -182,7 +189,20 @@ router.post('/mfa/disable', requireJwt, async (req, res) => {
         method = 'fingerprint'
       }
       const isFingerprint = !!doc.fprintEnabled
-      return res.json({ enabled: !!doc.mfaEnabled, disablePending: !!doc.mfaDisablePending, scheduledFor: doc.mfaDisableScheduledFor, method, isFingerprintEnabled: isFingerprint, fprintEnabled: !!doc.fprintEnabled })
+      
+      // Only show TOTP MFA as enabled if mfaMethod is NOT 'passkey'
+      // This ensures mutual exclusivity - if passkeys are enabled, TOTP MFA should show as disabled
+      const isPasskeyMethod = method === 'passkey'
+      const totpMfaEnabled = !!doc.mfaEnabled && !isPasskeyMethod && (hasTotp || !!doc.fprintEnabled)
+      
+      return res.json({ 
+        enabled: totpMfaEnabled, 
+        disablePending: !!doc.mfaDisablePending, 
+        scheduledFor: doc.mfaDisableScheduledFor, 
+        method, 
+        isFingerprintEnabled: isFingerprint, 
+        fprintEnabled: !!doc.fprintEnabled 
+      })
     } catch (err) {
       console.error('GET /api/auth/mfa/status error:', err)
       return respond.error(res, 500, 'mfa_status_failed', 'Failed to get MFA status')
@@ -228,7 +248,14 @@ router.post('/mfa/fingerprint/verify', requireJwt, validateBody(verifySchema), a
     doc.mfaEnabled = true
     doc.fprintEnabled = true
     const hasTotp = !!doc.mfaSecret
-    doc.mfaMethod = hasTotp ? 'authenticator,fingerprint' : 'fingerprint'
+    
+    // Update mfaMethod to include fingerprint, preserving existing methods (including passkey)
+    const currentMethod = String(doc.mfaMethod || '').toLowerCase()
+    const methods = new Set()
+    if (hasTotp) methods.add('authenticator')
+    methods.add('fingerprint')
+    if (currentMethod.includes('passkey')) methods.add('passkey')
+    doc.mfaMethod = Array.from(methods).join(',')
     doc.tokenFprint = generateToken()
     if (doc.mustSetupMfa) doc.mustSetupMfa = false
     if (doc.isStaff) {
