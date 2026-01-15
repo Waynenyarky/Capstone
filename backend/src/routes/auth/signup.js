@@ -282,8 +282,11 @@ router.post('/signup/verify', validateBody(verifyCodeSchema), signupVerifyLimite
 
     const p = reqObj.payload || {}
 
-    // Double-check duplicates at creation time
-    const existing = await User.findOne({ email: p.email }).lean()
+    // Ensure email is normalized (should already be from payload, but double-check)
+    const normalizedEmail = String(p.email || emailKey).toLowerCase().trim()
+
+    // Double-check duplicates at creation time using normalized email
+    const existing = await User.findOne({ email: normalizedEmail }).lean()
     if (existing) {
       // Cleanup pending state
       if (useDB) await SignUpRequest.deleteOne({ email: emailKey })
@@ -302,7 +305,7 @@ router.post('/signup/verify', validateBody(verifyCodeSchema), signupVerifyLimite
       role: roleDoc._id,
       firstName: p.firstName,
       lastName: p.lastName,
-      email: p.email,
+      email: normalizedEmail,
       phoneNumber: p.phoneNumber || '',
       termsAccepted: !!p.termsAccepted,
       passwordHash,
