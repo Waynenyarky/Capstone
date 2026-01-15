@@ -20,7 +20,7 @@ export default function MfaSetup() {
   const { token } = theme.useToken()
   const { currentUser, role } = useAuthSession()
   const {
-    loading, qrDataUrl, uri, secret, code, setCode, enabled,
+    loading, qrDataUrl, secret, code, setCode, enabled,
     handleSetup, handleVerify, handleDisable, 
     showSecret, toggleShowSecret, confirmedSaved, setConfirmedSaved, handleCopy,
   } = useMfaSetup()

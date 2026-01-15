@@ -1,6 +1,5 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { act } from 'react'
 import { renderWithProviders } from '@/test/utils/renderWithProviders.jsx'
 
 // Mock hooks and services used by MFA components

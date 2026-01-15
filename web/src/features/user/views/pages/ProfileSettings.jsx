@@ -141,9 +141,8 @@ export default function ProfileSettings() {
     setPreviewOverrides(pendingOverrides);
   };
 
-  const handleColorChange = (value, hex) => {
-    // value is the Color object from AntD, hex is the string
-    // We can use hex directly
+  const handleColorChange = (value) => {
+    // value is the Color object from AntD
     const colorHex = typeof value === 'string' ? value : value.toHexString();
     const nextOverrides = { ...pendingOverrides, colorPrimary: colorHex };
     setPendingOverrides(nextOverrides);
@@ -177,7 +176,7 @@ export default function ProfileSettings() {
               setPasskeyEnabled((response.credentials || []).length > 0)
               setPasskeyLoading(false)
             }
-          } catch (err) {
+          } catch {
             // If API call fails, fall back to mfaMethod check
             if (mounted) {
               setPasskeyEnabled(false)
@@ -185,7 +184,7 @@ export default function ProfileSettings() {
             }
           }
         }
-      } catch (err) {
+      } catch {
         if (mounted) {
           setPasskeyEnabled(false)
           setPasskeyLoading(false)
@@ -234,8 +233,7 @@ export default function ProfileSettings() {
         const isRemembered = !!localStorage.getItem('auth__currentUser')
         login(nextUser, { remember: isRemembered })
       }
-    } catch (err) {
-      console.error(err)
+    } catch {
       messageApi.error('Failed to upload profile photo')
     } finally {
       setUploading(false)

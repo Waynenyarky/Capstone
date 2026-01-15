@@ -2,7 +2,7 @@ import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Form } from 'antd'
 import userEvent from '@testing-library/user-event'
-import LoginForm from '../LoginForm.jsx'
+import LoginForm from '../../views/components/LoginForm.jsx'
 import { renderWithProviders, screen, renderHook, waitFor } from '@/test/utils/renderWithProviders.jsx'
 
 const mockNavigate = vi.fn()

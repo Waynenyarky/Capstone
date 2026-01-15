@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { loginStart, loginResend } from '@/features/authentication/services/authService'
+import { loginResend } from '@/features/authentication/services/authService'
 import { useNotifier } from '@/shared/notifications'
 import useCooldown from './useCooldown'
 

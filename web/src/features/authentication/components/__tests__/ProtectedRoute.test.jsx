@@ -1,7 +1,7 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Routes, Route, useLocation } from 'react-router-dom'
-import ProtectedRoute from '../ProtectedRoute.jsx'
+import ProtectedRoute from '../../views/components/ProtectedRoute.jsx'
 import { renderWithProviders, screen } from '@/test/utils/renderWithProviders.jsx'
 
 // Mock auth hooks and helpers from the authentication barrel

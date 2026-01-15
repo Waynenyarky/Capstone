@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Switch, Typography, Space, Row, Col, theme, Badge, Tooltip } from 'antd'
 import { BellOutlined, MailOutlined, SafetyCertificateOutlined, LockOutlined, InfoCircleOutlined } from '@ant-design/icons'
-import { useAuthSession } from '@/features/authentication'
 import { useNotifier } from '@/shared/notifications.js'
 
 const { Title, Text } = Typography
@@ -52,8 +51,7 @@ const notificationTypes = [
 
 export default function NotificationPreferences() {
   const { token } = theme.useToken()
-  const { currentUser } = useAuthSession()
-  const { success, error } = useNotifier()
+  const { success } = useNotifier()
   const [preferences, setPreferences] = useState({
     emailOnPasswordChange: true,
     emailOnEmailChange: true,
@@ -61,7 +59,6 @@ export default function NotificationPreferences() {
     emailOnProfileUpdate: false,
     emailOnCriticalChanges: true,
   })
-  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     // Load preferences from localStorage or API

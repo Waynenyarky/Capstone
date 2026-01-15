@@ -230,8 +230,6 @@ export default function useWebAuthn() {
                        completeError?.originalError?.error?.code || 
                        completeError?.originalError?.code
       
-      const errorMsg = (completeError?.message || '').toLowerCase()
-      
       // If credential not found and no email was provided, it might mean no passkeys exist
       if ((errorCode === 'credential_not_found' || errorCode === 'no_passkeys') && !email) {
         const error = new Error('No passkeys found. Please register a passkey first.')

@@ -20,7 +20,6 @@ export default function LoginForm({ onSubmit } = {}) {
     form,
     handleFinish,
     isSubmitting,
-    initialValues,
     prefillAdmin,
     prefillAdmin2,
     prefillAdmin3,

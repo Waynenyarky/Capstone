@@ -372,7 +372,7 @@ export default function BusinessRegistrationWizard({ onComplete }) {
 
           <div style={{ marginTop: 40, paddingTop: 24, borderTop: '1px solid #f0f0f0', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
              {currentStep > 0 && (
-              <Button size="large" onClick={() => setCurrentStep(currentStep - 1)}>
+              <Button size="large" onClick={handlePrev}>
                 Previous
               </Button>
             )}

@@ -1,8 +1,6 @@
 import React from 'react'
 import { Table, Button } from 'antd'
-import { useEffect } from 'react'
 import { useUsersTable } from "@/features/admin/users/hooks/useUsersTable.js"
-import { subscribeUserSignedUp } from "@/features/admin/users/lib/usersEvents.js"
 
 export default function UsersTable() {
   const { users, isLoading, reloadUsers } = useUsersTable()

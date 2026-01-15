@@ -16,18 +16,16 @@ export default function CrossDevicePasskeyAuth({ form, onAuthenticated, onCancel
   const [polling, setPolling] = React.useState(false)
   const [error, setError] = React.useState(null)
   const [qrCodeData, setQrCodeData] = React.useState(null)
-  const [sessionId, setSessionId] = React.useState(null)
   const pollingIntervalRef = React.useRef(null)
 
   const [allowRegistration, setAllowRegistration] = React.useState(false)
-  const [pairingData, setPairingData] = React.useState(null)
+  // Note: sessionId and pairingData are not stored in state as they're only used temporarily
 
   const startCrossDeviceAuth = async (allowReg = false) => {
     try {
       setLoading(true)
       setError(null)
       setQrCodeData(null)
-      setSessionId(null)
       // Don't reset allowRegistration here - preserve it if we're in registration mode
 
       // Email is optional for passkey authentication
@@ -87,11 +85,9 @@ export default function CrossDevicePasskeyAuth({ form, onAuthenticated, onCancel
         // Store pairing data if available for debugging/display
         if (result.pairingData) {
           console.log('[CrossDevice] Pairing data for ID Melon:', result.pairingData)
-          // Store pairing data in component state for display in UI
-          setPairingData(result.pairingData)
+          // Pairing data logged for debugging (not stored in state as it's not displayed)
         }
         
-        setSessionId(result.sessionId)
         setAllowRegistration(allowReg) // Update state to match what we requested
         startPolling(result.sessionId, allowReg) // Pass registration flag to polling
       } else {
@@ -149,7 +145,7 @@ export default function CrossDevicePasskeyAuth({ form, onAuthenticated, onCancel
     }
   }
 
-  const startPolling = (sid, isRegistration = false) => {
+  const startPolling = (sid) => {
     setPolling(true)
     
     // Poll every 2 seconds for authentication/registration status

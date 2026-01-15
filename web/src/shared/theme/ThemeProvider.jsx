@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { ConfigProvider, theme } from 'antd';
 import { useLocation } from 'react-router-dom';
 import { getCurrentUser, subscribeAuth } from '@/features/authentication/lib/authEvents.js';
 
 const ThemeContext = createContext();
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAppTheme = () => {
   const context = useContext(ThemeContext);
   if (!context) {
@@ -13,6 +14,7 @@ export const useAppTheme = () => {
   return context;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const THEMES = {
   DEFAULT: 'default',
   DARK: 'dark',
@@ -169,7 +171,7 @@ function loadUserOverrides(user) {
   try {
     const saved = localStorage.getItem(key);
     return saved ? JSON.parse(saved) : {};
-  } catch (e) {
+  } catch {
     return {};
   }
 }
@@ -227,7 +229,9 @@ export function ThemeProvider({ children }) {
 
   // Derived overrides: disable overrides on public pages
   // If previewOverrides is set, use it instead of saved themeOverrides
-  const activeOverrides = isPublicPage ? {} : (previewOverrides || themeOverrides);
+  const activeOverrides = useMemo(() => {
+    return isPublicPage ? {} : (previewOverrides || themeOverrides);
+  }, [isPublicPage, previewOverrides, themeOverrides]);
 
   // Save theme to user-specific storage when theme or user changes
   useEffect(() => {
@@ -260,7 +264,6 @@ export function ThemeProvider({ children }) {
     // Update global body background and text color
     // If specific colors are not defined in the theme token (like for Default/V4), fall back to standard light mode values
     const bodyBg = token.colorBgLayout || '#f0f2f5'; // Default AntD Layout bg
-    const textColor = token.colorTextBase || '#1f1f1f'; // Default AntD text
 
     // Always use the theme's defined layout background for the global body background
     // This ensures consistency across all themes (Dark, Document, Blossom, etc.)

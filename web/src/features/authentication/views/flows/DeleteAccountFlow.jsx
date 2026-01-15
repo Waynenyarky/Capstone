@@ -4,7 +4,7 @@ import { useLoggedInDeleteAccountFlow } from "@/features/authentication/hooks"
 import { WarningOutlined, SafetyCertificateOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons'
 
 export default function DeleteAccountFlow() {
-  const { step, sendProps, verifyProps, confirmProps, reset } = useLoggedInDeleteAccountFlow()
+  const { step, sendProps, verifyProps, confirmProps } = useLoggedInDeleteAccountFlow()
   const { token } = theme.useToken()
 
   const currentStep = step === 'send' ? 0 : step === 'verify' ? 1 : step === 'confirm' ? 2 : 3

@@ -24,7 +24,7 @@ export class CrossDeviceAuthUseCase {
         pub = authResult.publicKey
         email = authResult.email
         type = authResult.type || 'authenticate'
-      } catch (authErr) {
+      } catch {
         // If authentication fails, try registration
         const regResult = await this.webauthnRepository.getCrossDeviceOptions({ 
           sessionId, 

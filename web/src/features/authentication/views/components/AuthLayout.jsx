@@ -18,7 +18,6 @@ export default function AuthLayout({
   title = "BizClear",
   subtitle = "DAGUPAN CITY PORTAL",
   description = "Welcome to the BizClear Portal of Dagupan City. Securely manage your business permits, schedule inspections, and stay compliant with local regulations—all in one place.",
-  illustration, // Optional
   formMaxWidth = 440 // Default width for form container
 }) {
   const navigate = useNavigate();

@@ -7,7 +7,7 @@ import ConfirmLogoutModal from './ConfirmLogoutModal.jsx'
 import { useConfirmLogoutModal } from '../../hooks'
 
 export default function AppSidebar({ hiddenKeys = [], renamedKeys = {}, itemOverrides = {}, ...siderProps }) {
-  const { items: rawItems, selected, onSelect, role } = useSidebar()
+  const { items: rawItems, selected, onSelect } = useSidebar()
   const { currentUser, logout } = useAuthSession()
   const navigate = useNavigate()
   const location = useLocation()

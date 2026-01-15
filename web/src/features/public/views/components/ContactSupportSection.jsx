@@ -22,14 +22,14 @@ export default function ContactSupportSection() {
   const [form] = Form.useForm()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = async (values) => {
+  const handleSubmit = async () => {
     setIsSubmitting(true)
     try {
       // Simulate API call - replace with actual API endpoint
       await new Promise(resolve => setTimeout(resolve, 1500))
       message.success('Thank you! Your message has been sent successfully. We will get back to you within 24-48 hours.')
       form.resetFields()
-    } catch (error) {
+    } catch {
       message.error('Failed to send message. Please try again or contact us directly.')
     } finally {
       setIsSubmitting(false)
@@ -68,27 +68,6 @@ export default function ContactSupportSection() {
       secondary: '8:00 AM - 5:00 PM',
       description: 'Closed on weekends and holidays',
       color: '#722ed1'
-    }
-  ]
-
-  const supportChannels = [
-    {
-      icon: <CustomerServiceOutlined style={{ fontSize: '20px' }} />,
-      title: 'Walk-in Support',
-      description: 'Visit our office for in-person assistance',
-      available: true
-    },
-    {
-      icon: <MessageOutlined style={{ fontSize: '20px' }} />,
-      title: 'Online Inquiry',
-      description: 'Submit inquiries through the portal',
-      available: true
-    },
-    {
-      icon: <GlobalOutlined style={{ fontSize: '20px' }} />,
-      title: 'Official Website',
-      description: 'Visit dagupan.gov.ph for more information',
-      available: true
     }
   ]
 

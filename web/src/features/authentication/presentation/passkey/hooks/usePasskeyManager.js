@@ -3,7 +3,7 @@
  * Connects UI to use cases following Clean Architecture
  * This hook is in the presentation layer and depends on application layer
  */
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { RegisterPasskeyUseCase, ListPasskeysUseCase, DeletePasskeyUseCase, DeleteAllPasskeysUseCase } from '@/features/authentication/application/passkey'
 import { WebAuthnRepository, UserRepository } from '@/features/authentication/application/passkey'
 import * as webauthnService from '@/features/authentication/services/webauthnService'
@@ -20,26 +20,26 @@ export function usePasskeyManager() {
   const [registering, setRegistering] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  // Initialize repositories (dependency injection)
-  const webauthnRepo = new WebAuthnRepository(webauthnService)
-  const userRepo = new UserRepository(getProfile, { currentUser, login })
+  // Initialize repositories (dependency injection) - memoized to prevent recreation
+  const webauthnRepo = useMemo(() => new WebAuthnRepository(webauthnService), [])
+  const userRepo = useMemo(() => new UserRepository(getProfile, { currentUser, login }), [currentUser, login])
   
-  // Initialize use cases
-  const registerUseCase = new RegisterPasskeyUseCase({
+  // Initialize use cases - memoized to prevent recreation on every render
+  const registerUseCase = useMemo(() => new RegisterPasskeyUseCase({
     webauthnRepository: webauthnRepo,
     userRepository: userRepo,
     notifier: { success, error: notifyError, info }
-  })
+  }), [webauthnRepo, userRepo, success, notifyError, info])
   
-  const listUseCase = new ListPasskeysUseCase({ webauthnRepository: webauthnRepo })
-  const deleteUseCase = new DeletePasskeyUseCase({ 
+  const listUseCase = useMemo(() => new ListPasskeysUseCase({ webauthnRepository: webauthnRepo }), [webauthnRepo])
+  const deleteUseCase = useMemo(() => new DeletePasskeyUseCase({ 
     webauthnRepository: webauthnRepo,
     userRepository: userRepo
-  })
-  const deleteAllUseCase = new DeleteAllPasskeysUseCase({
+  }), [webauthnRepo, userRepo])
+  const deleteAllUseCase = useMemo(() => new DeleteAllPasskeysUseCase({
     webauthnRepository: webauthnRepo,
     userRepository: userRepo
-  })
+  }), [webauthnRepo, userRepo])
 
   const email = currentUser?.email
 

@@ -12,6 +12,7 @@ export function useLoginFlow({ onSubmit } = {}) {
   const { initialEmail, rememberEmail, clearRememberedEmail } = useRememberedEmail()
   const devPassword =
     (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SEED_TEMP_PASSWORD) ||
+    // eslint-disable-next-line no-undef
     (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SEED_TEMP_PASSWORD) ||
     'TempPass123!'
 

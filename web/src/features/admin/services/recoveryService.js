@@ -1,4 +1,4 @@
-import { authHeaders, fetchJsonWithFallback, fetchWithFallback } from '@/lib/http.js'
+import { authHeaders, fetchJsonWithFallback } from '@/lib/http.js'
 import { getCurrentUser } from '@/features/authentication/lib/authEvents.js'
 
 export async function getRecoveryRequests(params = {}) {

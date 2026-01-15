@@ -43,6 +43,7 @@ if (typeof navigator !== 'undefined' && !navigator.clipboard) {
  * msw/node in the browser.
  */
 let server
+// eslint-disable-next-line no-undef
 const isNodeRuntime = typeof process !== 'undefined' && !!process.versions?.node
 if (isNodeRuntime) {
   const { setupServer } = await import('msw/node')

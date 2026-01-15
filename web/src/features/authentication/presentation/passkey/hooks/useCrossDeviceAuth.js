@@ -3,7 +3,7 @@
  * Handles cross-device authentication flow
  */
 import { useState, useEffect } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { CrossDeviceAuthUseCase } from '@/features/authentication/domain/passkey/useCases/CrossDeviceAuthUseCase'
 import { WebAuthnRepository } from '@/features/authentication/application/passkey'
 import * as webauthnService from '@/features/authentication/services/webauthnService'
@@ -11,7 +11,6 @@ import { useNotifier } from '@/shared/notifications'
 
 export function useCrossDeviceAuth() {
   const [searchParams] = useSearchParams()
-  const navigate = useNavigate()
   const { success, error: notifyError } = useNotifier()
   
   const [status, setStatus] = useState('pending')
@@ -35,7 +34,7 @@ export function useCrossDeviceAuth() {
         try {
           const jsonData = JSON.parse(decodeURIComponent(hash.substring(1)))
           extractedSessionId = jsonData.sessionId || jsonData.session_id || jsonData.session
-        } catch (e) {
+        } catch {
           // Not JSON, ignore
         }
       }
@@ -48,7 +47,7 @@ export function useCrossDeviceAuth() {
         try {
           const jsonData = JSON.parse(decodeURIComponent(dataParam))
           extractedSessionId = jsonData.sessionId || jsonData.session_id || jsonData.session
-        } catch (e) {
+        } catch {
           // Not JSON, ignore
         }
       }

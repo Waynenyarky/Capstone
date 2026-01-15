@@ -1,15 +1,13 @@
-import { Layout, Button, Typography, Space, theme, Grid } from 'antd'
+import { Layout, Button, Typography, Space, Grid } from 'antd'
 import { Link } from 'react-router-dom'
 import { LoginOutlined } from '@ant-design/icons'
 import BizClearLogo from '@/logo/BizClear.png'
 
 const { Header } = Layout
 const { Title, Text } = Typography
-const { useToken } = theme
 const { useBreakpoint } = Grid
 
 export default function HomeHeader() {
-  const { token } = useToken()
   const screens = useBreakpoint()
 
   return (

@@ -12,7 +12,6 @@ const SidebarContent = ({
   items, 
   activeKey, 
   handleItemClick, 
-  currentUser,
   backgroundColor,
   isLightSidebar,
   isDarkTheme
@@ -117,10 +116,9 @@ const SidebarContent = ({
  * @param {object[]} items - Menu items
  * @param {string} activeKey - Currently selected key
  * @param {function} onItemClick - Callback when item is clicked
- * @param {object} currentUser - Current user object
  * @param {object} siderProps - Props passed to Antd Sider
  */
-export default function Sidebar({ items = [], activeKey, onItemClick, currentUser, ...siderProps }) {
+export default function Sidebar({ items = [], activeKey, onItemClick, ...siderProps }) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const screens = useBreakpoint()
@@ -183,7 +181,6 @@ export default function Sidebar({ items = [], activeKey, onItemClick, currentUse
               items={items}
               activeKey={activeKey}
               handleItemClick={handleMobileClick}
-              currentUser={currentUser}
               backgroundColor={siderBg}
               isLightSidebar={isLightSidebar}
               isDarkTheme={isDarkTheme}
@@ -230,7 +227,6 @@ export default function Sidebar({ items = [], activeKey, onItemClick, currentUse
             items={items}
             activeKey={activeKey}
             handleItemClick={onItemClick}
-            currentUser={currentUser}
             backgroundColor={siderBg}
             isLightSidebar={isLightSidebar}
             isDarkTheme={isDarkTheme}

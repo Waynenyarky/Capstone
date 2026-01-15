@@ -9,7 +9,7 @@ import { formatPhoneNumber } from "@/shared/utils/phoneFormatter.js"
 
 export default function EditUserProfileForm({ embedded = false }) {
   const { form, isLoading, isSubmitting, handleFinish, handleValuesChange, isDirty, reload } = useEditUserProfileForm()
-  const { currentUser, role } = useAuthSession()
+  const { role } = useAuthSession()
   
   // Check if user is staff role (restricted fields)
   const roleKey = String(role?.slug || role || '').toLowerCase()

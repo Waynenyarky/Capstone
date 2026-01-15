@@ -52,7 +52,7 @@ export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
       try {
         // Try to start authentication - if it fails with no_passkeys, show registration
         // Normalize email before sending to backend
-        const response = await authenticateStart({ email: email.toLowerCase() })
+        await authenticateStart({ email: email.toLowerCase() })
         // If successful, user has passkeys - hide registration option
         if (!isCancelled) {
           console.log('[PasskeySignInOptions] User has passkeys registered for:', email)

@@ -3,7 +3,7 @@ import React from 'react'
 import { Form, Input, Card, Flex, Button, Checkbox, Typography, Row, Col, Grid } from 'antd'
 import { useNavigate, Link } from 'react-router-dom'
 
-import { useUserSignUp, useUserSignUpFlow, useAuthSession } from '@/features/authentication/hooks'
+import { useUserSignUp, useUserSignUpFlow } from '@/features/authentication/hooks'
 import { SignUpVerificationForm } from '@/features/authentication'
 import {
   emailRules,
@@ -24,15 +24,13 @@ export default function UserSignUpForm({ extraContent }) {
   const navigate = useNavigate()
   const screens = useBreakpoint()
   const isMobile = !screens.md
-  const { login } = useAuthSession()
-
   // Signup flow hooks (direct signup with auto-login, skipping verification)
   const { step, emailForVerify, devCodeForVerify, verifyEmail, handleVerificationSubmit } = useUserSignUpFlow()
-  const { form, handleFinish, isSubmitting, prefillDemo } = useUserSignUp({
+  const { form, handleFinish, isSubmitting } = useUserSignUp({
     onBegin: ({ email, serverData }) => {
       verifyEmail({ email, devCode: serverData?.devCode })
     },
-    onSubmit: (response) => {
+    onSubmit: () => {
       // Do not auto-login. Navigate to login page so user can sign in manually.
       navigate('/login')
     },

@@ -31,7 +31,7 @@ export default function TamperIncidentsPanel() {
       const [incRes, statsRes] = await Promise.all([fetchTamperIncidents({ limit: 100 }), fetchTamperStats()])
       if (incRes?.incidents) setIncidents(incRes.incidents)
       if (statsRes?.stats) setStats(statsRes.stats)
-    } catch (err) {
+    } catch {
       message.error('Failed to load tamper incidents')
     } finally {
       setLoading(false)
@@ -47,7 +47,7 @@ export default function TamperIncidentsPanel() {
       await acknowledgeIncident(id)
       message.success('Incident acknowledged')
       load()
-    } catch (err) {
+    } catch {
       message.error('Failed to acknowledge')
     }
   }
@@ -57,7 +57,7 @@ export default function TamperIncidentsPanel() {
       await updateContainment(id, next)
       message.success(next ? 'Containment enabled' : 'Containment lifted')
       load()
-    } catch (err) {
+    } catch {
       message.error('Failed to update containment')
     }
   }
@@ -68,7 +68,7 @@ export default function TamperIncidentsPanel() {
       await resolveIncident(id, notes || '', false)
       message.success('Incident resolved')
       load()
-    } catch (err) {
+    } catch {
       message.error('Failed to resolve')
     }
   }

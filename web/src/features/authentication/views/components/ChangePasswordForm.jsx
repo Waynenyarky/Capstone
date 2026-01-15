@@ -14,9 +14,6 @@ export default function ChangePasswordForm({ email, resetToken, onSubmit, isLogg
   
   const isResetFlow = !!resetToken && !isLoggedInFlow
   
-  const passwordStrength = getPasswordStrength(passwordValue)
-  const passwordValidation = validatePasswordRequirements(passwordValue)
-  
   const handlePasswordChange = (e) => {
     const value = e?.target?.value || ''
     setPasswordValue(value)

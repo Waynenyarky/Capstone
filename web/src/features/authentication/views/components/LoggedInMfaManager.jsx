@@ -20,7 +20,6 @@ export default function LoggedInMfaManager() {
 
   const {
     currentUser,
-    role,
     loading,
     enabled,
     statusFetchFailed,

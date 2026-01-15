@@ -15,7 +15,8 @@ export function useEditUserProfileForm({ onSubmit } = {}) {
   
   const initialValuesRef = useRef({})
   const [isDirty, setDirty] = useState(false)
-  const [optimisticValues, setOptimisticValues] = useState(null)
+  // Optimistic values state (set but not read - used for rollback only)
+  const [, setOptimisticValues] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -45,7 +46,7 @@ export function useEditUserProfileForm({ onSubmit } = {}) {
     try {
       const dirty = JSON.stringify(allValues) !== JSON.stringify(initialValuesRef.current)
       setDirty(dirty)
-    } catch (err) {
+    } catch {
       // ignore
     }
   }, [])

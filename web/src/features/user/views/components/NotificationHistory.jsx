@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { List, Typography, Tag, Empty, Spin, Space, theme, Timeline, Badge, Button } from 'antd'
 import { BellOutlined, MailOutlined, LockOutlined, SafetyCertificateOutlined, UserOutlined, ReloadOutlined, ClockCircleOutlined } from '@ant-design/icons'
-import { useAuthSession } from '@/features/authentication'
-import { getNotificationHistory } from '@/features/user/services/notificationService.js'
 
 const { Title, Text } = Typography
 
@@ -44,14 +42,13 @@ const formatTimeAgo = (timestamp) => {
 
 export default function NotificationHistory() {
   const { token } = theme.useToken()
-  const { currentUser, role } = useAuthSession()
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     loadHistory()
-  }, [currentUser])
+  }, [])
 
   const loadHistory = async (isRefresh = false) => {
     try {

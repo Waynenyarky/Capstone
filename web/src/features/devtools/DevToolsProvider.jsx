@@ -82,6 +82,7 @@ export function DevToolsProvider({ children }) {
   return <DevToolsContext.Provider value={value}>{children}</DevToolsContext.Provider>
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useDevTools() {
   const ctx = useContext(DevToolsContext)
   if (!ctx) {

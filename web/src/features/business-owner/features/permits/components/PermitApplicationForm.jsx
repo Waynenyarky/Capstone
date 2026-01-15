@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Form, Select, Input, DatePicker, Upload, Button, Card, Row, Col, Typography, message, Space, Badge, Divider, Checkbox } from 'antd'
+import { Form, Select, Input, DatePicker, Upload, Button, Card, Row, Col, Typography, message, Space, Badge, Divider, Checkbox, theme } from 'antd'
 import { UploadOutlined, RobotOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { calculateFee } from '../services/permitService'
@@ -9,6 +9,7 @@ const { Option } = Select
 const { RangePicker } = DatePicker
 
 export default function PermitApplicationForm({ onSubmit, onCancel, initialValues }) {
+  const { token } = theme.useToken()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [fee, setFee] = useState(0)

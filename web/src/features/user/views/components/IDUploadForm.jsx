@@ -1,27 +1,25 @@
 import { useState, useEffect } from 'react'
-import { Form, Upload, Button, Card, Typography, Space, Alert, Row, Col, Select, Input, message, theme } from 'antd'
+import { Form, Upload, Button, Card, Typography, Space, Alert, Row, Col, Select, Input, message } from 'antd'
 import { UploadOutlined, DeleteOutlined, EyeOutlined, UndoOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
-import { useAuthSession } from '@/features/authentication'
 import { uploadIdDocuments, getIdVerificationStatus, revertIdUpload } from '@/features/user/services/idUploadService.js'
 import { useNotifier } from '@/shared/notifications.js'
-import { SendCodeForCurrentUser, TotpVerificationForm } from '@/features/authentication'
+import { SendCodeForCurrentUser, TotpVerificationForm, useAuthSession } from '@/features/authentication'
 
 const { Title, Text, Paragraph } = Typography
 const { Option } = Select
 
 export default function IDUploadForm() {
-  const { token } = theme.useToken()
   const { currentUser, role, login } = useAuthSession()
   const { success, error } = useNotifier()
   const [form] = Form.useForm()
   
   const [loading, setLoading] = useState(false)
-  const [statusLoading, setStatusLoading] = useState(true)
+  const [, setStatusLoading] = useState(true) // Setter used but value not read
   const [idStatus, setIdStatus] = useState(null)
   const [frontFile, setFrontFile] = useState(null)
   const [backFile, setBackFile] = useState(null)
   const [verificationStep, setVerificationStep] = useState(null) // 'send' | 'verify' | null
-  const [verificationCode, setVerificationCode] = useState('')
+  const [, setVerificationCode] = useState('') // Setter used but value comes from form parameter
   const [reverting, setReverting] = useState(false)
 
   useEffect(() => {
