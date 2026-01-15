@@ -1,12 +1,15 @@
-import { Form } from 'antd'
+import { Form, App } from 'antd'
 import { useState } from 'react'
 import { loginStart, loginPost } from "@/features/authentication/services"
 import { useNotifier } from '@/shared/notifications.js'
+import React from 'react'
+import { ExclamationCircleOutlined } from '@ant-design/icons'
 
 export function useLogin({ onBegin, onSubmit, onError } = {}) {
   const [form] = Form.useForm()
   const [isSubmitting, setSubmitting] = useState(false)
   const { success, error } = useNotifier()
+  const { notification } = App.useApp()
 
   const handleFinish = async (values) => {
     const payload = { email: values.email, password: values.password }
@@ -45,9 +48,32 @@ export function useLogin({ onBegin, onSubmit, onError } = {}) {
         const role = String(user?.role || '').toLowerCase()
         // Block admin accounts on the generic login page: show invalid credentials
         if (role === 'admin') {
+          const professionalMessage = 'The email address or password you entered is incorrect. Please check your credentials and try again.'
+          
+          // Show professional toast notification at top center
+          notification.error({
+            message: React.createElement('span', { style: { fontSize: '16px', fontWeight: 600, color: '#1f1f1f' } }, 'Login Failed'),
+            description: React.createElement('span', { style: { fontSize: '14px', color: '#666' } }, professionalMessage),
+            placement: 'top',
+            top: 24,
+            duration: 5,
+            icon: React.createElement(ExclamationCircleOutlined, { style: { color: '#ff4d4f', fontSize: '22px' } }),
+            style: { 
+              width: 400, 
+              margin: '0 auto',
+              borderRadius: '8px',
+              border: '1px solid #ffccc7',
+              backgroundColor: '#fff1f0',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
+            },
+            closeIcon: false,
+            key: `login-error-${Date.now()}`,
+          })
+          
+          // Clear any field errors
           form.setFields([
-            { name: 'email', errors: ['Invalid credentials'] },
-            { name: 'password', errors: ['Invalid credentials'] },
+            { name: 'email', errors: [] },
+            { name: 'password', errors: [] },
           ])
           return
         }
@@ -67,11 +93,48 @@ export function useLogin({ onBegin, onSubmit, onError } = {}) {
 
       console.error('Login error:', err)
       const msg = String(err?.message || '').toLowerCase()
-      // Prefer field-level errors for invalid credentials
-      if (msg.includes('invalid email or password') || msg.includes('invalid_credentials')) {
+      const errorCode = err?.code || ''
+      const statusCode = err?.status || 0
+      
+      // Prefer field-level errors for invalid credentials with professional message
+      // Check for invalid credentials by message content, error code, or 401 status
+      const isInvalidCredentials = 
+        msg.includes('invalid email or password') || 
+        msg.includes('invalid_credentials') || 
+        msg.includes('the email address or password you entered is incorrect') ||
+        errorCode === 'invalid_credentials' ||
+        (statusCode === 401 && !errorCode) // Generic 401 likely means invalid credentials
+      
+      if (isInvalidCredentials) {
+        // Use the error message if it's already professional, otherwise use default
+        const professionalMessage = msg.includes('the email address or password you entered is incorrect') 
+          ? err.message 
+          : 'The email address or password you entered is incorrect. Please check your credentials and try again.'
+        
+        // Show professional toast notification at top center
+        notification.error({
+          message: React.createElement('span', { style: { fontSize: '16px', fontWeight: 600, color: '#1f1f1f' } }, 'Login Failed'),
+          description: React.createElement('span', { style: { fontSize: '14px', color: '#666' } }, professionalMessage),
+          placement: 'top',
+          top: 24,
+          duration: 5,
+          icon: React.createElement(ExclamationCircleOutlined, { style: { color: '#ff4d4f', fontSize: '22px' } }),
+          style: { 
+            width: 400, 
+            margin: '0 auto',
+            borderRadius: '8px',
+            border: '1px solid #ffccc7',
+            backgroundColor: '#fff1f0',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
+          },
+          closeIcon: false,
+          key: `login-error-${Date.now()}`,
+        })
+        
+        // Also clear any field errors to avoid duplication
         form.setFields([
-          { name: 'email', errors: ['Invalid credentials'] },
-          { name: 'password', errors: ['Invalid credentials'] },
+          { name: 'email', errors: [] },
+          { name: 'password', errors: [] },
         ])
       } else {
         error(err, 'Failed to login')

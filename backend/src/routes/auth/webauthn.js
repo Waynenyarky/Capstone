@@ -519,7 +519,9 @@ router.post('/webauthn/register/complete', validateBody(registrationCompleteSche
    }
 })
 
-const authStartSchema = Joi.object({ email: Joi.string().email().optional() })
+const authStartSchema = Joi.object({ 
+  email: Joi.string().email().allow('').optional() 
+})
 
 // POST /api/auth/webauthn/authenticate/start
 router.post('/webauthn/authenticate/start', validateBody(authStartSchema), async (req, res) => {
@@ -528,12 +530,19 @@ router.post('/webauthn/authenticate/start', validateBody(authStartSchema), async
       
       // If email is provided, use it to find user and filter credentials
       let allowCredentials = []
-      if (email) {
+      if (email && email.trim()) {
          // Normalize email to lowercase for consistent lookup
          const normalizedEmail = String(email).toLowerCase().trim()
+         
+         // Validate email format before querying database
+         if (!normalizedEmail.includes('@') || !normalizedEmail.includes('.')) {
+            // Invalid email format - return error but don't treat as critical
+            return respond.error(res, 400, 'invalid_email_format', 'Invalid email format')
+         }
+         
          const user = await User.findOne({ email: normalizedEmail })
          if (!user) {
-            console.log('[WebAuthn] User not found for email:', normalizedEmail)
+            // User not found - this is expected for new users, return gracefully
             return respond.error(res, 404, 'user_not_found', 'User not found')
          }
 
@@ -2263,8 +2272,8 @@ router.post('/webauthn/cross-device/complete', validateBody(crossDeviceCompleteS
 // GET /api/auth/webauthn/credentials - List all passkeys for authenticated user
 router.get('/webauthn/credentials', requireJwt, async (req, res) => {
   try {
-    const email = req._userEmail
-    const user = await User.findOne({ email }).lean()
+    const userId = req._userId
+    const user = await User.findById(userId).lean()
     if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
 
     const credentials = (user.webauthnCredentials || []).map((cred, index) => ({
@@ -2284,10 +2293,10 @@ router.get('/webauthn/credentials', requireJwt, async (req, res) => {
 // DELETE /api/auth/webauthn/credentials/:credId - Delete a specific passkey
 router.delete('/webauthn/credentials/:credId', requireJwt, async (req, res) => {
   try {
-    const email = req._userEmail
+    const userId = req._userId
     const { credId } = req.params
     
-    const user = await User.findOne({ email })
+    const user = await User.findById(userId)
     if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
 
     const credentials = user.webauthnCredentials || []
@@ -2324,8 +2333,8 @@ router.delete('/webauthn/credentials/:credId', requireJwt, async (req, res) => {
 // DELETE /api/auth/webauthn/credentials - Delete all passkeys (disable passkey authentication)
 router.delete('/webauthn/credentials', requireJwt, async (req, res) => {
   try {
-    const email = req._userEmail
-    const user = await User.findOne({ email })
+    const userId = req._userId
+    const user = await User.findById(userId)
     if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
 
     const hadCredentials = (user.webauthnCredentials || []).length > 0

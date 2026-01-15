@@ -25,9 +25,10 @@ const oneDayMs = 24 * 60 * 60 * 1000
 // POST /api/auth/mfa/setup
 router.post('/mfa/setup', requireJwt, validateBody(setupSchema), async (req, res) => {
   try {
-    const email = req._userEmail
-    const doc = await User.findOne({ email })
+    const userId = req._userId
+    const doc = await User.findById(userId)
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+    const email = doc.email
 
     const secret = generateSecret(20)
     const issuer = String(process.env.DEFAULT_FROM_EMAIL || 'Capstone').replace(/<.*?>/g, '').trim() || 'Capstone'
@@ -47,8 +48,8 @@ router.post('/mfa/setup', requireJwt, validateBody(setupSchema), async (req, res
 // POST /api/auth/mfa/disable-request
 router.post('/mfa/disable-request', requireJwt, async (req, res) => {
   try {
-    const email = req._userEmail
-    const doc = await User.findOne({ email })
+    const userId = req._userId
+    const doc = await User.findById(userId)
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
     if (doc.mfaEnabled !== true || !doc.mfaSecret) {
       return respond.error(res, 400, 'mfa_not_enabled', 'MFA not enabled')
@@ -71,9 +72,9 @@ router.post('/mfa/disable-request', requireJwt, async (req, res) => {
 // POST /api/auth/mfa/disable-undo
 router.post('/mfa/disable-undo', requireJwt, validateBody(verifySchema), async (req, res) => {
   try {
-    const email = req._userEmail
+    const userId = req._userId
   const { code } = req.body || {}
-    const doc = await User.findOne({ email })
+    const doc = await User.findById(userId)
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
     if (!doc.mfaDisablePending) return res.json({ canceled: false, message: 'No pending disable' })
     if (!doc.mfaSecret) return respond.error(res, 400, 'mfa_not_setup', 'MFA not set up')
@@ -100,9 +101,9 @@ router.post('/mfa/disable-undo', requireJwt, validateBody(verifySchema), async (
 // POST /api/auth/mfa/verify
 router.post('/mfa/verify', requireJwt, validateBody(verifySchema), async (req, res) => {
   try {
-    const email = req._userEmail
+    const userId = req._userId
     const { code } = req.body || {}
-    const doc = await User.findOne({ email }).populate('role')
+    const doc = await User.findById(userId).populate('role')
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
     if (!doc.mfaSecret) return respond.error(res, 400, 'mfa_not_setup', 'MFA not set up')
 
@@ -154,8 +155,8 @@ router.post('/mfa/verify', requireJwt, validateBody(verifySchema), async (req, r
 // POST /api/auth/mfa/disable
 router.post('/mfa/disable', requireJwt, async (req, res) => {
   try {
-    const email = req._userEmail
-    const doc = await User.findOne({ email })
+    const userId = req._userId
+    const doc = await User.findById(userId)
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
     doc.mfaEnabled = false
     doc.mfaSecret = ''
@@ -171,8 +172,8 @@ router.post('/mfa/disable', requireJwt, async (req, res) => {
 // GET /api/auth/mfa/status
   router.get('/mfa/status', requireJwt, async (req, res) => {
     try {
-      const email = req._userEmail
-      const doc = await User.findOne({ email })
+      const userId = req._userId
+      const doc = await User.findById(userId)
       if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
       if (doc.mfaDisablePending && doc.mfaDisableScheduledFor && Date.now() >= new Date(doc.mfaDisableScheduledFor).getTime()) {
         doc.mfaEnabled = false
@@ -212,9 +213,10 @@ router.post('/mfa/disable', requireJwt, async (req, res) => {
 // POST /api/auth/mfa/fingerprint/start
 router.post('/mfa/fingerprint/start', requireJwt, async (req, res) => {
   try {
-    const email = req._userEmail
-    const doc = await User.findOne({ email })
+    const userId = req._userId
+    const doc = await User.findById(userId)
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+    const email = doc.email
 
     const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10)
     const expiresAt = Date.now() + ttlMin * 60 * 1000
@@ -234,16 +236,16 @@ router.post('/mfa/fingerprint/start', requireJwt, async (req, res) => {
 // POST /api/auth/mfa/fingerprint/verify
 router.post('/mfa/fingerprint/verify', requireJwt, validateBody(verifySchema), async (req, res) => {
   try {
-    const email = req._userEmail
+    const userId = req._userId
     const { code } = req.body || {}
+    const doc = await User.findById(userId).populate('role')
+    if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+    const email = doc.email
     const key = String(email).toLowerCase()
     const reqObj = mfaRequests.get(key)
     if (!reqObj) return respond.error(res, 404, 'fingerprint_request_not_found', 'No fingerprint verification request found')
     if (Date.now() > reqObj.expiresAt) return respond.error(res, 410, 'code_expired', 'Code expired')
     if (String(reqObj.code) !== String(code)) return respond.error(res, 401, 'invalid_code', 'Invalid code')
-
-    const doc = await User.findOne({ email }).populate('role')
-    if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
 
     doc.mfaEnabled = true
     doc.fprintEnabled = true
@@ -291,8 +293,8 @@ router.post('/mfa/fingerprint/verify', requireJwt, validateBody(verifySchema), a
 // POST /api/auth/mfa/fingerprint/disable
 router.post('/mfa/fingerprint/disable', requireJwt, async (req, res) => {
   try {
-    const email = req._userEmail
-    const doc = await User.findOne({ email })
+    const userId = req._userId
+    const doc = await User.findById(userId)
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
 
     const hasTotp = !!doc.mfaSecret

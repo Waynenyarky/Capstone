@@ -35,9 +35,11 @@ export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
       // Normalize email to lowercase for consistent backend matching
       const email = currentEmail ? String(currentEmail).trim().toLowerCase() : undefined
       
-      // Only check if we have a valid email
-      if (!email || !email.includes('@')) {
-        // No email - don't show registration option (user can still use userless auth)
+      // Only check if we have a valid, complete email address
+      // Basic email validation: must contain @ and have characters before and after @
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!email || !emailRegex.test(email)) {
+        // Invalid or incomplete email - don't show registration option (user can still use userless auth)
         if (!isCancelled) {
           setNeedsRegistration(false)
           setCheckingPasskeys(false)
@@ -67,13 +69,17 @@ export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
                          (e?.originalError?.error && typeof e.originalError.error === 'object' ? e.originalError.error.code : null)
         
         const errorMsg = (e?.message || '').toLowerCase()
+        const statusCode = e?.status || 0
         
-        console.log('[PasskeySignInOptions] Passkey check result for', email, ':', {
-          errorCode,
-          message: e?.message,
-          hasPasskeys: errorCode !== 'no_passkeys',
-          fullError: e
-        })
+        // Silently handle expected errors (user_not_found, validation_error) - these are informational
+        // Only log unexpected errors
+        if (errorCode !== 'user_not_found' && errorCode !== 'validation_error' && statusCode !== 400 && statusCode !== 404) {
+          console.log('[PasskeySignInOptions] Unexpected error checking passkeys for', email, ':', {
+            errorCode,
+            message: e?.message,
+            statusCode
+          })
+        }
         
         // Check for no_passkeys error code or message
         if (errorCode === 'no_passkeys' || 
@@ -82,14 +88,16 @@ export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
             errorMsg.includes('register a passkey first')) {
           console.log('[PasskeySignInOptions] No passkeys found for', email, '- showing registration option')
           setNeedsRegistration(true)
-        } else if (errorCode === 'user_not_found') {
+        } else if (errorCode === 'user_not_found' || statusCode === 404) {
           // User doesn't exist - don't show registration (they need to sign up first)
-          console.log('[PasskeySignInOptions] User not found for', email)
+          // This is expected and not an error - handle silently
+          setNeedsRegistration(false)
+        } else if (errorCode === 'validation_error' || (statusCode === 400 && errorMsg.includes('invalid'))) {
+          // Validation error (e.g., invalid email format) - don't show registration
+          // This is expected when email is incomplete - handle silently
           setNeedsRegistration(false)
         } else {
-          // Other errors - if it's a successful response or network error, assume user might have passkeys
-          // Only show registration for explicit no_passkeys errors
-          console.log('[PasskeySignInOptions] Other error for', email, '- not showing registration. Error:', errorCode || e?.message)
+          // Other errors - assume user might have passkeys, don't show registration
           setNeedsRegistration(false)
         }
       } finally {

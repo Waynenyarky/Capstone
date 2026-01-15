@@ -148,16 +148,45 @@ const themeConfig = {
 };
 
 // Helper functions for user-specific theme storage
+// Use user ID as primary identifier since it doesn't change when email changes
 function getThemeStorageKey(user) {
-  if (!user?.email && !user?.id) return 'app_theme_guest';
-  const identifier = user.email || user.id;
+  if (!user?.id && !user?.email) return 'app_theme_guest';
+  // Prefer ID over email since ID doesn't change when email changes
+  const identifier = user.id || user.email;
   return `app_theme_${identifier}`;
 }
 
 function getOverridesStorageKey(user) {
-  if (!user?.email && !user?.id) return 'theme_overrides_guest';
-  const identifier = user.email || user.id;
+  if (!user?.id && !user?.email) return 'theme_overrides_guest';
+  // Prefer ID over email since ID doesn't change when email changes
+  const identifier = user.id || user.email;
   return `theme_overrides_${identifier}`;
+}
+
+// Migrate theme from old email to new ID when email changes
+function migrateThemeFromEmail(oldEmail, newUser) {
+  if (!oldEmail || !newUser?.id) return;
+  
+  const oldThemeKey = `app_theme_${oldEmail}`;
+  const oldOverridesKey = `theme_overrides_${oldEmail}`;
+  const newThemeKey = getThemeStorageKey(newUser);
+  const newOverridesKey = getOverridesStorageKey(newUser);
+  
+  try {
+    // Migrate theme
+    const oldTheme = localStorage.getItem(oldThemeKey);
+    if (oldTheme && !localStorage.getItem(newThemeKey)) {
+      localStorage.setItem(newThemeKey, oldTheme);
+      localStorage.removeItem(oldThemeKey);
+    }
+    
+    // Migrate overrides
+    const oldOverrides = localStorage.getItem(oldOverridesKey);
+    if (oldOverrides && !localStorage.getItem(newOverridesKey)) {
+      localStorage.setItem(newOverridesKey, oldOverrides);
+      localStorage.removeItem(oldOverridesKey);
+    }
+  } catch { /* ignore migration errors */ }
 }
 
 function loadUserTheme(user) {
@@ -264,8 +293,17 @@ export function ThemeProvider({ children }) {
       })
     }
     
+    let previousUserEmail = currentUser?.email;
+    
     const unsubscribe = subscribeAuth((user) => {
+      // If email changed, migrate theme from old email to new ID
+      if (previousUserEmail && user?.email && previousUserEmail !== user.email && user?.id) {
+        migrateThemeFromEmail(previousUserEmail, user);
+      }
+      
       setCurrentUser(user);
+      previousUserEmail = user?.email;
+      
       // When user changes, load their theme
       const userTheme = loadUserTheme(user);
       const userOverrides = loadUserOverrides(user);

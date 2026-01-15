@@ -124,26 +124,44 @@ export async function fetchJsonWithFallback(path, options = {}) {
         if (!errorCode && err.code) errorCode = err.code
       }
       
+      // Map error codes to user-friendly messages
+      const codeMap = {
+        'invalid_credentials': 'The email address or password you entered is incorrect. Please check your credentials and try again.',
+        'webauthn_verification_failed': 'Passkey verification failed. Please try again.',
+        'webauthn_verification_exception': 'Registration failed. Please try again.',
+        'webauthn_auth_failed': 'Authentication failed. Please try again.',
+        'webauthn_invalid_publickey': 'Invalid passkey format. Please try again.',
+        'credential_not_found': 'Passkey not found. Please register a passkey first.',
+        'session_not_found': 'Session expired. Please scan the QR code again.',
+        'session_expired': 'Session expired. Please scan the QR code again.',
+        'challenge_missing': 'Session error. Please scan the QR code again.',
+        'cross_device_complete_failed': 'Failed to complete authentication. Please try again.',
+      }
+      
+      if (errorCode && codeMap[errorCode]) {
+        errMsg = codeMap[errorCode]
+      }
+      
+      // For 401 errors on login endpoints, assume invalid credentials if not already handled
+      if (statusCode === 401 && path.includes('/login')) {
+        // If we have an error code, use the mapped message
+        if (errorCode && codeMap[errorCode]) {
+          errMsg = codeMap[errorCode]
+        } else if (!errorCode || errMsg.toLowerCase().includes('request failed')) {
+          // No error code or generic message - assume invalid credentials
+          errMsg = 'The email address or password you entered is incorrect. Please check your credentials and try again.'
+          errorCode = 'invalid_credentials'
+        }
+      }
+      
       // Ensure error message is never "Something went wrong"
       if (errMsg.toLowerCase().includes('something went wrong')) {
         // Try to extract a better message from the error structure
-        if (err?.error?.message) {
+        if (err?.error?.message && !err.error.message.toLowerCase().includes('request failed')) {
           errMsg = err.error.message
-        } else if (err?.error?.code) {
-          // Map error codes to user-friendly messages
-          const codeMap = {
-            'webauthn_verification_failed': 'Passkey verification failed. Please try again.',
-            'webauthn_verification_exception': 'Registration failed. Please try again.',
-            'webauthn_auth_failed': 'Authentication failed. Please try again.',
-            'webauthn_invalid_publickey': 'Invalid passkey format. Please try again.',
-            'credential_not_found': 'Passkey not found. Please register a passkey first.',
-            'session_not_found': 'Session expired. Please scan the QR code again.',
-            'session_expired': 'Session expired. Please scan the QR code again.',
-            'challenge_missing': 'Session error. Please scan the QR code again.',
-            'cross_device_complete_failed': 'Failed to complete authentication. Please try again.',
-          }
-          errMsg = codeMap[err.error.code] || `Request failed: ${res?.status || 'network'}`
-        } else {
+        } else if (errorCode && codeMap[errorCode]) {
+          errMsg = codeMap[errorCode]
+        } else if (!errorCode) {
           errMsg = `Request failed: ${res?.status || 'network'}`
         }
       }
