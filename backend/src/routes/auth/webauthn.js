@@ -520,7 +520,11 @@ router.post('/webauthn/register/complete', validateBody(registrationCompleteSche
 })
 
 const authStartSchema = Joi.object({ 
-  email: Joi.string().email().allow('').optional() 
+  email: Joi.alternatives().try(
+    Joi.string().email(),
+    Joi.string().allow(''),
+    Joi.string().valid(null)
+  ).optional()
 })
 
 // POST /api/auth/webauthn/authenticate/start
