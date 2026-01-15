@@ -1,1 +1,1 @@
-export { default as BusinessOwnerDashboard } from './pages/BusinessOwnerDashboard.jsx'
+export { default as BusinessOwnerDashboard } from './views/pages/BusinessOwnerDashboard'

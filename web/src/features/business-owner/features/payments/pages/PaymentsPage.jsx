@@ -1,6 +1,6 @@
 import React from 'react'
 import { Tabs, Table, Card, Button, Typography, Tag, Space, List, Statistic, Alert, Badge, theme } from 'antd'
-import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
+import BusinessOwnerLayout from '@/features/business-owner/views/components/BusinessOwnerLayout'
 import { DollarCircleOutlined, HistoryOutlined, RobotOutlined, CheckCircleOutlined, FilePdfOutlined } from '@ant-design/icons'
 import PaymentModal from '../components/PaymentModal'
 import { usePayments } from '../hooks/usePayments'

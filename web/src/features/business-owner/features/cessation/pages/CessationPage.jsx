@@ -1,6 +1,6 @@
 import React from 'react'
 import { Table, Button, Tag, Space, Typography, Modal, Card, Empty, theme } from 'antd'
-import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
+import BusinessOwnerLayout from '@/features/business-owner/views/components/BusinessOwnerLayout'
 import { StopOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import CessationForm from '../components/CessationForm'
 import { useCessation } from '../hooks/useCessation'

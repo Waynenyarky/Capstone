@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ConfigProvider, theme } from 'antd';
 import { useLocation } from 'react-router-dom';
+import { getCurrentUser, subscribeAuth } from '@/features/authentication/lib/authEvents.js';
 
 const ThemeContext = createContext();
 
@@ -144,41 +145,97 @@ const themeConfig = {
   },
 };
 
+// Helper functions for user-specific theme storage
+function getThemeStorageKey(user) {
+  if (!user?.email && !user?.id) return 'app_theme_guest';
+  const identifier = user.email || user.id;
+  return `app_theme_${identifier}`;
+}
+
+function getOverridesStorageKey(user) {
+  if (!user?.email && !user?.id) return 'theme_overrides_guest';
+  const identifier = user.email || user.id;
+  return `theme_overrides_${identifier}`;
+}
+
+function loadUserTheme(user) {
+  const key = getThemeStorageKey(user);
+  const saved = localStorage.getItem(key);
+  return Object.values(THEMES).includes(saved) ? saved : THEMES.DEFAULT;
+}
+
+function loadUserOverrides(user) {
+  const key = getOverridesStorageKey(user);
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveUserTheme(user, theme) {
+  const key = getThemeStorageKey(user);
+  localStorage.setItem(key, theme);
+}
+
+function saveUserOverrides(user, overrides) {
+  const key = getOverridesStorageKey(user);
+  localStorage.setItem(key, JSON.stringify(overrides));
+}
+
 export function ThemeProvider({ children }) {
+  const location = useLocation();
+  const PUBLIC_PATHS = ['/', '/login', '/sign-up', '/forgot-password', '/terms', '/privacy'];
+  const isPublicPage = PUBLIC_PATHS.includes(location.pathname);
+
+  // Track current user to scope theme storage
+  const [currentUser, setCurrentUser] = useState(() => getCurrentUser());
+  
+  // Initialize theme from user-specific storage
   const [currentTheme, setCurrentTheme] = useState(() => {
-    const saved = localStorage.getItem('app_theme');
-    return Object.values(THEMES).includes(saved) ? saved : THEMES.DEFAULT;
+    return loadUserTheme(currentUser);
   });
 
   // Preview theme allows showing a theme temporarily without persisting it (e.g. on hover)
   const [previewTheme, setPreviewTheme] = useState(null);
   const [previewOverrides, setPreviewOverrides] = useState(null);
-  
-  const location = useLocation();
-  const PUBLIC_PATHS = ['/', '/login', '/sign-up', '/forgot-password', '/terms', '/privacy'];
-  const isPublicPage = PUBLIC_PATHS.includes(location.pathname);
 
   // The theme to actually render
   const displayTheme = isPublicPage ? THEMES.DEFAULT : (previewTheme || currentTheme);
 
   // Store custom theme overrides (primary color, border radius, etc.)
   const [themeOverrides, setThemeOverrides] = useState(() => {
-    try {
-      const saved = localStorage.getItem('theme_overrides');
-      return saved ? JSON.parse(saved) : {};
-    } catch (e) {
-      return {};
-    }
+    return loadUserOverrides(currentUser);
   });
+  
+  // Subscribe to auth changes to detect login/logout/account switch
+  useEffect(() => {
+    const unsubscribe = subscribeAuth((user) => {
+      setCurrentUser(user);
+      // When user changes, load their theme
+      const userTheme = loadUserTheme(user);
+      const userOverrides = loadUserOverrides(user);
+      setCurrentTheme(userTheme);
+      setThemeOverrides(userOverrides);
+      // Clear any previews when user changes
+      setPreviewTheme(null);
+      setPreviewOverrides(null);
+    });
+    return unsubscribe;
+  }, []);
 
   // Derived overrides: disable overrides on public pages
   // If previewOverrides is set, use it instead of saved themeOverrides
   const activeOverrides = isPublicPage ? {} : (previewOverrides || themeOverrides);
 
+  // Save theme to user-specific storage when theme or user changes
   useEffect(() => {
-    localStorage.setItem('app_theme', currentTheme);
-    localStorage.setItem('theme_overrides', JSON.stringify(themeOverrides));
-  }, [currentTheme, themeOverrides]);
+    if (currentUser) {
+      saveUserTheme(currentUser, currentTheme);
+      saveUserOverrides(currentUser, themeOverrides);
+    }
+  }, [currentTheme, themeOverrides, currentUser]);
 
   useEffect(() => {
     // Update global CSS variables for fonts and colors to match the selected theme

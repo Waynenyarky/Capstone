@@ -1,7 +1,7 @@
 import React from 'react'
 import { Table, Button, Tag, Space, Typography, Card, theme, Alert, Tabs } from 'antd'
 import { SafetyCertificateOutlined, FileTextOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
-import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
+import BusinessOwnerLayout from '@/features/business-owner/views/components/BusinessOwnerLayout'
 import { useDashboardData } from '../../dashboard/hooks/useDashboardData'
 
 const { Title, Paragraph, Text } = Typography

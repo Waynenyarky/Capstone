@@ -20,7 +20,7 @@ vi.mock('@/features/authentication/services/authService', () => ({
 
 import { loginResend } from '@/features/authentication/services/authService'
 import { useResendLoginCode } from '@/features/authentication/hooks'
-import LockoutBanner from '@/features/authentication/components/LockoutBanner.jsx'
+import LockoutBanner from '@/features/authentication/views/components/LockoutBanner.jsx'
 
 function renderIntoContainer(element) {
   const container = document.createElement('div')

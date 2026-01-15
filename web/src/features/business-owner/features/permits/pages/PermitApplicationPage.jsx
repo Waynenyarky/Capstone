@@ -1,6 +1,6 @@
 import React from 'react'
 import { Table, Button, Tag, Space, Typography, Modal, Card, theme } from 'antd'
-import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
+import BusinessOwnerLayout from '@/features/business-owner/views/components/BusinessOwnerLayout'
 import { PlusOutlined, FileTextOutlined } from '@ant-design/icons'
 import PermitApplicationForm from '../components/PermitApplicationForm'
 import { usePermitApplications } from '../hooks/usePermitApplications'

@@ -1,7 +1,7 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderWithProviders, screen, waitFor } from '@/test/utils/renderWithProviders.jsx'
-import ActiveSessions from '@/features/user/components/ActiveSessions.jsx'
+import ActiveSessions from '@/features/user/views/components/ActiveSessions.jsx'
 
 const mockGetActiveSessions = vi.fn().mockResolvedValue({ sessions: [] })
 

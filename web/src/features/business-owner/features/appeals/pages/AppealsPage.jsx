@@ -1,6 +1,6 @@
 import React from 'react'
 import { Table, Button, Tag, Space, Typography, Card, theme } from 'antd'
-import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
+import BusinessOwnerLayout from '@/features/business-owner/views/components/BusinessOwnerLayout'
 import { ExclamationCircleOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import AppealModal from '../components/AppealModal'
 import { useAppeals } from '../hooks/useAppeals'

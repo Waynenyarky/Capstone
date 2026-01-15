@@ -1,10 +1,10 @@
 // Staffs feature barrel
 
 // Pages
-export { default as StaffDashboard } from './pages/StaffDashboard'
-export { default as StaffOnboarding } from './pages/StaffOnboarding'
-export { default as StaffRecoveryRequest } from './pages/StaffRecoveryRequest.jsx'
-export * from './components'
+export { default as StaffDashboard } from './views/pages/StaffDashboard'
+export { default as StaffOnboarding } from './views/pages/StaffOnboarding'
+export { default as StaffRecoveryRequest } from './views/pages/StaffRecoveryRequest'
+export * from './views/components'
 export * from './services'
 
 // Sub-feature pages (optional exports if needed elsewhere)

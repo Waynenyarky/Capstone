@@ -41,15 +41,15 @@ vi.mock('@/shared/notifications', () => ({
 }))
 
 // Mock QrDisplay to keep snapshots simple
-vi.mock('@/features/authentication/components/QrDisplay.jsx', () => ({
+vi.mock('@/features/authentication/views/components/QrDisplay.jsx', () => ({
   __esModule: true,
   default: () => React.createElement('div', { 'data-testid': 'qr', children: 'QR' })
 }))
 
-import MfaSetup from '@/features/authentication/components/MfaSetup.jsx'
-import LoginVerificationForm from '@/features/authentication/components/LoginVerificationForm.jsx'
-import TotpVerificationForm from '@/features/authentication/components/TotpVerificationForm.jsx'
-import LoggedInMfaManager from '@/features/authentication/components/LoggedInMfaManager.jsx'
+import MfaSetup from '@/features/authentication/views/components/MfaSetup.jsx'
+import LoginVerificationForm from '@/features/authentication/views/components/LoginVerificationForm.jsx'
+import TotpVerificationForm from '@/features/authentication/views/components/TotpVerificationForm.jsx'
+import LoggedInMfaManager from '@/features/authentication/views/components/LoggedInMfaManager.jsx'
 
 describe('MFA UI snapshots', () => {
   beforeEach(() => {
