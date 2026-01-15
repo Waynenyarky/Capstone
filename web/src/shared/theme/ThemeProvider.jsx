@@ -186,17 +186,57 @@ function saveUserOverrides(user, overrides) {
   localStorage.setItem(key, JSON.stringify(overrides));
 }
 
+// Helper function to read user from storage (similar to useAuthSession)
+function readStoredUser() {
+  const LOCAL_KEY = 'auth__currentUser'
+  const SESSION_KEY = 'auth__sessionUser'
+  try {
+    // Prefer remembered local storage (longer-lived)
+    const localRaw = localStorage.getItem(LOCAL_KEY)
+    if (localRaw) {
+      const parsed = JSON.parse(localRaw)
+      const user = parsed?.user ?? parsed // backward compat if plain user is stored
+      const expiresAt = parsed?.expiresAt ?? 0
+      if (!expiresAt || Date.now() < expiresAt) {
+        return user
+      }
+    }
+  } catch { /* ignore */ }
+  try {
+    // Then check session storage (shorter-lived, tab-bound)
+    const sessionRaw = sessionStorage.getItem(SESSION_KEY)
+    if (sessionRaw) {
+      const parsed = JSON.parse(sessionRaw)
+      const user = parsed?.user ?? parsed
+      const expiresAt = parsed?.expiresAt ?? 0
+      if (!expiresAt || Date.now() < expiresAt) {
+        return user
+      }
+    }
+  } catch { /* ignore */ }
+  return null
+}
+
 export function ThemeProvider({ children }) {
   const location = useLocation();
   const PUBLIC_PATHS = ['/', '/login', '/sign-up', '/forgot-password', '/terms', '/privacy'];
   const isPublicPage = PUBLIC_PATHS.includes(location.pathname);
 
   // Track current user to scope theme storage
-  const [currentUser, setCurrentUser] = useState(() => getCurrentUser());
+  // Initialize from both getCurrentUser() and storage to ensure we have user on refresh
+  const [currentUser, setCurrentUser] = useState(() => {
+    const fromMemory = getCurrentUser()
+    if (fromMemory) return fromMemory
+    // If not in memory, try reading from storage
+    return readStoredUser()
+  });
   
   // Initialize theme from user-specific storage
+  // Always load theme based on currentUser (even if null, will use guest theme)
   const [currentTheme, setCurrentTheme] = useState(() => {
-    return loadUserTheme(currentUser);
+    // Get the actual user (from memory or storage) to load theme
+    const user = getCurrentUser() || readStoredUser()
+    return loadUserTheme(user);
   });
 
   // Preview theme allows showing a theme temporarily without persisting it (e.g. on hover)
@@ -208,11 +248,22 @@ export function ThemeProvider({ children }) {
 
   // Store custom theme overrides (primary color, border radius, etc.)
   const [themeOverrides, setThemeOverrides] = useState(() => {
-    return loadUserOverrides(currentUser);
+    // Get the actual user (from memory or storage) to load overrides
+    const user = getCurrentUser() || readStoredUser()
+    return loadUserOverrides(user);
   });
   
   // Subscribe to auth changes to detect login/logout/account switch
   useEffect(() => {
+    // On mount, if we have a user in storage but not in memory, sync it
+    const storedUser = readStoredUser()
+    if (storedUser && !getCurrentUser()) {
+      // Import and sync user to auth events system
+      import('@/features/authentication/lib/authEvents.js').then(({ setCurrentUser: syncUser }) => {
+        syncUser(storedUser)
+      })
+    }
+    
     const unsubscribe = subscribeAuth((user) => {
       setCurrentUser(user);
       // When user changes, load their theme
@@ -234,11 +285,11 @@ export function ThemeProvider({ children }) {
   }, [isPublicPage, previewOverrides, themeOverrides]);
 
   // Save theme to user-specific storage when theme or user changes
+  // Save for both logged-in users and guests to ensure persistence
   useEffect(() => {
-    if (currentUser) {
-      saveUserTheme(currentUser, currentTheme);
-      saveUserOverrides(currentUser, themeOverrides);
-    }
+    // Always save theme, even for guest users (null currentUser)
+    saveUserTheme(currentUser, currentTheme);
+    saveUserOverrides(currentUser, themeOverrides);
   }, [currentTheme, themeOverrides, currentUser]);
 
   useEffect(() => {
