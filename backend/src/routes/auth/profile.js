@@ -656,6 +656,18 @@ router.post('/change-password/verify', requireJwt, validateBody(changePasswordVe
       deletionScheduledFor: doc.deletionScheduledFor,
     }
 
+    // Generate new access token since tokenVersion was incremented
+    // This ensures the user stays logged in after password change
+    try {
+      const { signAccessToken } = require('../../middleware/auth')
+      const { token, expiresAtMs } = signAccessToken(doc)
+      userSafe.token = token
+      userSafe.expiresAt = new Date(expiresAtMs).toISOString()
+    } catch (tokenErr) {
+      console.error('Failed to generate new token after password change:', tokenErr)
+      // Continue without token - user will need to log in again
+    }
+
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
     res.set('Pragma', 'no-cache')
     res.set('Expires', '0')

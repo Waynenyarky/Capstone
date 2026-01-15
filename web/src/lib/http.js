@@ -66,6 +66,37 @@ export async function fetchJsonWithFallback(path, options = {}) {
     let errorCode = null
     let statusCode = res?.status
     
+    // Handle 401 Unauthorized - session invalidated (e.g., after password change)
+    if (statusCode === 401) {
+      try {
+        const err = await res?.json()
+        const errMsgLower = String(err?.error?.message || err?.message || '').toLowerCase()
+        
+        // Check if this is a session invalidation error
+        // Skip auto-logout for login/signup endpoints to avoid redirect loops
+        const isAuthEndpoint = path.includes('/login') || path.includes('/signup') || path.includes('/sign-up') || path.includes('/forgot-password')
+        
+        if (!isAuthEndpoint && (errMsgLower.includes('session') && errMsgLower.includes('invalidated'))) {
+          // Import auth functions dynamically to avoid circular dependencies
+          const { setCurrentUser } = await import('@/features/authentication/lib/authEvents.js')
+          
+          // Clear user session
+          setCurrentUser(null)
+          try {
+            localStorage.removeItem('auth__currentUser')
+            sessionStorage.removeItem('auth__sessionUser')
+          } catch { /* ignore */ }
+          
+          // Redirect to login after a short delay to allow error to propagate
+          setTimeout(() => {
+            if (window.location.pathname !== '/login' && window.location.pathname !== '/sign-up') {
+              window.location.href = '/login?reason=session_invalidated'
+            }
+          }, 100)
+        }
+      } catch { /* ignore JSON parse errors */ }
+    }
+    
     try {
       const err = await res?.json()
       // Normalize common error response shapes into a string message

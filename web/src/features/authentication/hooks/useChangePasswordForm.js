@@ -2,6 +2,7 @@ import { Form, App } from 'antd'
 import { useState } from 'react'
 import { changePassword, changePasswordAuthenticated, changePasswordStart, changePasswordVerify } from "@/features/authentication/services"
 import { useNotifier } from '@/shared/notifications.js'
+import { getCurrentUser } from '@/features/authentication/lib/authEvents.js'
 
 export function useChangePasswordForm({ onSubmit, email, resetToken, isLoggedInFlow = false } = {}) {
   const [form] = Form.useForm()
@@ -56,6 +57,46 @@ export function useChangePasswordForm({ onSubmit, email, resetToken, isLoggedInF
         form.resetFields()
         setStep('password')
         setOtpSent(false)
+        
+        // Update the user session with the new token from the response
+        // This ensures the user stays logged in after password change
+        if (user && user.token) {
+          const { setCurrentUser } = await import('@/features/authentication/lib/authEvents.js')
+          const current = getCurrentUser()
+          const remember = !!localStorage.getItem('auth__currentUser')
+          
+          // Update user with new token and user data
+          const updatedUser = { ...current, ...user }
+          setCurrentUser(updatedUser)
+          
+          // Update storage with new token
+          try {
+            const LOCAL_KEY = 'auth__currentUser'
+            const SESSION_KEY = 'auth__sessionUser'
+            const expiresAt = user.expiresAt ? new Date(user.expiresAt).getTime() : Date.now() + (remember ? 30 * 24 * 60 * 60 * 1000 : 2 * 60 * 60 * 1000)
+            
+            if (remember) {
+              localStorage.setItem(LOCAL_KEY, JSON.stringify({ user: updatedUser, expiresAt }))
+              sessionStorage.removeItem(SESSION_KEY)
+            } else {
+              sessionStorage.setItem(SESSION_KEY, JSON.stringify({ user: updatedUser, expiresAt }))
+              localStorage.removeItem(LOCAL_KEY)
+            }
+          } catch { /* ignore storage errors */ }
+        } else {
+          // If no token returned, user needs to log in again
+          success('Password changed successfully. Please log in again with your new password.')
+          setTimeout(async () => {
+            const { setCurrentUser } = await import('@/features/authentication/lib/authEvents.js')
+            setCurrentUser(null)
+            try {
+              localStorage.removeItem('auth__currentUser')
+              sessionStorage.removeItem('auth__sessionUser')
+            } catch { /* ignore */ }
+            window.location.href = '/login?reason=password_changed'
+          }, 1500)
+        }
+        
         if (typeof onSubmit === 'function') onSubmit(user)
       }
     } catch (err) {
