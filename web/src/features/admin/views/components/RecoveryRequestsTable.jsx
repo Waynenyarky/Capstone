@@ -28,6 +28,7 @@ export default function RecoveryRequestsTable() {
 
   useEffect(() => {
     load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters])
 
   const columns = useMemo(() => ([

@@ -15,6 +15,7 @@ export default function PendingApprovalAlert() {
     loadPendingApprovals()
     const interval = setInterval(loadPendingApprovals, 60000) // Check every minute
     return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser])
 
   const loadPendingApprovals = async () => {

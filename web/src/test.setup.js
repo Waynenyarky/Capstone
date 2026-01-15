@@ -55,7 +55,7 @@ if (isNodeRuntime) {
       const { setupServer } = mswModule
       const { handlers } = await import('./test/msw/handlers.js')
       return setupServer(...handlers)
-    } catch (err) {
+    } catch {
       // MSW not available, return null
       // Silently skip - tests that don't require MSW will still run
       return null

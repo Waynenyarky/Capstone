@@ -50,7 +50,7 @@ export default function MfaSetup() {
     } else {
       setCurrentStep(0) // Reset to start if no secret and disabled
     }
-  }, [enabled, secret])
+  }, [enabled, secret, currentStep])
 
   const onSetupClick = async () => {
     await handleSetup()

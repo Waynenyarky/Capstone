@@ -25,6 +25,7 @@ export default function AuditHistory() {
 
   useEffect(() => {
     loadHistory()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, dateRange, eventTypeFilter, pagination.current, pagination.pageSize])
 
   const loadHistory = async () => {

@@ -24,6 +24,7 @@ export default function IDUploadForm() {
 
   useEffect(() => {
     loadStatus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadStatus = async () => {

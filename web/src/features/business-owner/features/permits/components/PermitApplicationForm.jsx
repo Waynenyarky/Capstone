@@ -18,7 +18,7 @@ export default function PermitApplicationForm({ onSubmit, onCancel, initialValue
   // Auto-generated Application Number
   const appNumber = "APP-" + dayjs().format('YYYYMMDD') + "-" + Math.floor(Math.random() * 1000)
 
-  // Auto-fill Business Info (Mock)
+  // Auto-fill Business Info (Mock) - constant object, doesn't need to be in dependencies
   const businessInfo = {
     name: "Wayne Enterprises",
     tin: "123-456-789-000",
@@ -45,6 +45,7 @@ export default function PermitApplicationForm({ onSubmit, onCancel, initialValue
         ...businessInfo
       })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialValues, form])
 
   const handleValuesChange = (changedValues, allValues) => {

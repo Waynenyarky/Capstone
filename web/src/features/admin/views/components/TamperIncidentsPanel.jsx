@@ -134,6 +134,7 @@ export default function TamperIncidentsPanel() {
         ),
       },
     ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   )
 

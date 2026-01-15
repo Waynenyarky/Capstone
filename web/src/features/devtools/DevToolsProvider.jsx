@@ -36,7 +36,6 @@ export function DevToolsProvider({ children }) {
       data: event?.data,
     }
     setEvents((prev) => [withMeta, ...prev].slice(0, 25))
-    // eslint-disable-next-line no-console
     console.log('[DevTools event]', withMeta)
   }, [enabled])
 

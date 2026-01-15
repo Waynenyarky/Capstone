@@ -165,7 +165,7 @@ export default function useMfaSetup() {
     } finally {
       setLoading(false)
     }
-  }, [email, error, success])
+  }, [email, error, success, currentUser?.token, login])
 
   return {
     loading,

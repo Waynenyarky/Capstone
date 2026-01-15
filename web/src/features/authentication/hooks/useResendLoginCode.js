@@ -4,7 +4,7 @@ import { useNotifier } from '@/shared/notifications'
 import useCooldown from './useCooldown'
 
 export function useResendLoginCode({ email, cooldownSec = 60, onSent } = {}) {
-  const { success, info, error } = useNotifier()
+  const { success, error } = useNotifier()
   const [isSending, setSending] = useState(false)
   const { remaining, isCooling, start } = useCooldown(cooldownSec)
 
@@ -56,7 +56,7 @@ export function useResendLoginCode({ email, cooldownSec = 60, onSent } = {}) {
     } finally {
       setSending(false)
     }
-  }, [email, isCooling, cooldownSec, start, success, info, error, onSent])
+  }, [email, isCooling, cooldownSec, start, success, error, onSent])
 
   return { isSending, handleResend, isCooling, remaining }
 }
