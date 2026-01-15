@@ -94,7 +94,6 @@ export default function AppSidebar({ hiddenKeys = [], renamedKeys = {}, itemOver
         items={items} 
         activeKey={activeKey} 
         onItemClick={handleItemClick} 
-        currentUser={currentUser}
         {...siderProps}
       />
       <ConfirmLogoutModal open={open} onConfirm={handleConfirm} onCancel={hide} confirmLoading={confirming} />

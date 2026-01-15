@@ -4,6 +4,8 @@ import { UserOutlined, BellOutlined, LogoutOutlined, ShopOutlined, DownOutlined 
 import { Link } from 'react-router-dom'
 import { resolveAvatarUrl } from '@/lib/utils'
 import { useAppTheme, THEMES } from '@/shared/theme/ThemeProvider'
+import { useConfirmLogoutModal } from '@/features/authentication/hooks/useConfirmLogoutModal'
+import ConfirmLogoutModal from '@/features/authentication/views/components/ConfirmLogoutModal'
 
 const { Header } = Layout
 const { Text } = Typography
@@ -20,6 +22,18 @@ export default function TopBar({
 }) {
   const { token } = theme.useToken();
   const { currentTheme, themeOverrides } = useAppTheme();
+  
+  const { open, show, hide, confirming, handleConfirm } = useConfirmLogoutModal({
+    onConfirm: async () => {
+      if (onLogout) {
+        await onLogout()
+      }
+    }
+  })
+  
+  const handleLogoutClick = () => {
+    show()
+  }
   
   // Logic to determine header background
   // If we are in Default theme AND have no overrides, use the signature Navy gradient
@@ -89,7 +103,7 @@ export default function TopBar({
       label: 'Logout',
       icon: <LogoutOutlined />,
       danger: true,
-      onClick: onLogout
+      onClick: handleLogoutClick
     }
   ]
 
@@ -166,6 +180,12 @@ export default function TopBar({
           </Space>
         </Dropdown>
       </Space>
+      <ConfirmLogoutModal 
+        open={open} 
+        onConfirm={handleConfirm} 
+        onCancel={hide} 
+        confirmLoading={confirming} 
+      />
     </Header>
   )
 }

@@ -16,6 +16,7 @@ import { StaffDashboard, StaffOnboarding, StaffRecoveryRequest } from "@/feature
 import { ProfileSettings } from "@/features/user"
 import { PlaceholderPage } from "@/features/shared"
 import { useNavigationNotifications } from "@/features/authentication/hooks"
+import { LGUManagerDashboard, ReportsAnalyticsPage, PermitApplicationsOverviewPage, CessationOverviewPage, ViolationsInspectionsOverviewPage, AppealsOverviewPage } from "@/features/lgu-manager"
 
 function App() {
   useNavigationNotifications()
@@ -65,6 +66,16 @@ function App() {
         <Route path="appeals" element={<PlaceholderPage title="Appeals Review" />} />
         <Route path="reports" element={<PlaceholderPage title="Reports & Analytics" />} />
         <Route path="support" element={<PlaceholderPage title="Customer Support" />} />
+      </Route>
+
+      {/* LGU Manager Routes */}
+      <Route path="/lgu-manager" element={<ProtectedRoute allowedRoles={['lgu_manager']}><Outlet /></ProtectedRoute>}>
+        <Route index element={<LGUManagerDashboard />} />
+        <Route path="reports" element={<ReportsAnalyticsPage />} />
+        <Route path="permit-applications" element={<PermitApplicationsOverviewPage />} />
+        <Route path="cessation" element={<CessationOverviewPage />} />
+        <Route path="violations-inspections" element={<ViolationsInspectionsOverviewPage />} />
+        <Route path="appeals" element={<AppealsOverviewPage />} />
       </Route>
 
       {/* Generic/Public Routes */}

@@ -322,13 +322,26 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     const isPasskeyMethod = method === 'passkey' || method.includes('passkey')
     const isTotpMethod = method === 'authenticator' || method.includes('authenticator') || method.includes('fingerprint')
 
+    // Check if account deletion is scheduled - if so, always send OTP via email
+    const hasScheduledDeletion = doc.deletionScheduledFor && new Date(doc.deletionScheduledFor) > new Date()
+
     try {
-      // Send verification code via email ONLY if:
-      // 1. No MFA is enabled (regular email verification)
-      // 2. NOT using TOTP MFA (TOTP MFA uses authenticator app, not email)
-      // 3. NOT using passkey authentication (passkeys are used at login page)
-      // 4. NOT an LGU Officer
-      if (!doc.mfaEnabled && !isLguOfficer) {
+      // Send verification code via email if:
+      // 1. Account deletion is scheduled (ALWAYS send email OTP for scheduled deletion accounts)
+      // 2. No MFA is enabled (regular email verification)
+      // 3. NOT using TOTP MFA (TOTP MFA uses authenticator app, not email) - UNLESS deletion is scheduled
+      // 4. NOT using passkey authentication (passkeys are used at login page) - UNLESS deletion is scheduled
+      // 5. NOT an LGU Officer - UNLESS deletion is scheduled
+      if (hasScheduledDeletion) {
+        // Account deletion is scheduled - ALWAYS send OTP via email
+        // This ensures users can log in to see deletion status and potentially undo it
+        await sendOtp({ 
+          to: email, 
+          code, 
+          subject: 'Your Login Verification Code - Account Deletion Scheduled' 
+        })
+        console.log(`[Login] Account deletion scheduled for ${email} - sending email OTP regardless of MFA settings`)
+      } else if (!doc.mfaEnabled && !isLguOfficer) {
         // No MFA enabled, send regular verification code via email
         await sendOtp({ to: email, code, subject: 'Your Login Verification Code' })
       } else if (doc.mfaEnabled && isTotpMethod && !isLguOfficer) {
@@ -354,6 +367,14 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       payload.isFingerprintEnabled = !!doc.fprintEnabled || method.includes('fingerprint')
     } catch (_) {}
     payload.loginEmail = emailKey
+    
+    // If account deletion is scheduled, force email OTP verification (override MFA)
+    if (hasScheduledDeletion) {
+      payload.forceEmailOtp = true
+      payload.mfaEnabled = false // Override to show email OTP form instead of TOTP
+      payload.mfaMethod = 'email'
+    }
+    
     if (process.env.NODE_ENV !== 'production') payload.devCode = code
     return res.json(payload)
   } catch (err) {
@@ -379,6 +400,15 @@ router.post('/login/resend', loginStartLimiter, validateBody(resendCodeSchema), 
 
     if (!reqObj) return respond.error(res, 404, 'request_not_found', 'No pending login request found. Please log in again.')
     
+    // Check if account deletion is scheduled - if so, always send OTP via email
+    let hasScheduledDeletion = false
+    try {
+      const userDoc = await User.findOne({ email: emailKey }).select('deletionScheduledFor').lean()
+      hasScheduledDeletion = userDoc && userDoc.deletionScheduledFor && new Date(userDoc.deletionScheduledFor) > new Date()
+    } catch (err) {
+      console.warn('Failed to check scheduled deletion in resend:', err)
+    }
+    
     // Allow resending even if expired, but update expiration. 
     // Or if strictly expired, force login again. 
     // Let's force login again if expired significantly, but here we just refresh it.
@@ -399,7 +429,14 @@ router.post('/login/resend', loginStartLimiter, validateBody(resendCodeSchema), 
     }
 
     try {
-      await sendOtp({ to: email, code, subject: 'Your Login Verification Code (Resend)' })
+      // Always send email OTP if account deletion is scheduled
+      const subject = hasScheduledDeletion 
+        ? 'Your Login Verification Code (Resend) - Account Deletion Scheduled'
+        : 'Your Login Verification Code (Resend)'
+      await sendOtp({ to: email, code, subject })
+      if (hasScheduledDeletion) {
+        console.log(`[Login Resend] Account deletion scheduled for ${email} - sending email OTP`)
+      }
     } catch (mailErr) {
       console.error('Failed to resend login email:', mailErr)
       return respond.error(res, 500, 'email_failed', 'Failed to send email')
@@ -587,6 +624,19 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
     const identifier = normalizeLoginIdentifier(email)
     const { doc, emailKey } = await findUserByIdentifier(identifier, { populateRole: true, lean: false })
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+    
+    // Check if account deletion is scheduled - if so, TOTP verification is not allowed
+    // Users with scheduled deletion must use email OTP verification instead
+    const hasScheduledDeletion = doc.deletionScheduledFor && new Date(doc.deletionScheduledFor) > new Date()
+    if (hasScheduledDeletion) {
+      return respond.error(
+        res, 
+        403, 
+        'use_email_otp_for_scheduled_deletion', 
+        'Account deletion is scheduled. Please use email OTP verification instead of TOTP. Check your email for the verification code.'
+      )
+    }
+    
     if (doc.mfaEnabled !== true || !doc.mfaSecret) {
       return respond.error(res, 400, 'mfa_not_enabled', 'MFA is not enabled for this account')
     }

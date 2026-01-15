@@ -19,7 +19,19 @@ export function useTotpVerificationForm({ onSubmit, email } = {}) {
     } catch (err) {
       console.error('TOTP verification error:', err)
       const lower = String(err?.message || '').toLowerCase()
-      if (lower.includes('invalid')) {
+      const errCode = String(err?.code || '').toLowerCase()
+      
+      // Check if account deletion is scheduled - user should use email OTP instead
+      if (lower.includes('scheduled deletion') || lower.includes('use email otp') || errCode === 'use_email_otp_for_scheduled_deletion') {
+        error(
+          'Account deletion is scheduled. Please use the email verification code sent to your email instead of TOTP. Check your inbox for the verification code.',
+          'Use Email OTP Instead'
+        )
+        form.setFields([{ 
+          name: 'verificationCode', 
+          errors: ['Account deletion scheduled - please use email OTP code instead'] 
+        }])
+      } else if (lower.includes('invalid')) {
         form.setFields([{ name: 'verificationCode', errors: ['Invalid code'] }])
       } else if (lower.includes('expired')) {
         form.setFields([{ name: 'verificationCode', errors: ['Code expired'] }])

@@ -26,8 +26,10 @@ export function useStaffOnboarding() {
     }
   }, [currentUser, isStaffRole, navigate])
 
+  // Always start at welcome step (0)
+  // Then credentials (1), mfa (2), complete (3)
   const stepKey = mustChange ? 'credentials' : (mustMfa ? 'mfa' : 'done')
-  const stepIndex = stepKey === 'credentials' ? 0 : (stepKey === 'mfa' ? 1 : 2)
+  const stepIndex = 0 // Always start at welcome step
 
   const handleCredentialsFinish = async (values) => {
     try {

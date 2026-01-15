@@ -10,8 +10,12 @@ export function useConfirmDeleteAccountForm({ onSubmit, email, deleteToken } = {
   const { logout } = useAuthSession()
   const { success, error } = useNotifier()
 
-  const handleFinish = async () => {
-    const payload = { email, deleteToken }
+  const handleFinish = async (values) => {
+    const payload = { 
+      email, 
+      deleteToken,
+      legalAcknowledgment: values?.legalAcknowledgment || false
+    }
     try {
       setSubmitting(true)
       const data = await confirmAccountDeletion(payload)

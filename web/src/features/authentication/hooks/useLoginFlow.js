@@ -60,6 +60,14 @@ export function useLoginFlow({ onSubmit } = {}) {
         }
       } catch { /* ignore */ }
 
+      // Check if email OTP is forced (e.g., for scheduled deletion accounts)
+      // Even if MFA is enabled, use email OTP when forceEmailOtp is true
+      if (serverData && serverData.forceEmailOtp === true) {
+        setMfaRequired(null)
+        setStep('verify')
+        return { showVerificationSent: true }
+      }
+      
       if (serverData && serverData.mfaEnabled === true) {
         setStep('verify-totp')
         return { showVerificationSent: false }

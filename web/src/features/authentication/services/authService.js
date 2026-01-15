@@ -153,6 +153,28 @@ export async function changePasswordAuthenticated(payload) {
   })
 }
 
+// Step 1: Send OTP to email for password change
+export async function changePasswordStart(payload) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  return await fetchJsonWithFallback('/api/auth/change-password/start', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  })
+}
+
+// Step 2: Verify OTP and change password
+export async function changePasswordVerify(payload) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  return await fetchJsonWithFallback('/api/auth/change-password/verify', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function changeEmail(payload) {
   return await fetchJsonWithFallback('/api/auth/change-email', {
     method: 'POST',
