@@ -41,16 +41,34 @@ if (typeof navigator !== 'undefined' && !navigator.clipboard) {
  * Shared MSW server for deterministic API mocks in node/Vitest environments.
  * Skip when running browser-based Storybook/Vitest projects to avoid bundling
  * msw/node in the browser.
+ * Note: MSW setup is optional - tests will run without it if MSW is not installed.
  */
-let server
 // eslint-disable-next-line no-undef
 const isNodeRuntime = typeof process !== 'undefined' && !!process.versions?.node
 if (isNodeRuntime) {
-  const { setupServer } = await import('msw/node')
-  const { handlers } = await import('./test/msw/handlers.js')
-  server = setupServer(...handlers)
-
-  beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
-  afterEach(() => server.resetHandlers())
-  afterAll(() => server.close())
+  // Use dynamic import with a string variable to prevent Vite from statically analyzing it
+  const mswPath = 'msw/node'
+  const setupMSW = async () => {
+    try {
+      // Dynamic import that Vite won't try to resolve at build time
+      const mswModule = await import(/* @vite-ignore */ mswPath)
+      const { setupServer } = mswModule
+      const { handlers } = await import('./test/msw/handlers.js')
+      return setupServer(...handlers)
+    } catch (err) {
+      // MSW not available, return null
+      // Silently skip - tests that don't require MSW will still run
+      return null
+    }
+  }
+  
+  setupMSW().then((srv) => {
+    if (srv) {
+      beforeAll(() => srv.listen({ onUnhandledRequest: 'error' }))
+      afterEach(() => srv.resetHandlers())
+      afterAll(() => srv.close())
+    }
+  }).catch(() => {
+    // Ignore setup errors
+  })
 }

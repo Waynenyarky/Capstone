@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Switch, Typography, Space, Row, Col, theme, Badge, Tooltip } from 'antd'
 import { BellOutlined, MailOutlined, SafetyCertificateOutlined, LockOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { useNotifier } from '@/shared/notifications.js'
