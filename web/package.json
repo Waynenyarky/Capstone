@@ -55,6 +55,7 @@
     "globby": "^15.0.0",
     "jsdom": "^27.1.0",
     "msw": "^2.12.7",
+    "@playwright/test": "^1.57.0",
     "playwright": "^1.57.0",
     "prop-types": "^15.8.1",
     "recast": "^0.23.11",
