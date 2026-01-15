@@ -1,11 +1,347 @@
-import React from 'react'
-import { Steps, Form, Input, Button, DatePicker, Select, Upload, Checkbox, Card, Typography, Row, Col, Spin, Alert, theme } from 'antd'
-import { UploadOutlined, SafetyCertificateOutlined, IdcardOutlined, MobileOutlined, FileTextOutlined, CheckCircleOutlined, UserOutlined } from '@ant-design/icons'
+import React, { useState, useEffect } from 'react'
+import { Steps, Form, Input, Button, DatePicker, Select, Upload, Checkbox, Card, Typography, Row, Col, Spin, Alert, theme, Tabs, Space, Divider, Tooltip } from 'antd'
+import { UploadOutlined, SafetyCertificateOutlined, IdcardOutlined, MobileOutlined, FileTextOutlined, CheckCircleOutlined, UserOutlined, LockOutlined, SecurityScanOutlined, CopyOutlined } from '@ant-design/icons'
 import { useBusinessRegistration } from '../../hooks/useBusinessRegistration'
+import { useAuthSession } from '@/features/authentication'
+import { useMfaSetup } from '@/features/authentication/hooks'
+import { usePasskeyManager } from '@/features/authentication/presentation/passkey/hooks/usePasskeyManager'
+import { mfaStatus } from '@/features/authentication/services/mfaService'
+import PasskeyStatusCard from '@/features/authentication/presentation/passkey/components/PasskeyStatusCard'
+import PasskeyList from '@/features/authentication/presentation/passkey/components/PasskeyList'
+import QrDisplay from '@/features/authentication/views/components/QrDisplay'
 
-const { Title } = Typography
+const { Title, Paragraph, Text } = Typography
 const { Option } = Select
 const { TextArea } = Input
+
+// MFA Step Component
+function MfaStepContent({ onMfaStatusChange }) {
+  const { currentUser } = useAuthSession()
+  const { token } = theme.useToken()
+  const [activeTab, setActiveTab] = useState('passkey')
+  const [mfaEnabled, setMfaEnabled] = useState(false)
+  const [passkeyEnabled, setPasskeyEnabled] = useState(false)
+  const [loadingStatus, setLoadingStatus] = useState(true)
+
+  // MFA hooks
+  const {
+    loading: totpLoading,
+    qrDataUrl,
+    secret,
+    code,
+    setCode,
+    enabled: totpEnabled,
+    handleSetup: handleTotpSetup,
+    handleVerify: handleTotpVerify,
+    showSecret,
+    toggleShowSecret,
+    confirmedSaved,
+    setConfirmedSaved,
+    handleCopy,
+  } = useMfaSetup()
+
+  const {
+    credentials,
+    loading: passkeyLoading,
+    registering,
+    hasPasskeys,
+    handleRegister: handlePasskeyRegister,
+  } = usePasskeyManager()
+
+  // Check MFA status on mount and when credentials change
+  useEffect(() => {
+    const checkMfaStatus = async () => {
+      if (!currentUser?.email) {
+        setLoadingStatus(false)
+        return
+      }
+
+      try {
+        // Check TOTP status
+        const totpStatus = await mfaStatus(currentUser.email)
+        setMfaEnabled(!!totpStatus?.enabled)
+
+        // Check passkey status from credentials
+        setPasskeyEnabled(credentials.length > 0)
+      } catch (err) {
+        console.error('Failed to check MFA status:', err)
+      } finally {
+        setLoadingStatus(false)
+      }
+    }
+
+    checkMfaStatus()
+  }, [currentUser?.email, credentials.length])
+
+  const handleTotpSetupClick = async () => {
+    await handleTotpSetup()
+  }
+
+  const handleTotpVerifyClick = async () => {
+    const success = await handleTotpVerify()
+    if (success) {
+      setMfaEnabled(true)
+    }
+  }
+
+  const handlePasskeyRegisterClick = async () => {
+    await handlePasskeyRegister()
+    // Passkey status will update via credentials change in useEffect
+  }
+
+  // Update passkey status when credentials change
+  useEffect(() => {
+    setPasskeyEnabled(credentials.length > 0)
+  }, [credentials.length])
+
+  const isMfaComplete = mfaEnabled || passkeyEnabled
+
+  // Notify parent component of MFA status changes
+  useEffect(() => {
+    if (onMfaStatusChange) {
+      onMfaStatusChange(isMfaComplete)
+    }
+  }, [isMfaComplete, onMfaStatusChange])
+
+  return (
+    <div style={{ maxWidth: 900, margin: '0 auto' }}>
+      <div style={{ textAlign: 'center', marginBottom: 32 }}>
+        <SecurityScanOutlined style={{ fontSize: 48, color: token.colorPrimary, marginBottom: 16 }} />
+        <Title level={3} style={{ marginBottom: 8, color: '#001529' }}>Secure Your Account</Title>
+        <Typography.Paragraph type="secondary" style={{ fontSize: 16, maxWidth: 600, margin: '0 auto' }}>
+          Set up multi-factor authentication to add an extra layer of security to your account. You can choose Passkey Authentication, Two-Factor Authentication (TOTP), or both. <strong>Register at least one method to proceed with "Next Step", or use "Skip" to continue without MFA.</strong>
+        </Typography.Paragraph>
+      </div>
+
+      {isMfaComplete && (
+        <Alert
+          message="Security Setup Complete"
+          description="You have successfully set up multi-factor authentication. You can proceed to the next step."
+          type="success"
+          showIcon
+          style={{ marginBottom: 24 }}
+        />
+      )}
+
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          {
+            key: 'passkey',
+            label: (
+              <Space>
+                <SafetyCertificateOutlined />
+                <span>Passkey Authentication</span>
+                {passkeyEnabled && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
+              </Space>
+            ),
+            children: (
+              <Card>
+                <div style={{ marginBottom: 24 }}>
+                  <Title level={4}>Passkey Authentication</Title>
+                  <Typography.Paragraph type="secondary">
+                    Use your device's biometric authentication (fingerprint, face recognition) or a security key to sign in securely without passwords.
+                  </Typography.Paragraph>
+                </div>
+
+                {loadingStatus || passkeyLoading ? (
+                  <div style={{ textAlign: 'center', padding: 40 }}>
+                    <Spin size="large" />
+                  </div>
+                ) : passkeyEnabled ? (
+                  <div>
+                    <Alert
+                      message="Passkey Authentication Enabled"
+                      description={`You have ${credentials.length} passkey${credentials.length !== 1 ? 's' : ''} registered.`}
+                      type="success"
+                      showIcon
+                      style={{ marginBottom: 24 }}
+                    />
+                    <PasskeyList
+                      credentials={credentials}
+                      onDelete={() => {}}
+                      loading={passkeyLoading}
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <PasskeyStatusCard
+                      hasPasskeys={false}
+                      credentialsCount={0}
+                      onRegister={handlePasskeyRegisterClick}
+                      onDisable={() => {}}
+                      deleting={false}
+                      registering={registering}
+                      loading={passkeyLoading}
+                    />
+                    <div style={{ marginTop: 24 }}>
+                      <Button
+                        type="primary"
+                        size="large"
+                        icon={<SafetyCertificateOutlined />}
+                        onClick={handlePasskeyRegisterClick}
+                        loading={registering}
+                        block
+                      >
+                        Register Passkey
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            ),
+          },
+          {
+            key: 'totp',
+            label: (
+              <Space>
+                <MobileOutlined />
+                <span>Two-Factor Authentication (TOTP)</span>
+                {totpEnabled && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
+              </Space>
+            ),
+            children: (
+              <Card>
+                <div style={{ marginBottom: 24 }}>
+                  <Title level={4}>Two-Factor Authentication (TOTP)</Title>
+                  <Typography.Paragraph type="secondary">
+                    Use an authenticator app like Google Authenticator or Authy to generate verification codes for secure sign-in.
+                  </Typography.Paragraph>
+                </div>
+
+                {totpEnabled ? (
+                  <Alert
+                    message="Two-Factor Authentication Enabled"
+                    description="Your account is protected with TOTP authentication. You will need to enter a verification code when signing in."
+                    type="success"
+                    showIcon
+                  />
+                ) : secret ? (
+                  <div>
+                    <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                      <Title level={5}>Scan QR Code</Title>
+                      <Typography.Paragraph type="secondary">
+                        Open your authenticator app and scan this code:
+                      </Typography.Paragraph>
+                      <div style={{ 
+                        background: '#fff', 
+                        padding: 24, 
+                        borderRadius: 16, 
+                        display: 'inline-block',
+                        border: `1px solid ${token.colorBorderSecondary}`,
+                        marginTop: 16
+                      }}>
+                        {qrDataUrl ? (
+                          <QrDisplay dataUrl={qrDataUrl} size={200} />
+                        ) : (
+                          <Spin size="large" />
+                        )}
+                      </div>
+                    </div>
+
+                    {showSecret && (
+                      <div style={{ marginBottom: 24, textAlign: 'center' }}>
+                        <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                          Or enter this secret key manually:
+                        </Typography.Text>
+                        <Input.Group compact>
+                          <Input
+                            value={secret}
+                            readOnly
+                            style={{ width: 'calc(100% - 80px)' }}
+                          />
+                          <Button icon={<CopyOutlined />} onClick={handleCopy}>
+                            Copy
+                          </Button>
+                        </Input.Group>
+                      </div>
+                    )}
+
+                    <div style={{ marginBottom: 16 }}>
+                      <Checkbox
+                        checked={confirmedSaved}
+                        onChange={(e) => setConfirmedSaved(e.target.checked)}
+                      >
+                        I have saved the secret key and scanned the QR code
+                      </Checkbox>
+                    </div>
+
+                    <div style={{ marginBottom: 24 }}>
+                      <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>
+                        Enter Verification Code
+                      </Typography.Text>
+                      <Input
+                        value={code}
+                        onChange={(e) => setCode(e.target.value)}
+                        placeholder="000000"
+                        maxLength={6}
+                        style={{ fontSize: 20, textAlign: 'center', letterSpacing: 8 }}
+                      />
+                    </div>
+
+                    <Space>
+                      <Button
+                        type="primary"
+                        size="large"
+                        onClick={handleTotpVerifyClick}
+                        disabled={!code || code.length !== 6 || !confirmedSaved}
+                        loading={totpLoading}
+                      >
+                        Verify & Enable
+                      </Button>
+                      <Button
+                        onClick={toggleShowSecret}
+                      >
+                        {showSecret ? 'Hide' : 'Show'} Secret Key
+                      </Button>
+                    </Space>
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: 40 }}>
+                    <LockOutlined style={{ fontSize: 48, color: token.colorPrimary, marginBottom: 16 }} />
+                    <Typography.Paragraph type="secondary" style={{ marginBottom: 24 }}>
+                      Click the button below to generate a QR code for your authenticator app.
+                    </Typography.Paragraph>
+                    <Button
+                      type="primary"
+                      size="large"
+                      icon={<SecurityScanOutlined />}
+                      onClick={handleTotpSetupClick}
+                      loading={totpLoading}
+                    >
+                      Start TOTP Setup
+                    </Button>
+                  </div>
+                )}
+              </Card>
+            ),
+          },
+        ]}
+      />
+
+      {isMfaComplete && (
+        <Alert
+          message="Ready to Continue"
+          description="You have set up at least one authentication method. You can proceed to the next step."
+          type="info"
+          showIcon
+          style={{ marginTop: 24 }}
+        />
+      )}
+
+      {!isMfaComplete && (
+        <Alert
+          message="MFA Setup Required for Next Step"
+          description="To proceed with 'Next Step', please register at least one authentication method (Passkey or TOTP). Alternatively, you can use the 'Skip' button to continue without MFA setup and configure it later from your account settings."
+          type="warning"
+          showIcon
+          style={{ marginTop: 24 }}
+        />
+      )}
+    </div>
+  )
+}
 
 export default function BusinessRegistrationWizard({ onComplete }) {
   const {
@@ -21,6 +357,7 @@ export default function BusinessRegistrationWizard({ onComplete }) {
     handleStepClick
   } = useBusinessRegistration({ onComplete })
   const { token } = theme.useToken()
+  const [mfaComplete, setMfaComplete] = useState(false)
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -269,7 +606,10 @@ export default function BusinessRegistrationWizard({ onComplete }) {
           </>
         )
 
-      case 2: // Legal Consent (Was Consent)
+      case 2: // MFA Setup
+        return <MfaStepContent onMfaStatusChange={setMfaComplete} />
+        
+      case 3: // Legal Consent (Moved from Step 2)
         return (
           <div style={{ maxWidth: 700, margin: '0 auto' }}>
             <Title level={3} style={{ marginBottom: 32, textAlign: 'center', color: '#001529' }}>Legal Consent</Title>
@@ -376,15 +716,25 @@ export default function BusinessRegistrationWizard({ onComplete }) {
                 Previous
               </Button>
             )}
+            {currentStep === 2 && (
+              <Button 
+                size="large" 
+                onClick={handleNext}
+                loading={loading}
+              >
+                Skip
+              </Button>
+            )}
             <Button 
               type="primary" 
               htmlType="submit" 
               loading={loading} 
               size="large"
+              disabled={currentStep === 2 && !mfaComplete}
               style={{ 
                 minWidth: 120,
-                background: '#001529',
-                borderColor: '#001529'
+                background: currentStep === 2 && !mfaComplete ? '#d9d9d9' : '#001529',
+                borderColor: currentStep === 2 && !mfaComplete ? '#d9d9d9' : '#001529'
               }}
             >
               {currentStep === 0 ? 'Get Started' : (currentStep === steps.length - 1 ? 'Submit Registration' : 'Next Step')}

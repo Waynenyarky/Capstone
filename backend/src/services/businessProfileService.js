@@ -66,7 +66,7 @@ class BusinessProfileService {
 
   async updateStep(userId, step, data, metadata = {}) {
     let update = {}
-    // If Step 2 (Identity), next is 3 (Consent). If Step 3 (Consent), we are done.
+    // Step flow: 2 (Identity) → 3 (MFA) → 4 (Consent) → Complete
     let nextStep = step + 1
     
     // Get user role for audit logging
@@ -82,7 +82,12 @@ class BusinessProfileService {
         update['ownerIdentity'] = { ...data, isSubmitted: true }
         break
 
-      case 3: // Legal Consent (Final Step)
+      case 3: // MFA Setup (no data saved to BusinessProfile, MFA is stored in User model)
+        // Just mark step as complete - MFA setup is handled separately via User model
+        // No data to save here, just progression
+        break
+
+      case 4: // Legal Consent (Final Step)
         update['consent'] = { ...data, isSubmitted: true }
         // System Action: Lock submitted data is implied by status change
         update['status'] = 'pending_review'
@@ -93,7 +98,7 @@ class BusinessProfileService {
     }
 
     // Only advance step if not the final step
-    if (step < 3) {
+    if (step < 4) {
       update['currentStep'] = nextStep
     }
 
@@ -105,7 +110,7 @@ class BusinessProfileService {
     
     // Create audit log for business profile update
     try {
-      const stepName = step === 2 ? 'ownerIdentity' : step === 3 ? 'consent' : `step_${step}`
+      const stepName = step === 2 ? 'ownerIdentity' : step === 3 ? 'mfa' : step === 4 ? 'consent' : `step_${step}`
       const oldValue = oldProfile ? JSON.stringify(oldProfile[stepName] || {}) : ''
       const newValue = JSON.stringify(data)
       

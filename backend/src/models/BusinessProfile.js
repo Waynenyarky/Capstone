@@ -14,7 +14,7 @@ const BusinessProfileSchema = new mongoose.Schema(
       isSubmitted: { type: Boolean, default: false }
     },
 
-    // Step 3: Legal Consent Checkboxes (Replaces previous Business Registration step in sequence)
+    // Step 4: Legal Consent Checkboxes (Replaces previous Business Registration step in sequence)
     consent: {
       confirmTrueAndAccurate: { type: Boolean, default: false }, // Confirm all information is true & accurate
       acceptLegalDisclaimers: { type: Boolean, default: false }, // Accept legal disclaimers

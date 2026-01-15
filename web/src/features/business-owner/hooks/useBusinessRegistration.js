@@ -17,6 +17,7 @@ export function useBusinessRegistration({ onComplete } = {}) {
   const steps = [
     { key: 'welcome', title: 'Welcome', description: 'Start' },
     { key: 'identity', title: 'Identity', description: 'Personal' },
+    { key: 'mfa', title: 'Security', description: 'MFA Setup' },
     { key: 'consent', title: 'Legal', description: 'Consent' },
   ]
 
@@ -26,14 +27,8 @@ export function useBusinessRegistration({ onComplete } = {}) {
       const data = await getBusinessProfile()
       if (data) {
         setProfileData(data)
-        // Map backend step to UI step index. 
-        // Backend 2 (Identity) -> UI 0 (Welcome)
-        // Backend 3 (Consent) -> UI 2 (Consent)
-        let stepIndex = 0
-        if (data.currentStep >= 3) {
-          stepIndex = 2
-        }
-        setCurrentStep(stepIndex)
+        // Always start at Welcome step (Step 0) - user can navigate to previous steps if needed
+        setCurrentStep(0)
       }
     } catch (err) {
       console.error(err)
@@ -55,6 +50,7 @@ export function useBusinessRegistration({ onComplete } = {}) {
     const stepKeys = [
       null, // Welcome
       'ownerIdentity', 
+      null, // MFA (no data in BusinessProfile)
       'consent'
     ]
     
@@ -102,6 +98,25 @@ export function useBusinessRegistration({ onComplete } = {}) {
         return
       }
 
+      // Step 2 (MFA) -> Skip validation, just mark step complete
+      if (currentStep === 2) {
+        setLoading(true)
+        const stepNumber = currentStep + 1 // Backend Step 3
+        // MFA step doesn't save data to BusinessProfile, just marks progression
+        const updated = await updateBusinessProfile(stepNumber, {})
+        
+        if (updated) {
+          setProfileData(updated)
+          if (currentStep < steps.length - 1) {
+            const nextStep = currentStep + 1
+            setCurrentStep(nextStep)
+            window.scrollTo(0, 0)
+          }
+        }
+        setLoading(false)
+        return
+      }
+
       const values = await form.validateFields()
       
       setLoading(true)
@@ -121,9 +136,10 @@ export function useBusinessRegistration({ onComplete } = {}) {
         }
       })
       
-      // Map UI Step (1,2) to Backend Step (2,3)
+      // Map UI Step to Backend Step
       // Identity(UI 1) -> Backend 2
-      // Consent(UI 2) -> Backend 3
+      // MFA(UI 2) -> Backend 3 (handled above)
+      // Consent(UI 3) -> Backend 4
       const stepNumber = currentStep + 1
       const updated = await updateBusinessProfile(stepNumber, values)
       
