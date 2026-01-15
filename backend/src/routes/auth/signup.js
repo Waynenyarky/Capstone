@@ -57,9 +57,11 @@ const signupVerifyLimiter = perEmailRateLimit({
 async function checkExistingEmailBeforeLimiter(req, res, next) {
   try {
     const { email } = req.body || {}
+    // Normalize email to match User model's lowercase storage
+    const emailKey = String(email || '').toLowerCase().trim()
     let existing = null
     if (mongoose.connection && mongoose.connection.readyState === 1) {
-      existing = await User.findOne({ email }).lean()
+      existing = await User.findOne({ email: emailKey }).lean()
     }
     if (existing) return respond.error(res, 409, 'email_exists', 'Email already exists')
     return next()
@@ -87,11 +89,13 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
       role = BUSINESS_OWNER_ROLE_SLUG,
     } = req.body || {}
 
+    // Normalize email to match User model's lowercase storage
+    const emailKey = String(email || '').toLowerCase().trim()
     const passwordHash = await bcrypt.hash(password, 10)
 
     let existing = null
     if (mongoose.connection && mongoose.connection.readyState === 1) {
-      existing = await User.findOne({ email }).lean()
+      existing = await User.findOne({ email: emailKey }).lean()
     }
     if (existing) return respond.error(res, 409, 'email_exists', 'Email already exists')
 
@@ -104,7 +108,7 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
       role: roleDoc._id,
       firstName,
       lastName,
-      email,
+      email: emailKey,
       phoneNumber: phoneNumber || '',
       termsAccepted: !!termsAccepted,
       passwordHash,
@@ -261,7 +265,7 @@ router.post('/signup/resend', validateBody(Joi.object({ email: Joi.string().emai
 router.post('/signup/verify', validateBody(verifyCodeSchema), signupVerifyLimiter, async (req, res) => {
   try {
     const { email, code } = req.body || {}
-    const emailKey = String(email).toLowerCase()
+    const emailKey = String(email).toLowerCase().trim()
     const useDB = mongoose.connection && mongoose.connection.readyState === 1
     let reqObj = null
     if (useDB) {
