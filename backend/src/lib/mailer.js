@@ -131,7 +131,7 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
         <div style="border-top: 1px solid #e8e8e8; margin-top: 24px; padding-top: 24px; color: #8c8c8c; font-size: 12px; line-height: 1.5;">
           <p style="margin: 0 0 8px;">
             <strong>${brandName}</strong><br>
-            Taguig City, Philippines
+            Dagupan City, Philippines
           </p>
           <p style="margin: 0 0 8px;">
             <a href="${appUrl}/policy" style="color: #003a70; text-decoration: none;">Privacy Policy</a> • 
@@ -380,7 +380,7 @@ async function sendStaffCredentialsEmail({ to, username, tempPassword, office, r
         <div style="color: #8c8c8c; font-size: 12px; line-height: 1.5;">
           <p style="margin: 0 0 8px;">
             <strong>${brandName}</strong><br>
-            Taguig City, Philippines
+            Dagupan City, Philippines
           </p>
           <p style="margin: 0;">
             Need help? <a href="mailto:${supportEmail}" style="color: #003a70; text-decoration: none;">Contact Support</a>
