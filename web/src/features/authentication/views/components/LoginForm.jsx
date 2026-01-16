@@ -1,8 +1,9 @@
 import React from 'react'
-import { Form, Input, Button, Flex, Checkbox, Dropdown, Typography, Grid, Alert } from 'antd'
+import { Form, Input, Button, Flex, Checkbox, Dropdown, Typography, Grid, Alert, AutoComplete, Modal, List, Popconfirm, Space, App } from 'antd'
+import { DeleteOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { loginEmailRules, loginPasswordRules } from "@/features/authentication/validations"
-import { useLoginFlow } from "@/features/authentication/hooks"
+import { useLoginFlow, useRememberedEmail } from "@/features/authentication/hooks"
 import { LoginVerificationForm } from "@/features/authentication"
 import TotpVerificationForm from '@/features/authentication/views/components/TotpVerificationForm.jsx'
 import LockoutBanner from '@/features/authentication/views/components/LockoutBanner.jsx'
@@ -31,7 +32,64 @@ export default function LoginForm({ onSubmit } = {}) {
     verificationProps,
     serverLockedUntil,
     mfaRequired,
+    initialValues,
   } = useLoginFlow({ onSubmit })
+
+  const { getRememberedEmails, getAllRememberedEmailsWithDetails, clearRememberedEmail } = useRememberedEmail()
+  const { modal, message } = App.useApp()
+  const [emailOptions, setEmailOptions] = React.useState([])
+  const [manageEmailsVisible, setManageEmailsVisible] = React.useState(false)
+  const [refreshKey, setRefreshKey] = React.useState(0) // Force re-render of modal list
+
+  // Load remembered emails for autocomplete
+  React.useEffect(() => {
+    const emails = getRememberedEmails()
+    setEmailOptions(emails.map(email => ({ value: email, label: email })))
+  }, [getRememberedEmails, refreshKey])
+
+  // Handle delete email with confirmation
+  const handleDeleteEmail = React.useCallback((email) => {
+    Modal.confirm({
+      title: 'Delete Remembered Email?',
+      content: `Are you sure you want to remove "${email}" from your remembered accounts? You will need to enter it manually next time.`,
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: () => {
+        clearRememberedEmail(email)
+        message.success('Email removed from remembered accounts')
+        // Force refresh of email list and options
+        setRefreshKey(prev => prev + 1)
+        // Refresh email options
+        setTimeout(() => {
+          const emails = getRememberedEmails()
+          setEmailOptions(emails.map(e => ({ value: e, label: e })))
+          // Close modal if no emails left
+          if (emails.length === 0) {
+            setManageEmailsVisible(false)
+          }
+        }, 100)
+      },
+    })
+  }, [clearRememberedEmail, getRememberedEmails, message])
+
+  // Handle clear all emails with confirmation
+  const handleClearAllEmails = React.useCallback(() => {
+    Modal.confirm({
+      title: 'Clear All Remembered Emails?',
+      content: 'Are you sure you want to remove all remembered email addresses? This action cannot be undone.',
+      okText: 'Clear All',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: () => {
+        clearRememberedEmail()
+        message.success('All remembered emails cleared')
+        setEmailOptions([])
+        setRefreshKey(prev => prev + 1)
+        setManageEmailsVisible(false)
+      },
+    })
+  }, [clearRememberedEmail, message])
 
   // State to manage readOnly hack for autofill prevention
   const [fieldsReadOnly, setFieldsReadOnly] = React.useState(true)
@@ -46,9 +104,14 @@ export default function LoginForm({ onSubmit } = {}) {
     
     const clearFields = () => {
       setFieldsReadOnly(false) // Enable editing
-      // Always clear all fields
+      // Preserve rememberMe state if there's a remembered email, otherwise reset to false
+      const preserveRememberMe = initialValues?.rememberMe === true
       form.resetFields()
-      form.setFieldsValue({ email: '', password: '', rememberMe: false })
+      form.setFieldsValue({ 
+        email: initialValues?.email || '', 
+        password: '', 
+        rememberMe: preserveRememberMe ? true : false 
+      })
     }
 
     // Run on mount
@@ -68,7 +131,7 @@ export default function LoginForm({ onSubmit } = {}) {
         clearTimeout(timer)
         window.removeEventListener('pageshow', handlePageShow)
     }
-  }, [form])
+  }, [form, initialValues])
 
   // Listen for devtools-driven prefill events (global FAB)
   React.useEffect(() => {
@@ -122,19 +185,41 @@ export default function LoginForm({ onSubmit } = {}) {
           <Text type="secondary" style={{ fontSize: isMobile ? 14 : 15 }}>Please enter your details to sign in</Text>
         </div>
         
-        <Form key={formKey} name="login" form={form} layout="vertical" onFinish={handleFinish} initialValues={{ email: '', password: '', rememberMe: false }} size="large" requiredMark={false} autoComplete="off">
+        <Form key={formKey} name="login" form={form} layout="vertical" onFinish={handleFinish} initialValues={initialValues || { email: '', password: '', rememberMe: false }} size="large" requiredMark={false} autoComplete="off">
           <Form.Item
             name="email"
             label={<Text strong>Email</Text>}
             rules={loginEmailRules}
             style={{ marginBottom: isMobile ? 20 : 24 }}
           >
-            <Input 
+            <AutoComplete
               placeholder="Enter your email" 
               variant="filled" 
-              autoComplete="off" 
-              readOnly={fieldsReadOnly}
+              autoComplete="off"
+              options={emailOptions}
+              filterOption={(inputValue, option) => {
+                if (!inputValue || !option) return true
+                const value = String(option.value || '').toLowerCase()
+                const input = String(inputValue).toLowerCase()
+                return value.includes(input)
+              }}
+              onSearch={(value) => {
+                // Filter options based on search value
+                const allEmails = getRememberedEmails()
+                if (!value || value.trim() === '') {
+                  setEmailOptions(allEmails.slice(0, 10).map(email => ({ value: email, label: email })))
+                } else {
+                  const filtered = allEmails.filter(email => 
+                    String(email).toLowerCase().includes(String(value).toLowerCase())
+                  )
+                  setEmailOptions(filtered.slice(0, 10).map(email => ({ value: email, label: email })))
+                }
+              }}
+              onSelect={(value) => {
+                form.setFieldsValue({ email: value })
+              }}
               onFocus={() => setFieldsReadOnly(false)}
+              notFoundContent={null}
               data-test="login-email"
               data-testid="login-email"
             />
@@ -157,9 +242,22 @@ export default function LoginForm({ onSubmit } = {}) {
           </Form.Item>
           
           <Flex justify="space-between" align="center" style={{ marginBottom: isMobile ? 20 : 24, flexWrap: 'wrap', gap: 8 }}>
-            <Form.Item name="rememberMe" valuePropName="checked" noStyle style={{ marginBottom: 0 }}>
-              <Checkbox style={{ fontSize: isMobile ? 14 : undefined }} data-test="login-remember" data-testid="login-remember">Remember me</Checkbox>
-            </Form.Item>
+            <Flex align="center" gap={8}>
+              <Form.Item name="rememberMe" valuePropName="checked" noStyle style={{ marginBottom: 0 }}>
+                <Checkbox style={{ fontSize: isMobile ? 14 : undefined }} data-test="login-remember" data-testid="login-remember">Remember me</Checkbox>
+              </Form.Item>
+              {getRememberedEmails().length > 0 && (
+                <Button 
+                  type="link" 
+                  onClick={() => setManageEmailsVisible(true)}
+                  style={{ padding: 0, fontSize: isMobile ? 12 : 13, color: '#8c8c8c' }}
+                  className="auth-link-hover"
+                  data-test="manage-emails"
+                >
+                  Manage ({getRememberedEmails().length})
+                </Button>
+              )}
+            </Flex>
             <Button type="link" onClick={() => navigate('/forgot-password')} style={{ padding: 0, color: '#001529', fontSize: isMobile ? 14 : undefined }} className="auth-link-hover" data-test="login-forgot" data-testid="login-forgot">
               Forgot password?
             </Button>
@@ -211,6 +309,71 @@ export default function LoginForm({ onSubmit } = {}) {
              </div>
           )}
         </Form>
+
+        {/* Manage Remembered Emails Modal */}
+        <Modal
+          title="Manage Remembered Accounts"
+          open={manageEmailsVisible}
+          onCancel={() => setManageEmailsVisible(false)}
+          footer={[
+            <Button key="clear-all" danger onClick={handleClearAllEmails} disabled={getRememberedEmails().length === 0}>
+              Clear All
+            </Button>,
+            <Button key="close" type="primary" onClick={() => setManageEmailsVisible(false)}>
+              Close
+            </Button>,
+          ]}
+          width={isMobile ? '90%' : 500}
+        >
+          <div style={{ marginBottom: 16 }}>
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              These email addresses are stored locally in your browser for faster login. You can remove individual accounts or clear all.
+            </Text>
+          </div>
+          <List
+            key={refreshKey}
+            dataSource={getAllRememberedEmailsWithDetails()}
+            locale={{ emptyText: 'No remembered emails' }}
+            renderItem={(item) => (
+              <List.Item
+                actions={[
+                  <Popconfirm
+                    title="Delete this email?"
+                    description={`Remove "${item.email}" from remembered accounts?`}
+                    onConfirm={() => handleDeleteEmail(item.email)}
+                    okText="Delete"
+                    okType="danger"
+                    cancelText="Cancel"
+                    key="delete"
+                  >
+                    <Button 
+                      type="text" 
+                      danger 
+                      icon={<DeleteOutlined />} 
+                      size="small"
+                      aria-label={`Delete ${item.email}`}
+                    >
+                      Remove
+                    </Button>
+                  </Popconfirm>
+                ]}
+              >
+                <List.Item.Meta
+                  title={
+                    <Space>
+                      <Text strong>{item.email}</Text>
+                      {item.lastLogin && (
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          (Last used: {new Date(item.lastLogin).toLocaleDateString()})
+                        </Text>
+                      )}
+                    </Space>
+                  }
+                />
+              </List.Item>
+            )}
+          />
+        </Modal>
       </div>
     </>
   )

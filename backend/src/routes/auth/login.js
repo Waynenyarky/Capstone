@@ -59,8 +59,12 @@ const loginCredentialsSchema = Joi.object({
 const verifyCodeSchema = Joi.object({
   // Allow dev admin shorthand email '1' in verification as well
   email: Joi.string().trim().min(1).max(200).required(),
-  // Be forgiving of accidental whitespace
-  code: Joi.string().trim().pattern(/^[0-9]{6}$/).required(),
+  // Be forgiving of accidental whitespace, but ensure only numbers
+  code: Joi.string().trim().pattern(/^[0-9]{6}$/).required().messages({
+    'string.pattern.base': 'OTP code must contain only 6 digits (numbers only)',
+    'any.required': 'OTP code is required',
+    'string.empty': 'Please enter the OTP code'
+  }),
 })
 
 const verifyTotpSchema = Joi.object({
@@ -472,23 +476,23 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
     let reqObj = null
     if (useDB) {
       reqObj = await LoginRequest.findOne({ email: emailKey }).lean()
-      if (!reqObj) return respond.error(res, 404, 'login_request_not_found', 'No login verification request found')
-      if (Date.now() > new Date(reqObj.expiresAt).getTime()) return respond.error(res, 410, 'code_expired', 'Code expired')
+      if (!reqObj) return respond.error(res, 404, 'login_request_not_found', 'No active login verification request found. Please start the login process again.')
+      if (Date.now() > new Date(reqObj.expiresAt).getTime()) return respond.error(res, 410, 'code_expired', 'The OTP code has expired. Please request a new code.')
       if (String(reqObj.code) !== String(code)) {
         // Track failed login attempt
         const securityMonitor = require('../../middleware/securityMonitor')
         securityMonitor.trackFailedLogin(req.ip || req.connection.remoteAddress, userDoc._id ? String(userDoc._id) : null)
-        return respond.error(res, 401, 'invalid_code', 'Invalid code')
+        return respond.error(res, 401, 'invalid_code', 'The OTP code you entered is incorrect. Please check and try again.')
       }
     } else {
       reqObj = loginRequests.get(emailKey)
-      if (!reqObj) return respond.error(res, 404, 'login_request_not_found', 'No login verification request found')
-      if (Date.now() > reqObj.expiresAt) return respond.error(res, 410, 'code_expired', 'Code expired')
+      if (!reqObj) return respond.error(res, 404, 'login_request_not_found', 'No active login verification request found. Please start the login process again.')
+      if (Date.now() > reqObj.expiresAt) return respond.error(res, 410, 'code_expired', 'The OTP code has expired. Please request a new code.')
       if (String(reqObj.code) !== String(code)) {
         // Track failed login attempt
         const securityMonitor = require('../../middleware/securityMonitor')
         securityMonitor.trackFailedLogin(req.ip || req.connection.remoteAddress, userDoc._id ? String(userDoc._id) : null)
-        return respond.error(res, 401, 'invalid_code', 'Invalid code')
+        return respond.error(res, 401, 'invalid_code', 'The OTP code you entered is incorrect. Please check and try again.')
       }
     }
 

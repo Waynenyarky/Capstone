@@ -173,12 +173,36 @@ export default function LoggedInMfaManager() {
             <Paragraph style={{ fontSize: 16 }}>
               Enter the 6-digit code from your authenticator app
             </Paragraph>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div 
+              style={{ display: 'flex', justifyContent: 'center' }}
+              onKeyDown={(e) => {
+                const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
+                if (allowedKeys.includes(e.key)) return
+                if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
+                if (!/^[0-9]$/.test(e.key)) {
+                  e.preventDefault()
+                  e.stopPropagation()
+                }
+              }}
+              onPaste={(e) => {
+                e.preventDefault()
+                const pastedText = (e.clipboardData || window.clipboardData).getData('text')
+                const numericOnly = pastedText.replace(/[^0-9]/g, '').slice(0, 6)
+                if (numericOnly) {
+                  setConfirmCode(numericOnly)
+                }
+              }}
+            >
               <Input.OTP 
                 length={6} 
                 value={confirmCode}
-                onChange={(text) => setConfirmCode(text)}
+                onChange={(text) => {
+                  const numericValue = text.replace(/[^0-9]/g, '').slice(0, 6)
+                  setConfirmCode(numericValue)
+                }}
                 size="large"
+                inputType="numeric"
+                mask={false}
               />
             </div>
           </div>
@@ -207,12 +231,36 @@ export default function LoggedInMfaManager() {
             <Paragraph type="secondary" style={{ marginBottom: 24 }}>
               Verify your identity to cancel the pending disable request.
             </Paragraph>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div 
+              style={{ display: 'flex', justifyContent: 'center' }}
+              onKeyDown={(e) => {
+                const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
+                if (allowedKeys.includes(e.key)) return
+                if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
+                if (!/^[0-9]$/.test(e.key)) {
+                  e.preventDefault()
+                  e.stopPropagation()
+                }
+              }}
+              onPaste={(e) => {
+                e.preventDefault()
+                const pastedText = (e.clipboardData || window.clipboardData).getData('text')
+                const numericOnly = pastedText.replace(/[^0-9]/g, '').slice(0, 6)
+                if (numericOnly) {
+                  setUndoCode(numericOnly)
+                }
+              }}
+            >
               <Input.OTP 
                 length={6} 
                 value={undoCode}
-                onChange={(text) => setUndoCode(text)}
+                onChange={(text) => {
+                  const numericValue = text.replace(/[^0-9]/g, '').slice(0, 6)
+                  setUndoCode(numericValue)
+                }}
                 size="large"
+                inputType="numeric"
+                mask={false}
               />
             </div>
           </div>

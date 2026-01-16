@@ -199,13 +199,38 @@ export default function MfaSetup() {
 
           <div style={{ maxWidth: 320, margin: '0 auto 32px' }}>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <Input.OTP 
-                length={6} 
-                value={code} 
-                onChange={(val) => setCode(val)} 
-                size="large"
-                autoFocus
-              />
+              <div
+                onKeyDown={(e) => {
+                  const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
+                  if (allowedKeys.includes(e.key)) return
+                  if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
+                  if (!/^[0-9]$/.test(e.key)) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                  }
+                }}
+                onPaste={(e) => {
+                  e.preventDefault()
+                  const pastedText = (e.clipboardData || window.clipboardData).getData('text')
+                  const numericOnly = pastedText.replace(/[^0-9]/g, '').slice(0, 6)
+                  if (numericOnly) {
+                    setCode(numericOnly)
+                  }
+                }}
+              >
+                <Input.OTP 
+                  length={6} 
+                  value={code} 
+                  onChange={(val) => {
+                    const numericValue = val.replace(/[^0-9]/g, '').slice(0, 6)
+                    setCode(numericValue)
+                  }} 
+                  size="large"
+                  autoFocus
+                  inputType="numeric"
+                  mask={false}
+                />
+              </div>
             </div>
           </div>
 

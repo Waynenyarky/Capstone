@@ -39,12 +39,35 @@ export default function LoginVerificationForm({ email, onSubmit, title, otpExpir
           name="verificationCode" 
           label={<Text strong>Verification Code</Text>}
           rules={[
-            { required: true, message: 'Please enter the verification code' },
-            { len: 6, message: 'Code must be 6 digits' }
+            { required: true, message: 'Please enter the verification code' }
           ]}
           style={{ marginBottom: 32 }}
         >
-          <Input.OTP size="large" length={6} style={{ width: '100%', justifyContent: 'center' }} />
+          <Input.OTP 
+            size="large" 
+            length={6} 
+            style={{ width: '100%', justifyContent: 'center' }}
+            inputType="numeric"
+            mask={false}
+            onChange={(value) => {
+              // Input.OTP already handles numeric input, just ensure it's set in form
+              form.setFieldsValue({ verificationCode: value })
+            }}
+            onKeyDown={(e) => {
+              // Allow: backspace, delete, tab, escape, enter, arrows, home, end
+              const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
+              if (allowedKeys.includes(e.key)) return
+              
+              // Allow Ctrl/Cmd + A, C, V, X
+              if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
+              
+              // Block any non-numeric key
+              if (!/^[0-9]$/.test(e.key)) {
+                e.preventDefault()
+                e.stopPropagation()
+              }
+            }}
+          />
         </Form.Item>
 
         <Flex vertical gap="middle">

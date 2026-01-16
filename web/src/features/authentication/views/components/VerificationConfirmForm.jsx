@@ -19,11 +19,32 @@ export default function VerificationConfirmForm({ email, onSubmit, title } = {})
       <Form name="verification_confirm" form={form} layout="vertical" onFinish={handleFinish} size="large" requiredMark={false}>
         <Form.Item 
           name="verificationCode" 
-          rules={[{ required: true, message: 'Please enter the verification code' }]}
+          rules={[
+            { required: true, message: 'Please enter the verification code' }
+          ]}
           style={{ marginBottom: 32 }}
         >
           <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <Input.OTP size="large" length={6} style={{ width: '100%' }} />
+            <Input.OTP 
+              size="large" 
+              length={6} 
+              style={{ width: '100%' }}
+              inputType="numeric"
+              mask={false}
+              onChange={(value) => {
+                // Input.OTP already handles numeric input, just ensure it's set in form
+                form.setFieldsValue({ verificationCode: value })
+              }}
+              onKeyDown={(e) => {
+                const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
+                if (allowedKeys.includes(e.key)) return
+                if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
+                if (!/^[0-9]$/.test(e.key)) {
+                  e.preventDefault()
+                  e.stopPropagation()
+                }
+              }}
+            />
           </div>
         </Form.Item>
         
