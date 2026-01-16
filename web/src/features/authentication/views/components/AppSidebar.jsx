@@ -79,6 +79,12 @@ export default function AppSidebar({ hiddenKeys = [], renamedKeys = {}, itemOver
       return
     }
     
+    // If item has custom onClick handler, call it
+    if (item.onClick && typeof item.onClick === 'function') {
+      item.onClick(item)
+      return
+    }
+    
     // Update internal selection state if needed (mostly for controlled mode)
     onSelect({ key: item.key })
 

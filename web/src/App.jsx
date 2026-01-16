@@ -12,6 +12,7 @@ import PaymentsPage from "@/features/business-owner/features/payments/pages/Paym
 import AppealsPage from "@/features/business-owner/features/appeals/pages/AppealsPage.jsx"
 import NotificationsPage from "@/features/business-owner/features/notifications/pages/NotificationsPage.jsx"
 import InspectionsPage from "@/features/business-owner/features/inspections/pages/InspectionsPage.jsx"
+import BusinessRegistrationPage from "@/features/business-owner/features/business-registration/pages/BusinessRegistrationPage.jsx"
 import { StaffDashboard, StaffOnboarding, StaffRecoveryRequest } from "@/features/staffs"
 import { ProfileSettings } from "@/features/user"
 import { PlaceholderPage } from "@/features/shared"
@@ -47,6 +48,7 @@ function App() {
       {/* Business Owner Routes */}
       <Route path="/owner" element={<ProtectedRoute allowedRoles={['business_owner']}><Outlet /></ProtectedRoute>}>
         <Route index element={<BusinessOwnerDashboard />} />
+        <Route path="business-registration" element={<BusinessRegistrationPage />} />
         <Route path="permits" element={<PermitApplicationPage />} />
         <Route path="cessation" element={<CessationPage />} />
         <Route path="payments" element={<PaymentsPage />} />

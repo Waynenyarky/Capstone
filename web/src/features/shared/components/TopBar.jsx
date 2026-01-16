@@ -143,7 +143,7 @@ export default function TopBar({
       borderBottom: 'none'
     }}>
       <div style={{ display: 'flex', alignItems: 'center' }}>
-        <Text strong style={{ fontSize: 18, marginRight: 16, textTransform: 'capitalize', color: textColor }}>{title === 'Business Registration' ? 'BizClear' : title}</Text>
+        <Text strong style={{ fontSize: 18, marginRight: 16, textTransform: 'capitalize', color: textColor }}>{title}</Text>
         {businessName && (
           <Tag icon={<ShopOutlined />} color="gold">
             {businessName}

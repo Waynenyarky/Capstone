@@ -1,7 +1,7 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Layout, Row, Col, Card, Button, Typography, Space, Spin, theme } from 'antd'
-import { Link } from 'react-router-dom'
-import { FormOutlined } from '@ant-design/icons'
+import { Link, useNavigate } from 'react-router-dom'
+import { FormOutlined, ShopOutlined } from '@ant-design/icons'
 import { AppSidebar as Sidebar } from '@/features/authentication'
 import BusinessOwnerLayout from '../components/BusinessOwnerLayout'
 import BusinessRegistrationWizard from '../components/BusinessRegistrationWizard'
@@ -22,6 +22,7 @@ import AISuggestions from '../../features/dashboard/components/AISuggestions'
 const { Title, Paragraph } = Typography
 
 export default function BusinessOwnerDashboard() {
+  const navigate = useNavigate()
   const { 
     currentUser, 
     role, 
@@ -85,10 +86,15 @@ export default function BusinessOwnerDashboard() {
     )
   }
 
+  // Show business registration sidebar item if profile exists and is not in draft/needs_revision
+  // This allows users to manage businesses after initial registration (pending_review or approved)
+  const shouldShowBusinessRegistration = profile && profile.status !== 'draft' && profile.status !== 'needs_revision'
+  
   return (
     <BusinessOwnerLayout 
       pageTitle="Dashboard" 
       businessName={profile?.businessName}
+      hiddenSidebarKeys={!shouldShowBusinessRegistration ? ['business-registration'] : []}
     >
         {dashboardLoading ? (
            <div style={{ textAlign: 'center', padding: 50 }}>
@@ -102,7 +108,22 @@ export default function BusinessOwnerDashboard() {
                 <Paragraph type="secondary" style={{ fontSize: 16, margin: 0 }}>Here is your business overview for {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</Paragraph>
               </div>
               <Space>
-                 <Button type="primary" size="large" style={{ background: token.colorPrimary, borderColor: token.colorPrimary }}>New Application</Button>
+                {shouldShowBusinessRegistration && (
+                  <Button 
+                    icon={<ShopOutlined />} 
+                    size="large"
+                    onClick={() => navigate('/owner/business-registration')}
+                  >
+                    My Businesses
+                  </Button>
+                )}
+                <Button 
+                  type="primary" 
+                  size="large" 
+                  style={{ background: token.colorPrimary, borderColor: token.colorPrimary }}
+                >
+                  New Application
+                </Button>
               </Space>
             </div>
 
@@ -139,7 +160,9 @@ export default function BusinessOwnerDashboard() {
 
               {/* Business Profile */}
               <Col xs={24} lg={12} xl={8}>
-                 <BusinessProfile data={dashboardData?.businessProfile} />
+                 <BusinessProfile 
+                   data={dashboardData?.businessProfile}
+                 />
               </Col>
 
               {/* Documents */}

@@ -2,6 +2,8 @@ const BusinessProfile = require('../models/BusinessProfile')
 const User = require('../models/User')
 const AuditLog = require('../models/AuditLog')
 const blockchainService = require('../lib/blockchainService')
+const { validateBusinessRegistrationNumber, validateGeolocation, calculateRiskLevel } = require('../lib/businessValidation')
+const mongoose = require('mongoose')
 
 class BusinessProfileService {
   async getProfile(userId) {
@@ -57,11 +59,8 @@ class BusinessProfileService {
   }
 
   assessRisk(details) {
-    // System Action: Flag high-risk businesses automatically
-    // Logic: Check hazards or equipment
-    if (details.hasHazards) return 'high'
-    // Simple heuristic
-    return 'low'
+    // Use the comprehensive risk calculation from businessValidation
+    return calculateRiskLevel(details)
   }
 
   async updateStep(userId, step, data, metadata = {}) {
@@ -92,6 +91,15 @@ class BusinessProfileService {
         // System Action: Lock submitted data is implied by status change
         update['status'] = 'pending_review'
         break
+
+      case 5: // Business Registration (Step 3)
+        // This is now handled by addBusiness/updateBusiness methods
+        // Keep for backward compatibility but redirect to addBusiness
+        throw new Error('Use addBusiness or updateBusiness methods for step 5')
+
+      case 6: // Risk Profile (Step 4)
+        // This is now handled by updateBusinessRiskProfile method
+        throw new Error('Use updateBusinessRiskProfile method for step 6')
 
       default:
         throw new Error('Invalid step')
@@ -155,6 +163,467 @@ class BusinessProfileService {
       console.error('Error creating audit log for business profile:', error)
     }
     
+    return profile
+  }
+
+  // --- Multiple Business Management Methods ---
+
+  /**
+   * Add new business to businesses array
+   * @param {string} userId - User ID
+   * @param {object} businessData - Business registration data
+   * @returns {Promise<object>} Updated profile
+   */
+  async addBusiness(userId, businessData) {
+    const profile = await BusinessProfile.findOne({ userId })
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+
+    // Validate business registration number format
+    const regValidation = validateBusinessRegistrationNumber(
+      businessData.registrationAgency,
+      businessData.businessRegistrationNumber
+    )
+    if (!regValidation.valid) {
+      throw new Error(regValidation.error)
+    }
+
+    // Validate geolocation
+    const geoValidation = validateGeolocation(
+      businessData.location?.geolocation?.lat,
+      businessData.location?.geolocation?.lng
+    )
+    if (!geoValidation.valid) {
+      throw new Error(geoValidation.error)
+    }
+
+    // Check for duplicate registration number (same agency)
+    const existingBusiness = profile.businesses?.find(
+      b => b.businessRegistrationNumber === businessData.businessRegistrationNumber &&
+           b.registrationAgency === businessData.registrationAgency
+    )
+    if (existingBusiness) {
+      throw new Error('Business registration number already exists for this agency')
+    }
+
+    // Generate unique business ID using mongoose ObjectId
+    const businessId = new mongoose.Types.ObjectId().toString()
+
+    // Determine if this should be primary (first business)
+    const isFirstBusiness = !profile.businesses || profile.businesses.length === 0
+    const isPrimary = isFirstBusiness
+
+    // If setting as primary, unset current primary
+    if (isPrimary && profile.businesses && profile.businesses.length > 0) {
+      profile.businesses.forEach(b => {
+        b.isPrimary = false
+      })
+    }
+
+    // Calculate initial risk level
+    const riskLevel = calculateRiskLevel(businessData)
+
+    // Create new business object
+    const newBusiness = {
+      businessId,
+      isPrimary,
+      businessName: businessData.businessName,
+      registrationStatus: businessData.registrationStatus || 'not_yet_registered',
+      location: businessData.location,
+      businessType: businessData.businessType,
+      registrationAgency: businessData.registrationAgency,
+      businessRegistrationNumber: businessData.businessRegistrationNumber,
+      businessStartDate: new Date(businessData.businessStartDate),
+      numberOfBranches: businessData.numberOfBranches || 0,
+      industryClassification: businessData.industryClassification || '',
+      taxIdentificationNumber: businessData.taxIdentificationNumber || '',
+      contactNumber: businessData.contactNumber,
+      riskProfile: {
+        businessSize: businessData.riskProfile?.businessSize || null,
+        annualRevenue: businessData.riskProfile?.annualRevenue || null,
+        businessActivitiesDescription: businessData.riskProfile?.businessActivitiesDescription || '',
+        riskLevel
+      },
+      isSubmitted: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+
+    // Add to businesses array
+    if (!profile.businesses) {
+      profile.businesses = []
+    }
+    profile.businesses.push(newBusiness)
+    
+    // Mark the array as modified for Mongoose
+    profile.markModified('businesses')
+    await profile.save()
+
+    // Audit log
+    try {
+      const user = await User.findById(userId).populate('role').lean()
+      const roleSlug = (user && user.role && user.role.slug) ? user.role.slug : 'business_owner'
+      
+      await AuditLog.create({
+        userId,
+        eventType: 'business_added',
+        fieldChanged: 'businesses',
+        oldValue: '',
+        newValue: JSON.stringify(newBusiness),
+        role: roleSlug,
+        metadata: {
+          businessId,
+          businessName: businessData.businessName,
+          isPrimary
+        }
+      })
+    } catch (error) {
+      console.error('Error creating audit log for business add:', error)
+    }
+
+    return profile
+  }
+
+  /**
+   * Update existing business
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID
+   * @param {object} businessData - Updated business data
+   * @returns {Promise<object>} Updated profile
+   */
+  async updateBusiness(userId, businessId, businessData) {
+    const profile = await BusinessProfile.findOne({ userId })
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+
+    const businessIndex = profile.businesses?.findIndex(b => b.businessId === businessId)
+    if (businessIndex === -1 || businessIndex === undefined) {
+      throw new Error('Business not found')
+    }
+
+    const existingBusiness = profile.businesses[businessIndex]
+
+    // Validate registration number if changed
+    if (businessData.businessRegistrationNumber && 
+        businessData.businessRegistrationNumber !== existingBusiness.businessRegistrationNumber) {
+      const regValidation = validateBusinessRegistrationNumber(
+        businessData.registrationAgency || existingBusiness.registrationAgency,
+        businessData.businessRegistrationNumber
+      )
+      if (!regValidation.valid) {
+        throw new Error(regValidation.error)
+      }
+
+      // Check for duplicate (excluding current business)
+      const duplicate = profile.businesses.find(
+        (b, idx) => b.businessId !== businessId &&
+                    b.businessRegistrationNumber === businessData.businessRegistrationNumber &&
+                    b.registrationAgency === (businessData.registrationAgency || existingBusiness.registrationAgency)
+      )
+      if (duplicate) {
+        throw new Error('Business registration number already exists for this agency')
+      }
+    }
+
+    // Validate geolocation if changed
+    if (businessData.location?.geolocation) {
+      const geoValidation = validateGeolocation(
+        businessData.location.geolocation.lat,
+        businessData.location.geolocation.lng
+      )
+      if (!geoValidation.valid) {
+        throw new Error(geoValidation.error)
+      }
+    }
+
+    // Check if risk-relevant fields changed
+    const riskFieldsChanged = 
+      businessData.businessSize !== undefined ||
+      businessData.annualRevenue !== undefined ||
+      businessData.businessType !== undefined ||
+      businessData.registrationStatus !== undefined ||
+      businessData.numberOfBranches !== undefined ||
+      businessData.riskProfile?.businessSize !== undefined ||
+      businessData.riskProfile?.annualRevenue !== undefined
+
+    // Update business fields
+    // Convert mongoose document to plain object if needed
+    const existingBusinessObj = existingBusiness.toObject ? existingBusiness.toObject() : existingBusiness
+    
+    const updatedBusiness = {
+      ...existingBusinessObj,
+      ...businessData,
+      businessId: existingBusinessObj.businessId, // Don't allow changing ID
+      isPrimary: existingBusinessObj.isPrimary, // Don't allow changing primary here (use setPrimaryBusiness)
+      updatedAt: new Date()
+    }
+    
+    // Handle nested location update properly
+    if (businessData.location) {
+      updatedBusiness.location = {
+        ...existingBusinessObj.location,
+        ...businessData.location
+      }
+    }
+    
+    // Handle nested riskProfile update properly
+    if (businessData.riskProfile) {
+      updatedBusiness.riskProfile = {
+        ...existingBusinessObj.riskProfile,
+        ...businessData.riskProfile
+      }
+    }
+
+    // Recalculate risk level if relevant fields changed
+    if (riskFieldsChanged) {
+      const combinedData = {
+        ...updatedBusiness,
+        businessSize: businessData.businessSize ?? businessData.riskProfile?.businessSize ?? updatedBusiness.riskProfile?.businessSize ?? null,
+        annualRevenue: businessData.annualRevenue ?? businessData.riskProfile?.annualRevenue ?? updatedBusiness.riskProfile?.annualRevenue ?? null,
+        businessType: businessData.businessType ?? updatedBusiness.businessType,
+        registrationStatus: businessData.registrationStatus ?? updatedBusiness.registrationStatus,
+        numberOfBranches: businessData.numberOfBranches ?? updatedBusiness.numberOfBranches ?? 0
+      }
+      const newRiskLevel = calculateRiskLevel(combinedData)
+      updatedBusiness.riskProfile = {
+        ...updatedBusiness.riskProfile,
+        ...(businessData.riskProfile || {}),
+        riskLevel: newRiskLevel
+      }
+    } else if (businessData.riskProfile) {
+      // If risk profile is updated but risk fields didn't change, just merge the risk profile
+      updatedBusiness.riskProfile = {
+        ...updatedBusiness.riskProfile,
+        ...businessData.riskProfile
+      }
+    }
+
+    // Update the business in the array
+    profile.businesses[businessIndex] = updatedBusiness
+    
+    // Mark the array as modified for Mongoose
+    profile.markModified('businesses')
+    await profile.save()
+
+    // Audit log
+    try {
+      const user = await User.findById(userId).populate('role').lean()
+      const roleSlug = (user && user.role && user.role.slug) ? user.role.slug : 'business_owner'
+      
+      await AuditLog.create({
+        userId,
+        eventType: 'business_updated',
+        fieldChanged: 'businesses',
+        oldValue: JSON.stringify(existingBusiness),
+        newValue: JSON.stringify(updatedBusiness),
+        role: roleSlug,
+        metadata: {
+          businessId,
+          businessName: updatedBusiness.businessName
+        }
+      })
+    } catch (error) {
+      console.error('Error creating audit log for business update:', error)
+    }
+
+    return profile
+  }
+
+  /**
+   * Delete business
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID
+   * @returns {Promise<object>} Updated profile
+   */
+  async deleteBusiness(userId, businessId) {
+    const profile = await BusinessProfile.findOne({ userId })
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+
+    if (!profile.businesses || profile.businesses.length === 0) {
+      throw new Error('No businesses found')
+    }
+
+    // Prevent deletion if it's the only business
+    if (profile.businesses.length === 1) {
+      throw new Error('Cannot delete the only business. At least one business must exist.')
+    }
+
+    const businessIndex = profile.businesses.findIndex(b => b.businessId === businessId)
+    if (businessIndex === -1) {
+      throw new Error('Business not found')
+    }
+
+    const businessToDelete = profile.businesses[businessIndex]
+    const wasPrimary = businessToDelete.isPrimary
+
+    // Remove business
+    profile.businesses.splice(businessIndex, 1)
+
+    // If deleted business was primary, set first remaining business as primary
+    if (wasPrimary && profile.businesses.length > 0) {
+      profile.businesses[0].isPrimary = true
+    }
+    
+    // Mark the array as modified for Mongoose
+    profile.markModified('businesses')
+    await profile.save()
+
+    // Audit log
+    try {
+      const user = await User.findById(userId).populate('role').lean()
+      const roleSlug = (user && user.role && user.role.slug) ? user.role.slug : 'business_owner'
+      
+      await AuditLog.create({
+        userId,
+        eventType: 'business_deleted',
+        fieldChanged: 'businesses',
+        oldValue: JSON.stringify(businessToDelete),
+        newValue: '',
+        role: roleSlug,
+        metadata: {
+          businessId,
+          businessName: businessToDelete.businessName,
+          wasPrimary,
+          newPrimaryBusinessId: wasPrimary && profile.businesses.length > 0 ? profile.businesses[0].businessId : null
+        }
+      })
+    } catch (error) {
+      console.error('Error creating audit log for business delete:', error)
+    }
+
+    return profile
+  }
+
+  /**
+   * Set business as primary
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID to set as primary
+   * @returns {Promise<object>} Updated profile
+   */
+  async setPrimaryBusiness(userId, businessId) {
+    const profile = await BusinessProfile.findOne({ userId })
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+
+    const business = profile.businesses?.find(b => b.businessId === businessId)
+    if (!business) {
+      throw new Error('Business not found')
+    }
+
+    if (business.isPrimary) {
+      return profile // Already primary
+    }
+
+    // Unset current primary
+    if (profile.businesses) {
+      profile.businesses.forEach(b => {
+        b.isPrimary = false
+      })
+    }
+
+    // Set new primary
+    business.isPrimary = true
+    business.updatedAt = new Date()
+    
+    // Mark the array as modified for Mongoose
+    profile.markModified('businesses')
+    await profile.save()
+
+    // Audit log
+    try {
+      const user = await User.findById(userId).populate('role').lean()
+      const roleSlug = (user && user.role && user.role.slug) ? user.role.slug : 'business_owner'
+      
+      await AuditLog.create({
+        userId,
+        eventType: 'primary_business_changed',
+        fieldChanged: 'businesses',
+        oldValue: '',
+        newValue: JSON.stringify(business),
+        role: roleSlug,
+        metadata: {
+          businessId,
+          businessName: business.businessName
+        }
+      })
+    } catch (error) {
+      console.error('Error creating audit log for primary business change:', error)
+    }
+
+    return profile
+  }
+
+  /**
+   * Update risk profile for specific business
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID
+   * @param {object} riskProfileData - Risk profile data
+   * @returns {Promise<object>} Updated profile
+   */
+  async updateBusinessRiskProfile(userId, businessId, riskProfileData) {
+    const profile = await BusinessProfile.findOne({ userId })
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+
+    const business = profile.businesses?.find(b => b.businessId === businessId)
+    if (!business) {
+      throw new Error('Business not found')
+    }
+
+    // Combine business data with risk profile for calculation
+    const combinedData = {
+      ...business.toObject(),
+      riskProfile: {
+        ...business.riskProfile,
+        ...riskProfileData
+      },
+      businessSize: riskProfileData.businessSize ?? business.riskProfile?.businessSize,
+      annualRevenue: riskProfileData.annualRevenue ?? business.riskProfile?.annualRevenue
+    }
+
+    // Recalculate risk level
+    const riskLevel = calculateRiskLevel(combinedData)
+
+    // Update risk profile
+    business.riskProfile = {
+      ...business.riskProfile,
+      ...riskProfileData,
+      riskLevel
+    }
+    business.updatedAt = new Date()
+    
+    // Mark the array as modified for Mongoose
+    profile.markModified('businesses')
+    await profile.save()
+
+    // Audit log
+    try {
+      const user = await User.findById(userId).populate('role').lean()
+      const roleSlug = (user && user.role && user.role.slug) ? user.role.slug : 'business_owner'
+      
+      await AuditLog.create({
+        userId,
+        eventType: 'risk_profile_updated',
+        fieldChanged: 'riskProfile',
+        oldValue: JSON.stringify(business.riskProfile),
+        newValue: JSON.stringify(business.riskProfile),
+        role: roleSlug,
+        metadata: {
+          businessId,
+          businessName: business.businessName,
+          riskLevel
+        }
+      })
+    } catch (error) {
+      console.error('Error creating audit log for risk profile update:', error)
+    }
+
     return profile
   }
 }

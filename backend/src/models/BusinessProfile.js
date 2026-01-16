@@ -29,6 +29,60 @@ const BusinessProfileSchema = new mongoose.Schema(
     profileDetails: { type: Object, default: {} },
     notifications: { type: Object, default: {} },
 
+    // Multiple Businesses Array (Step 3 & 4)
+    businesses: [{
+      businessId: { type: String, required: true },
+      isPrimary: { type: Boolean, default: false },
+      businessName: { type: String, required: true },
+      registrationStatus: { 
+        type: String, 
+        enum: ['not_yet_registered', 'proposed'], 
+        default: 'not_yet_registered' 
+      },
+      location: {
+        street: { type: String, required: true },
+        barangay: { type: String, required: true },
+        city: { type: String, required: true },
+        municipality: { type: String, required: true },
+        province: { type: String, required: true },
+        zipCode: { type: String, required: true },
+        geolocation: {
+          lat: { type: Number, required: true },
+          lng: { type: Number, required: true }
+        },
+        mailingAddress: { type: String, default: '' }
+      },
+      businessType: {
+        type: String,
+        enum: ['retail_trade', 'food_beverages', 'services', 'manufacturing_industrial', 'agriculture_fishery_forestry', 'construction_real_estate_housing', 'transportation_automotive_logistics', 'financial_insurance_banking'],
+        required: true
+      },
+      registrationAgency: {
+        type: String,
+        enum: ['DTI', 'SEC', 'LGU', 'CDA', 'BIR', 'Barangay_Office', 'FDA', 'BFAD', 'DA', 'DENR', 'PRC', 'MARITIME_INDUSTRY_AUTHORITY'],
+        required: true
+      },
+      businessRegistrationNumber: { type: String, required: true },
+      businessStartDate: { type: Date, required: true },
+      numberOfBranches: { type: Number, default: 0 },
+      industryClassification: { type: String, default: '' },
+      taxIdentificationNumber: { type: String, default: '' },
+      contactNumber: { type: String, required: true },
+      riskProfile: {
+        businessSize: { type: Number, default: null },
+        annualRevenue: { type: Number, default: null },
+        businessActivitiesDescription: { type: String, default: '' },
+        riskLevel: {
+          type: String,
+          enum: ['low', 'medium', 'high'],
+          default: 'low'
+        }
+      },
+      isSubmitted: { type: Boolean, default: false },
+      createdAt: { type: Date, default: Date.now },
+      updatedAt: { type: Date, default: Date.now }
+    }],
+
     // Overall Status
     status: { 
       type: String, 

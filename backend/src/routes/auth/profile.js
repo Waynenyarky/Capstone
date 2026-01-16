@@ -350,19 +350,15 @@ router.post('/change-password-authenticated', requireJwt, validateBody(changePas
     const sanitizedCurrentPassword = sanitizeString(currentPassword || '')
     const sanitizedNewPassword = sanitizeString(newPassword || '')
 
-    const idHeader = req.headers['x-user-id']
-    const emailHeader = req._userEmail || req.headers['x-user-email']
+    // Use userId from JWT token (already validated by requireJwt middleware)
+    const userId = req._userId
+    if (!userId) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
     let doc = null
-    if (idHeader) {
-      try {
-        doc = await User.findById(idHeader).populate('role')
-      } catch (_) {
-        doc = null
-      }
-    }
-    if (!doc && emailHeader) {
-      doc = await User.findOne({ email: emailHeader }).populate('role')
+    try {
+      doc = await User.findById(userId).populate('role')
+    } catch (_) {
+      doc = null
     }
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
@@ -477,15 +473,16 @@ const changePasswordStartSchema = Joi.object({
 router.post('/change-password/start', requireJwt, validateBody(changePasswordStartSchema), async (req, res) => {
   try {
     const { newPassword } = req.body || {}
-    const idHeader = req.headers['x-user-id']
-    const emailHeader = req._userEmail || req.headers['x-user-email']
+    
+    // Use userId from JWT token (already validated by requireJwt middleware)
+    const userId = req._userId
+    if (!userId) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
     let doc = null
-    if (idHeader) {
-      try { doc = await User.findById(idHeader) } catch (_) { doc = null }
-    }
-    if (!doc && emailHeader) {
-      doc = await User.findOne({ email: emailHeader })
+    try {
+      doc = await User.findById(userId)
+    } catch (_) {
+      doc = null
     }
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
@@ -533,19 +530,16 @@ const changePasswordVerifySchema = Joi.object({
 router.post('/change-password/verify', requireJwt, validateBody(changePasswordVerifySchema), async (req, res) => {
   try {
     const { code } = req.body || {}
-    const idHeader = req.headers['x-user-id']
-    const emailHeader = req._userEmail || req.headers['x-user-email']
+    
+    // Use userId from JWT token (already validated by requireJwt middleware)
+    const userId = req._userId
+    if (!userId) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
     let doc = null
-    if (idHeader) {
-      try {
-        doc = await User.findById(idHeader).populate('role')
-      } catch (_) {
-        doc = null
-      }
-    }
-    if (!doc && emailHeader) {
-      doc = await User.findOne({ email: emailHeader }).populate('role')
+    try {
+      doc = await User.findById(userId).populate('role')
+    } catch (_) {
+      doc = null
     }
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
@@ -686,19 +680,15 @@ router.post('/change-email-authenticated', requireJwt, validateBody(changeEmailA
   try {
     const { password, newEmail } = req.body || {}
 
-    const idHeader = req.headers['x-user-id']
-    const emailHeader = req._userEmail || req.headers['x-user-email']
+    // Use userId from JWT token (already validated by requireJwt middleware)
+    const userId = req._userId
+    if (!userId) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
     let doc = null
-    if (idHeader) {
-      try {
-        doc = await User.findById(idHeader)
-      } catch (_) {
-        doc = null
-      }
-    }
-    if (!doc && emailHeader) {
-      doc = await User.findOne({ email: emailHeader })
+    try {
+      doc = await User.findById(userId)
+    } catch (_) {
+      doc = null
     }
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
@@ -739,14 +729,15 @@ const changeEmailStartSchema = Joi.object({
 // Step 1: send OTP to the new email to confirm change
 router.post('/change-email/start', requireJwt, validateBody(changeEmailStartSchema), async (req, res) => {
   try {
-    const idHeader = req.headers['x-user-id']
-    const emailHeader = req._userEmail || req.headers['x-user-email']
+    // Use userId from JWT token (already validated by requireJwt middleware)
+    const userId = req._userId
+    if (!userId) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
     let doc = null
-    if (idHeader) {
-      try { doc = await User.findById(idHeader) } catch (_) { doc = null }
-    }
-    if (!doc && emailHeader) {
-      doc = await User.findOne({ email: emailHeader })
+    try {
+      doc = await User.findById(userId)
+    } catch (_) {
+      doc = null
     }
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
@@ -780,14 +771,15 @@ const changeEmailVerifySchema = Joi.object({
 // Step 2: verify OTP and update user's email
 router.post('/change-email/verify', requireJwt, validateBody(changeEmailVerifySchema), async (req, res) => {
   try {
-    const idHeader = req.headers['x-user-id']
-    const emailHeader = req._userEmail || req.headers['x-user-email']
+    // Use userId from JWT token (already validated by requireJwt middleware)
+    const userId = req._userId
+    if (!userId) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
     let doc = null
-    if (idHeader) {
-      try { doc = await User.findById(idHeader) } catch (_) { doc = null }
-    }
-    if (!doc && emailHeader) {
-      doc = await User.findOne({ email: emailHeader })
+    try {
+      doc = await User.findById(userId)
+    } catch (_) {
+      doc = null
     }
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 

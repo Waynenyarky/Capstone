@@ -9,6 +9,7 @@ const { sendOtp } = require('../../lib/mailer')
 const respond = require('../../middleware/respond')
 const { validateBody, Joi } = require('../../middleware/validation')
 const { perEmailRateLimit } = require('../../middleware/rateLimit')
+const { requireJwt } = require('../../middleware/auth')
 const { createAuditLog } = require('../../lib/auditLogger')
 const { trackIP, isUnusualIP } = require('../../lib/ipTracker')
 const { checkLockout, incrementFailedAttempts } = require('../../lib/accountLockout')
@@ -54,18 +55,19 @@ const verifyLimiter = perEmailRateLimit({
 
 // --- Delete Account (30-day waiting period) ---
 
-router.post('/delete-account/authenticated', validateBody(passwordOnlySchema), async (req, res) => {
+router.post('/delete-account/authenticated', requireJwt, validateBody(passwordOnlySchema), async (req, res) => {
   try {
     const { password } = req.body || {}
-    const idHeader = req.headers['x-user-id']
-    const emailHeader = req.headers['x-user-email']
+    
+    // Use userId from JWT token (already validated by requireJwt middleware)
+    const userId = req._userId
+    if (!userId) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
     let doc = null
-    if (idHeader) {
-      try { doc = await User.findById(idHeader) } catch (_) { doc = null }
-    }
-    if (!doc && emailHeader) {
-      doc = await User.findOne({ email: emailHeader })
+    try {
+      doc = await User.findById(userId)
+    } catch (_) {
+      doc = null
     }
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
@@ -88,18 +90,25 @@ router.post('/delete-account/authenticated', validateBody(passwordOnlySchema), a
 
 // POST /api/auth/delete-account/send-code
 // Sends a verification code to the current user's email to initiate deletion
-router.post('/delete-account/send-code', sendCodeLimiter, validateBody(optionalEmailSchema), async (req, res) => {
+router.post('/delete-account/send-code', requireJwt, sendCodeLimiter, validateBody(optionalEmailSchema), async (req, res) => {
   try {
     const { email: bodyEmail } = req.body || {}
-    const idHeader = req.headers['x-user-id']
-    const emailHeader = req.headers['x-user-email']
+    
+    // Use userId from JWT token (already validated by requireJwt middleware)
+    // Fallback to email from body if provided (for edge cases)
+    const userId = req._userId
+    const emailFromJwt = req._userEmail
 
     let doc = null
-    if (idHeader) {
-      try { doc = await User.findById(idHeader).lean() } catch (_) { doc = null }
+    if (userId) {
+      try {
+        doc = await User.findById(userId).lean()
+      } catch (_) {
+        doc = null
+      }
     }
-    if (!doc && emailHeader) {
-      doc = await User.findOne({ email: emailHeader }).lean()
+    if (!doc && emailFromJwt) {
+      doc = await User.findOne({ email: emailFromJwt }).lean()
     }
     if (!doc && bodyEmail) {
       doc = await User.findOne({ email: bodyEmail }).lean()
@@ -281,17 +290,15 @@ router.post('/delete-account/confirm', validateBody(confirmDeleteSchema), async 
 const cancelDeleteSchema = Joi.object({
   undoToken: Joi.string().optional(),
 })
-router.post('/delete-account/cancel', validateBody(cancelDeleteSchema), async (req, res) => {
+router.post('/delete-account/cancel', requireJwt, validateBody(cancelDeleteSchema), async (req, res) => {
   try {
     const { undoToken } = req.body || {}
-    const idHeader = req.headers['x-user-id']
-    const emailHeader = req.headers['x-user-email']
     const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
     const userAgent = req.headers['user-agent'] || 'unknown'
 
     let doc = null
     
-    // If undo token provided, use it
+    // If undo token provided, use it (allows cancellation without login)
     if (undoToken) {
       doc = await User.findOne({ 
         deletionUndoToken: undoToken,
@@ -307,16 +314,14 @@ router.post('/delete-account/cancel', validateBody(cancelDeleteSchema), async (r
         return respond.error(res, 401, 'undo_token_expired', 'Undo token has expired. Deletion cannot be cancelled.')
       }
     } else {
-      // Use header-based identification
-      if (idHeader) {
-        try {
-          doc = await User.findById(idHeader).populate('role')
-        } catch (_) {
-          doc = null
-        }
-      }
-      if (!doc && emailHeader) {
-        doc = await User.findOne({ email: emailHeader }).populate('role')
+      // Use userId from JWT token (already validated by requireJwt middleware)
+      const userId = req._userId
+      if (!userId) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+      
+      try {
+        doc = await User.findById(userId).populate('role')
+      } catch (_) {
+        doc = null
       }
     }
 
