@@ -57,6 +57,7 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
   const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
   const supportEmail = process.env.SUPPORT_EMAIL || process.env.EMAIL_HOST_USER || 'support@bizclear.com'
   const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
+  const logoUrl = process.env.EMAIL_LOGO_URL || `${appUrl}/BizClear.png`
 
   const text = [
     'Hello,',
@@ -76,6 +77,15 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
       
       <!-- Header -->
       <div style="background:#003a70;padding:32px;text-align:center;">
+        ${logoUrl ? `
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:16px;">
+          <tr>
+            <td align="center">
+              <img src="${logoUrl}" alt="${brandName}" width="200" height="auto" style="max-width:200px;width:200px;height:auto;display:block;margin:0 auto;border:0;outline:none;text-decoration:none;" />
+            </td>
+          </tr>
+        </table>
+        ` : ''}
         <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">${brandName}</h1>
       </div>
 
@@ -144,13 +154,23 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
     // Ensure 'from' is set
     const fromAddress = from || process.env.EMAIL_HOST_USER || 'noreply@example.com'
     
+    // Log logo URL for debugging
+    if (logoUrl) {
+      console.log(`[Email] Logo URL: ${logoUrl}`)
+    }
+    
     console.log(`[Email] Attempting to send OTP to ${to}...`)
     const result = await transporter.sendMail({ 
       from: fromAddress, 
       to, 
       subject, 
       text, 
-      html 
+      html,
+      // Add headers to help with image display
+      headers: {
+        'X-Mailer': 'BizClear Business Center',
+        'List-Unsubscribe': `<${appUrl}/unsubscribe>`
+      }
     })
     
     console.log(`[Email] ✅ OTP email sent successfully to ${to}`, { 
