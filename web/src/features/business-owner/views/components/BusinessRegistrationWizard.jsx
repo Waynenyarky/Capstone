@@ -441,12 +441,12 @@ export default function BusinessRegistrationWizard({ onComplete }) {
                 <Card 
                   hoverable 
                   variant="borderless"
-                  style={{ height: '100%', borderRadius: 16, border: '1px solid #f0f0f0', transition: 'all 0.3s' }}
+                  style={{ height: '100%', borderRadius: 16, border: `1px solid ${token.colorBorderSecondary}`, transition: 'all 0.3s' }}
                   styles={{ body: { padding: 32, textAlign: 'center' } }}
                 >
                   <div style={{ 
                     marginBottom: 24, 
-                    background: '#ffffff', 
+                    background: token.colorBgContainer, 
                     width: 80, 
                     height: 80, 
                     borderRadius: '50%', 
@@ -455,11 +455,11 @@ export default function BusinessRegistrationWizard({ onComplete }) {
                     justifyContent: 'center', 
                     margin: '0 auto 24px',
                     boxShadow: '0 8px 20px rgba(0,0,0,0.06)',
-                    border: '1px solid #f5f5f5'
+                    border: `1px solid ${token.colorBorder}`
                   }}>
-                    <UserOutlined style={{ fontSize: 36, color: '#1890ff' }} />
+                    <UserOutlined style={{ fontSize: 36, color: token.colorPrimary }} />
                   </div>
-                  <Title level={5} style={{ marginBottom: 12, color: '#001529', fontWeight: 600 }}>Personal Information</Title>
+                  <Title level={5} style={{ marginBottom: 12, color: token.colorTextHeading, fontWeight: 600 }}>Personal Information</Title>
                   <Typography.Text type="secondary" style={{ fontSize: 14, lineHeight: '1.5' }}>
                     Your full legal name, date of birth, and active mobile number.
                   </Typography.Text>

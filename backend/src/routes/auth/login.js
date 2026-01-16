@@ -335,15 +335,22 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       if (hasScheduledDeletion) {
         // Account deletion is scheduled - ALWAYS send OTP via email
         // This ensures users can log in to see deletion status and potentially undo it
-        await sendOtp({ 
+        const emailResult = await sendOtp({ 
           to: email, 
           code, 
           subject: 'Your Login Verification Code - Account Deletion Scheduled' 
         })
-        console.log(`[Login] Account deletion scheduled for ${email} - sending email OTP regardless of MFA settings`)
+        if (!emailResult || !emailResult.success) {
+          console.error(`[Login] Failed to send OTP email to ${email} (scheduled deletion):`, emailResult?.error || 'Unknown error')
+        } else {
+          console.log(`[Login] Account deletion scheduled for ${email} - sending email OTP regardless of MFA settings`)
+        }
       } else if (!doc.mfaEnabled && !isLguOfficer) {
         // No MFA enabled, send regular verification code via email
-        await sendOtp({ to: email, code, subject: 'Your Login Verification Code' })
+        const emailResult = await sendOtp({ to: email, code, subject: 'Your Login Verification Code' })
+        if (!emailResult || !emailResult.success) {
+          console.error(`[Login] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
+        }
       } else if (doc.mfaEnabled && isTotpMethod && !isLguOfficer) {
         // TOTP MFA is enabled - DO NOT send email OTP
         // User must use their authenticator app (Microsoft Authenticator, Google Authenticator, etc.)
@@ -433,13 +440,17 @@ router.post('/login/resend', loginStartLimiter, validateBody(resendCodeSchema), 
       const subject = hasScheduledDeletion 
         ? 'Your Login Verification Code (Resend) - Account Deletion Scheduled'
         : 'Your Login Verification Code (Resend)'
-      await sendOtp({ to: email, code, subject })
+      const emailResult = await sendOtp({ to: email, code, subject })
+      if (!emailResult || !emailResult.success) {
+        console.error(`[Login Resend] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
+        return respond.error(res, 500, 'email_failed', `Failed to send email: ${emailResult?.error || 'Please check your email configuration'}`)
+      }
       if (hasScheduledDeletion) {
         console.log(`[Login Resend] Account deletion scheduled for ${email} - sending email OTP`)
       }
     } catch (mailErr) {
       console.error('Failed to resend login email:', mailErr)
-      return respond.error(res, 500, 'email_failed', 'Failed to send email')
+      return respond.error(res, 500, 'email_failed', `Failed to send email: ${mailErr.message}`)
     }
 
     return res.json({ sent: true })

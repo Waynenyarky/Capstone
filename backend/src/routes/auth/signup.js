@@ -200,7 +200,12 @@ router.post('/signup/start', validateBody(signupPayloadSchema), checkExistingEma
       signupVerifyLimiter.resetKey(emailKey)
     }
 
-    await sendOtp({ to: email, code, subject: 'Verify your email' })
+    const emailResult = await sendOtp({ to: email, code, subject: 'Verify your email' })
+    if (!emailResult || !emailResult.success) {
+      console.error(`[Signup] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
+      return respond.error(res, 500, 'email_send_failed', `Failed to send verification email: ${emailResult?.error || 'Please check your email configuration'}`)
+    }
+    
     return res.json({ sent: true })
   } catch (err) {
     try {
@@ -252,7 +257,12 @@ router.post('/signup/resend', validateBody(Joi.object({ email: Joi.string().emai
       console.log(`Reset verification attempts for ${emailKey} (resend)`)
     }
 
-    await sendOtp({ to: email, code, subject: 'Verify your email' })
+    const emailResult = await sendOtp({ to: email, code, subject: 'Verify your email' })
+    if (!emailResult || !emailResult.success) {
+      console.error(`[Signup Resend] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
+      return respond.error(res, 500, 'email_send_failed', `Failed to send verification email: ${emailResult?.error || 'Please check your email configuration'}`)
+    }
+    
     return res.json({ sent: true })
   } catch (err) {
     console.error('POST /api/auth/signup/resend error:', err)

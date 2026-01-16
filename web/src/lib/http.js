@@ -47,8 +47,12 @@ export async function fetchWithFallback(path, options = {}) {
   }
 
   // Fallback when request fails, returns non-ok, or dev server blocks (e.g., 403)
-  const shouldFallback = (!res || !res.ok) || (res && res.status === 403)
-  if (shouldFallback && BACKEND_ORIGIN) {
+  // Don't retry on 500 errors for auth endpoints (signup/login) to avoid double-counting rate limits
+  const isAuthEndpoint = path.includes('/login') || path.includes('/signup') || path.includes('/sign-up') || path.includes('/forgot-password')
+  const shouldFallback = (!res || !res.ok) && !(isAuthEndpoint && res?.status === 500)
+  const shouldFallbackFor403 = (res && res.status === 403)
+  
+  if ((shouldFallback || shouldFallbackFor403) && BACKEND_ORIGIN) {
     try {
       res = await fetch(`${BACKEND_ORIGIN}${path}`, opts)
     } catch {

@@ -137,7 +137,11 @@ router.post('/forgot-password', sendCodeLimiter, validateBody(emailOnlySchema), 
       })
     }
 
-    await sendOtp({ to: email, code, subject: 'Reset your password' })
+    const emailResult = await sendOtp({ to: email, code, subject: 'Reset your password' })
+    if (!emailResult || !emailResult.success) {
+      console.error(`[Password Reset] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
+      return respond.error(res, 500, 'email_send_failed', `Failed to send reset code: ${emailResult?.error || 'Please check your email configuration'}`)
+    }
     
     // Log recovery initiation to blockchain
     const roleSlug = user.role?.slug || 'user'

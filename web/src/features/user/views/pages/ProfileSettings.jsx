@@ -296,7 +296,7 @@ export default function ProfileSettings() {
                   flexShrink: 0,
                   boxShadow: `0 2px 8px ${token.colorPrimary}15`
                 }}>
-                  <EditOutlined style={{ fontSize: 28, color: token.colorPrimary, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }} />
+                  <EditOutlined style={{ fontSize: 28, color: token.colorPrimary }} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <Title level={4} style={{ margin: 0, marginBottom: 8 }}>Personal Information</Title>

@@ -6,7 +6,8 @@ function createTransport() {
   const useSSL = String(process.env.EMAIL_USE_SSL || 'false').toLowerCase() === 'true'
   const useTLS = String(process.env.EMAIL_USE_TLS || 'false').toString().toLowerCase() === 'true'
   const user = process.env.EMAIL_HOST_USER || process.env.SMTP_USER
-  const pass = process.env.EMAIL_HOST_PASSWORD || process.env.SMTP_PASS
+  // Remove spaces from password (Gmail App Passwords should not have spaces)
+  const pass = (process.env.EMAIL_HOST_PASSWORD || process.env.SMTP_PASS || '').replace(/\s+/g, '')
   
   if (!host || !user || !pass) {
     if (process.env.NODE_ENV !== 'production') {
@@ -25,7 +26,13 @@ function createTransport() {
           if (codeMatch) {
             console.log('📧 [MOCK EMAIL] OTP Code:', codeMatch[1])
           }
-          return { messageId: 'mock-id', accepted: [opts.to], rejected: [] }
+          // Return proper format matching real SMTP response
+          return { 
+            messageId: 'mock-id', 
+            accepted: [opts.to], 
+            rejected: [],
+            response: '250 OK'
+          }
         }
       }
     }
@@ -48,11 +55,12 @@ function createTransport() {
   })
   
   console.log(`[SMTP] Transporter created: ${host}:${port} (secure: ${secure}, TLS: ${useTLS && !secure})`)
+  console.log(`[SMTP] User: ${user}`)
+  console.log(`[SMTP] Password length: ${pass ? pass.length : 0} characters (spaces removed)`)
   return transporter
 }
 
 async function sendOtp({ to, code, subject = 'Your verification code', from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER }) {
-  const transporter = createTransport()
   const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10)
   const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
   const supportEmail = process.env.SUPPORT_EMAIL || process.env.EMAIL_HOST_USER || 'support@bizclear.com'
@@ -141,12 +149,30 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
     </div>
   </div>
   `
-  try {
-    if (!transporter) {
-      throw new Error('SMTP transporter not created')
+  // Helper function to create mock transporter (defined outside try block for reuse)
+  const createMockTransporter = () => ({
+    sendMail: async (opts) => {
+      console.log('📧 [MOCK EMAIL] To:', opts.to)
+      console.log('Subject:', opts.subject)
+      const codeMatch = opts.html?.match(/(\d{6})/) || opts.text?.match(/(\d{6})/)
+      if (codeMatch) {
+        console.log('📧 [MOCK EMAIL] OTP Code:', codeMatch[1])
+      }
+      // Simulate successful send
+      await new Promise(resolve => setTimeout(resolve, 50))
+      return { 
+        messageId: 'mock-id-' + Date.now(), 
+        accepted: [opts.to], 
+        rejected: [],
+        response: '250 OK'
+      }
     }
-    
-    // Validate email address
+  })
+  
+  const isDevelopment = process.env.NODE_ENV !== 'production'
+  
+  try {
+    // Validate email address first
     if (!to || !to.includes('@')) {
       throw new Error(`Invalid email address: ${to}`)
     }
@@ -159,25 +185,103 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
       console.log(`[Email] Logo URL: ${logoUrl}`)
     }
     
-    console.log(`[Email] Attempting to send OTP to ${to}...`)
-    const result = await transporter.sendMail({ 
-      from: fromAddress, 
-      to, 
-      subject, 
-      text, 
-      html,
-      // Add headers to help with image display
-      headers: {
-        'X-Mailer': 'BizClear Business Center',
-        'List-Unsubscribe': `<${appUrl}/unsubscribe>`
+    console.log(`[Email] Attempting to send OTP to ${to}... (NODE_ENV: ${process.env.NODE_ENV || 'not set'}, Development: ${isDevelopment})`)
+    
+    // Try to create transporter - if it fails in development, use mock immediately
+    let transporter
+    let isMockTransporter = false
+    try {
+      transporter = createTransport()
+      if (!transporter) {
+        throw new Error('SMTP transporter not created')
       }
-    })
+      // Check if transporter is already a mock
+      isMockTransporter = transporter && typeof transporter.sendMail === 'function' && !transporter.transporter
+      if (isMockTransporter) {
+        console.log('📧 Using mock transporter (no SMTP config)')
+      }
+    } catch (transportErr) {
+      // If transporter creation fails in development, use mock
+      if (isDevelopment) {
+        console.warn('⚠️ Failed to create SMTP transporter. Using mock transporter in development.')
+        console.warn('Error:', transportErr.message)
+        transporter = createMockTransporter()
+        isMockTransporter = true
+      } else {
+        throw transportErr
+      }
+    }
+    
+    // Try to send email, but catch any SMTP errors in development and fall back to mock
+    let result
+    try {
+      result = await transporter.sendMail({ 
+        from: fromAddress, 
+        to, 
+        subject, 
+        text, 
+        html,
+        // Add headers to help with image display
+        headers: {
+          'X-Mailer': 'BizClear Business Center',
+          'List-Unsubscribe': `<${appUrl}/unsubscribe>`
+        }
+      })
+    } catch (smtpErr) {
+      // If already using mock transporter, this shouldn't happen, but re-throw to be safe
+      if (isMockTransporter) {
+        console.error('❌ Mock transporter failed (unexpected):', smtpErr.message)
+        throw smtpErr
+      }
+      
+      // In development, if ANY SMTP error occurs, fall back to mock transporter
+      if (isDevelopment) {
+        console.warn('⚠️ SMTP error occurred. Falling back to mock transporter in development.')
+        console.warn('Error:', smtpErr.message)
+        if (smtpErr.code) console.warn('Error Code:', smtpErr.code)
+        console.warn('To use real emails, fix your SMTP configuration in .env')
+        
+        // Use mock transporter - this should never fail
+        try {
+          const mockTransporter = createMockTransporter()
+          result = await mockTransporter.sendMail({ 
+            from: fromAddress, 
+            to, 
+            subject, 
+            text, 
+            html,
+            headers: {
+              'X-Mailer': 'BizClear Business Center',
+              'List-Unsubscribe': `<${appUrl}/unsubscribe>`
+            }
+          })
+          console.log('✅ [MOCK EMAIL] Successfully sent via mock transporter')
+        } catch (mockErr) {
+          // Even mock transporter failed (shouldn't happen, but be defensive)
+          console.error('❌ Mock transporter failed unexpectedly:', mockErr.message)
+          throw smtpErr // Re-throw original SMTP error
+        }
+      } else {
+        // In production, re-throw the error
+        throw smtpErr
+      }
+    }
     
     console.log(`[Email] ✅ OTP email sent successfully to ${to}`, { 
       messageId: result.messageId,
       accepted: result.accepted,
       rejected: result.rejected
     })
+    
+    // Check if email was actually rejected
+    if (result.rejected && result.rejected.length > 0) {
+      const error = new Error(`Email rejected for: ${result.rejected.join(', ')}`)
+      console.log(`[Email] ⚠️ Email was rejected by SMTP server`)
+      console.log(`[Email] Rejected recipients:`, result.rejected)
+      throw error
+    }
+    
+    return { success: true, messageId: result.messageId, accepted: result.accepted }
   } catch (err) {
     console.log('--------------------------------------------------')
     console.log('⚠️  SMTP FAILED ⚠️')
@@ -196,8 +300,9 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
     }
     console.log('Stack:', err.stack)
     console.log('--------------------------------------------------')
-    // Don't re-throw - allow login to continue even if email fails
-    // The code is still generated and can be used
+    
+    // Return failure result instead of silently swallowing
+    return { success: false, error: err.message }
   }
 }
 
