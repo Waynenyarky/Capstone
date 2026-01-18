@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { message } from 'antd'
+import { App } from 'antd'
 import { useAuthSession } from '@/features/authentication'
 import { 
   getBusinesses,
@@ -11,6 +11,7 @@ import {
 } from '../../../services/businessProfileService'
 
 export function useBusinessRegistrationDrawer(externalOpen = false, externalOnClose = null) {
+  const { message } = App.useApp()
   const { currentUser } = useAuthSession()
   const [open, setOpen] = useState(externalOpen)
   const [businesses, setBusinesses] = useState([])

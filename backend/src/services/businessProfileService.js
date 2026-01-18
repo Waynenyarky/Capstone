@@ -245,7 +245,50 @@ class BusinessProfileService {
         businessActivitiesDescription: businessData.riskProfile?.businessActivitiesDescription || '',
         riskLevel
       },
-      isSubmitted: true,
+      // Initialize new Business Registration Application fields
+      applicationStatus: 'draft',
+      applicationReferenceNumber: '',
+      requirementsChecklist: {
+        confirmed: false,
+        confirmedAt: null,
+        pdfDownloaded: false,
+        pdfDownloadedAt: null
+      },
+      lguDocuments: {
+        idPicture: '',
+        ctc: '',
+        barangayClearance: '',
+        dtiSecCda: '',
+        leaseOrLandTitle: '',
+        occupancyPermit: '',
+        healthCertificate: ''
+      },
+      birRegistration: {
+        registrationNumber: '',
+        certificateUrl: '',
+        registrationFee: 500,
+        documentaryStampTax: 0,
+        booksOfAccountsUrl: '',
+        authorityToPrintUrl: ''
+      },
+      otherAgencyRegistrations: {
+        hasEmployees: false,
+        sss: {
+          registered: false,
+          proofUrl: ''
+        },
+        philhealth: {
+          registered: false,
+          proofUrl: ''
+        },
+        pagibig: {
+          registered: false,
+          proofUrl: ''
+        }
+      },
+      submittedAt: null,
+      submittedToLguOfficer: false,
+      isSubmitted: false,
       createdAt: new Date(),
       updatedAt: new Date()
     }
@@ -625,6 +668,304 @@ class BusinessProfileService {
     }
 
     return profile
+  }
+
+  /**
+   * Get businesses array from profile
+   * @param {string} userId - User ID
+   * @returns {Promise<Array>} Array of businesses
+   */
+  async getBusinesses(userId) {
+    const profile = await BusinessProfile.findOne({ userId })
+    if (!profile) {
+      return []
+    }
+    return profile.businesses || []
+  }
+
+  /**
+   * Get single business by ID
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID
+   * @returns {Promise<object|null>} Business object or null
+   */
+  async getBusiness(userId, businessId) {
+    const profile = await BusinessProfile.findOne({ userId })
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+    const business = profile.businesses?.find(b => b.businessId === businessId)
+    return business || null
+  }
+
+  /**
+   * Confirm requirements checklist viewed
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID
+   * @returns {Promise<object>} Updated profile
+   */
+  async confirmRequirementsChecklist(userId, businessId) {
+    const profile = await BusinessProfile.findOne({ userId })
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+
+    const business = profile.businesses?.find(b => b.businessId === businessId)
+    if (!business) {
+      throw new Error('Business not found')
+    }
+
+    if (!business.requirementsChecklist.viewedAt) {
+      business.requirementsChecklist.viewedAt = new Date()
+    }
+    if (!business.requirementsChecklist.confirmed) {
+      business.requirementsChecklist.confirmed = true
+      business.requirementsChecklist.confirmedAt = new Date()
+    }
+    if (business.applicationStatus === 'draft') {
+      business.applicationStatus = 'requirements_viewed'
+    }
+    business.updatedAt = new Date()
+    
+    profile.markModified('businesses')
+    await profile.save()
+
+    return profile
+  }
+
+  /**
+   * Mark requirements PDF as downloaded
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID
+   * @returns {Promise<object>} Updated profile
+   */
+  async markRequirementsPdfDownloaded(userId, businessId) {
+    const profile = await BusinessProfile.findOne({ userId })
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+
+    const business = profile.businesses?.find(b => b.businessId === businessId)
+    if (!business) {
+      throw new Error('Business not found')
+    }
+
+    business.requirementsChecklist.pdfDownloaded = true
+    business.requirementsChecklist.pdfDownloadedAt = new Date()
+    business.updatedAt = new Date()
+    
+    profile.markModified('businesses')
+    await profile.save()
+
+    return profile
+  }
+
+  /**
+   * Update LGU documents
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID
+   * @param {object} documents - Document URLs
+   * @returns {Promise<object>} Updated profile
+   */
+  async updateLGUDocuments(userId, businessId, documents) {
+    const profile = await BusinessProfile.findOne({ userId })
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+
+    const business = profile.businesses?.find(b => b.businessId === businessId)
+    if (!business) {
+      throw new Error('Business not found')
+    }
+
+    business.lguDocuments = {
+      ...business.lguDocuments,
+      ...documents
+    }
+    const lguProgressStatuses = ['draft', 'requirements_viewed', 'form_completed', 'documents_uploaded']
+    if (lguProgressStatuses.includes(business.applicationStatus)) {
+      business.applicationStatus = 'documents_uploaded'
+    }
+    business.updatedAt = new Date()
+    
+    profile.markModified('businesses')
+    await profile.save()
+
+    return profile
+  }
+
+  /**
+   * Update BIR registration information
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID
+   * @param {object} birData - BIR registration data
+   * @returns {Promise<object>} Updated profile
+   */
+  async updateBIRRegistration(userId, businessId, birData) {
+    const profile = await BusinessProfile.findOne({ userId })
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+
+    const business = profile.businesses?.find(b => b.businessId === businessId)
+    if (!business) {
+      throw new Error('Business not found')
+    }
+
+    business.birRegistration = {
+      ...business.birRegistration,
+      ...birData
+    }
+    const hasBirData = Boolean(
+      birData?.registrationNumber ||
+      birData?.certificateUrl ||
+      birData?.booksOfAccountsUrl ||
+      birData?.authorityToPrintUrl
+    )
+    const birProgressStatuses = ['draft', 'requirements_viewed', 'form_completed', 'documents_uploaded', 'bir_registered']
+    if (hasBirData && birProgressStatuses.includes(business.applicationStatus)) {
+      business.applicationStatus = 'bir_registered'
+    }
+    business.updatedAt = new Date()
+    
+    profile.markModified('businesses')
+    await profile.save()
+
+    return profile
+  }
+
+  /**
+   * Update other agency registrations
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID
+   * @param {object} agencyData - Agency registration data
+   * @returns {Promise<object>} Updated profile
+   */
+  async updateOtherAgencyRegistrations(userId, businessId, agencyData) {
+    const profile = await BusinessProfile.findOne({ userId })
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+
+    const business = profile.businesses?.find(b => b.businessId === businessId)
+    if (!business) {
+      throw new Error('Business not found')
+    }
+
+    business.otherAgencyRegistrations = {
+      ...business.otherAgencyRegistrations,
+      ...agencyData
+    }
+    if (business.applicationStatus === 'bir_registered' && agencyData.hasEmployees) {
+      business.applicationStatus = 'agencies_registered'
+    } else if (business.applicationStatus === 'bir_registered' && !agencyData.hasEmployees) {
+      // If no employees, skip to ready for submission
+      business.applicationStatus = 'agencies_registered'
+    }
+    business.updatedAt = new Date()
+    
+    profile.markModified('businesses')
+    await profile.save()
+
+    return profile
+  }
+
+  /**
+   * Submit business application to LGU
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID
+   * @returns {Promise<object>} Updated profile with reference number
+   */
+  async submitBusinessApplication(userId, businessId) {
+    const profile = await BusinessProfile.findOne({ userId })
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+
+    const business = profile.businesses?.find(b => b.businessId === businessId)
+    if (!business) {
+      throw new Error('Business not found')
+    }
+
+    // Validate that all required steps are completed
+    if (business.applicationStatus !== 'agencies_registered' && 
+        business.applicationStatus !== 'bir_registered') {
+      throw new Error('Cannot submit: application is not complete. Please complete all required steps.')
+    }
+
+    // Generate reference number: BR-YYYYMMDD-XXXX
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    const randomSeq = Math.floor(1000 + Math.random() * 9000) // 4-digit random number
+    const referenceNumber = `BR-${dateStr}-${randomSeq}`
+
+    business.applicationReferenceNumber = referenceNumber
+    business.applicationStatus = 'submitted'
+    business.submittedAt = new Date()
+    business.submittedToLguOfficer = true
+    business.isSubmitted = true
+    business.updatedAt = new Date()
+    
+    profile.markModified('businesses')
+    await profile.save()
+
+    // Audit log
+    try {
+      const user = await User.findById(userId).populate('role').lean()
+      const roleSlug = (user && user.role && user.role.slug) ? user.role.slug : 'business_owner'
+      
+      await AuditLog.create({
+        userId,
+        eventType: 'business_application_submitted',
+        fieldChanged: 'applicationStatus',
+        oldValue: business.applicationStatus,
+        newValue: 'submitted',
+        role: roleSlug,
+        metadata: {
+          businessId,
+          businessName: business.businessName,
+          referenceNumber
+        }
+      })
+    } catch (error) {
+      console.error('Error creating audit log for application submission:', error)
+    }
+
+    return profile
+  }
+
+  /**
+   * Get business application status
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID
+   * @returns {Promise<object>} Application status information
+   */
+  async getBusinessApplicationStatus(userId, businessId) {
+    const profile = await BusinessProfile.findOne({ userId })
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+
+    const business = profile.businesses?.find(b => b.businessId === businessId)
+    if (!business) {
+      throw new Error('Business not found')
+    }
+
+    return {
+      businessId: business.businessId,
+      businessName: business.businessName,
+      applicationStatus: business.applicationStatus,
+      applicationReferenceNumber: business.applicationReferenceNumber,
+      submittedAt: business.submittedAt,
+      submittedToLguOfficer: business.submittedToLguOfficer,
+      requirementsConfirmed: business.requirementsChecklist?.confirmed || false,
+      documentsUploaded: !!business.lguDocuments,
+      birRegistered: !!business.birRegistration?.certificateUrl,
+      agenciesRegistered: business.otherAgencyRegistrations?.hasEmployees 
+        ? (business.otherAgencyRegistrations.sss?.registered || 
+           business.otherAgencyRegistrations.philhealth?.registered ||
+           business.otherAgencyRegistrations.pagibig?.registered)
+        : true // If no employees, considered registered
+    }
   }
 }
 

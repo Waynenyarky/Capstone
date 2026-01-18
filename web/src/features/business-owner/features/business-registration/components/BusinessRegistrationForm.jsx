@@ -164,11 +164,17 @@ const BusinessRegistrationForm = ({ form, initialValues, onValuesChange }) => {
 
   // Auto-format registration number based on agency
   const handleRegistrationNumberChange = (e) => {
-    const value = e.target.value
+    const value = e.target?.value || e
     const formattedValue = formatRegistrationNumber(value, registrationAgency)
     
-    // Update the field value
-    form.setFieldValue('businessRegistrationNumber', formattedValue)
+    // Only update if value actually changed to avoid circular references
+    const currentValue = form.getFieldValue('businessRegistrationNumber')
+    if (formattedValue !== currentValue) {
+      // Use requestAnimationFrame to avoid circular reference warnings
+      requestAnimationFrame(() => {
+        form.setFieldValue('businessRegistrationNumber', formattedValue)
+      })
+    }
     
     // Real-time validation
     if (formattedValue && registrationAgency) {
@@ -182,6 +188,44 @@ const BusinessRegistrationForm = ({ form, initialValues, onValuesChange }) => {
       setRegNumberValidationStatus('')
     }
   }
+
+  // Set form values from initialValues when they change (e.g., on page refresh)
+  useEffect(() => {
+    if (initialValues && Object.keys(initialValues).length > 0) {
+      // Convert date strings to dayjs objects if needed
+      const values = { ...initialValues }
+      if (values.businessStartDate) {
+        if (typeof values.businessStartDate === 'string') {
+          values.businessStartDate = dayjs(values.businessStartDate)
+        } else if (values.businessStartDate instanceof Date) {
+          values.businessStartDate = dayjs(values.businessStartDate)
+        }
+      }
+      if (values.incorporationDate) {
+        if (typeof values.incorporationDate === 'string') {
+          values.incorporationDate = dayjs(values.incorporationDate)
+        } else if (values.incorporationDate instanceof Date) {
+          values.incorporationDate = dayjs(values.incorporationDate)
+        }
+      }
+      
+      // Get current form values to avoid overwriting user input
+      const currentValues = form.getFieldsValue()
+      // Merge: initialValues (from storage/backend) as base, but keep current user input if form is active
+      const mergedValues = { ...values, ...currentValues }
+      
+      // Only set if values actually changed to avoid unnecessary updates
+      const hasChanged = Object.keys(values).some(key => {
+        const currentVal = currentValues[key]
+        const newVal = values[key]
+        return JSON.stringify(currentVal) !== JSON.stringify(newVal)
+      })
+      
+      if (hasChanged) {
+        form.setFieldsValue(values)
+      }
+    }
+  }, [initialValues, form])
 
   // Reset validation status when agency changes
   useEffect(() => {

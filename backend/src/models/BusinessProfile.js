@@ -78,6 +78,54 @@ const BusinessProfileSchema = new mongoose.Schema(
           default: 'low'
         }
       },
+      // New Business Registration Application Fields
+      applicationStatus: {
+        type: String,
+        enum: ['draft', 'requirements_viewed', 'form_completed', 'documents_uploaded', 'bir_registered', 'agencies_registered', 'submitted', 'under_review', 'approved', 'rejected', 'needs_revision'],
+        default: 'draft'
+      },
+      applicationReferenceNumber: { type: String, default: '' },
+      requirementsChecklist: {
+        confirmed: { type: Boolean, default: false },
+        confirmedAt: { type: Date },
+        pdfDownloaded: { type: Boolean, default: false },
+        pdfDownloadedAt: { type: Date }
+      },
+      lguDocuments: {
+        idPicture: { type: String, default: '' }, // 2x2 ID Picture
+        ctc: { type: String, default: '' }, // Community Tax Certificate
+        barangayClearance: { type: String, default: '' }, // Barangay Business Clearance
+        dtiSecCda: { type: String, default: '' }, // DTI/SEC/CDA Registration
+        leaseOrLandTitle: { type: String, default: '' }, // Lease Contract or Land Title (if applicable)
+        occupancyPermit: { type: String, default: '' }, // Certificate of Occupancy
+        healthCertificate: { type: String, default: '' } // Health Certificate (for food-related businesses)
+      },
+      birRegistration: {
+        registrationNumber: { type: String, default: '' }, // Form 2303
+        certificateUrl: { type: String, default: '' }, // BIR Certificate of Registration (Form 2303)
+        registrationFee: { type: Number, default: 500 }, // ₱500
+        documentaryStampTax: { type: Number, default: 0 }, // Varies based on business capital
+        businessCapital: { type: Number, default: 0 }, // Used for DST calculation
+        booksOfAccountsUrl: { type: String, default: '' }, // Books of Accounts Registration
+        authorityToPrintUrl: { type: String, default: '' } // Authority to Print Official Receipts and Invoices
+      },
+      otherAgencyRegistrations: {
+        hasEmployees: { type: Boolean, default: false },
+        sss: {
+          registered: { type: Boolean, default: false },
+          proofUrl: { type: String, default: '' }
+        },
+        philhealth: {
+          registered: { type: Boolean, default: false },
+          proofUrl: { type: String, default: '' }
+        },
+        pagibig: {
+          registered: { type: Boolean, default: false },
+          proofUrl: { type: String, default: '' }
+        }
+      },
+      submittedAt: { type: Date },
+      submittedToLguOfficer: { type: Boolean, default: false },
       isSubmitted: { type: Boolean, default: false },
       createdAt: { type: Date, default: Date.now },
       updatedAt: { type: Date, default: Date.now }
