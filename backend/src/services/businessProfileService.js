@@ -302,7 +302,8 @@ class BusinessProfileService {
         documentaryStampTax: 0,
         businessCapital: 0,
         booksOfAccountsUrl: '',
-        authorityToPrintUrl: ''
+        authorityToPrintUrl: '',
+        paymentReceiptUrl: ''
       },
       otherAgencyRegistrations: {
         hasEmployees: false,
@@ -853,6 +854,7 @@ class BusinessProfileService {
       ...birData
     }
     const hasBirData = Boolean(
+      birData?.paymentReceiptUrl ||
       birData?.registrationNumber ||
       birData?.certificateUrl ||
       birData?.booksOfAccountsUrl ||

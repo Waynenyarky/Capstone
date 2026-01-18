@@ -129,13 +129,14 @@ const BusinessProfileSchema = new mongoose.Schema(
         healthCertificate: { type: String, default: '' } // Health Certificate (for food-related businesses)
       },
       birRegistration: {
-        registrationNumber: { type: String, default: '' }, // Form 2303
-        certificateUrl: { type: String, default: '' }, // BIR Certificate of Registration (Form 2303)
-        registrationFee: { type: Number, default: 500 }, // ₱500
-        documentaryStampTax: { type: Number, default: 0 }, // Varies based on business capital
-        businessCapital: { type: Number, default: 0 }, // Used for DST calculation
-        booksOfAccountsUrl: { type: String, default: '' }, // Books of Accounts Registration
-        authorityToPrintUrl: { type: String, default: '' } // Authority to Print Official Receipts and Invoices
+        registrationNumber: { type: String, default: '' }, // Deprecated
+        certificateUrl: { type: String, default: '' }, // Deprecated
+        registrationFee: { type: Number, default: 500 }, // Deprecated
+        documentaryStampTax: { type: Number, default: 0 }, // Deprecated
+        businessCapital: { type: Number, default: 0 }, // Deprecated
+        booksOfAccountsUrl: { type: String, default: '' }, // Deprecated
+        authorityToPrintUrl: { type: String, default: '' }, // Deprecated
+        paymentReceiptUrl: { type: String, default: '' } // Payment form/receipt upload
       },
       otherAgencyRegistrations: {
         hasEmployees: { type: Boolean, default: false },

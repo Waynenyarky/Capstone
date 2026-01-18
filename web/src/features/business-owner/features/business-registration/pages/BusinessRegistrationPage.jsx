@@ -126,6 +126,17 @@ const BusinessRegistrationPage = () => {
   }
 
   const handleBusinessChange = (businessId) => {
+    if (businessId === 'new') {
+      try {
+        sessionStorage.removeItem('business_registration_wizard_step_new')
+        sessionStorage.removeItem('business_registration_data_new')
+        sessionStorage.removeItem('business_registration_lgu_documents_new')
+        sessionStorage.removeItem('business_registration_bir_new')
+        sessionStorage.removeItem('business_registration_agencies_new')
+      } catch (e) {
+        // Ignore storage errors
+      }
+    }
     handleBusinessSelect(businessId)
     updateBusinessIdParam(businessId)
   }
