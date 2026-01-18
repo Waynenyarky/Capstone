@@ -6,6 +6,7 @@ import LGUDocumentsUploadStep from './LGUDocumentsUploadStep'
 import BIRRegistrationStep from './BIRRegistrationStep'
 import OtherAgenciesStep from './OtherAgenciesStep'
 import BusinessRegistrationForm from './BusinessRegistrationForm'
+import dayjs from 'dayjs'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -165,16 +166,95 @@ export default function ApplicationReviewStep({
           {/* Business Information Summary */}
           <Card title="Business Information" size="small">
             <Descriptions column={2} bordered>
-              <Descriptions.Item label="Business Name">{businessData?.businessName}</Descriptions.Item>
-              <Descriptions.Item label="Business Type">{businessData?.businessType}</Descriptions.Item>
-              <Descriptions.Item label="Registration Agency">{businessData?.registrationAgency}</Descriptions.Item>
-              <Descriptions.Item label="Registration Number">{businessData?.businessRegistrationNumber}</Descriptions.Item>
-              <Descriptions.Item label="Address" span={2}>
-                {businessData?.location?.street}, {businessData?.location?.barangay}, {businessData?.location?.city}, {businessData?.location?.province}
+              <Descriptions.Item label="Registered Business Name">
+                {businessData?.registeredBusinessName || '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="Contact Number">{businessData?.contactNumber}</Descriptions.Item>
-              <Descriptions.Item label="Business Start Date">
-                {businessData?.businessStartDate ? new Date(businessData.businessStartDate).toLocaleDateString() : '-'}
+              <Descriptions.Item label="Business Trade Name">
+                {businessData?.businessTradeName || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Business Registration Type">
+                {businessData?.businessRegistrationType || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Registration Number">
+                {businessData?.businessRegistrationNumber || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Date of Business Registration">
+                {businessData?.businessRegistrationDate ? new Date(businessData.businessRegistrationDate).toLocaleDateString() : '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Business Location Type">
+                {businessData?.businessLocationType || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Complete Business Address" span={2}>
+                {businessData?.businessAddress || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Unit / Building Name">
+                {businessData?.unitBuildingName || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Street">
+                {businessData?.street || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Barangay">
+                {businessData?.barangay || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="City / Municipality">
+                {businessData?.cityMunicipality || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Primary Line of Business">
+                {businessData?.primaryLineOfBusiness || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Business Classification">
+                {businessData?.businessClassification || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Industry Category">
+                {businessData?.industryCategory || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Declared Capital Investment">
+                {formatCurrency(businessData?.declaredCapitalInvestment || 0)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Number of Business Units / Branches">
+                {businessData?.numberOfBusinessUnits ?? '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Owner / Authorized Representative">
+                {businessData?.ownerFullName || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Position / Capacity">
+                {businessData?.ownerPosition || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Nationality">
+                {businessData?.ownerNationality || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Residential Address">
+                {businessData?.ownerResidentialAddress || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="TIN">
+                {businessData?.ownerTin || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Government ID Type">
+                {businessData?.governmentIdType || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Government ID Number">
+                {businessData?.governmentIdNumber || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Email Address">
+                {businessData?.emailAddress || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Mobile Number">
+                {businessData?.mobileNumber || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Number of Employees">
+                {businessData?.numberOfEmployees ?? '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="With Food Handlers">
+                {businessData?.withFoodHandlers || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Certification Accepted">
+                {businessData?.certificationAccepted ? 'Yes' : 'No'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Name of Declarant">
+                {businessData?.declarantName || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Date of Submission">
+                {businessData?.declarationDate ? new Date(businessData.declarationDate).toLocaleDateString() : '-'}
               </Descriptions.Item>
             </Descriptions>
             {(onBusinessSave || onEdit) && (
@@ -184,7 +264,14 @@ export default function ApplicationReviewStep({
                   icon={<EyeOutlined />}
                   onClick={() => {
                     if (onBusinessSave) {
-                      businessForm.setFieldsValue(businessData || {})
+                      const values = { ...(businessData || {}) }
+                      if (values.businessRegistrationDate) {
+                        values.businessRegistrationDate = dayjs(values.businessRegistrationDate)
+                      }
+                      if (values.declarationDate) {
+                        values.declarationDate = dayjs(values.declarationDate)
+                      }
+                      businessForm.setFieldsValue(values)
                       setEditBusinessModalOpen(true)
                     } else if (onEdit) {
                       onEdit(2)
@@ -383,7 +470,7 @@ export default function ApplicationReviewStep({
         width={900}
         destroyOnClose
       >
-        <Form form={businessForm} layout="vertical" initialValues={businessData || {}}>
+        <Form form={businessForm} layout="vertical">
           <BusinessRegistrationForm form={businessForm} initialValues={businessData || {}} onValuesChange={() => {}} />
         </Form>
       </Modal>

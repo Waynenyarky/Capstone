@@ -5,14 +5,21 @@ import dayjs from 'dayjs'
 const { Option } = Select
 
 const BusinessRegistrationForm = ({ form, initialValues }) => {
+  const normalizeDate = (value) => {
+    if (!value) return null
+    if (dayjs.isDayjs(value)) return value
+    const parsed = dayjs(value)
+    return parsed.isValid() ? parsed : null
+  }
+
   useEffect(() => {
     if (initialValues && Object.keys(initialValues).length > 0) {
       const values = { ...initialValues }
       if (values.businessRegistrationDate) {
-        values.businessRegistrationDate = dayjs(values.businessRegistrationDate)
+        values.businessRegistrationDate = normalizeDate(values.businessRegistrationDate)
       }
       if (values.declarationDate) {
-        values.declarationDate = dayjs(values.declarationDate)
+        values.declarationDate = normalizeDate(values.declarationDate)
       }
       form.setFieldsValue(values)
     }
@@ -58,6 +65,8 @@ const BusinessRegistrationForm = ({ form, initialValues }) => {
           name="businessRegistrationDate"
           label="Date of Business Registration"
           rules={[{ required: true, message: 'Business registration date is required' }]}
+          getValueProps={(value) => ({ value: normalizeDate(value) })}
+          getValueFromEvent={(date) => date}
         >
           <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
         </Form.Item>
@@ -310,8 +319,10 @@ const BusinessRegistrationForm = ({ form, initialValues }) => {
               name="declarationDate"
               label="Date of Submission"
               rules={[{ required: true, message: 'Date of submission is required' }]}
+          getValueProps={(value) => ({ value: normalizeDate(value) })}
+          getValueFromEvent={(date) => date}
             >
-              <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+          <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
             </Form.Item>
           </Col>
         </Row>

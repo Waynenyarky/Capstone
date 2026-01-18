@@ -466,8 +466,9 @@ export default function BusinessRegistrationWizard({
       
       if (isNewBusiness) {
         result = await addBusiness(data)
+        const registeredName = data.registeredBusinessName || data.businessName
         const newBusiness = result.businesses?.find(b => 
-          b.businessName === data.businessName &&
+          (b.businessName === registeredName || b.registeredBusinessName === registeredName) &&
           b.businessRegistrationNumber === data.businessRegistrationNumber
         )
         if (newBusiness) {
@@ -857,7 +858,6 @@ export default function BusinessRegistrationWizard({
           <Form
             form={form}
             layout="vertical"
-            initialValues={applicationData.businessData || formData}
             onValuesChange={(changedValues, allValues) => {
               // Auto-save form values to applicationData as user types
               setApplicationData(prev => ({

@@ -40,34 +40,32 @@ const BusinessProfileSchema = new mongoose.Schema(
         default: 'not_yet_registered' 
       },
       location: {
-        street: { type: String, required: true },
-        barangay: { type: String, required: true },
-        city: { type: String, required: true },
-        municipality: { type: String, required: true },
-        province: { type: String, required: true },
-        zipCode: { type: String, required: true },
+        street: { type: String, default: '' },
+        barangay: { type: String, default: '' },
+        city: { type: String, default: '' },
+        municipality: { type: String, default: '' },
+        province: { type: String, default: '' },
+        zipCode: { type: String, default: '' },
         geolocation: {
-          lat: { type: Number, required: true },
-          lng: { type: Number, required: true }
+          lat: { type: Number },
+          lng: { type: Number }
         },
         mailingAddress: { type: String, default: '' }
       },
       businessType: {
         type: String,
-        enum: ['retail_trade', 'food_beverages', 'services', 'manufacturing_industrial', 'agriculture_fishery_forestry', 'construction_real_estate_housing', 'transportation_automotive_logistics', 'financial_insurance_banking'],
-        required: true
+        enum: ['retail_trade', 'food_beverages', 'services', 'manufacturing_industrial', 'agriculture_fishery_forestry', 'construction_real_estate_housing', 'transportation_automotive_logistics', 'financial_insurance_banking']
       },
       registrationAgency: {
         type: String,
-        enum: ['DTI', 'SEC', 'LGU', 'CDA', 'BIR', 'Barangay_Office', 'FDA', 'BFAD', 'DA', 'DENR', 'PRC', 'MARITIME_INDUSTRY_AUTHORITY'],
-        required: true
+        enum: ['DTI', 'SEC', 'LGU', 'CDA', 'BIR', 'Barangay_Office', 'FDA', 'BFAD', 'DA', 'DENR', 'PRC', 'MARITIME_INDUSTRY_AUTHORITY']
       },
       businessRegistrationNumber: { type: String, required: true },
-      businessStartDate: { type: Date, required: true },
+      businessStartDate: { type: Date },
       numberOfBranches: { type: Number, default: 0 },
       industryClassification: { type: String, default: '' },
       taxIdentificationNumber: { type: String, default: '' },
-      contactNumber: { type: String, required: true },
+      contactNumber: { type: String, default: '' },
       riskProfile: {
         businessSize: { type: Number, default: null },
         annualRevenue: { type: Number, default: null },
