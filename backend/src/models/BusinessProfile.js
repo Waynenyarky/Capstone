@@ -85,6 +85,36 @@ const BusinessProfileSchema = new mongoose.Schema(
         default: 'draft'
       },
       applicationReferenceNumber: { type: String, default: '' },
+      // Step 2: Online Application Form (new spec)
+      registeredBusinessName: { type: String, default: '' },
+      businessTradeName: { type: String, default: '' },
+      businessRegistrationType: { type: String, default: '' }, // sole_proprietorship, partnership, corporation, cooperative
+      businessRegistrationDate: { type: Date },
+      businessAddress: { type: String, default: '' },
+      unitBuildingName: { type: String, default: '' },
+      street: { type: String, default: '' },
+      barangay: { type: String, default: '' },
+      cityMunicipality: { type: String, default: '' },
+      businessLocationType: { type: String, default: '' }, // owned, leased
+      primaryLineOfBusiness: { type: String, default: '' },
+      businessClassification: { type: String, default: '' }, // manufacturing, trading_wholesale, retail, service
+      industryCategory: { type: String, default: '' },
+      declaredCapitalInvestment: { type: Number, default: 0 },
+      numberOfBusinessUnits: { type: Number, default: 0 },
+      ownerFullName: { type: String, default: '' },
+      ownerPosition: { type: String, default: '' },
+      ownerNationality: { type: String, default: '' },
+      ownerResidentialAddress: { type: String, default: '' },
+      ownerTin: { type: String, default: '' },
+      governmentIdType: { type: String, default: '' },
+      governmentIdNumber: { type: String, default: '' },
+      emailAddress: { type: String, default: '' },
+      mobileNumber: { type: String, default: '' },
+      numberOfEmployees: { type: Number, default: 0 },
+      withFoodHandlers: { type: String, default: '' }, // yes, no
+      certificationAccepted: { type: Boolean, default: false },
+      declarantName: { type: String, default: '' },
+      declarationDate: { type: Date },
       requirementsChecklist: {
         confirmed: { type: Boolean, default: false },
         confirmedAt: { type: Date },

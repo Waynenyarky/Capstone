@@ -181,30 +181,33 @@ class BusinessProfileService {
     }
 
     // Validate business registration number format
-    const regValidation = validateBusinessRegistrationNumber(
-      businessData.registrationAgency,
-      businessData.businessRegistrationNumber
-    )
-    if (!regValidation.valid) {
-      throw new Error(regValidation.error)
-    }
+    const legacyFieldsPresent = businessData.registrationAgency || businessData.location || businessData.businessName
+    if (legacyFieldsPresent) {
+      const regValidation = validateBusinessRegistrationNumber(
+        businessData.registrationAgency,
+        businessData.businessRegistrationNumber
+      )
+      if (!regValidation.valid) {
+        throw new Error(regValidation.error)
+      }
 
-    // Validate geolocation
-    const geoValidation = validateGeolocation(
-      businessData.location?.geolocation?.lat,
-      businessData.location?.geolocation?.lng
-    )
-    if (!geoValidation.valid) {
-      throw new Error(geoValidation.error)
-    }
+      // Validate geolocation
+      const geoValidation = validateGeolocation(
+        businessData.location?.geolocation?.lat,
+        businessData.location?.geolocation?.lng
+      )
+      if (!geoValidation.valid) {
+        throw new Error(geoValidation.error)
+      }
 
-    // Check for duplicate registration number (same agency)
-    const existingBusiness = profile.businesses?.find(
-      b => b.businessRegistrationNumber === businessData.businessRegistrationNumber &&
-           b.registrationAgency === businessData.registrationAgency
-    )
-    if (existingBusiness) {
-      throw new Error('Business registration number already exists for this agency')
+      // Check for duplicate registration number (same agency)
+      const existingBusiness = profile.businesses?.find(
+        b => b.businessRegistrationNumber === businessData.businessRegistrationNumber &&
+             b.registrationAgency === businessData.registrationAgency
+      )
+      if (existingBusiness) {
+        throw new Error('Business registration number already exists for this agency')
+      }
     }
 
     // Generate unique business ID using mongoose ObjectId
@@ -228,17 +231,17 @@ class BusinessProfileService {
     const newBusiness = {
       businessId,
       isPrimary,
-      businessName: businessData.businessName,
+      businessName: businessData.businessName || businessData.registeredBusinessName,
       registrationStatus: businessData.registrationStatus || 'not_yet_registered',
-      location: businessData.location,
-      businessType: businessData.businessType,
-      registrationAgency: businessData.registrationAgency,
+      location: businessData.location || {},
+      businessType: businessData.businessType || '',
+      registrationAgency: businessData.registrationAgency || '',
       businessRegistrationNumber: businessData.businessRegistrationNumber,
-      businessStartDate: new Date(businessData.businessStartDate),
+      businessStartDate: businessData.businessStartDate ? new Date(businessData.businessStartDate) : null,
       numberOfBranches: businessData.numberOfBranches || 0,
       industryClassification: businessData.industryClassification || '',
       taxIdentificationNumber: businessData.taxIdentificationNumber || '',
-      contactNumber: businessData.contactNumber,
+      contactNumber: businessData.contactNumber || businessData.mobileNumber || '',
       riskProfile: {
         businessSize: businessData.riskProfile?.businessSize || null,
         annualRevenue: businessData.riskProfile?.annualRevenue || null,
@@ -254,6 +257,35 @@ class BusinessProfileService {
         pdfDownloaded: false,
         pdfDownloadedAt: null
       },
+      registeredBusinessName: businessData.registeredBusinessName || '',
+      businessTradeName: businessData.businessTradeName || '',
+      businessRegistrationType: businessData.businessRegistrationType || '',
+      businessRegistrationDate: businessData.businessRegistrationDate ? new Date(businessData.businessRegistrationDate) : null,
+      businessAddress: businessData.businessAddress || '',
+      unitBuildingName: businessData.unitBuildingName || '',
+      street: businessData.street || '',
+      barangay: businessData.barangay || '',
+      cityMunicipality: businessData.cityMunicipality || '',
+      businessLocationType: businessData.businessLocationType || '',
+      primaryLineOfBusiness: businessData.primaryLineOfBusiness || '',
+      businessClassification: businessData.businessClassification || '',
+      industryCategory: businessData.industryCategory || '',
+      declaredCapitalInvestment: businessData.declaredCapitalInvestment || 0,
+      numberOfBusinessUnits: businessData.numberOfBusinessUnits || 0,
+      ownerFullName: businessData.ownerFullName || '',
+      ownerPosition: businessData.ownerPosition || '',
+      ownerNationality: businessData.ownerNationality || '',
+      ownerResidentialAddress: businessData.ownerResidentialAddress || '',
+      ownerTin: businessData.ownerTin || '',
+      governmentIdType: businessData.governmentIdType || '',
+      governmentIdNumber: businessData.governmentIdNumber || '',
+      emailAddress: businessData.emailAddress || '',
+      mobileNumber: businessData.mobileNumber || '',
+      numberOfEmployees: businessData.numberOfEmployees || 0,
+      withFoodHandlers: businessData.withFoodHandlers || '',
+      certificationAccepted: businessData.certificationAccepted || false,
+      declarantName: businessData.declarantName || '',
+      declarationDate: businessData.declarationDate ? new Date(businessData.declarationDate) : null,
       lguDocuments: {
         idPicture: '',
         ctc: '',
@@ -268,6 +300,7 @@ class BusinessProfileService {
         certificateUrl: '',
         registrationFee: 500,
         documentaryStampTax: 0,
+        businessCapital: 0,
         booksOfAccountsUrl: '',
         authorityToPrintUrl: ''
       },
@@ -348,36 +381,39 @@ class BusinessProfileService {
 
     const existingBusiness = profile.businesses[businessIndex]
 
-    // Validate registration number if changed
-    if (businessData.businessRegistrationNumber && 
-        businessData.businessRegistrationNumber !== existingBusiness.businessRegistrationNumber) {
-      const regValidation = validateBusinessRegistrationNumber(
-        businessData.registrationAgency || existingBusiness.registrationAgency,
-        businessData.businessRegistrationNumber
-      )
-      if (!regValidation.valid) {
-        throw new Error(regValidation.error)
+    const legacyFieldsPresent = businessData.registrationAgency || businessData.location || businessData.businessName
+    if (legacyFieldsPresent) {
+      // Validate registration number if changed
+      if (businessData.businessRegistrationNumber && 
+          businessData.businessRegistrationNumber !== existingBusiness.businessRegistrationNumber) {
+        const regValidation = validateBusinessRegistrationNumber(
+          businessData.registrationAgency || existingBusiness.registrationAgency,
+          businessData.businessRegistrationNumber
+        )
+        if (!regValidation.valid) {
+          throw new Error(regValidation.error)
+        }
+
+        // Check for duplicate (excluding current business)
+        const duplicate = profile.businesses.find(
+          (b, idx) => b.businessId !== businessId &&
+                      b.businessRegistrationNumber === businessData.businessRegistrationNumber &&
+                      b.registrationAgency === (businessData.registrationAgency || existingBusiness.registrationAgency)
+        )
+        if (duplicate) {
+          throw new Error('Business registration number already exists for this agency')
+        }
       }
 
-      // Check for duplicate (excluding current business)
-      const duplicate = profile.businesses.find(
-        (b, idx) => b.businessId !== businessId &&
-                    b.businessRegistrationNumber === businessData.businessRegistrationNumber &&
-                    b.registrationAgency === (businessData.registrationAgency || existingBusiness.registrationAgency)
-      )
-      if (duplicate) {
-        throw new Error('Business registration number already exists for this agency')
-      }
-    }
-
-    // Validate geolocation if changed
-    if (businessData.location?.geolocation) {
-      const geoValidation = validateGeolocation(
-        businessData.location.geolocation.lat,
-        businessData.location.geolocation.lng
-      )
-      if (!geoValidation.valid) {
-        throw new Error(geoValidation.error)
+      // Validate geolocation if changed
+      if (businessData.location?.geolocation) {
+        const geoValidation = validateGeolocation(
+          businessData.location.geolocation.lat,
+          businessData.location.geolocation.lng
+        )
+        if (!geoValidation.valid) {
+          throw new Error(geoValidation.error)
+        }
       }
     }
 
