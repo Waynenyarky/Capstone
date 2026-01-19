@@ -397,6 +397,14 @@ export default function BusinessRegistrationWizard({
         const status = formData.applicationStatus
         let statusBasedStep = null
         
+        // Helper to check if business has meaningful data (not just empty fields)
+        const hasBusinessData = (data) => {
+          if (!data) return false
+          // Check if business has at least one meaningful field filled
+          return !!(data.businessName || data.registeredBusinessName || data.businessRegistrationNumber || 
+                   data.businessType || data.businessAddress || data.ownerName)
+        }
+        
         if (status === 'submitted' || status === 'under_review' || status === 'approved' || status === 'rejected' || status === 'needs_revision') {
           statusBasedStep = 7 // Status step
         } else if (status === 'agencies_registered') {
@@ -410,7 +418,14 @@ export default function BusinessRegistrationWizard({
         } else if (status === 'requirements_viewed') {
           statusBasedStep = 1 // Form step
         } else if (status === 'draft') {
-          statusBasedStep = 0 // Requirements step
+          // For draft status, check if business has data
+          // If it has business data, start from Application Form (step 1)
+          // Otherwise, start from Requirements (step 0)
+          if (hasBusinessData(formData) || hasBusinessData(applicationData.businessData)) {
+            statusBasedStep = 1 // Application Form step (user has already started)
+          } else {
+            statusBasedStep = 0 // Requirements step (completely new)
+          }
         }
         
         // Only update step if status-based step is determined and different from current

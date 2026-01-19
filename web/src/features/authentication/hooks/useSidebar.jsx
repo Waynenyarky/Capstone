@@ -30,12 +30,25 @@ export default function useSidebar() {
 
     const businessItems = [
       { key: 'dashboard', label: 'Dashboard', to: '/owner', icon: <DashboardOutlined /> },
-      { key: 'permit-apps', label: 'Permit Applications', to: '/owner/permits', icon: <FileTextOutlined /> },
       { 
-        key: 'business-registration', 
-        label: 'Business Registration', 
-        to: '/owner/business-registration',
-        icon: <ShopOutlined />
+        key: 'permit-apps', 
+        label: 'Permit Applications', 
+        to: '/owner/permits', 
+        icon: <FileTextOutlined />,
+        children: [
+          { 
+            key: 'business-registration', 
+            label: 'Business Registration', 
+            to: '/owner/business-registration',
+            icon: <ShopOutlined />
+          },
+          { 
+            key: 'business-renewal', 
+            label: 'Business Renewal', 
+            to: '/owner/business-renewal',
+            icon: <ShopOutlined />
+          }
+        ]
       },
       { key: 'cessation', label: 'Cessation', to: '/owner/cessation', icon: <StopOutlined /> },
       { key: 'payments', label: 'Payments', to: '/owner/payments', icon: <CreditCardOutlined /> },

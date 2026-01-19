@@ -22,25 +22,28 @@ export default function BIRRegistrationStep({ businessId, initialData, onSave, o
       }
       
       // Convert URL strings to file objects for Upload components
-      if (data.paymentReceiptUrl && typeof data.paymentReceiptUrl === 'string') {
-        const urlParts = data.paymentReceiptUrl.split('/')
-        const filename = urlParts[urlParts.length - 1] || 'payment_receipt.pdf'
-        const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(data.paymentReceiptUrl)
-        const displayUrl = resolveAvatarUrl(data.paymentReceiptUrl)
-        formValues.paymentReceiptUrl = [{
-          uid: `-payment-receipt-${Date.now()}`,
-          name: filename,
-          status: 'done',
-          url: displayUrl,
-          thumbUrl: isImage ? displayUrl : undefined,
-          response: { url: data.paymentReceiptUrl }
-        }]
-      }
-      
-      // Ensure upload fields are always arrays
-      if (!formValues.paymentReceiptUrl || !Array.isArray(formValues.paymentReceiptUrl)) {
-        formValues.paymentReceiptUrl = []
-      }
+      const urlFields = ['certificateUrl', 'booksOfAccountsUrl', 'authorityToPrintUrl']
+      urlFields.forEach(field => {
+        if (data[field] && typeof data[field] === 'string') {
+          const urlParts = data[field].split('/')
+          const filename = urlParts[urlParts.length - 1] || `${field}.pdf`
+          const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(data[field])
+          const displayUrl = resolveAvatarUrl(data[field])
+          formValues[field] = [{
+            uid: `-${field}-${Date.now()}`,
+            name: filename,
+            status: 'done',
+            url: displayUrl,
+            thumbUrl: isImage ? displayUrl : undefined,
+            response: { url: data[field] }
+          }]
+        }
+        
+        // Ensure upload fields are always arrays
+        if (!formValues[field] || !Array.isArray(formValues[field])) {
+          formValues[field] = []
+        }
+      })
 
       return formValues
     }
@@ -60,7 +63,7 @@ export default function BIRRegistrationStep({ businessId, initialData, onSave, o
     const storedData = loadStored()
     const hasUploadUrls = (data) => {
       if (!data || typeof data !== 'object') return false
-      return ['paymentReceiptUrl'].some((field) => {
+      return ['certificateUrl', 'booksOfAccountsUrl', 'authorityToPrintUrl'].some((field) => {
         const value = data[field]
         return typeof value === 'string' && value.trim() !== ''
       })
@@ -74,7 +77,9 @@ export default function BIRRegistrationStep({ businessId, initialData, onSave, o
       form.setFieldsValue(formValues)
     } else {
       form.setFieldsValue({
-        paymentReceiptUrl: []
+        certificateUrl: [],
+        booksOfAccountsUrl: [],
+        authorityToPrintUrl: []
       })
     }
   }, [initialData, form, storageKey])
@@ -168,10 +173,14 @@ export default function BIRRegistrationStep({ businessId, initialData, onSave, o
                (typeof file.response === 'string' ? file.response : null) ||
                ''
       }
-      const paymentReceiptUrl = extractUrl(values.paymentReceiptUrl)
+      const certificateUrl = extractUrl(values.certificateUrl)
+      const booksOfAccountsUrl = extractUrl(values.booksOfAccountsUrl)
+      const authorityToPrintUrl = extractUrl(values.authorityToPrintUrl)
       
       const birData = {
-        paymentReceiptUrl: paymentReceiptUrl
+        certificateUrl: certificateUrl,
+        booksOfAccountsUrl: booksOfAccountsUrl,
+        authorityToPrintUrl: authorityToPrintUrl
       }
       
       console.log('BIRRegistrationStep - Extracted birData:', birData)
@@ -237,14 +246,16 @@ export default function BIRRegistrationStep({ businessId, initialData, onSave, o
       </div>
 
       <Alert
-        message="BIR Payment Requirement"
+        message="BIR Registration Requirements"
         description={
           <List
             size="small"
             dataSource={[
-              'Upload the official payment form or receipt issued by the Bureau of Internal Revenue (BIR).',
+              'Upload the BIR Certificate of Registration.',
+              'Upload the Registration of Books of Accounts.',
+              'Upload the Authority to Print Official Receipts and Invoices.',
               'Accepted formats: PDF or image (JPG, PNG).',
-              'Ensure the file is clear and legible for verification.'
+              'Ensure all files are clear and legible for verification.'
             ]}
             renderItem={(item) => <List.Item style={{ padding: '4px 0' }}>{item}</List.Item>}
           />
@@ -262,18 +273,70 @@ export default function BIRRegistrationStep({ businessId, initialData, onSave, o
         onValuesChange={() => {}}
       >
         <Form.Item
-          label="Payment Form / Receipt"
-          name="paymentReceiptUrl"
+          label="BIR Certificate of Registration"
+          name="certificateUrl"
           valuePropName="fileList"
           getValueFromEvent={normFile}
-          rules={[{ required: true, message: 'Please upload the payment form or receipt' }]}
+          rules={[{ required: true, message: 'Please upload the BIR Certificate of Registration' }]}
         >
           <Upload
-            customRequest={(options) => customUploadRequest(options, 'paymentReceiptUrl')}
+            customRequest={(options) => customUploadRequest(options, 'certificateUrl')}
             listType="picture-card"
             maxCount={1}
             accept=".pdf,image/*"
-            onRemove={() => handleRemove('paymentReceiptUrl')}
+            onRemove={() => handleRemove('certificateUrl')}
+            onPreview={(file) => {
+              if (file.url || file.thumbUrl) {
+                window.open(file.url || file.thumbUrl, '_blank')
+              }
+            }}
+          >
+            <div>
+              <UploadOutlined />
+              <div style={{ marginTop: 8 }}>Upload</div>
+            </div>
+          </Upload>
+        </Form.Item>
+
+        <Form.Item
+          label="Registration of Books of Accounts"
+          name="booksOfAccountsUrl"
+          valuePropName="fileList"
+          getValueFromEvent={normFile}
+          rules={[{ required: true, message: 'Please upload the Registration of Books of Accounts' }]}
+        >
+          <Upload
+            customRequest={(options) => customUploadRequest(options, 'booksOfAccountsUrl')}
+            listType="picture-card"
+            maxCount={1}
+            accept=".pdf,image/*"
+            onRemove={() => handleRemove('booksOfAccountsUrl')}
+            onPreview={(file) => {
+              if (file.url || file.thumbUrl) {
+                window.open(file.url || file.thumbUrl, '_blank')
+              }
+            }}
+          >
+            <div>
+              <UploadOutlined />
+              <div style={{ marginTop: 8 }}>Upload</div>
+            </div>
+          </Upload>
+        </Form.Item>
+
+        <Form.Item
+          label="Authority to Print Official Receipts and Invoices"
+          name="authorityToPrintUrl"
+          valuePropName="fileList"
+          getValueFromEvent={normFile}
+          rules={[{ required: true, message: 'Please upload the Authority to Print Official Receipts and Invoices' }]}
+        >
+          <Upload
+            customRequest={(options) => customUploadRequest(options, 'authorityToPrintUrl')}
+            listType="picture-card"
+            maxCount={1}
+            accept=".pdf,image/*"
+            onRemove={() => handleRemove('authorityToPrintUrl')}
             onPreview={(file) => {
               if (file.url || file.thumbUrl) {
                 window.open(file.url || file.thumbUrl, '_blank')

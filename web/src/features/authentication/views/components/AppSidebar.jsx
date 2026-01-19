@@ -27,11 +27,13 @@ export default function AppSidebar({ hiddenKeys = [], renamedKeys = {}, itemOver
       })
     }
 
-    // Apply overrides (label, icon, etc)
+    // Apply overrides (label, icon, etc) - preserve children
     if (Object.keys(itemOverrides).length > 0) {
       arr = arr.map(item => {
         if (itemOverrides[item.key]) {
-          return { ...item, ...itemOverrides[item.key] }
+          // Preserve children when applying overrides
+          const override = itemOverrides[item.key]
+          return { ...item, ...override, children: override.children !== undefined ? override.children : item.children }
         }
         return item
       })
@@ -46,8 +48,21 @@ export default function AppSidebar({ hiddenKeys = [], renamedKeys = {}, itemOver
   // derive the active key from the current location so route changes
   // (via Link) immediately reflect as the selected/highlighted item
   const activeKey = useMemo(() => {
-    // Find all items that match the current path prefix
-    const matches = items.filter(i => i.to && location.pathname.startsWith(i.to))
+    // Recursively find all items (including children) that match the current path
+    const findAllMatchingItems = (itemsList) => {
+      const matches = []
+      for (const item of itemsList) {
+        if (item.to && location.pathname.startsWith(item.to)) {
+          matches.push(item)
+        }
+        if (item.children) {
+          matches.push(...findAllMatchingItems(item.children))
+        }
+      }
+      return matches
+    }
+    
+    const matches = findAllMatchingItems(items)
     
     // If multiple matches, pick the one with the longest 'to' path (most specific match)
     // e.g. '/owner/permits' should match 'permit-apps' instead of 'dashboard' ('/owner')

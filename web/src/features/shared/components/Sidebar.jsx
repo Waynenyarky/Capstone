@@ -14,9 +14,90 @@ const SidebarContent = ({
   handleItemClick, 
   backgroundColor,
   isLightSidebar,
-  isDarkTheme
+  isDarkTheme,
+  currentTheme
 }) => {
+  // Helper to check if a key is a child of any parent
+  const isChildKey = React.useCallback((key) => {
+    for (const item of items) {
+      if (item.children) {
+        if (item.children.some(child => child.key === key)) {
+          return item.key
+        }
+      }
+    }
+    return null
+  }, [items])
+  
+  // Helper to check if a key is a parent item (has children)
+  const isParentKey = React.useCallback((key) => {
+    const item = items.find(i => i.key === key)
+    return item && item.children && item.children.length > 0
+  }, [items])
   const { token } = theme.useToken();
+  
+  // Initialize openKeys with parent items that have children (submenus should be open by default)
+  const initialOpenKeys = React.useMemo(() => {
+    return items
+      .filter(item => item.children && item.children.length > 0)
+      .map(item => item.key)
+  }, [items])
+  
+  const [openKeys, setOpenKeys] = React.useState(initialOpenKeys);
+  const navigatingParentRef = React.useRef(null);
+  const previousOpenKeysRef = React.useRef(initialOpenKeys);
+  const closingSubmenusRef = React.useRef(false);
+  const ignoreNextOpenChangeRef = React.useRef(false);
+  
+  // Get all parent item keys that should stay open
+  const parentItemKeys = React.useMemo(() => {
+    return items
+      .filter(item => item.children && item.children.length > 0)
+      .map(item => item.key)
+  }, [items])
+  
+  // Update openKeys when items change (e.g., when switching roles)
+  React.useEffect(() => {
+    const newOpenKeys = items
+      .filter(item => item.children && item.children.length > 0)
+      .map(item => item.key)
+    setOpenKeys(newOpenKeys)
+    previousOpenKeysRef.current = newOpenKeys
+  }, [items])
+  
+  // Manage submenus when activeKey changes
+  React.useEffect(() => {
+    if (activeKey) {
+      const parentOfActive = isChildKey(activeKey)
+      const isParent = isParentKey(activeKey)
+      
+      if (parentOfActive) {
+        // Active item is a child - ensure its parent submenu is open
+        setOpenKeys(prev => {
+          if (!prev.includes(parentOfActive)) {
+            return [...prev, parentOfActive]
+          }
+          return prev
+        })
+      } else if (isParent) {
+        // Active item is a parent item (like "Permit Applications") - keep its submenu open
+        setOpenKeys(prev => {
+          if (!prev.includes(activeKey)) {
+            return [...prev, activeKey]
+          }
+          return prev
+        })
+      } else {
+        // Active item is a top-level item without children - close all submenus
+        ignoreNextOpenChangeRef.current = true
+        setOpenKeys([])
+        previousOpenKeysRef.current = []
+        setTimeout(() => {
+          ignoreNextOpenChangeRef.current = false
+        }, 50)
+      }
+    }
+  }, [activeKey, isChildKey, isParentKey])
   
   const menuTheme = isLightSidebar ? 'light' : 'dark';
   const menuBg = backgroundColor;
@@ -26,8 +107,112 @@ const SidebarContent = ({
     ? token.colorPrimary 
     : isDarkTheme ? token.colorPrimary : 'linear-gradient(135deg, #003a70 0%, #001529 100%)';
 
+  // Calculate submenu background color based on theme
+  const getSubmenuBg = () => {
+    if (isLightSidebar) {
+      // For light themes, use a slightly darker background for submenu
+      if (currentTheme === THEMES.BLOSSOM) {
+        return 'rgba(235, 47, 150, 0.04)'; // Very light pink
+      } else if (currentTheme === THEMES.SUNSET) {
+        return 'rgba(250, 84, 28, 0.04)'; // Very light orange
+      } else if (currentTheme === THEMES.ROYAL) {
+        return 'rgba(114, 46, 209, 0.04)'; // Very light purple
+      } else if (currentTheme === THEMES.DOCUMENT) {
+        return 'rgba(0, 185, 107, 0.04)'; // Very light green
+      }
+      return 'rgba(0, 0, 0, 0.02)'; // Very light gray for default light themes
+    } else {
+      // For dark themes, use a slightly lighter background for submenu
+      return 'rgba(255, 255, 255, 0.05)';
+    }
+  };
+
+  // Calculate submenu text color
+  const getSubmenuTextColor = () => {
+    if (isLightSidebar) {
+      return token.colorText;
+    } else {
+      return 'rgba(255, 255, 255, 0.85)';
+    }
+  };
+
+  // Calculate submenu hover background
+  const getSubmenuHoverBg = () => {
+    if (isLightSidebar) {
+      if (currentTheme === THEMES.BLOSSOM) {
+        return 'rgba(235, 47, 150, 0.08)';
+      } else if (currentTheme === THEMES.SUNSET) {
+        return 'rgba(250, 84, 28, 0.08)';
+      } else if (currentTheme === THEMES.ROYAL) {
+        return 'rgba(114, 46, 209, 0.08)';
+      } else if (currentTheme === THEMES.DOCUMENT) {
+        return 'rgba(0, 185, 107, 0.08)';
+      }
+      return 'rgba(0, 0, 0, 0.04)';
+    } else {
+      return 'rgba(255, 255, 255, 0.08)';
+    }
+  };
+
   return (
     <>
+      {/* Submenu Theme Styles */}
+      <style>{`
+        .ant-menu-submenu-inner {
+          background: ${getSubmenuBg()} !important;
+          border-radius: 6px;
+          transition: all 0.2s;
+        }
+        .ant-menu-submenu-title {
+          color: ${getSubmenuTextColor()} !important;
+          transition: all 0.2s;
+        }
+        .ant-menu-submenu-title:hover {
+          background: ${getSubmenuHoverBg()} !important;
+          color: ${isLightSidebar ? token.colorPrimary : '#fff'} !important;
+        }
+        .ant-menu-submenu-open > .ant-menu-submenu-title {
+          color: ${isLightSidebar ? token.colorPrimary : token.colorPrimary} !important;
+        }
+        .ant-menu-submenu .ant-menu {
+          background: ${getSubmenuBg()} !important;
+        }
+        .ant-menu-submenu .ant-menu-item {
+          background: transparent !important;
+          color: ${getSubmenuTextColor()} !important;
+          transition: all 0.2s;
+        }
+        .ant-menu-submenu .ant-menu-item:hover {
+          background: ${getSubmenuHoverBg()} !important;
+          color: ${isLightSidebar ? token.colorPrimary : '#fff'} !important;
+        }
+        .ant-menu-submenu .ant-menu-item-selected {
+          background: ${isLightSidebar 
+            ? (currentTheme === THEMES.BLOSSOM 
+                ? 'rgba(235, 47, 150, 0.12)' 
+                : currentTheme === THEMES.SUNSET
+                ? 'rgba(250, 84, 28, 0.12)'
+                : currentTheme === THEMES.ROYAL
+                ? 'rgba(114, 46, 209, 0.12)'
+                : currentTheme === THEMES.DOCUMENT
+                ? 'rgba(0, 185, 107, 0.12)'
+                : token.colorPrimaryBg)
+            : token.colorPrimaryBg} !important;
+          color: ${isLightSidebar ? token.colorPrimary : '#fff'} !important;
+        }
+        .ant-menu-submenu .ant-menu-item-active {
+          background: ${getSubmenuHoverBg()} !important;
+        }
+        .ant-menu-submenu-arrow {
+          color: ${getSubmenuTextColor()} !important;
+        }
+        .ant-menu-submenu-title:hover .ant-menu-submenu-arrow {
+          color: ${isLightSidebar ? token.colorPrimary : '#fff'} !important;
+        }
+        .ant-menu-submenu-open .ant-menu-submenu-arrow {
+          color: ${isLightSidebar ? token.colorPrimary : token.colorPrimary} !important;
+        }
+      `}</style>
       {/* Brand / Logo */}
       <div style={{ 
         height: 64, 
@@ -71,30 +256,205 @@ const SidebarContent = ({
         )}
       </div>
 
-      <Menu
+      <ConfigProvider
+        theme={{
+          components: {
+            Menu: {
+              subMenuItemBg: getSubmenuBg(),
+              itemHoverBg: getSubmenuHoverBg(),
+              itemSelectedBg: isLightSidebar 
+                ? (currentTheme === THEMES.BLOSSOM 
+                    ? 'rgba(235, 47, 150, 0.12)' 
+                    : currentTheme === THEMES.SUNSET
+                    ? 'rgba(250, 84, 28, 0.12)'
+                    : currentTheme === THEMES.ROYAL
+                    ? 'rgba(114, 46, 209, 0.12)'
+                    : currentTheme === THEMES.DOCUMENT
+                    ? 'rgba(0, 185, 107, 0.12)'
+                    : token.colorPrimaryBg)
+                : token.colorPrimaryBg,
+              itemActiveBg: isLightSidebar 
+                ? (currentTheme === THEMES.BLOSSOM 
+                    ? 'rgba(235, 47, 150, 0.16)' 
+                    : currentTheme === THEMES.SUNSET
+                    ? 'rgba(250, 84, 28, 0.16)'
+                    : currentTheme === THEMES.ROYAL
+                    ? 'rgba(114, 46, 209, 0.16)'
+                    : currentTheme === THEMES.DOCUMENT
+                    ? 'rgba(0, 185, 107, 0.16)'
+                    : token.colorPrimaryBgHover)
+                : token.colorPrimaryBgHover,
+              itemColor: getSubmenuTextColor(),
+              subMenuItemBorderRadius: 6,
+              itemBorderRadius: 6,
+            }
+          }
+        }}
+      >
+        <Menu
         mode="inline"
         theme={menuTheme}
         selectedKeys={[activeKey]}
+        openKeys={openKeys}
         onClick={({ key }) => {
-            const item = items.find(i => i.key === key)
+            // Recursively find item in items and children
+            const findItem = (itemsList, targetKey) => {
+              for (const item of itemsList) {
+                if (item.key === targetKey) {
+                  return item
+                }
+                if (item.children) {
+                  const found = findItem(item.children, targetKey)
+                  if (found) return found
+                }
+              }
+              return null
+            }
+            
+            // Find which parent (if any) contains this item as a child
+            const findParent = (itemsList, targetKey, currentParent = null) => {
+              for (const item of itemsList) {
+                if (item.key === targetKey) {
+                  return currentParent
+                }
+                if (item.children) {
+                  const found = findParent(item.children, targetKey, item)
+                  if (found !== null) return found
+                }
+              }
+              return null
+            }
+            
+            const item = findItem(items, key)
+            const parentItem = findParent(items, key)
+            
             if (item) {
+                // onClick only fires for leaf items (items without children)
+                // SubMenu items (with children) use onTitleClick instead
+                
+                // If clicking on an item that's NOT a child of any open submenu,
+                // close all submenus. If it IS a child, keep its parent submenu open.
+                if (parentItem) {
+                  // This is a child item - keep its parent submenu open and close others
+                  const newKeys = [parentItem.key]
+                  ignoreNextOpenChangeRef.current = true
+                  previousOpenKeysRef.current = newKeys
+                  setOpenKeys(newKeys)
+                  // Reset flag after a short delay to allow onOpenChange to be ignored
+                  setTimeout(() => {
+                    ignoreNextOpenChangeRef.current = false
+                  }, 50)
+                } else {
+                  // This is a top-level item (not a child) - close all submenus
+                  ignoreNextOpenChangeRef.current = true
+                  previousOpenKeysRef.current = []
+                  setOpenKeys([])
+                  // Reset flag after a short delay to allow onOpenChange to be ignored
+                  setTimeout(() => {
+                    ignoreNextOpenChangeRef.current = false
+                  }, 50)
+                }
+                
                 handleItemClick(item)
             }
         }}
-        style={{ borderRight: 0, padding: '12px 0', background: menuBg }}
-        items={items.map(item => ({
-          key: item.key,
-          icon: item.icon,
-          label: item.label, 
-          danger: item.key === 'logout',
-          style: { 
-            margin: '4px 8px', 
-            borderRadius: 6, 
-            width: 'auto',
-            fontSize: 14 
+        onOpenChange={(keys) => {
+          // If we're programmatically changing submenus (from onClick), ignore onOpenChange
+          if (ignoreNextOpenChangeRef.current) {
+            return
           }
-        }))}
-      />
+          
+          // If we're navigating to a parent item, ensure its submenu stays open
+          if (navigatingParentRef.current) {
+            const parentKey = navigatingParentRef.current
+            if (!keys.includes(parentKey)) {
+              // Keep the parent submenu open if we just navigated to it
+              const finalKeys = [...keys, parentKey]
+              setOpenKeys(finalKeys)
+              previousOpenKeysRef.current = finalKeys
+              navigatingParentRef.current = null
+              return
+            }
+            navigatingParentRef.current = null
+          }
+          
+          // Check if the active key is a child - if so, keep its parent open
+          // If active key is NOT a child, close all submenus
+          const activeParent = activeKey ? isChildKey(activeKey) : null
+          let finalKeys = keys
+          
+          if (activeParent) {
+            // Active item is a child - ensure its parent is open
+            if (!keys.includes(activeParent)) {
+              finalKeys = [...keys, activeParent]
+            }
+          } else if (activeKey) {
+            // Active item is a top-level item (not a child) - close all submenus
+            finalKeys = []
+          }
+          
+          // Allow normal submenu toggle behavior (user clicking the arrow)
+          setOpenKeys(finalKeys)
+          previousOpenKeysRef.current = finalKeys
+        }}
+        style={{ 
+          borderRight: 0, 
+          padding: '12px 0', 
+          background: menuBg 
+        }}
+        items={items.map(item => {
+          const menuItem = {
+            key: item.key,
+            icon: item.icon,
+            label: item.label, 
+            ...(item.key === 'logout' && { danger: true }),
+            style: { 
+              margin: '4px 8px', 
+              borderRadius: 6, 
+              width: 'auto',
+              fontSize: 14 
+            }
+          }
+          
+          // Add children if they exist - this creates a SubMenu
+          if (item.children && Array.isArray(item.children) && item.children.length > 0) {
+            menuItem.children = item.children.map(child => ({
+              key: child.key,
+              icon: child.icon,
+              label: child.label,
+              style: { 
+                margin: '4px 8px', 
+                borderRadius: 6, 
+                width: 'auto',
+                fontSize: 14
+              }
+            }))
+            
+            // Make parent clickable if it has a 'to' property
+            // When clicking the title, navigate AND expand the submenu
+            if (item.to) {
+              menuItem.onTitleClick = () => {
+                // Mark that we're navigating to this parent item
+                navigatingParentRef.current = item.key
+                // Expand the submenu using functional update to avoid stale closure
+                setOpenKeys(prev => {
+                  if (!prev.includes(item.key)) {
+                    return [...prev, item.key]
+                  }
+                  return prev
+                })
+                // Navigate to the parent route
+                const foundItem = items.find(i => i.key === item.key)
+                if (foundItem) {
+                  handleItemClick(foundItem)
+                }
+              }
+            }
+          }
+          return menuItem
+        })}
+        />
+      </ConfigProvider>
       
       {!collapsed && (
         <div style={{ 
@@ -184,6 +544,7 @@ export default function Sidebar({ items = [], activeKey, onItemClick, ...siderPr
               backgroundColor={siderBg}
               isLightSidebar={isLightSidebar}
               isDarkTheme={isDarkTheme}
+              currentTheme={currentTheme}
             />
           </Drawer>
         </>
@@ -230,6 +591,7 @@ export default function Sidebar({ items = [], activeKey, onItemClick, ...siderPr
             backgroundColor={siderBg}
             isLightSidebar={isLightSidebar}
             isDarkTheme={isDarkTheme}
+            currentTheme={currentTheme}
           />
         </Sider>
       )}

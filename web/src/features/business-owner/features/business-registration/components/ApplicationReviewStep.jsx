@@ -316,8 +316,14 @@ export default function ApplicationReviewStep({
           {/* BIR Registration */}
           <Card title="BIR Registration" size="small">
             <Descriptions column={1} bordered>
-              <Descriptions.Item label="Payment Form / Receipt">
-                {getDocumentStatus(birRegistration?.paymentReceiptUrl)}
+              <Descriptions.Item label="BIR Certificate of Registration">
+                {getDocumentStatus(birRegistration?.certificateUrl)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Registration of Books of Accounts">
+                {getDocumentStatus(birRegistration?.booksOfAccountsUrl)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Authority to Print Official Receipts and Invoices">
+                {getDocumentStatus(birRegistration?.authorityToPrintUrl)}
               </Descriptions.Item>
             </Descriptions>
             <div style={{ marginTop: 16, textAlign: 'right' }}>
