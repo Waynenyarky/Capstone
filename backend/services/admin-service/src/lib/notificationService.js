@@ -1,4 +1,32 @@
-const User = require('../models/User')
+// Import models dynamically to avoid conflicts
+let User
+let Role
+function getUserModel() {
+  if (!User) {
+    try {
+      // Try main backend first (for testing)
+      User = require('../../../src/models/User')
+    } catch (e) {
+      // Fallback to service model
+      User = require('../models/User')
+    }
+  }
+  return User
+}
+
+function getRoleModel() {
+  if (!Role) {
+    try {
+      // Try main backend first (for testing)
+      Role = require('../../../src/models/Role')
+    } catch (e) {
+      // Fallback to service model
+      Role = require('../models/Role')
+    }
+  }
+  return Role
+}
+
 const mailer = require('./mailer')
 
 /**
@@ -16,7 +44,8 @@ const mailer = require('./mailer')
  */
 async function sendEmailChangeNotification(userId, oldEmail, newEmail, options = {}) {
   try {
-    const user = await User.findById(userId).lean()
+    const UserModel = getUserModel()
+    const user = await UserModel.findById(userId).lean()
     if (!user) {
       return { success: false, error: 'User not found' }
     }
@@ -74,7 +103,8 @@ async function sendEmailChangeNotification(userId, oldEmail, newEmail, options =
  */
 async function sendPasswordChangeNotification(userId, options = {}) {
   try {
-    const user = await User.findById(userId).populate('role').lean()
+    const UserModel = getUserModel()
+    const user = await UserModel.findById(userId).populate('role').lean()
     if (!user) {
       return { success: false, error: 'User not found' }
     }
@@ -105,19 +135,20 @@ async function sendPasswordChangeNotification(userId, options = {}) {
  */
 async function sendAdminAlert(userId, field, attemptedValue, roleSlug, metadata = {}) {
   try {
-    const user = await User.findById(userId).lean()
+    const UserModel = getUserModel()
+    const user = await UserModel.findById(userId).lean()
     if (!user) {
       return { success: false, error: 'User not found' }
     }
 
     // Get all admin users
-    const Role = require('../models/Role')
-    const adminRole = await Role.findOne({ slug: 'admin' })
+    const RoleModel = getRoleModel()
+    const adminRole = await RoleModel.findOne({ slug: 'admin' })
     if (!adminRole) {
       return { success: false, error: 'Admin role not found' }
     }
 
-    const admins = await User.find({ role: adminRole._id, isActive: true }).lean()
+    const admins = await UserModel.find({ role: adminRole._id, isActive: true }).lean()
     if (admins.length === 0) {
       return { success: false, error: 'No active admins found' }
     }
@@ -169,7 +200,8 @@ async function sendAdminAlert(userId, field, attemptedValue, roleSlug, metadata 
  */
 async function sendApprovalNotification(adminId, approvalId, status, options = {}) {
   try {
-    const admin = await User.findById(adminId).lean()
+    const UserModel = getUserModel()
+    const admin = await UserModel.findById(adminId).lean()
     if (!admin) {
       return { success: false, error: 'Admin not found' }
     }

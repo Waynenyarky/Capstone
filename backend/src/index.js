@@ -17,6 +17,24 @@ const { securityMonitorMiddleware } = require('./middleware/securityMonitor');
 
 dotenv.config();
 
+// In test mode, establish database connection immediately when app is required
+// This ensures middleware can access the database
+if (process.env.NODE_ENV === 'test') {
+  const uri = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URL || ''
+  if (uri) {
+    try {
+      // Check if mongoose is already connected to avoid multiple connections to same URI
+      if (mongoose.connection.readyState === 0) {
+        connectDB(uri);
+      } else {
+        logger.info('Using existing mongoose connection for tests');
+      }
+    } catch (error) {
+      logger.warn('Main backend test DB connection failed:', error.message);
+    }
+  }
+}
+
 const app = express();
 
 // Phase 5: Structured Logging & Monitoring Middleware

@@ -1,5 +1,5 @@
 const AuditLog = require('../models/AuditLog')
-const TamperIncident = require('../models/TamperIncident')
+const TamperIncident = require('../../../admin-service/src/models/TamperIncident')
 const auditVerifier = require('../lib/auditVerifier')
 const logger = require('../lib/logger')
 

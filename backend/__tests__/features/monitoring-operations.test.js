@@ -40,7 +40,7 @@ describe('Phase 5: Monitoring & Operations', () => {
 
     await connectDB(process.env.MONGO_URI)
     
-    // Seed dev data if available (optional)
+    // Seed dev data from auth-service (for roles)
     try {
       const { seedDevDataIfEmpty } = require('../../services/auth-service/src/lib/seedDev')
       await seedDevDataIfEmpty()

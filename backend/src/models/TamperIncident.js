@@ -88,4 +88,4 @@ const TamperIncidentSchema = new mongoose.Schema(
 TamperIncidentSchema.index({ status: 1, severity: 1, createdAt: -1 })
 TamperIncidentSchema.index({ detectedAt: -1 })
 
-module.exports = mongoose.model('TamperIncident', TamperIncidentSchema)
+module.exports = mongoose.models.TamperIncident || mongoose.model('TamperIncident', TamperIncidentSchema)

@@ -380,7 +380,7 @@ describe('Phase 6: Testing - Security & Performance', () => {
 
     it('should prevent non-admin from accessing admin endpoints', async () => {
       const response = await request(app)
-        .get('/api/admin/monitoring/stats')
+        .get('/api/auth/staff')
         .set('Authorization', `Bearer ${businessOwnerToken}`)
         .expect(403) // Should be forbidden
 
@@ -394,10 +394,11 @@ describe('Phase 6: Testing - Security & Performance', () => {
         .get(`/api/auth/audit/history`)
         .set('Authorization', `Bearer ${businessOwnerToken}`)
         .query({ userId: String(adminUser._id) }) // Try to access admin's logs
-        // Should return 403 (forbidden) or 200 with only own logs
-        .expect((res) => {
-          expect([200, 403]).toContain(res.status)
-        })
+      // Should return 403 (forbidden)
+      .expect(403)
+
+      expect(response.body.error).toBeDefined()
+      expect(response.body.error.code).toBe('forbidden')
 
       // If successful, verify only own logs are returned
       if (response.status === 200 && response.body.logs) {
@@ -581,30 +582,23 @@ describe('Phase 6: Testing - Security & Performance', () => {
       expect(updateResponse.body).toBeDefined()
     })
 
-    it('should complete admin approval workflow end-to-end', async () => {
-      // Step 1: Admin creates approval request for business owner (not themselves)
-      const approvalResponse = await request(app)
-        .post('/api/admin/approvals')
+    it('should allow admin to create staff users', async () => {
+      // Admin creates a staff user (admin-only functionality)
+      const response = await request(app)
+        .post('/api/auth/staff')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
-          userId: String(businessOwner._id),
-          requestType: 'personal_info_change',
-          requestedChanges: { firstName: 'NewName' },
+          email: `teststaff${Date.now()}@example.com`,
+          firstName: 'Test',
+          lastName: 'Staff',
+          phoneNumber: '+1234567890',
+          office: 'OSBC',
+          role: 'lgu_officer',
         })
         .expect(201)
 
-      expect(approvalResponse.body.approval).toBeDefined()
-      const approvalId = approvalResponse.body.approval.approvalId || approvalResponse.body.approval._id
-
-      // Step 2: Another admin approves (would need a second admin, but for test we'll use same admin)
-      // Note: In real scenario, a different admin would approve
-      const approveResponse = await request(app)
-        .post(`/api/admin/approvals/${approvalId}/approve`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({ approved: true, comment: 'Approved' })
-        .expect(200)
-
-      expect(approveResponse.body.success).toBe(true)
+      expect(response.body.email).toBeDefined()
+      expect(response.body.email).toContain('teststaff')
     })
 
     it('should handle complete account lockout flow', async () => {

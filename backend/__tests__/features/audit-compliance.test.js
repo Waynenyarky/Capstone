@@ -1,17 +1,36 @@
 const request = require('supertest')
 const mongoose = require('mongoose')
-const { MongoMemoryServer } = require('mongodb-memory-server')
-const connectDB = require('../../services/auth-service/src/config/db')
+const { setupTestEnvironment, setupMongoDB, teardownMongoDB, setupApp } = require('../helpers/setup')
 const User = require('../../services/auth-service/src/models/User')
 const Role = require('../../services/auth-service/src/models/Role')
 const AuditLog = require('../../services/auth-service/src/models/AuditLog')
-const AuditViewLog = require('../../services/audit-service/src/models/AuditViewLog')
+const AuditViewLog = require('../../services/auth-service/src/models/AuditViewLog')
 const { signAccessToken } = require('../../services/auth-service/src/middleware/auth')
 const auditVerifier = require('../../services/audit-service/src/lib/auditVerifier')
 const blockchainQueue = require('../../services/audit-service/src/lib/blockchainQueue')
 const { maskSensitiveData, maskEmail, maskPhoneNumber, maskIdNumber } = require('../../services/auth-service/src/lib/dataMasker')
 const bcrypt = require('bcryptjs')
 const crypto = require('crypto')
+
+/**
+ * Helper function to ensure database connection is fully ready
+ */
+async function ensureDatabaseReady() {
+  let retries = 0
+  const maxRetries = 50
+
+  while (mongoose.connection.readyState !== 1 && retries < maxRetries) {
+    await new Promise(resolve => setTimeout(resolve, 100))
+    retries++
+  }
+
+  if (mongoose.connection.readyState !== 1) {
+    throw new Error(`Database connection not ready after ${maxRetries} retries`)
+  }
+
+  // Additional wait to ensure connection is stable
+  await new Promise(resolve => setTimeout(resolve, 500))
+}
 
 describe('Phase 4: Audit & Compliance', () => {
   let mongo
@@ -27,30 +46,20 @@ describe('Phase 4: Audit & Compliance', () => {
   let adminToken
 
   beforeAll(async () => {
-    process.env.NODE_ENV = 'test'
-    process.env.JWT_SECRET = 'test-secret'
-    process.env.SEED_DEV = 'true'
-    process.env.EMAIL_API_PROVIDER = 'mock'
-    process.env.DEFAULT_FROM_EMAIL = 'no-reply@example.com'
-    process.env.WEBAUTHN_RPID = 'localhost'
-    process.env.WEBAUTHN_ORIGIN = 'http://localhost:3001'
-    process.env.AUTH_SERVICE_PORT = '3001'
+    // Use shared test environment setup
+    setupTestEnvironment()
     process.env.EMAIL_API_PROVIDER = 'mock'
     process.env.AUDIT_CONTRACT_ADDRESS = '' // Disable blockchain for tests
     process.env.FRONTEND_URL = 'http://localhost:5173'
 
-    mongo = await MongoMemoryServer.create()
-    process.env.MONGO_URI = mongo.getUri()
+    // Use shared MongoDB setup which includes proper connection waiting
+    mongo = await setupMongoDB()
 
-    await connectDB(process.env.MONGO_URI)
-    
-    // Seed dev data if available (optional)
-    try {
-      const { seedDevDataIfEmpty } = require('../../services/auth-service/src/lib/seedDev')
-      await seedDevDataIfEmpty()
-    } catch (err) {
-      // seedDev may not exist, that's okay
-    }
+    // Additional wait to ensure database is fully ready for operations
+    await ensureDatabaseReady()
+
+    // Setup app using shared helper
+    app = setupApp('auth')
 
     // Get or create roles
     businessOwnerRole = await Role.findOne({ slug: 'business_owner' })
@@ -124,16 +133,10 @@ describe('Phase 4: Audit & Compliance', () => {
     staffToken = signAccessToken(staffUser).token
     adminToken = signAccessToken(adminUser).token
 
-    const { app: authApp } = require('../../services/auth-service/src/index')
-    app = authApp
   })
 
   afterAll(async () => {
-    try {
-      await mongoose.disconnect()
-    } finally {
-      if (mongo) await mongo.stop()
-    }
+    await teardownMongoDB()
   })
 
   describe('1. Audit History Endpoints', () => {

@@ -16,6 +16,9 @@ const Role = require('../../services/auth-service/src/models/Role')
 const { signAccessToken } = require('../../services/auth-service/src/middleware/auth')
 const bcrypt = require('bcryptjs')
 
+// Ensure TamperIncident model is registered for testing
+const TamperIncident = require('../../services/admin-service/src/models/TamperIncident')
+
 jest.setTimeout(60000)
 
 function joinPaths(a, b) {

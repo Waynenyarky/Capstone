@@ -290,7 +290,7 @@ describe('Security Comprehensive Tests', () => {
 
     it('should validate password strength', async () => {
       const weakPasswords = [
-        'short',
+        'veryshort',
         'nouppercase123!',
         'NOLOWERCASE123!',
         'NoNumber!',

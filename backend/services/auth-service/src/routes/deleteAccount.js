@@ -290,21 +290,34 @@ router.post('/delete-account/confirm', validateBody(confirmDeleteSchema), async 
 const cancelDeleteSchema = Joi.object({
   undoToken: Joi.string().optional(),
 })
-router.post('/delete-account/cancel', requireJwt, validateBody(cancelDeleteSchema), async (req, res) => {
+// Custom middleware for optional JWT when undoToken is provided
+const requireJwtOptional = async (req, res, next) => {
+  const { undoToken } = req.body || {}
+
+  // If undoToken is provided, skip JWT requirement
+  if (undoToken) {
+    return next()
+  }
+
+  // Otherwise, require JWT
+  return requireJwt(req, res, next)
+}
+
+router.post('/delete-account/cancel', requireJwtOptional, validateBody(cancelDeleteSchema), async (req, res) => {
   try {
     const { undoToken } = req.body || {}
     const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
     const userAgent = req.headers['user-agent'] || 'unknown'
 
     let doc = null
-    
+
     // If undo token provided, use it (allows cancellation without login)
     if (undoToken) {
-      doc = await User.findOne({ 
+      doc = await User.findOne({
         deletionUndoToken: undoToken,
         deletionPending: true,
       }).populate('role')
-      
+
       if (!doc) {
         return respond.error(res, 401, 'invalid_undo_token', 'Invalid or expired undo token')
       }

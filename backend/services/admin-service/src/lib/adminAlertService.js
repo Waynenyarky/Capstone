@@ -1,7 +1,9 @@
-const AuditLog = require('../models/AuditLog')
 const blockchainService = require('./blockchainService')
 const blockchainQueue = require('./blockchainQueue')
 const { sendAdminAlert } = require('./notificationService')
+
+// Use main backend AuditLog model for compatibility
+const AuditLog = require('../../../../src/models/AuditLog')
 
 /**
  * Admin Alert Service

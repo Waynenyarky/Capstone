@@ -1,16 +1,15 @@
 const mongoose = require('mongoose')
-const User = require('../../services/auth-service/src/models/User')
-const Role = require('../../services/auth-service/src/models/Role')
-const AuditLog = require('../../services/auth-service/src/models/AuditLog')
-const IdVerification = require('../../services/auth-service/src/models/IdVerification')
-const AdminApproval = require('../../services/auth-service/src/models/AdminApproval')
-const EmailChangeRequest = require('../../services/auth-service/src/models/EmailChangeRequest')
-const ResetRequest = require('../../services/auth-service/src/models/ResetRequest')
-const DeleteRequest = require('../../services/auth-service/src/models/DeleteRequest')
-const RecoveryRequest = require('../../services/auth-service/src/models/RecoveryRequest')
-const TemporaryCredential = require('../../services/auth-service/src/models/TemporaryCredential')
-const Session = require('../../services/auth-service/src/models/Session')
-const AdminDeletionRequest = require('../../services/auth-service/src/models/AdminDeletionRequest')
+const User = require('../../src/models/User')
+const Role = require('../../src/models/Role')
+const AuditLog = require('../../src/models/AuditLog')
+const IdVerification = require('../../src/models/IdVerification')
+const AdminApproval = require('../../src/models/AdminApproval')
+const EmailChangeRequest = require('../../src/models/EmailChangeRequest')
+const ResetRequest = require('../../src/models/ResetRequest')
+const DeleteRequest = require('../../src/models/DeleteRequest')
+const RecoveryRequest = require('../../src/models/RecoveryRequest')
+const TemporaryCredential = require('../../src/models/TemporaryCredential')
+const Session = require('../../src/models/Session')
 
 /**
  * Clean up all test users (users with test email pattern)
@@ -30,17 +29,53 @@ async function cleanupTestUsers() {
  */
 async function cleanupTestData() {
   try {
+    // Ensure mongoose connection is ready before cleanup operations
+    const mongoose = require('mongoose')
+    if (mongoose.connection.readyState !== 1) {
+      // Wait for connection to be ready (max 5 seconds)
+      let retries = 0
+      while (mongoose.connection.readyState !== 1 && retries < 50) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+        retries++
+      }
+      if (mongoose.connection.readyState !== 1) {
+        console.warn('Mongoose connection not ready, skipping cleanup')
+        return
+      }
+    }
+
     // Clean up in order to respect foreign key constraints
-    await AuditLog.deleteMany({})
-    await IdVerification.deleteMany({})
-    await AdminApproval.deleteMany({})
-    await EmailChangeRequest.deleteMany({})
-    await ResetRequest.deleteMany({})
-    await DeleteRequest.deleteMany({})
-    await RecoveryRequest.deleteMany({})
-    await TemporaryCredential.deleteMany({})
-    await Session.deleteMany({})
-    await AdminDeletionRequest.deleteMany({})
+    // Use Promise.allSettled to continue even if one fails
+    await Promise.allSettled([
+      AuditLog.deleteMany({}).catch(err => {
+        console.warn('Error cleaning up AuditLog:', err.message)
+      }),
+      IdVerification.deleteMany({}).catch(err => {
+        console.warn('Error cleaning up IdVerification:', err.message)
+      }),
+      AdminApproval.deleteMany({}).catch(err => {
+        console.warn('Error cleaning up AdminApproval:', err.message)
+      }),
+      EmailChangeRequest.deleteMany({}).catch(err => {
+        console.warn('Error cleaning up EmailChangeRequest:', err.message)
+      }),
+      ResetRequest.deleteMany({}).catch(err => {
+        console.warn('Error cleaning up ResetRequest:', err.message)
+      }),
+      DeleteRequest.deleteMany({}).catch(err => {
+        console.warn('Error cleaning up DeleteRequest:', err.message)
+      }),
+      RecoveryRequest.deleteMany({}).catch(err => {
+        console.warn('Error cleaning up RecoveryRequest:', err.message)
+      }),
+      TemporaryCredential.deleteMany({}).catch(err => {
+        console.warn('Error cleaning up TemporaryCredential:', err.message)
+      }),
+      Session.deleteMany({}).catch(err => {
+        console.warn('Error cleaning up Session:', err.message)
+      }),
+    ])
+    
     await cleanupTestUsers()
   } catch (error) {
     console.error('Error cleaning up test data:', error)
@@ -72,7 +107,7 @@ async function resetDatabase() {
     await cleanupDatabase()
     // Re-seed if needed
     try {
-      const { seedDevDataIfEmpty } = require('../../services/auth-service/src/lib/seedDev')
+      const { seedDevDataIfEmpty } = require('../../src/lib/seedDev')
       await seedDevDataIfEmpty()
     } catch (err) {
       // seedDev may not exist, that's okay

@@ -7,7 +7,7 @@ const { requireJwt } = require('../middleware/auth')
 const { validateBody, Joi } = require('../middleware/validation')
 const { sanitizeName, sanitizePhoneNumber, containsSqlInjection, containsXss } = require('../lib/sanitizer')
 const { createAuditLog } = require('../lib/auditLogger')
-const { isBusinessOwnerRole } = require('../lib/roleHelpers')
+const { isBusinessOwnerRole, isAdminRole } = require('../lib/roleHelpers')
 const { profileUpdateRateLimit, verificationRateLimit } = require('../middleware/rateLimit')
 const { requestVerification, verifyCode, checkVerificationStatus, clearVerificationRequest } = require('../lib/verificationService')
 const { checkFieldPermission } = require('../middleware/fieldPermissions')
@@ -422,8 +422,8 @@ router.get('/profile/audit-history', requireJwt, async (req, res) => {
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
     const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
-    if (!isBusinessOwnerRole(roleSlug)) {
-      return respond.error(res, 403, 'forbidden', 'This endpoint is only available for business owners')
+    if (!isBusinessOwnerRole(roleSlug) && !isAdminRole(roleSlug)) {
+      return respond.error(res, 403, 'forbidden', 'This endpoint is only available for business owners and admins')
     }
 
     const { limit = 50, skip = 0, eventType, startDate, endDate } = req.query || {}

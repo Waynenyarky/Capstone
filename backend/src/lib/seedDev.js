@@ -172,8 +172,13 @@ async function seedDevDataIfEmpty() {
       }
 
       if (Array.isArray(usersSeed) && usersSeed.length > 0) {
-        const docs = []
         for (const u of usersSeed) {
+          // Check if user already exists
+          const existingUser = await User.findOne({ email: u.email })
+          if (existingUser) {
+            continue // Skip if user already exists
+          }
+
           const passwordHash = await bcrypt.hash(u.passwordPlain || 'changeme', 10)
           const roleSlug = u.role || 'business_owner'
           const roleDoc = await Role.findOne({ slug: roleSlug })
@@ -182,17 +187,21 @@ async function seedDevDataIfEmpty() {
             continue
           }
 
-          docs.push({
-            role: roleDoc._id,
-            firstName: u.firstName,
-            lastName: u.lastName,
-            email: u.email,
-            phoneNumber: u.phoneNumber || '',
-            passwordHash,
-            termsAccepted: u.termsAccepted ?? true,
-          })
+          // Use findOneAndUpdate with upsert to avoid duplicate key errors
+          await User.findOneAndUpdate(
+            { email: u.email },
+            {
+              role: roleDoc._id,
+              firstName: u.firstName,
+              lastName: u.lastName,
+              email: u.email,
+              phoneNumber: u.phoneNumber || '',
+              passwordHash,
+              termsAccepted: u.termsAccepted ?? true,
+            },
+            { upsert: true, new: true, runValidators: false }
+          )
         }
-        if (docs.length > 0) await User.insertMany(docs)
       }
 
       // Always ensure dev admin (email: "1", password: "1") exists

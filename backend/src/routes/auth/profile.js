@@ -3229,12 +3229,27 @@ async function applyApprovedChange(approval) {
         const changedFields = Object.keys(newValues)
         // Use first field for fieldChanged (enum constraint), full list in metadata
         const primaryField = changedFields[0] || 'firstName'
+        const hash = calculateAuditHash(
+          user._id,
+          'admin_approval_approved',
+          primaryField,
+          JSON.stringify(approval.requestDetails.oldValues),
+          JSON.stringify(newValues),
+          roleSlug,
+          {
+            approvalId: approval.approvalId,
+            requestType: approval.requestType,
+            approvedBy: approval.approvals.map((a) => String(a.adminId)),
+            allChangedFields: changedFields,
+          }
+        )
         await AuditLog.create({
           userId: user._id,
           eventType: 'admin_approval_approved',
           fieldChanged: primaryField,
           oldValue: JSON.stringify(approval.requestDetails.oldValues),
           newValue: JSON.stringify(newValues),
+          hash,
           role: roleSlug,
           metadata: {
             approvalId: approval.approvalId,

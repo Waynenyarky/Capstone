@@ -1,23 +1,27 @@
 const request = require('supertest')
 const mongoose = require('mongoose')
 const bcrypt = require('bcryptjs')
-const { MongoMemoryServer } = require('mongodb-memory-server')
+const { setupTestEnvironment, setupMongoDB, teardownMongoDB, setupApp } = require('../../helpers/setup')
 
 jest.mock('../../../src/jobs', () => ({
   startJobs: jest.fn(),
   stopJobs: jest.fn(),
 }))
 
-const connectDB = require('../../../services/auth-service/src/config/db')
+jest.mock('../../../services/audit-service/src/lib/auditVerifier', () => ({
+  verifyAuditLog: jest.fn(),
+}))
+
 const { signAccessToken } = require('../../../services/auth-service/src/middleware/auth')
 const calculateAuditHash = require('../../../services/auth-service/src/lib/auditLogger').calculateAuditHash
-const AuditLog = require('../../../services/auth-service/src/models/AuditLog')
+const AuditLog = require('../../../services/audit-service/src/models/AuditLog')
 const TamperIncident = require('../../../services/admin-service/src/models/TamperIncident')
 const Role = require('../../../services/auth-service/src/models/Role')
 const User = require('../../../services/auth-service/src/models/User')
-const verifyAuditIntegrity = require('../../../services/auth-service/src/jobs/verifyAuditIntegrity')
+const verifyAuditIntegrity = require('../../../services/audit-service/src/jobs/verifyAuditIntegrity')
+const auditVerifier = require('../../../services/audit-service/src/lib/auditVerifier')
 
-const { app } = require('../../../services/auth-service/src/index')
+let app
 
 describe('Tamper response flow', () => {
   let mongo
@@ -25,28 +29,30 @@ describe('Tamper response flow', () => {
   let adminToken
 
   beforeAll(async () => {
-    process.env.NODE_ENV = 'test'
-    process.env.JWT_SECRET = 'test-secret'
+    setupTestEnvironment()
     process.env.AUDIT_VERIFY_WINDOW_HOURS = '24'
     process.env.AUDIT_VERIFY_MAX = '200'
 
-    mongo = await MongoMemoryServer.create()
-    process.env.MONGO_URI = mongo.getUri()
-    await connectDB(process.env.MONGO_URI)
+    mongo = await setupMongoDB()
+    app = setupApp('auth')
 
+    // Find or create admin user for testing
     const role =
       (await Role.findOne({ slug: 'admin' })) ||
       (await Role.create({ name: 'Admin', slug: 'admin' }))
 
-    adminUser = await User.create({
-      role: role._id,
-      firstName: 'Admin',
-      lastName: 'User',
-      email: 'admin@example.com',
-      passwordHash: await bcrypt.hash('Password123!', 10),
-      termsAccepted: true,
-      isStaff: true,
-    })
+    adminUser = await User.findOne({ email: 'admin@example.com' })
+    if (!adminUser) {
+      adminUser = await User.create({
+        role: role._id,
+        firstName: 'Admin',
+        lastName: 'User',
+        email: 'admin@example.com',
+        passwordHash: await bcrypt.hash('Password123!', 10),
+        termsAccepted: true,
+        isStaff: true,
+      })
+    }
 
     const signed = signAccessToken({
       _id: adminUser._id,
@@ -58,9 +64,7 @@ describe('Tamper response flow', () => {
   })
 
   afterAll(async () => {
-    await mongoose.connection.dropDatabase()
-    await mongoose.connection.close()
-    await mongo.stop()
+    await teardownMongoDB()
   })
 
   afterEach(async () => {
@@ -69,9 +73,10 @@ describe('Tamper response flow', () => {
   })
 
   async function createAuditLog({ tamper = false, withTx = true } = {}) {
+    const testUserId = '507f1f77bcf86cd799439011' // Hardcoded test user ID
     const timestamp = new Date().toISOString()
     const hash = calculateAuditHash(
-      adminUser._id,
+      testUserId,
       'security_event',
       'system',
       'old',
@@ -82,7 +87,7 @@ describe('Tamper response flow', () => {
     )
 
     const auditLog = await AuditLog.create({
-      userId: adminUser._id,
+      userId: testUserId,
       eventType: 'security_event',
       fieldChanged: 'system',
       oldValue: 'old',
@@ -102,8 +107,18 @@ describe('Tamper response flow', () => {
   }
 
   describe('verifyAuditIntegrity job', () => {
+    beforeEach(() => {
+      auditVerifier.verifyAuditLog.mockReset()
+    })
+
     test('records tamper incident when hash mismatch is detected', async () => {
       await createAuditLog({ tamper: true })
+
+      auditVerifier.verifyAuditLog.mockResolvedValue({
+        verified: false,
+        matches: false,
+        error: 'Hash does not match blockchain record'
+      })
 
       const result = await verifyAuditIntegrity()
 
@@ -118,11 +133,18 @@ describe('Tamper response flow', () => {
     test('classifies missing on-chain tx as not_logged (no containment)', async () => {
       await createAuditLog({ tamper: false, withTx: false })
 
+      auditVerifier.verifyAuditLog.mockResolvedValue({
+        verified: false,
+        matches: false,
+        error: 'No transaction hash found'
+      })
+
       const result = await verifyAuditIntegrity()
 
       expect(result.incidents).toBe(1)
-      const incident = await TamperIncident.findOne({})
-      expect(incident).toBeTruthy()
+      const incidents = await TamperIncident.find({})
+      expect(incidents).toHaveLength(1)
+      const incident = incidents[0]
       expect(incident.verificationStatus).toBe('not_logged')
       expect(incident.containmentActive).toBe(false)
     })

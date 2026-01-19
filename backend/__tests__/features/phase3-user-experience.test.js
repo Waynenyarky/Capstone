@@ -8,7 +8,7 @@ const AuditLog = require('../../services/auth-service/src/models/AuditLog')
 const EmailChangeRequest = require('../../services/auth-service/src/models/EmailChangeRequest')
 const { signAccessToken } = require('../../services/auth-service/src/middleware/auth')
 const { sendEmailChangeNotification, sendPasswordChangeNotification, sendAdminAlert, sendApprovalNotification } = require('../../services/auth-service/src/lib/notificationService')
-const { getUserFriendlyMessage, createSafeErrorResponse, handleValidationError } = require('../../services/auth-service/src/lib/errorHandler')
+const { getUserFriendlyMessage, createSafeErrorResponse, handleValidationError } = require('../../src/lib/errorHandler')
 const bcrypt = require('bcryptjs')
 
 describe('Phase 3: User Experience', () => {

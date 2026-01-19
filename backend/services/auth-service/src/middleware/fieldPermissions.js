@@ -150,11 +150,9 @@ function requireFieldPermission(field) {
         // Log restricted field attempt
         const AdminApproval = require('../models/AdminApproval')
         const AuditLog = require('../models/AuditLog')
-        const createAuditLog = require('../routes/auth/profile').createAuditLog
 
         // Create audit log for restricted field attempt (async, don't wait)
         try {
-          const AuditLog = require('../models/AuditLog')
           const crypto = require('crypto')
           const timestamp = new Date().toISOString()
           const hashableData = {

@@ -37,9 +37,18 @@ describe('Background Jobs', () => {
   })
 
   afterAll(async () => {
-    await mongoose.connection.dropDatabase()
-    await mongoose.connection.close()
-    await mongo.stop()
+    try {
+      if (mongoose.connection.readyState === 1) {
+        await mongoose.connection.dropDatabase()
+        await mongoose.connection.close()
+      }
+    } catch (error) {
+      console.warn('Error cleaning up database:', error.message)
+    } finally {
+      if (mongo) {
+        await mongo.stop()
+      }
+    }
   })
 
   describe('1. Finalize Account Deletions', () => {

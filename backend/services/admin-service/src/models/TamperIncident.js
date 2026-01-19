@@ -88,4 +88,5 @@ const TamperIncidentSchema = new mongoose.Schema(
 TamperIncidentSchema.index({ status: 1, severity: 1, createdAt: -1 })
 TamperIncidentSchema.index({ detectedAt: -1 })
 
-module.exports = mongoose.model('TamperIncident', TamperIncidentSchema)
+// Prevent OverwriteModelError by checking if model already exists
+module.exports = mongoose.models.TamperIncident || mongoose.model('TamperIncident', TamperIncidentSchema)

@@ -2,16 +2,16 @@ const express = require('express')
 const request = require('supertest')
 
 // Mock models to avoid DB dependency
-jest.mock('../../../src/models/Role', () => ({
+jest.mock('../../../services/auth-service/src/models/Role', () => ({
   findOne: jest.fn(),
   find: jest.fn(),
 }))
 
-jest.mock('../../../src/models/User', () => ({
+jest.mock('../../../services/auth-service/src/models/User', () => ({
   find: jest.fn(),
 }))
 
-jest.mock('../../../src/models/MfaBootstrapToken', () => ({
+jest.mock('../../../services/auth-service/src/models/MfaBootstrapToken', () => ({
   create: jest.fn(),
 }))
 

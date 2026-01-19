@@ -50,7 +50,10 @@ describe('Profile Edit Integration Tests', () => {
       })
     }
     
-    app = setupApp('main') // Use main app instead of auth service
+    app = setupApp('auth') // Use auth service app (establishes DB connection in test mode)
+
+    // Wait a moment for auth service DB connection to be established
+    await new Promise(resolve => setTimeout(resolve, 100))
 
     // Create test users
     const users = await createTestUsers()
@@ -687,7 +690,7 @@ describe('Profile Edit Integration Tests', () => {
   describe('Admin Profile Edits', () => {
     it('should allow admin to update contact without approval', async () => {
       const response = await request(app)
-        .patch('/api/auth/profile/contact')
+        .patch('/api/auth/admin/profile/contact')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           phoneNumber: '5551234567',

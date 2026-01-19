@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const mongoose = require('mongoose');
 const connectDB = require('./config/db');
 const logger = require('./lib/logger');
 const correlationIdMiddleware = require('./middleware/correlationId');
@@ -10,6 +11,24 @@ const errorHandlerMiddleware = require('./middleware/errorHandler');
 const http = require('http');
 
 dotenv.config();
+
+// In test mode, establish database connection immediately when app is required
+// This ensures middleware can access the database
+if (process.env.NODE_ENV === 'test') {
+  const uri = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URL || ''
+  if (uri) {
+    try {
+      // Check if mongoose is already connected to avoid multiple connections to same URI
+      if (mongoose.connection.readyState === 0) {
+        connectDB(uri);
+      } else {
+        logger.info('Using existing mongoose connection for tests');
+      }
+    } catch (error) {
+      logger.warn('Auth service test DB connection failed:', error.message);
+    }
+  }
+}
 
 const app = express();
 
@@ -64,11 +83,20 @@ app.get('/api/health', (req, res) => {
 const authRouter = require('./routes/index');
 app.use('/api/auth', authRouter);
 
+// Admin monitoring routes (for testing)
+const monitoringRouter = require('./routes/monitoring');
+app.use('/api/admin/monitoring', monitoringRouter);
+
+// Tamper incident routes (for testing)
+if (process.env.NODE_ENV === 'test') {
+  const tamperIncidentsRouter = require('../../admin-service/src/routes/tamperIncidents');
+  app.use('/api/admin/tamper', tamperIncidentsRouter);
+}
+
 // Global Error Handler (must be last middleware)
 app.use(errorHandlerMiddleware);
 
 const PORT = Number(process.env.AUTH_SERVICE_PORT || 3001);
-const mongoose = require('mongoose');
 
 async function start() {
   try {

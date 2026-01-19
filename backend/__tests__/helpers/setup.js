@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 const { MongoMemoryServer } = require('mongodb-memory-server')
+// Use the main app's db config to ensure models use the same connection
 const connectDB = require('../../src/config/db')
 
 let mongoServer = null
@@ -42,19 +43,20 @@ async function setupMongoDB() {
     // seedDev may not exist, that's okay
   }
   
-  // Ensure mongoose connection is ready
-  if (mongoose.connection.readyState !== 1) {
-    await new Promise((resolve, reject) => {
-      if (mongoose.connection.readyState === 1) {
-        resolve()
-      } else {
-        mongoose.connection.once('connected', resolve)
-        mongoose.connection.once('error', reject)
-        // Timeout after 5 seconds
-        setTimeout(() => reject(new Error('Mongoose connection timeout')), 5000)
-      }
-    })
+  // Ensure mongoose connection is ready before returning
+  // Mongoose buffers operations if not connected, so we need to wait
+  let retries = 0
+  while (mongoose.connection.readyState !== 1 && retries < 50) {
+    await new Promise(resolve => setTimeout(resolve, 100))
+    retries++
   }
+  
+  if (mongoose.connection.readyState !== 1) {
+    throw new Error('Mongoose connection not ready after setup')
+  }
+  
+  // Wait a bit more to ensure connection is fully established
+  await new Promise(resolve => setTimeout(resolve, 200))
   
   return mongoServer
 }
@@ -88,12 +90,17 @@ function setupApp(service = 'auth') {
     audit: '../../services/audit-service/src/index',
     main: '../../src/index',
   }
-  
+
   const servicePath = serviceMap[service] || serviceMap.main
-  
+
   // Clear require cache to get fresh app instance
   delete require.cache[require.resolve(servicePath)]
   const { app } = require(servicePath)
+
+  // For auth service, ensure database connection is established
+  // Note: Auth service uses same mongoose instance, so connection should be shared
+  // But we need to ensure auth service models are loaded after connection
+
   return app
 }
 

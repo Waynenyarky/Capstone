@@ -162,6 +162,13 @@ router.post('/signup/start', validateBody(signupPayloadSchema), checkExistingEma
 
     const emailKey = String(email).toLowerCase().trim()
 
+    // Validate password strength
+    const { validatePasswordStrength } = require('../lib/passwordValidator')
+    const passwordValidation = validatePasswordStrength(password)
+    if (!passwordValidation.valid) {
+      return respond.error(res, 400, 'weak_password', 'Password does not meet requirements', passwordValidation.errors)
+    }
+
     // Prevent duplicates prior to verification
     let existing = null
     if (mongoose.connection && mongoose.connection.readyState === 1) {

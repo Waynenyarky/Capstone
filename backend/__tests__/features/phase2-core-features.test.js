@@ -1,16 +1,28 @@
 const request = require('supertest')
 const mongoose = require('mongoose')
-const { MongoMemoryServer } = require('mongodb-memory-server')
-const connectDB = require('../../services/auth-service/src/config/db')
-const User = require('../../services/auth-service/src/models/User')
-const Role = require('../../services/auth-service/src/models/Role')
-const AuditLog = require('../../services/auth-service/src/models/AuditLog')
-const IdVerification = require('../../services/auth-service/src/models/IdVerification')
-const AdminApproval = require('../../services/auth-service/src/models/AdminApproval')
-const { signAccessToken } = require('../../services/auth-service/src/middleware/auth')
-const { requestVerification, verifyCode, checkVerificationStatus } = require('../../services/auth-service/src/lib/verificationService')
-const { isStaffRole, getStaffRoles, isRestrictedFieldForStaff, isAdminRole, isBusinessOwnerRole } = require('../../services/auth-service/src/lib/roleHelpers')
-const { checkFieldPermission } = require('../../services/auth-service/src/middleware/fieldPermissions')
+const {
+  setupTestEnvironment,
+  setupMongoDB,
+  teardownMongoDB,
+  setupApp,
+} = require('../helpers/setup')
+const {
+  createTestUsers,
+  getTestTokens,
+  generateUniqueEmail,
+  generateUniquePhone,
+} = require('../helpers/fixtures')
+const { cleanupTestData } = require('../helpers/cleanup')
+const { requestOTPVerification, verifyVerificationCode, getVerificationStatus } = require('../helpers/verification')
+const User = require('../../src/models/User')
+const Role = require('../../src/models/Role')
+const AuditLog = require('../../src/models/AuditLog')
+const IdVerification = require('../../src/models/IdVerification')
+const AdminApproval = require('../../src/models/AdminApproval')
+const { signAccessToken } = require('../../src/middleware/auth')
+const { requestVerification, verifyCode, checkVerificationStatus } = require('../../src/lib/verificationService')
+const { isStaffRole, getStaffRoles, isRestrictedFieldForStaff, isAdminRole, isBusinessOwnerRole } = require('../../src/lib/roleHelpers')
+const { checkFieldPermission } = require('../../src/middleware/fieldPermissions')
 const { alertRestrictedFieldAttempt } = require('../../services/admin-service/src/lib/adminAlertService')
 const bcrypt = require('bcryptjs')
 
@@ -28,28 +40,21 @@ describe('Phase 2: Core Features', () => {
   let adminToken
 
   beforeAll(async () => {
-    process.env.NODE_ENV = 'test'
-    process.env.JWT_SECRET = 'test-secret'
-    process.env.SEED_DEV = 'true'
-    process.env.EMAIL_API_PROVIDER = 'mock'
-    process.env.DEFAULT_FROM_EMAIL = 'no-reply@example.com'
-    process.env.WEBAUTHN_RPID = 'localhost'
-    process.env.WEBAUTHN_ORIGIN = 'http://localhost:3001'
-    process.env.AUTH_SERVICE_PORT = '3001'
-    process.env.EMAIL_API_PROVIDER = 'mock'
-    process.env.AUDIT_CONTRACT_ADDRESS = '' // Disable blockchain for tests
+    setupTestEnvironment()
+    mongo = await setupMongoDB()
 
-    mongo = await MongoMemoryServer.create()
-    process.env.MONGO_URI = mongo.getUri()
-
-    await connectDB(process.env.MONGO_URI)
-    
-    // Seed dev data if available (optional)
-    try {
-      const { seedDevDataIfEmpty } = require('../../services/auth-service/src/lib/seedDev')
-      await seedDevDataIfEmpty()
-    } catch (err) {
-      // seedDev may not exist, that's okay
+    // Ensure mongoose is connected before setting up app
+    const mongoose = require('mongoose')
+    if (mongoose.connection.readyState !== 1) {
+      await new Promise((resolve, reject) => {
+        if (mongoose.connection.readyState === 1) {
+          resolve()
+        } else {
+          mongoose.connection.once('connected', resolve)
+          mongoose.connection.once('error', reject)
+          setTimeout(() => reject(new Error('Connection timeout')), 5000)
+        }
+      })
     }
 
     // Get or create roles
@@ -125,16 +130,14 @@ describe('Phase 2: Core Features', () => {
     staffToken = signAccessToken(staffUser).token
     adminToken = signAccessToken(adminUser).token
 
-    const { app: authApp } = require('../../services/auth-service/src/index')
-    app = authApp
+    // Use main backend app for admin approval endpoints
+    delete require.cache[require.resolve('../../src/index')]
+    const { app: mainApp } = require('../../src/index')
+    app = mainApp
   })
 
   afterAll(async () => {
-    try {
-      await mongoose.disconnect()
-    } finally {
-      if (mongo) await mongo.stop()
-    }
+    await teardownMongoDB(mongo)
   })
 
   describe('1. Verification Service', () => {

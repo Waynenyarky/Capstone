@@ -270,10 +270,10 @@ router.post('/staff', requireJwt, requireRole(['admin']), validateBody(staffCrea
   }
 })
 
-// PATCH /api/auth/profile/contact (Admin only - no approval required)
+// PATCH /api/auth/admin/profile/contact (Admin only - no approval required)
 // Update contact number for admin
 router.patch(
-  '/profile/contact',
+  '/admin/profile/contact',
   requireJwt,
   profileUpdateRateLimit(),
   validateBody(updateAdminContactSchema),

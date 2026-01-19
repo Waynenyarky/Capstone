@@ -137,8 +137,30 @@ describe('Account Recovery, Deletion & Session Management', () => {
   })
 
   afterAll(async () => {
-    await mongoose.connection.dropDatabase()
-    await mongoose.connection.close()
+    // Ensure mongoose connection is ready before cleanup
+    if (mongoose.connection.readyState !== 1) {
+      // Wait for connection to be ready (max 5 seconds)
+      let retries = 0
+      while (mongoose.connection.readyState !== 1 && retries < 50) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+        retries++
+      }
+    }
+
+    if (mongoose.connection.readyState === 1) {
+      try {
+        await mongoose.connection.dropDatabase()
+      } catch (error) {
+        console.warn('Failed to drop database:', error.message)
+      }
+    }
+
+    try {
+      await mongoose.connection.close()
+    } catch (error) {
+      console.warn('Failed to close connection:', error.message)
+    }
+
     await mongo.stop()
   })
 
