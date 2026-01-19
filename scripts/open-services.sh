@@ -30,8 +30,21 @@ check_service() {
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do
-        if docker exec "$service" >/dev/null 2>&1 || nc -z localhost "$port" 2>/dev/null; then
-            return 0
+        # Check if container is running and healthy
+        if docker ps --filter "name=$service" --filter "status=running" --format "{{.Names}}" | grep -q "^${service}$"; then
+            # Check if container is healthy (if healthcheck exists)
+            local health_status=$(docker inspect --format='{{.State.Health.Status}}' "$service" 2>/dev/null || echo "none")
+            if [ "$health_status" = "healthy" ] || [ "$health_status" = "none" ]; then
+                # Try to check port connectivity
+                if command -v nc >/dev/null 2>&1 && nc -z localhost "$port" 2>/dev/null; then
+                    return 0
+                elif command -v curl >/dev/null 2>&1 && curl -s --max-time 1 "http://localhost:$port" >/dev/null 2>&1; then
+                    return 0
+                elif docker exec "$service" echo "test" >/dev/null 2>&1; then
+                    # Container is running and exec works, assume it's ready
+                    return 0
+                fi
+            fi
         fi
         echo -e "${YELLOW}   Waiting for $service... (attempt $attempt/$max_attempts)${NC}"
         sleep 2
@@ -40,7 +53,7 @@ check_service() {
     return 1
 }
 
-# Function to open URL in browser (macOS)
+# Function to open URL in browser (cross-platform)
 open_browser() {
     local url=$1
     local name=$2
@@ -48,14 +61,38 @@ open_browser() {
     echo -e "${GREEN}   ✅ Opening $name...${NC}"
     echo -e "${CYAN}      URL: $url${NC}"
     
-    # Try to open the URL - macOS open command
-    # The open command returns 0 on success, but might open in background
+    # Detect OS and use appropriate command
     local result=0
-    if ! open "$url" 2>&1; then
-        result=$?
-        echo -e "${RED}   ❌ Failed to open $url (exit code: $result)${NC}"
-        echo -e "${YELLOW}   Try manually: open \"$url\"${NC}"
-        return 1
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        if ! open "$url" 2>&1; then
+            result=$?
+            echo -e "${RED}   ❌ Failed to open $url (exit code: $result)${NC}"
+            echo -e "${YELLOW}   Try manually: open \"$url\"${NC}"
+            return 1
+        fi
+    elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$WINDIR" ]]; then
+        # Windows (Git Bash, Cygwin, or Windows)
+        if command -v cmd.exe >/dev/null 2>&1; then
+            cmd.exe //c start "" "$url" 2>&1
+        elif command -v start >/dev/null 2>&1; then
+            start "$url" 2>&1
+        else
+            echo -e "${YELLOW}   ⚠️  Could not find command to open browser on Windows${NC}"
+            echo -e "${CYAN}      Please open manually: $url${NC}"
+            return 1
+        fi
+    else
+        # Linux and other Unix-like systems
+        if command -v xdg-open >/dev/null 2>&1; then
+            xdg-open "$url" 2>&1
+        elif command -v gnome-open >/dev/null 2>&1; then
+            gnome-open "$url" 2>&1
+        else
+            echo -e "${YELLOW}   ⚠️  Could not find command to open browser${NC}"
+            echo -e "${CYAN}      Please open manually: $url${NC}"
+            return 1
+        fi
     fi
     
     # Small delay between opens to avoid overwhelming the browser
@@ -194,7 +231,17 @@ else
 fi
 
 # Web frontend - always try to open (will show error if not running)
-if nc -z localhost 5173 2>/dev/null; then
+# Check if web server is running using multiple methods for cross-platform compatibility
+WEB_RUNNING=false
+if command -v nc >/dev/null 2>&1 && nc -z localhost 5173 2>/dev/null; then
+    WEB_RUNNING=true
+elif command -v curl >/dev/null 2>&1 && curl -s --max-time 1 "http://localhost:5173" >/dev/null 2>&1; then
+    WEB_RUNNING=true
+elif command -v timeout >/dev/null 2>&1 && timeout 1 bash -c "echo > /dev/tcp/localhost/5173" 2>/dev/null; then
+    WEB_RUNNING=true
+fi
+
+if [ "$WEB_RUNNING" = true ]; then
     open_browser "http://localhost:5173" "Web App"
     sleep 0.5
 else

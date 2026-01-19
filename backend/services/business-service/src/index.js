@@ -43,6 +43,14 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Serve static uploads (business registration documents)
+const path = require('path');
+// Uploads are stored at: backend/services/business-service/../../../uploads/business-registration
+// Which resolves to: backend/uploads/business-registration
+// But we need to serve from the parent uploads directory to match the URL structure
+const uploadsDir = path.join(__dirname, '..', '..', '..', 'uploads');
+app.use('/uploads', express.static(uploadsDir));
+
 // Business routes
 const businessRouter = require('./routes/profile');
 app.use('/api/business', businessRouter);

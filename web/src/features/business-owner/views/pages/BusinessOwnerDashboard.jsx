@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Layout, Row, Col, Card, Button, Typography, Space, Spin, theme } from 'antd'
 import { Link, useNavigate } from 'react-router-dom'
-import { FormOutlined, ShopOutlined } from '@ant-design/icons'
+import { FormOutlined, ShopOutlined, ReloadOutlined } from '@ant-design/icons'
 import { AppSidebar as Sidebar } from '@/features/authentication'
 import BusinessOwnerLayout from '../components/BusinessOwnerLayout'
 import BusinessRegistrationWizard from '../components/BusinessRegistrationWizard'
@@ -110,19 +110,21 @@ export default function BusinessOwnerDashboard() {
               <Space>
                 {shouldShowBusinessRegistration && (
                   <Button 
+                    type="primary"
                     icon={<ShopOutlined />} 
                     size="large"
                     onClick={() => navigate('/owner/business-registration')}
+                    style={{ background: token.colorPrimary, borderColor: token.colorPrimary }}
                   >
                     My Businesses
                   </Button>
                 )}
                 <Button 
-                  type="primary" 
                   size="large" 
-                  style={{ background: token.colorPrimary, borderColor: token.colorPrimary }}
+                  icon={<ReloadOutlined />}
+                  onClick={() => navigate('/owner/business-renewal')}
                 >
-                  New Application
+                  Business Renewal
                 </Button>
               </Space>
             </div>

@@ -325,6 +325,10 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     }
     const isPasskeyMethod = method === 'passkey' || method.includes('passkey')
     const isTotpMethod = method === 'authenticator' || method.includes('authenticator') || method.includes('fingerprint')
+    
+    // Determine if TOTP MFA is actually enabled and available
+    // MFA is only truly enabled if: mfaEnabled is true AND has mfaSecret (TOTP is set up)
+    const totpMfaEnabled = doc.mfaEnabled === true && hasTotp && isTotpMethod
 
     // Check if account deletion is scheduled - if so, always send OTP via email
     const hasScheduledDeletion = doc.deletionScheduledFor && new Date(doc.deletionScheduledFor) > new Date()
@@ -332,10 +336,9 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     try {
       // Send verification code via email if:
       // 1. Account deletion is scheduled (ALWAYS send email OTP for scheduled deletion accounts)
-      // 2. No MFA is enabled (regular email verification)
-      // 3. NOT using TOTP MFA (TOTP MFA uses authenticator app, not email) - UNLESS deletion is scheduled
-      // 4. NOT using passkey authentication (passkeys are used at login page) - UNLESS deletion is scheduled
-      // 5. NOT an LGU Officer - UNLESS deletion is scheduled
+      // 2. TOTP MFA is NOT enabled (regular email verification)
+      // 3. NOT using passkey authentication (passkeys are used at login page) - UNLESS deletion is scheduled
+      // 4. NOT an LGU Officer - UNLESS deletion is scheduled
       if (hasScheduledDeletion) {
         // Account deletion is scheduled - ALWAYS send OTP via email
         // This ensures users can log in to see deletion status and potentially undo it
@@ -349,13 +352,15 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
         } else {
           console.log(`[Login] Account deletion scheduled for ${email} - sending email OTP regardless of MFA settings`)
         }
-      } else if (!doc.mfaEnabled && !isLguOfficer) {
-        // No MFA enabled, send regular verification code via email
+      } else if (!totpMfaEnabled && !isLguOfficer) {
+        // TOTP MFA is NOT enabled, send regular verification code via email
         const emailResult = await sendOtp({ to: email, code, subject: 'Your Login Verification Code' })
         if (!emailResult || !emailResult.success) {
           console.error(`[Login] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
+        } else {
+          console.log(`[Login] TOTP MFA not enabled for ${email} - sending email OTP`)
         }
-      } else if (doc.mfaEnabled && isTotpMethod && !isLguOfficer) {
+      } else if (totpMfaEnabled && !isLguOfficer) {
         // TOTP MFA is enabled - DO NOT send email OTP
         // User must use their authenticator app (Microsoft Authenticator, Google Authenticator, etc.)
         console.log(`[Login] TOTP MFA enabled for ${email} - using authenticator app, skipping email OTP`)
@@ -372,7 +377,8 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     }
 
     const payload = { sent: true }
-    payload.mfaEnabled = doc.mfaEnabled === true
+    // Only set mfaEnabled to true if TOTP is actually available (has mfaSecret)
+    payload.mfaEnabled = totpMfaEnabled
     payload.mfaMethod = method
     try {
       payload.isFingerprintEnabled = !!doc.fprintEnabled || method.includes('fingerprint')

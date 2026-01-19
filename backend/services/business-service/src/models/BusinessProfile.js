@@ -173,6 +173,86 @@ const BusinessProfileSchema = new mongoose.Schema(
       submittedAt: { type: Date },
       submittedToLguOfficer: { type: Boolean, default: false },
       isSubmitted: { type: Boolean, default: false },
+      // Business Renewal Applications
+      renewals: [{
+        renewalId: { type: String, required: true },
+        renewalYear: { type: Number, required: true },
+        renewalPeriodStart: { type: Date },
+        renewalPeriodEnd: { type: Date },
+        periodAcknowledged: { type: Boolean, default: false },
+        periodAcknowledgedAt: { type: Date },
+        grossReceipts: {
+          amount: { type: Number, default: 0 },
+          calendarYear: { type: Number },
+          cy2025: { type: Number }, // Legacy field for backward compatibility
+          excludesVat: { type: Boolean, default: true },
+          excludesReturns: { type: Boolean, default: true },
+          excludesUncollected: { type: Boolean, default: true },
+          branchAllocations: [{
+            branchName: { type: String, default: '' },
+            branchLocation: { type: String, default: '' },
+            grossReceipts: { type: Number, default: 0 }
+          }]
+        },
+        renewalDocuments: {
+          previousMayorsPermit: { type: String, default: '' },
+          previousOfficialReceipt: { type: String, default: '' },
+          auditedFinancialStatements: { type: String, default: '' },
+          incomeTaxReturn: { type: String, default: '' },
+          barangayClearance: { type: String, default: '' },
+          ctc: { type: String, default: '' },
+          fireSafetyInspection: { type: String, default: '' },
+          sanitaryPermit: { type: String, default: '' },
+          healthCertificate: { type: String, default: '' },
+          businessInsurance: { type: String, default: '' },
+          swornDeclaration: { type: String, default: '' },
+          // IPFS CIDs for renewal documents
+          previousMayorsPermitIpfsCid: { type: String, default: '' },
+          previousOfficialReceiptIpfsCid: { type: String, default: '' },
+          auditedFinancialStatementsIpfsCid: { type: String, default: '' },
+          incomeTaxReturnIpfsCid: { type: String, default: '' },
+          barangayClearanceIpfsCid: { type: String, default: '' },
+          ctcIpfsCid: { type: String, default: '' },
+          fireSafetyInspectionIpfsCid: { type: String, default: '' },
+          sanitaryPermitIpfsCid: { type: String, default: '' },
+          healthCertificateIpfsCid: { type: String, default: '' },
+          businessInsuranceIpfsCid: { type: String, default: '' },
+          swornDeclarationIpfsCid: { type: String, default: '' }
+        },
+        assessment: {
+          localBusinessTax: { type: Number, default: 0 },
+          mayorsPermitFee: { type: Number, default: 0 },
+          barangayClearanceFee: { type: Number, default: 0 },
+          communityTax: { type: Number, default: 0 },
+          fireSafetyInspectionFee: { type: Number, default: 0 },
+          sanitaryPermitFee: { type: Number, default: 0 },
+          garbageFee: { type: Number, default: 0 },
+          environmentalFee: { type: Number, default: 0 },
+          otherFees: { type: Number, default: 0 },
+          total: { type: Number, default: 0 },
+          calculatedAt: { type: Date }
+        },
+        payment: {
+          status: { 
+            type: String, 
+            enum: ['pending', 'paid', 'failed'], 
+            default: 'pending' 
+          },
+          amount: { type: Number, default: 0 },
+          paymentMethod: { type: String, default: '' },
+          transactionId: { type: String, default: '' },
+          paidAt: { type: Date }
+        },
+        renewalStatus: { 
+          type: String, 
+          enum: ['draft', 'submitted', 'under_review', 'approved', 'rejected'], 
+          default: 'draft' 
+        },
+        submittedAt: { type: Date },
+        referenceNumber: { type: String, default: '' },
+        createdAt: { type: Date, default: Date.now },
+        updatedAt: { type: Date, default: Date.now }
+      }],
       createdAt: { type: Date, default: Date.now },
       updatedAt: { type: Date, default: Date.now }
     }],

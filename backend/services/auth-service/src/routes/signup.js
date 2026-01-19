@@ -30,7 +30,7 @@ const signupPayloadSchema = Joi.object({
   lastName: Joi.string().trim().min(1).max(100).required(),
   email: Joi.string().trim().email().custom(emailWithTld, 'require domain TLD').required(),
   phoneNumber: Joi.string().trim().allow('', null),
-  password: Joi.string().min(6).max(200).required(),
+  password: Joi.string().min(12).max(200).required(),
   termsAccepted: Joi.boolean().truthy('true', 'TRUE', 'True', 1, '1').valid(true).required(),
   role: Joi.string().valid(BUSINESS_OWNER_ROLE_SLUG).default(BUSINESS_OWNER_ROLE_SLUG),
 })

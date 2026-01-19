@@ -386,6 +386,19 @@ export default function AdminUsers() {
             <div>
               <Text type="secondary">Login instructions sent to:</Text> <Text>{successData?.email || ''}</Text>
             </div>
+            {successData?.username && (
+              <div>
+                <Text type="secondary">Username:</Text> <Text code>{successData.username}</Text>
+              </div>
+            )}
+            {successData?.devTempPassword && (
+              <div>
+                <Text type="secondary">Temporary Password:</Text> <Text code copyable>{successData.devTempPassword}</Text>
+                <div style={{ marginTop: 4 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Visible in non-production only. Share this securely with the staff member.</Text>
+                </div>
+              </div>
+            )}
             <div>
               <Text type="secondary">Account status:</Text> <Text>{successData?.status || ''}</Text>
             </div>

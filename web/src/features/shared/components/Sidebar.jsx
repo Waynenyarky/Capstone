@@ -172,7 +172,7 @@ const SidebarContent = ({
           color: ${isLightSidebar ? token.colorPrimary : '#fff'} !important;
         }
         .ant-menu-submenu-open > .ant-menu-submenu-title {
-          color: ${isLightSidebar ? token.colorPrimary : token.colorPrimary} !important;
+          color: ${isLightSidebar ? token.colorPrimary : '#fff'} !important;
         }
         .ant-menu-submenu .ant-menu {
           background: ${getSubmenuBg()} !important;
@@ -210,7 +210,7 @@ const SidebarContent = ({
           color: ${isLightSidebar ? token.colorPrimary : '#fff'} !important;
         }
         .ant-menu-submenu-open .ant-menu-submenu-arrow {
-          color: ${isLightSidebar ? token.colorPrimary : token.colorPrimary} !important;
+          color: ${isLightSidebar ? token.colorPrimary : '#fff'} !important;
         }
       `}</style>
       {/* Brand / Logo */}

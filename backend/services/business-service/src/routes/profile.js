@@ -10,6 +10,7 @@ const pdfService = require('../lib/pdfService')
 const logger = require('../lib/logger')
 
 const businessUploadsRoot = path.join(__dirname, '..', '..', '..', 'uploads', 'business-registration')
+const renewalUploadsRoot = path.join(__dirname, '..', '..', '..', 'uploads', 'business-renewal')
 const ensureDir = (dir) => {
   try { fs.mkdirSync(dir, { recursive: true }) } catch (_) {}
 }
@@ -29,7 +30,23 @@ const uploadStorage = multer.diskStorage({
   }
 })
 
+const renewalUploadStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const { businessId, renewalId } = req.params
+    const renewalDir = path.join(renewalUploadsRoot, businessId || 'unknown', renewalId || 'unknown')
+    ensureDir(renewalDir)
+    cb(null, renewalDir)
+  },
+  filename: (req, file, cb) => {
+    const fieldName = (req.body?.fieldName || 'file').toString().replace(/[^a-zA-Z0-9_-]/g, '')
+    const safeOriginal = path.basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, '')
+    const stamp = Date.now()
+    cb(null, `${fieldName}_${stamp}_${safeOriginal}`)
+  }
+})
+
 const upload = multer({ storage: uploadStorage })
+const renewalUpload = multer({ storage: renewalUploadStorage })
 
 // GET /api/business/profile - Get current user's business profile
 router.get('/profile', requireJwt, requireRole(['business_owner']), async (req, res) => {
@@ -427,6 +444,266 @@ router.get('/business-registration/:businessId/status', requireJwt, requireRole(
   } catch (err) {
     console.error('GET /api/business/business-registration/:businessId/status error:', err)
     return respond.error(res, 400, 'status_error', err.message || 'Failed to get application status')
+  }
+})
+
+// ========== BUSINESS RENEWAL ROUTES ==========
+
+// GET /api/business/business-renewal/:businessId/period - Get renewal period
+router.get('/business-renewal/:businessId/period', requireJwt, requireRole(['business_owner']), async (req, res) => {
+  try {
+    const period = await businessProfileService.getRenewalPeriod()
+    res.json(period)
+  } catch (err) {
+    console.error('GET /api/business/business-renewal/:businessId/period error:', err)
+    return respond.error(res, 500, 'period_error', err.message || 'Failed to get renewal period')
+  }
+})
+
+// POST /api/business/business-renewal/:businessId/start - Start renewal
+router.post('/business-renewal/:businessId/start', requireJwt, requireRole(['business_owner']), async (req, res) => {
+  try {
+    const userId = req._userId
+    const { businessId } = req.params
+    const { renewalYear } = req.body
+
+    if (!renewalYear) {
+      return respond.error(res, 400, 'renewal_year_required', 'Renewal year is required')
+    }
+
+    const result = await businessProfileService.startRenewal(userId, businessId, renewalYear)
+    res.json({
+      renewal: result.renewal,
+      businessId,
+      renewalId: result.renewal.renewalId
+    })
+  } catch (err) {
+    console.error('POST /api/business/business-renewal/:businessId/start error:', err)
+    return respond.error(res, 400, 'start_error', err.message || 'Failed to start renewal')
+  }
+})
+
+// POST /api/business/business-renewal/:businessId/:renewalId/acknowledge-period - Step 2
+router.post('/business-renewal/:businessId/:renewalId/acknowledge-period', requireJwt, requireRole(['business_owner']), async (req, res) => {
+  try {
+    const userId = req._userId
+    const { businessId, renewalId } = req.params
+
+    const profile = await businessProfileService.acknowledgeRenewalPeriod(userId, businessId, renewalId)
+    res.json({ success: true, profile })
+  } catch (err) {
+    console.error('POST /api/business/business-renewal/:businessId/:renewalId/acknowledge-period error:', err)
+    return respond.error(res, 400, 'acknowledge_error', err.message || 'Failed to acknowledge renewal period')
+  }
+})
+
+// GET /api/business/business-renewal/:businessId/:renewalId/requirements/pdf - Step 4 PDF
+router.get('/business-renewal/:businessId/:renewalId/requirements/pdf', requireJwt, requireRole(['business_owner']), async (req, res) => {
+  try {
+    const { businessId, renewalId } = req.params
+
+    // Generate PDF for renewal requirements checklist
+    const pdfBuffer = await pdfService.generateRenewalRequirementsChecklistPDF()
+
+    if (!pdfBuffer || pdfBuffer.length === 0) {
+      console.error('PDF buffer is empty')
+      return respond.error(res, 500, 'pdf_generation_failed', 'Generated PDF is empty')
+    }
+
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="Business_Renewal_Requirements_Checklist_${Date.now()}.pdf"`)
+    res.setHeader('Content-Length', pdfBuffer.length)
+
+    res.send(pdfBuffer)
+  } catch (err) {
+    console.error('GET /api/business/business-renewal/:businessId/:renewalId/requirements/pdf error:', err)
+    return respond.error(res, 500, 'pdf_error', err.message || 'Failed to generate PDF')
+  }
+})
+
+// POST /api/business/business-renewal/:businessId/:renewalId/gross-receipts - Step 5
+router.post('/business-renewal/:businessId/:renewalId/gross-receipts', requireJwt, requireRole(['business_owner']), async (req, res) => {
+  try {
+    const userId = req._userId
+    const { businessId, renewalId } = req.params
+    const grossReceiptsData = req.body
+
+    const profile = await businessProfileService.updateGrossReceipts(userId, businessId, renewalId, grossReceiptsData)
+    res.json({ success: true, profile })
+  } catch (err) {
+    console.error('POST /api/business/business-renewal/:businessId/:renewalId/gross-receipts error:', err)
+    return respond.error(res, 400, 'gross_receipts_error', err.message || 'Failed to update gross receipts')
+  }
+})
+
+// POST /api/business/business-renewal/:businessId/:renewalId/documents/upload - Step 6
+router.post('/business-renewal/:businessId/:renewalId/documents/upload', requireJwt, requireRole(['business_owner']), async (req, res) => {
+  try {
+    const userId = req._userId
+    const { businessId, renewalId } = req.params
+    const documents = req.body
+
+    const profile = await businessProfileService.uploadRenewalDocuments(userId, businessId, renewalId, documents)
+    res.json({ success: true, profile })
+  } catch (err) {
+    console.error('POST /api/business/business-renewal/:businessId/:renewalId/documents/upload error:', err)
+    return respond.error(res, 400, 'upload_error', err.message || 'Failed to upload documents')
+  }
+})
+
+// POST /api/business/business-renewal/:businessId/:renewalId/documents/upload-file - Step 6 file upload
+router.post(
+  '/business-renewal/:businessId/:renewalId/documents/upload-file',
+  requireJwt,
+  requireRole(['business_owner']),
+  renewalUpload.single('file'),
+  async (req, res) => {
+    try {
+      const { businessId, renewalId } = req.params
+      if (!businessId || businessId === 'new') {
+        return respond.error(res, 400, 'business_required', 'Business must be created before uploading documents.')
+      }
+      if (!req.file) {
+        return respond.error(res, 400, 'file_required', 'No file uploaded')
+      }
+
+      // Upload to IPFS (lazy load to avoid module errors)
+      let ipfsService = null
+      try {
+        ipfsService = require('../lib/ipfsService')
+        if (!ipfsService.isAvailable()) {
+          await ipfsService.initialize()
+        }
+      } catch (err) {
+        logger.warn('IPFS service not available, using local storage', { error: err.message })
+        ipfsService = null
+      }
+      
+      if (!ipfsService || !ipfsService.isAvailable()) {
+        // Fallback to local storage
+        const filename = path.basename(req.file.path)
+        const url = `/uploads/business-renewal/${businessId}/${renewalId}/${filename}`
+        return res.json({ url, ipfsCid: null, fallback: true })
+      }
+
+      try {
+        // Read file buffer
+        const fileBuffer = await fs.promises.readFile(req.file.path)
+        const fileName = req.file.originalname || path.basename(req.file.path)
+
+        // Upload to IPFS
+        const { cid, size } = await ipfsService.uploadFile(fileBuffer, fileName)
+
+        // Pin file
+        await ipfsService.pinFile(cid).catch((err) => {
+          logger.warn('Failed to pin file to IPFS', { cid, error: err.message })
+        })
+
+        // Get gateway URL
+        const gatewayUrl = ipfsService.getGatewayUrl(cid)
+
+        // Delete local file after IPFS upload
+        try {
+          await fs.promises.unlink(req.file.path)
+        } catch (unlinkErr) {
+          logger.warn('Failed to delete local file after IPFS upload', { path: req.file.path })
+        }
+
+        // Store CID in DocumentStorage contract (non-blocking)
+        try {
+          const axios = require('axios')
+          const auditServiceUrl = process.env.AUDIT_SERVICE_URL || 'http://localhost:3004'
+          await axios.post(`${auditServiceUrl}/api/audit/store-document`, {
+            userId: req._userId,
+            docType: 'RENEWAL_DOCUMENT',
+            ipfsCid: cid
+          }).catch((err) => {
+            logger.warn('Failed to store document CID in blockchain', { cid, error: err.message })
+          })
+        } catch (blockchainError) {
+          logger.warn('Blockchain storage failed for document', { error: blockchainError.message })
+        }
+
+        res.json({
+          cid,
+          gatewayUrl,
+          size,
+          url: gatewayUrl,
+          ipfsCid: cid
+        })
+      } catch (ipfsError) {
+        // If IPFS upload fails, fallback to local storage
+        logger.error('IPFS upload failed, using local storage fallback', { error: ipfsError.message })
+        const filename = path.basename(req.file.path)
+        const url = `/uploads/business-renewal/${businessId}/${renewalId}/${filename}`
+        res.json({ url, ipfsCid: null, fallback: true })
+      }
+    } catch (err) {
+      console.error('POST /api/business/business-renewal/:businessId/:renewalId/documents/upload-file error:', err)
+      return respond.error(res, 400, 'upload_error', err.message || 'Failed to upload file')
+    }
+  }
+)
+
+// GET /api/business/business-renewal/:businessId/:renewalId/assessment - Step 7 calculate
+router.get('/business-renewal/:businessId/:renewalId/assessment', requireJwt, requireRole(['business_owner']), async (req, res) => {
+  try {
+    const userId = req._userId
+    const { businessId, renewalId } = req.params
+
+    const result = await businessProfileService.calculateRenewalAssessment(userId, businessId, renewalId)
+    res.json(result.assessment)
+  } catch (err) {
+    console.error('GET /api/business/business-renewal/:businessId/:renewalId/assessment error:', err)
+    return respond.error(res, 400, 'assessment_error', err.message || 'Failed to calculate assessment')
+  }
+})
+
+// POST /api/business/business-renewal/:businessId/:renewalId/payment - Step 8
+router.post('/business-renewal/:businessId/:renewalId/payment', requireJwt, requireRole(['business_owner']), async (req, res) => {
+  try {
+    const userId = req._userId
+    const { businessId, renewalId } = req.params
+    const paymentData = req.body
+
+    const profile = await businessProfileService.processRenewalPayment(userId, businessId, renewalId, paymentData)
+    res.json({ success: true, profile })
+  } catch (err) {
+    console.error('POST /api/business/business-renewal/:businessId/:renewalId/payment error:', err)
+    return respond.error(res, 400, 'payment_error', err.message || 'Failed to process payment')
+  }
+})
+
+// POST /api/business/business-renewal/:businessId/:renewalId/submit - Final step
+router.post('/business-renewal/:businessId/:renewalId/submit', requireJwt, requireRole(['business_owner']), async (req, res) => {
+  try {
+    const userId = req._userId
+    const { businessId, renewalId } = req.params
+
+    const result = await businessProfileService.submitRenewal(userId, businessId, renewalId)
+    res.json({
+      success: true,
+      profile: result.profile,
+      referenceNumber: result.referenceNumber,
+      status: 'submitted'
+    })
+  } catch (err) {
+    console.error('POST /api/business/business-renewal/:businessId/:renewalId/submit error:', err)
+    return respond.error(res, 400, 'submit_error', err.message || 'Failed to submit renewal')
+  }
+})
+
+// GET /api/business/business-renewal/:businessId/:renewalId/status - Get status
+router.get('/business-renewal/:businessId/:renewalId/status', requireJwt, requireRole(['business_owner']), async (req, res) => {
+  try {
+    const userId = req._userId
+    const { businessId, renewalId } = req.params
+
+    const status = await businessProfileService.getRenewalStatus(userId, businessId, renewalId)
+    res.json(status)
+  } catch (err) {
+    console.error('GET /api/business/business-renewal/:businessId/:renewalId/status error:', err)
+    return respond.error(res, 400, 'status_error', err.message || 'Failed to get renewal status')
   }
 })
 

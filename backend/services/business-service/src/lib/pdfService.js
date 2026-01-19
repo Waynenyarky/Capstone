@@ -410,6 +410,208 @@ class PDFService {
       }
     })
   }
+
+  /**
+   * Generate Renewal Requirements Checklist PDF
+   * @returns {Promise<Buffer>} PDF buffer
+   */
+  async generateRenewalRequirementsChecklistPDF() {
+    return new Promise((resolve, reject) => {
+      try {
+        const PDFDocClass = getPDFDocument()
+        const margin = 50
+        const doc = new PDFDocClass({
+          size: 'LETTER',
+          margins: { top: margin, bottom: margin, left: margin, right: margin }
+        })
+
+        const chunks = []
+        doc.on('data', chunk => chunks.push(chunk))
+        doc.on('end', () => resolve(Buffer.concat(chunks)))
+        doc.on('error', reject)
+
+        const pageWidth = doc.page.width
+        const pageHeight = doc.page.height
+        const contentWidth = pageWidth - (margin * 2)
+
+        // Generate document reference number
+        const now = new Date()
+        const docDate = now.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: '2-digit', 
+          day: '2-digit'
+        })
+        const docTime = now.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: true
+        })
+        const docNumber = `REN-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`
+
+        // Header
+        doc.strokeColor('#000000')
+        doc.lineWidth(2)
+        doc.moveTo(margin, margin - 15)
+          .lineTo(pageWidth - margin, margin - 15)
+          .stroke()
+        doc.lineWidth(1)
+        doc.moveTo(margin, margin - 13)
+          .lineTo(pageWidth - margin, margin - 13)
+          .stroke()
+
+        doc.fontSize(14)
+          .font('Helvetica-Bold')
+          .fillColor('#000000')
+          .text('REPUBLIC OF THE PHILIPPINES', { align: 'center' })
+          .moveDown(0.2)
+
+        doc.fontSize(16)
+          .font('Helvetica-Bold')
+          .text('LOCAL GOVERNMENT UNIT', { align: 'center' })
+          .moveDown(0.2)
+
+        doc.fontSize(14)
+          .font('Helvetica-Bold')
+          .text('BUSINESS PERMIT AND LICENSING OFFICE', { align: 'center' })
+          .moveDown(0.5)
+
+        // Title Box
+        const titleY = doc.y
+        const titleBoxX = margin + 15
+        const titleBoxWidth = contentWidth - 30
+        const titleBoxHeight = 40
+        
+        doc.roundedRect(titleBoxX, titleY, titleBoxWidth, titleBoxHeight, 3)
+          .strokeColor('#000000')
+          .lineWidth(1.5)
+          .stroke()
+        
+        doc.fontSize(16)
+          .font('Helvetica-Bold')
+          .fillColor('#000000')
+          .text('BUSINESS PERMIT RENEWAL', { 
+            align: 'center',
+            y: titleY + 10,
+            width: titleBoxWidth
+          })
+        
+        doc.fontSize(12)
+          .font('Helvetica')
+          .text('REQUIREMENTS CHECKLIST', { 
+            align: 'center',
+            y: titleY + 26,
+            width: titleBoxWidth
+          })
+
+        doc.y = titleY + titleBoxHeight + 15
+        doc.moveDown(0.5)
+
+        // Renewal Period Information
+        doc.fontSize(10)
+          .font('Helvetica-Bold')
+          .fillColor('#000000')
+          .text('RENEWAL PERIOD:', { continued: true })
+          .font('Helvetica')
+          .text(' January 1–20, 2026')
+          .moveDown(0.3)
+          .font('Helvetica-Bold')
+          .text('IMPORTANT:', { continued: true })
+          .font('Helvetica')
+          .text(' Late filing penalties apply after January 20, 2026')
+          .moveDown(0.8)
+
+        // Requirements List
+        doc.fontSize(11)
+          .font('Helvetica-Bold')
+          .fillColor('#000000')
+          .text('REQUIRED DOCUMENTS FOR RENEWAL:', { underline: true })
+          .moveDown(0.5)
+
+        const requirements = [
+          "Previous year's Mayor's Permit and Official Receipt",
+          'Audited Financial Statements and/or Income Tax Return',
+          'Barangay Clearance (current year)',
+          'Community Tax Certificate (CTC / Cedula)',
+          'Fire Safety Inspection Certificate (FSIC)',
+          'Sanitary Permit / Health Certificates (if applicable)',
+          'Business Insurance (if required)',
+          'Sworn Declaration of Gross Receipts (if books are not yet finalized)'
+        ]
+
+        doc.fontSize(10)
+          .font('Helvetica')
+          .fillColor('#000000')
+        
+        requirements.forEach((req, index) => {
+          doc.text(`□ ${index + 1}. ${req}`, { indent: 10 })
+          doc.moveDown(0.3)
+        })
+
+        doc.moveDown(0.5)
+
+        // Important Notice
+        const noticeY = doc.y
+        doc.roundedRect(margin + 10, noticeY, contentWidth - 20, 32, 3)
+          .strokeColor('#000000')
+          .lineWidth(1)
+          .fillColor('#f8f8f8')
+          .fill()
+          .stroke()
+        
+        doc.fontSize(9.5)
+          .font('Helvetica-Bold')
+          .fillColor('#000000')
+          .text('IMPORTANT NOTICE', { 
+            align: 'center',
+            y: noticeY + 6,
+            width: contentWidth - 20
+          })
+        
+        doc.fontSize(8.5)
+          .font('Helvetica')
+          .fillColor('#333333')
+          .text('Please ensure all documents are current and valid. Submit complete requirements before the deadline to avoid penalties.', { 
+            align: 'center',
+            y: noticeY + 18,
+            width: contentWidth - 40
+          })
+
+        doc.y = noticeY + 38
+        doc.moveDown(0.8)
+
+        // Footer
+        doc.strokeColor('#000000')
+        doc.lineWidth(1)
+        doc.moveTo(margin, doc.y)
+          .lineTo(pageWidth - margin, doc.y)
+          .stroke()
+        doc.moveDown(0.5)
+
+        doc.fontSize(7.5)
+          .font('Helvetica')
+          .fillColor('#666666')
+          .text('This is an official document generated by the Local Government Unit', { align: 'center' })
+          .moveDown(0.2)
+          .text('For inquiries, please contact the Business Permit and Licensing Office', { align: 'center' })
+          .moveDown(0.2)
+          .text(`Document Reference: ${docNumber} | Generated: ${docDate} at ${docTime}`, { align: 'center' })
+
+        const footerY = Math.min(doc.y + 8, pageHeight - margin - 2)
+        doc.lineWidth(1)
+        doc.moveTo(margin, footerY)
+          .lineTo(pageWidth - margin, footerY)
+          .stroke()
+        doc.lineWidth(2)
+        doc.moveTo(margin, footerY + 2)
+          .lineTo(pageWidth - margin, footerY + 2)
+          .stroke()
+
+        doc.end()
+      } catch (error) {
+        reject(error)
+      }
+    })
+  }
 }
 
 module.exports = new PDFService()

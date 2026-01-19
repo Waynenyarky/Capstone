@@ -136,6 +136,8 @@ export function useStaffManagement() {
         office: created?.office || values.office,
         role: created?.role || values.role,
         status: 'Pending First Login & MFA Setup',
+        username: created?.username,
+        devTempPassword: created?.devTempPassword,
       })
       setSuccessOpen(true)
     } catch (e) {

@@ -1,3 +1,9 @@
+// Web Crypto API polyfill for Node.js (required for @simplewebauthn/server)
+if (typeof globalThis.crypto === 'undefined') {
+  const { webcrypto } = require('crypto')
+  globalThis.crypto = webcrypto
+}
+
 const express = require('express')
 const os = require('os')
 const webauthnServer = require('@simplewebauthn/server')

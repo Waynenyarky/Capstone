@@ -53,6 +53,8 @@ app.use('/api/admin', adminRouter);
 app.use('/api/admin/monitoring', monitoringRouter);
 app.use('/api/admin/maintenance', maintenanceRouter);
 app.use('/api/admin/tamper', tamperIncidentsRouter);
+// Public maintenance status endpoint (for frontend to check)
+app.use('/api/maintenance', maintenanceRouter);
 
 // Global Error Handler (must be last middleware)
 app.use(errorHandlerMiddleware);

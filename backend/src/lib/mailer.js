@@ -70,6 +70,19 @@ async function sendEmailViaAPI({ to, from, subject, text, html, headers = {} }) 
         throw new Error(`Unsupported email provider: ${provider}. Supported: sendgrid, mailgun, ses, resend, postmark`)
     }
   } catch (err) {
+    // Log detailed error information
+    if (err.response) {
+      console.error('📧 Email API Error Details:', {
+        status: err.response.status,
+        statusText: err.response.statusText,
+        data: err.response.data,
+        url: err.config?.url,
+        provider: provider
+      })
+    } else {
+      console.error('📧 Email API Error:', err.message)
+    }
+    
     // In development, fall back to mock on API errors
     if (isDevelopment && err.response) {
       console.warn('⚠️ Email API error. Falling back to mock email sender in development.')
@@ -85,7 +98,17 @@ async function sendEmailViaAPI({ to, from, subject, text, html, headers = {} }) 
  * Send email via SendGrid API
  */
 async function sendViaSendGrid({ to, from, subject, text, html, headers, apiKey, apiUrl }) {
-  const url = apiUrl || 'https://api.sendgrid.com/v3/mail/send'
+  // SendGrid API endpoint - always use the mail/send endpoint
+  const url = 'https://api.sendgrid.com/v3/mail/send'
+  
+  // Validate required fields
+  if (!apiKey || !apiKey.startsWith('SG.')) {
+    throw new Error('Invalid SendGrid API key. API key must start with "SG."')
+  }
+  
+  if (!from || !to) {
+    throw new Error('From and To email addresses are required')
+  }
   
   const emailData = {
     personalizations: [{
@@ -104,24 +127,46 @@ async function sendViaSendGrid({ to, from, subject, text, html, headers, apiKey,
     emailData.headers = headers
   }
 
-  const response = await axios.post(url, emailData, {
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    }
-  })
+  try {
+    const response = await axios.post(url, emailData, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    })
 
-  // SendGrid returns 202 Accepted on success
-  if (response.status === 202) {
-    return {
-      success: true,
-      messageId: response.headers['x-message-id'] || `sg-${Date.now()}`,
-      accepted: [to],
-      rejected: []
+    // SendGrid returns 202 Accepted on success
+    if (response.status === 202) {
+      return {
+        success: true,
+        messageId: response.headers['x-message-id'] || `sg-${Date.now()}`,
+        accepted: [to],
+        rejected: []
+      }
     }
+
+    throw new Error(`SendGrid API returned unexpected status: ${response.status}`)
+  } catch (error) {
+    // Provide more detailed error information
+    if (error.response) {
+      const status = error.response.status
+      const data = error.response.data
+      
+      if (status === 401) {
+        throw new Error('SendGrid API: Unauthorized - Invalid API key. Please check your EMAIL_API_KEY in .env file.')
+      } else if (status === 403) {
+        throw new Error('SendGrid API: Forbidden - API key does not have Mail Send permissions.')
+      } else if (status === 404) {
+        throw new Error('SendGrid API: Not Found - Invalid endpoint or API key. Ensure your API key is valid and has Mail Send permissions.')
+      } else if (status === 400) {
+        const errorMsg = data?.errors?.[0]?.message || JSON.stringify(data)
+        throw new Error(`SendGrid API: Bad Request - ${errorMsg}. Check that your sender email (${from}) is verified in SendGrid.`)
+      } else {
+        throw new Error(`SendGrid API Error (${status}): ${JSON.stringify(data)}`)
+      }
+    }
+    throw error
   }
-
-  throw new Error(`SendGrid API returned unexpected status: ${response.status}`)
 }
 
 /**
@@ -264,7 +309,6 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
   const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
   const supportEmail = process.env.SUPPORT_EMAIL || process.env.EMAIL_HOST_USER || 'support@bizclear.com'
   const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
-  const logoUrl = process.env.EMAIL_LOGO_URL || `${appUrl}/BizClear.png`
 
   const text = [
     'Hello,',
@@ -284,15 +328,6 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
       
       <!-- Header -->
       <div style="background:#003a70;padding:32px;text-align:center;">
-        ${logoUrl ? `
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:16px;">
-          <tr>
-            <td align="center">
-              <img src="${logoUrl}" alt="${brandName}" width="200" height="auto" style="max-width:200px;width:200px;height:auto;display:block;margin:0 auto;border:0;outline:none;text-decoration:none;" />
-            </td>
-          </tr>
-        </table>
-        ` : ''}
         <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">${brandName}</h1>
       </div>
 

@@ -21,7 +21,7 @@ export const phoneNumberRules = [
 
 export const passwordRules = [
     { required: true, message: 'Please enter your password' },
-    { min: 8, message: 'Password must be at least 8 characters long' },
+    { min: 12, message: 'Password must be at least 12 characters long' },
     { pattern: /[a-z]/, message: 'Password must contain at least one lowercase letter' },
     { pattern: /[A-Z]/, message: 'Password must contain at least one uppercase letter' },
     { pattern: /\d/, message: 'Password must contain at least one number' },

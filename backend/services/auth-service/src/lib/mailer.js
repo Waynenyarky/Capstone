@@ -70,6 +70,19 @@ async function sendEmailViaAPI({ to, from, subject, text, html, headers = {} }) 
         throw new Error(`Unsupported email provider: ${provider}. Supported: sendgrid, mailgun, ses, resend, postmark`)
     }
   } catch (err) {
+    // Log detailed error information
+    if (err.response) {
+      console.error('📧 Email API Error Details:', {
+        status: err.response.status,
+        statusText: err.response.statusText,
+        data: err.response.data,
+        url: err.config?.url,
+        provider: provider
+      })
+    } else {
+      console.error('📧 Email API Error:', err.message)
+    }
+    
     // In development, fall back to mock on API errors
     if (isDevelopment && err.response) {
       console.warn('⚠️ Email API error. Falling back to mock email sender in development.')
@@ -85,7 +98,17 @@ async function sendEmailViaAPI({ to, from, subject, text, html, headers = {} }) 
  * Send email via SendGrid API
  */
 async function sendViaSendGrid({ to, from, subject, text, html, headers, apiKey, apiUrl }) {
-  const url = apiUrl || 'https://api.sendgrid.com/v3/mail/send'
+  // SendGrid API endpoint - always use the mail/send endpoint
+  const url = 'https://api.sendgrid.com/v3/mail/send'
+  
+  // Validate required fields
+  if (!apiKey || !apiKey.startsWith('SG.')) {
+    throw new Error('Invalid SendGrid API key. API key must start with "SG."')
+  }
+  
+  if (!from || !to) {
+    throw new Error('From and To email addresses are required')
+  }
   
   const emailData = {
     personalizations: [{
@@ -104,24 +127,46 @@ async function sendViaSendGrid({ to, from, subject, text, html, headers, apiKey,
     emailData.headers = headers
   }
 
-  const response = await axios.post(url, emailData, {
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    }
-  })
+  try {
+    const response = await axios.post(url, emailData, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    })
 
-  // SendGrid returns 202 Accepted on success
-  if (response.status === 202) {
-    return {
-      success: true,
-      messageId: response.headers['x-message-id'] || `sg-${Date.now()}`,
-      accepted: [to],
-      rejected: []
+    // SendGrid returns 202 Accepted on success
+    if (response.status === 202) {
+      return {
+        success: true,
+        messageId: response.headers['x-message-id'] || `sg-${Date.now()}`,
+        accepted: [to],
+        rejected: []
+      }
     }
+
+    throw new Error(`SendGrid API returned unexpected status: ${response.status}`)
+  } catch (error) {
+    // Provide more detailed error information
+    if (error.response) {
+      const status = error.response.status
+      const data = error.response.data
+      
+      if (status === 401) {
+        throw new Error('SendGrid API: Unauthorized - Invalid API key. Please check your EMAIL_API_KEY in .env file.')
+      } else if (status === 403) {
+        throw new Error('SendGrid API: Forbidden - API key does not have Mail Send permissions.')
+      } else if (status === 404) {
+        throw new Error('SendGrid API: Not Found - Invalid endpoint or API key. Ensure your API key is valid and has Mail Send permissions.')
+      } else if (status === 400) {
+        const errorMsg = data?.errors?.[0]?.message || JSON.stringify(data)
+        throw new Error(`SendGrid API: Bad Request - ${errorMsg}. Check that your sender email (${from}) is verified in SendGrid.`)
+      } else {
+        throw new Error(`SendGrid API Error (${status}): ${JSON.stringify(data)}`)
+      }
+    }
+    throw error
   }
-
-  throw new Error(`SendGrid API returned unexpected status: ${response.status}`)
 }
 
 /**

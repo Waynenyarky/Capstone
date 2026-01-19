@@ -1,6 +1,8 @@
 const BusinessProfile = require('../models/BusinessProfile')
 const User = require('../models/User')
 const AuditLog = require('../models/AuditLog')
+// Register Role model to enable populate('role')
+require('../models/Role')
 const blockchainService = require('../lib/blockchainService')
 const { validateBusinessRegistrationNumber, validateGeolocation, calculateRiskLevel } = require('../lib/businessValidation')
 const mongoose = require('mongoose')
@@ -1003,6 +1005,1067 @@ class BusinessProfileService {
            business.otherAgencyRegistrations.philhealth?.registered ||
            business.otherAgencyRegistrations.pagibig?.registered)
         : true // If no employees, considered registered
+    }
+  }
+
+  // ========== BUSINESS RENEWAL METHODS ==========
+
+  /**
+   * Calculate gross receipts calendar year based on renewal year (BPLO standard)
+   * When renewing for year X, gross receipts should be for calendar year (X - 1)
+   * @param {number} renewalYear - Year being renewed (e.g., 2026)
+   * @returns {number} Calendar year for gross receipts (e.g., 2025)
+   */
+  getGrossReceiptsCalendarYear(renewalYear) {
+    return renewalYear - 1
+  }
+
+  /**
+   * Migrate legacy gross receipts structure (cy2025) to new structure (amount + calendarYear)
+   * This ensures backward compatibility with existing records
+   * @param {object} renewal - Renewal object
+   * @returns {object} Renewal with migrated gross receipts (if needed)
+   */
+  migrateGrossReceiptsIfNeeded(renewal) {
+    if (!renewal || !renewal.grossReceipts) {
+      return renewal
+    }
+
+    const grossReceipts = renewal.grossReceipts
+
+    // If new structure already exists, no migration needed
+    if (grossReceipts.amount !== undefined && grossReceipts.calendarYear !== undefined) {
+      return renewal
+    }
+
+    // If legacy cy2025 exists but new structure doesn't, migrate it
+    if (grossReceipts.cy2025 !== undefined && grossReceipts.cy2025 !== null) {
+      grossReceipts.amount = grossReceipts.cy2025
+      grossReceipts.calendarYear = this.getGrossReceiptsCalendarYear(renewal.renewalYear)
+      // Keep cy2025 for backward compatibility during transition
+    }
+
+    return renewal
+  }
+
+  /**
+   * Get current renewal period from configuration
+   * @returns {Promise<object>} Renewal period information
+   */
+  async getRenewalPeriod() {
+    const renewalConfig = require('../config/renewalConfig')
+    const period = renewalConfig.getCurrentRenewalPeriod()
+    const penaltyInfo = renewalConfig.getPenaltyInfo(new Date(), 0)
+    
+    return {
+      start: period.start.toISOString(),
+      end: period.end.toISOString(),
+      penaltyStart: period.penaltyStart.toISOString(),
+      penaltyRate: period.penaltyRate,
+      year: period.year,
+      formatted: renewalConfig.getFormattedRenewalPeriod(),
+      isWithinPeriod: renewalConfig.isWithinRenewalPeriod(),
+      penaltyInfo
+    }
+  }
+
+  /**
+   * Start a new renewal application
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID
+   * @param {number} renewalYear - Year being renewed (e.g., 2026)
+   * @returns {Promise<object>} Created renewal application
+   */
+  async startRenewal(userId, businessId, renewalYear) {
+    // First verify business exists and is eligible
+    const profile = await BusinessProfile.findOne({ userId })
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+
+    const business = profile.businesses?.find(b => b.businessId === businessId)
+    if (!business) {
+      throw new Error('Business not found')
+    }
+
+    // Check if business is approved/registered (can only renew registered businesses)
+    if (business.applicationStatus !== 'approved' && business.applicationStatus !== 'submitted') {
+      throw new Error('Business must be approved before renewal')
+    }
+
+    // Get renewal period
+    const renewalConfig = require('../config/renewalConfig')
+    const period = renewalConfig.getCurrentRenewalPeriod()
+
+    // Generate renewal ID
+    const renewalId = `REN-${renewalYear}-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+
+    // Calculate gross receipts calendar year (BPLO standard: renewalYear - 1)
+    const calendarYear = this.getGrossReceiptsCalendarYear(renewalYear)
+
+    // Create renewal object
+    const renewal = {
+      renewalId,
+      renewalYear,
+      renewalPeriodStart: period.start,
+      renewalPeriodEnd: period.end,
+      periodAcknowledged: false,
+      grossReceipts: {
+        amount: 0,
+        calendarYear: calendarYear,
+        excludesVat: true,
+        excludesReturns: true,
+        excludesUncollected: true,
+        branchAllocations: []
+      },
+      renewalDocuments: {},
+      assessment: {
+        localBusinessTax: 0,
+        mayorsPermitFee: 0,
+        barangayClearanceFee: 0,
+        communityTax: 0,
+        fireSafetyInspectionFee: 0,
+        sanitaryPermitFee: 0,
+        garbageFee: 0,
+        environmentalFee: 0,
+        otherFees: 0,
+        total: 0
+      },
+      payment: {
+        status: 'pending',
+        amount: 0,
+        paymentMethod: '',
+        transactionId: ''
+      },
+      renewalStatus: 'draft',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+
+    // Use atomic update to add renewal to the businesses array
+    // This prevents version conflicts
+    const updatedProfile = await BusinessProfile.findOneAndUpdate(
+      { 
+        userId,
+        'businesses.businessId': businessId
+      },
+      {
+        $push: {
+          'businesses.$.renewals': renewal
+        },
+        $set: {
+          'businesses.$.updatedAt': new Date()
+        }
+      },
+      { new: true }
+    )
+
+    if (!updatedProfile) {
+      throw new Error('Failed to create renewal - business not found or update failed')
+    }
+
+    // Find the updated business to return
+    const updatedBusiness = updatedProfile.businesses?.find(b => b.businessId === businessId)
+    if (!updatedBusiness) {
+      throw new Error('Business not found after update')
+    }
+
+    // Find the renewal we just added
+    const addedRenewal = updatedBusiness.renewals?.find(r => r.renewalId === renewalId)
+    if (!addedRenewal) {
+      throw new Error('Renewal was not added successfully')
+    }
+
+    return { renewal: addedRenewal, business: updatedBusiness }
+  }
+
+  /**
+   * Acknowledge renewal period (Step 2)
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID
+   * @param {string} renewalId - Renewal ID
+   * @returns {Promise<object>} Updated profile
+   */
+  async acknowledgeRenewalPeriod(userId, businessId, renewalId) {
+    // Use atomic update to prevent version conflicts
+    const updatedProfile = await BusinessProfile.findOneAndUpdate(
+      {
+        userId,
+        'businesses.businessId': businessId,
+        'businesses.renewals.renewalId': renewalId
+      },
+      {
+        $set: {
+          'businesses.$[business].renewals.$[renewal].periodAcknowledged': true,
+          'businesses.$[business].renewals.$[renewal].periodAcknowledgedAt': new Date(),
+          'businesses.$[business].renewals.$[renewal].updatedAt': new Date(),
+          'businesses.$[business].updatedAt': new Date()
+        }
+      },
+      {
+        arrayFilters: [
+          { 'business.businessId': businessId },
+          { 'renewal.renewalId': renewalId }
+        ],
+        new: true
+      }
+    )
+
+    if (!updatedProfile) {
+      // Try to find the profile to provide better error message
+      const profile = await BusinessProfile.findOne({ userId })
+      if (!profile) {
+        throw new Error('Business profile not found')
+      }
+
+      const business = profile.businesses?.find(b => b.businessId === businessId)
+      if (!business) {
+        throw new Error(`Business not found: ${businessId}`)
+      }
+
+      if (!business.renewals || business.renewals.length === 0) {
+        throw new Error(`No renewals found for business ${businessId}`)
+      }
+
+      const renewalIds = business.renewals.map(r => r.renewalId).join(', ')
+      throw new Error(`Renewal application not found: ${renewalId}. Available renewals: ${renewalIds}`)
+    }
+
+    return updatedProfile
+  }
+
+  /**
+   * Update gross receipts declaration (Step 5)
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID
+   * @param {string} renewalId - Renewal ID
+   * @param {object} grossReceiptsData - Gross receipts data
+   * @returns {Promise<object>} Updated profile
+   */
+  async updateGrossReceipts(userId, businessId, renewalId, grossReceiptsData) {
+    // First, get the renewal to determine renewalYear
+    const profile = await BusinessProfile.findOne({
+      userId,
+      'businesses.businessId': businessId,
+      'businesses.renewals.renewalId': renewalId
+    }).lean()
+
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+
+    const business = profile.businesses?.find(b => b.businessId === businessId)
+    if (!business) {
+      throw new Error('Business not found')
+    }
+
+    const renewal = business.renewals?.find(r => r.renewalId === renewalId)
+    if (!renewal) {
+      throw new Error('Renewal application not found')
+    }
+
+    const renewalYear = renewal.renewalYear
+    const expectedCalendarYear = this.getGrossReceiptsCalendarYear(renewalYear)
+
+    // Support both new structure (amount) and legacy (cy2025) for backward compatibility
+    let amount = grossReceiptsData.amount
+    if (amount === undefined || amount === null) {
+      // Fallback to legacy cy2025 field
+      amount = grossReceiptsData.cy2025
+    }
+
+    // Convert to number if it's a string
+    if (typeof amount === 'string') {
+      amount = parseFloat(amount)
+    }
+    
+    // Ensure it's a valid number
+    if (amount === null || amount === undefined || isNaN(amount)) {
+      throw new Error(`Gross receipts for CY ${expectedCalendarYear} must be a valid number`)
+    }
+    
+    // Validate that it's greater than 0
+    if (amount <= 0) {
+      throw new Error(`Gross receipts for CY ${expectedCalendarYear} must be greater than 0`)
+    }
+    
+    // Validate that it's not negative (additional check)
+    if (amount < 0) {
+      throw new Error('Gross receipts cannot be negative')
+    }
+
+    // Validate calendarYear if provided, or use calculated value
+    let calendarYear = grossReceiptsData.calendarYear
+    if (calendarYear === undefined || calendarYear === null) {
+      calendarYear = expectedCalendarYear
+    } else if (calendarYear !== expectedCalendarYear) {
+      throw new Error(`Calendar year mismatch: expected CY ${expectedCalendarYear} (for renewal year ${renewalYear}), but got CY ${calendarYear}`)
+    }
+
+    // Ensure amount is a valid number
+    const amountValue = Number(amount)
+    if (isNaN(amountValue) || amountValue <= 0) {
+      throw new Error(`Gross receipts for CY ${expectedCalendarYear} must be a valid number greater than 0`)
+    }
+    
+    // Build gross receipts object - ensure all fields are explicitly set
+    const grossReceipts = {
+      amount: amountValue, // Explicitly set as number
+      calendarYear: Number(calendarYear), // Ensure calendarYear is a number
+      cy2025: amountValue, // Always set cy2025 to the same value for backward compatibility
+      excludesVat: grossReceiptsData.excludesVat !== false, // Default true
+      excludesReturns: grossReceiptsData.excludesReturns !== false, // Default true
+      excludesUncollected: grossReceiptsData.excludesUncollected !== false, // Default true
+      branchAllocations: Array.isArray(grossReceiptsData.branchAllocations) ? grossReceiptsData.branchAllocations : []
+    }
+    
+    // Debug log before saving
+    console.log('DEBUG - Saving gross receipts:', {
+      renewalId,
+      renewalYear,
+      amount: grossReceipts.amount,
+      calendarYear: grossReceipts.calendarYear,
+      cy2025: grossReceipts.cy2025,
+      amountType: typeof grossReceipts.amount,
+      cy2025Type: typeof grossReceipts.cy2025
+    })
+
+    // Use atomic update to prevent version conflicts
+    // First ensure grossReceipts object exists, then set all fields
+    // This two-step approach ensures the object structure is correct
+    let updatedProfile = await BusinessProfile.findOneAndUpdate(
+      {
+        userId,
+        'businesses.businessId': businessId,
+        'businesses.renewals.renewalId': renewalId
+      },
+      {
+        $set: {
+          // Ensure grossReceipts object exists first
+          'businesses.$[business].renewals.$[renewal].grossReceipts': grossReceipts,
+          'businesses.$[business].renewals.$[renewal].updatedAt': new Date(),
+          'businesses.$[business].updatedAt': new Date()
+        }
+      },
+      {
+        arrayFilters: [
+          { 'business.businessId': businessId },
+          { 'renewal.renewalId': renewalId }
+        ],
+        new: true,
+        runValidators: true,
+        upsert: false
+      }
+    )
+    
+    // Immediately follow up with explicit field updates to ensure amount is saved
+    // This double-update ensures the amount field is definitely persisted
+    if (updatedProfile) {
+      updatedProfile = await BusinessProfile.findOneAndUpdate(
+        {
+          userId,
+          'businesses.businessId': businessId,
+          'businesses.renewals.renewalId': renewalId
+        },
+        {
+          $set: {
+            // Explicitly set amount and cy2025 to ensure they're saved
+            'businesses.$[business].renewals.$[renewal].grossReceipts.amount': amountValue,
+            'businesses.$[business].renewals.$[renewal].grossReceipts.cy2025': amountValue,
+            'businesses.$[business].renewals.$[renewal].grossReceipts.calendarYear': Number(calendarYear)
+          }
+        },
+        {
+          arrayFilters: [
+            { 'business.businessId': businessId },
+            { 'renewal.renewalId': renewalId }
+          ],
+          new: true
+        }
+      )
+    }
+
+    if (!updatedProfile) {
+      // Try to find the profile to provide better error message
+      const profile = await BusinessProfile.findOne({ userId })
+      if (!profile) {
+        throw new Error('Business profile not found')
+      }
+
+      const business = profile.businesses?.find(b => b.businessId === businessId)
+      if (!business) {
+        throw new Error(`Business not found: ${businessId}`)
+      }
+
+      if (!business.renewals || business.renewals.length === 0) {
+        throw new Error(`No renewals found for business ${businessId}`)
+      }
+
+      const renewalIds = business.renewals.map(r => r.renewalId).join(', ')
+      throw new Error(`Renewal application not found: ${renewalId}. Available renewals: ${renewalIds}`)
+    }
+
+    // Verify the data was saved correctly
+    const savedRenewal = updatedProfile.businesses
+      ?.find(b => b.businessId === businessId)
+      ?.renewals?.find(r => r.renewalId === renewalId)
+    
+    if (!savedRenewal) {
+      throw new Error(`Failed to verify gross receipts save: renewal not found in updated profile`)
+    }
+
+    // Verify that gross receipts were actually saved
+    const savedAmount = savedRenewal.grossReceipts?.amount
+    const savedCy2025 = savedRenewal.grossReceipts?.cy2025
+    const savedCalendarYear = savedRenewal.grossReceipts?.calendarYear
+    
+    // Convert to numbers if they're strings
+    const savedAmountNum = savedAmount !== undefined && savedAmount !== null ? Number(savedAmount) : null
+    const savedCy2025Num = savedCy2025 !== undefined && savedCy2025 !== null ? Number(savedCy2025) : null
+    
+    // Check if either amount or cy2025 is saved with a valid value
+    const savedValue = savedAmountNum || savedCy2025Num
+    if (!savedValue || savedValue === 0 || isNaN(savedValue)) {
+      console.error('DEBUG - Gross receipts save verification failed:', {
+        renewalId,
+        expectedAmount: amountValue,
+        savedAmount: savedAmount,
+        savedAmountType: typeof savedAmount,
+        savedAmountNum: savedAmountNum,
+        savedCy2025: savedCy2025,
+        savedCy2025Type: typeof savedCy2025,
+        savedCy2025Num: savedCy2025Num,
+        savedValue: savedValue,
+        grossReceiptsObject: JSON.stringify(savedRenewal.grossReceipts, null, 2)
+      })
+      throw new Error(`Failed to save gross receipts: amount not persisted correctly. Expected: ${amountValue}, Saved amount: ${savedAmount} (${typeof savedAmount}), Saved cy2025: ${savedCy2025} (${typeof savedCy2025})`)
+    }
+    
+    // Verify the saved value matches what we tried to save (allowing for small floating point differences)
+    if (Math.abs(Number(savedValue) - Number(amountValue)) > 0.01) {
+      console.warn(`Gross receipts value mismatch: Expected ${amountValue}, Got ${savedValue}`)
+    }
+    
+    // Ensure amount field is explicitly set (not just cy2025)
+    if (!savedAmountNum || savedAmountNum === 0 || isNaN(savedAmountNum)) {
+      console.error('DEBUG - Amount field not saved correctly, attempting to fix:', {
+        renewalId,
+        savedAmount: savedAmount,
+        savedAmountNum: savedAmountNum
+      })
+      // Try to update just the amount field if it's missing
+      await BusinessProfile.findOneAndUpdate(
+        {
+          userId,
+          'businesses.businessId': businessId,
+          'businesses.renewals.renewalId': renewalId
+        },
+        {
+          $set: {
+            'businesses.$[business].renewals.$[renewal].grossReceipts.amount': amountValue
+          }
+        },
+        {
+          arrayFilters: [
+            { 'business.businessId': businessId },
+            { 'renewal.renewalId': renewalId }
+          ]
+        }
+      )
+      console.log('DEBUG - Attempted to fix amount field')
+    }
+    
+    // Verify calendar year is saved
+    if (!savedCalendarYear) {
+      console.warn(`Calendar year not saved for renewal ${renewalId}`)
+    }
+
+    // Final verification - read from database one more time to ensure persistence
+    const finalCheck = await BusinessProfile.findOne({
+      userId,
+      'businesses.businessId': businessId,
+      'businesses.renewals.renewalId': renewalId
+    }).lean()
+    
+    const finalRenewal = finalCheck?.businesses
+      ?.find(b => b.businessId === businessId)
+      ?.renewals?.find(r => r.renewalId === renewalId)
+    
+    const finalAmount = finalRenewal?.grossReceipts?.amount || finalRenewal?.grossReceipts?.cy2025
+    
+    console.log('DEBUG - Gross receipts saved successfully:', {
+      renewalId,
+      businessId,
+      amount: savedRenewal.grossReceipts?.amount,
+      calendarYear: savedRenewal.grossReceipts?.calendarYear,
+      cy2025: savedRenewal.grossReceipts?.cy2025,
+      finalAmountFromDB: finalAmount,
+      savedGrossReceiptsObject: JSON.stringify(savedRenewal.grossReceipts, null, 2),
+      finalGrossReceiptsObject: finalRenewal?.grossReceipts ? JSON.stringify(finalRenewal.grossReceipts, null, 2) : 'not found'
+    })
+    
+    // If final check shows amount is missing, update it one more time
+    if (!finalAmount || finalAmount === 0) {
+      console.error('DEBUG - Amount still missing after all updates, performing final fix')
+      const fixedProfile = await BusinessProfile.findOneAndUpdate(
+        {
+          userId,
+          'businesses.businessId': businessId,
+          'businesses.renewals.renewalId': renewalId
+        },
+        {
+          $set: {
+            'businesses.$[business].renewals.$[renewal].grossReceipts.amount': amountValue,
+            'businesses.$[business].renewals.$[renewal].grossReceipts.cy2025': amountValue
+          }
+        },
+        {
+          arrayFilters: [
+            { 'business.businessId': businessId },
+            { 'renewal.renewalId': renewalId }
+          ],
+          new: true
+        }
+      )
+      
+      if (fixedProfile) {
+        updatedProfile = fixedProfile
+        console.log('DEBUG - Final fix applied, amount should now be saved')
+      }
+    }
+
+    // Return the final updated profile (use the one with fixes if available)
+    return updatedProfile
+  }
+
+  /**
+   * Upload renewal documents (Step 6)
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID
+   * @param {string} renewalId - Renewal ID
+   * @param {object} documents - Document URLs/CIDs
+   * @returns {Promise<object>} Updated profile
+   */
+  async uploadRenewalDocuments(userId, businessId, renewalId, documents) {
+    // First, get existing documents if any
+    const profile = await BusinessProfile.findOne({
+      userId,
+      'businesses.businessId': businessId,
+      'businesses.renewals.renewalId': renewalId
+    }).lean()
+
+    let existingDocuments = {}
+    if (profile) {
+      const business = profile.businesses?.find(b => b.businessId === businessId)
+      const renewal = business?.renewals?.find(r => r.renewalId === renewalId)
+      if (renewal?.renewalDocuments) {
+        existingDocuments = renewal.renewalDocuments
+      }
+    }
+
+    // Merge existing documents with new ones
+    const documentFields = [
+      'previousMayorsPermit', 'previousOfficialReceipt', 'auditedFinancialStatements',
+      'incomeTaxReturn', 'barangayClearance', 'ctc', 'fireSafetyInspection',
+      'sanitaryPermit', 'healthCertificate', 'businessInsurance', 'swornDeclaration'
+    ]
+
+    const updatedDocuments = { ...existingDocuments }
+    documentFields.forEach(field => {
+      if (documents[field] !== undefined) {
+        updatedDocuments[field] = documents[field] || ''
+      }
+    })
+
+    // Use atomic update to prevent version conflicts
+    const updatedProfile = await BusinessProfile.findOneAndUpdate(
+      {
+        userId,
+        'businesses.businessId': businessId,
+        'businesses.renewals.renewalId': renewalId
+      },
+      {
+        $set: {
+          'businesses.$[business].renewals.$[renewal].renewalDocuments': updatedDocuments,
+          'businesses.$[business].renewals.$[renewal].updatedAt': new Date(),
+          'businesses.$[business].updatedAt': new Date()
+        }
+      },
+      {
+        arrayFilters: [
+          { 'business.businessId': businessId },
+          { 'renewal.renewalId': renewalId }
+        ],
+        new: true
+      }
+    )
+
+    if (!updatedProfile) {
+      // Try to find the profile to provide better error message
+      const profile = await BusinessProfile.findOne({ userId })
+      if (!profile) {
+        throw new Error('Business profile not found')
+      }
+
+      const business = profile.businesses?.find(b => b.businessId === businessId)
+      if (!business) {
+        throw new Error(`Business not found: ${businessId}`)
+      }
+
+      if (!business.renewals || business.renewals.length === 0) {
+        throw new Error(`No renewals found for business ${businessId}`)
+      }
+
+      const renewalIds = business.renewals.map(r => r.renewalId).join(', ')
+      throw new Error(`Renewal application not found: ${renewalId}. Available renewals: ${renewalIds}`)
+    }
+
+    return updatedProfile
+  }
+
+  /**
+   * Calculate renewal assessment (Step 7)
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID
+   * @param {string} renewalId - Renewal ID
+   * @returns {Promise<object>} Updated profile with calculated assessment
+   */
+  async calculateRenewalAssessment(userId, businessId, renewalId) {
+    // First verify renewal exists and has gross receipts using the same query pattern
+    const profile = await BusinessProfile.findOne({
+      userId,
+      'businesses.businessId': businessId,
+      'businesses.renewals.renewalId': renewalId
+    }).lean()
+
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+
+    const business = profile.businesses?.find(b => b.businessId === businessId)
+    if (!business) {
+      throw new Error('Business not found')
+    }
+
+    const renewal = business.renewals?.find(r => r.renewalId === renewalId)
+    if (!renewal) {
+      // Provide better error message
+      if (!business.renewals || business.renewals.length === 0) {
+        throw new Error(`No renewals found for business ${businessId}`)
+      }
+      const renewalIds = business.renewals.map(r => r.renewalId).join(', ')
+      console.error('DEBUG - Renewal not found in assessment calculation:', {
+        requestedRenewalId: renewalId,
+        availableRenewalIds: renewalIds,
+        businessId,
+        userId
+      })
+      throw new Error(`Renewal application not found: ${renewalId}. Available renewals: ${renewalIds}`)
+    }
+
+    // Log renewal data for debugging
+    console.log('DEBUG - Renewal found for assessment calculation:', {
+      renewalId: renewal.renewalId,
+      renewalYear: renewal.renewalYear,
+      hasGrossReceipts: !!renewal.grossReceipts,
+      grossReceiptsAmount: renewal.grossReceipts?.amount,
+      grossReceiptsCy2025: renewal.grossReceipts?.cy2025,
+      grossReceiptsKeys: renewal.grossReceipts ? Object.keys(renewal.grossReceipts) : []
+    })
+
+    // Validate that gross receipts are declared
+    // Support both new structure (amount) and legacy (cy2025) for backward compatibility
+    if (!renewal.grossReceipts || typeof renewal.grossReceipts !== 'object' || Object.keys(renewal.grossReceipts).length === 0) {
+      const calendarYear = this.getGrossReceiptsCalendarYear(renewal.renewalYear)
+      
+      // Check if gross receipts exist in other renewals
+      const renewalsWithGrossReceipts = business.renewals?.filter(r => {
+        if (!r.grossReceipts || typeof r.grossReceipts !== 'object') return false
+        const amount = r.grossReceipts.amount || r.grossReceipts.cy2025
+        return amount && amount > 0
+      })
+      
+      if (renewalsWithGrossReceipts && renewalsWithGrossReceipts.length > 0) {
+        const otherRenewalIds = renewalsWithGrossReceipts.map(r => r.renewalId).join(', ')
+        console.error('DEBUG - Gross receipts found in other renewals:', {
+          requestedRenewalId: renewalId,
+          renewalsWithGrossReceipts: otherRenewalIds,
+          calendarYear
+        })
+        throw new Error(`Gross receipts for CY ${calendarYear} are not declared in renewal ${renewalId}. However, gross receipts are found in other renewals: ${otherRenewalIds}. Please use the correct renewal or declare gross receipts for this renewal.`)
+      }
+      
+      console.error('DEBUG - Gross receipts object is missing or empty:', {
+        renewalId: renewal.renewalId,
+        renewalYear: renewal.renewalYear,
+        calendarYear,
+        hasGrossReceipts: !!renewal.grossReceipts,
+        grossReceiptsType: typeof renewal.grossReceipts,
+        grossReceiptsKeys: renewal.grossReceipts ? Object.keys(renewal.grossReceipts) : [],
+        renewalKeys: Object.keys(renewal)
+      })
+      throw new Error(`Gross receipts for CY ${calendarYear} must be declared before calculating assessment. Please complete the Gross Receipts step first.`)
+    }
+
+    // Get gross receipts value - try new structure first, then legacy
+    // Check both amount and cy2025, preferring amount
+    let grossReceiptsValue = undefined
+    if (renewal.grossReceipts.amount !== undefined && renewal.grossReceipts.amount !== null) {
+      grossReceiptsValue = renewal.grossReceipts.amount
+    } else if (renewal.grossReceipts.cy2025 !== undefined && renewal.grossReceipts.cy2025 !== null) {
+      // Fallback to legacy cy2025 field
+      grossReceiptsValue = renewal.grossReceipts.cy2025
+    }
+
+    // Check if gross receipts value exists and is greater than 0
+    // Note: We allow 0 to pass the existence check but will fail the > 0 check later
+    if (grossReceiptsValue === undefined || grossReceiptsValue === null) {
+      const calendarYear = renewal.grossReceipts?.calendarYear || this.getGrossReceiptsCalendarYear(renewal.renewalYear)
+      
+      // Check if gross receipts exist in other renewals
+      const renewalsWithGrossReceipts = business.renewals?.filter(r => {
+        if (!r.grossReceipts || typeof r.grossReceipts !== 'object') return false
+        const amount = r.grossReceipts.amount || r.grossReceipts.cy2025
+        return amount && amount > 0
+      })
+      
+      if (renewalsWithGrossReceipts && renewalsWithGrossReceipts.length > 0) {
+        const otherRenewalIds = renewalsWithGrossReceipts.map(r => r.renewalId).join(', ')
+        console.error('DEBUG - Gross receipts value missing but found in other renewals:', {
+          requestedRenewalId: renewalId,
+          renewalsWithGrossReceipts: otherRenewalIds,
+          calendarYear
+        })
+        throw new Error(`Gross receipts value for CY ${calendarYear} is missing in renewal ${renewalId}. However, gross receipts are found in other renewals: ${otherRenewalIds}. Please use the correct renewal or declare gross receipts for this renewal.`)
+      }
+      
+      console.error('DEBUG - Gross receipts validation failed (value is undefined/null):', {
+        renewalId: renewal.renewalId,
+        renewalYear: renewal.renewalYear,
+        calendarYear,
+        grossReceipts: renewal.grossReceipts,
+        amount: renewal.grossReceipts?.amount,
+        cy2025: renewal.grossReceipts?.cy2025,
+        grossReceiptsValue: grossReceiptsValue,
+        grossReceiptsType: typeof renewal.grossReceipts?.amount,
+        cy2025Type: typeof renewal.grossReceipts?.cy2025,
+        fullGrossReceiptsObject: JSON.stringify(renewal.grossReceipts, null, 2)
+      })
+      throw new Error(`Gross receipts for CY ${calendarYear} must be declared before calculating assessment. Please complete the Gross Receipts step first.`)
+    }
+    
+    // Convert to number if it's a string
+    if (typeof grossReceiptsValue === 'string') {
+      grossReceiptsValue = parseFloat(grossReceiptsValue)
+    }
+    
+    // Validate that it's a valid number and greater than 0
+    if (isNaN(grossReceiptsValue) || grossReceiptsValue <= 0) {
+      const calendarYear = renewal.grossReceipts?.calendarYear || this.getGrossReceiptsCalendarYear(renewal.renewalYear)
+      throw new Error(`Invalid gross receipts value for CY ${calendarYear}. Gross receipts must be a valid number greater than 0. Current value: ${renewal.grossReceipts.amount || renewal.grossReceipts.cy2025}`)
+    }
+
+    // Validate calendar year matches renewal year (BPLO standard)
+    const expectedCalendarYear = this.getGrossReceiptsCalendarYear(renewal.renewalYear)
+    const actualCalendarYear = renewal.grossReceipts?.calendarYear
+    if (actualCalendarYear && actualCalendarYear !== expectedCalendarYear) {
+      throw new Error(`Calendar year mismatch: gross receipts calendar year (${actualCalendarYear}) does not match expected year (${expectedCalendarYear}) for renewal year ${renewal.renewalYear}`)
+    }
+
+    // Import assessment service
+    const assessmentService = require('./renewalAssessmentService')
+
+    // Prepare business data for calculation
+    const businessData = {
+      businessType: business.businessType,
+      location: business.location,
+      numberOfEmployees: business.numberOfEmployees || 0,
+      withFoodHandlers: business.withFoodHandlers,
+      barangay: business.barangay || business.location?.barangay || '',
+      hasSignage: false, // Can be added to business data if needed
+      requiresZoningClearance: false // Can be added to business data if needed
+    }
+
+    // Calculate assessment with the validated and converted gross receipts value
+    const assessment = assessmentService.calculateTotalAssessment(
+      Number(grossReceiptsValue), // Ensure it's a number
+      businessData
+    )
+
+    // Add calculated timestamp
+    assessment.calculatedAt = new Date()
+
+    // Use atomic update to set assessment in the nested renewal
+    const updatedProfile = await BusinessProfile.findOneAndUpdate(
+      {
+        userId,
+        'businesses.businessId': businessId,
+        'businesses.renewals.renewalId': renewalId
+      },
+      {
+        $set: {
+          'businesses.$[business].renewals.$[renewal].assessment': assessment,
+          'businesses.$[business].renewals.$[renewal].updatedAt': new Date(),
+          'businesses.$[business].updatedAt': new Date()
+        }
+      },
+      {
+        arrayFilters: [
+          { 'business.businessId': businessId },
+          { 'renewal.renewalId': renewalId }
+        ],
+        new: true
+      }
+    )
+
+    if (!updatedProfile) {
+      throw new Error('Failed to update assessment - renewal not found or update failed')
+    }
+
+    return { assessment, profile: updatedProfile }
+  }
+
+  /**
+   * Process renewal payment (Step 8)
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID
+   * @param {string} renewalId - Renewal ID
+   * @param {object} paymentData - Payment information
+   * @returns {Promise<object>} Updated profile
+   */
+  async processRenewalPayment(userId, businessId, renewalId, paymentData) {
+    // First verify assessment exists and get the amount
+    const profile = await BusinessProfile.findOne({
+      userId,
+      'businesses.businessId': businessId,
+      'businesses.renewals.renewalId': renewalId
+    }).lean()
+
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+
+    const business = profile.businesses?.find(b => b.businessId === businessId)
+    if (!business) {
+      throw new Error('Business not found')
+    }
+
+    const renewal = business.renewals?.find(r => r.renewalId === renewalId)
+    if (!renewal) {
+      throw new Error('Renewal application not found')
+    }
+
+    // Validate that assessment is calculated
+    if (!renewal.assessment || renewal.assessment.total <= 0) {
+      throw new Error('Assessment must be calculated before payment')
+    }
+
+    const paymentAmount = renewal.assessment.total
+
+    // Update payment information using atomic update
+    const payment = {
+      status: paymentData.status || 'paid',
+      amount: paymentAmount,
+      paymentMethod: paymentData.paymentMethod || '',
+      transactionId: paymentData.transactionId || '',
+      paidAt: paymentData.status === 'paid' ? new Date() : null
+    }
+
+    const updatedProfile = await BusinessProfile.findOneAndUpdate(
+      {
+        userId,
+        'businesses.businessId': businessId,
+        'businesses.renewals.renewalId': renewalId
+      },
+      {
+        $set: {
+          'businesses.$[business].renewals.$[renewal].payment': payment,
+          'businesses.$[business].renewals.$[renewal].updatedAt': new Date(),
+          'businesses.$[business].updatedAt': new Date()
+        }
+      },
+      {
+        arrayFilters: [
+          { 'business.businessId': businessId },
+          { 'renewal.renewalId': renewalId }
+        ],
+        new: true
+      }
+    )
+
+    if (!updatedProfile) {
+      throw new Error('Failed to update payment - renewal not found or update failed')
+    }
+
+    // Audit log
+    try {
+      const user = await User.findById(userId).populate('role').lean()
+      const roleSlug = (user && user.role && user.role.slug) ? user.role.slug : 'business_owner'
+      
+      await AuditLog.create({
+        userId,
+        eventType: 'renewal_payment_processed',
+        fieldChanged: 'payment.status',
+        oldValue: 'pending',
+        newValue: paymentData.status || 'paid',
+        role: roleSlug,
+        metadata: {
+          businessId,
+          renewalId,
+          amount: paymentAmount,
+          paymentMethod: paymentData.paymentMethod
+        }
+      })
+    } catch (error) {
+      console.error('Error creating audit log for renewal payment:', error)
+    }
+
+    return updatedProfile
+  }
+
+  /**
+   * Submit renewal application (Final Step)
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID
+   * @param {string} renewalId - Renewal ID
+   * @returns {Promise<object>} Updated profile with reference number
+   */
+  async submitRenewal(userId, businessId, renewalId) {
+    // First verify all requirements are met
+    const profile = await BusinessProfile.findOne({
+      userId,
+      'businesses.businessId': businessId,
+      'businesses.renewals.renewalId': renewalId
+    }).lean()
+
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+
+    const business = profile.businesses?.find(b => b.businessId === businessId)
+    if (!business) {
+      throw new Error('Business not found')
+    }
+
+    const renewal = business.renewals?.find(r => r.renewalId === renewalId)
+    if (!renewal) {
+      throw new Error('Renewal application not found')
+    }
+
+    // Validate that all steps are completed
+    if (!renewal.periodAcknowledged) {
+      throw new Error('Renewal period must be acknowledged')
+    }
+    
+    // Support both new structure (amount) and legacy (cy2025) for backward compatibility
+    const grossReceiptsAmount = renewal.grossReceipts?.amount || renewal.grossReceipts?.cy2025
+    if (!renewal.grossReceipts || !grossReceiptsAmount || grossReceiptsAmount <= 0) {
+      const calendarYear = renewal.grossReceipts?.calendarYear || this.getGrossReceiptsCalendarYear(renewal.renewalYear)
+      throw new Error(`Gross receipts for CY ${calendarYear} must be declared`)
+    }
+    if (!renewal.assessment || renewal.assessment.total <= 0) {
+      throw new Error('Assessment must be calculated')
+    }
+    if (!renewal.payment || renewal.payment.status !== 'paid') {
+      throw new Error('Payment must be completed before submission')
+    }
+
+    // Generate reference number: REN-YYYYMMDD-XXXX
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    const randomSeq = Math.floor(1000 + Math.random() * 9000)
+    const referenceNumber = `REN-${dateStr}-${randomSeq}`
+    const submittedAt = new Date()
+
+    // Use atomic update to submit the renewal
+    const updatedProfile = await BusinessProfile.findOneAndUpdate(
+      {
+        userId,
+        'businesses.businessId': businessId,
+        'businesses.renewals.renewalId': renewalId
+      },
+      {
+        $set: {
+          'businesses.$[business].renewals.$[renewal].referenceNumber': referenceNumber,
+          'businesses.$[business].renewals.$[renewal].renewalStatus': 'submitted',
+          'businesses.$[business].renewals.$[renewal].submittedAt': submittedAt,
+          'businesses.$[business].renewals.$[renewal].updatedAt': submittedAt,
+          'businesses.$[business].updatedAt': submittedAt
+        }
+      },
+      {
+        arrayFilters: [
+          { 'business.businessId': businessId },
+          { 'renewal.renewalId': renewalId }
+        ],
+        new: true
+      }
+    )
+
+    if (!updatedProfile) {
+      throw new Error('Failed to submit renewal - renewal not found or update failed')
+    }
+
+    // Audit log
+    try {
+      const user = await User.findById(userId).populate('role').lean()
+      const roleSlug = (user && user.role && user.role.slug) ? user.role.slug : 'business_owner'
+      
+      await AuditLog.create({
+        userId,
+        eventType: 'renewal_submitted',
+        fieldChanged: 'renewalStatus',
+        oldValue: 'draft',
+        newValue: 'submitted',
+        role: roleSlug,
+        metadata: {
+          businessId,
+          renewalId,
+          renewalYear: renewal.renewalYear,
+          referenceNumber
+        }
+      })
+    } catch (error) {
+      console.error('Error creating audit log for renewal submission:', error)
+    }
+
+    return { profile: updatedProfile, referenceNumber }
+  }
+
+  /**
+   * Get renewal status
+   * @param {string} userId - User ID
+   * @param {string} businessId - Business ID
+   * @param {string} renewalId - Renewal ID
+   * @returns {Promise<object>} Renewal status information
+   */
+  async getRenewalStatus(userId, businessId, renewalId) {
+    const profile = await BusinessProfile.findOne({ userId })
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+
+    const business = profile.businesses?.find(b => b.businessId === businessId)
+    if (!business) {
+      throw new Error('Business not found')
+    }
+
+    const renewal = business.renewals?.find(r => r.renewalId === renewalId)
+    if (!renewal) {
+      throw new Error('Renewal application not found')
+    }
+
+    return {
+      renewalId: renewal.renewalId,
+      renewalYear: renewal.renewalYear,
+      renewalStatus: renewal.renewalStatus,
+      referenceNumber: renewal.referenceNumber,
+      submittedAt: renewal.submittedAt,
+      periodAcknowledged: renewal.periodAcknowledged,
+      grossReceiptsDeclared: (renewal.grossReceipts?.amount || renewal.grossReceipts?.cy2025) > 0,
+      documentsUploaded: Object.values(renewal.renewalDocuments || {}).some(url => url && url.trim() !== ''),
+      assessmentCalculated: renewal.assessment?.total > 0,
+      paymentStatus: renewal.payment?.status || 'pending',
+      assessment: renewal.assessment
     }
   }
 }
