@@ -2905,10 +2905,13 @@ router.patch(
       // Create audit log for approval request
       const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
       const userAgent = req.headers['user-agent'] || 'unknown'
+      // Use first field name (fieldChanged enum doesn't accept comma-separated values)
+      const changedFields = Object.keys(changes)
+      const fieldChanged = changedFields[0] || undefined
       await createAuditLog(
         doc._id,
         'admin_approval_request',
-        Object.keys(changes).join(','),
+        fieldChanged,
         JSON.stringify(oldValues),
         JSON.stringify(changes),
         roleSlug,

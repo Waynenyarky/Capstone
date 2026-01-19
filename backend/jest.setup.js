@@ -15,18 +15,10 @@ afterAll(async () => {
     // Ignore cleanup errors
   }
 
-  // Cleanup blockchain services
+  // Cleanup blockchain services (if needed)
   try {
-    const blockchainService = require('./src/lib/blockchainService');
-    const blockchainQueue = require('./src/lib/blockchainQueue');
-    
-    if (blockchainService && typeof blockchainService.cleanup === 'function') {
-      await blockchainService.cleanup();
-    }
-    
-    if (blockchainQueue && typeof blockchainQueue.cleanup === 'function') {
-      blockchainQueue.cleanup();
-    }
+    // Blockchain services are in audit-service now
+    // Cleanup is handled by individual services
   } catch (error) {
     // Ignore cleanup errors
   }

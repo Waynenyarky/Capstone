@@ -1,0 +1,24 @@
+{
+  "name": "backend-orchestrator",
+  "version": "1.0.0",
+  "description": "Orchestrator for running all microservices",
+  "scripts": {
+    "start": "concurrently \"npm:auth\" \"npm:business\" \"npm:admin\" \"npm:audit\"",
+    "auth": "cd auth-service && npm start",
+    "business": "cd business-service && npm start",
+    "admin": "cd admin-service && npm start",
+    "audit": "cd audit-service && npm start",
+    "dev": "concurrently \"npm:dev:auth\" \"npm:dev:business\" \"npm:dev:admin\" \"npm:dev:audit\"",
+    "dev:auth": "cd auth-service && npm run dev",
+    "dev:business": "cd business-service && npm run dev",
+    "dev:admin": "cd admin-service && npm run dev",
+    "dev:audit": "cd audit-service && npm run dev",
+    "install:all": "npm install && cd auth-service && npm install && cd ../business-service && npm install && cd ../admin-service && npm install && cd ../audit-service && npm install"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

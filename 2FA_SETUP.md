@@ -11,11 +11,11 @@
 - A correct code completes login; an incorrect code is rejected.
 
 Backend references:
-- Setup secret and QR: `backend/src/routes/auth/mfa.js:25-45`
-- Verify and enable: `backend/src/routes/auth/mfa.js:47-66`
-- Disable MFA: `backend/src/routes/auth/mfa.js:68-82`
-- Check status: `backend/src/routes/auth/mfa.js:84-95`
-- TOTP helpers: `backend/src/lib/totp.js:1-69`
+- Setup secret and QR: `backend/services/auth-service/src/routes/mfa.js:25-46`
+- Verify and enable: `backend/services/auth-service/src/routes/mfa.js:101-150`
+- Disable MFA: `backend/services/auth-service/src/routes/mfa.js:155-167`
+- Check status: `backend/services/auth-service/src/routes/mfa.js:172-208`
+- TOTP helpers: `backend/services/auth-service/src/lib/totp.js`
 
 Mobile references:
 - Login MFA navigation on `mfa_required`: `mobile/app/lib/presentation/screens/login_page.dart:366-372`
@@ -61,10 +61,10 @@ References:
 - Backend disable endpoint: `backend/src/routes/auth/mfa.js:68-82`
 
 ## Backend Internals (for admins)
-- `POST /api/auth/mfa/setup`: generates `mfaSecret` and returns `otpauthUri`, `issuer` (`backend/src/routes/auth/mfa.js:25-45`)
-- `POST /api/auth/mfa/verify`: verifies a 6‑digit TOTP and sets `mfaEnabled=true` (`backend/src/routes/auth/mfa.js:47-66`)
-- `POST /api/auth/mfa/disable`: clears `mfaSecret` and disables MFA (`backend/src/routes/auth/mfa.js:68-82`)
-- `GET /api/auth/mfa/status`: returns `{ enabled }` (`backend/src/routes/auth/mfa.js:84-95`)
-- TOTP generation/verification: `backend/src/lib/totp.js:1-69` (`generateSecret`, `otpauthUri`, `verifyTotp`)
-- Login MFA check: password step returns `mfa_required` if enabled (`backend/src/routes/auth/login.js:82`)
+- `POST /api/auth/mfa/setup`: generates `mfaSecret` and returns `otpauthUri`, `issuer` (`backend/services/auth-service/src/routes/mfa.js:25-46`)
+- `POST /api/auth/mfa/verify`: verifies a 6‑digit TOTP and sets `mfaEnabled=true` (`backend/services/auth-service/src/routes/mfa.js:101-150`)
+- `POST /api/auth/mfa/disable`: clears `mfaSecret` and disables MFA (`backend/services/auth-service/src/routes/mfa.js:155-167`)
+- `GET /api/auth/mfa/status`: returns `{ enabled }` (`backend/services/auth-service/src/routes/mfa.js:172-208`)
+- TOTP generation/verification: `backend/services/auth-service/src/lib/totp.js` (`generateSecret`, `otpauthUri`, `verifyTotp`)
+- Login MFA check: login step returns `mfa_required` if enabled (`backend/services/auth-service/src/routes/login.js`)
 - Login TOTP verification: `POST /api/auth/login/verify-totp` completes login on valid code

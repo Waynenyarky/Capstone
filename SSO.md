@@ -38,10 +38,12 @@ GOOGLE_CLIENT_ID=146767537658-ig1s62nfuddjj3j2r7it5nb9e207hv1q.apps.googleuserco
 GOOGLE_ANDROID_CLIENT_ID=146767537658-3gtn7f5fifqvejip4hlkq5kp33hoa3k0.apps.googleusercontent.com
 ```
 
-Example (`backend/.env`):
+Example (`backend/services/auth-service/.env`):
 ```
 GOOGLE_SERVER_CLIENT_ID=146767537658-ig1s62nfuddjj3j2r7it5nb9e207hv1q.apps.googleusercontent.com
 GOOGLE_CLIENT_ID=146767537658-ig1s62nfuddjj3j2r7it5nb9e207hv1q.apps.googleusercontent.com
+JWT_SECRET=your_jwt_secret_here
+ACCESS_TOKEN_TTL_MINUTES=60
 ```
 
 ## Android Signing and Identity
@@ -76,22 +78,21 @@ GOOGLE_CLIENT_ID=146767537658-ig1s62nfuddjj3j2r7it5nb9e207hv1q.apps.googleuserco
   - The login page still checks the backend for any biometric‑enabled account and shows biometrics if available.
 
 ## Backend Configuration
-- Token verification (`backend/src/routes/auth/login.js`):
+- Token verification (`backend/services/auth-service/src/routes/login.js`):
   - Verifies `idToken` with `audience: GOOGLE_SERVER_CLIENT_ID` when provided.
   - Extracts names from token payload when available.
   - Creates/updates user; returns profile JSON.
   - Adds `token` and `expiresAt` fields (JWT) in responses for:
-    - `/api/auth/login`
-    - `/api/auth/login/google`
+    - `/api/auth/login/start`
     - `/api/auth/login/verify`
+    - `/api/auth/login/google`
     - `/api/auth/login/verify-totp`
-    - `/api/auth/login/complete-fingerprint`
 - MFA endpoints:
   - `POST /api/auth/login/verify-totp` to verify TOTP during login.
-  - Fingerprint login start/complete endpoints for biometric flow.
- - JWT middleware:
-   - `backend/src/middleware/auth.js` provides `requireJwt` for protecting routes and `signAccessToken` for issuing tokens.
-   - Set `JWT_SECRET` and optional `ACCESS_TOKEN_TTL_MINUTES` (default 60).
+  - Location: `backend/services/auth-service/src/routes/login.js:635-780`
+- JWT middleware:
+  - `backend/services/auth-service/src/middleware/auth.js` provides `requireJwt` for protecting routes and `signAccessToken` for issuing tokens.
+  - Set `JWT_SECRET` and optional `ACCESS_TOKEN_TTL_MINUTES` (default 60) in `auth-service/.env`.
 
 ## Consent Screen
 - If consent screen is “Testing”, add your account as a test user.

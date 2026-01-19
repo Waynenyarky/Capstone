@@ -1,0 +1,69 @@
+# Development Docker Compose Override
+# This file adds volume mounts and dev mode settings for auto-reload
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# Features:
+# - Mounts source code directories for hot-reload
+# - Uses nodemon (npm run dev) instead of node (npm start)
+# - Sets NODE_ENV=development
+
+version: '3.8'
+
+services:
+  # Auth Service - Development Mode
+  auth-service:
+    volumes:
+      # Mount source code for hot-reload (preserves existing contract_addresses volume)
+      - ./backend/services/auth-service/src:/app/src
+      - ./backend/services/auth-service/lib:/app/lib
+      - ./backend/services/auth-service/routes:/app/routes
+      - ./backend/services/auth-service/models:/app/models
+      - ./backend/services/auth-service/middleware:/app/middleware
+      - ./backend/services/auth-service/config:/app/config
+      - ./backend/services/auth-service/jobs:/app/jobs
+      - ./backend/services/auth-service/scripts:/app/scripts
+    command: npm run dev
+    environment:
+      - NODE_ENV=development
+
+  # Business Service - Development Mode
+  business-service:
+    volumes:
+      - ./backend/services/business-service/src:/app/src
+      - ./backend/services/business-service/lib:/app/lib
+      - ./backend/services/business-service/routes:/app/routes
+      - ./backend/services/business-service/models:/app/models
+      - ./backend/services/business-service/services:/app/services
+      - ./backend/services/business-service/middleware:/app/middleware
+      - ./backend/services/business-service/config:/app/config
+    command: npm run dev
+    environment:
+      - NODE_ENV=development
+
+  # Admin Service - Development Mode
+  admin-service:
+    volumes:
+      - ./backend/services/admin-service/src:/app/src
+      - ./backend/services/admin-service/lib:/app/lib
+      - ./backend/services/admin-service/routes:/app/routes
+      - ./backend/services/admin-service/models:/app/models
+      - ./backend/services/admin-service/middleware:/app/middleware
+      - ./backend/services/admin-service/config:/app/config
+      - ./backend/services/admin-service/jobs:/app/jobs
+    command: npm run dev
+    environment:
+      - NODE_ENV=development
+
+  # Audit Service - Development Mode
+  audit-service:
+    volumes:
+      - ./backend/services/audit-service/src:/app/src
+      - ./backend/services/audit-service/lib:/app/lib
+      - ./backend/services/audit-service/routes:/app/routes
+      - ./backend/services/audit-service/models:/app/models
+      - ./backend/services/audit-service/middleware:/app/middleware
+      - ./backend/services/audit-service/config:/app/config
+      - ./backend/services/audit-service/jobs:/app/jobs
+    command: npm run dev
+    environment:
+      - NODE_ENV=development

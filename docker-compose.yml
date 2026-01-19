@@ -1,0 +1,205 @@
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: capstone-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: capstone_project
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Ganache (Blockchain)
+  ganache:
+    image: trufflesuite/ganache:latest
+    container_name: capstone-ganache
+    ports:
+      - "7545:8545"
+    command:
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8545"
+      - "--accounts"
+      - "10"
+      - "--deterministic"
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'Ganache is running' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # IPFS Node
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: capstone-ipfs
+    ports:
+      - "4001:4001"   # Swarm
+      - "5001:5001"   # API
+      - "8080:8080"   # Gateway
+    volumes:
+      - ipfs_data:/data/ipfs
+    environment:
+      - IPFS_PROFILE=server
+    healthcheck:
+      test: ["CMD", "ipfs", "version"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Wait for services to be ready
+  wait-for-services:
+    image: alpine:latest
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      ganache:
+        condition: service_healthy
+      ipfs:
+        condition: service_healthy
+    command: >
+      sh -c "
+        echo 'Waiting for all services to be ready...' &&
+        apk add --no-cache netcat-openbsd &&
+        timeout 60 sh -c 'until nc -z mongodb 27017 && nc -z ganache 8545 && nc -z ipfs 5001; do sleep 1; done' &&
+        echo 'All services are ready!'
+      "
+
+  # Deploy contracts (runs once)
+  deploy-contracts:
+    build:
+      context: ./blockchain
+      dockerfile: Dockerfile
+    container_name: capstone-deploy-contracts
+    depends_on:
+      wait-for-services:
+        condition: service_completed_successfully
+      ganache:
+        condition: service_started
+    environment:
+      - GANACHE_RPC_URL=http://ganache:8545
+      - DEPLOYER_PRIVATE_KEY=${DEPLOYER_PRIVATE_KEY:-0xc87509a1c067bbde78beb793e6fa76530b6382a4c0241e5e4a9ec0a0f44dc0d3}
+    volumes:
+      - contract_addresses:/app/build/contracts
+    command: >
+      sh -c "
+        echo 'Waiting for Ganache...' &&
+        sleep 5 &&
+        npm run migrate:ganache &&
+        echo 'Contracts deployed!' &&
+        node extract-addresses.js > /app/contract-addresses.env &&
+        cat /app/contract-addresses.env
+      "
+
+  # Auth Service
+  auth-service:
+    build:
+      context: ./backend/services/auth-service
+      dockerfile: Dockerfile
+    container_name: capstone-auth-service
+    ports:
+      - "3001:3001"
+    depends_on:
+      - mongodb
+      - ipfs
+      - deploy-contracts
+    environment:
+      - AUTH_SERVICE_PORT=3001
+      - MONGO_URI=mongodb://mongodb:27017/capstone_project
+      - IPFS_PROVIDER=local
+      - IPFS_API_URL=http://ipfs:5001
+      - IPFS_GATEWAY_URL=http://ipfs:8080/ipfs/
+      - AUDIT_SERVICE_URL=http://audit-service:3004
+      - EMAIL_API_PROVIDER=${EMAIL_API_PROVIDER:-sendgrid}
+      - EMAIL_API_KEY=${EMAIL_API_KEY:-}
+      - EMAIL_API_URL=${EMAIL_API_URL:-https://api.sendgrid.com/v3}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@localhost}
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-production}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+      - SEED_DEV=true
+      - SEED_TEMP_PASSWORD=${SEED_TEMP_PASSWORD:-TempPass123!}
+    volumes:
+      - contract_addresses:/app/contract-addresses:ro
+    restart: unless-stopped
+
+  # Business Service
+  business-service:
+    build:
+      context: ./backend/services/business-service
+      dockerfile: Dockerfile
+    container_name: capstone-business-service
+    ports:
+      - "3002:3002"
+    depends_on:
+      - mongodb
+      - ipfs
+      - deploy-contracts
+    environment:
+      - BUSINESS_SERVICE_PORT=3002
+      - MONGO_URI=mongodb://mongodb:27017/capstone_project
+      - IPFS_PROVIDER=local
+      - IPFS_API_URL=http://ipfs:5001
+      - IPFS_GATEWAY_URL=http://ipfs:8080/ipfs/
+      - AUDIT_SERVICE_URL=http://audit-service:3004
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+    volumes:
+      - contract_addresses:/app/contract-addresses:ro
+    restart: unless-stopped
+
+  # Admin Service
+  admin-service:
+    build:
+      context: ./backend/services/admin-service
+      dockerfile: Dockerfile
+    container_name: capstone-admin-service
+    ports:
+      - "3003:3003"
+    depends_on:
+      - mongodb
+      - deploy-contracts
+    environment:
+      - ADMIN_SERVICE_PORT=3003
+      - MONGO_URI=mongodb://mongodb:27017/capstone_project
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - AUDIT_SERVICE_URL=http://audit-service:3004
+      - BUSINESS_SERVICE_URL=http://business-service:3002
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+    volumes:
+      - contract_addresses:/app/contract-addresses:ro
+    restart: unless-stopped
+
+  # Audit Service
+  audit-service:
+    build:
+      context: ./backend/services/audit-service
+      dockerfile: Dockerfile
+    container_name: capstone-audit-service
+    ports:
+      - "3004:3004"
+    depends_on:
+      - mongodb
+      - ganache
+      - deploy-contracts
+    environment:
+      - AUDIT_SERVICE_PORT=3004
+      - MONGO_URI=mongodb://mongodb:27017/capstone_project
+      - GANACHE_RPC_URL=http://ganache:8545
+      - DEPLOYER_PRIVATE_KEY=${DEPLOYER_PRIVATE_KEY:-0xc87509a1c067bbde78beb793e6fa76530b6382a4c0241e5e4a9ec0a0f44dc0d3}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+    volumes:
+      - contract_addresses:/app/contract-addresses:ro
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+  ipfs_data:
+  contract_addresses:

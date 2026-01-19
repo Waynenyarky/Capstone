@@ -36,18 +36,18 @@
   - Disables biometrics for the account and clears `fingerprintEmail` if it matched the disabled account.
 
 ## Backend Endpoints
-- `GET /api/auth/mfa/status` (header: `x-user-email`):
+- `GET /api/auth/mfa/status` (requires JWT):
   - Returns MFA status and fingerprint enabled flag.
-- `POST /api/auth/mfa/fingerprint/start` (header: `x-user-email`):
+  - Location: `backend/services/auth-service/src/routes/mfa.js:172-208`
+- `POST /api/auth/mfa/fingerprint/start` (requires JWT):
   - Sends an OTP to verify and enable fingerprint for the account.
-- `POST /api/auth/mfa/fingerprint/verify` (header: `x-user-email`, body: `{ code }`):
+  - Location: `backend/services/auth-service/src/routes/mfa.js:213-234`
+- `POST /api/auth/mfa/fingerprint/verify` (requires JWT, body: `{ code }`):
   - Verifies the OTP and enables fingerprint MFA.
-- `POST /api/auth/mfa/fingerprint/disable` (header: `x-user-email`):
+  - Location: `backend/services/auth-service/src/routes/mfa.js:236-291`
+- `POST /api/auth/mfa/fingerprint/disable` (requires JWT):
   - Disables fingerprint MFA for the account.
-- `POST /api/auth/login/start-fingerprint` (body: `{ email }`, header: `x-user-email`):
-  - Starts fingerprint login; returns a short-lived token.
-- `POST /api/auth/login/complete-fingerprint` (body: `{ email, token }`, header: `x-user-email`):
-  - Completes fingerprint login and returns the user profile.
+  - Location: `backend/services/auth-service/src/routes/mfa.js:293-313`
 
 ## Code References
 - Mobile detection and login button:
