@@ -111,19 +111,12 @@ services:
       - mongodb
       - ipfs
       - deploy-contracts
+    env_file: .env
     environment:
-      - AUTH_SERVICE_PORT=3001
       - MONGO_URI=mongodb://mongodb:27017/capstone_project
-      - IPFS_PROVIDER=local
-      - IPFS_API_URL=http://ipfs:5001
-      - IPFS_GATEWAY_URL=http://ipfs:8080/ipfs/
-      - AUDIT_SERVICE_URL=http://audit-service:3004
-      - EMAIL_API_PROVIDER=${EMAIL_API_PROVIDER:-sendgrid}
-      - EMAIL_API_KEY=${EMAIL_API_KEY:-}
-      - EMAIL_API_URL=${EMAIL_API_URL:-https://api.sendgrid.com/v3}
-      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@localhost}
-      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-production}
-      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+      - IPFS_API_URL=${DOCKER_IPFS_API_URL}
+      - IPFS_GATEWAY_URL=${DOCKER_IPFS_GATEWAY_URL}
+      - AUDIT_SERVICE_URL=${DOCKER_AUDIT_SERVICE_URL}
       - SEED_DEV=true
       - SEED_TEMP_PASSWORD=${SEED_TEMP_PASSWORD:-TempPass123!}
     volumes:
@@ -142,15 +135,13 @@ services:
       - mongodb
       - ipfs
       - deploy-contracts
+    env_file: .env
     environment:
-      - BUSINESS_SERVICE_PORT=3002
       - MONGO_URI=mongodb://mongodb:27017/capstone_project
-      - IPFS_PROVIDER=local
-      - IPFS_API_URL=http://ipfs:5001
-      - IPFS_GATEWAY_URL=http://ipfs:8080/ipfs/
-      - AUDIT_SERVICE_URL=http://audit-service:3004
-      - AUTH_SERVICE_URL=http://auth-service:3001
-      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+      - IPFS_API_URL=${DOCKER_IPFS_API_URL}
+      - IPFS_GATEWAY_URL=${DOCKER_IPFS_GATEWAY_URL}
+      - AUDIT_SERVICE_URL=${DOCKER_AUDIT_SERVICE_URL}
+      - AUTH_SERVICE_URL=${DOCKER_AUTH_SERVICE_URL}
     volumes:
       - contract_addresses:/app/contract-addresses:ro
     restart: unless-stopped
@@ -166,13 +157,12 @@ services:
     depends_on:
       - mongodb
       - deploy-contracts
+    env_file: .env
     environment:
-      - ADMIN_SERVICE_PORT=3003
       - MONGO_URI=mongodb://mongodb:27017/capstone_project
-      - AUTH_SERVICE_URL=http://auth-service:3001
-      - AUDIT_SERVICE_URL=http://audit-service:3004
-      - BUSINESS_SERVICE_URL=http://business-service:3002
-      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+      - AUTH_SERVICE_URL=${DOCKER_AUTH_SERVICE_URL}
+      - AUDIT_SERVICE_URL=${DOCKER_AUDIT_SERVICE_URL}
+      - BUSINESS_SERVICE_URL=${DOCKER_BUSINESS_SERVICE_URL}
     volumes:
       - contract_addresses:/app/contract-addresses:ro
     restart: unless-stopped
@@ -189,12 +179,10 @@ services:
       - mongodb
       - ganache
       - deploy-contracts
+    env_file: .env
     environment:
-      - AUDIT_SERVICE_PORT=3004
       - MONGO_URI=mongodb://mongodb:27017/capstone_project
       - GANACHE_RPC_URL=http://ganache:8545
-      - DEPLOYER_PRIVATE_KEY=${DEPLOYER_PRIVATE_KEY:-0xc87509a1c067bbde78beb793e6fa76530b6382a4c0241e5e4a9ec0a0f44dc0d3}
-      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
     volumes:
       - contract_addresses:/app/contract-addresses:ro
     restart: unless-stopped

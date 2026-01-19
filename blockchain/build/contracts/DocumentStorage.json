@@ -60,7 +60,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -84,7 +85,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -133,7 +135,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -190,7 +193,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -224,7 +228,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -248,7 +253,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -272,7 +278,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     }
   ],
   "metadata": "{\"compiler\":{\"version\":\"0.8.20+commit.a1b79de6\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_accessControlAddress\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"docType\",\"type\":\"uint8\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"ipfsCid\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"version\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"}],\"name\":\"DocumentStored\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"accessControl\",\"outputs\":[{\"internalType\":\"contract AccessControl\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"\",\"type\":\"uint8\"}],\"name\":\"currentVersionIndex\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"docType\",\"type\":\"uint8\"}],\"name\":\"documentExists\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"\",\"type\":\"uint8\"},{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"documents\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"docType\",\"type\":\"uint8\"},{\"internalType\":\"string\",\"name\":\"ipfsCid\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"uploadedAt\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"version\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"docType\",\"type\":\"uint8\"}],\"name\":\"getDocumentCid\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"ipfsCid\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"version\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"uploadedAt\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"docType\",\"type\":\"uint8\"}],\"name\":\"getDocumentHistory\",\"outputs\":[{\"internalType\":\"string[]\",\"name\":\"cids\",\"type\":\"string[]\"},{\"internalType\":\"uint256[]\",\"name\":\"versions\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256[]\",\"name\":\"timestamps\",\"type\":\"uint256[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"docType\",\"type\":\"uint8\"}],\"name\":\"getDocumentVersionCount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"docType\",\"type\":\"uint8\"},{\"internalType\":\"string\",\"name\":\"ipfsCid\",\"type\":\"string\"}],\"name\":\"storeDocument\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"Smart contract for storing IPFS CIDs for documents Links documents to users and tracks document versions\",\"kind\":\"dev\",\"methods\":{\"documentExists(string,uint8)\":{\"details\":\"Check if a document exists for a user\",\"params\":{\"docType\":\"The document type\",\"userId\":\"The user identifier\"},\"returns\":{\"_0\":\"bool True if document exists\"}},\"getDocumentCid(string,uint8)\":{\"details\":\"Get the current document CID for a user and document type\",\"params\":{\"docType\":\"The document type\",\"userId\":\"The user identifier\"},\"returns\":{\"ipfsCid\":\"The IPFS CID\",\"uploadedAt\":\"Upload timestamp\",\"version\":\"The document version\"}},\"getDocumentHistory(string,uint8)\":{\"details\":\"Get document history for a user and document type\",\"params\":{\"docType\":\"The document type\",\"userId\":\"The user identifier\"},\"returns\":{\"cids\":\"Array of IPFS CIDs (all versions)\",\"timestamps\":\"Array of upload timestamps\",\"versions\":\"Array of version numbers\"}},\"getDocumentVersionCount(string,uint8)\":{\"details\":\"Get the number of versions for a document\",\"params\":{\"docType\":\"The document type\",\"userId\":\"The user identifier\"},\"returns\":{\"_0\":\"count The number of versions\"}},\"storeDocument(string,uint8,string)\":{\"details\":\"Store a document CID for a user\",\"params\":{\"docType\":\"The document type\",\"ipfsCid\":\"The IPFS CID of the document\",\"userId\":\"The user identifier\"}}},\"title\":\"DocumentStorage\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"project:/contracts/DocumentStorage.sol\":\"DocumentStorage\"},\"evmVersion\":\"shanghai\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"project:/contracts/AccessControl.sol\":{\"keccak256\":\"0x08cd630ecb1ebf2b0b91e08d4c7593f28004622ab0f38a3e9a7fc83d97c1a098\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://31029d46dde5df06072cc029210ee35a8e38a2c5b6230861b380f3d0d1b4c445\",\"dweb:/ipfs/QmZ4EGtBHjkduzViXj68XgdoY24jJuBeu3DKRPNknn5nqM\"]},\"project:/contracts/DocumentStorage.sol\":{\"keccak256\":\"0x19e8b28f440ccd2e72c370068782b26368377dc9c0f564359152f8beeb1d46e5\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://00b139e8361b8e66e3c63865b9121713d87cf903d41ac1844c51488f5afd5bdf\",\"dweb:/ipfs/Qmeiv9XJrdq9cL9iqVgwb2TS9DZikgzFZLpWspfQX8iYRo\"]}},\"version\":1}",
@@ -14898,9 +14905,17 @@
     "name": "solc",
     "version": "0.8.20+commit.a1b79de6.Emscripten.clang"
   },
-  "networks": {},
+  "networks": {
+    "1768839189326": {
+      "events": {},
+      "links": {},
+      "address": "0x9b1f7F645351AF3631a656421eD2e40f2802E6c0",
+      "transactionHash": "0xa896f96ef5b051b3bbe26bde122e008b3da3dc59ef2dfd69cac40a0546a87053"
+    }
+  },
   "schemaVersion": "3.4.16",
-  "updatedAt": "2026-01-19T11:22:49.067Z",
+  "updatedAt": "2026-01-19T16:20:44.518Z",
+  "networkType": "ethereum",
   "devdoc": {
     "details": "Smart contract for storing IPFS CIDs for documents Links documents to users and tracks document versions",
     "kind": "dev",

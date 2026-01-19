@@ -6,6 +6,7 @@
 # - Mounts source code directories for hot-reload
 # - Uses nodemon (npm run dev) instead of node (npm start)
 # - Sets NODE_ENV=development
+# - Uses global .env file from project root
 
 version: '3.8'
 
@@ -22,9 +23,9 @@ services:
       - ./backend/services/auth-service/config:/app/config
       - ./backend/services/auth-service/jobs:/app/jobs
       - ./backend/services/auth-service/scripts:/app/scripts
-    command: npm run dev
-    environment:
-      - NODE_ENV=development
+      # Mount global .env file
+      - ./.env:/app/.env
+    command: npm start
 
   # Business Service - Development Mode
   business-service:
@@ -36,9 +37,9 @@ services:
       - ./backend/services/business-service/services:/app/services
       - ./backend/services/business-service/middleware:/app/middleware
       - ./backend/services/business-service/config:/app/config
-    command: npm run dev
-    environment:
-      - NODE_ENV=development
+      # Mount global .env file
+      - ./.env:/app/.env
+    command: npm start
 
   # Admin Service - Development Mode
   admin-service:
@@ -50,9 +51,9 @@ services:
       - ./backend/services/admin-service/middleware:/app/middleware
       - ./backend/services/admin-service/config:/app/config
       - ./backend/services/admin-service/jobs:/app/jobs
-    command: npm run dev
-    environment:
-      - NODE_ENV=development
+      # Mount global .env file
+      - ./.env:/app/.env
+    command: npm start
 
   # Audit Service - Development Mode
   audit-service:
@@ -64,6 +65,6 @@ services:
       - ./backend/services/audit-service/middleware:/app/middleware
       - ./backend/services/audit-service/config:/app/config
       - ./backend/services/audit-service/jobs:/app/jobs
-    command: npm run dev
-    environment:
-      - NODE_ENV=development
+      # Mount global .env file
+      - ./.env:/app/.env
+    command: npm start

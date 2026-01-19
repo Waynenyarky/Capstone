@@ -146,7 +146,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -200,7 +201,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -234,7 +236,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -273,7 +276,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -292,7 +296,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -395,7 +400,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [],
@@ -408,7 +414,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [],
@@ -421,7 +428,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [],
@@ -434,7 +442,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     }
   ],
   "metadata": "{\"compiler\":{\"version\":\"0.8.20+commit.a1b79de6\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_accessControlAddress\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string\",\"name\":\"approvalId\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"eventType\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"approverId\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"bool\",\"name\":\"approved\",\"type\":\"bool\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"details\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"loggedBy\",\"type\":\"address\"}],\"name\":\"AdminApprovalLogged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"hash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"eventType\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"loggedBy\",\"type\":\"address\"}],\"name\":\"AuditHashLogged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string\",\"name\":\"eventType\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"details\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"loggedBy\",\"type\":\"address\"}],\"name\":\"CriticalEventLogged\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"accessControl\",\"outputs\":[{\"internalType\":\"contract AccessControl\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"adminApprovalEntries\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"approvalId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"eventType\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"approverId\",\"type\":\"string\"},{\"internalType\":\"bool\",\"name\":\"approved\",\"type\":\"bool\"},{\"internalType\":\"string\",\"name\":\"details\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"loggedBy\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"auditHashEntries\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"hash\",\"type\":\"bytes32\"},{\"internalType\":\"string\",\"name\":\"eventType\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"loggedBy\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"criticalEventEntries\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"eventType\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"details\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"loggedBy\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getAdminApprovalCount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getAuditHashCount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getCriticalEventCount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"hashExists\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"approvalId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"eventType\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"approverId\",\"type\":\"string\"},{\"internalType\":\"bool\",\"name\":\"approved\",\"type\":\"bool\"},{\"internalType\":\"string\",\"name\":\"details\",\"type\":\"string\"}],\"name\":\"logAdminApproval\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"hash\",\"type\":\"bytes32\"},{\"internalType\":\"string\",\"name\":\"eventType\",\"type\":\"string\"}],\"name\":\"logAuditHash\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"eventType\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"details\",\"type\":\"string\"}],\"name\":\"logCriticalEvent\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"hash\",\"type\":\"bytes32\"}],\"name\":\"verifyHash\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"exists\",\"type\":\"bool\"},{\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"Smart contract for immutable audit logging Supports both hash-based logging (off-chain data) and full event logging (on-chain data) Now uses AccessControl for role-based permissions\",\"kind\":\"dev\",\"methods\":{\"getAdminApprovalCount()\":{\"details\":\"Get the total number of admin approval entries\",\"returns\":{\"_0\":\"count The total count\"}},\"getAuditHashCount()\":{\"details\":\"Get the total number of audit hash entries\",\"returns\":{\"_0\":\"count The total count\"}},\"getCriticalEventCount()\":{\"details\":\"Get the total number of critical event entries\",\"returns\":{\"_0\":\"count The total count\"}},\"logAdminApproval(string,string,string,string,bool,string)\":{\"details\":\"Log an admin approval event (on-chain storage)\",\"params\":{\"approvalId\":\"Unique identifier for the approval request\",\"approved\":\"Whether the request was approved\",\"approverId\":\"The admin ID who approved/rejected\",\"details\":\"Additional details about the approval\",\"eventType\":\"The type of event being approved\",\"userId\":\"The user ID affected\"}},\"logAuditHash(bytes32,string)\":{\"details\":\"Log an audit hash (for off-chain data verification)\",\"params\":{\"eventType\":\"The type of event (e.g., \\\"profile_update\\\", \\\"email_change\\\")\",\"hash\":\"The SHA256 hash of the audit record stored off-chain\"}},\"logCriticalEvent(string,string,string)\":{\"details\":\"Log a critical event with full details (on-chain storage)\",\"params\":{\"details\":\"JSON string with full event details\",\"eventType\":\"The type of event\",\"userId\":\"The user ID affected\"}},\"verifyHash(bytes32)\":{\"details\":\"Verify if a hash exists in the blockchain\",\"params\":{\"hash\":\"The hash to verify\"},\"returns\":{\"exists\":\"Whether the hash exists\",\"timestamp\":\"The timestamp when the hash was logged\"}}},\"title\":\"AuditLog\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"project:/contracts/AuditLog.sol\":\"AuditLog\"},\"evmVersion\":\"shanghai\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"project:/contracts/AccessControl.sol\":{\"keccak256\":\"0x08cd630ecb1ebf2b0b91e08d4c7593f28004622ab0f38a3e9a7fc83d97c1a098\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://31029d46dde5df06072cc029210ee35a8e38a2c5b6230861b380f3d0d1b4c445\",\"dweb:/ipfs/QmZ4EGtBHjkduzViXj68XgdoY24jJuBeu3DKRPNknn5nqM\"]},\"project:/contracts/AuditLog.sol\":{\"keccak256\":\"0xe860244d8e1530c58be6f80c802f3575fa7a23213fb956183a812a19fc375f4b\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://88c47562a2e409d19ac3483c6ab97fd69889f1bdff318d47ed50cac75795a27e\",\"dweb:/ipfs/QmbX8mZCTyTZXmE4p4nihQaUxcYasxDA2QYcqaFZzmg1rQ\"]}},\"version\":1}",
@@ -17693,9 +17702,17 @@
     "name": "solc",
     "version": "0.8.20+commit.a1b79de6.Emscripten.clang"
   },
-  "networks": {},
+  "networks": {
+    "1768839189326": {
+      "events": {},
+      "links": {},
+      "address": "0x2612Af3A521c2df9EAF28422Ca335b04AdF3ac66",
+      "transactionHash": "0x87e15dd937a26aa6bdcedcbf7eeb0afe6136d9a5f0b6eeb83425c9ecfe650468"
+    }
+  },
   "schemaVersion": "3.4.16",
-  "updatedAt": "2026-01-19T11:22:49.064Z",
+  "updatedAt": "2026-01-19T16:20:45.047Z",
+  "networkType": "ethereum",
   "devdoc": {
     "details": "Smart contract for immutable audit logging Supports both hash-based logging (off-chain data) and full event logging (on-chain data) Now uses AccessControl for role-based permissions",
     "kind": "dev",

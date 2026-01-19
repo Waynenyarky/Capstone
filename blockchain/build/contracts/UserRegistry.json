@@ -85,7 +85,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -104,7 +105,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -123,7 +125,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -162,7 +165,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -237,7 +241,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -256,7 +261,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -275,7 +281,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [],
@@ -288,7 +295,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     }
   ],
   "metadata": "{\"compiler\":{\"version\":\"0.8.20+commit.a1b79de6\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_accessControlAddress\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"oldHash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"newHash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"}],\"name\":\"ProfileHashUpdated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"userAddress\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"profileHash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"}],\"name\":\"UserRegistered\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"accessControl\",\"outputs\":[{\"internalType\":\"contract AccessControl\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"addressToUserId\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getTotalUserCount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"userAddress\",\"type\":\"address\"}],\"name\":\"getUserIdByAddress\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"}],\"name\":\"getUserProfileHash\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"userAddress\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"profileHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"registeredAt\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lastUpdatedAt\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"userAddress\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"profileHash\",\"type\":\"bytes32\"}],\"name\":\"registerUser\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"registeredUserIds\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"internalType\":\"bytes32\",\"name\":\"newProfileHash\",\"type\":\"bytes32\"}],\"name\":\"updateProfileHash\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"}],\"name\":\"userExists\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"name\":\"users\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"userAddress\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"profileHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"registeredAt\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lastUpdatedAt\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"Smart contract for storing user identity and profile data hashes Links user IDs to Ethereum addresses and stores profile hashes\",\"kind\":\"dev\",\"methods\":{\"getTotalUserCount()\":{\"details\":\"Get total number of registered users\",\"returns\":{\"_0\":\"count The total count\"}},\"getUserIdByAddress(address)\":{\"details\":\"Get userId by Ethereum address\",\"params\":{\"userAddress\":\"The Ethereum address\"},\"returns\":{\"_0\":\"userId The user identifier\"}},\"getUserProfileHash(string)\":{\"details\":\"Get user information by userId\",\"params\":{\"userId\":\"The user identifier\"},\"returns\":{\"lastUpdatedAt\":\"Last update timestamp\",\"profileHash\":\"The profile hash\",\"registeredAt\":\"Registration timestamp\",\"userAddress\":\"The Ethereum address\"}},\"registerUser(string,address,bytes32)\":{\"details\":\"Register a new user or update existing user\",\"params\":{\"profileHash\":\"The SHA256 hash of the user's profile data\",\"userAddress\":\"The Ethereum address associated with the user\",\"userId\":\"The unique user identifier\"}},\"updateProfileHash(string,bytes32)\":{\"details\":\"Update profile hash for an existing user\",\"params\":{\"newProfileHash\":\"The new profile hash\",\"userId\":\"The user identifier\"}},\"userExists(string)\":{\"details\":\"Check if a user exists\",\"params\":{\"userId\":\"The user identifier\"},\"returns\":{\"_0\":\"bool True if user exists\"}}},\"title\":\"UserRegistry\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"project:/contracts/UserRegistry.sol\":\"UserRegistry\"},\"evmVersion\":\"shanghai\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"project:/contracts/AccessControl.sol\":{\"keccak256\":\"0x08cd630ecb1ebf2b0b91e08d4c7593f28004622ab0f38a3e9a7fc83d97c1a098\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://31029d46dde5df06072cc029210ee35a8e38a2c5b6230861b380f3d0d1b4c445\",\"dweb:/ipfs/QmZ4EGtBHjkduzViXj68XgdoY24jJuBeu3DKRPNknn5nqM\"]},\"project:/contracts/UserRegistry.sol\":{\"keccak256\":\"0xd00eeb30b40a6e47cc1c28cf700ab6af06234b45a2847d40adf6d8d96cb7a0f3\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://97b20540883caa460a3530011a4883214976e671711c816cbdd1ea657df53970\",\"dweb:/ipfs/QmXguSoZWpVa17U5g1U2rTTwPLTfgmiHnuXDg2m1SPUexh\"]}},\"version\":1}",
@@ -14220,9 +14228,17 @@
     "name": "solc",
     "version": "0.8.20+commit.a1b79de6.Emscripten.clang"
   },
-  "networks": {},
+  "networks": {
+    "1768839189326": {
+      "events": {},
+      "links": {},
+      "address": "0x59d3631c86BbE35EF041872d502F218A39FBa150",
+      "transactionHash": "0x2db34bfc9ad76ed6586ecfce86213437c8afb39a339449ef0c0f2fcd4009375e"
+    }
+  },
   "schemaVersion": "3.4.16",
-  "updatedAt": "2026-01-19T11:22:49.069Z",
+  "updatedAt": "2026-01-19T16:20:41.760Z",
+  "networkType": "ethereum",
   "devdoc": {
     "details": "Smart contract for storing user identity and profile data hashes Links user IDs to Ethereum addresses and stores profile hashes",
     "kind": "dev",
