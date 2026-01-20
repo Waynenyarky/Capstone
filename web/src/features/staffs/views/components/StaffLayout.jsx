@@ -11,7 +11,8 @@ export default function StaffLayout({
   title, 
   description, 
   roleLabel,
-  showTopBar = true // Defaulting to true for consistency
+  showTopBar = true, // Defaulting to true for consistency
+  fullWidth = false // Allow full width layout
 }) {
   const { currentUser, logout } = useAuthSession()
 
@@ -27,8 +28,8 @@ export default function StaffLayout({
             onLogout={logout}
           />
         )}
-        <Layout.Content style={{ padding: 32 }}>
-          <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+        <Layout.Content style={{ padding: fullWidth ? 24 : 32 }}>
+          <div style={fullWidth ? { width: '100%' } : { maxWidth: 1000, margin: '0 auto' }}>
             {/* Header Section */}
             {(title || description) && (
               <div style={{ marginBottom: 18 }}>

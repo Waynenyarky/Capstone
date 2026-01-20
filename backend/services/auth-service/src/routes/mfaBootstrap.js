@@ -57,7 +57,12 @@ function parseBootstrapToken(raw) {
 }
 
 function issuerName() {
-  return String(process.env.DEFAULT_FROM_EMAIL || 'Capstone').replace(/<.*?>/g, '').trim() || 'Capstone'
+  return String(process.env.AUTHENTICATOR_APP_NAME || 'BizClear Business Center').trim() || 'BizClear Business Center'
+}
+
+function accountLabel(user) {
+  const fullName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim()
+  return fullName || user?.username || user?.email || 'User'
 }
 
 function resolveBootstrapAuth(req) {
@@ -207,7 +212,7 @@ router.post('/admin/bootstrap-mfa-bulk', validateBody(bulkSchema), async (req, r
       const totpSecret = generateSecret(20)
       const uri = otpauthUri({
         issuer: issuerName(),
-        account: user.email,
+        account: accountLabel(user),
         secret: totpSecret,
         algorithm: 'SHA1',
         digits: 6,
@@ -263,7 +268,7 @@ router.post('/mfa/bootstrap/start', validateBody(startSchema), async (req, res) 
     }
 
     const secret = generateSecret(20)
-    const uri = otpauthUri({ issuer: issuerName(), account: user.email, secret, algorithm: 'SHA1', digits: 6, period: 30 })
+    const uri = otpauthUri({ issuer: issuerName(), account: accountLabel(user), secret, algorithm: 'SHA1', digits: 6, period: 30 })
 
     user.mfaSecret = encryptWithHash(user.passwordHash, secret)
     user.mfaEnabled = false

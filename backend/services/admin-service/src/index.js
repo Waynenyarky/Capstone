@@ -43,11 +43,18 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Load models to ensure they're registered with mongoose
+require('./models/Role');
+require('./models/User');
+require('./models/BusinessProfile');
+require('./models/AuditLog');
+
 // Admin routes
 const adminRouter = require('./routes/approvals');
 const monitoringRouter = require('./routes/monitoring');
 const maintenanceRouter = require('./routes/maintenance');
 const tamperIncidentsRouter = require('./routes/tamperIncidents');
+const lguOfficerPermitRouter = require('./routes/permitApplications');
 
 app.use('/api/admin', adminRouter);
 app.use('/api/admin/monitoring', monitoringRouter);
@@ -55,6 +62,13 @@ app.use('/api/admin/maintenance', maintenanceRouter);
 app.use('/api/admin/tamper', tamperIncidentsRouter);
 // Public maintenance status endpoint (for frontend to check)
 app.use('/api/maintenance', maintenanceRouter);
+// LGU Officer permit applications routes
+app.use('/api/lgu-officer/permit-applications', lguOfficerPermitRouter);
+
+// Notification routes (shared across all services)
+// Use auth service routes since notifications are user-specific
+// In microservices mode, /api/notifications routes to auth service (port 3001)
+// This is handled by vite.config.js proxy configuration
 
 // Global Error Handler (must be last middleware)
 app.use(errorHandlerMiddleware);

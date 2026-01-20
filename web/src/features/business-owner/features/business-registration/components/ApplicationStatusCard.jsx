@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { Card, Typography, Tag, Timeline, Space, Button, Spin } from 'antd'
-import { CheckCircleOutlined, ClockCircleOutlined, FileTextOutlined, UserOutlined } from '@ant-design/icons'
+import { CheckCircleOutlined, ClockCircleOutlined, FileTextOutlined, UserOutlined, SearchOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import { getApplicationStatus } from '../services/businessRegistrationService'
 
 const { Title, Text } = Typography
 
 export default function ApplicationStatusCard({ businessId, status, referenceNumber, submittedAt }) {
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [statusData, setStatusData] = useState(null)
 
@@ -161,9 +163,18 @@ export default function ApplicationStatusCard({ businessId, status, referenceNum
       </Space>
 
       <div style={{ marginTop: 24, textAlign: 'center' }}>
-        <Button type="primary" onClick={loadStatus} loading={loading}>
-          Refresh Status
-        </Button>
+        <Space size="middle">
+          <Button type="primary" onClick={loadStatus} loading={loading}>
+            Refresh Status
+          </Button>
+          <Button 
+            type="default" 
+            icon={<SearchOutlined />}
+            onClick={() => navigate('/owner/permits')}
+          >
+            Track your Registration
+          </Button>
+        </Space>
       </div>
     </Card>
   )

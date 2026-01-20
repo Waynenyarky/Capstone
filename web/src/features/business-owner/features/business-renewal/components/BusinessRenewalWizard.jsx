@@ -227,6 +227,11 @@ export default function BusinessRenewalWizard({
       // Determine current step based on renewal status and progress
       const status = renewalData.renewalStatus || 'draft'
       
+      if (status === 'draft' || !status) {
+        // Always start at Renewal Period for draft renewals
+        setCurrentStep(0)
+        return
+      }
       if (['submitted', 'under_review', 'approved', 'rejected'].includes(status)) {
         // If submitted/approved, go to Status step
         setCurrentStep(8)
@@ -390,6 +395,12 @@ export default function BusinessRenewalWizard({
     
     if (isComplete && currentStep === 8 && step !== 8) {
       // Don't allow navigation away from Status step if renewal is complete
+      return
+    }
+
+    // Block navigation if renewal period is not acknowledged
+    if (!renewalApplicationData.periodAcknowledged && step > 0) {
+      message.warning('Please confirm the Renewal Period before proceeding to other steps.')
       return
     }
     

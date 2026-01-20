@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from 'react'
-import { List, Typography, Tag, Empty, Spin, Space, theme, Timeline, Badge, Button } from 'antd'
-import { BellOutlined, MailOutlined, LockOutlined, SafetyCertificateOutlined, UserOutlined, ReloadOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import { Typography, Tag, Empty, Spin, Space, theme, Timeline, Button } from 'antd'
+import { BellOutlined, MailOutlined, LockOutlined, SafetyCertificateOutlined, UserOutlined, ReloadOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { getNotifications } from '@/features/user/services/notificationService'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
 
 const { Title, Text } = Typography
+dayjs.extend(relativeTime)
 
 const NOTIFICATION_ICONS = {
   password_change: <LockOutlined />,
   email_change: <MailOutlined />,
   mfa_change: <SafetyCertificateOutlined />,
   profile_update: <UserOutlined />,
+  application_approved: <CheckCircleOutlined />,
+  application_rejected: <CloseCircleOutlined />,
+  application_needs_revision: <CloseCircleOutlined />,
+  application_review_started: <InfoCircleOutlined />,
   default: <BellOutlined />,
 }
 
@@ -17,6 +25,10 @@ const NOTIFICATION_COLORS = {
   email_change: '#1890ff',
   mfa_change: '#52c41a',
   profile_update: '#722ed1',
+  application_approved: '#52c41a',
+  application_rejected: '#ff4d4f',
+  application_needs_revision: '#faad14',
+  application_review_started: '#1890ff',
   default: '#8c8c8c',
 }
 
@@ -25,19 +37,16 @@ const NOTIFICATION_TAGS = {
   email_change: { color: 'blue', text: 'Email' },
   mfa_change: { color: 'green', text: 'MFA' },
   profile_update: { color: 'purple', text: 'Profile' },
+  application_approved: { color: 'success', text: 'Approved' },
+  application_rejected: { color: 'error', text: 'Rejected' },
+  application_needs_revision: { color: 'warning', text: 'Needs Revision' },
+  application_review_started: { color: 'processing', text: 'Under Review' },
   default: { color: 'default', text: 'General' },
 }
 
 const formatTimeAgo = (timestamp) => {
-  const now = new Date()
-  const time = new Date(timestamp)
-  const diffInSeconds = Math.floor((now - time) / 1000)
-
-  if (diffInSeconds < 60) return 'Just now'
-  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
-  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
-  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`
-  return time.toLocaleDateString()
+  if (!timestamp) return 'Just now'
+  return dayjs(timestamp).fromNow()
 }
 
 export default function NotificationHistory() {
@@ -58,12 +67,9 @@ export default function NotificationHistory() {
         setLoading(true)
       }
       
-      // TODO: Replace with actual API call when backend endpoint is available
-      // const data = await getNotificationHistory(currentUser, role)
-      // setNotifications(data?.notifications || [])
-      
-      // Mock data for now
-      setNotifications([])
+      const response = await getNotifications({ page: 1, limit: 20 })
+      const items = response?.notifications || response || []
+      setNotifications(Array.isArray(items) ? items : [])
     } catch (err) {
       console.error('Failed to load notification history:', err)
       setNotifications([])
@@ -86,13 +92,13 @@ export default function NotificationHistory() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
-          <Title level={4} style={{ margin: 0, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ClockCircleOutlined style={{ color: token.colorPrimary }} />
+          <Title level={4} style={{ margin: 0, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <ClockCircleOutlined style={{ color: token.colorPrimary, fontSize: 15 }} />
             Notification History
           </Title>
-          <Text type="secondary" style={{ fontSize: 14 }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>
             View your recent account activity and security notifications
           </Text>
         </div>
@@ -100,7 +106,8 @@ export default function NotificationHistory() {
           icon={<ReloadOutlined />}
           onClick={() => loadHistory(true)}
           loading={refreshing}
-          size="middle"
+          size="small"
+          type="default"
         >
           Refresh
         </Button>
@@ -122,36 +129,35 @@ export default function NotificationHistory() {
           style={{ padding: '60px 20px' }}
         />
       ) : (
-        <div
-          style={{
-            borderRadius: token.borderRadiusLG,
-            border: `1px solid ${token.colorBorderSecondary}`,
-            overflow: 'hidden',
-            backgroundColor: token.colorBgContainer
-          }}
-        >
+        <div style={{
+          borderRadius: token.borderRadiusLG,
+          border: `1px solid ${token.colorBorderSecondary}`,
+          overflow: 'hidden',
+          backgroundColor: token.colorBgContainer
+        }}>
           <Timeline
             mode="left"
             items={notifications.map((item, index) => {
               const iconColor = NOTIFICATION_COLORS[item.type] || NOTIFICATION_COLORS.default
               const tagInfo = NOTIFICATION_TAGS[item.type] || NOTIFICATION_TAGS.default
               const IconComponent = NOTIFICATION_ICONS[item.type] || NOTIFICATION_ICONS.default
+              const isUnread = item.read === false
 
               return {
                 key: index,
                 dot: (
                   <div
                     style={{
-                      width: 40,
-                      height: 40,
+                      width: 28,
+                      height: 28,
                       borderRadius: '50%',
-                      backgroundColor: `${iconColor}15`,
+                      backgroundColor: `${iconColor}10`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: 18,
+                      fontSize: 13,
                       color: iconColor,
-                      border: `2px solid ${iconColor}40`
+                      border: `1px solid ${iconColor}40`
                     }}
                   >
                     {IconComponent}
@@ -161,43 +167,44 @@ export default function NotificationHistory() {
                   <div
                     style={{
                       marginLeft: 16,
-                      padding: '16px 20px',
+                      padding: '10px 12px',
                       borderRadius: token.borderRadius,
-                      backgroundColor: token.colorBgContainer,
+                      backgroundColor: isUnread ? token.colorInfoBg : token.colorBgContainer,
                       border: `1px solid ${token.colorBorderSecondary}`,
                       transition: 'all 0.2s ease',
-                      cursor: 'pointer',
+                      cursor: 'pointer'
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.borderColor = iconColor
-                      e.currentTarget.style.boxShadow = `0 2px 8px ${iconColor}20`
+                      e.currentTarget.style.boxShadow = `0 2px 6px ${iconColor}1f`
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.borderColor = token.colorBorderSecondary
                       e.currentTarget.style.boxShadow = 'none'
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                       <div style={{ flex: 1 }}>
-                        <Space size="small" style={{ marginBottom: 8 }}>
-                          <Text strong style={{ fontSize: 15 }}>
-                            {item.title}
+                        <Space size="small" style={{ marginBottom: 6 }}>
+                          <Text strong style={{ fontSize: 13 }}>
+                            {item.title || 'Notification'}
                           </Text>
-                          <Tag color={tagInfo.color} style={{ margin: 0 }}>
+                          <Tag color={tagInfo.color} style={{ margin: 0, fontSize: 11, lineHeight: '16px' }}>
                             {tagInfo.text}
                           </Tag>
+                          {isUnread && <Tag color="processing" style={{ margin: 0, fontSize: 11, lineHeight: '16px' }}>New</Tag>}
                         </Space>
-                        <Text type="secondary" style={{ fontSize: 14, lineHeight: 1.6, display: 'block' }}>
-                          {item.message}
+                        <Text type="secondary" style={{ fontSize: 12, lineHeight: 1.45, display: 'block' }}>
+                          {item.message || 'No details available.'}
                         </Text>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        {formatTimeAgo(item.timestamp)}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                      <Text type="secondary" style={{ fontSize: 10 }}>
+                        {formatTimeAgo(item.createdAt)}
                       </Text>
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        {new Date(item.timestamp).toLocaleString()}
+                      <Text type="secondary" style={{ fontSize: 10 }}>
+                        {item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}
                       </Text>
                     </div>
                   </div>

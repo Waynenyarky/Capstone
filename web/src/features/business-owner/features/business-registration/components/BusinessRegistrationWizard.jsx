@@ -69,7 +69,7 @@ export default function BusinessRegistrationWizard({
   onComplete,
   onSaveBusiness 
 }) {
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   
   // Track actual business ID (updated after Step 2 save)
   const [actualBusinessId, setActualBusinessId] = useState(businessId)
@@ -761,7 +761,7 @@ export default function BusinessRegistrationWizard({
         submittedAt: result.submittedAt
       }))
       
-      Modal.success({
+      modal.success({
         title: 'Application Submitted Successfully',
         content: (
           <div>

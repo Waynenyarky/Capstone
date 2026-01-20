@@ -946,6 +946,50 @@ class BusinessProfileService {
     profile.markModified('businesses')
     await profile.save()
 
+    // Create notifications for LGU Officers when business owner submits documents
+    try {
+      const notificationService = require('../services/notificationService')
+      const User = require('../models/User')
+      const Role = require('../models/Role')
+      
+      // Get LGU Officer role
+      const lguOfficerRole = await Role.findOne({ slug: 'lgu_officer' }).lean()
+      if (lguOfficerRole) {
+        // Get all active LGU Officers
+        const lguOfficers = await User.find({ 
+          role: lguOfficerRole._id, 
+          isActive: true 
+        }).lean()
+        
+        // Create notification for each LGU Officer
+        const notificationPromises = lguOfficers.map(officer => 
+          notificationService.createNotification(
+            officer._id,
+            'application_status_update',
+            'New Application Submitted',
+            `A new business application "${business.businessName}" (Reference: ${referenceNumber}) has been submitted and is ready for review.`,
+            'business_application',
+            businessId,
+            {
+              businessName: business.businessName,
+              referenceNumber,
+              businessId,
+              submittedAt: business.submittedAt
+            }
+          ).catch(err => {
+            console.error(`Failed to create notification for LGU Officer ${officer._id}:`, err)
+            return null
+          })
+        )
+        
+        await Promise.all(notificationPromises)
+        console.log(`[submitBusinessApplication] Created notifications for ${lguOfficers.length} LGU Officer(s)`)
+      }
+    } catch (notifError) {
+      console.error(`[submitBusinessApplication] Failed to create LGU Officer notifications:`, notifError)
+      // Don't throw - notification failure shouldn't break the submission process
+    }
+
     // Audit log
     try {
       const user = await User.findById(userId).populate('role').lean()
@@ -978,23 +1022,36 @@ class BusinessProfileService {
    * @returns {Promise<object>} Application status information
    */
   async getBusinessApplicationStatus(userId, businessId) {
-    const profile = await BusinessProfile.findOne({ userId })
+    // Use lean() to bypass Mongoose caching and get fresh data directly from database
+    // This ensures we always get the latest status, including updates from LGU officers
+    const profile = await BusinessProfile.findOne({ userId }).lean()
     if (!profile) {
+      console.log(`[getBusinessApplicationStatus] Profile not found for userId: ${userId}`)
       throw new Error('Business profile not found')
     }
 
     const business = profile.businesses?.find(b => b.businessId === businessId)
     if (!business) {
+      console.log(`[getBusinessApplicationStatus] Business not found: businessId=${businessId}, userId=${userId}`)
       throw new Error('Business not found')
     }
 
+    const applicationStatus = business.applicationStatus || 'draft'
+    console.log(`[getBusinessApplicationStatus] Retrieved status '${applicationStatus}' for businessId=${businessId}, userId=${userId}`)
+
+    // Return the current applicationStatus from the database
+    // This will reflect any updates made by LGU officers (e.g., under_review, approved, rejected)
     return {
       businessId: business.businessId,
       businessName: business.businessName,
-      applicationStatus: business.applicationStatus,
+      applicationStatus: applicationStatus,
       applicationReferenceNumber: business.applicationReferenceNumber,
       submittedAt: business.submittedAt,
       submittedToLguOfficer: business.submittedToLguOfficer,
+      reviewedBy: business.reviewedBy,
+      reviewedAt: business.reviewedAt,
+      reviewComments: business.reviewComments,
+      rejectionReason: business.rejectionReason,
       requirementsConfirmed: business.requirementsChecklist?.confirmed || false,
       documentsUploaded: !!business.lguDocuments,
       birRegistered: !!business.birRegistration?.certificateUrl,

@@ -25,21 +25,39 @@ export default function LGUDocumentsUploadStep({ businessId, businessType, initi
       Object.keys(documents).forEach(key => {
         if (documents[key]) {
           const url = documents[key]
-          const displayUrl = resolveAvatarUrl(url)
+          // Ensure URL is a string
+          const urlString = typeof url === 'string' ? url : (url?.url || url?.response?.url || '')
+          if (!urlString || urlString.trim() === '') return
+          
+          const displayUrl = resolveAvatarUrl(urlString)
+          if (!displayUrl) return
+          
           // Extract filename from URL or use a default name
-          const urlParts = url.split('/')
+          const urlParts = urlString.split('/')
           const filename = urlParts[urlParts.length - 1] || `${key}_document`
           
-          // Determine if it's an image or PDF based on URL/extension
-          const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(url) || /image/i.test(url)
+          // Determine if it's an image or PDF based on URL/extension or field name
+          // idPicture is always an image, other fields check extension
+          const isImage = key === 'idPicture' || /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(urlString) || /image/i.test(urlString)
           
           const fileObj = {
             uid: `-${key}-${Date.now()}`,
             name: filename,
             status: 'done',
             url: displayUrl,
-            thumbUrl: isImage ? displayUrl : undefined, // For picture-card display
-            response: { url: url } // Ensure response.url exists for form submission
+            // For picture-card display, thumbUrl is required for images to show preview
+            // Ant Design Upload needs both url and thumbUrl set to the same value for images
+            thumbUrl: isImage ? displayUrl : undefined,
+            response: { url: urlString } // Ensure response.url exists for form submission
+          }
+          
+          // For images, ensure thumbUrl is set and matches url
+          if (isImage && displayUrl) {
+            fileObj.thumbUrl = displayUrl
+            // Ant Design Upload picture-card needs both url and thumbUrl for preview
+            if (!fileObj.url) {
+              fileObj.url = displayUrl
+            }
           }
           
           formValues[key] = [fileObj]
@@ -107,12 +125,19 @@ export default function LGUDocumentsUploadStep({ businessId, businessType, initi
         icon: <RobotOutlined style={{ color: '#1890ff' }} />
       })
       
+      // Determine if it's an image based on file type, URL extension, or field name
+      const isImageFile = fieldName === 'idPicture' || 
+                         file.type?.startsWith('image/') || 
+                         /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(uploadedUrl)
+      
       // Update the file object with the URL before calling onSuccess
       const updatedFile = {
         ...file,
         status: 'done',
         url: displayUrl,
-        thumbUrl: /\.(jpg|jpeg|png|gif|webp)$/i.test(uploadedUrl) ? displayUrl : undefined,
+        // For picture-card display, thumbUrl is required for images to show preview
+        // Set both url and thumbUrl to the same displayUrl for images
+        thumbUrl: isImageFile ? displayUrl : undefined,
         response: { url: uploadedUrl }
       }
       
@@ -132,7 +157,18 @@ export default function LGUDocumentsUploadStep({ businessId, businessType, initi
           return f
         })
         // Only update if the list has changed
-        if (JSON.stringify(currentFileList) !== JSON.stringify(updatedFileList)) {
+        // Use a safe comparison function to avoid circular reference warnings
+        const hasChanged = currentFileList.length !== updatedFileList.length ||
+          currentFileList.some((f, idx) => {
+            const other = updatedFileList[idx]
+            return !other || 
+              f.uid !== other.uid || 
+              f.name !== other.name || 
+              f.url !== other.url || 
+              f.status !== other.status ||
+              (f.response?.url || f.url) !== (other.response?.url || other.url)
+          })
+        if (hasChanged) {
           form.setFieldValue(fieldName, updatedFileList)
         }
       }, 200)

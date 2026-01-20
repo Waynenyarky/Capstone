@@ -349,10 +349,15 @@ router.get('/business-registration/:businessId/status', requireJwt, requireRole(
     const userId = req._userId
     const { businessId } = req.params
 
+    console.log(`[GET /status] Business Owner ${userId} requesting status for businessId=${businessId}`)
+
     const status = await businessProfileService.getBusinessApplicationStatus(userId, businessId)
+    
+    console.log(`[GET /status] Status retrieved for businessId=${businessId}, applicationStatus=${status.applicationStatus || 'N/A'}`)
+    
     res.json(status)
   } catch (err) {
-    console.error('GET /api/business/business-registration/:businessId/status error:', err)
+    console.error(`[GET /status] Error getting status for businessId=${req.params.businessId}, userId=${req._userId}:`, err)
     return respond.error(res, 400, 'status_error', err.message || 'Failed to get application status')
   }
 })

@@ -11,10 +11,12 @@ import CessationPage from "@/features/business-owner/features/cessation/pages/Ce
 import PaymentsPage from "@/features/business-owner/features/payments/pages/PaymentsPage.jsx"
 import AppealsPage from "@/features/business-owner/features/appeals/pages/AppealsPage.jsx"
 import NotificationsPage from "@/features/business-owner/features/notifications/pages/NotificationsPage.jsx"
+import NotificationHistoryPage from "@/features/user/pages/NotificationHistoryPage.jsx"
 import InspectionsPage from "@/features/business-owner/features/inspections/pages/InspectionsPage.jsx"
 import BusinessRegistrationPage from "@/features/business-owner/features/business-registration/pages/BusinessRegistrationPage.jsx"
 import BusinessRenewalPage from "@/features/business-owner/features/business-renewal/pages/BusinessRenewalPage.jsx"
 import { StaffDashboard, StaffOnboarding, StaffRecoveryRequest } from "@/features/staffs"
+import PermitReviewPage from "@/features/staffs/lgu-officer/pages/PermitReviewPage.jsx"
 import { ProfileSettings } from "@/features/user"
 import { PlaceholderPage } from "@/features/shared"
 import { useNavigationNotifications } from "@/features/authentication/hooks"
@@ -65,7 +67,7 @@ function App() {
         <Route path="onboarding" element={<StaffOnboarding />} />
         <Route path="recovery-request" element={<StaffRecoveryRequest />} />
         <Route path="inspections" element={<PlaceholderPage title="Inspections" />} />
-        <Route path="applications" element={<PlaceholderPage title="Applications Review" />} />
+        <Route path="applications" element={<PermitReviewPage />} />
         <Route path="cessation" element={<PlaceholderPage title="Cessation Review" />} />
         <Route path="appeals" element={<PlaceholderPage title="Appeals Review" />} />
         <Route path="reports" element={<PlaceholderPage title="Reports & Analytics" />} />
@@ -85,6 +87,7 @@ function App() {
       {/* Generic/Public Routes */}
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/settings-profile" element={<ProtectedRoute><ProfileSettings /></ProtectedRoute>} />
+      <Route path="/notifications" element={<ProtectedRoute><NotificationHistoryPage /></ProtectedRoute>} />
       
       {/* Catch-all for 404 */}
       <Route path="*" element={<PlaceholderPage title="Page Not Found" />} />

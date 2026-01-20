@@ -948,6 +948,50 @@ class BusinessProfileService {
     profile.markModified('businesses')
     await profile.save()
 
+    // Create notifications for LGU Officers when business owner submits documents
+    try {
+      const notificationService = require('./notificationService')
+      const UserModel = require('../models/User')
+      const RoleModel = require('../models/Role')
+      
+      // Get LGU Officer role
+      const lguOfficerRole = await RoleModel.findOne({ slug: 'lgu_officer' }).lean()
+      if (lguOfficerRole) {
+        // Get all active LGU Officers
+        const lguOfficers = await UserModel.find({ 
+          role: lguOfficerRole._id, 
+          isActive: true 
+        }).lean()
+        
+        // Create notification for each LGU Officer
+        const notificationPromises = lguOfficers.map(officer => 
+          notificationService.createNotification(
+            officer._id,
+            'application_status_update',
+            'New Application Submitted',
+            `A new business application "${business.businessName}" (Reference: ${referenceNumber}) has been submitted and is ready for review.`,
+            'business_application',
+            businessId,
+            {
+              businessName: business.businessName,
+              referenceNumber,
+              businessId,
+              submittedAt: business.submittedAt
+            }
+          ).catch(err => {
+            console.error(`Failed to create notification for LGU Officer ${officer._id}:`, err)
+            return null
+          })
+        )
+        
+        await Promise.all(notificationPromises)
+        console.log(`[submitBusinessApplication] Created notifications for ${lguOfficers.length} LGU Officer(s)`)
+      }
+    } catch (notifError) {
+      console.error(`[submitBusinessApplication] Failed to create LGU Officer notifications:`, notifError)
+      // Don't throw - notification failure shouldn't break the submission process
+    }
+
     // Audit log
     try {
       const user = await User.findById(userId).populate('role').lean()
@@ -997,6 +1041,10 @@ class BusinessProfileService {
       applicationReferenceNumber: business.applicationReferenceNumber,
       submittedAt: business.submittedAt,
       submittedToLguOfficer: business.submittedToLguOfficer,
+      reviewedBy: business.reviewedBy,
+      reviewedAt: business.reviewedAt,
+      reviewComments: business.reviewComments,
+      rejectionReason: business.rejectionReason,
       requirementsConfirmed: business.requirementsChecklist?.confirmed || false,
       documentsUploaded: !!business.lguDocuments,
       birRegistered: !!business.birRegistration?.certificateUrl,

@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const mongoose = require('mongoose');
 const connectDB = require('./config/db');
 const { seedDevDataIfEmpty } = require('./lib/seedDev');
 const blockchainService = require('./lib/blockchainService');
@@ -15,7 +16,25 @@ const correlationIdMiddleware = require('./middleware/correlationId');
 const { performanceMonitorMiddleware } = require('./middleware/performanceMonitor');
 const { securityMonitorMiddleware } = require('./middleware/securityMonitor');
 
-dotenv.config();
+// Load .env from multiple locations (root and backend directory)
+// This supports both Docker (root .env) and local development (backend/.env)
+const path = require('path');
+const fs = require('fs');
+
+// Try root .env first (for Docker Compose), then backend/.env (for local dev)
+const rootEnvPath = path.join(__dirname, '..', '..', '.env');
+const backendEnvPath = path.join(__dirname, '..', '.env');
+
+if (fs.existsSync(rootEnvPath)) {
+  dotenv.config({ path: rootEnvPath });
+  console.log('[Config] Loaded .env from root directory');
+} else if (fs.existsSync(backendEnvPath)) {
+  dotenv.config({ path: backendEnvPath });
+  console.log('[Config] Loaded .env from backend directory');
+} else {
+  dotenv.config(); // Default behavior - current directory
+  console.log('[Config] Loaded .env from current directory (or using defaults)');
+}
 
 // In test mode, establish database connection immediately when app is required
 // This ensures middleware can access the database
@@ -88,6 +107,8 @@ const monitoringRouter = require('./routes/admin/monitoring')
 const adminMaintenanceRouter = require('./routes/admin/maintenance')
 const tamperIncidentsRouter = require('./routes/admin/tamperIncidents')
 const maintenanceRouter = require('./routes/maintenance')
+const lguOfficerPermitRouter = require('./routes/lgu-officer/permitApplications')
+const notificationsRouter = require('./routes/notifications')
 // Mirror session user id into request headers for existing handlers
 try {
   const { attachSessionUser } = require('./middleware/sessionAuth')
@@ -101,6 +122,8 @@ app.use('/api/admin/monitoring', monitoringRouter)
 app.use('/api/admin/maintenance', adminMaintenanceRouter)
 app.use('/api/admin/tamper', tamperIncidentsRouter)
 app.use('/api/maintenance', maintenanceRouter)
+app.use('/api/lgu-officer/permit-applications', lguOfficerPermitRouter)
+app.use('/api/notifications', notificationsRouter)
 
 // Phase 5: Global Error Handler (must be last middleware)
 const errorHandlerMiddleware = require('./middleware/errorHandler');

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Layout, Typography, Card, Tabs, Row, Col, Avatar, Tag, Space, Grid, Upload, message, theme, Slider, InputNumber, Radio, Tooltip, ColorPicker, Collapse, Button } from 'antd'
+import { useNavigate } from 'react-router-dom'
 import { UserOutlined, SafetyCertificateOutlined, SettingOutlined, ControlOutlined, CameraOutlined, LoadingOutlined, BgColorsOutlined, CheckCircleFilled, InfoCircleOutlined, TabletOutlined, ScanOutlined, CheckOutlined, KeyOutlined, EditOutlined, MailOutlined, DeleteOutlined, WarningOutlined, LockOutlined, BellOutlined } from '@ant-design/icons'
 import { AppSidebar as Sidebar } from '@/features/authentication'
 import useProfile from '@/features/authentication/hooks/useProfile'
@@ -28,6 +29,7 @@ const { TabPane } = Tabs
 const { useBreakpoint } = Grid
 
 export default function ProfileSettings() {
+  const navigate = useNavigate()
   const { user } = useProfile()
   const { currentUser, login, role } = useAuthSession()
   const { currentTheme, setTheme, themeOverrides, setThemeOverrides, replaceThemeOverrides, setPreviewTheme, setPreviewOverrides, savedTheme } = useAppTheme()
@@ -1078,6 +1080,12 @@ export default function ProfileSettings() {
               }
             }}
           >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <Title level={5} style={{ margin: 0 }}>Notification History</Title>
+              <Button type="link" onClick={() => navigate('/owner/notifications')}>
+                View All Notifications
+              </Button>
+            </div>
             <NotificationHistory />
           </Card>
           

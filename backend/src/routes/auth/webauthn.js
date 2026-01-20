@@ -78,6 +78,14 @@ router.post('/webauthn/register/start', validateBody(emailSchema), async (req, r
       
       // Normalize email to lowercase for consistent lookup
       const normalizedEmail = String(email).toLowerCase().trim()
+      
+      // Check if database is connected before querying
+      const useDB = mongoose.connection && mongoose.connection.readyState === 1
+      if (!useDB) {
+         console.error('[WebAuthn] Database not connected')
+         return respond.error(res, 503, 'database_unavailable', 'Database connection unavailable. Please try again later.')
+      }
+      
       const user = await User.findOne({ email: normalizedEmail }).populate('role')
       if (!user) {
          console.log('[WebAuthn] User not found for email:', normalizedEmail)
@@ -544,6 +552,13 @@ router.post('/webauthn/authenticate/start', validateBody(authStartSchema), async
             return respond.error(res, 400, 'invalid_email_format', 'Invalid email format')
          }
          
+         // Check if database is connected before querying
+         const useDB = mongoose.connection && mongoose.connection.readyState === 1
+         if (!useDB) {
+            console.error('[WebAuthn] Database not connected')
+            return respond.error(res, 503, 'database_unavailable', 'Database connection unavailable. Please try again later.')
+         }
+         
          const user = await User.findOne({ email: normalizedEmail })
          if (!user) {
             // User not found - this is expected for new users, return gracefully
@@ -614,7 +629,8 @@ router.post('/webauthn/authenticate/start', validateBody(authStartSchema), async
       return res.json({ publicKey: options })
    } catch (err) {
       console.error('webauthn authenticate start error', err)
-      return respond.error(res, 500, 'webauthn_auth_start_failed', 'Failed to start WebAuthn authentication')
+      console.error('Error stack:', err.stack)
+      return respond.error(res, 500, 'webauthn_auth_start_failed', `Failed to start WebAuthn authentication: ${err.message}`)
    }
 })
 

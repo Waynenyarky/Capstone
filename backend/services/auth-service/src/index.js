@@ -79,9 +79,16 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Load Notification model to ensure it's registered
+require('./models/Notification');
+
 // Auth routes
 const authRouter = require('./routes/index');
 app.use('/api/auth', authRouter);
+
+// Notification routes (shared across all services)
+const notificationsRouter = require('./routes/notifications');
+app.use('/api/notifications', notificationsRouter);
 
 // Admin monitoring routes (for testing)
 const monitoringRouter = require('./routes/monitoring');

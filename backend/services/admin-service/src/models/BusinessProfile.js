@@ -181,6 +181,10 @@ const BusinessProfileSchema = new mongoose.Schema(
       submittedAt: { type: Date },
       submittedToLguOfficer: { type: Boolean, default: false },
       isSubmitted: { type: Boolean, default: false },
+      reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      reviewedAt: { type: Date },
+      reviewComments: { type: String, default: '' },
+      rejectionReason: { type: String, default: '' },
       createdAt: { type: Date, default: Date.now },
       updatedAt: { type: Date, default: Date.now }
     }],

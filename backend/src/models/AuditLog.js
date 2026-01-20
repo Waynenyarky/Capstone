@@ -55,6 +55,8 @@ const AuditLogSchema = new mongoose.Schema(
         'admin_deletion_denied',
         // Session events
         'session_timeout',
+        // Permit review events
+        'permit_review',
       ],
       index: true,
     },

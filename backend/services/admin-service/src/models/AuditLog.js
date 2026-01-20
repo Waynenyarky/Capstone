@@ -28,6 +28,8 @@ const AuditLogSchema = new mongoose.Schema(
         'account_unlock',
         'email_change',
         'phone_change',
+        'permit_review',
+        'permit_review_started',
         'other',
       ],
       index: true,

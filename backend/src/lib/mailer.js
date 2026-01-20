@@ -41,12 +41,33 @@ async function sendEmailViaAPI({ to, from, subject, text, html, headers = {} }) 
   const apiKey = process.env.EMAIL_API_KEY
   const apiUrl = process.env.EMAIL_API_URL
   const isDevelopment = process.env.NODE_ENV !== 'production'
+  const useMockEmails = process.env.USE_MOCK_EMAILS === 'true' || process.env.USE_MOCK_EMAILS === '1'
+
+  // Log configuration status
+  console.log('[Email Config] Provider:', provider)
+  console.log('[Email Config] API Key:', apiKey ? `${apiKey.substring(0, 10)}...` : 'NOT SET')
+  console.log('[Email Config] From:', from || 'NOT SET')
+  console.log('[Email Config] NODE_ENV:', process.env.NODE_ENV || 'undefined (defaults to development)')
+  console.log('[Email Config] USE_MOCK_EMAILS:', useMockEmails)
+
+  // If explicitly using mock emails, use mock
+  if (useMockEmails) {
+    console.warn('⚠️ USE_MOCK_EMAILS is enabled. Using mock email sender.')
+    const mockSender = createMockEmailSender()
+    const result = await mockSender({ to, subject, text, html })
+    return { ...result, isMock: true }
+  }
 
   // If no API key in development, use mock
   if (!apiKey && isDevelopment) {
     console.warn('⚠️ Email API key not configured. Using mock email sender in development.')
+    console.warn('⚠️ To send real emails, set EMAIL_API_KEY and DEFAULT_FROM_EMAIL in your .env file')
+    console.warn('⚠️ For SendGrid: Get API key from https://app.sendgrid.com/settings/api_keys')
+    console.warn('⚠️ To disable mock emails even in development, set USE_MOCK_EMAILS=false')
     const mockSender = createMockEmailSender()
-    return await mockSender({ to, subject, text, html })
+    const result = await mockSender({ to, subject, text, html })
+    // Return success but mark as mock so caller knows it's not a real email
+    return { ...result, isMock: true }
   }
 
   if (!apiKey) {
@@ -71,25 +92,73 @@ async function sendEmailViaAPI({ to, from, subject, text, html, headers = {} }) 
     }
   } catch (err) {
     // Log detailed error information
+    console.error('')
+    console.error('═══════════════════════════════════════════════════════════')
+    console.error('📧 EMAIL API ERROR')
+    console.error('═══════════════════════════════════════════════════════════')
+    
     if (err.response) {
-      console.error('📧 Email API Error Details:', {
-        status: err.response.status,
-        statusText: err.response.statusText,
-        data: err.response.data,
-        url: err.config?.url,
-        provider: provider
-      })
+      const status = err.response.status
+      const statusText = err.response.statusText
+      const errorData = err.response.data
+      
+      console.error(`Status: ${status} ${statusText}`)
+      console.error(`Provider: ${provider}`)
+      console.error(`URL: ${err.config?.url}`)
+      console.error('Error Response:', JSON.stringify(errorData, null, 2))
+      
+      // Provide specific guidance based on error status
+      if (status === 401) {
+        console.error('')
+        console.error('❌ UNAUTHORIZED: Your SendGrid API key is invalid or expired')
+        console.error('   → Check your EMAIL_API_KEY in .env file')
+        console.error('   → Get a new key: https://app.sendgrid.com/settings/api_keys')
+      } else if (status === 403) {
+        console.error('')
+        console.error('❌ FORBIDDEN: Your API key does not have Mail Send permissions')
+        console.error('   → Go to SendGrid and check your API key permissions')
+        console.error('   → Ensure "Mail Send" permission is enabled')
+      } else if (status === 400) {
+        const errorMsg = errorData?.errors?.[0]?.message || JSON.stringify(errorData)
+        console.error('')
+        console.error('❌ BAD REQUEST: Invalid email configuration')
+        console.error('   → Error:', errorMsg)
+        if (errorMsg.includes('sender') || errorMsg.includes('from') || errorMsg.includes('verified')) {
+          console.error('   → Verify your sender email in SendGrid:')
+          console.error('     https://app.sendgrid.com/settings/sender_auth/senders')
+          console.error('   → Your current DEFAULT_FROM_EMAIL:', from || process.env.DEFAULT_FROM_EMAIL)
+          console.error('   → The sender email MUST be verified in SendGrid before sending')
+        }
+      }
     } else {
-      console.error('📧 Email API Error:', err.message)
+      console.error('Error:', err.message)
+      if (err.stack) {
+        console.error('Stack:', err.stack)
+      }
     }
     
-    // In development, fall back to mock on API errors
-    if (isDevelopment && err.response) {
+    console.error('═══════════════════════════════════════════════════════════')
+    console.error('')
+    
+    // If API key is set, NEVER fall back to mock - show the real error
+    if (apiKey) {
+      console.error('⚠️ EMAIL_API_KEY is configured, so this is a REAL SendGrid API error')
+      console.error('⚠️ NOT using mock fallback - you need to fix the SendGrid configuration')
+      throw err
+    }
+    
+    // Only fall back to mock if no API key is set
+    const useMockEmails = process.env.USE_MOCK_EMAILS === 'true' || process.env.USE_MOCK_EMAILS === '1'
+    const allowMockFallback = process.env.USE_MOCK_EMAILS !== 'false' && process.env.USE_MOCK_EMAILS !== '0'
+    
+    if (isDevelopment && err.response && allowMockFallback && !useMockEmails && !apiKey) {
       console.warn('⚠️ Email API error. Falling back to mock email sender in development.')
-      console.warn('Error:', err.message)
+      console.warn('⚠️ To see real email errors, set USE_MOCK_EMAILS=false in .env')
       const mockSender = createMockEmailSender()
       return await mockSender({ to, subject, text, html })
     }
+    
+    // Re-throw the error so caller can handle it
     throw err
   }
 }
@@ -110,12 +179,30 @@ async function sendViaSendGrid({ to, from, subject, text, html, headers, apiKey,
     throw new Error('From and To email addresses are required')
   }
   
+  // Parse from email - handle both "Display Name <email@domain.com>" and "email@domain.com" formats
+  let fromEmail = from
+  let fromName = null
+  
+  // Check if from contains display name format: "Name <email@domain.com>"
+  const nameMatch = from.match(/^(.+?)\s*<(.+?)>$/);
+  if (nameMatch) {
+    fromName = nameMatch[1].trim()
+    fromEmail = nameMatch[2].trim()
+  }
+  
+  // Validate email format
+  if (!fromEmail || !fromEmail.includes('@')) {
+    throw new Error(`Invalid from email address: ${from}. Expected format: "email@domain.com" or "Display Name <email@domain.com>"`)
+  }
+  
   const emailData = {
     personalizations: [{
       to: [{ email: to }],
       subject: subject
     }],
-    from: { email: from },
+    from: fromName 
+      ? { email: fromEmail, name: fromName }
+      : { email: fromEmail },
     content: [
       { type: 'text/plain', value: text },
       { type: 'text/html', value: html }
@@ -128,11 +215,13 @@ async function sendViaSendGrid({ to, from, subject, text, html, headers, apiKey,
   }
 
   try {
+    // Add timeout to prevent hanging (30 seconds)
     const response = await axios.post(url, emailData, {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
-      }
+      },
+      timeout: 30000 // 30 second timeout
     })
 
     // SendGrid returns 202 Accepted on success
@@ -392,10 +481,25 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
       throw new Error(`Invalid email address: ${to}`)
     }
     
-    // Ensure 'from' is set
-    const fromAddress = from || process.env.DEFAULT_FROM_EMAIL || 'noreply@example.com'
+    // Ensure 'from' is set - validate it's a proper email
+    let fromAddress = from || process.env.DEFAULT_FROM_EMAIL
     
-    console.log(`[Email API] Attempting to send OTP to ${to}... (Provider: ${process.env.EMAIL_API_PROVIDER || 'sendgrid'})`)
+    // Parse email from display name format if present: "Name <email@domain.com>"
+    if (fromAddress) {
+      const nameMatch = fromAddress.match(/^(.+?)\s*<(.+?)>$/);
+      if (nameMatch) {
+        fromAddress = nameMatch[2].trim() // Extract just the email
+      }
+    }
+    
+    if (!fromAddress || !fromAddress.includes('@')) {
+      const errorMsg = 'DEFAULT_FROM_EMAIL is not configured. Please set DEFAULT_FROM_EMAIL in your .env file (e.g., noreply@yourdomain.com or "Display Name <noreply@yourdomain.com>")'
+      console.error(`[Email API] ❌ ${errorMsg}`)
+      throw new Error(errorMsg)
+    }
+    
+    console.log(`[Email API] Attempting to send OTP to ${to}... (Provider: ${process.env.EMAIL_API_PROVIDER || 'sendgrid'}, From: ${fromAddress})`)
+    const emailStartTime = Date.now()
     
     const result = await sendEmailViaAPI({
       to,
@@ -409,10 +513,34 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
       }
     })
     
+    const emailDuration = Date.now() - emailStartTime
+    console.log(`[Email API] Email send completed in ${emailDuration}ms`)
+    
+    // Check if this was a mock email
+    if (result.isMock) {
+      console.log('')
+      console.log('═══════════════════════════════════════════════════════════')
+      console.log('📧 MOCK EMAIL - OTP CODE (NOT ACTUALLY SENT TO EMAIL)')
+      console.log('═══════════════════════════════════════════════════════════')
+      console.log(`To: ${to}`)
+      console.log(`OTP Code: ${code}`)
+      console.log(`Subject: ${subject}`)
+      console.log('═══════════════════════════════════════════════════════════')
+      console.log('⚠️  This is a MOCK email. The code above was NOT sent to your email.')
+      console.log('⚠️  To send real emails, configure in your .env file:')
+      console.log('     EMAIL_API_KEY=your_api_key_here')
+      console.log('     DEFAULT_FROM_EMAIL=noreply@yourdomain.com')
+      console.log('     EMAIL_API_PROVIDER=sendgrid')
+      console.log('═══════════════════════════════════════════════════════════')
+      console.log('')
+      return { success: true, messageId: result.messageId, accepted: result.accepted, isMock: true }
+    }
+    
     console.log(`[Email API] ✅ OTP email sent successfully to ${to}`, { 
       messageId: result.messageId,
       accepted: result.accepted,
-      rejected: result.rejected
+      rejected: result.rejected,
+      provider: process.env.EMAIL_API_PROVIDER || 'sendgrid'
     })
     
     // Check if email was actually rejected
@@ -436,6 +564,22 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
       console.log('API Status:', err.response.status)
     }
     console.log('Stack:', err.stack)
+    console.log('--------------------------------------------------')
+    console.log('')
+    console.log('📧 EMAIL CONFIGURATION HELP:')
+    console.log('To fix email sending, configure these environment variables in your .env file:')
+    console.log('  1. EMAIL_API_KEY - Your email provider API key')
+    console.log('     For SendGrid: Get from https://app.sendgrid.com/settings/api_keys')
+    console.log('     For Mailgun: Get from https://app.mailgun.com/app/api_keys')
+    console.log('  2. EMAIL_API_PROVIDER - Provider name (sendgrid, mailgun, resend, postmark)')
+    console.log('     Default: sendgrid')
+    console.log('  3. DEFAULT_FROM_EMAIL - Sender email address (must be verified with provider)')
+    console.log('     Example: noreply@yourdomain.com')
+    console.log('')
+    console.log('Example .env configuration:')
+    console.log('  EMAIL_API_KEY=SG.your_sendgrid_api_key_here')
+    console.log('  EMAIL_API_PROVIDER=sendgrid')
+    console.log('  DEFAULT_FROM_EMAIL=noreply@yourdomain.com')
     console.log('--------------------------------------------------')
     
     // Return failure result instead of silently swallowing

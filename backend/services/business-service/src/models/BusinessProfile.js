@@ -84,6 +84,10 @@ const BusinessProfileSchema = new mongoose.Schema(
         default: 'draft'
       },
       applicationReferenceNumber: { type: String, default: '' },
+      reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      reviewedAt: { type: Date, default: null },
+      reviewComments: { type: String, default: '' },
+      rejectionReason: { type: String, default: '' },
       // Step 2: Online Application Form (new spec)
       registeredBusinessName: { type: String, default: '' },
       businessTradeName: { type: String, default: '' },

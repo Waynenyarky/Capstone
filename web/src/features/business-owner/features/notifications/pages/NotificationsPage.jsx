@@ -1,35 +1,30 @@
-import React from 'react'
-import { List, Typography, Card, Tag, Space, Button, theme } from 'antd'
-import { BellOutlined, InfoCircleOutlined, WarningOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import React, { useEffect, useState } from 'react'
+import { List, Typography, Card, Tag, Space, Button, theme, Empty, Modal, App, Spin } from 'antd'
+import { InfoCircleOutlined, WarningOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import BusinessOwnerLayout from '@/features/business-owner/views/components/BusinessOwnerLayout'
-import { useDashboardData } from '../../dashboard/hooks/useDashboardData'
+import { getNotifications, getUnreadCount, markAllAsRead, markAsRead } from '@/features/user/services/notificationService'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
 
 const { Title, Paragraph, Text } = Typography
+dayjs.extend(relativeTime)
 
 export default function NotificationsPage() {
   const { token } = theme.useToken()
-  const { data, loading } = useDashboardData()
-  
-  const notifications = data?.notifications || []
-
-  // Add some more mock notifications for the full page view if the list is short
-  const allNotifications = [
-    ...notifications,
-    { id: 4, type: 'success', message: 'Payment confirmed for INV-2023-001', time: '2 weeks ago' },
-    { id: 5, type: 'info', message: 'Profile updated successfully', time: '3 weeks ago' },
-    { id: 6, type: 'critical', message: 'Action required: Update business details', time: '1 month ago' },
-  ]
+  const { message } = App.useApp()
+  const [notifications, setNotifications] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [selectedNotification, setSelectedNotification] = useState(null)
+  const [notificationModalVisible, setNotificationModalVisible] = useState(false)
 
   const getIcon = (type) => {
     switch (type) {
-      case 'critical':
-      case 'error':
+      case 'application_rejected':
+      case 'application_needs_revision':
         return <WarningOutlined style={{ color: token.colorError, fontSize: 24 }} />
-      case 'warning':
-        return <WarningOutlined style={{ color: token.colorWarning, fontSize: 24 }} />
-      case 'success':
+      case 'application_approved':
         return <CheckCircleOutlined style={{ color: token.colorSuccess, fontSize: 24 }} />
-      case 'info':
       default:
         return <InfoCircleOutlined style={{ color: token.colorInfo, fontSize: 24 }} />
     }
@@ -37,16 +32,66 @@ export default function NotificationsPage() {
 
   const getBackground = (type) => {
     switch (type) {
-      case 'critical':
-      case 'error':
+      case 'application_rejected':
+      case 'application_needs_revision':
         return token.colorErrorBg
-      case 'warning':
-        return token.colorWarningBg
-      case 'success':
+      case 'application_approved':
         return token.colorSuccessBg
-      case 'info':
       default:
         return token.colorInfoBg
+    }
+  }
+
+  const loadNotifications = async () => {
+    setLoading(true)
+    try {
+      const [notificationsResponse, count] = await Promise.all([
+        getNotifications({ page: 1, limit: 50 }),
+        getUnreadCount()
+      ])
+      const items = notificationsResponse?.notifications || notificationsResponse || []
+      setNotifications(Array.isArray(items) ? items : [])
+      const unreadCountValue = typeof count === 'number' ? count : (count?.count || 0)
+      setUnreadCount(unreadCountValue)
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error)
+      setNotifications([])
+      setUnreadCount(0)
+      message.error('Failed to load notifications')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadNotifications()
+  }, [])
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllAsRead()
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+      setUnreadCount(0)
+      message.success('All notifications marked as read')
+    } catch (error) {
+      console.error('Failed to mark all as read:', error)
+      message.error('Failed to mark all as read')
+    }
+  }
+
+  const handleNotificationClick = async (notification) => {
+    try {
+      if (!notification.read) {
+        await markAsRead(notification._id)
+        setUnreadCount(prev => Math.max(0, prev - 1))
+        setNotifications(prev =>
+          prev.map(n => n._id === notification._id ? { ...n, read: true } : n)
+        )
+      }
+      setSelectedNotification(notification)
+      setNotificationModalVisible(true)
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error)
     }
   }
 
@@ -58,7 +103,9 @@ export default function NotificationsPage() {
             <Title level={2} style={{ color: token.colorPrimary, marginBottom: 8 }}>Notifications</Title>
             <Paragraph type="secondary">Stay updated with alerts, reminders, and system messages.</Paragraph>
           </div>
-          <Button>Mark all as read</Button>
+          <Button onClick={handleMarkAllAsRead} disabled={unreadCount === 0 || loading}>
+            Mark all as read
+          </Button>
         </div>
 
         <Card 
@@ -69,51 +116,96 @@ export default function NotificationsPage() {
           }}
           styles={{ body: { padding: 0 } }}
         >
-          <List
-            itemLayout="horizontal"
-            dataSource={allNotifications}
-            renderItem={item => (
-              <List.Item 
-                style={{ 
-                  padding: '16px 24px', 
-                  borderLeft: item.type === 'critical' ? `4px solid ${token.colorError}` : '4px solid transparent',
-                  background: item.type === 'critical' ? token.colorErrorBg : undefined,
-                  transition: 'all 0.3s'
-                }}
-                actions={[<Button type="link" size="small">Dismiss</Button>]}
-              >
-                <List.Item.Meta
-                  avatar={
-                    <div style={{ 
-                      background: getBackground(item.type), 
-                      padding: 12, 
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      {getIcon(item.type)}
-                    </div>
-                  }
-                  title={
-                    <Space>
-                      <Text strong style={{ fontSize: 16 }}>{item.message}</Text>
-                      {item.type === 'critical' && <Tag color="error">Urgent</Tag>}
-                      {item.type === 'success' && <Tag color="success">Success</Tag>}
-                    </Space>
-                  }
-                  description={
-                    <Space>
-                      <ClockCircleOutlined />
-                      <Text type="secondary">{item.time}</Text>
-                    </Space>
-                  }
-                />
-              </List.Item>
-            )}
-          />
+          {loading ? (
+            <div style={{ padding: '24px 0', textAlign: 'center' }}>
+              <Spin />
+            </div>
+          ) : notifications.length === 0 ? (
+            <Empty description="No notifications yet" style={{ padding: '24px 0' }} />
+          ) : (
+            <List
+              itemLayout="horizontal"
+              dataSource={notifications}
+              renderItem={item => (
+                <List.Item 
+                  style={{ 
+                    padding: '16px 24px', 
+                    borderLeft: item.type === 'application_rejected' || item.type === 'application_needs_revision'
+                      ? `4px solid ${token.colorError}`
+                      : '4px solid transparent',
+                    background: !item.read ? token.colorInfoBg : undefined,
+                    transition: 'all 0.3s',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => handleNotificationClick(item)}
+                >
+                  <List.Item.Meta
+                    avatar={
+                      <div style={{ 
+                        background: getBackground(item.type), 
+                        padding: 12, 
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        {getIcon(item.type)}
+                      </div>
+                    }
+                    title={
+                      <Space>
+                        <Text strong style={{ fontSize: 16 }}>{item.title || 'Notification'}</Text>
+                        {!item.read && <Tag color="processing">New</Tag>}
+                        {item.type === 'application_rejected' && <Tag color="error">Rejected</Tag>}
+                        {item.type === 'application_approved' && <Tag color="success">Approved</Tag>}
+                        {item.type === 'application_needs_revision' && <Tag color="warning">Needs Revision</Tag>}
+                      </Space>
+                    }
+                    description={
+                      <Space>
+                        <ClockCircleOutlined />
+                        <Text type="secondary">
+                          {item.createdAt ? dayjs(item.createdAt).fromNow() : 'Just now'}
+                        </Text>
+                      </Space>
+                    }
+                  />
+                </List.Item>
+              )}
+            />
+          )}
         </Card>
       </div>
+      <Modal
+        title={selectedNotification?.title || 'Notification'}
+        open={notificationModalVisible}
+        onCancel={() => {
+          setNotificationModalVisible(false)
+          setSelectedNotification(null)
+        }}
+        footer={[
+          <Button
+            key="close"
+            onClick={() => {
+              setNotificationModalVisible(false)
+              setSelectedNotification(null)
+            }}
+          >
+            Close
+          </Button>
+        ]}
+      >
+        <div style={{ marginBottom: 8 }}>
+          <Text type="secondary">
+            {selectedNotification?.createdAt ? dayjs(selectedNotification.createdAt).fromNow() : ''}
+          </Text>
+        </div>
+        <div>
+          <Text>
+            {selectedNotification?.message || 'No details available.'}
+          </Text>
+        </div>
+      </Modal>
     </BusinessOwnerLayout>
   )
 }

@@ -76,7 +76,9 @@ export function usePermitApplications() {
       const registrationsWithStatus = await Promise.all(
         businesses.map(async (business) => {
           try {
+            console.log(`[usePermitApplications] Fetching status for businessId=${business.businessId}`)
             const statusData = await getApplicationStatus(business.businessId)
+            console.log(`[usePermitApplications] Status retrieved for businessId=${business.businessId}, applicationStatus=${statusData?.applicationStatus || 'N/A'}`)
             const profileBusiness = profileBusinessMap.get(business.businessId)
             
             // Get updatedAt from profile business if available, otherwise use business or statusData
@@ -268,6 +270,34 @@ export function usePermitApplications() {
   useEffect(() => {
     fetchAllData()
   }, [fetchAllData])
+
+  // Add automatic polling to refresh status every 30 seconds
+  // This ensures Business Owner sees status updates when LGU Officer reviews applications
+  useEffect(() => {
+    if (!loading) {
+      const interval = setInterval(() => {
+        console.log('[usePermitApplications] Auto-refreshing permit applications status...')
+        fetchAllData()
+      }, 30000) // Refresh every 30 seconds
+      
+      return () => clearInterval(interval)
+    }
+  }, [loading, fetchAllData])
+
+  // Also refresh when page becomes visible (using Visibility API)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !loading) {
+        console.log('[usePermitApplications] Page became visible, refreshing permit applications status...')
+        fetchAllData()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [loading, fetchAllData])
 
   return {
     permits,

@@ -302,6 +302,8 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     const isLguOfficer = doc.role && doc.role.slug === 'lgu_officer'
     const code = isLguOfficer ? '123456' : generateCode()
     
+    console.log(`[Login Start] Generated OTP code for ${emailKey}: ${code} (LGU Officer: ${isLguOfficer})`)
+    
     const expiresAtMs = Date.now() + 10 * 60 * 1000 // 10 minutes
     const loginToken = generateToken()
 
@@ -309,11 +311,13 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     if (useDB) {
       await LoginRequest.findOneAndUpdate(
         { email: emailKey },
-        { code, expiresAt: new Date(expiresAtMs), verified: false, loginToken, userId: String(doc._id) },
+        { code: String(code), expiresAt: new Date(expiresAtMs), verified: false, loginToken, userId: String(doc._id) }, // Ensure code is stored as string
         { upsert: true, new: true, setDefaultsOnInsert: true }
       )
+      console.log(`[Login Start] Saved login request to database for ${emailKey}`)
     } else {
-      loginRequests.set(emailKey, { code, expiresAt: expiresAtMs, verified: false, loginToken, userId: String(doc._id) })
+      loginRequests.set(emailKey, { code: String(code), expiresAt: expiresAtMs, verified: false, loginToken, userId: String(doc._id) })
+      console.log(`[Login Start] Saved login request to memory for ${emailKey}`)
     }
 
     // Determine which authentication method is enabled
@@ -329,46 +333,60 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     // Check if account deletion is scheduled - if so, always send OTP via email
     const hasScheduledDeletion = doc.deletionScheduledFor && new Date(doc.deletionScheduledFor) > new Date()
 
-    try {
-      // Send verification code via email if:
-      // 1. Account deletion is scheduled (ALWAYS send email OTP for scheduled deletion accounts)
-      // 2. No MFA is enabled (regular email verification)
-      // 3. NOT using TOTP MFA (TOTP MFA uses authenticator app, not email) - UNLESS deletion is scheduled
-      // 4. NOT using passkey authentication (passkeys are used at login page) - UNLESS deletion is scheduled
-      // 5. NOT an LGU Officer - UNLESS deletion is scheduled
-      if (hasScheduledDeletion) {
-        // Account deletion is scheduled - ALWAYS send OTP via email
-        // This ensures users can log in to see deletion status and potentially undo it
-        const emailResult = await sendOtp({ 
-          to: email, 
-          code, 
-          subject: 'Your Login Verification Code - Account Deletion Scheduled' 
+    // Send verification code via email if:
+    // 1. Account deletion is scheduled (ALWAYS send email OTP for scheduled deletion accounts)
+    // 2. No MFA is enabled (regular email verification)
+    // 3. NOT using TOTP MFA (TOTP MFA uses authenticator app, not email) - UNLESS deletion is scheduled
+    // 4. NOT using passkey authentication (passkeys are used at login page) - UNLESS deletion is scheduled
+    // 5. NOT an LGU Officer - UNLESS deletion is scheduled
+    if (hasScheduledDeletion) {
+      // Account deletion is scheduled - ALWAYS send OTP via email
+      // This ensures users can log in to see deletion status and potentially undo it
+      // Send email asynchronously (don't block the response)
+      sendOtp({ 
+        to: email, 
+        code, 
+        subject: 'Your Login Verification Code - Account Deletion Scheduled' 
+      })
+        .then(emailResult => {
+          if (!emailResult || !emailResult.success) {
+            console.error(`[Login] Failed to send OTP email to ${email} (scheduled deletion):`, emailResult?.error || 'Unknown error')
+          } else if (emailResult.isMock) {
+            console.warn(`[Login] ⚠️ Mock email used for ${email} (scheduled deletion). OTP code: ${code}`)
+          } else {
+            console.log(`[Login] ✅ Account deletion scheduled for ${email} - email OTP sent successfully`)
+          }
         })
-        if (!emailResult || !emailResult.success) {
-          console.error(`[Login] Failed to send OTP email to ${email} (scheduled deletion):`, emailResult?.error || 'Unknown error')
-        } else {
-          console.log(`[Login] Account deletion scheduled for ${email} - sending email OTP regardless of MFA settings`)
-        }
-      } else if (!doc.mfaEnabled && !isLguOfficer) {
-        // No MFA enabled, send regular verification code via email
-        const emailResult = await sendOtp({ to: email, code, subject: 'Your Login Verification Code' })
-        if (!emailResult || !emailResult.success) {
-          console.error(`[Login] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
-        }
-      } else if (doc.mfaEnabled && isTotpMethod && !isLguOfficer) {
-        // TOTP MFA is enabled - DO NOT send email OTP
-        // User must use their authenticator app (Microsoft Authenticator, Google Authenticator, etc.)
-        console.log(`[Login] TOTP MFA enabled for ${email} - using authenticator app, skipping email OTP`)
-      } else if (isPasskeyMethod && !isLguOfficer) {
-        // Passkey authentication enabled - DO NOT send email OTP
-        // User will use passkey at login page
-        console.log(`[Login] Passkey authentication enabled for ${email} - skipping email OTP`)
-      } else if (isLguOfficer) {
-        console.log(`[LGU Officer Login] Email suppressed. Use fixed OTP: ${code}`)
-      }
-    } catch (mailErr) {
-      console.error('Failed to send login verification email:', mailErr)
-      // Don't block login, but log it. Frontend might need to handle this.
+        .catch(err => {
+          console.error(`[Login] Error sending OTP email to ${email} (scheduled deletion):`, err.message)
+        })
+    } else if (!doc.mfaEnabled && !isLguOfficer) {
+      // No MFA enabled, send regular verification code via email
+      // Send email asynchronously (don't block the response)
+      sendOtp({ to: email, code, subject: 'Your Login Verification Code' })
+        .then(emailResult => {
+          if (!emailResult || !emailResult.success) {
+            console.error(`[Login] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
+          } else if (emailResult.isMock) {
+            console.warn(`[Login] ⚠️ Mock email used for ${email}. OTP code: ${code}`)
+            console.warn(`[Login] ⚠️ Check backend console logs for the OTP code. Email was NOT actually sent.`)
+          } else {
+            console.log(`[Login] ✅ OTP email sent successfully to ${email}`)
+          }
+        })
+        .catch(err => {
+          console.error(`[Login] Error sending OTP email to ${email}:`, err.message)
+        })
+    } else if (doc.mfaEnabled && isTotpMethod && !isLguOfficer) {
+      // TOTP MFA is enabled - DO NOT send email OTP
+      // User must use their authenticator app (Microsoft Authenticator, Google Authenticator, etc.)
+      console.log(`[Login] TOTP MFA enabled for ${email} - using authenticator app, skipping email OTP`)
+    } else if (isPasskeyMethod && !isLguOfficer) {
+      // Passkey authentication enabled - DO NOT send email OTP
+      // User will use passkey at login page
+      console.log(`[Login] Passkey authentication enabled for ${email} - skipping email OTP`)
+    } else if (isLguOfficer) {
+      console.log(`[LGU Officer Login] Email suppressed. Use fixed OTP: ${code}`)
     }
 
     const payload = { sent: true }
@@ -428,36 +446,47 @@ router.post('/login/resend', loginStartLimiter, validateBody(resendCodeSchema), 
     const code = generateCode()
     const expiresAtMs = Date.now() + 10 * 60 * 1000 // 10 minutes refreshed
     
+    console.log(`[Login Resend] Generated new OTP code for ${emailKey}: ${code}`)
+    
     if (useDB) {
       await LoginRequest.findOneAndUpdate(
         { email: emailKey },
-        { code, expiresAt: new Date(expiresAtMs) }
+        { code: String(code), expiresAt: new Date(expiresAtMs) } // Ensure code is stored as string
       )
+      console.log(`[Login Resend] Updated login request in database for ${emailKey}`)
     } else {
-      reqObj.code = code
+      reqObj.code = String(code) // Ensure code is stored as string
       reqObj.expiresAt = expiresAtMs
       loginRequests.set(emailKey, reqObj)
+      console.log(`[Login Resend] Updated login request in memory for ${emailKey}`)
     }
 
-    try {
-      // Always send email OTP if account deletion is scheduled
-      const subject = hasScheduledDeletion 
-        ? 'Your Login Verification Code (Resend) - Account Deletion Scheduled'
-        : 'Your Login Verification Code (Resend)'
-      const emailResult = await sendOtp({ to: email, code, subject })
-      if (!emailResult || !emailResult.success) {
-        console.error(`[Login Resend] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
-        return respond.error(res, 500, 'email_failed', `Failed to send email: ${emailResult?.error || 'Please check your email configuration'}`)
-      }
-      if (hasScheduledDeletion) {
-        console.log(`[Login Resend] Account deletion scheduled for ${email} - sending email OTP`)
-      }
-    } catch (mailErr) {
-      console.error('Failed to resend login email:', mailErr)
-      return respond.error(res, 500, 'email_failed', `Failed to send email: ${mailErr.message}`)
-    }
+    // Always send email OTP if account deletion is scheduled
+    const subject = hasScheduledDeletion 
+      ? 'Your Login Verification Code (Resend) - Account Deletion Scheduled'
+      : 'Your Login Verification Code (Resend)'
+    
+    // Send email asynchronously (don't block the response)
+    sendOtp({ to: email, code, subject })
+      .then(emailResult => {
+        if (!emailResult || !emailResult.success) {
+          console.error(`[Login Resend] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
+        } else if (emailResult.isMock) {
+          console.warn(`[Login Resend] ⚠️ Mock email used for ${email}. OTP code: ${code}`)
+          console.warn(`[Login Resend] ⚠️ Check backend console logs for the OTP code. Email was NOT actually sent.`)
+        } else {
+          console.log(`[Login Resend] ✅ OTP email sent successfully to ${email}`)
+          if (hasScheduledDeletion) {
+            console.log(`[Login Resend] Account deletion scheduled for ${email} - email OTP sent`)
+          }
+        }
+      })
+      .catch(err => {
+        console.error(`[Login Resend] Error sending OTP email to ${email}:`, err.message)
+      })
 
-    return res.json({ sent: true })
+    // Return immediately - email is being sent in background
+    return res.json({ sent: true, message: 'Verification code is being sent to your email' })
   } catch (err) {
     console.error('POST /api/auth/login/resend error:', err)
     return respond.error(res, 500, 'resend_failed', 'Failed to resend code')
@@ -474,26 +503,77 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
     if (!userDoc) return respond.error(res, 404, 'user_not_found', 'User not found')
     const useDB = mongoose.connection && mongoose.connection.readyState === 1
     let reqObj = null
+    console.log(`[Login Verify] Attempting verification for ${emailKey} with code: ${code} (type: ${typeof code})`)
+    
     if (useDB) {
       reqObj = await LoginRequest.findOne({ email: emailKey }).lean()
-      if (!reqObj) return respond.error(res, 404, 'login_request_not_found', 'No active login verification request found. Please start the login process again.')
-      if (Date.now() > new Date(reqObj.expiresAt).getTime()) return respond.error(res, 410, 'code_expired', 'The OTP code has expired. Please request a new code.')
-      if (String(reqObj.code) !== String(code)) {
+      if (!reqObj) {
+        console.log(`[Login Verify] No login request found for ${emailKey}`)
+        return respond.error(res, 404, 'login_request_not_found', 'No active login verification request found. Please start the login process again.')
+      }
+      
+      const storedCode = String(reqObj.code || '').trim().replace(/\s+/g, '')
+      const receivedCode = String(code || '').trim().replace(/\s+/g, '')
+      const expiresAt = new Date(reqObj.expiresAt).getTime()
+      const now = Date.now()
+      
+      console.log(`[Login Verify] Raw stored code: ${JSON.stringify(reqObj.code)} (type: ${typeof reqObj.code})`)
+      console.log(`[Login Verify] Normalized stored code: "${storedCode}"`)
+      console.log(`[Login Verify] Received code: "${receivedCode}"`)
+      console.log(`[Login Verify] Codes match: ${storedCode === receivedCode}`)
+      console.log(`[Login Verify] Expires at: ${new Date(expiresAt).toISOString()}, Now: ${new Date(now).toISOString()}`)
+      console.log(`[Login Verify] Time remaining: ${Math.floor((expiresAt - now) / 1000)} seconds`)
+      
+      if (now > expiresAt) {
+        console.log(`[Login Verify] Code expired for ${emailKey}`)
+        return respond.error(res, 410, 'code_expired', 'The OTP code has expired. Please request a new code.')
+      }
+      
+      if (storedCode !== receivedCode) {
+        console.log(`[Login Verify] ❌ Code mismatch for ${emailKey}`)
+        console.log(`[Login Verify] Expected: "${storedCode}" (length: ${storedCode.length})`)
+        console.log(`[Login Verify] Got: "${receivedCode}" (length: ${receivedCode.length})`)
         // Track failed login attempt
         const securityMonitor = require('../../middleware/securityMonitor')
         securityMonitor.trackFailedLogin(req.ip || req.connection.remoteAddress, userDoc._id ? String(userDoc._id) : null)
         return respond.error(res, 401, 'invalid_code', 'The OTP code you entered is incorrect. Please check and try again.')
       }
+      
+      console.log(`[Login Verify] ✅ Code verified successfully for ${emailKey}`)
     } else {
       reqObj = loginRequests.get(emailKey)
-      if (!reqObj) return respond.error(res, 404, 'login_request_not_found', 'No active login verification request found. Please start the login process again.')
-      if (Date.now() > reqObj.expiresAt) return respond.error(res, 410, 'code_expired', 'The OTP code has expired. Please request a new code.')
-      if (String(reqObj.code) !== String(code)) {
+      if (!reqObj) {
+        console.log(`[Login Verify] No login request found in memory for ${emailKey}`)
+        return respond.error(res, 404, 'login_request_not_found', 'No active login verification request found. Please start the login process again.')
+      }
+      
+      const storedCode = String(reqObj.code || '').trim().replace(/\s+/g, '')
+      const receivedCode = String(code || '').trim().replace(/\s+/g, '')
+      const now = Date.now()
+      
+      console.log(`[Login Verify] Raw stored code: ${JSON.stringify(reqObj.code)} (type: ${typeof reqObj.code})`)
+      console.log(`[Login Verify] Normalized stored code: "${storedCode}"`)
+      console.log(`[Login Verify] Received code: "${receivedCode}"`)
+      console.log(`[Login Verify] Codes match: ${storedCode === receivedCode}`)
+      console.log(`[Login Verify] Expires at: ${new Date(reqObj.expiresAt).toISOString()}, Now: ${new Date(now).toISOString()}`)
+      console.log(`[Login Verify] Time remaining: ${Math.floor((reqObj.expiresAt - now) / 1000)} seconds`)
+      
+      if (now > reqObj.expiresAt) {
+        console.log(`[Login Verify] Code expired for ${emailKey}`)
+        return respond.error(res, 410, 'code_expired', 'The OTP code has expired. Please request a new code.')
+      }
+      
+      if (storedCode !== receivedCode) {
+        console.log(`[Login Verify] ❌ Code mismatch for ${emailKey}`)
+        console.log(`[Login Verify] Expected: "${storedCode}" (length: ${storedCode.length})`)
+        console.log(`[Login Verify] Got: "${receivedCode}" (length: ${receivedCode.length})`)
         // Track failed login attempt
         const securityMonitor = require('../../middleware/securityMonitor')
         securityMonitor.trackFailedLogin(req.ip || req.connection.remoteAddress, userDoc._id ? String(userDoc._id) : null)
         return respond.error(res, 401, 'invalid_code', 'The OTP code you entered is incorrect. Please check and try again.')
       }
+      
+      console.log(`[Login Verify] ✅ Code verified successfully for ${emailKey}`)
     }
 
     // Load user and return safe object

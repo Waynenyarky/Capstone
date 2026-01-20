@@ -1,14 +1,19 @@
-import React from 'react'
-import { Layout, Avatar, Dropdown, Menu, Space, Typography, Badge, Button, Tag, theme } from 'antd'
-import { UserOutlined, BellOutlined, LogoutOutlined, ShopOutlined, DownOutlined } from '@ant-design/icons'
-import { Link } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { Layout, Avatar, Dropdown, Menu, Space, Typography, Badge, Button, Tag, theme, Spin, Empty, Modal } from 'antd'
+import { UserOutlined, BellOutlined, LogoutOutlined, ShopOutlined, DownOutlined, CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { Link, useNavigate } from 'react-router-dom'
 import { resolveAvatarUrl } from '@/lib/utils'
 import { useAppTheme, THEMES } from '@/shared/theme/ThemeProvider'
 import { useConfirmLogoutModal } from '@/features/authentication/hooks/useConfirmLogoutModal'
 import ConfirmLogoutModal from '@/features/authentication/views/components/ConfirmLogoutModal'
+import { getNotifications, getUnreadCount, markAsRead } from '@/features/user/services/notificationService'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
 
 const { Header } = Layout
 const { Text } = Typography
+
+dayjs.extend(relativeTime)
 
 export default function TopBar({ 
   title, 
@@ -18,10 +23,17 @@ export default function TopBar({
   roleLabel,
   currentUser,
   onLogout,
-  viewNotificationsPath
+  viewNotificationsPath = '/notifications'
 }) {
   const { token } = theme.useToken();
   const { currentTheme, themeOverrides } = useAppTheme();
+  const navigate = useNavigate();
+  
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState(null);
+  const [notificationModalVisible, setNotificationModalVisible] = useState(false);
   
   const { open, show, hide, confirming, handleConfirm } = useConfirmLogoutModal({
     onConfirm: async () => {
@@ -112,20 +124,135 @@ export default function TopBar({
     ? userMenuItems.filter(item => item.key === 'logout') 
     : userMenuItems
 
+  // Fetch notifications on mount and periodically
+  useEffect(() => {
+    if (hideNotifications || !currentUser) return
+    
+    const fetchNotifications = async () => {
+      setLoadingNotifications(true)
+      try {
+        const [notificationsResponse, count] = await Promise.all([
+          getNotifications({ page: 1, limit: 5 }),
+          getUnreadCount()
+        ])
+        
+        // Handle response structure: { ok: true, notifications: [...], pagination: {...} }
+        const notifications = notificationsResponse?.notifications || notificationsResponse || []
+        setNotifications(Array.isArray(notifications) ? notifications : [])
+        
+        // Ensure count is a number
+        const unreadCountValue = typeof count === 'number' ? count : (count?.count || 0)
+        setUnreadCount(unreadCountValue)
+      } catch (error) {
+        console.error('Failed to fetch notifications:', error)
+        // Set empty array on error to prevent UI issues
+        setNotifications([])
+        setUnreadCount(0)
+      } finally {
+        setLoadingNotifications(false)
+      }
+    }
+    
+    fetchNotifications()
+    // Poll every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000)
+    
+    return () => clearInterval(interval)
+  }, [hideNotifications, currentUser])
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'application_approved':
+        return <CheckCircleOutlined style={{ color: token.colorSuccess }} />
+      case 'application_rejected':
+      case 'application_needs_revision':
+        return <CloseCircleOutlined style={{ color: token.colorError }} />
+      case 'application_review_started':
+        return <InfoCircleOutlined style={{ color: token.colorInfo }} />
+      default:
+        return <InfoCircleOutlined style={{ color: token.colorPrimary }} />
+    }
+  }
+
+  const handleNotificationClick = async (notification) => {
+    try {
+      if (!notification.read) {
+        await markAsRead(notification._id)
+        setUnreadCount(prev => Math.max(0, prev - 1))
+        setNotifications(prev => 
+          prev.map(n => n._id === notification._id ? { ...n, read: true } : n)
+        )
+      }
+      setSelectedNotification(notification)
+      setNotificationModalVisible(true)
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error)
+    }
+  }
+
   const userMenu = <Menu items={filteredUserItems} />
 
-  const notificationMenu = (
-    <Menu items={[
-        { key: 'empty', label: <Text type="secondary" style={{ padding: '8px 16px' }}>No new notifications</Text>, disabled: true },
-        ...(viewNotificationsPath ? [
-          { type: 'divider' },
-          { 
-            key: 'view-all', 
-            label: <Link to={viewNotificationsPath} style={{ textAlign: 'center', display: 'block' }}>View all notifications</Link> 
-          }
-        ] : [])
-    ]} />
-  )
+  const notificationMenuItems = []
+  
+  if (loadingNotifications) {
+    notificationMenuItems.push({
+      key: 'loading',
+      label: <div style={{ textAlign: 'center', padding: '16px' }}><Spin size="small" /></div>,
+      disabled: true
+    })
+  } else if (notifications.length === 0) {
+    notificationMenuItems.push({
+      key: 'empty',
+      label: <Text type="secondary" style={{ padding: '8px 16px' }}>No new notifications</Text>,
+      disabled: true
+    })
+  } else {
+    notifications.forEach((notification, index) => {
+      notificationMenuItems.push({
+        key: notification._id || index,
+        label: (
+          <div
+            style={{
+              padding: '8px 0',
+              cursor: 'pointer',
+              backgroundColor: !notification.read ? token.colorInfoBg : 'transparent',
+              margin: '0 -8px',
+              paddingLeft: '12px',
+              paddingRight: '12px'
+            }}
+            onClick={() => handleNotificationClick(notification)}
+          >
+            <Space size="small" align="start" style={{ width: '100%' }}>
+              {getNotificationIcon(notification.type)}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Text strong={!notification.read} style={{ display: 'block', fontSize: '13px' }}>
+                  {notification.title}
+                </Text>
+                <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginTop: 2 }}>
+                  {notification.message.length > 60 
+                    ? `${notification.message.substring(0, 60)}...` 
+                    : notification.message}
+                </Text>
+                <Text type="secondary" style={{ fontSize: '11px', display: 'block', marginTop: 4 }}>
+                  {dayjs(notification.createdAt).fromNow()}
+                </Text>
+              </div>
+            </Space>
+          </div>
+        )
+      })
+    })
+  }
+  
+  if (viewNotificationsPath) {
+    notificationMenuItems.push({ type: 'divider' })
+    notificationMenuItems.push({
+      key: 'view-all',
+      label: <Link to={viewNotificationsPath} style={{ textAlign: 'center', display: 'block', padding: '8px' }}>View all notifications</Link>
+    })
+  }
+
+  const notificationMenu = <Menu items={notificationMenuItems} />
 
   return (
     <Header style={{ 
@@ -154,7 +281,7 @@ export default function TopBar({
       <Space size={24}>
         {!hideNotifications && (
           <Dropdown menu={{ items: notificationMenu.props.items }} trigger={['click']} placement="bottomRight">
-            <Badge count={0} size="small">
+            <Badge count={unreadCount} size="small" offset={[-5, 5]}>
               <Button type="text" shape="circle" icon={<BellOutlined style={{ fontSize: 20, color: iconColor }} />} />
             </Badge>
           </Dropdown>
@@ -186,6 +313,36 @@ export default function TopBar({
         onCancel={hide} 
         confirmLoading={confirming} 
       />
+      <Modal
+        title={selectedNotification?.title || 'Notification'}
+        open={notificationModalVisible}
+        onCancel={() => {
+          setNotificationModalVisible(false)
+          setSelectedNotification(null)
+        }}
+        footer={[
+          <Button
+            key="close"
+            onClick={() => {
+              setNotificationModalVisible(false)
+              setSelectedNotification(null)
+            }}
+          >
+            Close
+          </Button>
+        ]}
+      >
+        <div style={{ marginBottom: 8 }}>
+          <Text type="secondary">
+            {selectedNotification?.createdAt ? dayjs(selectedNotification.createdAt).fromNow() : ''}
+          </Text>
+        </div>
+        <div>
+          <Text>
+            {selectedNotification?.message || 'No details available.'}
+          </Text>
+        </div>
+      </Modal>
     </Header>
   )
 }

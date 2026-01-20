@@ -2,11 +2,13 @@ const express = require('express')
 const bcrypt = require('bcryptjs')
 const mongoose = require('mongoose')
 const jwt = require('jsonwebtoken')
+const path = require('path')
+const fs = require('fs')
 const User = require('../../models/User')
 const Role = require('../../models/Role')
 // Provider-related models removed in unified user flow
 const { generateCode } = require('../../lib/codes')
-const { sendOtp, sendVerificationEmail } = require('../../lib/mailer')
+const { sendOtp } = require('../../lib/mailer')
 const { signUpRequests } = require('../../lib/authRequestsStore')
 const SignUpRequest = require('../../models/SignUpRequest')
 const respond = require('../../middleware/respond')
@@ -184,15 +186,19 @@ router.post('/signup/start', validateBody(signupPayloadSchema), checkExistingEma
     const expiresAtMs = Date.now() + ttlMin * 60 * 1000
     // const emailKey = String(email).toLowerCase() // already defined above
 
+    console.log(`[Signup Start] Generated OTP code for ${emailKey}: ${code} (expires in ${ttlMin} minutes)`)
+
     const useDB = mongoose.connection && mongoose.connection.readyState === 1
     if (useDB) {
       await SignUpRequest.findOneAndUpdate(
         { email: emailKey },
-        { code, expiresAt: new Date(expiresAtMs), payload },
+        { code: String(code), expiresAt: new Date(expiresAtMs), payload }, // Ensure code is stored as string
         { upsert: true, new: true, setDefaultsOnInsert: true }
       )
+      console.log(`[Signup Start] Saved signup request to database for ${emailKey}`)
     } else {
-      signUpRequests.set(emailKey, { code, expiresAt: expiresAtMs, payload })
+      signUpRequests.set(emailKey, { code: String(code), expiresAt: expiresAtMs, payload })
+      console.log(`[Signup Start] Saved signup request to memory for ${emailKey}`)
     }
 
     // Reset verification attempts since a new code is generated
@@ -200,13 +206,25 @@ router.post('/signup/start', validateBody(signupPayloadSchema), checkExistingEma
       signupVerifyLimiter.resetKey(emailKey)
     }
 
-    const emailResult = await sendOtp({ to: email, code, subject: 'Verify your email' })
-    if (!emailResult || !emailResult.success) {
-      console.error(`[Signup] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
-      return respond.error(res, 500, 'email_send_failed', `Failed to send verification email: ${emailResult?.error || 'Please check your email configuration'}`)
-    }
+    // Send email asynchronously (don't block the response)
+    // Return success immediately, then send email in background
+    const emailPromise = sendOtp({ to: email, code, subject: 'Verify your email' })
+      .then(emailResult => {
+        if (!emailResult || !emailResult.success) {
+          console.error(`[Signup] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
+        } else if (emailResult.isMock) {
+          console.warn(`[Signup] ⚠️ Mock email used for ${email}. OTP code: ${code}`)
+          console.warn(`[Signup] ⚠️ Check backend console logs for the OTP code. Email was NOT actually sent.`)
+        } else {
+          console.log(`[Signup] ✅ OTP email sent successfully to ${email}`)
+        }
+      })
+      .catch(err => {
+        console.error(`[Signup] Error sending OTP email to ${email}:`, err.message)
+      })
     
-    return res.json({ sent: true })
+    // Return immediately - email is being sent in background
+    return res.json({ sent: true, message: 'Verification code is being sent to your email' })
   } catch (err) {
     try {
       const logPath = path.join(process.cwd(), 'backend-error.log')
@@ -241,14 +259,18 @@ router.post('/signup/resend', validateBody(Joi.object({ email: Joi.string().emai
     const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10)
     const expiresAtMs = Date.now() + ttlMin * 60 * 1000
 
+    console.log(`[Signup Resend] Generated new OTP code for ${emailKey}: ${code}`)
+
     if (useDB) {
-      reqObj.code = code
+      reqObj.code = String(code) // Ensure code is stored as string
       reqObj.expiresAt = new Date(expiresAtMs)
       await reqObj.save()
+      console.log(`[Signup Resend] Updated signup request in database for ${emailKey}`)
     } else {
-      reqObj.code = code
+      reqObj.code = String(code) // Ensure code is stored as string
       reqObj.expiresAt = expiresAtMs
       signUpRequests.set(emailKey, reqObj)
+      console.log(`[Signup Resend] Updated signup request in memory for ${emailKey}`)
     }
 
     // Reset verification attempts since a new code is generated
@@ -257,13 +279,26 @@ router.post('/signup/resend', validateBody(Joi.object({ email: Joi.string().emai
       console.log(`Reset verification attempts for ${emailKey} (resend)`)
     }
 
-    const emailResult = await sendOtp({ to: email, code, subject: 'Verify your email' })
-    if (!emailResult || !emailResult.success) {
-      console.error(`[Signup Resend] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
-      return respond.error(res, 500, 'email_send_failed', `Failed to send verification email: ${emailResult?.error || 'Please check your email configuration'}`)
-    }
+    console.log(`[Signup Resend] Generated new OTP code for ${emailKey}: ${code}`)
+
+    // Send email asynchronously (don't block the response)
+    const emailPromise = sendOtp({ to: email, code, subject: 'Verify your email' })
+      .then(emailResult => {
+        if (!emailResult || !emailResult.success) {
+          console.error(`[Signup Resend] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
+        } else if (emailResult.isMock) {
+          console.warn(`[Signup Resend] ⚠️ Mock email used for ${email}. OTP code: ${code}`)
+          console.warn(`[Signup Resend] ⚠️ Check backend console logs for the OTP code. Email was NOT actually sent.`)
+        } else {
+          console.log(`[Signup Resend] ✅ OTP email sent successfully to ${email}`)
+        }
+      })
+      .catch(err => {
+        console.error(`[Signup Resend] Error sending OTP email to ${email}:`, err.message)
+      })
     
-    return res.json({ sent: true })
+    // Return immediately - email is being sent in background
+    return res.json({ sent: true, message: 'Verification code is being sent to your email' })
   } catch (err) {
     console.error('POST /api/auth/signup/resend error:', err)
     return respond.error(res, 500, 'resend_failed', 'Failed to resend code')
@@ -277,18 +312,84 @@ router.post('/signup/verify', validateBody(verifyCodeSchema), signupVerifyLimite
     const { email, code } = req.body || {}
     const emailKey = String(email).toLowerCase().trim()
     const useDB = mongoose.connection && mongoose.connection.readyState === 1
+    
+    console.log(`[Signup Verify] Attempting verification for ${emailKey} with code: ${code} (type: ${typeof code})`)
+    
     let reqObj = null
     if (useDB) {
       reqObj = await SignUpRequest.findOne({ email: emailKey }).lean()
-      if (!reqObj) return respond.error(res, 404, 'signup_request_not_found', 'No signup request found')
-      if (Date.now() > new Date(reqObj.expiresAt).getTime()) return respond.error(res, 410, 'code_expired', 'Code expired')
-      if (String(reqObj.code) !== String(code)) return respond.error(res, 401, 'invalid_code', 'Invalid code')
+      if (!reqObj) {
+        console.log(`[Signup Verify] No signup request found for ${emailKey}`)
+        return respond.error(res, 404, 'signup_request_not_found', 'No signup request found. Please request a new verification code.')
+      }
+      
+      // Normalize codes for comparison - handle both string and number types
+      const storedCodeRaw = reqObj.code
+      const storedCode = String(storedCodeRaw || '').trim().replace(/\s+/g, '')
+      const receivedCode = String(code || '').trim().replace(/\s+/g, '')
+      const expiresAt = new Date(reqObj.expiresAt).getTime()
+      const now = Date.now()
+      
+      console.log(`[Signup Verify] Raw stored code: ${JSON.stringify(storedCodeRaw)} (type: ${typeof storedCodeRaw})`)
+      console.log(`[Signup Verify] Normalized stored code: "${storedCode}"`)
+      console.log(`[Signup Verify] Received code: "${receivedCode}"`)
+      console.log(`[Signup Verify] Codes match: ${storedCode === receivedCode}`)
+      console.log(`[Signup Verify] Expires at: ${new Date(expiresAt).toISOString()}, Now: ${new Date(now).toISOString()}`)
+      console.log(`[Signup Verify] Time remaining: ${Math.floor((expiresAt - now) / 1000)} seconds`)
+      
+      if (now > expiresAt) {
+        console.log(`[Signup Verify] Code expired for ${emailKey}`)
+        return respond.error(res, 410, 'code_expired', 'Code expired. Please request a new verification code.')
+      }
+      
+      if (storedCode !== receivedCode) {
+        console.log(`[Signup Verify] ❌ Code mismatch for ${emailKey}`)
+        console.log(`[Signup Verify] Expected: "${storedCode}" (length: ${storedCode.length})`)
+        console.log(`[Signup Verify] Got: "${receivedCode}" (length: ${receivedCode.length})`)
+        console.log(`[Signup Verify] Character-by-character comparison:`)
+        for (let i = 0; i < Math.max(storedCode.length, receivedCode.length); i++) {
+          const sChar = storedCode[i] || '(missing)'
+          const rChar = receivedCode[i] || '(missing)'
+          if (sChar !== rChar) {
+            console.log(`[Signup Verify]   Position ${i}: stored="${sChar}" (${sChar.charCodeAt(0)}) vs received="${rChar}" (${rChar.charCodeAt(0)})`)
+          }
+        }
+        return respond.error(res, 401, 'invalid_code', 'Invalid verification code. Please check and try again.')
+      }
     } else {
       reqObj = signUpRequests.get(emailKey)
-      if (!reqObj) return respond.error(res, 404, 'signup_request_not_found', 'No signup request found')
-      if (Date.now() > reqObj.expiresAt) return respond.error(res, 410, 'code_expired', 'Code expired')
-      if (String(reqObj.code) !== String(code)) return respond.error(res, 401, 'invalid_code', 'Invalid code')
+      if (!reqObj) {
+        console.log(`[Signup Verify] No signup request found in memory for ${emailKey}`)
+        return respond.error(res, 404, 'signup_request_not_found', 'No signup request found. Please request a new verification code.')
+      }
+      
+      // Normalize codes for comparison
+      const storedCodeRaw = reqObj.code
+      const storedCode = String(storedCodeRaw || '').trim().replace(/\s+/g, '')
+      const receivedCode = String(code || '').trim().replace(/\s+/g, '')
+      const now = Date.now()
+      
+      console.log(`[Signup Verify] Raw stored code: ${JSON.stringify(storedCodeRaw)} (type: ${typeof storedCodeRaw})`)
+      console.log(`[Signup Verify] Normalized stored code: "${storedCode}"`)
+      console.log(`[Signup Verify] Received code: "${receivedCode}"`)
+      console.log(`[Signup Verify] Codes match: ${storedCode === receivedCode}`)
+      console.log(`[Signup Verify] Expires at: ${new Date(reqObj.expiresAt).toISOString()}, Now: ${new Date(now).toISOString()}`)
+      console.log(`[Signup Verify] Time remaining: ${Math.floor((reqObj.expiresAt - now) / 1000)} seconds`)
+      
+      if (now > reqObj.expiresAt) {
+        console.log(`[Signup Verify] Code expired for ${emailKey}`)
+        return respond.error(res, 410, 'code_expired', 'Code expired. Please request a new verification code.')
+      }
+      
+      if (storedCode !== receivedCode) {
+        console.log(`[Signup Verify] ❌ Code mismatch for ${emailKey}`)
+        console.log(`[Signup Verify] Expected: "${storedCode}" (length: ${storedCode.length})`)
+        console.log(`[Signup Verify] Got: "${receivedCode}" (length: ${receivedCode.length})`)
+        return respond.error(res, 401, 'invalid_code', 'Invalid verification code. Please check and try again.')
+      }
     }
+    
+    console.log(`[Signup Verify] ✅ Code verified successfully for ${emailKey}`)
 
     const p = reqObj.payload || {}
 
