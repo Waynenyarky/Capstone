@@ -1,13 +1,18 @@
 import React from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { useAuthSession } from '@/features/authentication'
+import { useAuthSession, useMaintenanceStatus } from '@/features/authentication'
 
 export default function PublicRoute({ children }) {
   const { currentUser, role, isLoading } = useAuthSession()
   const location = useLocation()
+  const maintenance = useMaintenanceStatus()
 
-  if (isLoading) {
+  if (isLoading || maintenance.loading) {
     return null
+  }
+
+  if (location.pathname === '/maintenance' && maintenance.active) {
+    return children
   }
 
   if (currentUser && currentUser.token) {

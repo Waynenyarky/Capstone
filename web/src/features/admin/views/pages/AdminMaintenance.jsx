@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Layout, Card, Form, Input, DatePicker, Select, Button, Space, Typography, Table, Tag } from 'antd'
+import { Layout, Card, Form, Input, DatePicker, Select, Button, Space, Typography, Table, Tag, Modal } from 'antd'
 import { AppSidebar as Sidebar } from '@/features/authentication'
-import { requestMaintenance, getMaintenanceCurrent, getMaintenanceApprovals, approveMaintenance } from '../../services'
+import { requestMaintenance, getMaintenanceCurrent, getMaintenanceApprovals, approveMaintenance, getMaintenancePublicStatus } from '../../services'
 import { useNotifier } from '@/shared/notifications.js'
 
 const { Title, Text } = Typography
@@ -17,7 +17,19 @@ export default function AdminMaintenance() {
     setLoading(true)
     try {
       const [statusRes, approvalsRes] = await Promise.all([getMaintenanceCurrent(), getMaintenanceApprovals()])
-      setCurrent(statusRes?.maintenance || null)
+      let maintenance = statusRes?.maintenance || null
+      if (!maintenance) {
+        const publicStatus = await getMaintenancePublicStatus()
+        if (publicStatus?.active) {
+          maintenance = {
+            isActive: true,
+            message: publicStatus.message || '',
+            expectedResumeAt: publicStatus.expectedResumeAt || null,
+            activatedAt: publicStatus.activatedAt || null,
+          }
+        }
+      }
+      setCurrent(maintenance)
       setApprovals((approvalsRes?.approvals || []).filter((a) => a.requestType === 'maintenance_mode'))
     } catch (err) {
       console.error('Load maintenance data failed', err)
@@ -28,7 +40,12 @@ export default function AdminMaintenance() {
   }
 
   useEffect(() => {
+    let intervalId = null
     load()
+    intervalId = window.setInterval(load, 30000)
+    return () => {
+      if (intervalId) window.clearInterval(intervalId)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -46,6 +63,22 @@ export default function AdminMaintenance() {
       console.error('Maintenance request failed', err)
       error(err, 'Failed to submit request')
     }
+  }
+
+  const handleConfirmSubmit = async () => {
+    const values = await form.validateFields()
+    const isDisable = values.action === 'disable'
+    if (isDisable) {
+      Modal.confirm({
+        title: 'Cancel Maintenance?',
+        content: 'Are you sure you want to Cancel the Maintenance?',
+        okText: 'Yes, cancel',
+        cancelText: 'No',
+        onOk: () => handleSubmit(values),
+      })
+      return
+    }
+    return handleSubmit(values)
   }
 
   const handleApprove = async (approvalId, approved) => {
@@ -105,6 +138,11 @@ export default function AdminMaintenance() {
                   placeholder="Choose"
                 />
               </Form.Item>
+              <div style={{ marginBottom: 12 }}>
+                <Text type="secondary">
+                  Canceling maintenance is done by submitting a Disable request and getting approvals.
+                </Text>
+              </div>
               <Form.Item name="message" label="Message" rules={[{ max: 500 }]}>
                 <Input.TextArea placeholder="Shown to users during maintenance" rows={3} />
               </Form.Item>
@@ -112,7 +150,7 @@ export default function AdminMaintenance() {
                 <DatePicker showTime style={{ width: '100%' }} />
               </Form.Item>
               <Form.Item>
-                <Button type="primary" htmlType="submit">Submit for Approval</Button>
+                <Button type="primary" onClick={handleConfirmSubmit}>Submit for Approval</Button>
               </Form.Item>
             </Form>
           </Card>

@@ -317,8 +317,8 @@ class PermitApplicationService {
     const business = profile.businesses[businessIndex]
     const oldStatus = business.applicationStatus || 'draft'
 
-    // Only allow starting review if status is 'submitted'
-    if (oldStatus !== 'submitted') {
+    // Only allow starting review if status is 'submitted', 'resubmit' or 'needs_revision'
+    if (!['submitted', 'resubmit', 'needs_revision'].includes(oldStatus)) {
       // If already under review or final decision, just return current state
       return this.getApplicationById(applicationId, businessId)
     }
@@ -329,6 +329,22 @@ class PermitApplicationService {
     profile.businesses[businessIndex].reviewedAt = new Date()
 
     await profile.save()
+
+    // Create notification for business owner
+    try {
+      const notificationService = require('./notificationService')
+      await notificationService.createNotification(
+        profile.userId,
+        'application_review_started',
+        'Application Review Started',
+        `Your application "${business.businessName}" is now being reviewed by an LGU Officer.`,
+        'business_application',
+        businessId || applicationId
+      )
+    } catch (notifError) {
+      console.error('[startReview] Failed to create notification:', notifError)
+      // Don't throw - notification failure shouldn't break the review process
+    }
 
     // Create audit log
     const auditData = {
@@ -443,8 +459,9 @@ class PermitApplicationService {
     // Validate status transition
     const validTransitions = {
       'submitted': ['under_review', 'approved', 'rejected', 'needs_revision'],
+      'resubmit': ['under_review', 'approved', 'rejected', 'needs_revision'],
       'under_review': ['approved', 'rejected', 'needs_revision'],
-      'needs_revision': ['submitted', 'under_review']
+      'needs_revision': ['submitted', 'under_review', 'resubmit']
     }
 
     if (!validTransitions[oldStatus] || !validTransitions[oldStatus].includes(

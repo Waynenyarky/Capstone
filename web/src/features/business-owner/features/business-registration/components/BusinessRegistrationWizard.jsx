@@ -405,7 +405,7 @@ export default function BusinessRegistrationWizard({
                    data.businessType || data.businessAddress || data.ownerName)
         }
         
-        if (status === 'submitted' || status === 'under_review' || status === 'approved' || status === 'rejected' || status === 'needs_revision') {
+        if (status === 'submitted' || status === 'resubmit' || status === 'under_review' || status === 'approved' || status === 'rejected' || status === 'needs_revision') {
           statusBasedStep = 7 // Status step
         } else if (status === 'agencies_registered') {
           statusBasedStep = 5 // Review step
@@ -1015,6 +1015,7 @@ export default function BusinessRegistrationWizard({
 
   // Don't allow navigation to steps after submission if already submitted
   const isSubmitted = formData?.applicationStatus === 'submitted' || 
+                     formData?.applicationStatus === 'resubmit' ||
                      formData?.applicationStatus === 'under_review' ||
                      formData?.applicationStatus === 'approved' ||
                      formData?.applicationStatus === 'rejected' ||

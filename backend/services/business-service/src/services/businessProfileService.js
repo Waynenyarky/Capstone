@@ -7,6 +7,40 @@ const blockchainService = require('../lib/blockchainService')
 const { validateBusinessRegistrationNumber, validateGeolocation, calculateRiskLevel } = require('../lib/businessValidation')
 const mongoose = require('mongoose')
 
+let cachedAuthUserModel
+let cachedAuthRoleModel
+let cachedNotificationService
+
+function getAuthUserModel() {
+  if (cachedAuthUserModel) return cachedAuthUserModel
+  try {
+    cachedAuthUserModel = require('../../../auth-service/src/models/User')
+  } catch (error) {
+    cachedAuthUserModel = require('../models/User')
+  }
+  return cachedAuthUserModel
+}
+
+function getAuthRoleModel() {
+  if (cachedAuthRoleModel) return cachedAuthRoleModel
+  try {
+    cachedAuthRoleModel = require('../../../auth-service/src/models/Role')
+  } catch (error) {
+    cachedAuthRoleModel = require('../models/Role')
+  }
+  return cachedAuthRoleModel
+}
+
+function getNotificationService() {
+  if (cachedNotificationService) return cachedNotificationService
+  try {
+    cachedNotificationService = require('../../../auth-service/src/services/notificationService')
+  } catch (error) {
+    cachedNotificationService = require('./notificationService')
+  }
+  return cachedNotificationService
+}
+
 class BusinessProfileService {
   async getProfile(userId) {
     let profile = await BusinessProfile.findOne({ userId })
@@ -482,12 +516,61 @@ class BusinessProfileService {
       }
     }
 
+    const wasResubmit = existingBusinessObj?.applicationStatus === 'resubmit'
+    if (updatedBusiness.applicationStatus === 'resubmit') {
+      updatedBusiness.submittedAt = new Date()
+      updatedBusiness.submittedToLguOfficer = true
+      updatedBusiness.isSubmitted = true
+    }
+
     // Update the business in the array
     profile.businesses[businessIndex] = updatedBusiness
     
     // Mark the array as modified for Mongoose
     profile.markModified('businesses')
     await profile.save()
+
+    if (updatedBusiness.applicationStatus === 'resubmit' && !wasResubmit) {
+      try {
+        const notificationService = getNotificationService()
+        const UserModel = getAuthUserModel()
+        const RoleModel = getAuthRoleModel()
+        const referenceNumber = updatedBusiness.applicationReferenceNumber || `APP-${String(businessId).slice(-8)}`
+
+        const lguOfficerRole = await RoleModel.findOne({ slug: 'lgu_officer' }).lean()
+        if (lguOfficerRole) {
+          const lguOfficers = await UserModel.find({
+            role: lguOfficerRole._id,
+            isActive: true
+          }).lean()
+
+          const notificationPromises = lguOfficers.map((officer) =>
+            notificationService.createNotification(
+              officer._id,
+              'application_status_update',
+              'Application Resubmitted',
+              `A business application "${updatedBusiness.businessName}" (Reference: ${referenceNumber}) has been resubmitted and is ready for review.`,
+              'business_application',
+              businessId,
+              {
+                businessName: updatedBusiness.businessName,
+                referenceNumber,
+                businessId,
+                submittedAt: updatedBusiness.submittedAt
+              }
+            ).catch((err) => {
+              console.error(`Failed to create notification for LGU Officer ${officer._id}:`, err)
+              return null
+            })
+          )
+
+          await Promise.all(notificationPromises)
+          console.log(`[updateBusiness] Created resubmission notifications for ${lguOfficers.length} LGU Officer(s)`)
+        }
+      } catch (notifError) {
+        console.error('[updateBusiness] Failed to create LGU Officer resubmission notifications:', notifError)
+      }
+    }
 
     // Audit log
     try {
@@ -950,9 +1033,9 @@ class BusinessProfileService {
 
     // Create notifications for LGU Officers when business owner submits documents
     try {
-      const notificationService = require('./notificationService')
-      const UserModel = require('../models/User')
-      const RoleModel = require('../models/Role')
+      const notificationService = getNotificationService()
+      const UserModel = getAuthUserModel()
+      const RoleModel = getAuthRoleModel()
       
       // Get LGU Officer role
       const lguOfficerRole = await RoleModel.findOne({ slug: 'lgu_officer' }).lean()

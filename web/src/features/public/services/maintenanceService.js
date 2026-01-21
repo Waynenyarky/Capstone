@@ -1,5 +1,12 @@
 import { fetchJsonWithFallback } from '@/lib/http.js'
 
 export async function getMaintenanceStatus() {
-  return fetchJsonWithFallback('/api/maintenance/status', { method: 'GET' })
+  const ts = Date.now()
+  return fetchJsonWithFallback(`/api/maintenance/status?ts=${ts}`, {
+    method: 'GET',
+    headers: {
+      'Cache-Control': 'no-store',
+      Pragma: 'no-cache',
+    },
+  })
 }

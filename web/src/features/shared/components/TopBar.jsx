@@ -101,6 +101,12 @@ export default function TopBar({
     return 'Business Owner'
   }, [roleLabel, currentUser])
 
+  const isLguOfficerRole = React.useMemo(() => {
+    const roleSlug = currentUser?.role?.slug || ''
+    if (['lgu_officer', 'lgu_manager', 'staff'].includes(roleSlug)) return true
+    return typeof roleLabel === 'string' && roleLabel.toLowerCase().includes('lgu')
+  }, [currentUser, roleLabel])
+
   const userMenuItems = [
     {
       key: 'profile',
@@ -165,8 +171,9 @@ export default function TopBar({
       case 'application_approved':
         return <CheckCircleOutlined style={{ color: token.colorSuccess }} />
       case 'application_rejected':
-      case 'application_needs_revision':
         return <CloseCircleOutlined style={{ color: token.colorError }} />
+      case 'application_needs_revision':
+        return <ExclamationCircleOutlined style={{ color: token.colorWarning }} />
       case 'application_review_started':
         return <InfoCircleOutlined style={{ color: token.colorInfo }} />
       default:
@@ -183,8 +190,12 @@ export default function TopBar({
           prev.map(n => n._id === notification._id ? { ...n, read: true } : n)
         )
       }
-      setSelectedNotification(notification)
-      setNotificationModalVisible(true)
+      if (isLguOfficerRole) {
+        setSelectedNotification(notification)
+        setNotificationModalVisible(true)
+      } else if (viewNotificationsPath) {
+        navigate(viewNotificationsPath)
+      }
     } catch (error) {
       console.error('Failed to mark notification as read:', error)
     }

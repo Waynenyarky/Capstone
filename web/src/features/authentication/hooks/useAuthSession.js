@@ -39,6 +39,27 @@ function readStored() {
   return null
 }
 
+function updateStoredUser(nextUser) {
+  try {
+    const localRaw = localStorage.getItem(LOCAL_KEY)
+    if (localRaw) {
+      const parsed = JSON.parse(localRaw)
+      const expiresAt = parsed?.expiresAt ?? 0
+      localStorage.setItem(LOCAL_KEY, JSON.stringify({ user: nextUser, expiresAt }))
+      return
+    }
+  } catch { /* ignore */ }
+  try {
+    const sessionRaw = sessionStorage.getItem(SESSION_KEY)
+    if (sessionRaw) {
+      const parsed = JSON.parse(sessionRaw)
+      const expiresAt = parsed?.expiresAt ?? 0
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ user: nextUser, expiresAt }))
+      return
+    }
+  } catch { /* ignore */ }
+}
+
 export function useAuthSession() {
   const [currentUser, setUserState] = useState(getCurrentUser() || readStored())
   const validationIntervalRef = useRef(null)
@@ -50,7 +71,15 @@ export function useAuthSession() {
 
     try {
       // Use /api/auth/me endpoint to validate token (it requires JWT)
-      await getMe()
+      const freshUser = await getMe()
+      if (freshUser) {
+        const nextUser = { ...freshUser }
+        if (user?.token && !nextUser.token) {
+          nextUser.token = user.token
+        }
+        setCurrentUser(nextUser)
+        updateStoredUser(nextUser)
+      }
       return true
     } catch (err) {
       // Token is invalid (401) or other error

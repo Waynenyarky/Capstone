@@ -18,6 +18,7 @@ const AdminApprovalSchema = new mongoose.Schema(
         'id_verification',
         'account_status_change',
         'role_change',
+        'maintenance_mode',
         'other',
       ],
     },

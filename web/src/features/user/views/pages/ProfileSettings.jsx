@@ -23,6 +23,7 @@ import { useAuthSession } from '@/features/authentication'
 import { resolveAvatarUrl } from '@/lib/utils'
 import { useAppTheme, THEMES } from '@/shared/theme/ThemeProvider'
 import { listCredentials } from '@/features/authentication/services/webauthnService.js'
+import { getOffices, resolveOfficeLabel } from '@/features/shared/services/officeService.js'
 
 const { Title, Text, Paragraph } = Typography
 const { TabPane } = Tabs
@@ -38,6 +39,25 @@ export default function ProfileSettings() {
   const [messageApi, contextHolder] = message.useMessage()
   const screens = useBreakpoint()
   const [passkeyEnabled, setPasskeyEnabled] = useState(false)
+  const [offices, setOffices] = useState([])
+  const officeLabel = resolveOfficeLabel(currentUser?.office, offices)
+  const officeCode = currentUser?.office || ''
+  const roleSlug = String(role?.slug || role || '').toLowerCase()
+  const isStaffRole = ['lgu_officer', 'lgu_manager', 'inspector', 'cso', 'staff'].includes(roleSlug)
+
+  useEffect(() => {
+    let mounted = true
+    if (isStaffRole) {
+      getOffices()
+        .then((list) => {
+          if (mounted) setOffices(Array.isArray(list) ? list : [])
+        })
+        .catch(() => {
+          if (mounted) setOffices([])
+        })
+    }
+    return () => { mounted = false }
+  }, [isStaffRole])
   const [passkeyLoading, setPasskeyLoading] = useState(true)
 
   // Staging state for theme selection
@@ -1186,6 +1206,20 @@ export default function ProfileSettings() {
                   <div style={{ marginBottom: 12, textAlign: 'center' }}>
                     <Tag color={brandColor} style={{ margin: 0, padding: '4px 12px', borderRadius: 4 }}>{user?.role ? user.role.toUpperCase() : 'USER'}</Tag>
                   </div>
+                  {isStaffRole && officeLabel ? (
+                    <div style={{ marginBottom: 12, textAlign: 'center' }}>
+                      <Space size="small" wrap style={{ justifyContent: 'center' }}>
+                        <Tag color="blue" style={{ margin: 0, padding: '4px 12px', borderRadius: 4 }}>
+                          Office: {officeLabel}
+                        </Tag>
+                        {officeCode ? (
+                          <Tag color="default" style={{ margin: 0, padding: '4px 12px', borderRadius: 4, fontFamily: 'monospace' }}>
+                            {officeCode}
+                          </Tag>
+                        ) : null}
+                      </Space>
+                    </div>
+                  ) : null}
                   <Space size={[8, 8]} wrap style={{ justifyContent: 'center' }}>
                     {user?.mfaEnabled ? 
                       <Tag color="success" style={{ margin: 0, padding: '4px 12px', borderRadius: 4 }}>MFA ENABLED</Tag> : 

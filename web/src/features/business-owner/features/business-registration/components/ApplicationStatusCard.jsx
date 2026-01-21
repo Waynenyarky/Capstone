@@ -42,6 +42,7 @@ export default function ApplicationStatusCard({ businessId, status, referenceNum
       'bir_registered': { color: 'processing', text: 'BIR Registered' },
       'agencies_registered': { color: 'processing', text: 'Agencies Registered' },
       'submitted': { color: 'success', text: 'Submitted to LGU Officer' },
+      'resubmit': { color: 'processing', text: 'Resubmit' },
       'under_review': { color: 'processing', text: 'Under Review' },
       'approved': { color: 'success', text: 'Approved' },
       'rejected': { color: 'error', text: 'Rejected' },
@@ -60,7 +61,7 @@ export default function ApplicationStatusCard({ businessId, status, referenceNum
       { color: 'green', dot: <CheckCircleOutlined />, children: 'Agency Registrations Completed' }
     ]
 
-    if (['submitted', 'under_review', 'approved', 'rejected', 'needs_revision'].includes(currentStatus)) {
+    if (['submitted', 'resubmit', 'under_review', 'approved', 'rejected', 'needs_revision'].includes(currentStatus)) {
       items.push({
         color: 'blue',
         dot: <FileTextOutlined />,

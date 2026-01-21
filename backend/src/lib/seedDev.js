@@ -3,6 +3,7 @@ const path = require('path')
 const bcrypt = require('bcryptjs')
 const User = require('../models/User')
 const Role = require('../models/Role')
+const Office = require('../models/Office')
 const { getStaffRoles } = require('../lib/roleHelpers')
 // Removed provider seeding; unified user model
 
@@ -40,16 +41,49 @@ async function seedDevDataIfEmpty() {
 
     // Seed Roles first
     const roles = [
-      { name: 'Admin', slug: 'admin' },
-      { name: 'Business Owner', slug: 'business_owner' },
-      { name: 'LGU Manager', slug: 'lgu_manager' },
-      { name: 'LGU Officer', slug: 'lgu_officer' },
-      { name: 'LGU Inspector', slug: 'inspector' },
-      { name: 'CSO', slug: 'cso' },
+      { name: 'Admin', slug: 'admin', isStaffRole: false },
+      { name: 'Business Owner', slug: 'business_owner', isStaffRole: false },
+      { name: 'LGU Manager', slug: 'lgu_manager', isStaffRole: true },
+      { name: 'LGU Officer', slug: 'lgu_officer', isStaffRole: true },
+      { name: 'LGU Inspector', slug: 'inspector', isStaffRole: true },
+      { name: 'CSO', slug: 'cso', isStaffRole: true },
     ]
 
     for (const r of roles) {
-      await Role.findOneAndUpdate({ slug: r.slug }, r, { upsert: true, new: true })
+      await Role.findOneAndUpdate(
+        { slug: r.slug },
+        { ...r, displayName: r.name },
+        { upsert: true, new: true }
+      )
+    }
+
+    const offices = [
+      { code: 'OSBC', name: 'OSBC - One Stop Business Center', group: 'Core Offices' },
+      { code: 'CHO', name: 'CHO - City Health Office', group: 'Core Offices' },
+      { code: 'BFP', name: 'BFP - Bureau of Fire Protection', group: 'Core Offices' },
+      { code: 'CEO / ZC', name: 'CEO / ZC - City Engineering Office / Zoning Clearance', group: 'Core Offices' },
+      { code: 'BH', name: 'BH - Barangay Hall / Barangay Business Clearance', group: 'Core Offices' },
+      { code: 'DTI', name: 'DTI - Department of Trade and Industry', group: 'Preneed / Inter-Govt Clearances' },
+      { code: 'SEC', name: 'SEC - Securities and Exchange Commission', group: 'Preneed / Inter-Govt Clearances' },
+      { code: 'CDA', name: 'CDA - Cooperative Development Authority', group: 'Preneed / Inter-Govt Clearances' },
+      { code: 'PNP-FEU', name: 'PNP-FEU - Firearms & Explosives Unit', group: 'Specialized / Conditional Offices' },
+      { code: 'FDA / BFAD / DOH', name: 'FDA / BFAD / DOH - Food & Drug Administration', group: 'Specialized / Conditional Offices' },
+      { code: 'PRC / PTR', name: 'PRC / PTR - Professional Regulatory Commission', group: 'Specialized / Conditional Offices' },
+      { code: 'NTC', name: 'NTC - National Telecommunications Commission', group: 'Specialized / Conditional Offices' },
+      { code: 'POEA', name: 'POEA - Philippine Overseas Employment Administration', group: 'Specialized / Conditional Offices' },
+      { code: 'NIC', name: 'NIC - National Insurance Commission', group: 'Specialized / Conditional Offices' },
+      { code: 'ECC / ENV', name: 'ECC / ENV - Environmental Compliance Certificate', group: 'Specialized / Conditional Offices' },
+      { code: 'CTO', name: 'CTO - City Treasurer Office', group: 'Support / Coordination Offices' },
+      { code: 'MD', name: 'MD - Market Division', group: 'Support / Coordination Offices' },
+      { code: 'CLO', name: 'CLO - City Legal Office', group: 'Support / Coordination Offices' },
+    ]
+
+    for (const office of offices) {
+      await Office.findOneAndUpdate(
+        { code: office.code },
+        { ...office, isActive: true },
+        { upsert: true, new: true }
+      )
     }
 
     const tempPassword = process.env.SEED_TEMP_PASSWORD || 'TempPass123!'

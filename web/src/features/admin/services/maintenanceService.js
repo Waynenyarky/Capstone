@@ -20,6 +20,10 @@ export async function getMaintenanceCurrent() {
   })
 }
 
+export async function getMaintenancePublicStatus() {
+  return fetchJsonWithFallback('/api/maintenance/status', { method: 'GET' })
+}
+
 export async function getMaintenanceApprovals() {
   const current = getCurrentUser()
   const headers = authHeaders(current, 'admin')

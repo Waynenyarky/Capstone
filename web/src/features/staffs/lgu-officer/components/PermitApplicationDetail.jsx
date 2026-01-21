@@ -55,7 +55,8 @@ export default function PermitApplicationDetail({
   application: initialApplication,
   onClose,
   onReviewComplete,
-  onReview
+  onReview,
+  onReviewStarted
 }) {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
@@ -105,8 +106,8 @@ export default function PermitApplicationDetail({
   const handleStartReview = async () => {
     if (!initialApplication?.applicationId) return
     
-    // Only auto-start if status is 'submitted'
-    if (initialApplication?.status !== 'submitted') return
+    // Only auto-start if status is 'submitted', 'resubmit' or 'needs_revision'
+    if (!['submitted', 'resubmit', 'needs_revision'].includes(initialApplication?.status)) return
 
     setStartingReview(true)
     try {
@@ -117,6 +118,9 @@ export default function PermitApplicationDetail({
       
       if (result?.application) {
         setApplication(result.application)
+        if (onReviewStarted) {
+          onReviewStarted(result.application)
+        }
       } else {
         // Reload application details to get updated status
         await loadApplicationDetails()
@@ -202,10 +206,6 @@ export default function PermitApplicationDetail({
         await loadApplicationDetails()
       }
 
-      message.success(
-        `Application ${decision === 'approve' ? 'approved' : decision === 'reject' ? 'rejected' : 'sent for revision'} successfully`
-      )
-      
       if (onReviewComplete) {
         onReviewComplete()
       }
@@ -215,6 +215,22 @@ export default function PermitApplicationDetail({
     } finally {
       setReviewing(false)
     }
+  }
+
+  const handleConfirmReview = (values) => {
+    const decisionValue = values?.decision || decision
+    const decisionLabel = decisionValue === 'approve'
+      ? 'approve'
+      : decisionValue === 'reject'
+        ? 'reject'
+        : 'request changes for'
+    Modal.confirm({
+      title: 'Submit Review?',
+      content: `You are about to ${decisionLabel} this application. Do you want to continue?`,
+      okText: 'Yes, submit',
+      cancelText: 'Cancel',
+      onOk: () => handleReview(values)
+    })
   }
 
   // Helper Functions
@@ -296,6 +312,7 @@ export default function PermitApplicationDetail({
     const statusConfig = {
       'draft': { color: 'default', text: 'Draft' },
       'submitted': { color: 'processing', text: 'Pending Review' },
+      'resubmit': { color: 'processing', text: 'Resubmit' },
       'under_review': { color: 'processing', text: 'Under Review' },
       'approved': { color: 'success', text: 'Approved' },
       'rejected': { color: 'error', text: 'Rejected' },
@@ -457,7 +474,10 @@ export default function PermitApplicationDetail({
     )
   }
 
-  const canReview = application?.status === 'submitted' || application?.status === 'under_review' || application?.status === 'needs_revision'
+  const canReview = application?.status === 'submitted' ||
+    application?.status === 'resubmit' ||
+    application?.status === 'under_review' ||
+    application?.status === 'needs_revision'
   const isFinalDecision = application?.status === 'approved' || application?.status === 'rejected'
 
   const ownerIdentity = application?.ownerIdentity || {}
@@ -595,7 +615,7 @@ export default function PermitApplicationDetail({
           <Form
             form={form}
             layout="vertical"
-            onFinish={handleReview}
+            onFinish={handleConfirmReview}
           >
             <Form.Item
               label={<Text strong style={{ fontSize: 14 }}>Decision</Text>}

@@ -6,16 +6,34 @@ export function useMaintenanceStatus() {
 
   useEffect(() => {
     let mounted = true
-    getMaintenanceStatus()
-      .then((res) => {
-        if (!mounted) return
-        setStatus({ loading: false, active: !!res?.active, message: res?.message, expectedResumeAt: res?.expectedResumeAt })
-      })
-      .catch(() => {
-        if (!mounted) return
-        setStatus({ loading: false, active: false })
-      })
-    return () => { mounted = false }
+    let intervalId = null
+
+    const fetchStatus = () => {
+      getMaintenanceStatus()
+        .then((res) => {
+          if (!mounted) return
+          setStatus({
+            loading: false,
+            active: !!res?.active,
+            message: res?.message,
+            expectedResumeAt: res?.expectedResumeAt,
+          })
+        })
+        .catch(() => {
+          if (!mounted) return
+          setStatus({ loading: false, active: false })
+        })
+    }
+
+    fetchStatus()
+    intervalId = window.setInterval(fetchStatus, 30000)
+
+    return () => {
+      mounted = false
+      if (intervalId) {
+        window.clearInterval(intervalId)
+      }
+    }
   }, [])
 
   return status

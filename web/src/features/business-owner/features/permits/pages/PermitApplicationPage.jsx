@@ -99,6 +99,7 @@ export default function PermitApplicationPage() {
       'bir_registered': { color: 'processing', text: 'BIR Registered', description: 'BIR registration completed' },
       'agencies_registered': { color: 'processing', text: 'Agencies Registered', description: 'Agency registrations completed' },
       'submitted': { color: 'processing', text: 'Pending for Approval', description: 'Submitted to LGU Officer' },
+      'resubmit': { color: 'processing', text: 'Resubmit', description: 'Resubmitted to LGU Officer for review' },
       'under_review': { color: 'processing', text: 'Under Review', description: 'Application is being reviewed by LGU Officer' },
       'approved': { color: 'success', text: 'Approved', description: 'Permit approved' },
       'rejected': { color: 'error', text: 'Rejected', description: 'Application rejected' },
@@ -304,13 +305,14 @@ export default function PermitApplicationPage() {
         { text: 'Approved', value: 'approved' },
         { text: 'Rejected', value: 'rejected' },
         { text: 'Needs Revision', value: 'needs_revision' },
+        { text: 'Resubmit', value: 'resubmit' },
         { text: 'Draft', value: 'draft' },
         { text: 'In Progress', value: 'in_progress' },
       ],
       onFilter: (value, record) => {
         // Group submitted and under_review as "Pending for Approval"
         if (value === 'pending') {
-          return record.status === 'submitted' || record.status === 'under_review'
+          return record.status === 'submitted' || record.status === 'under_review' || record.status === 'resubmit'
         }
         // Group requirements_viewed, form_completed, documents_uploaded, bir_registered, agencies_registered as "In Progress"
         if (value === 'in_progress') {
@@ -327,6 +329,7 @@ export default function PermitApplicationPage() {
           'bir_registered': 4,
           'agencies_registered': 5,
           'submitted': 6,
+          'resubmit': 6,
           'under_review': 6,
           'needs_revision': 7,
           'approved': 8,
@@ -927,14 +930,11 @@ export default function PermitApplicationPage() {
             }
           },
           // Reset application status and clear review fields
-          applicationStatus: 'draft',
+          applicationStatus: 'resubmit',
           reviewComments: null,
           rejectionReason: null,
           reviewedBy: null,
           reviewedAt: null,
-          submittedToLguOfficer: false,
-          isSubmitted: false,
-          submittedAt: null
         }
         
         // Update business with new data
@@ -1977,7 +1977,7 @@ export default function PermitApplicationPage() {
                   {(selectedRecord?.status === 'rejected' || selectedRecord?.status === 'needs_revision') && (
                     <Alert
                       message="Resubmission Notice"
-                      description="Clicking 'Resubmit' will reset your application status and clear review comments. You can then submit the application again for review."
+                      description="Clicking 'Resubmit' will update your application status to Resubmit and clear review comments."
                       type="info"
                       showIcon
                       style={{ marginBottom: 16 }}

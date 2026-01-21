@@ -4,9 +4,25 @@
  */
 
 /**
- * Staff role slugs (all 4 staff roles)
+ * Staff role slugs (defaults, can be refreshed from DB)
  */
-const STAFF_ROLES = ['lgu_officer', 'lgu_manager', 'inspector', 'cso']
+const DEFAULT_STAFF_ROLES = ['lgu_officer', 'lgu_manager', 'inspector', 'cso']
+let staffRoleCache = [...DEFAULT_STAFF_ROLES]
+
+async function refreshStaffRoleCache() {
+  try {
+    const Role = require('../models/Role')
+    const docs = await Role.find({ isStaffRole: true }).lean()
+    if (Array.isArray(docs) && docs.length) {
+      staffRoleCache = docs
+        .map((r) => String(r.slug || '').toLowerCase())
+        .filter(Boolean)
+    }
+    return [...staffRoleCache]
+  } catch (_) {
+    return [...staffRoleCache]
+  }
+}
 
 /**
  * Check if a role is a staff role
@@ -17,7 +33,7 @@ function isStaffRole(roleSlug) {
   if (!roleSlug || typeof roleSlug !== 'string') {
     return false
   }
-  return STAFF_ROLES.includes(roleSlug.toLowerCase())
+  return staffRoleCache.includes(roleSlug.toLowerCase())
 }
 
 /**
@@ -25,7 +41,7 @@ function isStaffRole(roleSlug) {
  * @returns {string[]} - Array of staff role slugs
  */
 function getStaffRoles() {
-  return [...STAFF_ROLES]
+  return [...staffRoleCache]
 }
 
 /**
@@ -65,8 +81,9 @@ function isBusinessOwnerRole(roleSlug) {
 module.exports = {
   isStaffRole,
   getStaffRoles,
+  refreshStaffRoleCache,
   isRestrictedFieldForStaff,
   isAdminRole,
   isBusinessOwnerRole,
-  STAFF_ROLES,
+  DEFAULT_STAFF_ROLES,
 }

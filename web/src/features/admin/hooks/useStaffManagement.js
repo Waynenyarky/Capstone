@@ -1,6 +1,17 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Form } from 'antd'
-import { getStaffList, createStaff } from '../services'
+import {
+  getStaffList,
+  createStaff,
+  getOffices,
+  createOffice,
+  updateOffice,
+  deleteOffice,
+  getStaffRoles,
+  createStaffRole,
+  updateStaffRole,
+  deleteStaffRole,
+} from '../services'
 import { useNotifier } from '@/shared/notifications'
 
 export const officeGroups = [
@@ -51,8 +62,27 @@ export const roleOptions = [
   { value: 'cso', label: 'Customer Support Officer' },
 ]
 
-export function roleLabel(role) {
+const defaultOffices = officeGroups.flatMap((group) =>
+  (group.options || []).map((opt) => ({
+    id: opt.value,
+    code: opt.value,
+    name: opt.label,
+    group: group.label,
+    isActive: true,
+  }))
+)
+
+const defaultRoles = roleOptions.map((opt) => ({
+  id: opt.value,
+  slug: opt.value,
+  name: opt.label,
+  displayName: opt.label,
+}))
+
+export function roleLabel(role, options = roleOptions) {
   const key = String(role || '').toLowerCase()
+  const fromOptions = (options || []).find((opt) => String(opt?.value || '').toLowerCase() === key)
+  if (fromOptions?.label) return fromOptions.label
   const map = {
     lgu_officer: 'LGU Officer',
     lgu_manager: 'LGU Manager',
@@ -62,9 +92,9 @@ export function roleLabel(role) {
   return map[key] || key
 }
 
-export function officeLabel(value) {
+export function officeLabel(value, groups = officeGroups) {
   const v = String(value || '')
-  for (const group of officeGroups) {
+  for (const group of groups || []) {
     for (const opt of group.options) {
       if (opt.value === v) return opt.label
     }
@@ -84,6 +114,10 @@ export function useStaffManagement() {
   const [pendingValues, setPendingValues] = useState(null)
   const [successOpen, setSuccessOpen] = useState(false)
   const [successData, setSuccessData] = useState(null)
+  const [offices, setOffices] = useState(defaultOffices)
+  const [roles, setRoles] = useState(defaultRoles)
+  const [loadingOffices, setLoadingOffices] = useState(false)
+  const [loadingRoles, setLoadingRoles] = useState(false)
 
   const loadStaff = useCallback(async () => {
     setLoadingStaff(true)
@@ -102,6 +136,47 @@ export function useStaffManagement() {
   useEffect(() => {
     loadStaff()
   }, [loadStaff])
+
+  const loadOffices = useCallback(async () => {
+    setLoadingOffices(true)
+    try {
+      const list = await getOffices()
+      if (Array.isArray(list) && list.length) {
+        setOffices(list)
+      } else {
+        setOffices(defaultOffices)
+      }
+    } catch (e) {
+      console.error('Load offices error:', e)
+      setOffices(defaultOffices)
+      error(e, 'Failed to load offices')
+    } finally {
+      setLoadingOffices(false)
+    }
+  }, [error])
+
+  const loadRoles = useCallback(async () => {
+    setLoadingRoles(true)
+    try {
+      const list = await getStaffRoles()
+      if (Array.isArray(list) && list.length) {
+        setRoles(list)
+      } else {
+        setRoles(defaultRoles)
+      }
+    } catch (e) {
+      console.error('Load roles error:', e)
+      setRoles(defaultRoles)
+      error(e, 'Failed to load roles')
+    } finally {
+      setLoadingRoles(false)
+    }
+  }, [error])
+
+  useEffect(() => {
+    loadOffices()
+    loadRoles()
+  }, [loadOffices, loadRoles])
 
   const handleCreateSubmit = (values) => {
     setPendingValues(values)
@@ -153,6 +228,58 @@ export function useStaffManagement() {
   const closeConfirmModal = () => !confirming && setConfirmOpen(false)
   const closeSuccessModal = () => setSuccessOpen(false)
 
+  const addOffice = async (office) => {
+    if (!office) return
+    await createOffice(office)
+    await loadOffices()
+  }
+
+  const updateOfficeEntry = async (officeId, updates) => {
+    if (!officeId) return
+    await updateOffice(officeId, updates)
+    await loadOffices()
+  }
+
+  const removeOfficeEntry = async (officeId) => {
+    if (!officeId) return
+    await deleteOffice(officeId)
+    await loadOffices()
+  }
+
+  const addRole = async (role) => {
+    if (!role) return
+    await createStaffRole(role)
+    await loadRoles()
+  }
+
+  const updateRoleEntry = async (roleId, updates) => {
+    if (!roleId) return
+    await updateStaffRole(roleId, updates)
+    await loadRoles()
+  }
+
+  const removeRoleEntry = async (roleId) => {
+    if (!roleId) return
+    await deleteStaffRole(roleId)
+    await loadRoles()
+  }
+
+  const officeGroupsState = offices.reduce((acc, office) => {
+    const groupLabel = office.group || 'Other Offices'
+    let group = acc.find((item) => item.label === groupLabel)
+    if (!group) {
+      group = { label: groupLabel, options: [] }
+      acc.push(group)
+    }
+    group.options.push({ value: office.code, label: office.name })
+    return acc
+  }, [])
+
+  const roleOptionsState = roles.map((role) => ({
+    value: role.slug,
+    label: role.displayName || role.name || role.slug,
+  }))
+
   return {
     staff,
     loadingStaff,
@@ -171,6 +298,20 @@ export function useStaffManagement() {
     pendingValues,
     successOpen,
     successData,
-    closeSuccessModal
+    closeSuccessModal,
+    offices,
+    roles,
+    loadingOffices,
+    loadingRoles,
+    officeGroupsState,
+    roleOptionsState,
+    addOffice,
+    updateOffice: updateOfficeEntry,
+    removeOffice: removeOfficeEntry,
+    addRole,
+    updateRole: updateRoleEntry,
+    removeRole: removeRoleEntry,
+    loadOffices,
+    loadRoles,
   }
 }

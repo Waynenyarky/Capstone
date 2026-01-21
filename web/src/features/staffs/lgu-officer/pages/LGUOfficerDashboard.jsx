@@ -1,15 +1,48 @@
-import React from 'react'
-import { Row, Col, Card, Button, Typography, Space } from 'antd'
+import React, { useEffect, useState } from 'react'
+import { Row, Col, Card, Button, Typography, Space, Tag } from 'antd'
 import { Link } from 'react-router-dom'
 import { StaffLayout } from '../../views/components'
+import { useAuthSession } from '@/features/authentication'
+import { getOffices, resolveOfficeLabel } from '@/features/shared/services/officeService.js'
 
 const { Title, Paragraph } = Typography
 
 export default function LGUOfficerDashboard() {
+  const { currentUser } = useAuthSession()
+  const [offices, setOffices] = useState([])
+  const officeLabel = resolveOfficeLabel(currentUser?.office, offices)
+  const officeCode = currentUser?.office || ''
+
+  useEffect(() => {
+    let mounted = true
+    getOffices()
+      .then((list) => {
+        if (mounted) setOffices(Array.isArray(list) ? list : [])
+      })
+      .catch(() => {
+        if (mounted) setOffices([])
+      })
+    return () => { mounted = false }
+  }, [])
+
   return (
     <StaffLayout 
       title="LGU Officer" 
-      description="Quick links for LGU Officer workspace."
+      description={
+        <Space direction="vertical" size={4}>
+          <span>Quick links for LGU Officer workspace.</span>
+          {officeLabel ? (
+            <Space size="small">
+              <Tag color="blue" style={{ margin: 0 }}>Office: {officeLabel}</Tag>
+              {officeCode ? (
+                <Tag color="default" style={{ margin: 0, fontFamily: 'monospace' }}>
+                  {officeCode}
+                </Tag>
+              ) : null}
+            </Space>
+          ) : null}
+        </Space>
+      }
       roleLabel="LGU Officer"
     >
       <Row gutter={[16, 16]}>

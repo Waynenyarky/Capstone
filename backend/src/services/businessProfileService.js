@@ -480,12 +480,61 @@ class BusinessProfileService {
       }
     }
 
+    const wasResubmit = existingBusinessObj?.applicationStatus === 'resubmit'
+    if (updatedBusiness.applicationStatus === 'resubmit') {
+      updatedBusiness.submittedAt = new Date()
+      updatedBusiness.submittedToLguOfficer = true
+      updatedBusiness.isSubmitted = true
+    }
+
     // Update the business in the array
     profile.businesses[businessIndex] = updatedBusiness
     
     // Mark the array as modified for Mongoose
     profile.markModified('businesses')
     await profile.save()
+
+    if (updatedBusiness.applicationStatus === 'resubmit' && !wasResubmit) {
+      try {
+        const notificationService = require('../services/notificationService')
+        const UserModel = require('../models/User')
+        const RoleModel = require('../models/Role')
+        const referenceNumber = updatedBusiness.applicationReferenceNumber || `APP-${String(businessId).slice(-8)}`
+
+        const lguOfficerRole = await RoleModel.findOne({ slug: 'lgu_officer' }).lean()
+        if (lguOfficerRole) {
+          const lguOfficers = await UserModel.find({
+            role: lguOfficerRole._id,
+            isActive: true
+          }).lean()
+
+          const notificationPromises = lguOfficers.map((officer) =>
+            notificationService.createNotification(
+              officer._id,
+              'application_status_update',
+              'Application Resubmitted',
+              `A business application "${updatedBusiness.businessName}" (Reference: ${referenceNumber}) has been resubmitted and is ready for review.`,
+              'business_application',
+              businessId,
+              {
+                businessName: updatedBusiness.businessName,
+                referenceNumber,
+                businessId,
+                submittedAt: updatedBusiness.submittedAt
+              }
+            ).catch((err) => {
+              console.error(`Failed to create notification for LGU Officer ${officer._id}:`, err)
+              return null
+            })
+          )
+
+          await Promise.all(notificationPromises)
+          console.log(`[updateBusiness] Created resubmission notifications for ${lguOfficers.length} LGU Officer(s)`)
+        }
+      } catch (notifError) {
+        console.error('[updateBusiness] Failed to create LGU Officer resubmission notifications:', notifError)
+      }
+    }
 
     // Audit log
     try {

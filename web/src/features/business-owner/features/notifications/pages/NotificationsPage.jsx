@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { List, Typography, Card, Tag, Space, Button, theme, Empty, Modal, App, Spin } from 'antd'
-import { InfoCircleOutlined, WarningOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, InfoCircleOutlined, WarningOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import BusinessOwnerLayout from '@/features/business-owner/views/components/BusinessOwnerLayout'
 import { getNotifications, getUnreadCount, markAllAsRead, markAsRead } from '@/features/user/services/notificationService'
 import dayjs from 'dayjs'
@@ -12,6 +13,7 @@ dayjs.extend(relativeTime)
 export default function NotificationsPage() {
   const { token } = theme.useToken()
   const { message } = App.useApp()
+  const navigate = useNavigate()
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -21,8 +23,9 @@ export default function NotificationsPage() {
   const getIcon = (type) => {
     switch (type) {
       case 'application_rejected':
-      case 'application_needs_revision':
         return <WarningOutlined style={{ color: token.colorError, fontSize: 24 }} />
+      case 'application_needs_revision':
+        return <WarningOutlined style={{ color: token.colorWarning, fontSize: 24 }} />
       case 'application_approved':
         return <CheckCircleOutlined style={{ color: token.colorSuccess, fontSize: 24 }} />
       default:
@@ -33,8 +36,9 @@ export default function NotificationsPage() {
   const getBackground = (type) => {
     switch (type) {
       case 'application_rejected':
-      case 'application_needs_revision':
         return token.colorErrorBg
+      case 'application_needs_revision':
+        return token.colorWarningBg
       case 'application_approved':
         return token.colorSuccessBg
       default:
@@ -97,15 +101,18 @@ export default function NotificationsPage() {
 
   return (
     <BusinessOwnerLayout pageTitle="Notifications">
-      <div style={{ maxWidth: 800, margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
-          <div>
-            <Title level={2} style={{ color: token.colorPrimary, marginBottom: 8 }}>Notifications</Title>
-            <Paragraph type="secondary">Stay updated with alerts, reminders, and system messages.</Paragraph>
-          </div>
+      <div style={{ width: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
+            Back
+          </Button>
           <Button onClick={handleMarkAllAsRead} disabled={unreadCount === 0 || loading}>
             Mark all as read
           </Button>
+        </div>
+        <div style={{ marginBottom: 32 }}>
+          <Title level={2} style={{ color: token.colorPrimary, marginBottom: 8 }}>Notifications</Title>
+          <Paragraph type="secondary">Stay updated with alerts, reminders, and system messages.</Paragraph>
         </div>
 
         <Card 
@@ -130,8 +137,10 @@ export default function NotificationsPage() {
                 <List.Item 
                   style={{ 
                     padding: '16px 24px', 
-                    borderLeft: item.type === 'application_rejected' || item.type === 'application_needs_revision'
+                    borderLeft: item.type === 'application_rejected'
                       ? `4px solid ${token.colorError}`
+                      : item.type === 'application_needs_revision'
+                        ? `4px solid ${token.colorWarning}`
                       : '4px solid transparent',
                     background: !item.read ? token.colorInfoBg : undefined,
                     transition: 'all 0.3s',

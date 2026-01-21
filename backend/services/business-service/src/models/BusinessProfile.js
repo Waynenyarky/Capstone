@@ -80,7 +80,7 @@ const BusinessProfileSchema = new mongoose.Schema(
       // New Business Registration Application Fields
       applicationStatus: {
         type: String,
-        enum: ['draft', 'requirements_viewed', 'form_completed', 'documents_uploaded', 'bir_registered', 'agencies_registered', 'submitted', 'under_review', 'approved', 'rejected', 'needs_revision'],
+        enum: ['draft', 'requirements_viewed', 'form_completed', 'documents_uploaded', 'bir_registered', 'agencies_registered', 'submitted', 'resubmit', 'under_review', 'approved', 'rejected', 'needs_revision'],
         default: 'draft'
       },
       applicationReferenceNumber: { type: String, default: '' },

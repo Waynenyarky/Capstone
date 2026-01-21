@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs')
 const mongoose = require('mongoose')
 const User = require('../../models/User')
 const Role = require('../../models/Role')
+const Office = require('../../models/Office')
 const AuditLog = require('../../models/AuditLog')
 const IdVerification = require('../../models/IdVerification')
 const AdminApproval = require('../../models/AdminApproval')
@@ -22,7 +23,7 @@ const { checkPasswordHistory, addToPasswordHistory } = require('../../lib/passwo
 const { sanitizeString, sanitizeEmail, sanitizePhoneNumber, sanitizeName, sanitizeIdNumber, containsSqlInjection, containsXss } = require('../../lib/sanitizer')
 const { requestVerification, verifyCode, checkVerificationStatus, clearVerificationRequest } = require('../../lib/verificationService')
 const { requireFieldPermission, requireVerification } = require('../../middleware/fieldPermissions')
-const { isBusinessOwnerRole, isAdminRole, isStaffRole } = require('../../lib/roleHelpers')
+const { isBusinessOwnerRole, isAdminRole, isStaffRole, getStaffRoles, refreshStaffRoleCache } = require('../../lib/roleHelpers')
 const { verificationRateLimit, profileUpdateRateLimit, passwordChangeRateLimit, idUploadRateLimit, adminApprovalRateLimit } = require('../../middleware/rateLimit')
 const { validateImageFile } = require('../../lib/fileValidator')
 const { sendEmailChangeNotification, sendPasswordChangeNotification } = require('../../lib/notificationService')
@@ -74,6 +75,10 @@ function deriveNamesFromEmail(email) {
   const first = tokens[0] || 'Staff'
   const last = tokens.length > 1 ? tokens.slice(1).join(' ') : 'User'
   return { firstName: first, lastName: last }
+}
+
+function normalizeOfficeCode(value) {
+  return String(value || '').replace('PNP‑FEU', 'PNP-FEU').trim().toUpperCase()
 }
 
 /**
@@ -303,35 +308,13 @@ const changeEmailAuthenticatedSchema = Joi.object({
   newEmail: Joi.string().email().required(),
 })
 
-const staffOfficeList = [
-  'OSBC',
-  'CHO',
-  'BFP',
-  'CEO / ZC',
-  'BH',
-  'DTI',
-  'SEC',
-  'CDA',
-  'PNP-FEU',
-  'PNP‑FEU',
-  'FDA / BFAD / DOH',
-  'PRC / PTR',
-  'NTC',
-  'POEA',
-  'NIC',
-  'ECC / ENV',
-  'CTO',
-  'MD',
-  'CLO',
-]
-
 const staffCreateSchema = Joi.object({
   email: Joi.string().email().required(),
   firstName: Joi.string().trim().min(1).max(100).optional(),
   lastName: Joi.string().trim().min(1).max(100).optional(),
   phoneNumber: Joi.string().trim().allow('', null).optional(),
-  office: Joi.string().valid(...staffOfficeList).required(),
-  role: Joi.string().valid('lgu_officer', 'lgu_manager', 'inspector', 'cso').required(),
+  office: Joi.string().trim().required(),
+  role: Joi.string().trim().required(),
 })
 
 const firstLoginChangeCredentialsSchema = Joi.object({
@@ -937,7 +920,9 @@ router.get('/users', requireJwt, requireRole(['admin']), async (req, res) => {
 
 router.get('/staff', requireJwt, requireRole(['admin']), async (req, res) => {
   try {
-    const staffRoles = await Role.find({ slug: { $in: ['lgu_officer', 'lgu_manager', 'inspector', 'cso'] } }).lean()
+    await refreshStaffRoleCache()
+    const staffRoleSlugs = getStaffRoles()
+    const staffRoles = await Role.find({ slug: { $in: staffRoleSlugs } }).lean()
     const ids = staffRoles.map((r) => r._id)
     const docs = await User.find({ role: { $in: ids } }).populate('role').lean()
     const staffSafe = docs.map((doc) => {
@@ -972,8 +957,10 @@ router.post('/staff', requireJwt, requireRole(['admin']), validateBody(staffCrea
     const exists = await User.findOne({ email: emailKey }).lean()
     if (exists) return respond.error(res, 409, 'email_exists', 'Email already exists')
 
-    const roleDoc = await Role.findOne({ slug: role }).lean()
-    if (!roleDoc) return respond.error(res, 400, 'role_not_found', 'Role not found')
+    const roleDoc = await Role.findOne({ slug: String(role || '').toLowerCase() }).lean()
+    if (!roleDoc || !roleDoc.isStaffRole) {
+      return respond.error(res, 400, 'role_not_found', 'Role not found')
+    }
 
     let username = ''
     for (let i = 0; i < 20; i++) {
@@ -989,7 +976,9 @@ router.post('/staff', requireJwt, requireRole(['admin']), validateBody(staffCrea
     const tempPassword = generateTempPassword()
     const passwordHash = await bcrypt.hash(tempPassword, 10)
     const storedPhone = phoneNumber && String(phoneNumber).trim() ? String(phoneNumber).trim() : `__unset__${generateToken().slice(0, 16)}`
-    const canonicalOffice = String(office || '').replace('PNP‑FEU', 'PNP-FEU')
+    const canonicalOffice = normalizeOfficeCode(office)
+    const officeDoc = await Office.findOne({ code: canonicalOffice, isActive: true }).lean()
+    if (!officeDoc) return respond.error(res, 400, 'office_not_found', 'Office not found')
 
     const derived = deriveNamesFromEmail(emailKey)
     const safeFirstName = String(firstName || '').trim() || derived.firstName

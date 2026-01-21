@@ -62,6 +62,13 @@ export default function PermitReviewPage() {
     message.success('Application reviewed successfully')
   }
 
+  const handleReviewStarted = async (updatedApplication) => {
+    if (updatedApplication?.applicationId || updatedApplication?.businessId) {
+      setSelectedApplication(updatedApplication)
+    }
+    await loadApplicationsData()
+  }
+
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }))
     setCurrentPage(1) // Reset to first page when filters change
@@ -81,6 +88,7 @@ export default function PermitReviewPage() {
     const statusConfig = {
       'draft': { color: 'default', text: 'Draft' },
       'submitted': { color: 'processing', text: 'Pending Review' },
+      'resubmit': { color: 'processing', text: 'Resubmit' },
       'under_review': { color: 'processing', text: 'Under Review' },
       'approved': { color: 'success', text: 'Approved' },
       'rejected': { color: 'error', text: 'Rejected' },
@@ -237,6 +245,7 @@ export default function PermitReviewPage() {
                 allowClear
               >
                 <Option value="submitted">Pending Review</Option>
+                <Option value="resubmit">Resubmit</Option>
                 <Option value="under_review">Under Review</Option>
                 <Option value="approved">Approved</Option>
                 <Option value="rejected">Rejected</Option>
@@ -328,6 +337,7 @@ export default function PermitReviewPage() {
             setSelectedApplication(null)
           }}
           onReviewComplete={handleReviewComplete}
+          onReviewStarted={handleReviewStarted}
           onReview={reviewApplication}
         />
       )}

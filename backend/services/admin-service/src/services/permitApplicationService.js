@@ -375,8 +375,8 @@ class PermitApplicationService {
     const business = profile.businesses[businessIndex]
     const oldStatus = business.applicationStatus || 'draft'
 
-    // Only allow starting review if status is 'submitted'
-    if (oldStatus !== 'submitted') {
+    // Only allow starting review if status is 'submitted', 'resubmit' or 'needs_revision'
+    if (!['submitted', 'resubmit', 'needs_revision'].includes(oldStatus)) {
       // If already under review or final decision, just return current state
       return this.getApplicationById(applicationId, businessId)
     }
@@ -571,8 +571,9 @@ class PermitApplicationService {
     // Validate status transition
     const validTransitions = {
       'submitted': ['under_review', 'approved', 'rejected', 'needs_revision'],
+      'resubmit': ['under_review', 'approved', 'rejected', 'needs_revision'],
       'under_review': ['approved', 'rejected', 'needs_revision'],
-      'needs_revision': ['submitted', 'under_review', 'approved', 'rejected', 'needs_revision'] // Allow updating needs_revision with new comments
+      'needs_revision': ['submitted', 'resubmit', 'under_review', 'approved', 'rejected', 'needs_revision'] // Allow updating needs_revision with new comments
     }
 
     const targetStatus = decision === 'approve' ? 'approved' :
