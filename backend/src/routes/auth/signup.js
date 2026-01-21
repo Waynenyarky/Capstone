@@ -11,6 +11,7 @@ const { generateCode } = require('../../lib/codes')
 const { sendOtp } = require('../../lib/mailer')
 const { signUpRequests } = require('../../lib/authRequestsStore')
 const SignUpRequest = require('../../models/SignUpRequest')
+const { validatePasswordStrength } = require('../../lib/passwordValidator')
 const respond = require('../../middleware/respond')
 const { validateBody, Joi } = require('../../middleware/validation')
 const { perEmailRateLimit } = require('../../middleware/rateLimit')
@@ -32,7 +33,16 @@ const signupPayloadSchema = Joi.object({
   lastName: Joi.string().trim().min(1).max(100).required(),
   email: Joi.string().trim().email().custom(emailWithTld, 'require domain TLD').required(),
   phoneNumber: Joi.string().trim().allow('', null),
-  password: Joi.string().min(6).max(200).required(),
+  password: Joi.string().min(6).max(200).custom((value, helpers) => {
+    // Validate password strength using the same validator as the middleware
+    const passwordValidation = validatePasswordStrength(String(value || ''))
+    if (!passwordValidation.valid) {
+      // Use a special error message format that we can detect
+      const errorMsg = `WEAK_PASSWORD_ERROR:${JSON.stringify(passwordValidation.errors)}`
+      return helpers.error('any.custom', { message: errorMsg })
+    }
+    return value
+  }).required(),
   termsAccepted: Joi.boolean().truthy('true', 'TRUE', 'True', 1, '1').valid(true).required(),
   role: Joi.string().valid(BUSINESS_OWNER_ROLE_SLUG).default(BUSINESS_OWNER_ROLE_SLUG),
 })
@@ -149,9 +159,33 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
   }
 })
 
+// Middleware to validate password strength before other validations
+// This MUST run before validateBody to catch weak passwords before Joi validation
+function validatePasswordStrengthMiddleware(req, res, next) {
+  // Ensure we have a body object
+  if (!req.body) {
+    req.body = {}
+  }
+  
+  const password = req.body?.password
+  
+  // Validate password if it exists (check for both undefined and null)
+  if (password !== undefined && password !== null) {
+    const passwordValidation = validatePasswordStrength(String(password))
+    if (!passwordValidation.valid) {
+      // Return weak_password error BEFORE Joi validation can run
+      return respond.error(res, 400, 'weak_password', 'Password does not meet requirements', passwordValidation.errors)
+    }
+  }
+  
+  // Only call next() if password validation passed or password wasn't provided
+  // (If password wasn't provided, let Joi handle the required() validation)
+  return next()
+}
+
 // POST /api/auth/signup/start
 // Step 1 for sign-up: collect payload, validate, send verification code
-router.post('/signup/start', validateBody(signupPayloadSchema), checkExistingEmailBeforeLimiter, signupStartLimiter, async (req, res) => {
+router.post('/signup/start', validatePasswordStrengthMiddleware, validateBody(signupPayloadSchema), checkExistingEmailBeforeLimiter, signupStartLimiter, async (req, res) => {
   try {
     const {
       firstName,

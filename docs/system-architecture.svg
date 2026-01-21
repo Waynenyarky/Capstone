@@ -1,0 +1,283 @@
+<svg width="1250" height="1600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="clientGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#4A90E2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#357ABD;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="serviceGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#50C878;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3FA860;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="dataGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6B6B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#EE5A52;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="externalGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFA500;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF8C00;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Title -->
+  <text x="625" y="40" font-family="Arial, sans-serif" font-size="32" font-weight="bold" text-anchor="middle" fill="#2C3E50">
+    Capstone System Architecture
+  </text>
+  <text x="625" y="70" font-family="Arial, sans-serif" font-size="18" text-anchor="middle" fill="#7F8C8D">
+    Hybrid: Microservices + Layered + Client-Server
+  </text>
+  
+  <!-- CLIENT LAYER -->
+  <rect x="50" y="100" width="1200" height="180" rx="10" fill="url(#clientGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="600" y="130" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white">
+    CLIENT LAYER
+  </text>
+  
+  <!-- Web App -->
+  <rect x="100" y="160" width="280" height="100" rx="8" fill="white" filter="url(#shadow)"/>
+  <text x="240" y="190" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#2C3E50">
+    Web App
+  </text>
+  <text x="240" y="215" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#7F8C8D">
+    React/Vite
+  </text>
+  <text x="240" y="240" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#95A5A6">
+    Port: 5173
+  </text>
+  
+  <!-- Mobile App -->
+  <rect x="460" y="160" width="280" height="100" rx="8" fill="white" filter="url(#shadow)"/>
+  <text x="600" y="190" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#2C3E50">
+    Mobile App
+  </text>
+  <text x="600" y="215" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#7F8C8D">
+    Flutter
+  </text>
+  <text x="600" y="240" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#95A5A6">
+    Android/iOS
+  </text>
+
+  
+  <!-- Arrow from Client to Services -->
+  <line x1="625" y1="280" x2="625" y2="320" stroke="#34495E" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text x="645" y="300" font-family="Arial, sans-serif" font-size="12" fill="#34495E">
+    HTTP/HTTPS + JWT
+  </text>
+  
+  <!-- MICROSERVICES LAYER -->
+  <rect x="50" y="340" width="1200" height="420" rx="10" fill="url(#serviceGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="650" y="370" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white">
+    MICROSERVICES LAYER
+  </text>
+  
+  <!-- Auth Service -->
+  <rect x="100" y="400" width="240" height="140" rx="8" fill="white" filter="url(#shadow)"/>
+  <text x="220" y="430" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#2C3E50">
+    Auth Service
+  </text>
+  <text x="220" y="455" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#7F8C8D">
+    Port: 3001
+  </text>
+  <text x="120" y="480" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- User Auth</text>
+  <text x="120" y="500" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- MFA/TOTP</text>
+  <text x="120" y="520" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Google OAuth</text>
+  <text x="120" y="540" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- WebAuthn</text>
+  
+  <!-- Business Service -->
+  <rect x="380" y="400" width="240" height="140" rx="8" fill="white" filter="url(#shadow)"/>
+  <text x="500" y="430" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#2C3E50">
+    Business Service
+  </text>
+  <text x="500" y="455" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#7F8C8D">
+    Port: 3002
+  </text>
+  <text x="400" y="480" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Business Reg</text>
+  <text x="400" y="500" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Document Mgmt</text>
+  <text x="400" y="520" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- IPFS Storage</text>
+  <text x="400" y="540" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- PDF Processing</text>
+  
+  <!-- Admin Service -->
+  <rect x="660" y="400" width="240" height="140" rx="8" fill="white" filter="url(#shadow)"/>
+  <text x="780" y="430" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#2C3E50">
+    Admin Service
+  </text>
+  <text x="780" y="455" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#7F8C8D">
+    Port: 3003
+  </text>
+  <text x="680" y="480" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Admin Ops</text>
+  <text x="680" y="500" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Monitoring</text>
+  <text x="680" y="520" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Approvals</text>
+  <text x="680" y="540" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- User Mgmt</text>
+  
+  <!-- AI Service -->
+  <rect x="940" y="400" width="240" height="140" rx="8" fill="white" filter="url(#shadow)"/>
+  <text x="1060" y="430" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#2C3E50">
+    AI Service
+  </text>
+  <text x="1060" y="455" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#7F8C8D">
+    Port: 3005
+  </text>
+  <text x="960" y="480" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- ML Model</text>
+  <text x="960" y="500" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Predictions</text>
+  <text x="960" y="520" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Analysis</text>
+  <text x="960" y="540" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Document Processing</text>
+  
+  <!-- Service Communication Arrows -->
+  <line x1="340" y1="470" x2="380" y2="470" stroke="#34495E" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="620" y1="470" x2="660" y2="470" stroke="#34495E" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="900" y1="470" x2="940" y2="470" stroke="#34495E" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="380" y1="470" x2="340" y2="470" stroke="#34495E" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="660" y1="470" x2="620" y2="470" stroke="#34495E" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="940" y1="470" x2="900" y2="470" stroke="#34495E" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Audit Service -->
+  <rect x="100" y="580" width="240" height="140" rx="8" fill="white" filter="url(#shadow)"/>
+  <text x="220" y="610" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#2C3E50">
+    Audit Service
+  </text>
+  <text x="220" y="635" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#7F8C8D">
+    Port: 3004
+  </text>
+  <text x="120" y="660" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Audit Logging</text>
+  <text x="120" y="680" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Document CIDs</text>
+  <text x="120" y="700" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Blockchain</text>
+  <text x="120" y="720" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Verification</text>
+  
+
+  <!-- Arrows from services to audit -->
+  <line x1="220" y1="540" x2="220" y2="580" stroke="#34495E" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="500" y1="540" x2="500" y2="580" stroke="#34495E" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="220" y1="650" x2="380" y2="650" stroke="#34495E" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Arrows from services to AI Service -->
+  <line x1="500" y1="540" x2="1060" y2="470" stroke="#34495E" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="780" y1="540" x2="1060" y2="470" stroke="#34495E" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="1060" y1="540" x2="500" y2="470" stroke="#34495E" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="1060" y1="540" x2="780" y2="470" stroke="#34495E" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Arrow from Services to Data -->
+  <line x1="625" y1="760" x2="625" y2="800" stroke="#34495E" stroke-width="3" marker-end="url(#arrowhead)"/>
+  
+  <!-- DATA LAYER -->
+  <rect x="50" y="800" width="1200" height="180" rx="10" fill="url(#dataGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="650" y="830" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white">
+    DATA LAYER
+  </text>
+  
+  <!-- MongoDB -->
+  <rect x="100" y="860" width="300" height="100" rx="8" fill="white" filter="url(#shadow)"/>
+  <text x="250" y="890" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#2C3E50">
+    MongoDB
+  </text>
+  <text x="250" y="915" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#7F8C8D">
+    Port: 27017
+  </text>
+  <text x="120" y="940" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- User Data</text>
+  <text x="120" y="955" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Business Data</text>
+  
+  <!-- IPFS -->
+  <rect x="450" y="860" width="300" height="100" rx="8" fill="white" filter="url(#shadow)"/>
+  <text x="600" y="890" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#2C3E50">
+    IPFS
+  </text>
+  <text x="600" y="915" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#7F8C8D">
+    Ports: 4001, 5001, 8080
+  </text>
+  <text x="470" y="940" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Decentralized Storage</text>
+  <text x="470" y="955" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Document CIDs</text>
+  
+  <!-- Ganache -->
+  <rect x="800" y="860" width="300" height="100" rx="8" fill="white" filter="url(#shadow)"/>
+  <text x="950" y="890" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#2C3E50">
+    Ganache
+  </text>
+  <text x="950" y="915" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#7F8C8D">
+    Port: 7545
+  </text>
+  <text x="820" y="940" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Dev Blockchain</text>
+  <text x="820" y="955" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Smart Contracts</text>
+  
+  <!-- Arrow from Data to External -->
+  <line x1="625" y1="980" x2="625" y2="1020" stroke="#34495E" stroke-width="3" marker-end="url(#arrowhead)"/>
+  
+  <!-- EXTERNAL SERVICES -->
+  <rect x="50" y="1020" width="1200" height="180" rx="10" fill="url(#externalGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="650" y="1050" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white">
+    EXTERNAL SERVICES
+  </text>
+  
+  <!-- Email Providers -->
+  <rect x="100" y="1080" width="300" height="100" rx="8" fill="white" filter="url(#shadow)"/>
+  <text x="250" y="1110" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#2C3E50">
+    Email Providers
+  </text>
+  <text x="120" y="1135" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- SendGrid</text>
+  
+  <!-- Google OAuth -->
+  <rect x="450" y="1080" width="300" height="100" rx="8" fill="white" filter="url(#shadow)"/>
+  <text x="600" y="1110" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#2C3E50">
+    Google OAuth
+  </text>
+  <text x="470" y="1135" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Authentication</text>
+  <text x="470" y="1150" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- User Profiles</text>
+  <text x="470" y="1165" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- ID Tokens</text>
+  
+  <!-- Connection lines from services to external -->
+  <line x1="220" y1="540" x2="250" y2="1080" stroke="#E74C3C" stroke-width="2" stroke-dasharray="5,5" opacity="0.6"/>
+  <line x1="220" y1="540" x2="600" y2="1080" stroke="#E74C3C" stroke-width="2" stroke-dasharray="5,5" opacity="0.6"/>
+  
+  <!-- Arrow marker definition -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#34495E" />
+    </marker>
+  </defs>
+  
+  <!-- Legend -->
+  <rect x="50" y="1240" width="1200" height="320" rx="10" fill="#ECF0F1" stroke="#BDC3C7" stroke-width="2"/>
+  <text x="650" y="1270" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="#2C3E50">
+    Architecture Patterns
+  </text>
+  
+  <!-- Layered Architecture Detail -->
+  <rect x="80" y="1290" width="500" height="250" rx="8" fill="white" stroke="#BDC3C7" stroke-width="1"/>
+  <text x="330" y="1315" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#2C3E50">
+    Layered Architecture (Each Service)
+  </text>
+  <rect x="100" y="1330" width="460" height="30" rx="4" fill="#E8F5E9" stroke="#4CAF50" stroke-width="1"/>
+  <text x="120" y="1350" font-family="Arial, sans-serif" font-size="12" fill="#2C3E50">Routes Layer -> Middleware Layer -> Business Logic -> Data Access</text>
+  
+  <rect x="100" y="1370" width="460" height="30" rx="4" fill="#E3F2FD" stroke="#2196F3" stroke-width="1"/>
+  <text x="120" y="1390" font-family="Arial, sans-serif" font-size="12" fill="#2C3E50">API Endpoints -> Security/Validation -> Business Logic -> Mongoose Models</text>
+  
+  <rect x="100" y="1410" width="460" height="30" rx="4" fill="#FFF3E0" stroke="#FF9800" stroke-width="1"/>
+  <text x="120" y="1430" font-family="Arial, sans-serif" font-size="12" fill="#2C3E50">RESTful APIs -> JWT Auth, Rate Limiting -> Email, IPFS, Blockchain -> MongoDB</text>
+  
+  <rect x="100" y="1450" width="460" height="30" rx="4" fill="#FCE4EC" stroke="#E91E63" stroke-width="1"/>
+  <text x="120" y="1470" font-family="Arial, sans-serif" font-size="12" fill="#2C3E50">Request/Response -> Error Handling, CORS -> TOTP, WebAuthn -> User/Business Data</text>
+  
+  <rect x="100" y="1490" width="460" height="30" rx="4" fill="#F3E5F5" stroke="#9C27B0" stroke-width="1"/>
+  <text x="120" y="1510" font-family="Arial, sans-serif" font-size="12" fill="#2C3E50">Validation (Joi) -> Correlation IDs -> PDF Processing -> Audit Logs</text>
+  
+  <!-- Communication Patterns -->
+  <rect x="620" y="1290" width="500" height="250" rx="8" fill="white" stroke="#BDC3C7" stroke-width="1"/>
+  <text x="870" y="1315" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#2C3E50">
+    Communication Patterns
+  </text>
+  
+  <text x="640" y="1340" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#2C3E50">Client -> Services:</text>
+  <text x="640" y="1360" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- HTTP/HTTPS with JWT Bearer Tokens</text>
+  <text x="640" y="1375" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- RESTful API endpoints</text>
+  
+  <text x="640" y="1400" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#2C3E50">Service -> Service:</text>
+  <text x="640" y="1420" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- HTTP/REST APIs</text>
+  <text x="640" y="1435" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Event-driven (Audit logging)</text>
+  <text x="640" y="1450" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Shared MongoDB access</text>
+  
+  <text x="640" y="1475" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#2C3E50">Data Flow:</text>
+  <text x="640" y="1495" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Documents -> IPFS -> CID -> Blockchain</text>
+  <text x="640" y="1510" font-family="Arial, sans-serif" font-size="11" fill="#34495E">- Events -> Audit Service -> Blockchain</text>
+  
+</svg>

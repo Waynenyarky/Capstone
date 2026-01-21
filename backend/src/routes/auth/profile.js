@@ -2461,6 +2461,109 @@ router.get('/profile/id-info', requireJwt, async (req, res) => {
   }
 })
 
+// GET /api/auth/profile/verify-ipfs
+// Verify if an IPFS document exists and is accessible
+router.get('/profile/verify-ipfs', requireJwt, async (req, res) => {
+  try {
+    const { cid } = req.query
+
+    if (!cid || typeof cid !== 'string' || cid.trim() === '') {
+      return respond.error(res, 400, 'cid_required', 'IPFS CID is required')
+    }
+
+    const cleanCid = cid.trim()
+
+    // Validate CID format (basic check for IPFS CIDs)
+    const cidPattern = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|baf[a-z0-9]+)$/
+    if (!cidPattern.test(cleanCid)) {
+      return respond.error(res, 400, 'invalid_cid', 'Invalid IPFS CID format')
+    }
+
+    const apiUrl = process.env.IPFS_API_URL || 'http://127.0.0.1:5001'
+    const gatewayUrl = process.env.IPFS_GATEWAY_URL || 'http://127.0.0.1:8080/ipfs/'
+    const axios = require('axios')
+
+    // Try to retrieve the file from IPFS using HTTP API
+    let fileExists = false
+    let fileSize = null
+    let isPinned = false
+    let error = null
+    let fileType = null
+
+    try {
+      // Method 1: Try to stat the file (check if it exists)
+      try {
+        const statResponse = await axios.post(`${apiUrl}/api/v0/files/stat`, null, {
+          params: { arg: `/ipfs/${cleanCid}`, format: 'json' },
+          timeout: 5000,
+        })
+        if (statResponse.data && statResponse.data.Size) {
+          fileExists = true
+          fileSize = parseInt(statResponse.data.Size) || null
+        }
+      } catch (statError) {
+        // Stat failed, try cat instead
+        try {
+          const catResponse = await axios.post(`${apiUrl}/api/v0/cat`, null, {
+            params: { arg: cleanCid },
+            responseType: 'arraybuffer',
+            timeout: 10000,
+            maxContentLength: 50 * 1024 * 1024, // 50MB max
+          })
+          fileExists = true
+          fileSize = catResponse.data.byteLength || null
+          
+          // Try to determine file type from first bytes
+          const buffer = Buffer.from(catResponse.data.slice(0, 10))
+          const header = buffer.toString('hex')
+          if (header.startsWith('ffd8ff')) fileType = 'image/jpeg'
+          else if (header.startsWith('89504e47')) fileType = 'image/png'
+          else if (header.startsWith('25504446')) fileType = 'application/pdf'
+          else if (buffer.toString('utf8', 0, 1) === '{') fileType = 'application/json'
+        } catch (catError) {
+          fileExists = false
+          error = catError.response?.data?.Message || catError.message || 'File not found in IPFS'
+        }
+      }
+    } catch (apiError) {
+      fileExists = false
+      error = apiError.response?.data?.Message || apiError.message || 'Failed to connect to IPFS'
+    }
+
+    // Check if file is pinned (only if file exists)
+    if (fileExists) {
+      try {
+        const pinResponse = await axios.post(`${apiUrl}/api/v0/pin/ls`, null, {
+          params: { arg: cleanCid, type: 'all' },
+          timeout: 5000,
+        })
+        if (pinResponse.data && pinResponse.data.Keys) {
+          isPinned = Object.keys(pinResponse.data.Keys).length > 0
+        }
+      } catch (pinError) {
+        // Pin check failed, but file exists - not critical
+        console.warn('Failed to check pin status', { cid: cleanCid, error: pinError.message })
+      }
+    }
+
+    const fullGatewayUrl = `${gatewayUrl.replace(/\/$/, '')}/${cleanCid}`
+
+    return res.json({
+      exists: fileExists,
+      accessible: fileExists,
+      pinned: isPinned,
+      cid: cleanCid,
+      size: fileSize,
+      fileType: fileType,
+      gatewayUrl: fullGatewayUrl,
+      error: error || null,
+    })
+  } catch (err) {
+    console.error('GET /api/auth/profile/verify-ipfs error:', err)
+    return respond.error(res, 500, 'verification_failed', 'Failed to verify IPFS document')
+  }
+})
+
 // GET /api/auth/profile/approvals/pending
 // Get pending approval requests for current user
 router.get('/profile/approvals/pending', requireJwt, async (req, res) => {

@@ -30,7 +30,7 @@ const signupPayloadSchema = Joi.object({
   lastName: Joi.string().trim().min(1).max(100).required(),
   email: Joi.string().trim().email().custom(emailWithTld, 'require domain TLD').required(),
   phoneNumber: Joi.string().trim().allow('', null),
-  password: Joi.string().min(12).max(200).required(),
+  password: Joi.string().min(6).max(200).required(), // Min 6 for Joi, actual strength validated separately
   termsAccepted: Joi.boolean().truthy('true', 'TRUE', 'True', 1, '1').valid(true).required(),
   role: Joi.string().valid(BUSINESS_OWNER_ROLE_SLUG).default(BUSINESS_OWNER_ROLE_SLUG),
 })
@@ -147,9 +147,31 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
   }
 })
 
+// Middleware to validate password strength before Joi validation
+function validatePasswordStrengthMiddleware(req, res, next) {
+  // Ensure we have a body object
+  if (!req.body) {
+    req.body = {}
+  }
+  
+  const password = req.body?.password
+  
+  // Validate password if it exists
+  if (password !== undefined && password !== null) {
+    const { validatePasswordStrength } = require('../lib/passwordValidator')
+    const passwordValidation = validatePasswordStrength(String(password))
+    if (!passwordValidation.valid) {
+      // Return weak_password error BEFORE Joi validation can run
+      return respond.error(res, 400, 'weak_password', 'Password does not meet requirements', passwordValidation.errors)
+    }
+  }
+  
+  return next()
+}
+
 // POST /api/auth/signup/start
 // Step 1 for sign-up: collect payload, validate, send verification code
-router.post('/signup/start', validateBody(signupPayloadSchema), checkExistingEmailBeforeLimiter, signupStartLimiter, async (req, res) => {
+router.post('/signup/start', validatePasswordStrengthMiddleware, validateBody(signupPayloadSchema), checkExistingEmailBeforeLimiter, signupStartLimiter, async (req, res) => {
   try {
     const {
       firstName,
@@ -161,13 +183,6 @@ router.post('/signup/start', validateBody(signupPayloadSchema), checkExistingEma
     } = req.body || {}
 
     const emailKey = String(email).toLowerCase().trim()
-
-    // Validate password strength
-    const { validatePasswordStrength } = require('../lib/passwordValidator')
-    const passwordValidation = validatePasswordStrength(password)
-    if (!passwordValidation.valid) {
-      return respond.error(res, 400, 'weak_password', 'Password does not meet requirements', passwordValidation.errors)
-    }
 
     // Prevent duplicates prior to verification
     let existing = null

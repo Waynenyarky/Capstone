@@ -220,22 +220,15 @@ if (process.env.NODE_ENV !== 'test') {
   }
 }
 
-if (require.main === module) {
-  start();
-}
-
-module.exports = { app, start }
-const path = require('path');
-const fs = require('fs');
-const uploadsDir = path.join(__dirname, '..', 'uploads');
-const avatarsDir = path.join(uploadsDir, 'avatars');
-try { fs.mkdirSync(uploadsDir, { recursive: true }); } catch (_) {}
-try { fs.mkdirSync(avatarsDir, { recursive: true }); } catch (_) {}
-app.use('/uploads', express.static(uploadsDir));
+const uploadsDir = path.join(__dirname, '..', 'uploads')
+const avatarsDir = path.join(uploadsDir, 'avatars')
+try { fs.mkdirSync(uploadsDir, { recursive: true }) } catch (_) {}
+try { fs.mkdirSync(avatarsDir, { recursive: true }) } catch (_) {}
+app.use('/uploads', express.static(uploadsDir))
 // Also serve legacy path used by some routes (src/uploads)
-const uploadsDirLegacy = path.join(__dirname, 'uploads');
-try { fs.mkdirSync(uploadsDirLegacy, { recursive: true }); } catch (_) {}
-app.use('/uploads', express.static(uploadsDirLegacy));
+const uploadsDirLegacy = path.join(__dirname, 'uploads')
+try { fs.mkdirSync(uploadsDirLegacy, { recursive: true }) } catch (_) {}
+app.use('/uploads', express.static(uploadsDirLegacy))
 
 app.get('/policy', (req, res) => {
   res.type('html').send(
@@ -248,3 +241,9 @@ app.get('/terms', (req, res) => {
     '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Terms of Service</title><meta name="viewport" content="width=device-width, initial-scale=1"><link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet"></head><body style="font-family:\'Raleway\', sans-serif;padding:24px;line-height:1.6;color:#222"><h1>BizClear Business Center Terms of Service</h1><p>By using BizClear Business Center you agree to create an account and provide accurate information. You are responsible for activity on your account.</p><p>BizClear Business Center is provided as-is without warranties. We may update features and policies; continued use indicates acceptance of changes.</p><p>We process your data as described in the Privacy Policy to provide authentication, profile management, and security features such as MFA.</p><p>Contact: enriquejohnwayne@gmail.com</p></body></html>'
   )
 })
+
+if (require.main === module) {
+  start()
+}
+
+module.exports = { app, start }

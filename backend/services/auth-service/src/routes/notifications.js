@@ -90,12 +90,18 @@ router.put('/:id/read', requireJwt, async (req, res) => {
     
     const notificationId = req.params.id
 
+    // Validate that the ID is a valid MongoDB ObjectId
+    const mongoose = require('mongoose')
+    if (!notificationId || !mongoose.Types.ObjectId.isValid(notificationId)) {
+      return respond.error(res, 400, 'invalid_id', 'Invalid notification ID')
+    }
+
     const notification = await notificationService.markAsRead(notificationId, userId)
 
     return respond.success(res, notification)
   } catch (error) {
     console.error('Error marking notification as read:', error)
-    if (error.message.includes('not found')) {
+    if (error.message.includes('not found') || error.message.includes('access denied')) {
       return respond.error(res, 404, 'not_found', error.message)
     }
     return respond.error(res, 500, 'update_failed', error.message)
@@ -146,12 +152,18 @@ router.delete('/:id', requireJwt, async (req, res) => {
     
     const notificationId = req.params.id
 
+    // Validate that the ID is a valid MongoDB ObjectId
+    const mongoose = require('mongoose')
+    if (!notificationId || !mongoose.Types.ObjectId.isValid(notificationId)) {
+      return respond.error(res, 400, 'invalid_id', 'Invalid notification ID')
+    }
+
     await notificationService.deleteNotification(notificationId, userId)
 
     return respond.success(res, { message: 'Notification deleted successfully' })
   } catch (error) {
     console.error('Error deleting notification:', error)
-    if (error.message.includes('not found')) {
+    if (error.message.includes('not found') || error.message.includes('access denied')) {
       return respond.error(res, 404, 'not_found', error.message)
     }
     return respond.error(res, 500, 'delete_failed', error.message)

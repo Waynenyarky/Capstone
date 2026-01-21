@@ -1,17 +1,17 @@
 const express = require('express')
 const router = express.Router()
-const { authenticateToken } = require('../middleware/auth')
+const { requireJwt } = require('../middleware/auth')
 const notificationService = require('../services/notificationService')
-const respond = require('../lib/respond')
+const respond = require('../middleware/respond')
 
 /**
  * GET /api/notifications
  * Get user's notifications (paginated)
  * Query params: page, limit, unreadOnly
  */
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', requireJwt, async (req, res) => {
   try {
-    const userId = req.user.id
+    const userId = req._userId
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 20
     const unreadOnly = req.query.unreadOnly === 'true'
@@ -33,9 +33,9 @@ router.get('/', authenticateToken, async (req, res) => {
  * GET /api/notifications/unread-count
  * Get count of unread notifications
  */
-router.get('/unread-count', authenticateToken, async (req, res) => {
+router.get('/unread-count', requireJwt, async (req, res) => {
   try {
-    const userId = req.user.id
+    const userId = req._userId
     const count = await notificationService.getUnreadCount(userId)
 
     return respond.success(res, { count })
@@ -49,9 +49,9 @@ router.get('/unread-count', authenticateToken, async (req, res) => {
  * PUT /api/notifications/:id/read
  * Mark notification as read
  */
-router.put('/:id/read', authenticateToken, async (req, res) => {
+router.put('/:id/read', requireJwt, async (req, res) => {
   try {
-    const userId = req.user.id
+    const userId = req._userId
     const notificationId = req.params.id
 
     const notification = await notificationService.markAsRead(notificationId, userId)
@@ -70,9 +70,9 @@ router.put('/:id/read', authenticateToken, async (req, res) => {
  * PUT /api/notifications/read-all
  * Mark all user notifications as read
  */
-router.put('/read-all', authenticateToken, async (req, res) => {
+router.put('/read-all', requireJwt, async (req, res) => {
   try {
-    const userId = req.user.id
+    const userId = req._userId
     const result = await notificationService.markAllAsRead(userId)
 
     return respond.success(res, {
@@ -89,17 +89,22 @@ router.put('/read-all', authenticateToken, async (req, res) => {
  * DELETE /api/notifications/:id
  * Delete a notification
  */
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', requireJwt, async (req, res) => {
   try {
-    const userId = req.user.id
+    const userId = req._userId
     const notificationId = req.params.id
+
+    // Validate that the ID is a valid MongoDB ObjectId
+    if (!notificationId || !require('mongoose').Types.ObjectId.isValid(notificationId)) {
+      return respond.error(res, 400, 'invalid_id', 'Invalid notification ID')
+    }
 
     await notificationService.deleteNotification(notificationId, userId)
 
     return respond.success(res, { message: 'Notification deleted successfully' })
   } catch (error) {
     console.error('Error deleting notification:', error)
-    if (error.message.includes('not found')) {
+    if (error.message.includes('not found') || error.message.includes('access denied')) {
       return respond.error(res, 404, 'not_found', error.message)
     }
     return respond.error(res, 500, 'delete_failed', error.message)

@@ -16,6 +16,7 @@ const { perEmailRateLimit } = require('../../middleware/rateLimit')
 const { decryptWithHash } = require('../../lib/secretCipher')
 const Session = require('../../models/Session')
 const { trackIP } = require('../../lib/ipTracker')
+const { checkLockout, incrementFailedAttempts } = require('../../lib/accountLockout')
 let OAuth2Client = null
 try { ({ OAuth2Client } = require('google-auth-library')) } catch (_) { OAuth2Client = null }
 
@@ -183,6 +184,13 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       securityMonitor.trackFailedLogin(req.ip || req.connection.remoteAddress, null)
       return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
     }
+
+    // Check account lockout before attempting password verification
+    const lockoutCheck = await checkLockout(doc._id)
+    if (lockoutCheck.locked) {
+      return respond.error(res, 423, 'account_locked', `Account is temporarily locked. Try again in ${lockoutCheck.remainingMinutes} minutes.`)
+    }
+
     let match = false
     const isBcrypt = /^\$2[aby]\$/.test(String(doc.passwordHash))
     if (isBcrypt) {
@@ -204,6 +212,13 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       // Track failed login attempt
       const securityMonitor = require('../../middleware/securityMonitor')
       securityMonitor.trackFailedLogin(req.ip || req.connection.remoteAddress, doc._id ? String(doc._id) : null)
+      
+      // Increment failed attempts and check for lockout
+      const lockoutResult = await incrementFailedAttempts(doc._id)
+      if (lockoutResult.locked) {
+        return respond.error(res, 423, 'account_locked', `Account is temporarily locked. Try again in ${Math.ceil((lockoutResult.lockedUntil.getTime() - Date.now()) / (60 * 1000))} minutes.`)
+      }
+      
       return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
     }
 
