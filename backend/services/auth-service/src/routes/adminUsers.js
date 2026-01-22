@@ -1,6 +1,7 @@
 const express = require('express')
 const bcrypt = require('bcryptjs')
 const crypto = require('crypto')
+const mongoose = require('mongoose')
 const User = require('../models/User')
 const Role = require('../models/Role')
 const Office = require('../models/Office')
@@ -483,6 +484,9 @@ router.patch('/admin/offices/:officeId', requireJwt, requireRole(['admin']), val
 router.delete('/admin/offices/:officeId', requireJwt, requireRole(['admin']), async (req, res) => {
   try {
     const { officeId } = req.params
+    if (!mongoose.Types.ObjectId.isValid(officeId)) {
+      return respond.error(res, 400, 'invalid_office_id', 'Invalid office id')
+    }
     const office = await Office.findById(officeId)
     if (!office) return respond.error(res, 404, 'office_not_found', 'Office not found')
     const inUse = await User.findOne({ office: office.code }).lean()
@@ -546,6 +550,9 @@ router.post('/admin/staff-roles', requireJwt, requireRole(['admin']), validateBo
 router.patch('/admin/staff-roles/:roleId', requireJwt, requireRole(['admin']), validateBody(staffRoleUpdateSchema), async (req, res) => {
   try {
     const { roleId } = req.params
+    if (!mongoose.Types.ObjectId.isValid(roleId)) {
+      return respond.error(res, 400, 'invalid_role_id', 'Invalid role id')
+    }
     const { name, slug, description, displayName } = req.body || {}
     const role = await Role.findById(roleId)
     if (!role) return respond.error(res, 404, 'role_not_found', 'Role not found')
@@ -589,6 +596,9 @@ router.patch('/admin/staff-roles/:roleId', requireJwt, requireRole(['admin']), v
 router.delete('/admin/staff-roles/:roleId', requireJwt, requireRole(['admin']), async (req, res) => {
   try {
     const { roleId } = req.params
+    if (!mongoose.Types.ObjectId.isValid(roleId)) {
+      return respond.error(res, 400, 'invalid_role_id', 'Invalid role id')
+    }
     const role = await Role.findById(roleId)
     if (!role) return respond.error(res, 404, 'role_not_found', 'Role not found')
     if (!role.isStaffRole) {

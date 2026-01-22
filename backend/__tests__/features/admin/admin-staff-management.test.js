@@ -12,6 +12,7 @@ const bcrypt = require('bcryptjs')
 const connectDB = require('../../../services/auth-service/src/config/db')
 const User = require('../../../services/auth-service/src/models/User')
 const Role = require('../../../services/auth-service/src/models/Role')
+const Office = require('../../../services/auth-service/src/models/Office')
 const AuditLog = require('../../../services/auth-service/src/models/AuditLog')
 const { signAccessToken } = require('../../../services/auth-service/src/middleware/auth')
 
@@ -52,6 +53,12 @@ describe('Admin staff management endpoints', () => {
     for (const r of roles) {
       await Role.findOneAndUpdate({ slug: r.slug }, r, { upsert: true, new: true })
     }
+
+    await Office.findOneAndUpdate(
+      { code: 'CTO' },
+      { code: 'CTO', name: 'CTO - City Treasurer Office', group: 'Support', isActive: true },
+      { upsert: true, new: true }
+    )
 
     const adminRole = await Role.findOne({ slug: 'admin' })
     const adminHash = await bcrypt.hash('Admin#12345', 10)

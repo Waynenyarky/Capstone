@@ -1,39 +1,50 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { Form } from 'antd'
 import userEvent from '@testing-library/user-event'
-import { renderWithProviders, screen, waitFor } from '@/test/utils/renderWithProviders.jsx'
+import { renderWithProviders, screen, waitFor, renderHook } from '@/test/utils/renderWithProviders.jsx'
 import UserSignUpForm from '@/features/authentication/views/components/UserSignUpForm.jsx'
-import { useUserSignUpFlow } from '@/features/authentication/hooks/useUserSignUpFlow.js'
 
 // Mock hooks
 const mockUseUserSignUpFlow = vi.fn()
-vi.mock('@/features/authentication/hooks', () => ({
-  useUserSignUpFlow: (...args) => mockUseUserSignUpFlow(...args),
-}))
+const mockUseUserSignUp = vi.fn()
+vi.mock('@/features/authentication/hooks', async () => {
+  const actual = await vi.importActual('@/features/authentication/hooks')
+  return {
+    ...actual,
+    useUserSignUpFlow: (...args) => mockUseUserSignUpFlow(...args),
+    useUserSignUp: (...args) => mockUseUserSignUp(...args),
+  }
+})
 
 // Mock validations
 vi.mock('@/features/authentication/validations', () => ({
-  signUpRules: {
-    email: [],
-    password: [],
-    firstName: [],
-    lastName: [],
-    termsAccepted: [],
-  },
+  emailRules: [],
+  firstNameRules: [],
+  lastNameRules: [],
+  phoneNumberRules: [],
+  signUpPasswordRules: [],
+  signUpConfirmPasswordRules: [],
+  termsRules: [],
 }))
 
 describe('Signup Flow', () => {
   const user = userEvent.setup()
+  let form
 
   beforeEach(() => {
     vi.clearAllMocks()
-    const { result } = require('@testing-library/react').renderHook(() =>
-      require('antd').Form.useForm()
-    )
-    const form = result.current[0]
+    const { result } = renderHook(() => Form.useForm())
+    form = result.current[0]
 
     mockUseUserSignUpFlow.mockReturnValue({
       step: 'form',
+      emailForVerify: '',
+      devCodeForVerify: '',
+      verifyEmail: vi.fn(),
+      handleVerificationSubmit: vi.fn(),
+    })
+    mockUseUserSignUp.mockReturnValue({
       form,
       handleFinish: vi.fn(),
       isSubmitting: false,
@@ -51,56 +62,55 @@ describe('Signup Flow', () => {
   it('should render signup form with all inputs', () => {
     renderWithProviders(<UserSignUpForm />)
 
-    // Check for form fields (adjust test IDs based on actual component)
-    expect(screen.getByRole('form') || screen.getByTestId('signup-form')).toBeDefined()
+    expect(screen.getByPlaceholderText('First name')).toBeVisible()
+    expect(screen.getByPlaceholderText('Last name')).toBeVisible()
+    expect(screen.getByPlaceholderText('Email address')).toBeVisible()
+    expect(screen.getByPlaceholderText('Mobile number')).toBeVisible()
   })
 
-  it('should validate required fields', async () => {
+  it('should submit form when rules are mocked', async () => {
     const handleFinish = vi.fn()
     mockUseUserSignUpFlow.mockReturnValue({
       step: 'form',
-      form: require('antd').Form.useForm()[0],
+      emailForVerify: '',
+      devCodeForVerify: '',
+      verifyEmail: vi.fn(),
+      handleVerificationSubmit: vi.fn(),
+    })
+    mockUseUserSignUp.mockReturnValue({
+      form,
       handleFinish,
       isSubmitting: false,
-      initialValues: {
-        email: '',
-        password: '',
-        firstName: '',
-        lastName: '',
-        termsAccepted: false,
-      },
-      verificationProps: {},
     })
 
     renderWithProviders(<UserSignUpForm />)
 
     // Try to submit without filling fields
-    const submitButton = screen.getByRole('button', { name: /sign up|submit/i })
+    const submitButton = screen.getByRole('button', { name: /continue/i })
     await user.click(submitButton)
 
-    // Should show validation errors or not submit
     await waitFor(() => {
-      // Form validation should prevent submission
-      expect(handleFinish).not.toHaveBeenCalled()
-    }, { timeout: 1000 }).catch(() => {
-      // If it was called, that's also acceptable (depends on form validation)
+      expect(handleFinish).toHaveBeenCalled()
     })
   })
 
   it('should show verification step after form submission', () => {
     mockUseUserSignUpFlow.mockReturnValue({
       step: 'verify',
-      form: require('antd').Form.useForm()[0],
+      emailForVerify: 'user@example.com',
+      devCodeForVerify: '',
+      verifyEmail: vi.fn(),
+      handleVerificationSubmit: vi.fn(),
+    })
+    mockUseUserSignUp.mockReturnValue({
+      form,
       handleFinish: vi.fn(),
       isSubmitting: false,
-      verificationProps: {
-        email: 'user@example.com',
-      },
     })
 
     renderWithProviders(<UserSignUpForm />)
 
     // Should show verification form
-    expect(screen.queryByTestId('signup-form')).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('First name')).not.toBeInTheDocument()
   })
 })

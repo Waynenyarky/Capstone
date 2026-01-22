@@ -1,10 +1,27 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { Form } from 'antd'
-import userEvent from '@testing-library/user-event'
-import { renderWithProviders, screen, renderHook, waitFor } from '@/test/utils/renderWithProviders.jsx'
+import { renderHook, waitFor, act } from '@/test/utils/renderWithProviders.jsx'
 import { useEditUserProfileForm } from '@/features/user/hooks/useEditUserProfileForm.jsx'
 import { getUserProfile, updateUserProfile } from '@/features/user/services/userService.js'
+
+vi.mock('antd', async () => {
+  const actual = await vi.importActual('antd')
+  return {
+    ...actual,
+    App: {
+      ...actual.App,
+      useApp: () => ({
+        modal: {
+          confirm: ({ onOk }) => onOk?.(),
+        },
+        message: {
+          success: vi.fn(),
+          error: vi.fn(),
+        },
+      }),
+    },
+  }
+})
 
 // Mock services
 vi.mock('@/features/user/services/userService.js', () => ({
@@ -30,8 +47,6 @@ vi.mock('@/shared/notifications.js', () => ({
 }))
 
 describe('EditProfileForm Hook', () => {
-  const user = userEvent.setup()
-
   beforeEach(() => {
     vi.clearAllMocks()
     getUserProfile.mockResolvedValue({
@@ -54,9 +69,8 @@ describe('EditProfileForm Hook', () => {
 
     await waitFor(() => {
       expect(getUserProfile).toHaveBeenCalled()
+      expect(result.current.isLoading).toBe(false)
     })
-
-    expect(result.current.isLoading).toBe(false)
   })
 
   it('should handle form submission', async () => {
@@ -75,10 +89,12 @@ describe('EditProfileForm Hook', () => {
     })
 
     // Submit form
-    await result.current.handleFinish({
-      firstName: 'Updated',
-      lastName: 'Name',
-      phoneNumber: '9876543210',
+    await act(async () => {
+      await result.current.handleFinish({
+        firstName: 'Updated',
+        lastName: 'Name',
+        phoneNumber: '9876543210',
+      })
     })
 
     await waitFor(() => {
@@ -97,9 +113,11 @@ describe('EditProfileForm Hook', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    await result.current.handleFinish({
-      firstName: 'Test',
-      phoneNumber: 'invalid',
+    await act(async () => {
+      await result.current.handleFinish({
+        firstName: 'Test',
+        phoneNumber: 'invalid',
+      })
     })
 
     await waitFor(() => {
@@ -122,12 +140,16 @@ describe('EditProfileForm Hook', () => {
     })
 
     // Trigger values change
-    result.current.handleValuesChange({}, {
-      firstName: 'Changed',
-      lastName: 'User',
-      phoneNumber: '1234567890',
+    act(() => {
+      result.current.handleValuesChange({}, {
+        firstName: 'Changed',
+        lastName: 'User',
+        phoneNumber: '1234567890',
+      })
     })
 
-    expect(result.current.isDirty).toBe(true)
+    await waitFor(() => {
+      expect(result.current.isDirty).toBe(true)
+    })
   })
 })

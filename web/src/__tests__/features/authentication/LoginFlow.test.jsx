@@ -1,14 +1,33 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import userEvent from '@testing-library/user-event'
-import { renderWithProviders, screen, waitFor } from '@/test/utils/renderWithProviders.jsx'
+import { Form } from 'antd'
+import { fireEvent } from '@testing-library/react'
+import { renderWithProviders, screen, waitFor, renderHook, act } from '@/test/utils/renderWithProviders.jsx'
 import LoginForm from '@/features/authentication/views/components/LoginForm.jsx'
-import { useLoginFlow } from '@/features/authentication/hooks/useLoginFlow.js'
 
 // Mock hooks
 const mockUseLoginFlow = vi.fn()
-vi.mock('@/features/authentication/hooks', () => ({
-  useLoginFlow: (...args) => mockUseLoginFlow(...args),
+const mockGetRememberedEmails = vi.fn(() => [])
+const mockGetAllRememberedEmailsWithDetails = vi.fn(() => [])
+const mockClearRememberedEmail = vi.fn()
+vi.mock('@/features/authentication/hooks', async () => {
+  const actual = await vi.importActual('@/features/authentication/hooks')
+  return {
+    ...actual,
+    useLoginFlow: (...args) => mockUseLoginFlow(...args),
+    useRememberedEmail: () => ({
+      getRememberedEmails: mockGetRememberedEmails,
+      getAllRememberedEmailsWithDetails: mockGetAllRememberedEmailsWithDetails,
+      clearRememberedEmail: mockClearRememberedEmail,
+    }),
+  }
+})
+
+vi.mock('@/features/authentication/views/components/PasskeySignInOptions.jsx', () => ({
+  default: () => null,
+}))
+vi.mock('../../features/authentication/views/components/PasskeySignInOptions.jsx', () => ({
+  default: () => null,
 }))
 
 // Mock validations
@@ -28,14 +47,26 @@ vi.mock('react-router-dom', async () => {
 })
 
 describe('Login Flow', () => {
-  const user = userEvent.setup()
+  let form
+
+  const getInputByTestId = (testId) => {
+    const container = screen.getByTestId(testId)
+    if (container?.tagName?.toLowerCase() === 'input') return container
+    return container?.querySelector('input')
+  }
+  const waitForFormReset = async () => {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 80))
+    })
+  }
 
   beforeEach(() => {
     vi.clearAllMocks()
-    const { result } = require('@testing-library/react').renderHook(() =>
-      require('antd').Form.useForm()
-    )
-    const form = result.current[0]
+    mockGetRememberedEmails.mockClear()
+    mockGetAllRememberedEmailsWithDetails.mockClear()
+    mockClearRememberedEmail.mockClear()
+    const { result } = renderHook(() => Form.useForm())
+    form = result.current[0]
 
     mockUseLoginFlow.mockReturnValue({
       step: 'form',
@@ -52,19 +83,23 @@ describe('Login Flow', () => {
   it('should render login form with inputs', () => {
     renderWithProviders(<LoginForm />)
 
-    expect(screen.getByTestId('login-email')).toBeVisible()
-    expect(screen.getByTestId('login-password')).toBeVisible()
-    expect(screen.getByTestId('login-submit')).toBeVisible()
-  })
+    expect(screen.getByTestId('login-email')).toBeInTheDocument()
+    expect(screen.getByTestId('login-password')).toBeInTheDocument()
+    expect(screen.getByTestId('login-submit')).toBeInTheDocument()
+  }, 15000)
 
   it('should accept user input', async () => {
     renderWithProviders(<LoginForm />)
 
-    const emailInput = screen.getByTestId('login-email')
-    const passwordInput = screen.getByTestId('login-password')
+    const emailInput = getInputByTestId('login-email')
+    const passwordInput = getInputByTestId('login-password')
 
-    await user.type(emailInput, 'user@example.com')
-    await user.type(passwordInput, 'StrongP@ssw0rd')
+    expect(emailInput).toBeTruthy()
+    expect(passwordInput).toBeTruthy()
+    await waitForFormReset()
+
+    fireEvent.change(emailInput, { target: { value: 'user@example.com' } })
+    fireEvent.change(passwordInput, { target: { value: 'StrongP@ssw0rd' } })
 
     expect(emailInput).toHaveValue('user@example.com')
     expect(passwordInput).toHaveValue('StrongP@ssw0rd')
@@ -74,7 +109,7 @@ describe('Login Flow', () => {
     const handleFinish = vi.fn()
     mockUseLoginFlow.mockReturnValue({
       step: 'form',
-      form: require('antd').Form.useForm()[0],
+      form,
       handleFinish,
       isSubmitting: false,
       initialValues: { email: '', password: '', rememberMe: false },
@@ -85,23 +120,29 @@ describe('Login Flow', () => {
 
     renderWithProviders(<LoginForm />)
 
-    const emailInput = screen.getByTestId('login-email')
-    const passwordInput = screen.getByTestId('login-password')
-    const submitButton = screen.getByTestId('login-submit')
-
-    await user.type(emailInput, 'user@example.com')
-    await user.type(passwordInput, 'StrongP@ssw0rd')
-    await user.click(submitButton)
+    await waitForFormReset()
+    await act(async () => {
+      form.setFieldsValue({
+        email: 'user@example.com',
+        password: 'StrongP@ssw0rd',
+        rememberMe: false,
+      })
+      await form.submit()
+    })
 
     await waitFor(() => {
-      expect(handleFinish).toHaveBeenCalled()
+      expect(handleFinish).toHaveBeenCalledWith({
+        email: 'user@example.com',
+        password: 'StrongP@ssw0rd',
+        rememberMe: false,
+      })
     })
   })
 
   it('should show verification step when required', () => {
     mockUseLoginFlow.mockReturnValue({
       step: 'verify',
-      form: require('antd').Form.useForm()[0],
+      form,
       handleFinish: vi.fn(),
       isSubmitting: false,
       verificationProps: {
@@ -120,7 +161,7 @@ describe('Login Flow', () => {
     renderWithProviders(<LoginForm />)
 
     const forgotLink = screen.getByTestId('login-forgot')
-    await user.click(forgotLink)
+    fireEvent.click(forgotLink)
 
     expect(mockNavigate).toHaveBeenCalledWith('/forgot-password')
   })

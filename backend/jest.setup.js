@@ -1,5 +1,8 @@
 // Jest setup file for global test configuration and cleanup
 
+// Avoid MongoDB binary checksum failures in CI/local envs.
+process.env.MONGOMS_MD5_CHECK = 'false'
+
 afterAll(async () => {
   // Clear all intervals (from errorTracking and securityMonitor)
   try {

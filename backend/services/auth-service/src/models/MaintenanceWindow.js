@@ -20,4 +20,4 @@ const MaintenanceWindowSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
-module.exports = mongoose.model('MaintenanceWindow', MaintenanceWindowSchema)
+module.exports = mongoose.models.MaintenanceWindow || mongoose.model('MaintenanceWindow', MaintenanceWindowSchema)

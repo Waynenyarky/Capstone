@@ -1,11 +1,20 @@
 import '@testing-library/jest-dom/vitest'
 import { afterAll, afterEach, beforeAll, vi } from 'vitest'
+import { cleanup } from '@testing-library/react'
 
 // Configure React 18/19 act() support for non-Jest environments (Vitest + jsdom)
 // This silences the warning: "The current testing environment is not configured to support act(...)"
 // See: https://react.dev/reference/react-dom/test-utils/act
 // and https://github.com/facebook/react/issues/27106
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
+
+afterEach(() => {
+  cleanup()
+})
+
+vi.mock('@/features/authentication/views/components/PasskeySignInOptions.jsx', () => ({
+  default: () => null,
+}))
 
 // Mock scrollTo to avoid errors in JSDOM (used by some AntD components)
 if (typeof window !== 'undefined' && typeof window.scrollTo !== 'function') {

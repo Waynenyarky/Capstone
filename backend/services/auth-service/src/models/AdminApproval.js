@@ -117,4 +117,4 @@ AdminApprovalSchema.statics.generateApprovalId = function () {
   return `APPROVAL-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 };
 
-module.exports = mongoose.model('AdminApproval', AdminApprovalSchema);
+module.exports = mongoose.models.AdminApproval || mongoose.model('AdminApproval', AdminApprovalSchema);

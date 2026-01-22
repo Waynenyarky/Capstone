@@ -1,41 +1,60 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderWithProviders, screen } from '@/test/utils/renderWithProviders.jsx'
-import ProtectedRoute from '@/features/authentication/components/ProtectedRoute.jsx'
-import { useAuthSession } from '@/features/authentication'
+import ProtectedRoute from '@/features/authentication/views/components/ProtectedRoute.jsx'
+import { Routes, Route, useLocation } from 'react-router-dom'
 
 // Mock auth session
 const mockUseAuthSession = vi.fn()
+const mockUseMaintenanceStatus = vi.fn()
 vi.mock('@/features/authentication', () => ({
   useAuthSession: (...args) => mockUseAuthSession(...args),
+  useMaintenanceStatus: (...args) => mockUseMaintenanceStatus(...args),
 }))
 
-// Mock navigation
-const mockNavigate = vi.fn()
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom')
+vi.mock('@/features/authentication/lib/authEvents.js', async () => {
+  const actual = await vi.importActual('@/features/authentication/lib/authEvents.js')
   return {
     ...actual,
-    useNavigate: () => mockNavigate,
+    getIsLoggingOut: () => false,
+    getCurrentUser: () => null,
   }
 })
+
+const LocationEcho = () => {
+  const location = useLocation()
+  return (
+    <div data-testid="location">
+      {location.pathname}::{location.state?.notification?.message || ''}
+    </div>
+  )
+}
 
 describe('Authorization Integration Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockUseMaintenanceStatus.mockReturnValue({ loading: false, active: false })
   })
 
   describe('Protected Route Access', () => {
     it('should allow authenticated users to access protected routes', () => {
       mockUseAuthSession.mockReturnValue({
-        currentUser: { id: '123', email: 'test@example.com' },
-        isAuthenticated: true,
+        currentUser: { id: '123', email: 'test@example.com', token: 'token' },
+        role: { slug: 'user' },
+        isLoading: false,
       })
 
       renderWithProviders(
-        <ProtectedRoute>
-          <div data-testid="protected-content">Protected Content</div>
-        </ProtectedRoute>
+        <Routes>
+          <Route
+            path="/"
+            element={(
+              <ProtectedRoute>
+                <div data-testid="protected-content">Protected Content</div>
+              </ProtectedRoute>
+            )}
+          />
+        </Routes>
       )
 
       expect(screen.getByTestId('protected-content')).toBeVisible()
@@ -44,16 +63,26 @@ describe('Authorization Integration Tests', () => {
     it('should redirect unauthenticated users to login', () => {
       mockUseAuthSession.mockReturnValue({
         currentUser: null,
-        isAuthenticated: false,
+        role: null,
+        isLoading: false,
       })
 
       renderWithProviders(
-        <ProtectedRoute>
-          <div>Protected Content</div>
-        </ProtectedRoute>
+        <Routes>
+          <Route
+            path="/admin/dashboard"
+            element={(
+              <ProtectedRoute>
+                <div>Protected Content</div>
+              </ProtectedRoute>
+            )}
+          />
+          <Route path="/login" element={<LocationEcho />} />
+        </Routes>,
+        { initialEntries: ['/admin/dashboard'] }
       )
 
-      expect(mockNavigate).toHaveBeenCalledWith('/login')
+      expect(screen.getByTestId('location').textContent).toContain('/login')
     })
   })
 

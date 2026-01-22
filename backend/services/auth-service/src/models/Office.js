@@ -10,4 +10,4 @@ const OfficeSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
-module.exports = mongoose.model('Office', OfficeSchema)
+module.exports = mongoose.models.Office || mongoose.model('Office', OfficeSchema)

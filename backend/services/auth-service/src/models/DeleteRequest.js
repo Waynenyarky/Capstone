@@ -13,4 +13,4 @@ const DeleteRequestSchema = new mongoose.Schema(
 
 DeleteRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
 
-module.exports = mongoose.model('DeleteRequest', DeleteRequestSchema)
+module.exports = mongoose.models.DeleteRequest || mongoose.model('DeleteRequest', DeleteRequestSchema)

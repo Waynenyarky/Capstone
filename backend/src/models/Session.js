@@ -93,4 +93,4 @@ SessionSchema.methods.invalidate = function (reason = 'manual') {
   return this.save()
 }
 
-module.exports = mongoose.model('Session', SessionSchema)
+module.exports = mongoose.models.Session || mongoose.model('Session', SessionSchema)

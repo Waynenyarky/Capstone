@@ -73,4 +73,4 @@ RecoveryRequestSchema.index({ status: 1, createdAt: -1 })
 RecoveryRequestSchema.index({ reviewedBy: 1 })
 RecoveryRequestSchema.index({ office: 1, status: 1 })
 
-module.exports = mongoose.model('RecoveryRequest', RecoveryRequestSchema)
+module.exports = mongoose.models.RecoveryRequest || mongoose.model('RecoveryRequest', RecoveryRequestSchema)

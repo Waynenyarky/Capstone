@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderWithProviders, screen, renderHook, waitFor } from '@/test/utils/renderWithProviders.jsx'
+import { renderHook, waitFor, act } from '@/test/utils/renderWithProviders.jsx'
 import { useLoggedInEmailChangeFlow } from '@/features/authentication/hooks/useLoggedInEmailChangeFlow.js'
 import { useChangeEmailForm } from '@/features/authentication/hooks/useChangeEmailForm.js'
 import { useVerifyChangeEmailForm } from '@/features/authentication/hooks/useVerifyChangeEmailForm.js'
@@ -14,12 +14,16 @@ vi.mock('@/features/authentication/services', () => ({
 }))
 
 // Mock auth session
-vi.mock('@/features/authentication', () => ({
-  useAuthSession: () => ({
-    currentUser: { id: '123', email: 'old@example.com', token: 'mock-token' },
-    login: vi.fn(),
-  }),
-}))
+vi.mock('@/features/authentication/hooks', async () => {
+  const actual = await vi.importActual('@/features/authentication/hooks')
+  return {
+    ...actual,
+    useAuthSession: () => ({
+      currentUser: { id: '123', email: 'old@example.com', token: 'mock-token' },
+      login: vi.fn(),
+    }),
+  }
+})
 
 // Mock notifications
 vi.mock('@/shared/notifications.js', () => ({
@@ -52,24 +56,32 @@ describe('Email Change Flow', () => {
       const { result } = renderHook(() => useLoggedInEmailChangeFlow())
 
       // Start flow
-      result.current.sendProps.onSent()
+      act(() => {
+        result.current.sendProps.onSent()
+      })
       expect(result.current.step).toBe('verify')
 
       // Verify step
-      result.current.verifyProps.onSubmit({
-        email: 'old@example.com',
-        resetToken: 'token123',
+      act(() => {
+        result.current.verifyProps.onSubmit({
+          email: 'old@example.com',
+          resetToken: 'token123',
+        })
       })
       expect(result.current.step).toBe('change')
 
       // Change step
-      result.current.changeProps.onSubmit({
-        newEmail: 'new@example.com',
+      act(() => {
+        result.current.changeProps.onSubmit({
+          newEmail: 'new@example.com',
+        })
       })
       expect(result.current.step).toBe('verifyNew')
 
       // Verify new email
-      result.current.verifyNewProps.onSubmit()
+      act(() => {
+        result.current.verifyNewProps.onSubmit()
+      })
       expect(result.current.step).toBe('done')
     })
   })
@@ -84,8 +96,10 @@ describe('Email Change Flow', () => {
         })
       )
 
-      await result.current.handleFinish({
-        newEmail: 'new@example.com',
+      await act(async () => {
+        await result.current.handleFinish({
+          newEmail: 'new@example.com',
+        })
       })
 
       await waitFor(() => {
@@ -109,8 +123,10 @@ describe('Email Change Flow', () => {
         })
       )
 
-      await result.current.handleFinish({
-        newEmail: 'existing@example.com',
+      await act(async () => {
+        await result.current.handleFinish({
+          newEmail: 'existing@example.com',
+        })
       })
 
       await waitFor(() => {
@@ -130,8 +146,10 @@ describe('Email Change Flow', () => {
         })
       )
 
-      await result.current.handleFinish({
-        verificationCode: '123456',
+      await act(async () => {
+        await result.current.handleFinish({
+          verificationCode: '123456',
+        })
       })
 
       await waitFor(() => {

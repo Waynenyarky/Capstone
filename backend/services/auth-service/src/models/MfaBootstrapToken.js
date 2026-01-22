@@ -50,4 +50,4 @@ MfaBootstrapTokenSchema.methods.isUsable = function () {
   return Date.now() < this.expiresAt.getTime()
 }
 
-module.exports = mongoose.model('MfaBootstrapToken', MfaBootstrapTokenSchema)
+module.exports = mongoose.models.MfaBootstrapToken || mongoose.model('MfaBootstrapToken', MfaBootstrapTokenSchema)

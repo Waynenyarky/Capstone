@@ -187,4 +187,4 @@ AuditLogSchema.statics.getUserAuditHistory = async function (userId, options = {
     .lean();
 };
 
-module.exports = mongoose.model('AuditLog', AuditLogSchema);
+module.exports = mongoose.models.AuditLog || mongoose.model('AuditLog', AuditLogSchema);

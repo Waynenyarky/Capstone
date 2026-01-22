@@ -52,4 +52,4 @@ AuditViewLogSchema.index({ viewedUserId: 1, viewedAt: -1 })
 AuditViewLogSchema.index({ auditLogId: 1 })
 AuditViewLogSchema.index({ viewedAt: -1 })
 
-module.exports = mongoose.model('AuditViewLog', AuditViewLogSchema)
+module.exports = mongoose.models.AuditViewLog || mongoose.model('AuditViewLog', AuditViewLogSchema)

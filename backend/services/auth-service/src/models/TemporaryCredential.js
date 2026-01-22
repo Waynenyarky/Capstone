@@ -85,4 +85,4 @@ TemporaryCredentialSchema.methods.markAsUsed = function () {
   return this.save()
 }
 
-module.exports = mongoose.model('TemporaryCredential', TemporaryCredentialSchema)
+module.exports = mongoose.models.TemporaryCredential || mongoose.model('TemporaryCredential', TemporaryCredentialSchema)

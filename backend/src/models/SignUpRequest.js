@@ -12,4 +12,4 @@ const SignUpRequestSchema = new mongoose.Schema(
 
 SignUpRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
 
-module.exports = mongoose.model('SignUpRequest', SignUpRequestSchema)
+module.exports = mongoose.models.SignUpRequest || mongoose.model('SignUpRequest', SignUpRequestSchema)

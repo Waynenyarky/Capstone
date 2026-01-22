@@ -13,4 +13,4 @@ const ResetRequestSchema = new mongoose.Schema(
 
 ResetRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
 
-module.exports = mongoose.model('ResetRequest', ResetRequestSchema)
+module.exports = mongoose.models.ResetRequest || mongoose.model('ResetRequest', ResetRequestSchema)

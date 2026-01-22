@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderWithProviders, renderHook, waitFor } from '@/test/utils/renderWithProviders.jsx'
+import { renderHook, waitFor, act } from '@/test/utils/renderWithProviders.jsx'
 import { useLoggedInPasswordChangeFlow } from '@/features/authentication/hooks/useLoggedInPasswordChangeFlow.js'
 import { useChangePasswordForm } from '@/features/authentication/hooks/useChangePasswordForm.js'
 import { changePasswordStart, changePasswordVerify } from '@/features/authentication/services'
@@ -24,7 +24,21 @@ vi.mock('@/shared/notifications.js', () => ({
 // Mock auth
 vi.mock('@/features/authentication/lib/authEvents.js', () => ({
   getCurrentUser: () => ({ id: '123', email: 'test@example.com' }),
+  setCurrentUser: vi.fn(),
 }))
+
+vi.mock('@/features/authentication/hooks', async () => {
+  const actual = await vi.importActual('@/features/authentication/hooks')
+  return {
+    ...actual,
+    useAuthSession: () => ({
+      currentUser: { id: '123', email: 'test@example.com' },
+      role: { slug: 'user' },
+      login: vi.fn(),
+      logout: vi.fn(),
+    }),
+  }
+})
 
 describe('Password Change Flow', () => {
   beforeEach(() => {
@@ -45,18 +59,24 @@ describe('Password Change Flow', () => {
       const { result } = renderHook(() => useLoggedInPasswordChangeFlow())
 
       // Send step
-      result.current.sendProps.onSent()
+      act(() => {
+        result.current.sendProps.onSent()
+      })
       expect(result.current.step).toBe('verify')
 
       // Verify step
-      result.current.verifyProps.onSubmit({
-        email: 'test@example.com',
-        resetToken: 'token123',
+      act(() => {
+        result.current.verifyProps.onSubmit({
+          email: 'test@example.com',
+          resetToken: 'token123',
+        })
       })
       expect(result.current.step).toBe('change')
 
       // Change step
-      result.current.changeProps.onSubmit()
+      act(() => {
+        result.current.changeProps.onSubmit()
+      })
       expect(result.current.step).toBe('done')
     })
   })
@@ -72,21 +92,28 @@ describe('Password Change Flow', () => {
       )
 
       // Step 1: Enter password
-      await result.current.handleFinish({
-        password: 'NewPassword123!@#',
-        confirmPassword: 'NewPassword123!@#',
+      await act(async () => {
+        await result.current.handleFinish({
+          password: 'NewPassword123!@#',
+          confirmPassword: 'NewPassword123!@#',
+        })
       })
 
       await waitFor(() => {
         expect(changePasswordStart).toHaveBeenCalled()
       })
 
+      await waitFor(() => {
+        expect(result.current.step).toBe('verify')
+      })
+
       // Step 2: Verify code
-      result.current.setStep('verify')
-      await result.current.handleFinish({
-        verificationCode: '123456',
-        password: 'NewPassword123!@#',
-        confirmPassword: 'NewPassword123!@#',
+      await act(async () => {
+        await result.current.handleFinish({
+          verificationCode: '123456',
+          password: 'NewPassword123!@#',
+          confirmPassword: 'NewPassword123!@#',
+        })
       })
 
       await waitFor(() => {
@@ -101,9 +128,11 @@ describe('Password Change Flow', () => {
         })
       )
 
-      await result.current.handleFinish({
-        password: 'NewPassword123!@#',
-        confirmPassword: 'DifferentPassword123!@#',
+      await act(async () => {
+        await result.current.handleFinish({
+          password: 'NewPassword123!@#',
+          confirmPassword: 'DifferentPassword123!@#',
+        })
       })
 
       // Should not proceed if passwords don't match

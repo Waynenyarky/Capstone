@@ -71,4 +71,4 @@ const OfficeHoursSchema = new mongoose.Schema(
 // Index for efficient lookup
 OfficeHoursSchema.index({ office: 1 })
 
-module.exports = mongoose.model('OfficeHours', OfficeHoursSchema)
+module.exports = mongoose.models.OfficeHours || mongoose.model('OfficeHours', OfficeHoursSchema)

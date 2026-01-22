@@ -70,4 +70,4 @@ EmailChangeRequestSchema.methods.isExpired = function () {
   return new Date() >= this.expiresAt
 }
 
-module.exports = mongoose.model('EmailChangeRequest', EmailChangeRequestSchema)
+module.exports = mongoose.models.EmailChangeRequest || mongoose.model('EmailChangeRequest', EmailChangeRequestSchema)

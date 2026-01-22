@@ -28,4 +28,4 @@ IdVerificationSchema.index({ userId: 1 })
 IdVerificationSchema.index({ status: 1 })
 IdVerificationSchema.index({ uploadedAt: -1 })
 
-module.exports = mongoose.model('IdVerification', IdVerificationSchema)
+module.exports = mongoose.models.IdVerification || mongoose.model('IdVerification', IdVerificationSchema)

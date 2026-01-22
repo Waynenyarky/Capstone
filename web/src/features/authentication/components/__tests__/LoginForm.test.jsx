@@ -1,12 +1,15 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Form } from 'antd'
-import userEvent from '@testing-library/user-event'
+import { fireEvent } from '@testing-library/react'
 import LoginForm from '../../views/components/LoginForm.jsx'
-import { renderWithProviders, screen, renderHook, waitFor } from '@/test/utils/renderWithProviders.jsx'
+import { renderWithProviders, screen, renderHook, waitFor, act } from '@/test/utils/renderWithProviders.jsx'
 
 const mockNavigate = vi.fn()
 const mockUseLoginFlow = vi.fn()
+const mockGetRememberedEmails = vi.fn(() => [])
+const mockGetAllRememberedEmailsWithDetails = vi.fn(() => [])
+const mockClearRememberedEmail = vi.fn()
 
 vi.mock('@/features/authentication/validations', () => ({
   loginEmailRules: [],
@@ -26,13 +29,37 @@ vi.mock('@/features/authentication/hooks', async () => {
   return {
     ...actual,
     useLoginFlow: (...args) => mockUseLoginFlow(...args),
+    useRememberedEmail: () => ({
+      getRememberedEmails: mockGetRememberedEmails,
+      getAllRememberedEmailsWithDetails: mockGetAllRememberedEmailsWithDetails,
+      clearRememberedEmail: mockClearRememberedEmail,
+    }),
   }
 })
 
+vi.mock('@/features/authentication/views/components/PasskeySignInOptions.jsx', () => ({
+  default: () => null,
+}))
+vi.mock('../../views/components/PasskeySignInOptions.jsx', () => ({
+  default: () => null,
+}))
+
 describe('LoginForm', () => {
-  const user = userEvent.setup()
+  const getInputByTestId = (testId) => {
+    const container = screen.getByTestId(testId)
+    if (container?.tagName?.toLowerCase() === 'input') return container
+    return container?.querySelector('input')
+  }
+  const waitForFormReset = async () => {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 80))
+    })
+  }
 
   beforeEach(() => {
+    mockGetRememberedEmails.mockClear()
+    mockGetAllRememberedEmailsWithDetails.mockClear()
+    mockClearRememberedEmail.mockClear()
     const { result } = renderHook(() => Form.useForm())
     const form = result.current[0]
     mockUseLoginFlow.mockReturnValue({
@@ -59,16 +86,18 @@ describe('LoginForm', () => {
   it('renders inputs and submits credentials', async () => {
     const utils = renderWithProviders(<LoginForm />)
 
-    await new Promise((res) => setTimeout(res, 80)) // allow initial form reset
+    await waitFor(() => {
+      expect(getInputByTestId('login-email')).toBeTruthy()
+      expect(getInputByTestId('login-password')).toBeTruthy()
+    })
+    await waitForFormReset()
 
-    const emailInput = screen.getByTestId('login-email')
-    const passwordInput = screen.getByTestId('login-password')
+    const emailInput = getInputByTestId('login-email')
+    const passwordInput = getInputByTestId('login-password')
 
-    await user.click(emailInput)
-    await user.type(emailInput, 'user@example.com')
-    await user.click(passwordInput)
-    await user.type(passwordInput, 'StrongP@ssw0rd')
-    await user.click(screen.getByTestId('login-submit'))
+    fireEvent.change(emailInput, { target: { value: 'user@example.com' } })
+    fireEvent.change(passwordInput, { target: { value: 'StrongP@ssw0rd' } })
+    fireEvent.click(screen.getByTestId('login-submit'))
 
     const { handleFinish } = mockUseLoginFlow.mock.results[0].value
     await waitFor(() => {
@@ -86,7 +115,7 @@ describe('LoginForm', () => {
   it('navigates to forgot password on link click', async () => {
     renderWithProviders(<LoginForm />)
 
-    await user.click(screen.getByTestId('login-forgot'))
+    fireEvent.click(screen.getByTestId('login-forgot'))
 
     expect(mockNavigate).toHaveBeenCalledWith('/forgot-password')
   })

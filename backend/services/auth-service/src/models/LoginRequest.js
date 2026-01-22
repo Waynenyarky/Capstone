@@ -14,4 +14,4 @@ const LoginRequestSchema = new mongoose.Schema(
 
 LoginRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
 
-module.exports = mongoose.model('LoginRequest', LoginRequestSchema)
+module.exports = mongoose.models.LoginRequest || mongoose.model('LoginRequest', LoginRequestSchema)

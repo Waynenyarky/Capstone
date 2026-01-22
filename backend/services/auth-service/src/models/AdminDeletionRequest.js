@@ -82,4 +82,4 @@ AdminDeletionRequestSchema.index({ requestingAdminId: 1, status: 1 })
 AdminDeletionRequestSchema.index({ status: 1, createdAt: -1 })
 AdminDeletionRequestSchema.index({ approvingAdminId: 1 })
 
-module.exports = mongoose.model('AdminDeletionRequest', AdminDeletionRequestSchema)
+module.exports = mongoose.models.AdminDeletionRequest || mongoose.model('AdminDeletionRequest', AdminDeletionRequestSchema)
