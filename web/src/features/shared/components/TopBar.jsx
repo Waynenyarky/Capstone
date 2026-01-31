@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Layout, Avatar, Dropdown, Menu, Space, Typography, Badge, Button, Tag, theme, Spin, Empty, Modal } from 'antd'
+import { Layout, Avatar, Dropdown, Menu, Space, Typography, Badge, Button, Tag, theme, Spin, Empty, Modal, Grid } from 'antd'
 import { UserOutlined, BellOutlined, LogoutOutlined, ShopOutlined, DownOutlined, CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { Link, useNavigate } from 'react-router-dom'
 import { resolveAvatarUrl } from '@/lib/utils'
@@ -12,6 +12,7 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 
 const { Header } = Layout
 const { Text } = Typography
+const { useBreakpoint } = Grid
 
 dayjs.extend(relativeTime)
 
@@ -28,6 +29,9 @@ export default function TopBar({
   const { token } = theme.useToken();
   const { currentTheme, themeOverrides } = useAppTheme();
   const navigate = useNavigate();
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
+  const isSmallMobile = !screens.sm;
   
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -268,11 +272,11 @@ export default function TopBar({
   return (
     <Header style={{ 
       background: headerBackground, 
-      padding: '0 24px', 
+      padding: isMobile ? '0 12px' : '0 24px', 
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'space-between',
-      height: 64,
+      height: isMobile ? 56 : 64,
       position: 'sticky',
       top: 0,
       zIndex: 10,
@@ -280,41 +284,62 @@ export default function TopBar({
       boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
       borderBottom: 'none'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        <Text strong style={{ fontSize: 18, marginRight: 16, textTransform: 'capitalize', color: textColor }}>{title}</Text>
-        {businessName && (
-          <Tag icon={<ShopOutlined />} color="gold">
-            {businessName}
+      <div style={{ display: 'flex', alignItems: 'center', minWidth: 0, flex: 1 }}>
+        {typeof title === 'string' ? (
+          <Text 
+            strong 
+            style={{ 
+              fontSize: isMobile ? 15 : 18, 
+              marginRight: isMobile ? 8 : 16, 
+              textTransform: 'capitalize', 
+              color: textColor,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: isSmallMobile ? 120 : (isMobile ? 160 : 'none')
+            }}
+          >
+            {title}
+          </Text>
+        ) : (
+          <div style={{ marginRight: isMobile ? 8 : 16 }}>{title}</div>
+        )}
+        {businessName && !isSmallMobile && (
+          <Tag icon={<ShopOutlined />} color="gold" style={{ marginRight: 0 }}>
+            {isMobile && businessName.length > 15 ? `${businessName.substring(0, 15)}...` : businessName}
           </Tag>
         )}
       </div>
 
-      <Space size={24}>
+      <Space size={isMobile ? 12 : 24}>
         {!hideNotifications && (
           <Dropdown menu={{ items: notificationMenu.props.items }} trigger={['click']} placement="bottomRight">
             <Badge count={unreadCount} size="small" offset={[-5, 5]}>
-              <Button type="text" shape="circle" icon={<BellOutlined style={{ fontSize: 20, color: iconColor }} />} />
+              <Button type="text" shape="circle" icon={<BellOutlined style={{ fontSize: isMobile ? 18 : 20, color: iconColor }} />} />
             </Badge>
           </Dropdown>
         )}
 
         <Dropdown menu={{ items: userMenu.props.items }} placement="bottomRight">
-          <Space style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 4 }} className="hover-bg-dark">
+          <Space style={{ cursor: 'pointer', padding: isMobile ? '4px' : '4px 8px', borderRadius: 4, gap: isMobile ? 6 : 8 }} className="hover-bg-dark">
             <Avatar 
+              size={isMobile ? 32 : 'default'}
               src={currentUser?.avatar ? <img src={resolveAvatarUrl(currentUser?.avatar)} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null} 
               style={{ backgroundColor: token.colorPrimary, border: '1px solid rgba(255,255,255,0.2)' }}
             >
               {!currentUser?.avatar && initials}
             </Avatar>
-            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-              <Text strong style={{ fontSize: 14, color: textColor }}>
-                {currentUser?.firstName || currentUser?.name || 'User'}
-              </Text>
-              <Text type="secondary" style={{ fontSize: 11, color: secondaryTextColor }}>
-                {displayRole}
-              </Text>
-            </div>
-            <DownOutlined style={{ fontSize: 12, color: secondaryTextColor, marginLeft: 4 }} />
+            {!isSmallMobile && (
+              <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+                <Text strong style={{ fontSize: isMobile ? 13 : 14, color: textColor }}>
+                  {currentUser?.firstName || currentUser?.name || 'User'}
+                </Text>
+                <Text type="secondary" style={{ fontSize: isMobile ? 10 : 11, color: secondaryTextColor }}>
+                  {displayRole}
+                </Text>
+              </div>
+            )}
+            <DownOutlined style={{ fontSize: isMobile ? 10 : 12, color: secondaryTextColor, marginLeft: isSmallMobile ? 0 : 4 }} />
           </Space>
         </Dropdown>
       </Space>

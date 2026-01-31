@@ -187,7 +187,34 @@ services:
       - contract_addresses:/app/contract-addresses:ro
     restart: unless-stopped
 
+  # AI Service (ID Verification)
+  ai-service:
+    build:
+      context: ./backend/services/ai-service
+      dockerfile: Dockerfile
+    container_name: capstone-ai-service
+    ports:
+      - "3005:3005"
+    depends_on:
+      - mongodb
+    env_file: .env
+    environment:
+      - AI_SERVICE_PORT=3005
+      - AI_SERVICE_ID_VERIFICATION_MODEL_PATH=/app/models/model_v1.h5
+      - AI_SERVICE_CORS_ORIGINS=${CORS_ORIGIN:-http://localhost:5173},http://business-service:3002,http://auth-service:3001
+    volumes:
+      - ./ai/models/id_verification:/app/models:ro
+      - easyocr_cache:/root/.EasyOCR
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:3005/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
 volumes:
   mongodb_data:
   ipfs_data:
   contract_addresses:
+  easyocr_cache:

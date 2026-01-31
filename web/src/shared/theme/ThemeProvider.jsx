@@ -399,16 +399,21 @@ export function ThemeProvider({ children }) {
   const effectivePrimary = activeOverrides.colorPrimary || activeThemeConfig.config.token.colorPrimary;
   const isNavyPrimary = effectivePrimary === '#001529';
   
-  // Custom Menu overrides for Navy primary color
-  const menuOverrides = isNavyPrimary ? {
+  // Custom component overrides for Navy primary color
+  const navyColorOverrides = isNavyPrimary ? {
     Menu: {
       // For Dark menu (sidebar), use a transparent white background instead of the primary color (which is navy and invisible)
       darkItemSelectedBg: 'rgba(255, 255, 255, 0.1)', 
       darkItemHoverBg: 'rgba(255, 255, 255, 0.05)',
       // Ensure text is white
       darkItemSelectedColor: '#ffffff',
-      // For Light menu (if used elsewhere), we can keep standard behavior or tweak if needed
-    }
+    },
+    Select: {
+      // Fix hover state readability - use a lighter background for option hover
+      optionActiveBg: '#e6f4ff', // Light blue background on hover
+      optionSelectedBg: '#bae0ff', // Slightly darker for selected
+      optionSelectedColor: '#001529', // Navy text for selected (readable on light bg)
+    },
   } : {};
 
   let algorithm = activeThemeConfig.config.algorithm;
@@ -429,7 +434,7 @@ export function ThemeProvider({ children }) {
     },
     components: {
       ...activeThemeConfig.config.components,
-      ...menuOverrides,
+      ...navyColorOverrides,
     }
   };
 

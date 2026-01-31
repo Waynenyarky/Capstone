@@ -113,8 +113,77 @@ class BusinessProfileService {
     
     switch (step) {
       case 2: // Owner Identity
-        // System Action: Basic identity validation (e.g. ID number format)
-        update['ownerIdentity'] = { ...data, isSubmitted: true }
+        // Derive fullName from User (sign-up); persist only ID fields. No DOB/personal info from form.
+        const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ')
+        const { idType, idNumber, idFileUrl, idFileBackUrl } = data || {}
+        
+        // Initialize ownerIdentity with AI verification pending
+        update['ownerIdentity'] = {
+          fullName: fullName || '',
+          idType: idType ?? '',
+          idNumber: idNumber ?? '',
+          idFileUrl: idFileUrl ?? '',
+          idFileBackUrl: idFileBackUrl ?? '',
+          isSubmitted: true,
+          aiVerification: {
+            legit: null,
+            confidence: 0,
+            documentType: null,
+            checkedAt: null,
+            modelVersion: '',
+            status: 'pending',
+            notes: ['Verification pending.']
+          }
+        }
+        
+        // Trigger AI verification asynchronously (non-blocking)
+        // The verification result will be updated after the profile is saved
+        if (idFileUrl) {
+          const aiVerificationService = require('../lib/aiVerificationService')
+          
+          // Run verification in background (don't block the response)
+          setImmediate(async () => {
+            try {
+              console.log(`[updateStep] Starting AI verification for user ${userId}`)
+              const aiResult = await aiVerificationService.verifyOwnerIdentity({
+                idFileUrl: idFileUrl,
+                idFileBackUrl: idFileBackUrl
+              })
+              
+              // Update the profile with AI verification results
+              await BusinessProfile.findOneAndUpdate(
+                { userId },
+                { 
+                  $set: { 
+                    'ownerIdentity.aiVerification': aiResult 
+                  } 
+                }
+              )
+              
+              console.log(`[updateStep] AI verification complete for user ${userId}: status=${aiResult.status}, legit=${aiResult.legit}`)
+            } catch (aiError) {
+              console.error(`[updateStep] AI verification failed for user ${userId}:`, aiError)
+              
+              // Update with error status
+              await BusinessProfile.findOneAndUpdate(
+                { userId },
+                { 
+                  $set: { 
+                    'ownerIdentity.aiVerification': {
+                      legit: null,
+                      confidence: 0,
+                      documentType: null,
+                      checkedAt: new Date(),
+                      modelVersion: '',
+                      status: 'error',
+                      notes: ['AI verification encountered an error.', aiError.message]
+                    }
+                  } 
+                }
+              ).catch(err => console.error('[updateStep] Failed to update AI verification error status:', err))
+            }
+          })
+        }
         break
 
       case 3: // MFA Setup (no data saved to BusinessProfile, MFA is stored in User model)

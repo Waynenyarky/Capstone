@@ -35,7 +35,8 @@ export default function BusinessOwnerDashboard() {
   
   const { token } = theme.useToken()
 
-  if (!currentUser || role !== 'business_owner') {
+  const roleSlug = String(role?.slug ?? role ?? '').toLowerCase()
+  if (!currentUser || roleSlug !== 'business_owner') {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <Spin size="large" tip="Redirecting..." />
@@ -79,7 +80,6 @@ export default function BusinessOwnerDashboard() {
         hideProfileSettings={true}
       >
           <div>
-            <Title level={2} style={{ marginBottom: 32 }}>Complete Business Registration</Title>
             <BusinessRegistrationWizard onComplete={() => window.location.reload()} />
           </div>
       </BusinessOwnerLayout>

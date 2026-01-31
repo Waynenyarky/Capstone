@@ -10,9 +10,24 @@ const BusinessProfileSchema = new mongoose.Schema(
       dateOfBirth: { type: Date },
       idType: { type: String, default: '' },
       idNumber: { type: String, default: '' },
-      idFileUrl: { type: String, default: '' }, // Legacy: local file URL (for backward compatibility)
-      idFileIpfsCid: { type: String, default: '' }, // IPFS CID for uploaded ID
-      isSubmitted: { type: Boolean, default: false }
+      idFileUrl: { type: String, default: '' },
+      idFileBackUrl: { type: String, default: '' },
+      idFileIpfsCid: { type: String, default: '' },
+      isSubmitted: { type: Boolean, default: false },
+      // AI Verification Results (visual appearance check only - NO government DB verification)
+      aiVerification: {
+        legit: { type: Boolean, default: null },         // Whether the ID appears legitimate
+        confidence: { type: Number, default: 0 },        // Confidence score (0-1)
+        documentType: { type: String, default: null },   // Detected document type (optional)
+        checkedAt: { type: Date, default: null },        // When the verification was performed
+        modelVersion: { type: String, default: '' },     // Version of the model used
+        status: { 
+          type: String, 
+          enum: ['pending', 'verified', 'failed', 'needs_review', 'error'],
+          default: 'pending'
+        },
+        notes: [{ type: String }]                        // Notes about the verification
+      }
     },
 
     // Step 4: Legal Consent Checkboxes (Replaces previous Business Registration step in sequence)

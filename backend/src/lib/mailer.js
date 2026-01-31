@@ -411,18 +411,25 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
     brandName
   ].join('\n')
   const html = `
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
     <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
       
       <!-- Header -->
       <div style="background:#003a70;padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">${brandName}</h1>
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;font-family:'Raleway', sans-serif;">${brandName}</h1>
       </div>
 
       <!-- Body -->
       <div style="padding:40px 32px;text-align:center;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Verification Code</h2>
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">Verification Code</h2>
         
         <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
           You recently requested to sign in to your <strong>${brandName}</strong> account. Use the code below to complete your verification.
@@ -471,6 +478,8 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
 
     </div>
   </div>
+  </body>
+  </html>
   `
   
   const isDevelopment = process.env.NODE_ENV !== 'production'

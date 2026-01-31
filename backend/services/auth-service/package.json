@@ -24,7 +24,8 @@
     "mongoose": "^9.0.0",
     "node-cron": "^3.0.3",
     "qrcode": "^1.5.4",
-    "ipfs-http-client": "^60.0.0"
+    "ipfs-http-client": "^60.0.0",
+    "@pinata/sdk": "^2.0.0"
   },
   "optionalDependencies": {
     "cookie-parser": "^1.4.7",

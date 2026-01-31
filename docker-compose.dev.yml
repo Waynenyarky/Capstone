@@ -68,3 +68,16 @@ services:
       # Mount global .env file
       - ./.env:/app/.env
     command: npm start
+
+  # AI Service - Development Mode (Python/FastAPI)
+  ai-service:
+    volumes:
+      # Mount source code for hot-reload
+      - ./backend/services/ai-service/src:/app/src
+      # Keep model volume mount from main compose file
+      - ./ai/models/id_verification:/app/models:ro
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+    # Use uvicorn with reload for auto-restart on file changes
+    command: uvicorn src.main:app --host 0.0.0.0 --port 3005 --reload

@@ -7,36 +7,76 @@
 const logger = require('./logger')
 
 let ipfsClient = null
+let pinataClient = null
 let isInitialized = false
 let ipfsModule = null
+let currentProvider = 'local'
 
 /**
  * Initialize IPFS client
  */
 async function initialize() {
   try {
-    // Dynamic import for ES module
-    if (!ipfsModule) {
-      ipfsModule = await import('ipfs-http-client');
-    }
-    const { create } = ipfsModule;
-    
     const provider = process.env.IPFS_PROVIDER || 'local'
+    currentProvider = provider
     const apiUrl = process.env.IPFS_API_URL || 'http://127.0.0.1:5001'
     const gatewayUrl = process.env.IPFS_GATEWAY_URL || 'http://127.0.0.1:8080/ipfs/'
 
     if (provider === 'pinata') {
-      // Pinata IPFS service
+      // Pinata IPFS service - supports both JWT (modern) and API Key + Secret (legacy)
+      const pinataJwt = process.env.PINATA_JWT || process.env.PINATA_JWT_SECRET
       const pinataApiKey = process.env.PINATA_API_KEY
       const pinataSecretKey = process.env.PINATA_SECRET_KEY
       
-      if (!pinataApiKey || !pinataSecretKey) {
-        logger.warn('IPFS: Pinata credentials not configured, using local node')
-        ipfsClient = create({ url: apiUrl })
-      } else {
-        // Pinata uses their own API, not standard IPFS HTTP client
-        // For now, fallback to local node
-        logger.warn('IPFS: Pinata integration not yet implemented, using local node')
+      // Prefer JWT authentication (modern method)
+      if (pinataJwt) {
+        try {
+          const pinataSDK = require('@pinata/sdk')
+          // Initialize with JWT
+          pinataClient = new pinataSDK({ pinataJWTKey: pinataJwt })
+          
+          // Test connection
+          const testResult = await pinataClient.testAuthentication()
+          if (testResult.authenticated) {
+            logger.info('IPFS: Pinata authenticated successfully with JWT')
+            isInitialized = true
+            return
+          } else {
+            throw new Error('Pinata JWT authentication failed')
+          }
+        } catch (pinataError) {
+          logger.error('IPFS: Failed to initialize Pinata with JWT, trying API Key method', { error: pinataError.message })
+          // Fall through to try API Key + Secret method
+        }
+      }
+      
+      // Fallback to API Key + Secret Key (legacy method)
+      if (!pinataClient && pinataApiKey && pinataSecretKey) {
+        try {
+          const pinataSDK = require('@pinata/sdk')
+          pinataClient = new pinataSDK(pinataApiKey, pinataSecretKey)
+          
+          // Test connection
+          const testResult = await pinataClient.testAuthentication()
+          if (testResult.authenticated) {
+            logger.info('IPFS: Pinata authenticated successfully with API Key')
+            isInitialized = true
+            return
+          } else {
+            throw new Error('Pinata API Key authentication failed')
+          }
+        } catch (pinataError) {
+          logger.error('IPFS: Failed to initialize Pinata with API Key, falling back to local node', { error: pinataError.message })
+        }
+      }
+      
+      // If both methods failed or no credentials provided, fallback to local node
+      if (!pinataClient) {
+        logger.warn('IPFS: Pinata credentials not configured or authentication failed, using local node')
+        if (!ipfsModule) {
+          ipfsModule = await import('ipfs-http-client');
+        }
+        const { create } = ipfsModule;
         ipfsClient = create({ url: apiUrl })
       }
     } else if (provider === 'infura') {
@@ -59,6 +99,10 @@ async function initialize() {
       }
     } else {
       // Local IPFS node (default)
+      if (!ipfsModule) {
+        ipfsModule = await import('ipfs-http-client');
+      }
+      const { create } = ipfsModule;
       ipfsClient = create({ url: apiUrl })
     }
 
@@ -74,7 +118,7 @@ async function initialize() {
  * Check if IPFS is available
  */
 function isAvailable() {
-  return isInitialized && ipfsClient !== null
+  return isInitialized && (ipfsClient !== null || pinataClient !== null)
 }
 
 /**
@@ -89,6 +133,27 @@ async function uploadFile(fileBuffer, fileName = '') {
   }
 
   try {
+    // Use Pinata if configured
+    if (currentProvider === 'pinata' && pinataClient) {
+      const readable = require('stream').Readable.from(fileBuffer)
+      const options = {
+        pinataMetadata: {
+          name: fileName || `file-${Date.now()}`
+        },
+        pinataOptions: {
+          cidVersion: 1
+        }
+      }
+      
+      const result = await pinataClient.pinFileToIPFS(readable, options)
+      const cid = result.IpfsHash
+      const size = fileBuffer.length
+
+      logger.info('File uploaded to Pinata IPFS', { cid, size, fileName })
+      return { cid, size }
+    }
+    
+    // Use standard IPFS client (local or Infura)
     const result = await ipfsClient.add({
       path: fileName || `file-${Date.now()}`,
       content: fileBuffer
@@ -122,6 +187,26 @@ async function uploadJSON(data) {
     const jsonString = JSON.stringify(data)
     const jsonBuffer = Buffer.from(jsonString, 'utf8')
     
+    // Use Pinata if configured
+    if (currentProvider === 'pinata' && pinataClient) {
+      const options = {
+        pinataMetadata: {
+          name: `data-${Date.now()}.json`
+        },
+        pinataOptions: {
+          cidVersion: 1
+        }
+      }
+      
+      const result = await pinataClient.pinJSONToIPFS(data, options)
+      const cid = result.IpfsHash
+      const size = jsonBuffer.length
+
+      logger.info('JSON data uploaded to Pinata IPFS', { cid, size })
+      return { cid, size }
+    }
+    
+    // Use standard IPFS client (local or Infura)
     const result = await ipfsClient.add({
       path: `data-${Date.now()}.json`,
       content: jsonBuffer
@@ -152,6 +237,17 @@ async function getFile(cid) {
   }
 
   try {
+    // For Pinata, we use the gateway to retrieve files
+    if (currentProvider === 'pinata' && pinataClient) {
+      const axios = require('axios')
+      const gatewayUrl = getGatewayUrl(cid)
+      const response = await axios.get(gatewayUrl, { responseType: 'arraybuffer' })
+      const fileBuffer = Buffer.from(response.data)
+      logger.info('File retrieved from Pinata IPFS', { cid, size: fileBuffer.length })
+      return fileBuffer
+    }
+    
+    // Use standard IPFS client (local or Infura)
     const chunks = []
     for await (const chunk of ipfsClient.cat(cid)) {
       chunks.push(chunk)
@@ -177,6 +273,15 @@ async function pinFile(cid) {
   }
 
   try {
+    // Pinata automatically pins files on upload, but we can verify
+    if (currentProvider === 'pinata' && pinataClient) {
+      // Pinata pins automatically on upload, but we can add it again if needed
+      // This is mostly a no-op for Pinata since files are auto-pinned
+      logger.info('File already pinned on Pinata (auto-pinned on upload)', { cid })
+      return
+    }
+    
+    // Use standard IPFS client (local or Infura)
     await ipfsClient.pin.add(cid)
     logger.info('File pinned to IPFS', { cid })
   } catch (error) {
@@ -196,6 +301,14 @@ async function unpinFile(cid) {
   }
 
   try {
+    // Use Pinata if configured
+    if (currentProvider === 'pinata' && pinataClient) {
+      await pinataClient.unpin(cid)
+      logger.info('File unpinned from Pinata IPFS', { cid })
+      return
+    }
+    
+    // Use standard IPFS client (local or Infura)
     await ipfsClient.pin.rm(cid)
     logger.info('File unpinned from IPFS', { cid })
   } catch (error) {
@@ -210,8 +323,18 @@ async function unpinFile(cid) {
  * @returns {string} Gateway URL
  */
 function getGatewayUrl(cid) {
+  // Use Pinata's public gateway if using Pinata
+  if (currentProvider === 'pinata') {
+    // Pinata's public gateway (free, no auth required for reads)
+    const pinataGateway = process.env.PINATA_GATEWAY_URL || 'https://gateway.pinata.cloud/ipfs/'
+    return `${pinataGateway}${cid}`
+  }
+  
+  // Use configured gateway or default to local
   const gatewayUrl = process.env.IPFS_GATEWAY_URL || 'http://127.0.0.1:8080/ipfs/'
-  return `${gatewayUrl}${cid}`
+  // Ensure gateway URL ends with / if it doesn't already
+  const cleanGateway = gatewayUrl.endsWith('/') ? gatewayUrl : `${gatewayUrl}/`
+  return `${cleanGateway}${cid}`
 }
 
 // Auto-initialize on module load (async)

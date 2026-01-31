@@ -1,6 +1,6 @@
 // UserSignUpForm.jsx
 import React from 'react'
-import { Form, Input, Card, Flex, Button, Checkbox, Typography, Row, Col, Grid } from 'antd'
+import { ConfigProvider, Form, Input, Card, Flex, Button, Checkbox, Typography, Row, Col, Grid } from 'antd'
 import { useNavigate, Link } from 'react-router-dom'
 
 import { useUserSignUp, useUserSignUpFlow } from '@/features/authentication/hooks'
@@ -60,39 +60,26 @@ export default function UserSignUpForm({ extraContent }) {
   }
 
   return (
-    <div style={{ width: '100%' }}>
-      <div style={{ textAlign: 'center', marginBottom: isMobile ? 28 : 32 }}>
-        <Title level={2} style={{ marginBottom: isMobile ? 6 : 8, fontWeight: 700, fontSize: isMobile ? 26 : undefined }}>Register</Title>
-        <Text type="secondary" style={{ fontSize: isMobile ? 14 : 15 }}>Create your account to get started</Text>
-      </div>
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       {extraContent && (
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: isMobile ? 20 : 24 }}>
           {extraContent}
         </div>
       )}
 
-      <Form name="userSignUp" form={form} layout="vertical" onFinish={handleFinish} size="large" requiredMark={false}>
-        <Row gutter={isMobile ? 16 : 24}>
-          <Col xs={24} md={12}>
-            <Form.Item name="firstName" label={<Text strong>First Name</Text>} rules={firstNameRules} style={{ marginBottom: isMobile ? 20 : 24 }}>
+        <Form name="userSignUp" form={form} layout="vertical" onFinish={handleFinish} size="default" requiredMark={false} style={{ maxWidth: '300px'}}>
+            <Title level={isMobile ? 4 : 3} style={{ marginBottom: 20, textAlign: 'center' }}>Register An Account</Title>
+            <Form.Item name="firstName" label="First Name" rules={firstNameRules}>
               <Input placeholder="First name" variant="filled" />
             </Form.Item>
-          </Col>
-          <Col xs={24} md={12}>
-            <Form.Item name="lastName" label={<Text strong>Last Name</Text>} rules={lastNameRules} style={{ marginBottom: isMobile ? 20 : 24 }}>
+            <Form.Item name="lastName" label="Last Name" rules={lastNameRules}>
               <Input placeholder="Last name" variant="filled" />
             </Form.Item>
-          </Col>
-        </Row>
 
-        <Row gutter={isMobile ? 16 : 24}>
-          <Col xs={24} md={12}>
-            <Form.Item name="email" label={<Text strong>Email</Text>} rules={emailRules} style={{ marginBottom: isMobile ? 20 : 24 }}>
+            <Form.Item name="email" label="Email" rules={emailRules}>
               <Input placeholder="Email address" variant="filled" />
             </Form.Item>
-          </Col>
-          <Col xs={24} md={12}>
-            <Form.Item name="phoneNumber" label={<Text strong>Phone Number</Text>} rules={phoneNumberRules} style={{ marginBottom: isMobile ? 20 : 24 }}>
+            <Form.Item name="phoneNumber" label="Phone Number" rules={phoneNumberRules}>
               <Input
                 placeholder="Mobile number"
                 inputMode="numeric"
@@ -103,19 +90,14 @@ export default function UserSignUpForm({ extraContent }) {
                 variant="filled"
               />
             </Form.Item>
-          </Col>
-        </Row>
 
-        <Row gutter={isMobile ? 16 : 24}>
-          <Col xs={24} md={12}>
-            <Form.Item name="password" label={<Text strong>Password</Text>} rules={passwordRules} style={{ marginBottom: isMobile ? 20 : 24 }}>
+
+            <Form.Item name="password" label="Password" rules={passwordRules}>
               <Input.Password placeholder="Create password" variant="filled" />
             </Form.Item>
-          </Col>
-          <Col xs={24} md={12}>
             <Form.Item
               name="confirmPassword"
-              label={<Text strong>Confirm Password</Text>}
+              label="Confirm Password"
               dependencies={["password"]}
               hasFeedback
               rules={signUpConfirmPasswordRules}
@@ -123,17 +105,15 @@ export default function UserSignUpForm({ extraContent }) {
             >
               <Input.Password placeholder="Confirm password" variant="filled" />
             </Form.Item>
-          </Col>
-        </Row>
 
         <Form.Item name="termsAndConditions" valuePropName="checked" rules={termsRules} style={{ marginBottom: isMobile ? 20 : 24 }}>
           <Checkbox style={{ fontSize: isMobile ? 13 : undefined }}>
-            I have read and agree to the <Link to="/terms" style={{ color: '#001529', textDecoration: 'underline', fontWeight: 600 }}>Terms of Service</Link> and <Link to="/privacy" style={{ color: '#001529', textDecoration: 'underline', fontWeight: 600 }}>Privacy Policy</Link>.
+            I have read and agree to the <Link to="/terms" style={{ color: '#001529', textDecoration: 'underline'}}>Terms of Service</Link> and <Link to="/privacy" style={{ color: '#001529', textDecoration: 'underline' }}>Privacy Policy</Link>.
           </Checkbox>
         </Form.Item>
 
         <Form.Item style={{ marginBottom: isMobile ? 16 : 20 }}>
-          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block size="large">
+          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block size="default">
             Continue
           </Button>
         </Form.Item>

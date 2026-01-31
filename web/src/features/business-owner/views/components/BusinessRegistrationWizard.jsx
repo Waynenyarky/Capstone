@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Steps, Form, Input, Button, DatePicker, Select, Upload, Checkbox, Card, Typography, Row, Col, Spin, Alert, theme, Tabs, Space, Divider, Tooltip } from 'antd'
-import { UploadOutlined, SafetyCertificateOutlined, IdcardOutlined, MobileOutlined, FileTextOutlined, CheckCircleOutlined, UserOutlined, LockOutlined, SecurityScanOutlined, CopyOutlined } from '@ant-design/icons'
+import { Steps, Form, Input, Button, Select, Upload, Checkbox, Card, Typography, Row, Col, Spin, Alert, theme, Tabs, Space, Divider, Tooltip, Grid } from 'antd'
+import { UploadOutlined, SafetyCertificateOutlined, MobileOutlined, FormOutlined, CheckCircleOutlined, LockOutlined, SecurityScanOutlined, CopyOutlined } from '@ant-design/icons'
 import { useBusinessRegistration } from '../../hooks/useBusinessRegistration'
 import { useAuthSession } from '@/features/authentication'
 import { useMfaSetup } from '@/features/authentication/hooks'
@@ -9,15 +9,20 @@ import { mfaStatus } from '@/features/authentication/services/mfaService'
 import PasskeyStatusCard from '@/features/authentication/presentation/passkey/components/PasskeyStatusCard'
 import PasskeyList from '@/features/authentication/presentation/passkey/components/PasskeyList'
 import QrDisplay from '@/features/authentication/views/components/QrDisplay'
+import IdVerificationStatus from './IdVerificationStatus'
+import IdentityVerificationForm from './IdentityVerificationForm'
 
 const { Title, Paragraph, Text } = Typography
 const { Option } = Select
+const { useBreakpoint } = Grid
 const { TextArea } = Input
 
 // MFA Step Component
 function MfaStepContent({ onMfaStatusChange }) {
   const { currentUser } = useAuthSession()
   const { token } = theme.useToken()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const [activeTab, setActiveTab] = useState('passkey')
   const [mfaEnabled, setMfaEnabled] = useState(false)
   const [passkeyEnabled, setPasskeyEnabled] = useState(false)
@@ -107,7 +112,7 @@ function MfaStepContent({ onMfaStatusChange }) {
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <SecurityScanOutlined style={{ fontSize: 48, color: token.colorPrimary, marginBottom: 16 }} />
-        <Title level={3} style={{ marginBottom: 8, color: '#001529' }}>Secure Your Account</Title>
+        <Title level={isMobile ? 4 : 3} style={{ marginBottom: 20, textAlign: 'center', color: '#001529' }}>Secure Your Account</Title>
         <Typography.Paragraph type="secondary" style={{ fontSize: 16, maxWidth: 600, margin: '0 auto' }}>
           Set up multi-factor authentication to add an extra layer of security to your account. You can choose Passkey Authentication, Two-Factor Authentication (TOTP), or both. <strong>Register at least one method to proceed with "Next Step", or use "Skip" to continue without MFA.</strong>
         </Typography.Paragraph>
@@ -352,258 +357,84 @@ export default function BusinessRegistrationWizard({ onComplete }) {
     form,
     idFileUrl,
     idFileBackUrl,
+    profileData,
     handleNext,
     handlePrev,
-    handleStepClick
+    handleStepClick,
+    refreshProfile
   } = useBusinessRegistration({ onComplete })
   const { token } = theme.useToken()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const [mfaComplete, setMfaComplete] = useState(false)
 
   const renderStepContent = () => {
     switch (currentStep) {
       case 0: // Welcome
         return (
-          <div style={{ padding: '40px 60px' }}>
-            <div style={{ textAlign: 'center', marginBottom: 48 }}>
-              <SafetyCertificateOutlined style={{ fontSize: 56, color: token.colorPrimary, marginBottom: 24, filter: `drop-shadow(0 4px 6px ${token.colorPrimary}33)` }} />
-              <Title level={2} style={{ color: token.colorTextHeading, margin: '0 0 8px', letterSpacing: '-0.5px' }}>Welcome to BizClear Registration</Title>
-              <Typography.Paragraph type="secondary" style={{ fontSize: 18, maxWidth: 600, margin: '0 auto', lineHeight: '1.6' }}>
-                Complete your registration efficiently and securely in just a few steps.
-              </Typography.Paragraph>
+          <div style={{ padding: isMobile ? '24px 16px' : '40px 60px' }}>
+            <div style={{ textAlign: 'center', marginBottom: 40 }}>
+              <div
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: '50%',
+                  border: `1px solid ${token.colorBorder}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 20px',
+                  color: token.colorPrimary
+                }}
+              >
+                <FormOutlined style={{ fontSize: 32 }} />
+              </div>
+              <Title level={isMobile ? 4 : 3} style={{ marginBottom: 20, textAlign: 'center', color: token.colorTextHeading }}>
+                Continue your registration
+              </Title>
             </div>
 
-            <Alert
-              message={<span style={{ fontWeight: 600 }}>Before you start</span>}
-              description="Please ensure you have the following documents ready to complete the registration process."
-              type="info"
-              showIcon
-              style={{ marginBottom: 40, borderRadius: 8, border: `1px solid ${token.colorInfoBg}`, background: token.colorInfoBg }}
-            />
-
-            <Row gutter={[32, 32]}>
-              <Col xs={24} md={8}>
-                <Card 
-                  hoverable 
-                  variant="borderless"
-                  style={{ height: '100%', borderRadius: 16, border: `1px solid ${token.colorBorderSecondary}`, transition: 'all 0.3s' }}
-                  styles={{ body: { padding: 32, textAlign: 'center' } }}
-                >
-                  <div style={{ 
-                    marginBottom: 24, 
-                    background: token.colorBgContainer, 
-                    width: 80, 
-                    height: 80, 
-                    borderRadius: '50%', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    margin: '0 auto 24px',
-                    boxShadow: '0 8px 20px rgba(0,0,0,0.06)',
-                    border: `1px solid ${token.colorBorder}`
-                  }}>
-                    <IdcardOutlined style={{ fontSize: 36, color: token.colorPrimary }} />
-                  </div>
-                  <Title level={5} style={{ marginBottom: 12, color: token.colorTextHeading, fontWeight: 600 }}>Valid Government ID</Title>
-                  <Typography.Text type="secondary" style={{ fontSize: 14, lineHeight: '1.5' }}>
-                    Driver's License, Passport, SSS, or other valid government-issued IDs.
-                  </Typography.Text>
-                </Card>
-              </Col>
-              <Col xs={24} md={8}>
-                <Card 
-                  hoverable 
-                  variant="borderless"
-                  style={{ height: '100%', borderRadius: 16, border: `1px solid ${token.colorBorderSecondary}`, transition: 'all 0.3s' }}
-                  styles={{ body: { padding: 32, textAlign: 'center' } }}
-                >
-                  <div style={{ 
-                    marginBottom: 24, 
-                    background: token.colorBgContainer, 
-                    width: 80, 
-                    height: 80, 
-                    borderRadius: '50%', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    margin: '0 auto 24px',
-                    boxShadow: '0 8px 20px rgba(0,0,0,0.06)',
-                    border: `1px solid ${token.colorBorder}`
-                  }}>
-                    <FileTextOutlined style={{ fontSize: 36, color: token.colorPrimary }} />
-                  </div>
-                  <Title level={5} style={{ marginBottom: 12, color: token.colorTextHeading, fontWeight: 600 }}>Digital Documents</Title>
-                  <Typography.Text type="secondary" style={{ fontSize: 14, lineHeight: '1.5' }}>
-                    Clear, readable digital copies (Front & Back) of your identification.
-                  </Typography.Text>
-                </Card>
-              </Col>
-              <Col xs={24} md={8}>
-                <Card 
-                  hoverable 
-                  variant="borderless"
-                  style={{ height: '100%', borderRadius: 16, border: `1px solid ${token.colorBorderSecondary}`, transition: 'all 0.3s' }}
-                  styles={{ body: { padding: 32, textAlign: 'center' } }}
-                >
-                  <div style={{ 
-                    marginBottom: 24, 
-                    background: token.colorBgContainer, 
-                    width: 80, 
-                    height: 80, 
-                    borderRadius: '50%', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    margin: '0 auto 24px',
-                    boxShadow: '0 8px 20px rgba(0,0,0,0.06)',
-                    border: `1px solid ${token.colorBorder}`
-                  }}>
-                    <UserOutlined style={{ fontSize: 36, color: token.colorPrimary }} />
-                  </div>
-                  <Title level={5} style={{ marginBottom: 12, color: token.colorTextHeading, fontWeight: 600 }}>Personal Information</Title>
-                  <Typography.Text type="secondary" style={{ fontSize: 14, lineHeight: '1.5' }}>
-                    Your full legal name, date of birth, and active mobile number.
-                  </Typography.Text>
-                </Card>
-              </Col>
-            </Row>
-
-            <div style={{ marginTop: 48, textAlign: 'center' }}>
-               <div style={{ display: 'inline-flex', alignItems: 'center', background: '#ffffff', padding: '10px 24px', borderRadius: 30, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #f0f0f0' }}>
-                 <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8, fontSize: 16 }} /> 
-                 <Typography.Text strong style={{ color: '#595959' }}>Estimated time to complete: 5-10 minutes</Typography.Text>
-               </div>
-            </div>
+            <Card
+              variant="borderless"
+              style={{
+                maxWidth: 520,
+                margin: '0 auto',
+                borderRadius: 16,
+                border: `1px solid ${token.colorBorderSecondary}`,
+                background: token.colorFillQuaternary
+              }}
+              styles={{ body: { padding: 24 } }}
+            >
+              <Title level={5} style={{ marginBottom: 16, color: token.colorTextHeading, fontWeight: 600 }}>
+                What you&apos;ll need
+              </Title>
+              <ul
+                style={{
+                  margin: 0,
+                  paddingLeft: 20,
+                  listStyleType: 'disc',
+                  color: token.colorTextSecondary
+                }}
+              >
+                <li style={{ padding: '4px 0' }}>Valid government-issued ID (Driver&apos;s License, Passport, SSS, etc.)</li>
+                <li style={{ padding: '4px 0' }}>Front and back copies — PDF, JPG, or PNG only; max 5 MB per file</li>
+                <li style={{ padding: '4px 0' }}>Clear, readable; no blur or glare; full document visible</li>
+                <li style={{ padding: '4px 0' }}>ID must be valid (not expired)</li>
+              </ul>
+            </Card>
           </div>
         )
       
       case 1: // Identity
         return (
-          <>
-            <Title level={3} style={{ marginBottom: 32, color: '#001529' }}>Identity Verification</Title>
-            <div style={{ background: '#f8f9fa', padding: 24, borderRadius: 8, marginBottom: 32 }}>
-              <Title level={5} style={{ marginTop: 0 }}>Personal Information</Title>
-              <Row gutter={24}>
-                <Col span={8}>
-                  <Form.Item name="firstName" label="First Name" rules={[{ required: true, message: 'Required' }]}>
-                    <Input placeholder="First Name" />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item name="middleName" label="Middle Name" rules={[{ required: true, message: 'Required' }]}>
-                    <Input placeholder="Middle Name" />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item name="lastName" label="Last Name" rules={[{ required: true, message: 'Required' }]}>
-                    <Input placeholder="Last Name" />
-                  </Form.Item>
-                </Col>
-              </Row>
-              <Row gutter={24}>
-                <Col span={8}>
-                  <Form.Item name="dateOfBirth" label="Date of Birth" rules={[{ required: true, message: 'Required' }]}>
-                    <DatePicker style={{ width: '100%' }} format="MM/DD/YYYY" placeholder="Select Date" />
-                  </Form.Item>
-                </Col>
-                <Col span={16}>
-                  <Form.Item name="mobileNumber" label="Mobile Number" rules={[
-                    { required: true, message: 'Mobile number required' },
-                    { pattern: /^[9]\d{9}$/, message: 'Please enter a valid mobile number starting with 9 (e.g., 9123456789)' }
-                  ]}>
-                     <Input prefix="+63" placeholder="9123456789" />
-                  </Form.Item>
-                </Col>
-              </Row>
-            </div>
-
-            <div style={{ background: '#f8f9fa', padding: 24, borderRadius: 8 }}>
-              <Title level={5} style={{ marginTop: 0 }}>Valid Identification</Title>
-              <Row gutter={24}>
-                <Col span={12}>
-                  <Form.Item name="idType" label="ID Type" rules={[{ required: true }]}>
-                    <Select placeholder="Select ID Type">
-                      <Option value="drivers_license">Driver's License</Option>
-                      <Option value="passport">Passport</Option>
-                      <Option value="sss_id">SSS ID</Option>
-                      <Option value="umid">UMID</Option>
-                      <Option value="prc_id">PRC ID</Option>
-                      <Option value="philsys_id">PhilSys ID</Option>
-                      <Option value="voters_id">Voter's ID</Option>
-                      <Option value="postal_id">Postal ID</Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item name="idNumber" label="ID Number" rules={[{ required: true }]}>
-                    <Input placeholder="Enter ID Number" />
-                  </Form.Item>
-                </Col>
-              </Row>
-              
-              <Row gutter={24}>
-                <Col span={12}>
-                  <Form.Item 
-                    name="idFileUrl" 
-                    label="Front of ID" 
-                    valuePropName="fileList" 
-                    getValueFromEvent={(e) => {
-                      if (Array.isArray(e)) {
-                        return e;
-                      }
-                      return e && e.fileList && e.fileList.slice(-1);
-                    }}
-                    rules={[{ required: true, message: 'Front ID is required' }]}
-                  >
-                    <Upload 
-                      name="idFile" 
-                      action="/api/upload" 
-                      listType="picture-card" 
-                      maxCount={1} 
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      beforeUpload={() => false} 
-                    >
-                      {idFileUrl && idFileUrl.length >= 1 ? null : (
-                        <div>
-                          <UploadOutlined />
-                          <div style={{ marginTop: 8 }}>Upload Front</div>
-                        </div>
-                      )}
-                    </Upload>
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item 
-                    name="idFileBackUrl" 
-                    label="Back of ID" 
-                    valuePropName="fileList" 
-                    getValueFromEvent={(e) => {
-                      if (Array.isArray(e)) {
-                        return e;
-                      }
-                      return e && e.fileList && e.fileList.slice(-1);
-                    }}
-                    rules={[{ required: true, message: 'Back ID is required' }]}
-                  >
-                    <Upload 
-                      name="idFileBack" 
-                      action="/api/upload" 
-                      listType="picture-card" 
-                      maxCount={1} 
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      beforeUpload={() => false}
-                    >
-                      {idFileBackUrl && idFileBackUrl.length >= 1 ? null : (
-                        <div>
-                          <UploadOutlined />
-                          <div style={{ marginTop: 8 }}>Upload Back</div>
-                        </div>
-                      )}
-                    </Upload>
-                  </Form.Item>
-                </Col>
-              </Row>
-            </div>
-          </>
+          <div>
+            <IdentityVerificationForm
+              form={form}
+              profileData={profileData}
+              refreshProfile={refreshProfile}
+              isMobile={isMobile}
+            />
+          </div>
         )
 
       case 2: // MFA Setup
@@ -612,7 +443,7 @@ export default function BusinessRegistrationWizard({ onComplete }) {
       case 3: // Legal Consent (Moved from Step 2)
         return (
           <div style={{ maxWidth: 700, margin: '0 auto' }}>
-            <Title level={3} style={{ marginBottom: 32, textAlign: 'center', color: '#001529' }}>Legal Consent</Title>
+            <Title level={isMobile ? 4 : 3} style={{ marginBottom: 20, textAlign: 'center', color: '#001529' }}>Legal Consent</Title>
             <div style={{ background: '#f8f9fa', padding: 32, borderRadius: 8 }}>
               <div style={{ marginBottom: 24 }}>
                 <Title level={5}>1. Information Accuracy</Title>
@@ -671,26 +502,37 @@ export default function BusinessRegistrationWizard({ onComplete }) {
       variant="borderless" 
       style={{ 
         maxWidth: 900, 
-        margin: '24px auto', 
-        borderRadius: 8,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+        margin: isMobile ? '0px' : '24px auto', 
+        borderRadius: isMobile ? 0 : 8,
+        boxShadow: isMobile ? 'none' : '0 4px 12px rgba(0,0,0,0.05)',
+        background: isMobile ? 'transparent' : undefined,
       }}
-      styles={{ body: { padding: '40px 48px' } }}
+      styles={{ body: { padding: isMobile ? '16px' : '40px 48px' } }}
     >
-      <div style={{ marginBottom: 48 }}>
-        <Steps 
-          current={currentStep} 
-          size="default"
-          labelPlacement="horizontal"
-          onChange={(step) => {
-            handleStepClick(step)
-          }}
-          items={steps.map(s => ({ 
-            ...s, 
-            status: currentStep === steps.indexOf(s) ? 'process' : (currentStep > steps.indexOf(s) ? 'finish' : 'wait') 
-          }))}
-        />
-      </div>
+      {!isMobile && (
+        <div className="business-registration-steps" style={{ marginBottom: 48, overflow: 'hidden' }}>
+          <style>{`
+            .business-registration-steps .ant-steps-item-finish .ant-steps-item-icon .anticon-check {
+              color: #fff !important;
+            }
+            .business-registration-steps .ant-steps-item-finish .ant-steps-item-icon .anticon-check svg {
+              fill: #fff;
+            }
+          `}</style>
+          <Steps 
+            current={currentStep} 
+            size="default"
+            labelPlacement="horizontal"
+            onChange={(step) => {
+              handleStepClick(step)
+            }}
+            items={steps.map(s => ({ 
+              ...s, 
+              status: currentStep === steps.indexOf(s) ? 'process' : (currentStep > steps.indexOf(s) ? 'finish' : 'wait') 
+            }))}
+          />
+        </div>
+      )}
       
       {fetching ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 80 }}>
@@ -703,22 +545,44 @@ export default function BusinessRegistrationWizard({ onComplete }) {
           form={form}
           layout="vertical"
           onFinish={handleNext}
-          size="large"
+          size="default"
           requiredMark="optional"
         >
-          <div style={{ minHeight: 400 }}>
+          <div style={{ minHeight: 400, paddingBottom: isMobile ? 80 : 0 }}>
             {renderStepContent()}
           </div>
 
-          <div style={{ marginTop: 40, paddingTop: 24, borderTop: '1px solid #f0f0f0', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+          <div style={{ 
+            marginTop: isMobile ? 24 : 40, 
+            paddingTop: isMobile ? 16 : 24, 
+            paddingBottom: isMobile ? 16 : 0,
+            paddingLeft: isMobile ? 16 : 0,
+            paddingRight: isMobile ? 16 : 0,
+            borderTop: '1px solid #f0f0f0', 
+            textAlign: 'right', 
+            display: 'flex', 
+            justifyContent: 'flex-end', 
+            gap: 12,
+            // Sticky footer on mobile
+            ...(isMobile && {
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              background: '#fff',
+              boxShadow: '0 -2px 8px rgba(0,0,0,0.1)',
+              zIndex: 100,
+              margin: 0,
+            })
+          }}>
              {currentStep > 0 && (
-              <Button size="large" onClick={handlePrev}>
+              <Button size="default" onClick={handlePrev}>
                 Previous
               </Button>
             )}
             {currentStep === 2 && (
               <Button 
-                size="large" 
+                size="default" 
                 onClick={handleNext}
                 loading={loading}
               >
@@ -729,7 +593,7 @@ export default function BusinessRegistrationWizard({ onComplete }) {
               type="primary" 
               htmlType="submit" 
               loading={loading} 
-              size="large"
+              size="default"
               disabled={currentStep === 2 && !mfaComplete}
               style={{ 
                 minWidth: 120,
@@ -737,7 +601,7 @@ export default function BusinessRegistrationWizard({ onComplete }) {
                 borderColor: currentStep === 2 && !mfaComplete ? '#d9d9d9' : '#001529'
               }}
             >
-              {currentStep === 0 ? 'Get Started' : (currentStep === steps.length - 1 ? 'Submit Registration' : 'Next Step')}
+              {currentStep === 0 ? 'Get Started' : currentStep === 1 ? 'Verify & Continue' : (currentStep === steps.length - 1 ? 'Submit Registration' : 'Next Step')}
             </Button>
           </div>
         </Form>

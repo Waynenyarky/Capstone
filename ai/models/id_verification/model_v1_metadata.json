@@ -1,0 +1,47 @@
+{
+  "created_at": "2026-01-29T03:50:37.189477",
+  "model_version": "v1_20260129",
+  "base_model": "GradientBoosting",
+  "img_size": 64,
+  "class_names": [
+    "fake",
+    "legit"
+  ],
+  "metrics": {
+    "accuracy": 0.9811764705882353,
+    "auc": 0.9863384615384615,
+    "confusion_matrix": [
+      [
+        320,
+        5
+      ],
+      [
+        3,
+        97
+      ]
+    ],
+    "loss": 0.018823529411764683
+  },
+  "training_mode": "full",
+  "training_config": {
+    "epochs": 100,
+    "model_type": "sklearn_gradient_boosting"
+  },
+  "data_counts": {
+    "train_legit": 500,
+    "train_fake": 1613,
+    "val_legit": 100,
+    "val_fake": 325,
+    "total_train": 2113,
+    "total_val": 425,
+    "total": 2538
+  },
+  "fit_status": "good",
+  "fit_details": "Model accuracy: 98.12%. AUC: 0.9863",
+  "notes": [
+    "This model classifies images as legitimate ID documents or fake/wrong documents.",
+    "NO government database is used - classification is based on visual appearance only.",
+    "Training data consists of synthetic IDs and generated fake documents.",
+    "Uses sklearn GradientBoosting classifier for Apple Silicon compatibility."
+  ]
+}

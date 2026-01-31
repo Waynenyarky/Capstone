@@ -309,7 +309,6 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
   const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
   const supportEmail = process.env.SUPPORT_EMAIL || process.env.EMAIL_HOST_USER || 'support@bizclear.com'
   const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
-  const logoUrl = process.env.EMAIL_LOGO_URL || `${appUrl}/BizClear.png`
 
   const text = [
     'Hello,',
@@ -323,27 +322,25 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
     brandName
   ].join('\n')
   const html = `
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
     <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
       
       <!-- Header -->
       <div style="background:#003a70;padding:32px;text-align:center;">
-        ${logoUrl ? `
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:16px;">
-          <tr>
-            <td align="center">
-              <img src="${logoUrl}" alt="${brandName}" width="200" height="auto" style="max-width:200px;width:200px;height:auto;display:block;margin:0 auto;border:0;outline:none;text-decoration:none;" />
-            </td>
-          </tr>
-        </table>
-        ` : ''}
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">${brandName}</h1>
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;font-family:'Raleway', sans-serif;">${brandName}</h1>
       </div>
 
       <!-- Body -->
       <div style="padding:40px 32px;text-align:center;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Verification Code</h2>
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">Verification Code</h2>
         
         <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
           You recently requested to sign in to your <strong>${brandName}</strong> account. Use the code below to complete your verification.
@@ -392,6 +389,8 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
 
     </div>
   </div>
+  </body>
+  </html>
   `
   
   const isDevelopment = process.env.NODE_ENV !== 'production'
@@ -478,18 +477,25 @@ async function sendStaffCredentialsEmail({ to, username, tempPassword, office, r
   ].join('\n')
 
   const html = `
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
     <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
       
       <!-- Header -->
       <div style="background:#003a70;padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">${brandName} Staff Portal</h1>
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;font-family:'Raleway', sans-serif;">${brandName} Staff Portal</h1>
       </div>
 
       <!-- Body -->
       <div style="padding:40px 32px;text-align:center;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Welcome to the Team!</h2>
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">Welcome to the Team!</h2>
         
         <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
           Your staff account has been created. Use the credentials below to access the portal.
@@ -539,6 +545,8 @@ async function sendStaffCredentialsEmail({ to, username, tempPassword, office, r
 
     </div>
   </div>
+  </body>
+  </html>
   `
 
   try {
@@ -602,18 +610,25 @@ async function sendEmailChangeNotification({ to, oldEmail, newEmail, gracePeriod
   ].filter(Boolean).join('\n')
 
   const html = `
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
     <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
       
       <!-- Header -->
       <div style="background:#003a70;padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">${brandName}</h1>
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;font-family:'Raleway', sans-serif;">${brandName}</h1>
       </div>
 
       <!-- Body -->
       <div style="padding:40px 32px;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">${isOldEmail ? 'Email Change Requested' : 'Email Change Confirmed'}</h2>
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">${isOldEmail ? 'Email Change Requested' : 'Email Change Confirmed'}</h2>
         
         <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
           ${isOldEmail 
@@ -665,6 +680,8 @@ async function sendEmailChangeNotification({ to, oldEmail, newEmail, gracePeriod
       </div>
     </div>
   </div>
+  </body>
+  </html>
   `
 
   try {
@@ -713,18 +730,25 @@ async function sendPasswordChangeNotification({ to, firstName, lastName, timesta
   ].join('\n')
 
   const html = `
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
     <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
       
       <!-- Header -->
       <div style="background:#003a70;padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">${brandName}</h1>
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;font-family:'Raleway', sans-serif;">${brandName}</h1>
       </div>
 
       <!-- Body -->
       <div style="padding:40px 32px;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Password Changed Successfully</h2>
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">Password Changed Successfully</h2>
         
         <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
           Hello <strong>${firstName} ${lastName}</strong>,
@@ -764,6 +788,8 @@ async function sendPasswordChangeNotification({ to, firstName, lastName, timesta
       </div>
     </div>
   </div>
+  </body>
+  </html>
   `
 
   try {
@@ -818,18 +844,25 @@ async function sendAdminAlertEmail({ to, adminName, userId, userName, userEmail,
   ].join('\n')
 
   const html = `
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
     <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
       
       <!-- Header -->
       <div style="background:#ff4d4f;padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">🚨 Security Alert</h1>
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;font-family:'Raleway', sans-serif;">🚨 Security Alert</h1>
       </div>
 
       <!-- Body -->
       <div style="padding:40px 32px;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Restricted Field Attempt</h2>
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">Restricted Field Attempt</h2>
         
         <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
           Hello <strong>${adminName}</strong>,
@@ -877,6 +910,8 @@ async function sendAdminAlertEmail({ to, adminName, userId, userName, userEmail,
       </div>
     </div>
   </div>
+  </body>
+  </html>
   `
 
   try {
@@ -934,18 +969,25 @@ async function sendApprovalNotification({ to, adminName, approvalId, status, req
   ].filter(Boolean).join('\n')
 
   const html = `
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
     <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
       
       <!-- Header -->
       <div style="background:${status === 'approved' ? '#52c41a' : '#ff4d4f'};padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">${status === 'approved' ? '✅' : '❌'} Request ${statusText}</h1>
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;font-family:'Raleway', sans-serif;">${status === 'approved' ? '✅' : '❌'} Request ${statusText}</h1>
       </div>
 
       <!-- Body -->
       <div style="padding:40px 32px;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Approval Request ${statusText}</h2>
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">Approval Request ${statusText}</h2>
         
         <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
           Hello <strong>${adminName}</strong>,
@@ -998,6 +1040,8 @@ async function sendApprovalNotification({ to, adminName, approvalId, status, req
       </div>
     </div>
   </div>
+  </body>
+  </html>
   `
 
   try {

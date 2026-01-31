@@ -52,10 +52,10 @@ export default function HomeHeader() {
       </div>
       <Space size={screens.sm ? 'middle' : 'small'}>
         <Link to="/login">
-          <Button type="text" icon={<LoginOutlined />}>Log In</Button>
+          <Button>Log In</Button>
         </Link>
         <Link to="/sign-up">
-          <Button type="primary" style={{ background: '#003a70' }}>{screens.sm ? 'Register Business' : 'Register'}</Button>
+          <Button type="primary">{screens.sm ? 'Register Now' : 'Register'}</Button>
         </Link>
       </Space>
     </Header>

@@ -12,6 +12,9 @@ export function useSignUpVerificationForm({ onSubmit, email } = {}) {
   const [isSubmitting, setSubmitting] = useState(false)
   const [attempts, setAttempts] = useState(5)
   const attemptsRef = useRef(attempts)
+  const verifyingRef = useRef(false)
+  const verifiedSuccessRef = useRef(false)
+  const redirectTimeoutRef = useRef(null)
   const { success, error } = useNotifier()
   const { notification } = App.useApp()
 
@@ -19,7 +22,17 @@ export function useSignUpVerificationForm({ onSubmit, email } = {}) {
     attemptsRef.current = attempts
   }, [attempts])
 
+  useEffect(() => {
+    return () => {
+      if (redirectTimeoutRef.current) {
+        clearTimeout(redirectTimeoutRef.current)
+        redirectTimeoutRef.current = null
+      }
+    }
+  }, [])
+
   const handleFinish = async (values) => {
+    if (verifyingRef.current) return
     if (attemptsRef.current <= 0) {
       form.setFields([{ name: 'verificationCode', errors: ['Too many attempts, please request a new code'] }])
       return
@@ -74,9 +87,15 @@ export function useSignUpVerificationForm({ onSubmit, email } = {}) {
     
     const payload = { email, code }
     console.log('Verifying signup code with payload:', payload, 'Raw code type:', typeof values.verificationCode)
+    verifyingRef.current = true
     try {
       setSubmitting(true)
       const created = await verifySignupCode(payload)
+      if (redirectTimeoutRef.current) {
+        clearTimeout(redirectTimeoutRef.current)
+        redirectTimeoutRef.current = null
+      }
+      verifiedSuccessRef.current = true
       success('Code verified')
       form.resetFields()
       if (typeof onSubmit === 'function') onSubmit(created)
@@ -84,6 +103,8 @@ export function useSignUpVerificationForm({ onSubmit, email } = {}) {
       console.error('Signup verification error:', err)
       if (err.details) console.error('Validation details:', err.details)
       
+      if (verifiedSuccessRef.current) return
+
       // Safely extract and convert error message to string
       let errorMessage = ''
       try {
@@ -96,7 +117,7 @@ export function useSignUpVerificationForm({ onSubmit, email } = {}) {
       
       if (lower && lower.includes('email already exists')) {
         error('Email is already verified. Redirecting to login...')
-        setTimeout(() => navigate('/login'), 2000)
+        redirectTimeoutRef.current = setTimeout(() => navigate('/login'), 2000)
         return
       }
       
@@ -181,6 +202,7 @@ export function useSignUpVerificationForm({ onSubmit, email } = {}) {
         error(err, 'Failed to verify code')
       }
     } finally {
+      verifyingRef.current = false
       setSubmitting(false)
     }
   }

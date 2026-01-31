@@ -1,9 +1,11 @@
 import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuthSession } from '@/features/authentication'
 import { notifyUserSignedUp } from '@/features/admin/users/lib/usersEvents.js'
 
 export function useUserSignUpFlow() {
   const navigate = useNavigate()
+  const { login } = useAuthSession()
   const [step, setStep] = useState('form')
   const [emailForVerify, setEmailForVerify] = useState('')
   const [devCodeForVerify, setDevCodeForVerify] = useState('')
@@ -21,21 +23,33 @@ export function useUserSignUpFlow() {
   }, [])
 
   const handleVerificationSubmit = useCallback((created) => {
+    const user = created?.user ?? created
+    if (!user) {
+      notifyUserSignedUp(created)
+      navigate('/login', { replace: true })
+      return
+    }
+    const withToken = user.token ? user : { ...user, token: created?.token }
     try {
-      // We do not auto-login here because the user explicitly requested
-      // to be redirected to the Login page after verification.
-      // If we called login(user), they might be redirected to the dashboard instead.
-      /*
-      let user = created?.user || created
-      if (created?.token && user && !user.token) {
-        user = { ...user, token: created.token }
-      }
-      if (user) login(user, { remember: false })
-      */
+      login(withToken, { remember: false })
     } catch { /* ignore */ }
     notifyUserSignedUp(created)
-    navigate('/login')
-  }, [navigate])
+    const role = String(withToken?.role?.slug ?? withToken?.role ?? '').toLowerCase()
+    if (role === 'admin') {
+      navigate('/admin/dashboard', { replace: true })
+      return
+    }
+    if (role === 'business_owner') {
+      navigate('/owner', { replace: true })
+      return
+    }
+    const staffRoles = ['staff', 'lgu_manager', 'lgu_officer', 'inspector', 'cso']
+    if (staffRoles.includes(role)) {
+      navigate(withToken?.mustChangeCredentials || withToken?.mustSetupMfa ? '/staff/onboarding' : '/staff', { replace: true })
+      return
+    }
+    navigate('/owner', { replace: true })
+  }, [navigate, login])
 
   return { step, emailForVerify, devCodeForVerify, verifyEmail, resetFlow, handleVerificationSubmit }
 }
