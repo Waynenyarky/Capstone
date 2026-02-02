@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
+import '../../../core/theme/bizclear_colors.dart';
 import '../../../domain/usecases/enable_mfa.dart';
 import '../../../domain/usecases/verify_mfa.dart';
 import 'disable_mfa_page.dart';
@@ -891,7 +892,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
               pasting = true;
               final data = await Clipboard.getData('text/plain');
               final raw = data?.text ?? '';
-              final d = raw.replaceAll(RegExp(r'\\D'), '');
+              final d = raw.replaceAll(RegExp(r'\D'), '');
               if (d.length >= 6) {
                 for (int i = 0; i < 6; i++) {
                   controllers[i].text = d[i];
@@ -900,29 +901,52 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
               }
               pasting = false;
             }
-            Widget otpBox(int i, void Function(void Function()) setState) {
-              return Container(
-                width: 50,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: error != null
-                        ? Colors.red
-                        : (nodes[i].hasFocus ? Colors.blue : Colors.grey.shade300),
-                    width: error != null || nodes[i].hasFocus ? 2 : 1.5,
-                  ),
-                ),
+            Widget otpBox(int i, void Function(void Function()) setState, double boxSize) {
+              return SizedBox(
+                width: boxSize,
+                height: boxSize * 1.2,
                 child: TextField(
                   controller: controllers[i],
                   focusNode: nodes[i],
                   textAlign: TextAlign.center,
                   keyboardType: TextInputType.number,
-                  maxLength: 1,
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
-                  decoration: const InputDecoration(border: InputBorder.none, counterText: '', contentPadding: EdgeInsets.zero),
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.oneTimeCode],
+                  style: TextStyle(
+                    fontSize: (boxSize * 0.5).clamp(18.0, 26.0),
+                    fontWeight: FontWeight.bold,
+                    color: BizClearColors.textPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: error != null ? BizClearColors.error : BizClearColors.inputBorder,
+                        width: error != null ? 2 : 1.5,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: error != null ? BizClearColors.error : BizClearColors.inputBorder,
+                        width: error != null ? 2 : 1.5,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: error != null ? BizClearColors.error : BizClearColors.inputFocusedBorder,
+                        width: 2,
+                      ),
+                    ),
+                    filled: true,
+                    fillColor: BizClearColors.surface,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(6),
+                  ],
                   contextMenuBuilder: (menuCtx, state) => AdaptiveTextSelectionToolbar(
                     anchors: state.contextMenuAnchors,
                     children: [
@@ -941,7 +965,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
                     if (pasting) return;
                     setState(() {
                       error = null;
-                      final d = val.replaceAll(RegExp(r'\\D'), '');
+                      final d = val.replaceAll(RegExp(r'\D'), '');
                       if (d.length >= 6) {
                         for (int k = 0; k < 6; k++) {
                           controllers[k].text = d[k];
@@ -986,17 +1010,24 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Verify to Proceed', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                        const Text('Verify to Proceed', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: BizClearColors.textPrimary)),
                         const SizedBox(height: 8),
-                        const Text('Enter your 6-digit Microsoft Authenticator code to access Disable Two-Factor Auth.'),
+                        const Text('Enter your 6-digit authenticator code to access Disable Two-Factor Auth.', style: TextStyle(color: BizClearColors.textSecondary)),
                         const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: List.generate(6, (i) => otpBox(i, setState)),
+                        LayoutBuilder(
+                          builder: (_, c) {
+                            const spacing = 8.0;
+                            final avail = c.maxWidth;
+                            final sz = ((avail - spacing * 5) / 6).clamp(40.0, 56.0);
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: List.generate(6, (i) => otpBox(i, setState, sz)),
+                            );
+                          },
                         ),
                         if (error != null) ...[
                           const SizedBox(height: 12),
-                          Row(children: [const Icon(Icons.error_outline, color: Colors.red, size: 20), const SizedBox(width: 8), Expanded(child: Text(error!, style: const TextStyle(color: Colors.red)))])
+                          Row(children: [const Icon(Icons.error_outline, color: BizClearColors.error, size: 20), const SizedBox(width: 8), Expanded(child: Text(error!, style: const TextStyle(color: BizClearColors.error)))])
                         ],
                         const SizedBox(height: 16),
                         Row(
@@ -1024,7 +1055,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
                                           });
                                         }
                                       },
-                                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+                                style: ElevatedButton.styleFrom(backgroundColor: BizClearColors.primary),
                                 child: loading
                                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2.5, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
                                     : const Text('Verify Microsoft Authenticator'),
@@ -1034,10 +1065,10 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
                         ),
                         const SizedBox(height: 8),
                         Center(
-                          child: TextButton(
+                            child: TextButton(
                             onPressed: () => Navigator.of(ctx).pop(false),
                             style: TextButton.styleFrom(
-                              foregroundColor: Colors.grey.shade700,
+                              foregroundColor: BizClearColors.textSecondary,
                             ),
                             child: const Text('Cancel'),
                           ),

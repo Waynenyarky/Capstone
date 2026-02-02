@@ -174,7 +174,7 @@ export default function LoggedInMfaManager() {
               Enter the 6-digit code from your authenticator app
             </Paragraph>
             <div 
-              style={{ display: 'flex', justifyContent: 'center' }}
+              style={{ display: 'flex', justifyContent: 'center', maxWidth: 320, margin: '0 auto' }}
               onKeyDown={(e) => {
                 const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
                 if (allowedKeys.includes(e.key)) return
@@ -203,6 +203,7 @@ export default function LoggedInMfaManager() {
                 size="large"
                 inputType="numeric"
                 mask={false}
+                style={{ width: '100%', justifyContent: 'center', gap: 8 }}
               />
             </div>
           </div>
@@ -261,6 +262,7 @@ export default function LoggedInMfaManager() {
                 size="large"
                 inputType="numeric"
                 mask={false}
+                style={{ width: '100%', justifyContent: 'center', gap: 8 }}
               />
             </div>
           </div>

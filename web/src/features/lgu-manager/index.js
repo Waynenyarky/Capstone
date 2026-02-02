@@ -7,6 +7,7 @@ export { default as ReportsAnalyticsPage } from './views/pages/ReportsAnalyticsP
 export { default as PermitApplicationsOverviewPage } from './views/pages/PermitApplicationsOverviewPage'
 export { default as CessationOverviewPage } from './views/pages/CessationOverviewPage'
 export { default as ViolationsInspectionsOverviewPage } from './views/pages/ViolationsInspectionsOverviewPage'
+export { default as AssignInspectionPage } from './views/pages/AssignInspectionPage'
 export { default as AppealsOverviewPage } from './views/pages/AppealsOverviewPage'
 
 // Components

@@ -1,7 +1,9 @@
 import React from 'react'
 import { Layout, ConfigProvider, Grid, Typography } from 'antd'
 import { useNavigate } from 'react-router-dom'
-import BizClearLogo from '@/logo/BizClear.png'
+
+// Logo from public folder (web/public/BizClear.png)
+const BizClearLogo = '/BizClear.png'
 
 const { useBreakpoint } = Grid
 const { Title } = Typography
@@ -66,7 +68,7 @@ export default function AuthLayout({
           >
             <div
               style={{
-                width: isMobile ? 90 : 130,
+                width: isMobile ? 170 : 250,
                 overflow: 'hidden',
                 display: 'flex',
                 alignItems: 'center',

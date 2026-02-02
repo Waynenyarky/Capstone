@@ -1,9 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:app/core/theme/bizclear_colors.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:async';
-import 'signup_page.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'profile.dart';
 import 'deletion_scheduled_page.dart';
+import 'inspector/inspector_shell.dart';
 import 'security/login_mfa_screen.dart';
 import 'forgot_password_page.dart';
  
@@ -20,7 +23,8 @@ class LoginScreen extends StatefulWidget {
   final String? preFingerprintEmail;
   final bool preFaceEnabled;
   final bool preAuthenticatorEnabled;
-  const LoginScreen({super.key, this.deletionScheduledForISO, this.preFingerprintEnabled = false, this.preFingerprintEmail, this.preFaceEnabled = false, this.preAuthenticatorEnabled = false});
+  final bool notInspector;
+  const LoginScreen({super.key, this.deletionScheduledForISO, this.preFingerprintEnabled = false, this.preFingerprintEmail, this.preFaceEnabled = false, this.preAuthenticatorEnabled = false, this.notInspector = false});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -49,9 +53,18 @@ class _LoginScreenState extends State<LoginScreen> {
   String _authEmail = '';
   final LocalAuthentication _localAuth = LocalAuthentication();
 
+  // Dev prefill for Inspector (debug mode only)
+  static const String _devInspectorEmail = 'waynenrq@gmail.com';
+  static String get _devInspectorPassword =>
+      dotenv.env['DEV_PREFILL_PASSWORD'] ?? 'TempPass123!';
+
   @override
   void initState() {
     super.initState();
+    if (kDebugMode) {
+      _emailController.text = _devInspectorEmail;
+      _passwordController.text = _devInspectorPassword;
+    }
     
     () async {
       try {
@@ -96,6 +109,18 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _passwordTouched = true);
       }
     });
+
+    if (widget.notInspector) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('This app is for Inspector role only. Please log in with an Inspector account.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      });
+    }
 
     final iso = (widget.deletionScheduledForISO ?? '').trim();
     if (iso.isNotEmpty) {
@@ -547,6 +572,20 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!mounted) return;
         final navigator = Navigator.of(context);
         final profileRes = await MongoDBService.fetchProfile(email: email, token: token);
+        final profileUser = (profileRes['user'] is Map<String, dynamic>) ? (profileRes['user'] as Map<String, dynamic>) : <String, dynamic>{};
+        final role = (profileUser['role'] is String) ? (profileUser['role'] as String).toLowerCase() : '';
+        if (role != 'inspector') {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('accessToken');
+          await prefs.remove('loggedInEmail');
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('This app is for Inspector role only. Please use an Inspector account.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
         final pending = profileRes['deletionPending'] == true;
         final scheduledISO = (profileRes['deletionScheduledFor'] is String) ? profileRes['deletionScheduledFor'] as String : null;
         if (pending && scheduledISO != null) {
@@ -568,7 +607,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
         navigator.pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (_) => ProfilePage(
+            builder: (_) => InspectorShell(
               email: email,
               firstName: firstName,
               lastName: lastName,
@@ -598,7 +637,7 @@ class _LoginScreenState extends State<LoginScreen> {
     
     return Icon(
       isValid ? Icons.check_circle : Icons.error_outline,
-      color: isValid ? Colors.green : Colors.red,
+      color: isValid ? BizClearColors.success : BizClearColors.error,
       size: 20,
     );
   }
@@ -615,12 +654,12 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Container(
         height: 84,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: BizClearColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: BizClearColors.border),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
+              color: BizClearColors.textPrimary.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -633,10 +672,10 @@ class _LoginScreenState extends State<LoginScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                color: BizClearColors.accent.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: Colors.blue.shade700, size: 24),
+              child: Icon(icon, color: BizClearColors.accent, size: 24),
             ),
             const SizedBox(width: 12),
             Flexible(
@@ -884,6 +923,20 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         } catch (_) {}
         final profileRes = await MongoDBService.fetchProfile(email: email, token: token);
+        final profileUser = (profileRes['user'] is Map<String, dynamic>) ? (profileRes['user'] as Map<String, dynamic>) : <String, dynamic>{};
+        final role = (profileUser['role'] is String) ? (profileUser['role'] as String).toLowerCase() : '';
+        if (role != 'inspector') {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('accessToken');
+          await prefs.remove('loggedInEmail');
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('This app is for Inspector role only. Please use an Inspector account.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
         final pending = profileRes['deletionPending'] == true;
         final scheduledISO = (profileRes['deletionScheduledFor'] is String) ? profileRes['deletionScheduledFor'] as String : null;
         if (pending && scheduledISO != null) {
@@ -905,7 +958,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
         navigator.pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (_) => ProfilePage(
+            builder: (_) => InspectorShell(
               email: email,
               firstName: firstName,
               lastName: lastName,
@@ -938,14 +991,14 @@ class _LoginScreenState extends State<LoginScreen> {
     final verticalPadding = isSmallScreen ? 16.0 : 20.0;
     final titleFontSize = isSmallScreen ? 26.0 : 30.0;
     final subtitleFontSize = isSmallScreen ? 14.0 : 16.0;
-    final iconSize = isSmallScreen ? 70.0 : 90.0;
+    final iconSize = isSmallScreen ? 130.0 : 170.0;
     final spacing = isSmallScreen ? 14.0 : 18.0;
     final largeSpacing = isSmallScreen ? 24.0 : 28.0;
 
     final emailValid = _isValidEmail(_emailController.text);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: BizClearColors.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -962,20 +1015,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Logo/Icon
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
+                    // Logo
+                    Image.asset(
+                      'assets/BizClear.png',
+                      height: iconSize,
+                      width: iconSize,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Icon(
                         Icons.lock_outline,
                         size: iconSize,
-                        color: Colors.blue,
+                        color: BizClearColors.accent,
                       ),
                     ),
-                    SizedBox(height: largeSpacing),
+                    SizedBox(height: isSmallScreen ? 4.0 : 6.0),
                     
                     // Title
                     Text(
@@ -983,7 +1035,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(
                         fontSize: titleFontSize,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: BizClearColors.textPrimary,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -992,7 +1044,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       'Login to your account',
                       style: TextStyle(
                         fontSize: subtitleFontSize,
-                        color: Colors.grey.shade600,
+                        color: BizClearColors.textSecondary,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -1030,11 +1082,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       if (_fingerprintEnabled) ...[
                         SizedBox(
                           width: double.infinity,
-                          child: OutlinedButton.icon(
+                          child:                         OutlinedButton.icon(
                             onPressed: _isLoading ? null : _loginWithFingerprint,
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.blue.shade700,
-                              side: BorderSide(color: Colors.blue.shade300),
+                              foregroundColor: BizClearColors.accent,
+                              side: const BorderSide(color: BizClearColors.border),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                             ),
@@ -1083,13 +1135,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           padding: const EdgeInsets.only(top: 8, left: 4),
                           child: Row(
                             children: [
-                              Icon(Icons.shield_outlined, size: 16, color: Colors.green.shade700),
+                              Icon(Icons.shield_outlined, size: 16, color: BizClearColors.success),
                               const SizedBox(width: 6),
                               Text(
                                 'Two-Factor Authentication Enabled',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.green.shade700,
+                                  color: BizClearColors.success,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -1164,7 +1216,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     'Remember me',
                                     style: TextStyle(
                                       fontSize: subtitleFontSize,
-                                      color: Colors.grey.shade700,
+                                      color: BizClearColors.textSecondary,
                                     ),
                                   ),
                                 ],
@@ -1190,11 +1242,37 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: TextStyle(
                                 fontSize: subtitleFontSize,
                                 fontWeight: FontWeight.w600,
+                                color: BizClearColors.linkColor,
                               ),
                             ),
                           ),
                         ],
                       ),
+                      if (kDebugMode)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: TextButton(
+                            onPressed: _isLoading ? null : () {
+                              setState(() {
+                                _emailController.text = _devInspectorEmail;
+                                _passwordController.text = _devInspectorPassword;
+                              });
+                            },
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              minimumSize: const Size(0, 0),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: Text(
+                              'Dev: Fill Inspector',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ),
                       SizedBox(height: largeSpacing),
 
                       // Login Button
@@ -1270,7 +1348,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         child: Row(
                           children: [
-                            Expanded(child: Divider(color: Colors.grey.shade300)),
+                            Expanded(child: Divider(color: BizClearColors.divider)),
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 8),
                               child: Text(
@@ -1278,20 +1356,20 @@ class _LoginScreenState extends State<LoginScreen> {
                                 style: TextStyle(
                                   fontSize: subtitleFontSize - 1,
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.grey.shade600,
+                                  color: BizClearColors.textSecondary,
                                 ),
                               ),
                             ),
-                            Expanded(child: Divider(color: Colors.grey.shade300)),
+                            Expanded(child: Divider(color: BizClearColors.divider)),
                           ],
                         ),
                       ),
                       const SizedBox(height: 10),
-                      OutlinedButton.icon(
+                        OutlinedButton.icon(
                         onPressed: _isLoading ? null : _signInWithGoogle,
                         style: OutlinedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          side: BorderSide(color: Colors.grey.shade300),
+                          backgroundColor: BizClearColors.surface,
+                          side: const BorderSide(color: BizClearColors.border),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                         ),
@@ -1304,43 +1382,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                     
                     
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: [
-                        Text(
-                          "Don't have an account?",
-                          style: TextStyle(
-                            fontSize: subtitleFontSize,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: _isLoading ? null : () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const SignUpScreen(),
-                              ),
-                            );
-                          },
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            minimumSize: const Size(0, 0),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: Text(
-                            'Sign Up',
-                            style: TextStyle(
-                              fontSize: subtitleFontSize,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                    // Inspector-only app: no self signup (Inspectors are created by admin)
                   ],
                 ),
               ),
@@ -1369,9 +1411,50 @@ class _LoginScreenState extends State<LoginScreen> {
         bypassFingerprint: true, 
       );
       setState(() => _isLoading = false);
+      if (result['requiresTotp'] == true) {
+        final loginEmail = (result['loginEmail'] ?? emailVal).toString();
+        if (loginEmail.isNotEmpty && mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => LoginMfaScreen(email: loginEmail)),
+          );
+        } else {
+          messenger.showSnackBar(SnackBar(content: Text((result['message'] ?? 'MFA required').toString())));
+        }
+        return;
+      }
+      if (result['requiresOtp'] == true) {
+        final loginEmail = (result['loginEmail'] ?? emailVal).toString();
+        if (loginEmail.isNotEmpty && mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => LoginMfaScreen(email: loginEmail, isEmailOtp: true),
+            ),
+          );
+        } else {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text((result['message'] ?? 'Check your email for the verification code').toString()),
+              backgroundColor: Colors.blue,
+            ),
+          );
+        }
+        return;
+      }
       if (result['success']) {
         if (!mounted) return;
         final user = (result['user'] is Map<String, dynamic>) ? (result['user'] as Map<String, dynamic>) : <String, dynamic>{};
+        final role = (user['role'] is String) ? (user['role'] as String).toLowerCase() : '';
+        if (role != 'inspector') {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('This app is for Inspector role only. Please use an Inspector account.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
         final firstName = (user['firstName'] is String) ? user['firstName'] as String : '';
         final lastName = (user['lastName'] is String) ? user['lastName'] as String : '';
         final email = (user['email'] is String) ? user['email'] as String : '';
@@ -1432,7 +1515,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
         navigator.pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (_) => ProfilePage(
+            builder: (_) => InspectorShell(
               email: email,
               firstName: firstName,
               lastName: lastName,

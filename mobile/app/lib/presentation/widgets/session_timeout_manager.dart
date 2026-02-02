@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app/data/services/google_auth_service.dart';
+import 'package:app/data/services/mongodb_service.dart';
 import 'package:app/presentation/screens/login_page.dart';
 
 class SessionTimeoutManager extends StatefulWidget {
@@ -173,16 +174,32 @@ class _SessionTimeoutManagerState extends State<SessionTimeoutManager> with Widg
 
   Future<void> _performLogout() async {
     final prefs = await SharedPreferences.getInstance();
+    // Check biometrics status before clearing token (API requires auth). Only pass to login when enabled.
+    bool preFingerprintEnabled = false;
+    String? preFingerprintEmail;
+    try {
+      final fpEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
+      if (fpEmail.isNotEmpty) {
+        final s = await MongoDBService.getMfaStatusDetail(email: fpEmail).timeout(const Duration(seconds: 3));
+        preFingerprintEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
+        preFingerprintEmail = preFingerprintEnabled ? fpEmail : null; // only pass email when enabled so login shows biometrics only then
+      }
+    } catch (_) {}
+
     await prefs.remove('loggedInEmail');
     await prefs.remove('accessToken');
-    
     await GoogleAuthService.signOutAndReset();
 
     if (!mounted) return;
-    
+
     final nav = widget.navigatorKey?.currentState ?? Navigator.of(context);
     nav.pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      MaterialPageRoute(
+        builder: (_) => LoginScreen(
+          preFingerprintEnabled: preFingerprintEnabled,
+          preFingerprintEmail: preFingerprintEmail,
+        ),
+      ),
       (route) => false,
     );
   }

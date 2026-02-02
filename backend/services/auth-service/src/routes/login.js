@@ -162,8 +162,9 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       }
     }
 
-    // Use manual populate to handle potential schema mismatches
-    let doc = await User.findOne({ email }).lean()
+    // Use normalized (lowercase) identifier for lookup - MongoDB is case-sensitive
+    const emailKey = normalizeLoginIdentifier(email)
+    let doc = await User.findOne({ email: emailKey }).lean()
     if (doc && doc.role && typeof doc.role === 'string' && !mongoose.Types.ObjectId.isValid(doc.role)) {
        // Auto-fix bad role data
        try {
@@ -207,7 +208,7 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
     }
 
-    const emailKey = String(doc.email).toLowerCase().trim()
+    // emailKey already set above from normalized request email
 
     // Ensure role is properly populated before extracting slug
     if (!doc.role || !doc.role.slug) {

@@ -1,0 +1,10 @@
+flutter_launcher_icons:
+  image_path: "../../web/public/BizClear.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  web:
+    generate: true
+    image_path: "../../web/public/BizClear.png"
+    background_color: "#ffffff"
+    theme_color: "#0175C2"

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/theme/bizclear_colors.dart';
 import '../../../domain/usecases/verify_mfa.dart';
 
 class MfaVerifyScreen extends StatefulWidget {
@@ -149,41 +150,34 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
   @override
   Widget build(BuildContext context) {
     final isBiometric = widget.method == 'fingerprint';
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 360;
-    final boxSize = isSmallScreen ? 45.0 : (screenWidth < 400 ? 48.0 : 50.0);
-    final spacing = isSmallScreen ? 6.0 : 8.0;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: BizClearColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: BizClearColors.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: const Icon(Icons.arrow_back, color: BizClearColors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Verify MFA',
-          style: TextStyle(color: Colors.black87),
+          style: TextStyle(color: BizClearColors.textPrimary),
         ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: isSmallScreen ? 16 : 24,
-            vertical: 16,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header Section
-              Text(
+              const Text(
                 'Enable Two-Factor Auth',
                 style: TextStyle(
-                  fontSize: isSmallScreen ? 24 : 28,
+                  fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: BizClearColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 12),
@@ -191,9 +185,9 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
                 isBiometric
                   ? 'Use biometrics to verify and enable 2FA'
                   : 'Enter the 6-digit code from your TOTP authenticator to complete setup',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 16,
-                  color: Colors.grey.shade600,
+                  color: BizClearColors.textSecondary,
                   height: 1.4,
                 ),
               ),
@@ -226,19 +220,21 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // OTP Input Boxes - Responsive
+                // OTP Input Boxes - Responsive layout
                 LayoutBuilder(
                   builder: (context, constraints) {
+                    const spacing = 8.0;
+                    final available = constraints.maxWidth;
+                    final boxSize = ((available - spacing * 5) / 6).clamp(40.0, 56.0);
                     return Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: List.generate(6, (index) {
                         return _OtpBox(
+                          size: boxSize,
                           controller: _controllers[index],
                           focusNode: _focusNodes[index],
                           hasError: _errorMessage != null,
                           onPasteAll: _pasteAllFromClipboard,
-                          size: boxSize,
-                          spacing: spacing,
                           onChanged: (value) {
                             setState(() => _errorMessage = null);
                             final d = value.replaceAll(RegExp(r'\D'), '');
@@ -285,13 +281,13 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                      const Icon(Icons.error_outline, color: BizClearColors.error, size: 20),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _errorMessage!,
                           style: const TextStyle(
-                            color: Colors.red,
+                            color: BizClearColors.error,
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                           ),
@@ -440,10 +436,10 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
                 child: ElevatedButton(
                   onPressed: _loading || (!isBiometric && !_isOtpComplete) ? null : _verify,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.grey.shade300,
-                    disabledForegroundColor: Colors.grey.shade500,
+                    backgroundColor: BizClearColors.primary,
+                    foregroundColor: BizClearColors.buttonPrimaryFg,
+                    disabledBackgroundColor: BizClearColors.border,
+                    disabledForegroundColor: BizClearColors.textSecondary,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -474,9 +470,9 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
               Center(
                 child: Text(
                   'Having trouble? Contact support for assistance',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 14,
-                    color: Colors.grey.shade600,
+                    color: BizClearColors.textSecondary,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -491,65 +487,70 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
 
 // Responsive OTP Box Widget
 class _OtpBox extends StatelessWidget {
+  final double size;
   final TextEditingController controller;
   final FocusNode focusNode;
   final bool hasError;
   final Future<void> Function() onPasteAll;
-  final double size;
-  final double spacing;
   final Function(String) onChanged;
 
   const _OtpBox({
+    required this.size,
     required this.controller,
     required this.focusNode,
     required this.hasError,
     required this.onPasteAll,
-    required this.size,
-    required this.spacing,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final height = size * 1.2;
+    return SizedBox(
       width: size,
-      height: size + 10,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: hasError
-              ? Colors.red
-              : (focusNode.hasFocus ? Colors.blue : Colors.grey.shade300),
-          width: hasError || focusNode.hasFocus ? 2 : 1.5,
-        ),
-        boxShadow: focusNode.hasFocus
-            ? [
-                BoxShadow(
-                  color: Colors.blue.withValues(alpha: 0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ]
-            : null,
-      ),
+      height: height,
       child: TextField(
         controller: controller,
         focusNode: focusNode,
         textAlign: TextAlign.center,
         keyboardType: TextInputType.number,
-        maxLength: 1,
+        textInputAction: TextInputAction.next,
+        autofillHints: const [AutofillHints.oneTimeCode],
         style: TextStyle(
-          fontSize: size * 0.48,
+          fontSize: (size * 0.5).clamp(18.0, 26.0),
           fontWeight: FontWeight.bold,
-          color: Colors.black87,
+          color: BizClearColors.textPrimary,
         ),
-        decoration: const InputDecoration(
-          border: InputBorder.none,
-          counterText: '',
+        decoration: InputDecoration(
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: hasError ? BizClearColors.error : BizClearColors.inputBorder,
+              width: hasError ? 2 : 1.5,
+            ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: hasError ? BizClearColors.error : BizClearColors.inputBorder,
+              width: hasError ? 2 : 1.5,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: hasError ? BizClearColors.error : BizClearColors.inputFocusedBorder,
+              width: 2,
+            ),
+          ),
+          filled: true,
+          fillColor: BizClearColors.surface,
           contentPadding: EdgeInsets.zero,
         ),
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(6),
+        ],
         contextMenuBuilder: (ctx, editableTextState) {
           return AdaptiveTextSelectionToolbar(
             anchors: editableTextState.contextMenuAnchors,

@@ -198,8 +198,9 @@ export default function MfaSetup() {
           </div>
 
           <div style={{ maxWidth: 320, margin: '0 auto 32px' }}>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
               <div
+                style={{ width: '100%', maxWidth: 280 }}
                 onKeyDown={(e) => {
                   const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
                   if (allowedKeys.includes(e.key)) return
@@ -229,6 +230,7 @@ export default function MfaSetup() {
                   autoFocus
                   inputType="numeric"
                   mask={false}
+                  style={{ width: '100%', justifyContent: 'center', gap: 8 }}
                 />
               </div>
             </div>

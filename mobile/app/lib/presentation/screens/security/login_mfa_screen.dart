@@ -1,13 +1,18 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/theme/bizclear_colors.dart';
 import '../../../data/services/mongodb_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../deletion_scheduled_page.dart';
 import '../profile.dart';
+import '../inspector/inspector_shell.dart';
 
 class LoginMfaScreen extends StatefulWidget {
   final String email;
-  const LoginMfaScreen({super.key, required this.email});
+  /// When true, uses email OTP verification (login/verify). When false, uses TOTP (login/verify-totp).
+  final bool isEmailOtp;
+  const LoginMfaScreen({super.key, required this.email, this.isEmailOtp = false});
 
   @override
   State<LoginMfaScreen> createState() => _LoginMfaScreenState();
@@ -18,9 +23,13 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   bool _loading = false;
   String? _errorMessage;
+  bool _resendLoading = false;
+  int _resendCooldownSec = 0;
+  Timer? _resendTimer;
 
   @override
   void dispose() {
+    _resendTimer?.cancel();
     for (var controller in _controllers) {
       controller.dispose();
     }
@@ -41,22 +50,61 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
     _focusNodes[0].requestFocus();
   }
 
-  void _handleBulkPaste(String value, int startIndex) {
+  Future<void> _resendCode() async {
+    if (_resendLoading || _resendCooldownSec > 0) return;
+    setState(() => _resendLoading = true);
+    try {
+      final res = await MongoDBService.loginResendOtp(email: widget.email);
+      if (!mounted) return;
+      if (res['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text((res['message'] ?? 'Verification code sent to your email').toString()),
+            backgroundColor: Colors.green,
+          ),
+        );
+        setState(() => _resendCooldownSec = 60);
+        _resendTimer?.cancel();
+        _resendTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+          if (!mounted) {
+            t.cancel();
+            return;
+          }
+          setState(() {
+            _resendCooldownSec = (_resendCooldownSec - 1).clamp(0, 60);
+            if (_resendCooldownSec <= 0) t.cancel();
+          });
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text((res['message'] ?? 'Failed to resend').toString()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to resend code'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _resendLoading = false);
+    }
+  }
+
+  void _handleBulkPaste(String value, int _) {
     final digits = value.replaceAll(RegExp('[^0-9]'), '');
     if (digits.isEmpty) return;
-    int i = 0;
-    for (int box = startIndex; box < 6 && i < digits.length; box++) {
-      _controllers[box].text = digits[i];
-      i++;
+    for (int i = 0; i < 6 && i < digits.length; i++) {
+      _controllers[i].text = digits[i];
     }
-    if (i < digits.length) {
-      for (int box = 0; box < 6 && i < digits.length; box++) {
-        _controllers[box].text = digits[i];
-        i++;
-      }
+    if (digits.length >= 6) {
+      _focusNodes[5].unfocus();
+    } else {
+      _focusNodes[digits.length.clamp(0, 5)].requestFocus();
     }
-    final nextIndex = digits.length >= 6 ? 5 : (startIndex + digits.length - 1).clamp(0, 5);
-    _focusNodes[nextIndex].unfocus();
   }
 
   Future<void> _verify() async {
@@ -73,7 +121,9 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
         });
         return;
       }
-      final verify = await MongoDBService.loginVerifyTotp(email: widget.email, code: code);
+      final verify = widget.isEmailOtp
+          ? await MongoDBService.loginVerifyOtp(email: widget.email, code: code)
+          : await MongoDBService.loginVerifyTotp(email: widget.email, code: code);
       if (verify['success'] == true) {
         final user = (verify['user'] is Map<String, dynamic>) ? (verify['user'] as Map<String, dynamic>) : <String, dynamic>{};
         final firstName = (user['firstName'] is String) ? user['firstName'] as String : '';
@@ -96,6 +146,21 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
         if (!mounted) return;
         final navigator = Navigator.of(context);
         final profileRes = await MongoDBService.fetchProfile(email: email, token: token);
+        final profileUser = (profileRes['user'] is Map<String, dynamic>) ? (profileRes['user'] as Map<String, dynamic>) : <String, dynamic>{};
+        final role = (profileUser['role'] is String) ? (profileUser['role'] as String).toLowerCase() : '';
+        if (role != 'inspector') {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('accessToken');
+          await prefs.remove('loggedInEmail');
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('This app is for Inspector role only. Please use an Inspector account.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
         final pending = profileRes['deletionPending'] == true;
         final scheduledISO = (profileRes['deletionScheduledFor'] is String) ? profileRes['deletionScheduledFor'] as String : null;
         if (pending && scheduledISO != null) {
@@ -117,7 +182,7 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
         }
         navigator.pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (_) => ProfilePage(
+            builder: (_) => InspectorShell(
               email: email,
               firstName: firstName,
               lastName: lastName,
@@ -149,17 +214,17 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: BizClearColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: BizClearColors.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: const Icon(Icons.arrow_back, color: BizClearColors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Two-Factor Authentication',
-          style: TextStyle(color: Colors.black87),
+        title: Text(
+          widget.isEmailOtp ? 'Email Verification' : 'Two-Factor Authentication',
+          style: const TextStyle(color: BizClearColors.textPrimary),
         ),
       ),
       body: SafeArea(
@@ -174,15 +239,17 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: BizClearColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 12),
               Text(
-                'Enter the 6-digit code from your TOTP authenticator',
-                style: TextStyle(
+                widget.isEmailOtp
+                    ? 'Enter the 6-digit code sent to your email'
+                    : 'Enter the 6-digit code from your TOTP authenticator',
+                style: const TextStyle(
                   fontSize: 16,
-                  color: Colors.grey.shade600,
+                  color: BizClearColors.textSecondary,
                   height: 1.4,
                 ),
               ),
@@ -190,21 +257,21 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                  color: BizClearColors.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.email_outlined, size: 16, color: Colors.blue.shade700),
+                    const Icon(Icons.email_outlined, size: 16, color: BizClearColors.accent),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
                         widget.email,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Colors.blue.shade900,
+                          color: BizClearColors.textPrimary,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -214,35 +281,43 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
               ),
               const SizedBox(height: 40),
 
-              // OTP Input Boxes
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(6, (index) {
-                  return _OtpBox(
-                    controller: _controllers[index],
-                    focusNode: _focusNodes[index],
-                    hasError: _errorMessage != null,
-                    onChanged: (value) {
-                      setState(() => _errorMessage = null);
-                      final digits = value.replaceAll(RegExp('[^0-9]'), '');
-                      if (digits.length > 1) {
-                        _handleBulkPaste(digits, index);
-                        return;
-                      }
-                      if (digits.isEmpty) {
-                        _controllers[index].text = '';
-                        if (index > 0) _focusNodes[index - 1].requestFocus();
-                        return;
-                      }
-                      _controllers[index].text = digits[0];
-                      if (index < 5) {
-                        _focusNodes[index + 1].requestFocus();
-                      } else {
-                        FocusScope.of(context).unfocus();
-                      }
-                    },
+              // OTP Input Boxes - responsive layout
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  const spacing = 8.0;
+                  final available = constraints.maxWidth;
+                  final boxSize = ((available - spacing * 5) / 6).clamp(40.0, 56.0);
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: List.generate(6, (index) {
+                      return _OtpBox(
+                        size: boxSize,
+                        controller: _controllers[index],
+                        focusNode: _focusNodes[index],
+                        hasError: _errorMessage != null,
+                        onChanged: (value) {
+                          setState(() => _errorMessage = null);
+                          final digits = value.replaceAll(RegExp('[^0-9]'), '');
+                          if (digits.length > 1) {
+                            _handleBulkPaste(digits, index);
+                            return;
+                          }
+                          if (digits.isEmpty) {
+                            _controllers[index].text = '';
+                            if (index > 0) _focusNodes[index - 1].requestFocus();
+                            return;
+                          }
+                          _controllers[index].text = digits[0];
+                          if (index < 5) {
+                            _focusNodes[index + 1].requestFocus();
+                          } else {
+                            FocusScope.of(context).unfocus();
+                          }
+                        },
+                      );
+                    }),
                   );
-                }),
+                },
               ),
 
               // Error Message
@@ -250,13 +325,13 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                    const Icon(Icons.error_outline, color: BizClearColors.error, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         _errorMessage!,
                         style: const TextStyle(
-                          color: Colors.red,
+                          color: BizClearColors.error,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
@@ -272,21 +347,21 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: BizClearColors.surfaceLight,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(color: BizClearColors.border),
                 ),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
+                        color: BizClearColors.accent.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Icon(
+                      child: const Icon(
                         Icons.shield_outlined,
-                        color: Colors.blue.shade700,
+                        color: BizClearColors.accent,
                         size: 24,
                       ),
                     ),
@@ -295,20 +370,22 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          const Text(
                             'Secure Login',
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
-                              color: Colors.grey.shade900,
+                              color: BizClearColors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Check your TOTP authenticator for the verification code',
-                            style: TextStyle(
+                            widget.isEmailOtp
+                                ? 'Check your email for the verification code'
+                                : 'Check your TOTP authenticator for the verification code',
+                            style: const TextStyle(
                               fontSize: 13,
-                              color: Colors.grey.shade600,
+                              color: BizClearColors.textSecondary,
                               height: 1.3,
                             ),
                           ),
@@ -328,13 +405,13 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
                 child: ElevatedButton.icon(
                   onPressed: _loading || !_isOtpComplete ? null : _verify,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade700,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.grey.shade300,
-                    disabledForegroundColor: Colors.grey.shade500,
+                    backgroundColor: BizClearColors.primary,
+                    foregroundColor: BizClearColors.buttonPrimaryFg,
+                    disabledBackgroundColor: BizClearColors.border,
+                    disabledForegroundColor: BizClearColors.textSecondary,
                     elevation: 3,
-                    shadowColor: Colors.blue.shade200,
-                    side: BorderSide(color: Colors.blue.shade300, width: 1.2),
+                    shadowColor: BizClearColors.accent.withValues(alpha: 0.2),
+                    side: const BorderSide(color: BizClearColors.primaryLight, width: 1.2),
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -362,37 +439,68 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
 
               const SizedBox(height: 24),
 
-              // Help Text
-              Center(
-                child: Column(
-                  children: [
-                    Text(
-                      'Having trouble?',
+              // Resend (email OTP) or Help (TOTP)
+              if (widget.isEmailOtp)
+                Center(
+                  child: TextButton.icon(
+                    onPressed: (_resendLoading || _resendCooldownSec > 0) ? null : _resendCode,
+                    style: TextButton.styleFrom(
+                      foregroundColor: BizClearColors.accent,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                    icon: _resendLoading
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: BizClearColors.accent,
+                            ),
+                          )
+                        : Icon(Icons.refresh, size: 18, color: _resendCooldownSec > 0 ? BizClearColors.textSecondary : BizClearColors.accent),
+                    label: Text(
+                      _resendCooldownSec > 0
+                          ? 'Resend code in ${_resendCooldownSec}s'
+                          : 'Resend verification code',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w600,
+                        color: _resendCooldownSec > 0 ? BizClearColors.textSecondary : BizClearColors.accent,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () {
-                        // Add help action here
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.blue,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      ),
-                      child: const Text(
-                        'Contact Support',
+                  ),
+                )
+              else
+                Center(
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Having trouble?',
                         style: TextStyle(
                           fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                          color: BizClearColors.textSecondary,
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () {
+                          // Add help action here
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: BizClearColors.accent,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                        child: const Text(
+                          'Contact Support',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
             ],
           ),
         ),
@@ -403,12 +511,14 @@ class _LoginMfaScreenState extends State<LoginMfaScreen> {
 
 // OTP Box Widget
 class _OtpBox extends StatelessWidget {
+  final double size;
   final TextEditingController controller;
   final FocusNode focusNode;
   final bool hasError;
   final Function(String) onChanged;
 
   const _OtpBox({
+    required this.size,
     required this.controller,
     required this.focusNode,
     required this.hasError,
@@ -417,44 +527,51 @@ class _OtpBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 50,
-      height: 60,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: hasError
-              ? Colors.red
-              : (focusNode.hasFocus ? Colors.blue : Colors.grey.shade300),
-          width: hasError || focusNode.hasFocus ? 2 : 1.5,
-        ),
-        boxShadow: focusNode.hasFocus
-            ? [
-                BoxShadow(
-                  color: Colors.blue.withValues(alpha: 0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ]
-            : null,
-      ),
+    final height = size * 1.2;
+    return SizedBox(
+      width: size,
+      height: height,
       child: TextField(
         controller: controller,
         focusNode: focusNode,
         textAlign: TextAlign.center,
         keyboardType: TextInputType.number,
-        style: const TextStyle(
-          fontSize: 24,
+        textInputAction: TextInputAction.next,
+        autofillHints: const [AutofillHints.oneTimeCode],
+        style: TextStyle(
+          fontSize: (size * 0.5).clamp(18.0, 26.0),
           fontWeight: FontWeight.bold,
-          color: Colors.black87,
+          color: BizClearColors.textPrimary,
         ),
-        decoration: const InputDecoration(
-          border: InputBorder.none,
+        decoration: InputDecoration(
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: hasError ? BizClearColors.error : BizClearColors.inputBorder,
+              width: hasError ? 2 : 1.5,
+            ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: hasError ? BizClearColors.error : BizClearColors.inputBorder,
+              width: hasError ? 2 : 1.5,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: hasError ? BizClearColors.error : BizClearColors.inputFocusedBorder,
+              width: 2,
+            ),
+          ),
+          filled: true,
+          fillColor: BizClearColors.surface,
           contentPadding: EdgeInsets.zero,
         ),
         inputFormatters: [
           FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(6),
         ],
         onChanged: onChanged,
       ),

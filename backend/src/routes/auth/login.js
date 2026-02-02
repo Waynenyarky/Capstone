@@ -86,6 +86,15 @@ const resendCodeSchema = Joi.object({
   email: Joi.alternatives().try(Joi.string().email(), Joi.string().valid('1')).required(),
 })
 
+const fingerprintStartSchema = Joi.object({
+  email: Joi.alternatives().try(Joi.string().email(), Joi.string().valid('1')).required(),
+})
+
+const fingerprintCompleteSchema = Joi.object({
+  email: Joi.alternatives().try(Joi.string().email(), Joi.string().valid('1')).required(),
+  token: Joi.string().min(1).required(),
+})
+
 // Allow disabling or relaxing rate limits in development/testing
 const DISABLE_LIMITS = process.env.DISABLE_RATE_LIMIT === 'true' || process.env.NODE_ENV !== 'production'
 const passthrough = (req, res, next) => next()
@@ -163,8 +172,9 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       }
     }
 
-    // Use manual populate to handle potential schema mismatches
-    let doc = await User.findOne({ email }).lean()
+    // Use normalized (lowercase) identifier for lookup - MongoDB is case-sensitive
+    const emailKey = normalizeLoginIdentifier(email)
+    let doc = await User.findOne({ email: emailKey }).lean()
     if (doc && doc.role && typeof doc.role === 'string' && !mongoose.Types.ObjectId.isValid(doc.role)) {
        // Auto-fix bad role data
        try {
@@ -222,7 +232,7 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
     }
 
-    const emailKey = String(doc.email).toLowerCase().trim()
+    // emailKey already set above from normalized request email
 
     // Ensure role is properly populated before extracting slug
     if (!doc.role || !doc.role.slug) {
@@ -356,42 +366,43 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     // 5. NOT an LGU Officer - UNLESS deletion is scheduled
     if (hasScheduledDeletion) {
       // Account deletion is scheduled - ALWAYS send OTP via email
-      // This ensures users can log in to see deletion status and potentially undo it
-      // Send email asynchronously (don't block the response)
-      sendOtp({ 
-        to: email, 
-        code, 
-        subject: 'Your Login Verification Code - Account Deletion Scheduled' 
-      })
-        .then(emailResult => {
-          if (!emailResult || !emailResult.success) {
-            console.error(`[Login] Failed to send OTP email to ${email} (scheduled deletion):`, emailResult?.error || 'Unknown error')
-          } else if (emailResult.isMock) {
-            console.warn(`[Login] ⚠️ Mock email used for ${email} (scheduled deletion). OTP code: ${code}`)
-          } else {
-            console.log(`[Login] ✅ Account deletion scheduled for ${email} - email OTP sent successfully`)
-          }
+      try {
+        const emailResult = await sendOtp({
+          to: email,
+          code,
+          subject: 'Your Login Verification Code - Account Deletion Scheduled'
         })
-        .catch(err => {
-          console.error(`[Login] Error sending OTP email to ${email} (scheduled deletion):`, err.message)
-        })
+        if (!emailResult || !emailResult.success) {
+          console.error(`[Login] Failed to send OTP email to ${email} (scheduled deletion):`, emailResult?.error || 'Unknown error')
+          return respond.error(res, 503, 'email_send_failed', 'Failed to send verification email. Please try again.')
+        }
+        if (emailResult.isMock) {
+          console.warn(`[Login] ⚠️ Mock email used for ${email} (scheduled deletion). OTP code: ${code}`)
+        } else {
+          console.log(`[Login] ✅ Account deletion scheduled for ${email} - email OTP sent successfully`)
+        }
+      } catch (err) {
+        console.error(`[Login] Error sending OTP email to ${email} (scheduled deletion):`, err.message)
+        return respond.error(res, 503, 'email_send_failed', 'Failed to send verification email. Please try again.')
+      }
     } else if (!doc.mfaEnabled && !isLguOfficer) {
-      // No MFA enabled, send regular verification code via email
-      // Send email asynchronously (don't block the response)
-      sendOtp({ to: email, code, subject: 'Your Login Verification Code' })
-        .then(emailResult => {
-          if (!emailResult || !emailResult.success) {
-            console.error(`[Login] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
-          } else if (emailResult.isMock) {
-            console.warn(`[Login] ⚠️ Mock email used for ${email}. OTP code: ${code}`)
-            console.warn(`[Login] ⚠️ Check backend console logs for the OTP code. Email was NOT actually sent.`)
-          } else {
-            console.log(`[Login] ✅ OTP email sent successfully to ${email}`)
-          }
-        })
-        .catch(err => {
-          console.error(`[Login] Error sending OTP email to ${email}:`, err.message)
-        })
+      // No MFA enabled, send regular verification code via email - await for instant delivery
+      try {
+        const emailResult = await sendOtp({ to: email, code, subject: 'Your Login Verification Code' })
+        if (!emailResult || !emailResult.success) {
+          console.error(`[Login] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
+          return respond.error(res, 503, 'email_send_failed', 'Failed to send verification email. Please try again.')
+        }
+        if (emailResult.isMock) {
+          console.warn(`[Login] ⚠️ Mock email used for ${email}. OTP code: ${code}`)
+          console.warn(`[Login] ⚠️ Check backend console logs for the OTP code. Email was NOT actually sent.`)
+        } else {
+          console.log(`[Login] ✅ OTP email sent successfully to ${email}`)
+        }
+      } catch (err) {
+        console.error(`[Login] Error sending OTP email to ${email}:`, err.message)
+        return respond.error(res, 503, 'email_send_failed', 'Failed to send verification email. Please try again.')
+      }
     } else if (doc.mfaEnabled && isTotpMethod && !isLguOfficer) {
       // TOTP MFA is enabled - DO NOT send email OTP
       // User must use their authenticator app (Microsoft Authenticator, Google Authenticator, etc.)
@@ -477,34 +488,153 @@ router.post('/login/resend', loginStartLimiter, validateBody(resendCodeSchema), 
     }
 
     // Always send email OTP if account deletion is scheduled
-    const subject = hasScheduledDeletion 
+    const subject = hasScheduledDeletion
       ? 'Your Login Verification Code (Resend) - Account Deletion Scheduled'
       : 'Your Login Verification Code (Resend)'
-    
-    // Send email asynchronously (don't block the response)
-    sendOtp({ to: email, code, subject })
-      .then(emailResult => {
-        if (!emailResult || !emailResult.success) {
-          console.error(`[Login Resend] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
-        } else if (emailResult.isMock) {
-          console.warn(`[Login Resend] ⚠️ Mock email used for ${email}. OTP code: ${code}`)
-          console.warn(`[Login Resend] ⚠️ Check backend console logs for the OTP code. Email was NOT actually sent.`)
-        } else {
-          console.log(`[Login Resend] ✅ OTP email sent successfully to ${email}`)
-          if (hasScheduledDeletion) {
-            console.log(`[Login Resend] Account deletion scheduled for ${email} - email OTP sent`)
-          }
-        }
-      })
-      .catch(err => {
-        console.error(`[Login Resend] Error sending OTP email to ${email}:`, err.message)
-      })
 
-    // Return immediately - email is being sent in background
-    return res.json({ sent: true, message: 'Verification code is being sent to your email' })
+    // Await email send for instant delivery before responding
+    try {
+      const emailResult = await sendOtp({ to: email, code, subject })
+      if (!emailResult || !emailResult.success) {
+        console.error(`[Login Resend] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
+        return respond.error(res, 503, 'email_send_failed', 'Failed to send verification email. Please try again.')
+      }
+      if (emailResult.isMock) {
+        console.warn(`[Login Resend] ⚠️ Mock email used for ${email}. OTP code: ${code}`)
+        console.warn(`[Login Resend] ⚠️ Check backend console logs for the OTP code. Email was NOT actually sent.`)
+      } else {
+        console.log(`[Login Resend] ✅ OTP email sent successfully to ${email}`)
+      }
+    } catch (err) {
+      console.error(`[Login Resend] Error sending OTP email to ${email}:`, err.message)
+      return respond.error(res, 503, 'email_send_failed', 'Failed to send verification email. Please try again.')
+    }
+
+    return res.json({ sent: true, message: 'Verification code sent to your email' })
   } catch (err) {
     console.error('POST /api/auth/login/resend error:', err)
     return respond.error(res, 500, 'resend_failed', 'Failed to resend code')
+  }
+})
+
+// POST /api/auth/login/start-fingerprint
+// Step 1 of fingerprint login: validate user has fingerprint enabled, issue short-lived token
+router.post('/login/start-fingerprint', loginStartLimiter, validateBody(fingerprintStartSchema), async (req, res) => {
+  try {
+    const { email } = req.body || {}
+    const emailKey = normalizeLoginIdentifier(email)
+    const { doc, emailKey: key } = await findUserByIdentifier(email, { populateRole: true, lean: true })
+    if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+    if (!doc.fprintEnabled) return respond.error(res, 400, 'fingerprint_not_enabled', 'Fingerprint is not enabled for this account')
+    const lockoutCheck = await checkLockout(doc._id)
+    if (lockoutCheck.locked) {
+      return respond.error(res, 423, 'account_locked', `Account is temporarily locked. Try again in ${lockoutCheck.remainingMinutes} minutes.`)
+    }
+    const fpToken = generateToken()
+    const expiresAtMs = Date.now() + 5 * 60 * 1000 // 5 minutes
+    const useDB = mongoose.connection && mongoose.connection.readyState === 1
+    if (useDB) {
+      await LoginRequest.findOneAndUpdate(
+        { email: key },
+        { code: 'FP', expiresAt: new Date(expiresAtMs), verified: false, loginToken: fpToken, userId: String(doc._id) },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      )
+    } else {
+      loginRequests.set(key, { code: 'FP', expiresAt: expiresAtMs, verified: false, loginToken: fpToken, userId: String(doc._id) })
+    }
+    console.log(`[Login Fingerprint] Issued token for ${key}`)
+    return res.json({ token: fpToken, expiresAt: new Date(expiresAtMs).toISOString() })
+  } catch (err) {
+    console.error('POST /api/auth/login/start-fingerprint error:', err)
+    return respond.error(res, 500, 'fingerprint_start_failed', `Failed to start fingerprint login: ${err.message}`)
+  }
+})
+
+// POST /api/auth/login/complete-fingerprint
+// Step 2 of fingerprint login: verify token (user has scanned fingerprint locally), return user + access token
+router.post('/login/complete-fingerprint', loginVerifyLimiter, validateBody(fingerprintCompleteSchema), async (req, res) => {
+  try {
+    const { email, token } = req.body || {}
+    const emailKey = normalizeLoginIdentifier(email)
+    const useDB = mongoose.connection && mongoose.connection.readyState === 1
+    let reqObj = null
+    if (useDB) {
+      reqObj = await LoginRequest.findOne({ email: emailKey }).lean()
+    } else {
+      reqObj = loginRequests.get(emailKey)
+    }
+    if (!reqObj) return respond.error(res, 404, 'login_request_not_found', 'No active fingerprint login request. Please try again.')
+    const storedToken = String(reqObj.loginToken || '').trim()
+    const receivedToken = String(token || '').trim()
+    if (!storedToken || storedToken !== receivedToken) {
+      const securityMonitor = require('../../middleware/securityMonitor')
+      securityMonitor.trackFailedLogin(req.ip || req.connection.remoteAddress, reqObj.userId || null)
+      return respond.error(res, 401, 'invalid_token', 'Invalid or expired fingerprint token. Please try again.')
+    }
+    const expiresAt = useDB ? new Date(reqObj.expiresAt).getTime() : reqObj.expiresAt
+    if (Date.now() > expiresAt) {
+      if (useDB) await LoginRequest.deleteOne({ email: emailKey })
+      else loginRequests.delete(emailKey)
+      return respond.error(res, 410, 'token_expired', 'Fingerprint token has expired. Please try again.')
+    }
+    let doc = await User.findOne({ email: emailKey }).lean()
+    if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+    if (doc.role && typeof doc.role === 'string' && !mongoose.Types.ObjectId.isValid(doc.role)) {
+      const roleDoc = await Role.findOne({ slug: doc.role }).lean()
+      if (roleDoc) doc.role = roleDoc
+    } else if (doc.role) {
+      doc.role = await Role.findById(doc.role).lean()
+    }
+    const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : null
+    if (!roleSlug) return respond.error(res, 500, 'role_not_found', 'User role not found.')
+    const safe = {
+      id: String(doc._id),
+      role: roleSlug,
+      firstName: doc.firstName,
+      lastName: doc.lastName,
+      email: doc.email,
+      phoneNumber: displayPhoneNumber(doc.phoneNumber),
+      termsAccepted: doc.termsAccepted,
+      createdAt: doc.createdAt,
+      deletionPending: !!doc.deletionPending,
+      deletionRequestedAt: doc.deletionRequestedAt,
+      deletionScheduledFor: doc.deletionScheduledFor,
+      avatarUrl: doc.avatarUrl || '',
+      username: doc.username || '',
+      office: doc.office || '',
+      isActive: doc.isActive !== false,
+      isStaff: !!doc.isStaff,
+      mustChangeCredentials: !!doc.mustChangeCredentials,
+      mustSetupMfa: !!doc.mustSetupMfa,
+    }
+    const { token: accessToken, expiresAtMs } = signAccessToken(doc)
+    safe.token = accessToken
+    safe.expiresAt = new Date(expiresAtMs).toISOString()
+    try {
+      const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+      const userAgent = req.headers['user-agent'] || 'unknown'
+      await trackIP(doc._id, ipAddress)
+      const getSessionTimeout = (slug) => (slug === 'admin' ? 10 * 60 * 1000 : 60 * 60 * 1000)
+      const timeout = getSessionTimeout(roleSlug)
+      await Session.create({
+        userId: doc._id,
+        tokenVersion: doc.tokenVersion || 0,
+        ipAddress,
+        userAgent,
+        lastActivityAt: new Date(),
+        expiresAt: new Date(Date.now() + timeout),
+        isActive: true,
+      })
+    } catch (sessionError) {
+      console.warn('Failed to create session on fingerprint login:', sessionError)
+    }
+    if (useDB) await LoginRequest.deleteOne({ email: emailKey })
+    else loginRequests.delete(emailKey)
+    console.log(`[Login Fingerprint] Success for ${emailKey}`)
+    return res.json({ user: safe, token: safe.token })
+  } catch (err) {
+    console.error('POST /api/auth/login/complete-fingerprint error:', err)
+    return respond.error(res, 500, 'fingerprint_complete_failed', `Failed to complete fingerprint login: ${err.message}`)
   }
 })
 

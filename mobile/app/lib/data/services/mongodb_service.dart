@@ -14,18 +14,25 @@ class MongoDBService {
   static List<String> _candidateBaseUrls() {
     final urls = <String>[];
     final primary = baseUrl;
-    urls.add(primary);
     try {
       final u = Uri.parse(primary);
       final host = u.host.toLowerCase();
       final port = (u.hasPort ? u.port : (u.scheme == 'https' ? 443 : 80));
       final altPort = port == 3000 ? 5001 : 5001;
+      // On Android emulator, try 10.0.2.2 first (host machine) - localhost always fails
+      if (Platform.isAndroid && (host == 'localhost' || host == '127.0.0.1')) {
+        urls.add(Uri(scheme: u.scheme, host: '10.0.2.2', port: port).toString());
+        urls.add(Uri(scheme: u.scheme, host: '10.0.2.2', port: altPort).toString());
+      }
+      urls.add(primary);
       urls.add(Uri(scheme: u.scheme, host: u.host, port: altPort).toString());
       if (host == 'localhost' || host == '127.0.0.1') {
         urls.add(Uri(scheme: u.scheme, host: '10.0.2.2', port: port).toString());
         urls.add(Uri(scheme: u.scheme, host: '10.0.2.2', port: altPort).toString());
       }
-    } catch (_) {}
+    } catch (_) {
+      urls.add(primary);
+    }
     final extra = (dotenv.env['ALT_BASE_URLS'] ?? '').split(',').map((s) => s.trim()).where((s) => s.isNotEmpty);
     for (final x in extra) {
       urls.add(x);
@@ -166,10 +173,57 @@ class MongoDBService {
     throw TimeoutException('All endpoints unreachable for $path');
   }
 
+  static Future<http.Response> _putJsonWithFallbackH(
+    String path,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+    Duration timeout = const Duration(seconds: 12),
+  }) async {
+    final candidates = _candidateBaseUrls();
+    final payload = json.encode(body);
+    final baseHeaders = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...?headers,
+    };
+    try {
+      final providedAuth = (headers ?? const {}).keys.map((k) => k.toLowerCase()).contains('authorization');
+      if (!providedAuth) {
+        final prefs = await SharedPreferences.getInstance();
+        final t = (prefs.getString('accessToken') ?? '').trim();
+        if (t.isNotEmpty) {
+          baseHeaders['Authorization'] = 'Bearer $t';
+          baseHeaders['x-auth-token'] = t;
+          baseHeaders['x-access-token'] = t;
+        }
+      }
+    } catch (_) {}
+    for (final origin in candidates) {
+      final uri = Uri.parse('$origin$path');
+      try {
+        final res = await http
+            .put(
+          uri,
+          headers: baseHeaders,
+          body: payload,
+        )
+            .timeout(timeout);
+        return res;
+      } on TimeoutException catch (_) {
+        continue;
+      } on SocketException catch (_) {
+        continue;
+      } catch (_) {
+        continue;
+      }
+    }
+    throw TimeoutException('All endpoints unreachable for $path');
+  }
+
   static Future<http.Response> _getWithFallbackH(
     String path, {
     Map<String, String>? headers,
-    Duration timeout = const Duration(seconds: 12),
+    Duration timeout = const Duration(seconds: 15),
   }) async {
     final candidates = _candidateBaseUrls();
     final baseHeaders = {
@@ -198,7 +252,12 @@ class MongoDBService {
           headers: baseHeaders,
         )
             .timeout(timeout);
-        debugPrint('Success with GET endpoint: $uri');
+        // If 404 (wrong server/path), try next candidate
+        if (res.statusCode == 404) {
+          debugPrint('404 on $uri, trying next candidate');
+          continue;
+        }
+        debugPrint('Success with GET endpoint: $uri (${res.statusCode})');
         return res;
       } on TimeoutException catch (e) {
         debugPrint('Timeout on $uri: $e');
@@ -381,7 +440,7 @@ class MongoDBService {
     bool bypassFingerprint = false,
   }) async {
     try {
-      debugPrint('Posting to: $baseUrl/api/auth/login');
+      debugPrint('Posting to: $baseUrl/api/auth/login/start');
       final body = {
         'email': email,
         'password': password,
@@ -389,29 +448,65 @@ class MongoDBService {
 
       debugPrint('Sending login request: $body');
 
-      final response = bypassFingerprint
-          ? await _postJsonWithFallbackH('/api/auth/login', body, headers: { 'x-bypass-fingerprint': 'true' })
-          : await _postJsonWithFallback('/api/auth/login', body);
+      final headers = <String, String>{};
+      if (bypassFingerprint) headers['x-bypass-fingerprint'] = 'true';
+
+      final response = headers.isNotEmpty
+          ? await _postJsonWithFallbackH('/api/auth/login/start', body, headers: headers)
+          : await _postJsonWithFallback('/api/auth/login/start', body);
 
       debugPrint('Login response status: ${response.statusCode}');
       debugPrint('Login response body: ${response.body}');
 
-      final data = json.decode(response.body);
-      if (response.statusCode == 200) {
-        final user = data;
-        String? token;
-        try {
-          if (data is Map && data['token'] is String && (data['token'] as String).isNotEmpty) {
-            token = data['token'] as String;
-          }
-        } catch (_) {}
+      dynamic data;
+      try {
+        data = json.decode(response.body);
+      } catch (_) {
         return {
-          'success': true,
-          'message': 'Login successful',
-          'user': user,
-          'token': token,
+          'success': false,
+          'message': 'Invalid server response. Ensure the backend is running and BASE_URL is correct.',
         };
-      } else {
+      }
+
+      if (response.statusCode == 200) {
+        final user = data is Map ? data as Map<String, dynamic> : <String, dynamic>{};
+        final token = (user['token'] is String && (user['token'] as String).isNotEmpty)
+            ? user['token'] as String
+            : null;
+        // login/start returns token directly for first-login bypass; otherwise sent: true
+        if (token != null) {
+          return {
+            'success': true,
+            'message': 'Login successful',
+            'user': user,
+            'token': token,
+          };
+        }
+        // Requires verification (OTP or TOTP)
+        final sent = user['sent'] == true;
+        final mfaEnabled = user['mfaEnabled'] == true;
+        final method = (user['mfaMethod'] ?? '').toString().toLowerCase();
+        final needsTotp = sent && mfaEnabled && (method.contains('authenticator') || method.contains('totp'));
+        if (needsTotp) {
+          return {
+            'success': false,
+            'requiresTotp': true,
+            'loginEmail': (user['loginEmail'] ?? '').toString(),
+            'message': 'Enter the code from your authenticator app',
+          };
+        }
+        if (sent) {
+          return {
+            'success': false,
+            'requiresOtp': true,
+            'loginEmail': (user['loginEmail'] ?? '').toString(),
+            'devCode': user['devCode']?.toString(),
+            'message': 'Verification code sent to your email',
+          };
+        }
+      }
+      // Error response
+      {
         String code = '';
         String fpToken = '';
         final msg = () {
@@ -477,6 +572,57 @@ class MongoDBService {
           }
         }
       } catch (_) {}
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> loginVerifyOtp({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/login/verify',
+        { 'email': email, 'code': code },
+        headers: { 'x-user-email': email },
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200) {
+        return { 'success': true, 'user': data };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Invalid verification code';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  static Future<Map<String, dynamic>> loginResendOtp({
+    required String email,
+  }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/login/resend',
+        { 'email': email },
+        headers: { 'x-user-email': email },
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && (data is Map ? data['sent'] == true : false)) {
+        return { 'success': true, 'message': (data is Map && data['message'] is String) ? data['message'] as String : 'Verification code sent to your email' };
+      }
+      final msg = (data is Map && data['error'] is Map && (data['error'] as Map)['message'] is String)
+          ? (data['error'] as Map)['message'] as String
+          : 'Failed to resend code. Please try logging in again.';
       return { 'success': false, 'message': msg };
     } on TimeoutException {
       return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
@@ -1957,6 +2103,330 @@ class MongoDBService {
       return { 'success': false, 'message': 'Request timeout. Check network and server availability.' };
     } catch (e) {
       return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  // --- Inspector API methods ---
+
+  static Future<Map<String, dynamic>> getInspectorInspectionCounts() async {
+    try {
+      final res = await _getWithFallbackH(
+        '/api/inspector/inspections/counts',
+        timeout: const Duration(seconds: 20),
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      dynamic decoded = ct.contains('application/json') ? json.decode(res.body) : null;
+      final data = decoded is Map<String, dynamic> ? decoded : (decoded is Map ? Map<String, dynamic>.from(decoded as Map) : <String, dynamic>{});
+      if (res.statusCode == 200 && data.isNotEmpty) {
+        int toInt(dynamic v) {
+          if (v == null) return 0;
+          if (v is int) return v;
+          if (v is num) return v.toInt();
+          if (v is String) return int.tryParse(v) ?? 0;
+          return 0;
+        }
+        final todayCount = toInt(data['today']);
+        final pendingCount = toInt(data['pending']);
+        final completedCount = toInt(data['completed']);
+        return {
+          'success': true,
+          'today': todayCount,
+          'pending': pendingCount,
+          'completed': completedCount,
+          if (todayCount == 0 && pendingCount == 0 && completedCount == 0)
+            'hint': 'No inspections. From backend folder run: npm run seed-inspector',
+        };
+      }
+      String errMsg;
+      if (res.statusCode == 401) {
+        errMsg = 'Unauthorized. Log out and log in again as waynenrq@gmail.com (Inspector).';
+      } else if (res.statusCode == 403) {
+        errMsg = 'Forbidden. This account is not an inspector.';
+      } else {
+        errMsg = (data is Map && data['error'] is Map)
+            ? (data['error']['message'] ?? data['error']['code'] ?? 'Request failed')
+            : 'Request failed (${res.statusCode})';
+      }
+      debugPrint('[Inspector] getInspectorInspectionCounts failed: $errMsg status=${res.statusCode}');
+      return { 'success': false, 'today': 0, 'pending': 0, 'completed': 0, 'message': errMsg };
+    } catch (e) {
+      debugPrint('[Inspector] getInspectorInspectionCounts error: $e');
+      return { 'success': false, 'today': 0, 'pending': 0, 'completed': 0, 'message': e.toString() };
+    }
+  }
+
+  static Future<Map<String, dynamic>> getInspectorInspections({
+    String? status,
+    String? dateFrom,
+    String? dateTo,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final q = <String>[];
+      if (status != null && status.isNotEmpty) q.add('status=$status');
+      if (dateFrom != null && dateFrom.isNotEmpty) q.add('dateFrom=$dateFrom');
+      if (dateTo != null && dateTo.isNotEmpty) q.add('dateTo=$dateTo');
+      q.add('page=$page');
+      q.add('limit=$limit');
+      final path = '/api/inspector/inspections?${q.join('&')}';
+      final res = await _getWithFallbackH(path);
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final data = ct.contains('application/json') ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map) {
+        return { 'success': true, 'inspections': data['inspections'] ?? [], 'pagination': data['pagination'] ?? {} };
+      }
+      return { 'success': false, 'message': (data is Map && data['error'] is Map) ? (data['error']['message'] ?? 'Failed to fetch inspections') : 'Failed to fetch inspections' };
+    } catch (e) {
+      return { 'success': false, 'message': e.toString() };
+    }
+  }
+
+  static Future<Map<String, dynamic>> getInspectionDetail(String inspectionId) async {
+    try {
+      final res = await _getWithFallbackH('/api/inspector/inspections/$inspectionId');
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final data = ct.contains('application/json') ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map) {
+        return { 'success': true, 'inspection': data };
+      }
+      return { 'success': false, 'message': (data is Map && data['error'] is Map) ? (data['error']['message'] ?? 'Inspection not found') : 'Inspection not found' };
+    } catch (e) {
+      return { 'success': false, 'message': e.toString() };
+    }
+  }
+
+  static Future<Map<String, dynamic>> getViolationsCatalog({String? query}) async {
+    try {
+      final q = query != null && query.isNotEmpty ? '?q=${Uri.encodeComponent(query)}' : '';
+      final res = await _getWithFallbackH('/api/inspector/violations-catalog$q');
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final data = ct.contains('application/json') ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map) {
+        return { 'success': true, 'violations': data['violations'] ?? [] };
+      }
+      return { 'success': false, 'violations': [] };
+    } catch (e) {
+      return { 'success': false, 'violations': [] };
+    }
+  }
+
+  static Future<Map<String, dynamic>> getOrdinances() async {
+    try {
+      final res = await _getWithFallbackH('/api/inspector/ordinances');
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final data = ct.contains('application/json') ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map) {
+        return { 'success': true, 'ordinances': data['ordinances'] ?? [] };
+      }
+      return { 'success': false, 'ordinances': [] };
+    } catch (e) {
+      return { 'success': false, 'ordinances': [] };
+    }
+  }
+
+  static Future<Map<String, dynamic>> getInspectionRiskIndicators(String inspectionId) async {
+    try {
+      final res = await _getWithFallbackH('/api/inspector/inspections/$inspectionId/risk-indicators');
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final data = ct.contains('application/json') ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map) {
+        return { 'success': true, ...data };
+      }
+      return { 'success': false };
+    } catch (e) {
+      return { 'success': false };
+    }
+  }
+
+  static Future<Map<String, dynamic>> startInspection(
+    String inspectionId, {
+    Map<String, dynamic>? gpsAtStart,
+    String? gpsMismatchReason,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (gpsAtStart != null) body['gpsAtStart'] = gpsAtStart;
+      if (gpsMismatchReason != null) body['gpsMismatchReason'] = gpsMismatchReason;
+      final res = await _postJsonWithFallbackH('/api/inspector/inspections/$inspectionId/start', body);
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final data = ct.contains('application/json') ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map && data['success'] == true) {
+        return {
+          'success': true,
+          'inspection': data['inspection'],
+          'gpsMismatch': data['gpsMismatch'] == true,
+        };
+      }
+      return { 'success': false, 'message': (data is Map && data['error'] is Map) ? (data['error']['message'] ?? 'Failed to start inspection') : 'Failed to start inspection' };
+    } catch (e) {
+      return { 'success': false, 'message': e.toString() };
+    }
+  }
+
+  static Future<Map<String, dynamic>> setGpsMismatchReason(String inspectionId, String reason) async {
+    try {
+      final res = await _patchJsonWithFallbackH('/api/inspector/inspections/$inspectionId/gps-mismatch-reason', { 'gpsMismatchReason': reason });
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final data = ct.contains('application/json') ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map && data['success'] == true) {
+        return { 'success': true, 'inspection': data['inspection'] };
+      }
+      return { 'success': false, 'message': (data is Map && data['error'] is Map) ? (data['error']['message'] ?? 'Failed') : 'Failed' };
+    } catch (e) {
+      return { 'success': false, 'message': e.toString() };
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateChecklist(String inspectionId, List<Map<String, dynamic>> checklist) async {
+    try {
+      final res = await _putJsonWithFallbackH('/api/inspector/inspections/$inspectionId/checklist', { 'checklist': checklist });
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final data = ct.contains('application/json') ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map && data['success'] == true) {
+        return { 'success': true, 'checklist': data['checklist'] ?? checklist };
+      }
+      return { 'success': false, 'message': (data is Map && data['error'] is Map) ? (data['error']['message'] ?? 'Failed to update checklist') : 'Failed to update checklist' };
+    } catch (e) {
+      return { 'success': false, 'message': e.toString() };
+    }
+  }
+
+  static Future<Map<String, dynamic>> issueViolation({
+    required String inspectionId,
+    required String violationType,
+    required String description,
+    required String severity,
+    required DateTime complianceDeadline,
+    String? legalBasis,
+  }) async {
+    try {
+      final body = {
+        'violationType': violationType,
+        'description': description,
+        'severity': severity,
+        'complianceDeadline': complianceDeadline.toIso8601String(),
+        if (legalBasis != null && legalBasis.isNotEmpty) 'legalBasis': legalBasis,
+      };
+      final res = await _postJsonWithFallbackH('/api/inspector/inspections/$inspectionId/violations', body);
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final data = ct.contains('application/json') ? json.decode(res.body) : {};
+      if ((res.statusCode == 200 || res.statusCode == 201) && data is Map && data['success'] == true) {
+        return { 'success': true, 'violation': data['violation'] };
+      }
+      return { 'success': false, 'message': (data is Map && data['error'] is Map) ? (data['error']['message'] ?? 'Failed to issue violation') : 'Failed to issue violation' };
+    } catch (e) {
+      return { 'success': false, 'message': e.toString() };
+    }
+  }
+
+  static Future<Map<String, dynamic>> uploadEvidence({
+    required String inspectionId,
+    required String filePath,
+    String type = 'photo',
+    Map<String, dynamic>? metadata,
+  }) async {
+    final candidates = _candidateBaseUrls();
+    String token = '';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      token = (prefs.getString('accessToken') ?? '').trim();
+    } catch (_) {}
+
+    for (final origin in candidates) {
+      try {
+        final uri = Uri.parse('$origin/api/inspector/inspections/$inspectionId/evidence');
+        final req = http.MultipartRequest('POST', uri);
+        req.headers.addAll({ 'Accept': 'application/json' });
+        if (token.isNotEmpty) {
+          req.headers['Authorization'] = 'Bearer $token';
+          req.headers['x-auth-token'] = token;
+          req.headers['x-access-token'] = token;
+        }
+        req.fields['type'] = type;
+        if (metadata != null && metadata.isNotEmpty) {
+          req.fields['metadata'] = json.encode(metadata);
+        }
+        req.files.add(await http.MultipartFile.fromPath('file', filePath));
+        final streamed = await req.send().timeout(const Duration(seconds: 30));
+        final res = await http.Response.fromStream(streamed);
+        final ct = (res.headers['content-type'] ?? '').toLowerCase();
+        final data = ct.contains('application/json') ? json.decode(res.body) : {};
+        if ((res.statusCode == 200 || res.statusCode == 201) && data is Map && data['success'] == true) {
+          return { 'success': true, 'evidence': data['evidence'] };
+        }
+        return { 'success': false, 'message': (data is Map && data['error'] is Map) ? (data['error']['message'] ?? 'Upload failed') : 'Upload failed' };
+      } on TimeoutException catch (_) {
+        continue;
+      } on SocketException catch (_) {
+        continue;
+      } catch (e) {
+        debugPrint('Evidence upload error: $e');
+        continue;
+      }
+    }
+    return { 'success': false, 'message': 'All endpoints unreachable for evidence upload' };
+  }
+
+  static Future<Map<String, dynamic>> submitInspection(
+    String inspectionId,
+    String overallResult, {
+    Map<String, dynamic>? inspectorSignature,
+  }) async {
+    try {
+      final body = <String, dynamic>{'overallResult': overallResult};
+      if (inspectorSignature != null) body['inspectorSignature'] = inspectorSignature;
+      final res = await _postJsonWithFallbackH('/api/inspector/inspections/$inspectionId/submit', body);
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final data = ct.contains('application/json') ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map && data['success'] == true) {
+        return { 'success': true, 'inspection': data['inspection'] };
+      }
+      return { 'success': false, 'message': (data is Map && data['error'] is Map) ? (data['error']['message'] ?? 'Failed to submit inspection') : 'Failed to submit inspection' };
+    } catch (e) {
+      return { 'success': false, 'message': e.toString() };
+    }
+  }
+
+  static Future<Map<String, dynamic>> getInspectorViolations({
+    String? status,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final q = <String>['page=$page', 'limit=$limit'];
+      if (status != null && status.isNotEmpty) q.add('status=$status');
+      final path = '/api/inspector/violations?${q.join('&')}';
+      final res = await _getWithFallbackH(path);
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final data = ct.contains('application/json') ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map) {
+        return { 'success': true, 'violations': data['violations'] ?? [], 'pagination': data['pagination'] ?? {} };
+      }
+      return { 'success': false, 'message': (data is Map && data['error'] is Map) ? (data['error']['message'] ?? 'Failed to fetch violations') : 'Failed to fetch violations' };
+    } catch (e) {
+      return { 'success': false, 'message': e.toString() };
+    }
+  }
+
+  static Future<Map<String, dynamic>> getInspectorNotifications({
+    int page = 1,
+    int limit = 20,
+    bool unreadOnly = false,
+  }) async {
+    try {
+      final q = <String>['page=$page', 'limit=$limit'];
+      if (unreadOnly) q.add('unreadOnly=true');
+      final path = '/api/inspector/notifications?${q.join('&')}';
+      final res = await _getWithFallbackH(path);
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final data = ct.contains('application/json') ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map) {
+        return { 'success': true, 'notifications': data['notifications'] ?? [], 'pagination': data['pagination'] ?? {} };
+      }
+      return { 'success': false, 'message': (data is Map && data['error'] is Map) ? (data['error']['message'] ?? 'Failed to fetch notifications') : 'Failed to fetch notifications' };
+    } catch (e) {
+      return { 'success': false, 'message': e.toString() };
     }
   }
 }

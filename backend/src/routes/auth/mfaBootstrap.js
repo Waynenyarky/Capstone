@@ -57,7 +57,7 @@ function parseBootstrapToken(raw) {
 }
 
 function issuerName() {
-  return String(process.env.DEFAULT_FROM_EMAIL || 'Capstone').replace(/<.*?>/g, '').trim() || 'Capstone'
+  return String(process.env.AUTHENTICATOR_APP_NAME || process.env.DEFAULT_FROM_EMAIL || 'BizClear').replace(/<.*?>/g, '').trim() || 'BizClear'
 }
 
 function resolveBootstrapAuth(req) {

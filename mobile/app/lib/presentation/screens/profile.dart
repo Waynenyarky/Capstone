@@ -18,6 +18,9 @@ import 'edit_profile_page.dart';
 import 'package:app/data/services/google_auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Callback when profile (avatar, name) is updated - used by shell to refresh sidebar/drawer.
+typedef OnProfileUpdated = void Function({String? avatarUrl, String? firstName, String? lastName});
+
 class ProfilePage extends StatefulWidget {
   final String email;
   final String firstName;
@@ -25,7 +28,13 @@ class ProfilePage extends StatefulWidget {
   final String phoneNumber;
   final String token;
   final String avatarUrl;
-  const ProfilePage({super.key, required this.email, required this.firstName, required this.lastName, required this.phoneNumber, required this.token, this.avatarUrl = ''});
+  /// When true, renders only the body content (no Scaffold/AppBar) for embedding in a shell.
+  final bool embeddedInShell;
+  /// When true, shows device trust section (e.g. for inspector role).
+  final bool showDeviceTrust;
+  /// Called when avatar or profile is updated so shell can refresh sidebar.
+  final OnProfileUpdated? onProfileUpdated;
+  const ProfilePage({super.key, required this.email, required this.firstName, required this.lastName, required this.phoneNumber, required this.token, this.avatarUrl = '', this.embeddedInShell = false, this.showDeviceTrust = false, this.onProfileUpdated});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -113,17 +122,19 @@ class _ProfilePageState extends State<ProfilePage> {
       if (!mounted) return;
       setState(() => _uploadingAvatar = false);
       if (res['success'] == true && res['avatarUrl'] is String) {
+        final newUrl = res['avatarUrl'] as String;
         setState(() {
-          avatarUrl = res['avatarUrl'] as String;
+          avatarUrl = newUrl;
           _localAvatarPath = '';
         });
         try {
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('avatar_url_${email.toLowerCase()}', avatarUrl);
-          await prefs.setString('lastAvatarUrl', avatarUrl);
+          await prefs.setString('avatar_url_${email.toLowerCase()}', newUrl);
+          await prefs.setString('lastAvatarUrl', newUrl);
           await prefs.setBool('avatarIsCustom', true);
           await prefs.setBool('avatarIsCustom_${email.toLowerCase()}', true);
         } catch (_) {}
+        widget.onProfileUpdated?.call(avatarUrl: newUrl);
         messenger.showSnackBar(const SnackBar(content: Text('Profile photo updated')));
       } else {
         final msg = (res['message'] is String) ? res['message'] as String : 'Upload failed';
@@ -656,7 +667,7 @@ class _ProfilePageState extends State<ProfilePage> {
         }) ?? false;
       } else {
         final docs = await getApplicationDocumentsDirectory();
-        final targetDir = io.Directory('${docs.path}/Capstone');
+        final targetDir = io.Directory('${docs.path}/BizClear');
         if (!(await targetDir.exists())) await targetDir.create(recursive: true);
         final file = io.File('${targetDir.path}/$suggestedName');
         await file.writeAsBytes(bytes);
@@ -694,18 +705,8 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('Profile', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w700, fontSize: 24)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: false,
-        iconTheme: const IconThemeData(color: Colors.black87),
-      ),
-      body: SingleChildScrollView(
+  Widget _buildProfileBody() {
+    return SingleChildScrollView(
         child: Column(
           children: [
             Container(
@@ -843,7 +844,24 @@ class _ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 30),
           ],
         ),
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.embeddedInShell) {
+      return _buildProfileBody();
+    }
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        title: const Text('Profile', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w700, fontSize: 24)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: false,
+        iconTheme: const IconThemeData(color: Colors.black87),
       ),
+      body: _buildProfileBody(),
     );
   }
 
@@ -924,6 +942,58 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildDivider() {
     return Divider(height: 1, color: Colors.grey[100], indent: 64);
+  }
+
+  Widget _buildDeviceTrustSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.08),
+            spreadRadius: 0,
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.phone_android, color: Colors.blue.shade700, size: 22),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'This device',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Active session',
+                  style: TextStyle(fontSize: 12, color: Colors.green.shade800, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'You are signed in on this device. Sign out to end this session.',
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.4),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildAccountSettingsSection() {

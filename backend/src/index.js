@@ -108,6 +108,8 @@ const adminMaintenanceRouter = require('./routes/admin/maintenance')
 const tamperIncidentsRouter = require('./routes/admin/tamperIncidents')
 const maintenanceRouter = require('./routes/maintenance')
 const lguOfficerPermitRouter = require('./routes/lgu-officer/permitApplications')
+const lguOfficerInspectionsRouter = require('./routes/lgu-officer/inspectionAssignments')
+const inspectorRouter = require('./routes/inspector')
 const notificationsRouter = require('./routes/notifications')
 // Mirror session user id into request headers for existing handlers
 try {
@@ -123,6 +125,8 @@ app.use('/api/admin/maintenance', adminMaintenanceRouter)
 app.use('/api/admin/tamper', tamperIncidentsRouter)
 app.use('/api/maintenance', maintenanceRouter)
 app.use('/api/lgu-officer/permit-applications', lguOfficerPermitRouter)
+app.use('/api/lgu-officer', lguOfficerInspectionsRouter)
+app.use('/api/inspector', inspectorRouter)
 app.use('/api/notifications', notificationsRouter)
 
 // Phase 5: Global Error Handler (must be last middleware)
@@ -222,8 +226,10 @@ if (process.env.NODE_ENV !== 'test') {
 
 const uploadsDir = path.join(__dirname, '..', 'uploads')
 const avatarsDir = path.join(uploadsDir, 'avatars')
+const inspectionsDir = path.join(uploadsDir, 'inspections')
 try { fs.mkdirSync(uploadsDir, { recursive: true }) } catch (_) {}
 try { fs.mkdirSync(avatarsDir, { recursive: true }) } catch (_) {}
+try { fs.mkdirSync(inspectionsDir, { recursive: true }) } catch (_) {}
 app.use('/uploads', express.static(uploadsDir))
 // Also serve legacy path used by some routes (src/uploads)
 const uploadsDirLegacy = path.join(__dirname, 'uploads')

@@ -43,11 +43,12 @@ export default function LoginVerificationForm({ email, onSubmit, title, otpExpir
           ]}
           style={{ marginBottom: 32 }}
         >
-          <Input.OTP 
-            size="large" 
-            length={6} 
-            style={{ width: '100%', justifyContent: 'center' }}
-            inputType="numeric"
+          <div style={{ maxWidth: 320, margin: '0 auto' }}>
+            <Input.OTP 
+              size="large" 
+              length={6} 
+              style={{ width: '100%', justifyContent: 'center', gap: 8 }}
+              inputType="numeric"
             mask={false}
             onChange={(value) => {
               // Input.OTP already handles numeric input, just ensure it's set in form
@@ -68,6 +69,7 @@ export default function LoginVerificationForm({ email, onSubmit, title, otpExpir
               }
             }}
           />
+          </div>
         </Form.Item>
 
         <Flex vertical gap="middle">

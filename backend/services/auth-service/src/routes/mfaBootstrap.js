@@ -57,7 +57,7 @@ function parseBootstrapToken(raw) {
 }
 
 function issuerName() {
-  return String(process.env.AUTHENTICATOR_APP_NAME || 'BizClear Business Center').trim() || 'BizClear Business Center'
+  return String(process.env.AUTHENTICATOR_APP_NAME || 'BizClear').trim() || 'BizClear'
 }
 
 function accountLabel(user) {

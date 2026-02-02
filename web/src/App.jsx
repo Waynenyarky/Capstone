@@ -20,7 +20,7 @@ import PermitReviewPage from "@/features/staffs/lgu-officer/pages/PermitReviewPa
 import { ProfileSettings } from "@/features/user"
 import { PlaceholderPage } from "@/features/shared"
 import { useNavigationNotifications } from "@/features/authentication/hooks"
-import { LGUManagerDashboard, ReportsAnalyticsPage, PermitApplicationsOverviewPage, CessationOverviewPage, ViolationsInspectionsOverviewPage, AppealsOverviewPage } from "@/features/lgu-manager"
+import { LGUManagerDashboard, ReportsAnalyticsPage, PermitApplicationsOverviewPage, CessationOverviewPage, ViolationsInspectionsOverviewPage, AssignInspectionPage, AppealsOverviewPage } from "@/features/lgu-manager"
 
 function App() {
   useNavigationNotifications()
@@ -81,6 +81,7 @@ function App() {
         <Route path="permit-applications" element={<PermitApplicationsOverviewPage />} />
         <Route path="cessation" element={<CessationOverviewPage />} />
         <Route path="violations-inspections" element={<ViolationsInspectionsOverviewPage />} />
+        <Route path="assign-inspection" element={<AssignInspectionPage />} />
         <Route path="appeals" element={<AppealsOverviewPage />} />
       </Route>
 

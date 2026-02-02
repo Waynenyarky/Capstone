@@ -101,6 +101,7 @@ export default function useSidebar() {
         { key: 'permit-applications', label: 'Permit Applications (Overview)', to: '/lgu-manager/permit-applications', icon: <FileTextOutlined /> },
         { key: 'cessation', label: 'Cessation (Overview)', to: '/lgu-manager/cessation', icon: <StopOutlined /> },
         { key: 'violations-inspections', label: 'Violations / Inspections (Overview)', to: '/lgu-manager/violations-inspections', icon: <SolutionOutlined /> },
+        { key: 'assign-inspection', label: 'Assign Inspection', to: '/lgu-manager/assign-inspection', icon: <SolutionOutlined /> },
         { key: 'appeals', label: 'Appeals (Overview)', to: '/lgu-manager/appeals', icon: <AuditOutlined /> },
         { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
         { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/theme/bizclear_colors.dart';
 import '../../../domain/usecases/get_mfa_status_detail.dart';
 import '../../../domain/usecases/request_disable_mfa.dart';
 import '../../../domain/usecases/undo_disable_mfa.dart';
@@ -354,55 +355,63 @@ class _DisableMfaPageState extends State<DisableMfaPage> {
               ),
               const SizedBox(height: 24),
 
-              // OTP Input Boxes
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(6, (index) {
-                  return _OtpBox(
-                    controller: _controllers[index],
-                    focusNode: _focusNodes[index],
-                    hasError: _errorMessage != null,
-                    onPasteAll: _pasteAllFromClipboard,
-                    onChanged: (value) async {
-                      setState(() => _errorMessage = null);
-                      final d = value.replaceAll(RegExp(r'\D'), '');
-                      if (d.length >= 6) {
-                        for (int i = 0; i < 6; i++) {
-                          _controllers[i].text = d[i];
-                        }
-                        FocusManager.instance.primaryFocus?.unfocus();
-                        return;
-                      }
-                      if (d.length > 1) {
-                        final start = index;
-                        final take = d.length >= (6 - start) ? d.substring(0, 6 - start) : d;
-                        for (int i = 0; i < take.length; i++) {
-                          _controllers[start + i].text = take[i];
-                        }
-                        final nextIndex = start + take.length;
-                        if (nextIndex <= 5) {
-                          _focusNodes[nextIndex].requestFocus();
-                        } else {
-                          FocusManager.instance.primaryFocus?.unfocus();
-                        }
-                        if (_isOtpComplete) {
-                          FocusManager.instance.primaryFocus?.unfocus();
-                        }
-                        return;
-                      }
-                      _controllers[index].text = d.isEmpty ? '' : d[0];
-                      if (d.isNotEmpty && index < 5) {
-                        _focusNodes[index + 1].requestFocus();
-                      }
-                      if (d.isEmpty && index > 0) {
-                        _focusNodes[index - 1].requestFocus();
-                      }
-                      if (_isOtpComplete) {
-                        FocusManager.instance.primaryFocus?.unfocus();
-                      }
-                    },
+              // OTP Input Boxes - responsive layout
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  const spacing = 8.0;
+                  final available = constraints.maxWidth;
+                  final boxSize = ((available - spacing * 5) / 6).clamp(40.0, 56.0);
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: List.generate(6, (index) {
+                      return _OtpBox(
+                        size: boxSize,
+                        controller: _controllers[index],
+                        focusNode: _focusNodes[index],
+                        hasError: _errorMessage != null,
+                        onPasteAll: _pasteAllFromClipboard,
+                        onChanged: (value) {
+                          setState(() => _errorMessage = null);
+                          final d = value.replaceAll(RegExp(r'\D'), '');
+                          if (d.length >= 6) {
+                            for (int i = 0; i < 6; i++) {
+                              _controllers[i].text = d[i];
+                            }
+                            FocusManager.instance.primaryFocus?.unfocus();
+                            return;
+                          }
+                          if (d.length > 1) {
+                            final start = index;
+                            final take = d.length >= (6 - start) ? d.substring(0, 6 - start) : d;
+                            for (int i = 0; i < take.length; i++) {
+                              _controllers[start + i].text = take[i];
+                            }
+                            final nextIndex = start + take.length;
+                            if (nextIndex <= 5) {
+                              _focusNodes[nextIndex].requestFocus();
+                            } else {
+                              FocusManager.instance.primaryFocus?.unfocus();
+                            }
+                            if (_isOtpComplete) {
+                              FocusManager.instance.primaryFocus?.unfocus();
+                            }
+                            return;
+                          }
+                          _controllers[index].text = d.isEmpty ? '' : d[0];
+                          if (d.isNotEmpty && index < 5) {
+                            _focusNodes[index + 1].requestFocus();
+                          }
+                          if (d.isEmpty && index > 0) {
+                            _focusNodes[index - 1].requestFocus();
+                          }
+                          if (_isOtpComplete) {
+                            FocusManager.instance.primaryFocus?.unfocus();
+                          }
+                        },
+                      );
+                    }),
                   );
-                }),
+                },
               ),
 
               // Error Message
@@ -410,13 +419,13 @@ class _DisableMfaPageState extends State<DisableMfaPage> {
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                    const Icon(Icons.error_outline, color: BizClearColors.error, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         _errorMessage!,
                         style: const TextStyle(
-                          color: Colors.red,
+                          color: BizClearColors.error,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
@@ -543,6 +552,7 @@ class _DisableMfaPageState extends State<DisableMfaPage> {
 
 // OTP Box Widget
 class _OtpBox extends StatelessWidget {
+  final double size;
   final TextEditingController controller;
   final FocusNode focusNode;
   final bool hasError;
@@ -550,6 +560,7 @@ class _OtpBox extends StatelessWidget {
   final Function(String) onChanged;
 
   const _OtpBox({
+    required this.size,
     required this.controller,
     required this.focusNode,
     required this.hasError,
@@ -559,46 +570,51 @@ class _OtpBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 50,
-      height: 60,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: hasError
-              ? Colors.red
-              : (focusNode.hasFocus ? Colors.blue : Colors.grey.shade300),
-          width: hasError || focusNode.hasFocus ? 2 : 1.5,
-        ),
-        boxShadow: focusNode.hasFocus
-            ? [
-                BoxShadow(
-                  color: Colors.blue.withValues(alpha: 0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ]
-            : null,
-      ),
+    final height = size * 1.2;
+    return SizedBox(
+      width: size,
+      height: height,
       child: TextField(
         controller: controller,
         focusNode: focusNode,
         textAlign: TextAlign.center,
         keyboardType: TextInputType.number,
-        maxLength: 1,
-        style: const TextStyle(
-          fontSize: 24,
+        textInputAction: TextInputAction.next,
+        autofillHints: const [AutofillHints.oneTimeCode],
+        style: TextStyle(
+          fontSize: (size * 0.5).clamp(18.0, 26.0),
           fontWeight: FontWeight.bold,
-          color: Colors.black87,
+          color: BizClearColors.textPrimary,
         ),
-        decoration: const InputDecoration(
-          border: InputBorder.none,
-          counterText: '',
+        decoration: InputDecoration(
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: hasError ? BizClearColors.error : BizClearColors.inputBorder,
+              width: hasError ? 2 : 1.5,
+            ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: hasError ? BizClearColors.error : BizClearColors.inputBorder,
+              width: hasError ? 2 : 1.5,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: hasError ? BizClearColors.error : BizClearColors.inputFocusedBorder,
+              width: 2,
+            ),
+          ),
+          filled: true,
+          fillColor: BizClearColors.surface,
           contentPadding: EdgeInsets.zero,
         ),
         inputFormatters: [
           FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(6),
         ],
         contextMenuBuilder: (ctx, editableTextState) {
           return AdaptiveTextSelectionToolbar(

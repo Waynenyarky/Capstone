@@ -6,6 +6,10 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
+    "create-inspector": "node scripts/create-inspector.js",
+    "seed-inspector": "node scripts/seed-inspector-data.js",
+    "create-inspector:docker": "cross-env MONGO_URI=mongodb://localhost:27017/capstone_project node scripts/create-inspector.js",
+    "create-inspector:wayne": "cross-env MONGO_URI=mongodb://localhost:27017/capstone_project node scripts/create-inspector.js waynenrq@gmail.com John Wayne TempPass123!",
     "test": "cross-env NODE_ENV=test jest --runInBand",
     "test:coverage": "cross-env NODE_ENV=test jest --runInBand --coverage"
   },

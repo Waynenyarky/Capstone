@@ -31,7 +31,7 @@ router.post('/mfa/setup', requireJwt, validateBody(setupSchema), async (req, res
     const email = doc.email
 
     const secret = generateSecret(20)
-    const issuer = String(process.env.DEFAULT_FROM_EMAIL || 'Capstone').replace(/<.*?>/g, '').trim() || 'Capstone'
+    const issuer = String(process.env.AUTHENTICATOR_APP_NAME || process.env.DEFAULT_FROM_EMAIL || 'BizClear').replace(/<.*?>/g, '').trim() || 'BizClear'
     const uri = otpauthUri({ issuer, account: email, secret, algorithm: 'SHA1', digits: 6, period: 30 })
 
     doc.mfaSecret = encryptWithHash(doc.passwordHash, secret)

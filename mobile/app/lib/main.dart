@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:app/core/theme/bizclear_colors.dart';
 import 'package:app/presentation/screens/login_page.dart';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'package:app/presentation/screens/profile.dart';
 import 'package:app/presentation/screens/deletion_scheduled_page.dart';
+import 'package:app/presentation/screens/inspector/inspector_shell.dart';
 
 import 'package:app/presentation/widgets/session_timeout_manager.dart';
 
@@ -28,46 +30,54 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: const ColorScheme.light(
-          primary: Colors.black,
-          onPrimary: Colors.white,
-          secondary: Colors.black,
+          primary: BizClearColors.primary,
+          onPrimary: BizClearColors.buttonPrimaryFg,
+          secondary: BizClearColors.accent,
           onSecondary: Colors.white,
-          surface: Colors.white,
-          onSurface: Colors.black,
-          error: Colors.red,
+          surface: BizClearColors.surface,
+          onSurface: BizClearColors.textPrimary,
+          error: BizClearColors.error,
           onError: Colors.white,
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
+          backgroundColor: BizClearColors.background,
+          foregroundColor: BizClearColors.textPrimary,
           elevation: 0,
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.black,
-            foregroundColor: Colors.white,
+            backgroundColor: BizClearColors.primary,
+            foregroundColor: BizClearColors.buttonPrimaryFg,
           ),
         ),
         filledButtonTheme: FilledButtonThemeData(
           style: FilledButton.styleFrom(
-            backgroundColor: Colors.black,
-            foregroundColor: Colors.white,
+            backgroundColor: BizClearColors.primary,
+            foregroundColor: BizClearColors.buttonPrimaryFg,
           ),
         ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
-            foregroundColor: Colors.black,
+            foregroundColor: BizClearColors.linkColor,
           ),
         ),
         outlinedButtonTheme: OutlinedButtonThemeData(
           style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.black,
-            side: const BorderSide(color: Colors.black),
+            foregroundColor: BizClearColors.accent,
+            side: const BorderSide(color: BizClearColors.border),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: BizClearColors.inputBorder),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: BizClearColors.inputFocusedBorder, width: 2),
           ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
@@ -221,6 +231,23 @@ class _AppRootState extends State<AppRoot> {
         };
       }
       final user = (profile['user'] is Map<String, dynamic>) ? (profile['user'] as Map<String, dynamic>) : <String, dynamic>{};
+      final role = (user['role'] is String) ? (user['role'] as String).toLowerCase() : '';
+      // Mobile app is Inspector-only: reject non-Inspector users
+      if (role != 'inspector') {
+        await prefs.remove('accessToken');
+        await prefs.remove('loggedInEmail');
+        await prefs.remove('cachedFirstName');
+        await prefs.remove('cachedLastName');
+        await prefs.remove('cachedPhoneNumber');
+        return {
+          'screen': 'login',
+          'notInspector': true,
+          'preFpEnabled': preFpEnabled,
+          'preFpEmail': preFpEmail,
+          'preFaceEnabled': preFaceEnabled,
+          'preAuthenticatorEnabled': preAuthenticatorEnabled,
+        };
+      }
       final pending = profile['deletionPending'] == true;
       final scheduledISO = (profile['deletionScheduledFor'] is String) ? profile['deletionScheduledFor'] as String : null;
       final firstName = (user['firstName'] is String) ? user['firstName'] as String : '';
@@ -315,7 +342,7 @@ class _AppRootState extends State<AppRoot> {
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
           if (_likelyLoggedIn) {
-            return ProfilePage(
+            return InspectorShell(
               email: _earlyEmail,
               firstName: _earlyFirstName,
               lastName: _earlyLastName,
@@ -329,7 +356,7 @@ class _AppRootState extends State<AppRoot> {
         final data = snap.data ?? const {'screen': 'login'};
         final screen = (data['screen'] ?? 'login').toString();
         if (screen == 'profile') {
-          return ProfilePage(
+          return InspectorShell(
             email: (data['email'] ?? '').toString(),
             firstName: (data['firstName'] ?? '').toString(),
             lastName: (data['lastName'] ?? '').toString(),
@@ -354,6 +381,7 @@ class _AppRootState extends State<AppRoot> {
           preFingerprintEmail: (data['preFpEmail'] ?? '').toString(),
           preFaceEnabled: (data['preFaceEnabled'] ?? false) == true,
           preAuthenticatorEnabled: (data['preAuthenticatorEnabled'] ?? false) == true,
+          notInspector: (data['notInspector'] ?? false) == true,
         );
       },
     );
