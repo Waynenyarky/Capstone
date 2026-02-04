@@ -165,7 +165,7 @@ export default function FormGroupDetailPanel({
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+      <div style={{ display: 'flex', justifyCèntent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
         <Space>
          
           <Title level={4} style={{ margin: 0 }}>
@@ -175,7 +175,7 @@ export default function FormGroupDetailPanel({
         <Space>
           {!group.retiredAt && (
             <Button
-              danger
+              danger3e
               icon={<StopOutlined />}
               onClick={confirmRetire}
               loading={retiring}
