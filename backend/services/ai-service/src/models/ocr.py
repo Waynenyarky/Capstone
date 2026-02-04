@@ -790,15 +790,22 @@ def extract_drivers_license_fields(text: str, lines: List[str]) -> Dict[str, str
                     break
     
     # Extract Agency Code (typically 3 characters: letter + 2 digits, like "A12")
-    for line in lines:
+    for i, line in enumerate(lines):
         line_lower = line.lower()
         if 'agency' in line_lower:
             logger.debug(f"Found agency line: {line}")
-            match = re.search(r'agency\s*(?:code)?[:\s]*([A-Z]\d{2})', line, re.IGNORECASE)
+            match = re.search(r'agency\s*(?:code)?[:\s]*([A-Z]\d{2})\b', line, re.IGNORECASE)
             if match:
                 result['agencyCode'] = match.group(1).upper()
                 logger.debug(f"Found agency code: {result['agencyCode']}")
                 break
+            # Value may be on next line (e.g. "Agency Code" then "A12")
+            if i + 1 < len(lines):
+                next_line = lines[i + 1].strip()
+                if re.match(r'^[A-Z]\d{2}$', next_line, re.IGNORECASE):
+                    result['agencyCode'] = next_line.upper()
+                    logger.debug(f"Found agency code from next line: {result['agencyCode']}")
+                    break
     
     # If agency code not found, try to extract from license number (first 3 chars)
     if 'agencyCode' not in result:
@@ -1084,6 +1091,20 @@ def extract_address_components(text: str, lines: List[str]) -> Dict[str, str]:
     return result
 
 
+def _normalize_sex(value: str, id_type: str) -> Optional[str]:
+    """Normalize sex/gender to M/F for drivers_license/passport, or Male/Female for others."""
+    if not value:
+        return None
+    v = value.strip().lower()
+    male_values = {'m', 'male', 'lalaki', 'l'}
+    female_values = {'f', 'female', 'babae'}
+    if v in male_values:
+        return 'M' if id_type in ['drivers_license', 'passport'] else 'Male'
+    if v in female_values:
+        return 'F' if id_type in ['drivers_license', 'passport'] else 'Female'
+    return None
+
+
 def extract_structured_data(
     text: str, 
     id_type: str,
@@ -1114,6 +1135,7 @@ def extract_structured_data(
     lines = [l.strip() for l in text.split('\n') if l.strip()]
     
     logger.info(f"Parsing {len(lines)} lines for ID type: {id_type}")
+    logger.debug(f"OCR raw text (first 500 chars): {repr(text[:500])}")
     
     # Try to extract ID number
     id_number = parse_id_number(text, id_type)
@@ -1218,15 +1240,49 @@ def extract_structured_data(
             # Last (newest) date is usually expiry
             extracted['expiryDate'] = sorted_dates[-1]
     
-    # Extract sex/gender if present
-    sex_match = re.search(r'(?:sex|gender)[:\s]*([MF]|male|female)', text, re.IGNORECASE)
+    # Extract sex/gender if present (same line, across newlines, next/previous line(s))
+    sex_value_raw = None
+    sex_next_line_values = {'m', 'f', 'male', 'female', 'lalaki', 'babae', 'l'}
+    # Same line: "Sex: M" or "Gender Female"
+    sex_match = re.search(r'(?:sex|gender)[:\s]*([MF]|male|female)\b', text, re.IGNORECASE)
     if sex_match:
-        sex_value = sex_match.group(1).upper()
-        if sex_value in ['MALE', 'M']:
-            extracted['sex'] = 'M' if id_type in ['drivers_license', 'passport'] else 'Male'
-        elif sex_value in ['FEMALE', 'F']:
-            extracted['sex'] = 'F' if id_type in ['drivers_license', 'passport'] else 'Female'
-    
+        sex_value_raw = sex_match.group(1).strip()
+    # Across newlines: "Sex\n\nM" (DOTALL so . matches newline)
+    if not sex_value_raw:
+        sex_match = re.search(r'(?:sex|gender)\s*[:\s]*\s*([MF]|male|female)\b', text, re.IGNORECASE | re.DOTALL)
+        if sex_match:
+            sex_value_raw = sex_match.group(1).strip()
+    # Fallback: label on one line, value on next 1–4 lines (e.g. "Sex" then "M")
+    if not sex_value_raw:
+        for i, line in enumerate(lines):
+            line_lower = line.lower()
+            if not any(kw in line_lower for kw in ['sex', 'gender', 'kasarian']):
+                continue
+            for j in range(1, min(5, len(lines) - i)):
+                next_line = lines[i + j].strip()
+                next_lower = next_line.lower()
+                if next_lower in sex_next_line_values:
+                    sex_value_raw = next_line
+                    break
+            if sex_value_raw:
+                break
+    # Fallback: value on current line, label on previous line (OCR order "M" then "Sex")
+    if not sex_value_raw:
+        for i in range(1, len(lines)):
+            line = lines[i].strip()
+            line_lower = line.lower()
+            if line_lower not in sex_next_line_values:
+                continue
+            prev_lower = lines[i - 1].lower()
+            if any(kw in prev_lower for kw in ['sex', 'gender', 'kasarian']):
+                sex_value_raw = line
+                break
+    if sex_value_raw:
+        normalized = _normalize_sex(sex_value_raw, id_type)
+        if normalized:
+            extracted['sex'] = normalized
+            logger.debug(f"Extracted sex: {extracted['sex']} from '{sex_value_raw}'")
+
     # Extract nationality if present
     nationality_value = None
     for i, line in enumerate(lines):
@@ -1287,12 +1343,25 @@ def extract_structured_data(
                         if match:
                             value = match.group(1).strip()
                             if value:
-                                extracted[field_name] = value
-                                logger.info(f"Extracted {field_name}: {value} (via mapping)")
-                                break
+                                # Don't accept "Code" as agency code (fragment from "Agency Code")
+                                if field_name == 'agencyCode':
+                                    if value.lower() == 'code' or not re.match(r'^[A-Z]\d{2}$', value, re.IGNORECASE):
+                                        continue
+                                if field_name == 'sex':
+                                    value = _normalize_sex(value, id_type) or value
+                                if value:
+                                    extracted[field_name] = value
+                                    logger.info(f"Extracted {field_name}: {value} (via mapping)")
+                                    break
                 if field_name in extracted:
                     break
     
+    # Ensure sex is normalized to M/F for drivers_license and passport
+    if 'sex' in extracted and id_type in ['drivers_license', 'passport']:
+        normalized = _normalize_sex(str(extracted['sex']), id_type)
+        if normalized:
+            extracted['sex'] = normalized
+
     result['extractedFields'] = extracted
     
     # Calculate confidence based on how many fields we extracted

@@ -174,6 +174,52 @@ def preprocess_image_sklearn(image: Image.Image) -> np.ndarray:
     return features.reshape(1, -1)
 
 
+def _check_document_characteristics(image: Image.Image) -> Tuple[bool, float, list]:
+    """
+    Check if image has document-like characteristics.
+    This helps when the ML model (trained on synthetic data) fails on real photos.
+    
+    Returns:
+        (looks_like_document, confidence_boost, notes)
+    """
+    notes = []
+    confidence_boost = 0.0
+    
+    width, height = image.size
+    aspect_ratio = width / height if height > 0 else 0
+    
+    # Check 1: ID-like aspect ratio (typical IDs are ~1.5-1.7 width:height)
+    # Also accept portrait orientation (0.6-0.7)
+    if 1.4 <= aspect_ratio <= 1.8:
+        confidence_boost += 0.2
+        notes.append("ID-like landscape aspect ratio")
+    elif 0.55 <= aspect_ratio <= 0.75:
+        confidence_boost += 0.2
+        notes.append("ID-like portrait aspect ratio")
+    
+    # Check 2: Reasonable resolution (not too small, not huge)
+    pixels = width * height
+    if 50000 <= pixels <= 20000000:  # ~224x224 to ~4500x4500
+        confidence_boost += 0.1
+        notes.append("Reasonable image resolution")
+    
+    # Check 3: Image has sufficient detail (not blank/solid color)
+    img_array = np.array(image.convert('RGB'))
+    std_dev = np.std(img_array)
+    if std_dev > 30:  # Has visual variation
+        confidence_boost += 0.2
+        notes.append("Image has visual detail")
+    
+    # Check 4: Not predominantly one color (likely a document with text/photos)
+    unique_colors = len(np.unique(img_array.reshape(-1, 3), axis=0))
+    if unique_colors > 1000:
+        confidence_boost += 0.1
+        notes.append("Rich color variation (document-like)")
+    
+    looks_like_document = confidence_boost >= 0.3
+    return looks_like_document, min(confidence_boost, 0.5), notes
+
+
 def predict(image: Image.Image) -> Tuple[bool, float, Optional[str]]:
     """
     Make a prediction on an image.
@@ -201,6 +247,9 @@ def predict(image: Image.Image) -> Tuple[bool, float, Optional[str]]:
         return is_legit, confidence, None
     
     try:
+        # First, check document characteristics (helps with real photos)
+        looks_like_doc, doc_confidence_boost, doc_notes = _check_document_characteristics(image)
+        
         if _model_type == 'sklearn':
             # sklearn model
             features = preprocess_image_sklearn(image)
@@ -214,17 +263,35 @@ def predict(image: Image.Image) -> Tuple[bool, float, Optional[str]]:
             probabilities = _model.predict_proba(features)[0]
             
             # Class 1 is 'legit' (label=1 in training)
-            confidence = float(probabilities[1])  # Probability of legit
-            is_legit = prediction == 1
+            model_confidence = float(probabilities[1])  # Probability of legit
+            
+            # If model gives very low confidence but image looks like a document,
+            # boost confidence (model trained on synthetic data struggles with real photos)
+            if model_confidence < 0.3 and looks_like_doc:
+                logger.info(f"Model uncertain ({model_confidence:.4f}), but image looks like document. Boosting confidence.")
+                logger.info(f"Document characteristics: {doc_notes}")
+                confidence = min(model_confidence + doc_confidence_boost, 0.85)
+                is_legit = confidence >= settings.LEGIT_THRESHOLD
+            else:
+                confidence = model_confidence
+                is_legit = prediction == 1
             
         else:
             # TensorFlow model
             img_array = preprocess_image_tensorflow(image)
             prediction = _model.predict(img_array, verbose=0)
-            confidence = float(prediction[0][0])
+            model_confidence = float(prediction[0][0])
+            
+            # Apply same boost logic for TensorFlow
+            if model_confidence < 0.3 and looks_like_doc:
+                confidence = min(model_confidence + doc_confidence_boost, 0.85)
+            else:
+                confidence = model_confidence
             is_legit = confidence >= settings.LEGIT_THRESHOLD
         
         logger.info(f"ID verification prediction ({_model_type}): legit={is_legit}, confidence={confidence:.4f}")
+        if doc_notes:
+            logger.info(f"Document analysis: {doc_notes}")
         
         return is_legit, confidence, None
         
@@ -250,29 +317,49 @@ def verify_id_images(
     Returns:
         Dictionary with verification results
     """
-    # FORCE VERIFICATION TO ALWAYS PASS (for testing)
     results = {
-        'legit': True,  # Always return True
-        'confidence': 0.95,  # High confidence
+        'legit': False,
+        'confidence': 0.0,
         'documentType': None,
-        'frontResult': {
-            'legit': True,
-            'confidence': 0.95,
-            'documentType': None,
-        },
-        'backResult': {
-            'legit': True,
-            'confidence': 0.95,
-            'documentType': None,
-        } if back_image is not None else None,
+        'frontResult': None,
+        'backResult': None,
         'modelVersion': get_model_info().get('version'),
         'notes': [
             'This verification is based on visual appearance only.',
             'No government database verification is performed.',
-            'FORCED VERIFICATION MODE: Always returns verified (for testing).',
         ]
     }
     
-    logger.info("ID verification FORCED to return verified (testing mode)")
+    # Verify front image
+    if front_image is not None:
+        is_legit, confidence, doc_type = predict(front_image)
+        results['frontResult'] = {
+            'legit': is_legit,
+            'confidence': confidence,
+            'documentType': doc_type,
+        }
+        results['legit'] = is_legit
+        results['confidence'] = confidence
+        results['documentType'] = doc_type
+        logger.info(f"Front ID verification: legit={is_legit}, confidence={confidence:.4f}")
+    
+    # Verify back image if provided
+    if back_image is not None:
+        is_legit, confidence, doc_type = predict(back_image)
+        results['backResult'] = {
+            'legit': is_legit,
+            'confidence': confidence,
+            'documentType': doc_type,
+        }
+        # Overall result: both must be legit, use minimum confidence
+        if results['frontResult'] is not None:
+            results['legit'] = results['frontResult']['legit'] and is_legit
+            results['confidence'] = min(results['frontResult']['confidence'], confidence)
+        else:
+            results['legit'] = is_legit
+            results['confidence'] = confidence
+        logger.info(f"Back ID verification: legit={is_legit}, confidence={confidence:.4f}")
+    
+    logger.info(f"ID verification complete: legit={results['legit']}, confidence={results['confidence']:.4f}")
     
     return results

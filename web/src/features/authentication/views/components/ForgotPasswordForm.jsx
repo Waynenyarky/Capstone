@@ -10,40 +10,31 @@ export default function ForgotPasswordForm({ onSubmit } = {}) {
   const navigate = useNavigate()
 
   return (
-    <div style={{ maxWidth: 400, margin: '0 auto' }}>
+    <div style={{ maxWidth: 300, margin: '0 auto' }}>
       <div style={{ textAlign: 'center', marginBottom: 48 }}>
-        <Title level={2} style={{ marginBottom: 16, fontWeight: 700, fontSize: 30 }}>Forgot Password?</Title>
-        <Text type="secondary" style={{ fontSize: 16, lineHeight: 1.6 }}>
+        <Title level={3} style={{ marginBottom: 16 }}>Forgot Password?</Title>
+        <Text type="secondary">
           Enter your email address and we'll send you a code to reset your password.
         </Text>
       </div>
 
-      <Alert
-        showIcon
-        type="info"
-        message="Security check"
-        description="We log the IP and device for recovery attempts to keep your account safe."
-        style={{ marginBottom: 16 }}
-      />
-
-      <Form name="forgotPassword" form={form} layout="vertical" onFinish={handleFinish} size="large" requiredMark={false}>
+      <Form name="forgotPassword" form={form} size="default" layout="vertical" onFinish={handleFinish} requiredMark={false}>
         <Form.Item
           name="email"
-          label={<Text strong>Email Address</Text>}
+          label="Email Address"
           rules={forgotPasswordEmailRules}
-          style={{ marginBottom: 32 }}
         >
-          <Input placeholder="name@example.com" variant="filled" style={{ padding: '10px 16px' }} />
+          <Input placeholder="name@example.com" variant="filled" />
         </Form.Item>
         
         <Form.Item style={{ marginBottom: 16 }}>
-          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block size="large" style={{ height: 48, fontSize: 16 }}>
-            Send Reset Code
+          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block>
+            Continue
           </Button>
         </Form.Item>
 
         <div style={{ textAlign: 'center', marginTop: 24 }}>
-          <Button type="link" onClick={() => navigate('/login')} style={{ padding: 0, fontWeight: 600, fontSize: 15, color: '#001529' }} className="auth-link-hover">
+          <Button type="text" onClick={() => navigate('/login')} style={{ padding: 0 }}>
             Back to Login
           </Button>
         </div>

@@ -645,11 +645,6 @@ class BusinessProfileService {
       throw new Error('No businesses found')
     }
 
-    // Prevent deletion if it's the only business
-    if (profile.businesses.length === 1) {
-      throw new Error('Cannot delete the only business. At least one business must exist.')
-    }
-
     const businessIndex = profile.businesses.findIndex(b => b.businessId === businessId)
     if (businessIndex === -1) {
       throw new Error('Business not found')

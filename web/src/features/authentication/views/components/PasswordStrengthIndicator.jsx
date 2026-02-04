@@ -5,13 +5,12 @@ import { getPasswordStrength, validatePasswordRequirements, REQUIREMENT_LABELS }
 const { Text } = Typography
 
 /**
- * Reusable password strength + requirements indicator
+ * Reusable password strength + requirements indicator.
+ * Always visible; shows weak/empty state when value is empty.
  */
 export default function PasswordStrengthIndicator({ value = '' }) {
   const strength = getPasswordStrength(value)
   const validation = validatePasswordRequirements(value)
-
-  if (!value) return null
 
   return (
     <div style={{ marginBottom: 24 }}>

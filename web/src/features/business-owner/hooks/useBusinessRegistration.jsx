@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { Form, message, Modal } from 'antd'
 import { getBusinessProfile, updateBusinessProfile } from '../services/businessProfileService'
 
-const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:3005'
+// Use Vite proxy in development (works in Codespaces), direct URL in production
+const AI_SERVICE_URL = import.meta.env.DEV ? '/ai' : (import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:3005')
 
 export function useBusinessRegistration({ onComplete } = {}) {
   const [currentStep, setCurrentStep] = useState(0) 

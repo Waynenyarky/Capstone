@@ -16,7 +16,7 @@ export default function VerificationConfirmForm({ email, onSubmit, title } = {})
         </Text>
       </div>
 
-      <Form name="verification_confirm" form={form} layout="vertical" onFinish={handleFinish} size="large" requiredMark={false}>
+      <Form name="verification_confirm" form={form} layout="vertical" onFinish={handleFinish} size="default" requiredMark={false}>
         <Form.Item 
           name="verificationCode" 
           rules={[
@@ -49,7 +49,7 @@ export default function VerificationConfirmForm({ email, onSubmit, title } = {})
         </Form.Item>
         
         <Form.Item style={{ marginBottom: 16 }}>
-          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block size="large" style={{ height: 48, fontSize: 16 }}>
+          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block>
             Verify
           </Button>
         </Form.Item>

@@ -35,6 +35,14 @@ class BlockchainService {
    */
   loadContractABI(contractName) {
     try {
+      // Docker: try shared volume mount first (contract_addresses at /app/contract-addresses)
+      const abiDir = process.env.CONTRACT_ABI_PATH || '/app/contract-addresses';
+      const dockerPath = path.join(abiDir, `${contractName}.json`);
+      if (fs.existsSync(dockerPath)) {
+        const artifact = JSON.parse(fs.readFileSync(dockerPath, 'utf8'));
+        return artifact.abi;
+      }
+
       // Try to load from Truffle build directory (relative to project root)
       const artifactPath = path.join(
         __dirname,

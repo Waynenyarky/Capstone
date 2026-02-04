@@ -95,6 +95,7 @@ export default function BusinessOwnerDashboard() {
       pageTitle="Dashboard" 
       businessName={profile?.businessName}
       hiddenSidebarKeys={!shouldShowBusinessRegistration ? ['business-registration'] : []}
+      showPageHeader={false}
     >
         {dashboardLoading ? (
            <div style={{ textAlign: 'center', padding: 50 }}>

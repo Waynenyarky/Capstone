@@ -13,7 +13,7 @@ import {
   SolutionOutlined,
   BarChartOutlined,
   CustomerServiceOutlined,
-  ShopOutlined
+  FormOutlined
 } from '@ant-design/icons'
 
 // Role keys used across the app: 'business_owner', 'admin', 'inspector', 'lgu_officer', 'lgu_manager', 'cso', 'user'
@@ -30,26 +30,7 @@ export default function useSidebar() {
 
     const businessItems = [
       { key: 'dashboard', label: 'Dashboard', to: '/owner', icon: <DashboardOutlined /> },
-      { 
-        key: 'permit-apps', 
-        label: 'Permit Applications', 
-        to: '/owner/permits', 
-        icon: <FileTextOutlined />,
-        children: [
-          { 
-            key: 'business-registration', 
-            label: 'Business Registration', 
-            to: '/owner/business-registration',
-            icon: <ShopOutlined />
-          },
-          { 
-            key: 'business-renewal', 
-            label: 'Business Renewal', 
-            to: '/owner/business-renewal',
-            icon: <ShopOutlined />
-          }
-        ]
-      },
+      { key: 'permit-apps', label: 'Permit Applications', to: '/owner/permits', icon: <FileTextOutlined /> },
       { key: 'cessation', label: 'Cessation', to: '/owner/cessation', icon: <StopOutlined /> },
       { key: 'payments', label: 'Payments', to: '/owner/payments', icon: <CreditCardOutlined /> },
       { key: 'appeals', label: 'Appeals', to: '/owner/appeals', icon: <AuditOutlined /> },
@@ -64,6 +45,7 @@ export default function useSidebar() {
         { key: 'dashboard', label: 'Dashboard', to: '/admin/dashboard', icon: <DashboardOutlined /> },
         { key: 'admin-full', label: 'Admin — Full', to: '/admin/full', icon: <SafetyCertificateOutlined /> },
         { key: 'admin-users', label: 'User Management', to: '/admin/users', icon: <TeamOutlined /> },
+        { key: 'form-definitions', label: 'Form Definitions', to: '/admin/form-definitions', icon: <FormOutlined /> },
         { key: 'maintenance', label: 'Maintenance', to: '/admin/maintenance', icon: <SafetyCertificateOutlined /> },
         { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
         { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },

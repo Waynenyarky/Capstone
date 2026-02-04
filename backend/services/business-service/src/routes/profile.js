@@ -48,6 +48,23 @@ const renewalUploadStorage = multer.diskStorage({
 const upload = multer({ storage: uploadStorage })
 const renewalUpload = multer({ storage: renewalUploadStorage })
 
+// Owner ID upload (for business registration identity step - no businessId yet)
+const ownerIdUploadRoot = path.join(__dirname, '..', '..', '..', 'uploads', 'owner-ids')
+const ownerIdStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const userId = req._userId || 'unknown'
+    const userDir = path.join(ownerIdUploadRoot, String(userId))
+    ensureDir(userDir)
+    cb(null, userDir)
+  },
+  filename: (req, file, cb) => {
+    const side = (req.body?.side || 'front').toString().replace(/[^a-zA-Z0-9_-]/g, '') || 'front'
+    const stamp = Date.now()
+    cb(null, `${side}_${stamp}.jpg`)
+  }
+})
+const ownerIdUpload = multer({ storage: ownerIdStorage, limits: { fileSize: 5 * 1024 * 1024 } })
+
 // GET /api/business/profile - Get current user's business profile
 router.get('/profile', requireJwt, requireRole(['business_owner']), async (req, res) => {
   try {
@@ -58,6 +75,60 @@ router.get('/profile', requireJwt, requireRole(['business_owner']), async (req, 
     return respond.error(res, 500, 'fetch_error', 'Failed to fetch business profile')
   }
 })
+
+// POST /api/business/profile/owner-id/upload - Upload owner ID image (front or back) during business registration
+router.post(
+  '/profile/owner-id/upload',
+  requireJwt,
+  requireRole(['business_owner']),
+  ownerIdUpload.single('file'),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return respond.error(res, 400, 'file_required', 'No file uploaded')
+      }
+      const userId = req._userId
+      const side = (req.body?.side || 'front').toString().replace(/[^a-zA-Z0-9_-]/g, '') || 'front'
+
+      let ipfsService = null
+      try {
+        ipfsService = require('../lib/ipfsService')
+        if (!ipfsService.isAvailable()) {
+          await ipfsService.initialize()
+        }
+      } catch (err) {
+        logger.warn('IPFS service not available for owner ID upload', { error: err.message })
+      }
+
+      if (ipfsService && ipfsService.isAvailable()) {
+        try {
+          const fileBuffer = await fs.promises.readFile(req.file.path)
+          const fileName = `id_${side}_${userId}_${Date.now()}.jpg`
+          const { cid, size } = await ipfsService.uploadFile(fileBuffer, fileName)
+          await ipfsService.pinFile(cid).catch((err) => {
+            logger.warn('Failed to pin owner ID to IPFS', { cid, error: err.message })
+          })
+          const url = ipfsService.getGatewayUrl(cid)
+          try {
+            await fs.promises.unlink(req.file.path)
+          } catch (_) {}
+          logger.info('Owner ID uploaded to IPFS', { cid, side, userId })
+          return res.json({ url, ipfsCid: cid, size })
+        } catch (ipfsErr) {
+          logger.error('IPFS upload failed for owner ID', { error: ipfsErr.message })
+        }
+      }
+
+      // Fallback: local storage
+      const url = `/uploads/owner-ids/${userId}/${path.basename(req.file.path)}`
+      logger.info('Owner ID saved to local storage', { url, side, userId })
+      return res.json({ url, ipfsCid: null, fallback: true })
+    } catch (err) {
+      console.error('POST /api/business/profile/owner-id/upload error:', err)
+      return respond.error(res, 500, 'upload_error', err.message || 'Failed to upload ID')
+    }
+  }
+)
 
 // POST /api/business/profile - Update business profile (Step 2-8)
 router.post('/profile', requireJwt, requireRole(['business_owner']), async (req, res) => {

@@ -48,6 +48,9 @@ require('./models/Role');
 require('./models/User');
 require('./models/BusinessProfile');
 require('./models/AuditLog');
+require('./models/LGU');
+require('./models/FormGroup');
+require('./models/FormDefinition');
 
 // Admin routes
 const adminRouter = require('./routes/approvals');
@@ -55,15 +58,28 @@ const monitoringRouter = require('./routes/monitoring');
 const maintenanceRouter = require('./routes/maintenance');
 const tamperIncidentsRouter = require('./routes/tamperIncidents');
 const lguOfficerPermitRouter = require('./routes/permitApplications');
+const lgusRouter = require('./routes/lgus');
+const formDefinitionsRouter = require('./routes/formDefinitions');
+const publicFormsRouter = require('./routes/publicForms');
 
 app.use('/api/admin', adminRouter);
 app.use('/api/admin/monitoring', monitoringRouter);
 app.use('/api/admin/maintenance', maintenanceRouter);
 app.use('/api/admin/tamper', tamperIncidentsRouter);
+app.use('/api/admin/lgus', lgusRouter);
+app.use('/api/admin/forms', formDefinitionsRouter);
 // Public maintenance status endpoint (for frontend to check)
 app.use('/api/maintenance', maintenanceRouter);
+// Public LGU endpoints
+app.use('/api/lgus', lgusRouter);
+// Public form definitions endpoints
+app.use('/api/forms', publicFormsRouter);
 // LGU Officer permit applications routes
 app.use('/api/lgu-officer/permit-applications', lguOfficerPermitRouter);
+
+// Serve static uploads (form templates, etc.)
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // Notification routes (shared across all services)
 // Use auth service routes since notifications are user-specific
@@ -81,6 +97,33 @@ async function start() {
     logger.info('Admin Service starting', { mongoUri: uri ? '<set>' : '<not-set>' });
 
     await connectDB(uri);
+
+    // Seed form definitions if empty (idempotent)
+    // Runs when SEED_FORM_DEFINITIONS=true (Docker) or in non-test dev
+    const shouldSeed = process.env.NODE_ENV !== 'test' &&
+      (process.env.SEED_FORM_DEFINITIONS === 'true' || process.env.NODE_ENV !== 'production')
+
+    if (shouldSeed) {
+      const maxSeedRetries = 5
+      const seedRetryDelayMs = 3000
+      for (let attempt = 1; attempt <= maxSeedRetries; attempt++) {
+        try {
+          const { seedIfEmpty } = require('./migrations/seedFormDefinitions')
+          const result = await seedIfEmpty()
+          if (result.seeded) {
+            logger.info('Form definitions seeded', { count: result.count })
+          }
+          break
+        } catch (error) {
+          logger.warn(`Form definitions seed attempt ${attempt}/${maxSeedRetries} failed`, { error: error.message })
+          if (attempt === maxSeedRetries) {
+            logger.warn('Form definitions seed failed after retries', { error: error.message })
+          } else {
+            await new Promise((r) => setTimeout(r, seedRetryDelayMs))
+          }
+        }
+      }
+    }
 
     // Initialize background jobs after DB connection
     if (process.env.NODE_ENV !== 'test') {

@@ -51,6 +51,7 @@ const MICROSERVICES = {
   business: Number(process.env.VITE_BUSINESS_PORT) || 3002,
   admin: Number(process.env.VITE_ADMIN_PORT) || 3003,
   audit: Number(process.env.VITE_AUDIT_PORT) || 3004,
+  ai: Number(process.env.VITE_AI_SERVICE_PORT) || 3005,
 };
 
 // Unified backend configuration (local development)
@@ -59,7 +60,7 @@ const UNIFIED_BACKEND_TARGET = `http://localhost:${UNIFIED_BACKEND_PORT}`;
 
 if (USE_MICROSERVICES) {
   console.log(`[Vite Config] Using MICROSERVICES mode (Docker Compose)`);
-  console.log(`[Vite Config] Auth: ${MICROSERVICES.auth}, Business: ${MICROSERVICES.business}, Admin: ${MICROSERVICES.admin}, Audit: ${MICROSERVICES.audit}`);
+  console.log(`[Vite Config] Auth: ${MICROSERVICES.auth}, Business: ${MICROSERVICES.business}, Admin: ${MICROSERVICES.admin}, Audit: ${MICROSERVICES.audit}, AI: ${MICROSERVICES.ai} (proxied at /ai)`);
 } else {
   console.log(`[Vite Config] Using UNIFIED BACKEND mode (Local)`);
   console.log(`[Vite Config] Backend target: ${UNIFIED_BACKEND_TARGET}`);
@@ -173,6 +174,16 @@ if (ENABLE_STORYBOOK_TESTS) {
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-antd': ['antd', '@ant-design/icons'],
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src')
@@ -205,8 +216,29 @@ export default defineConfig({
       // LGU Officer endpoints -> Admin Service (port 3003) since permit applications are admin functions
       '/api/lgu-officer': createProxyConfig('/api/lgu-officer', `http://localhost:${MICROSERVICES.admin}`),
       
+      // Public LGU endpoints -> Admin Service (port 3003)
+      '/api/lgus': createProxyConfig('/api/lgus', `http://localhost:${MICROSERVICES.admin}`),
+      
+      // Public Form Definition endpoints -> Admin Service (port 3003)
+      '/api/forms': createProxyConfig('/api/forms', `http://localhost:${MICROSERVICES.admin}`),
+      
       // Uploads -> Business Service (port 3002)
       '/uploads': createProxyConfig('/uploads', `http://localhost:${MICROSERVICES.business}`),
+      
+      // AI Service (OCR, ID verification) -> port 3005 — use relative URL /ai in dev so this proxy is used (works with port forwarding / Codespaces)
+      '/ai': {
+        target: `http://localhost:${MICROSERVICES.ai}`,
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/ai/, ''),
+        configure: (proxy) => {
+          proxy.on('error', (err, req, res) => {
+            if (err.code === 'ECONNREFUSED') {
+              console.warn('[Proxy] AI service unreachable at localhost:' + MICROSERVICES.ai + ' — is the AI service running? (docker-compose up ai-service or uvicorn in backend/services/ai-service)');
+            }
+          });
+        },
+      },
       
       // Catch-all for other API routes -> Auth Service (port 3001)
       '/api': createProxyConfig('/api', `http://localhost:${MICROSERVICES.auth}`)
@@ -220,8 +252,17 @@ export default defineConfig({
       '/api/audit': createProxyConfig('/api/audit', UNIFIED_BACKEND_TARGET),
       '/api/maintenance': createProxyConfig('/api/maintenance', UNIFIED_BACKEND_TARGET),
       '/api/lgu-officer': createProxyConfig('/api/lgu-officer', UNIFIED_BACKEND_TARGET),
+      '/api/lgus': createProxyConfig('/api/lgus', UNIFIED_BACKEND_TARGET),
+      '/api/forms': createProxyConfig('/api/forms', UNIFIED_BACKEND_TARGET),
       '/uploads': createProxyConfig('/uploads', UNIFIED_BACKEND_TARGET),
-      '/api': createProxyConfig('/api', UNIFIED_BACKEND_TARGET)
+      '/api': createProxyConfig('/api', UNIFIED_BACKEND_TARGET),
+      // AI Service (OCR, ID verification) — same as microservices mode
+      '/ai': {
+        target: `http://localhost:${Number(process.env.VITE_AI_SERVICE_PORT) || 3005}`,
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/ai/, ''),
+      },
     }
   }
 });

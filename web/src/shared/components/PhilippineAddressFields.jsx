@@ -253,6 +253,7 @@ export default function PhilippineAddressFields({
           name="streetAddress"
           label="House/Bldg No. & Street"
           initialValue={initialStreet}
+          rules={required ? [{ required: true, message: 'Please enter house/building no. & street' }] : []}
         >
           <Input 
             placeholder="e.g., 133 Roxas Boulevard" 
@@ -328,6 +329,7 @@ export default function PhilippineAddressFields({
         <Form.Item
           name="barangay"
           label="Barangay"
+          rules={required ? [{ required: true, message: 'Please select barangay' }] : []}
         >
           <Select
             showSearch
@@ -362,6 +364,7 @@ export default function PhilippineAddressFields({
           label="Postal Code"
           initialValue={initialPostalCode}
           rules={[
+            ...(required ? [{ required: true, message: 'Please enter postal code' }] : []),
             { pattern: /^\d{4}$/, message: 'Postal code must be 4 digits' }
           ]}
         >

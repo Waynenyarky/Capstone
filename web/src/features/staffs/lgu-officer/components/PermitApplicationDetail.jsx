@@ -45,6 +45,7 @@ import {
 } from '@ant-design/icons'
 import { PermitApplicationService } from '@/features/lgu-officer/infrastructure/services'
 import { resolveIpfsUrl } from '@/lib/ipfsUtils'
+import { getBusinessTypeLabel } from '@/constants/businessTypes'
 import dayjs from 'dayjs'
 
 const { Title, Text, Paragraph } = Typography
@@ -256,17 +257,7 @@ export default function PermitApplicationDetail({
 
   const formatBusinessType = (type) => {
     if (!type) return 'N/A'
-    const typeMap = {
-      'retail_trade': 'Retail Trade',
-      'food_beverages': 'Food & Beverages',
-      'services': 'Services',
-      'manufacturing_industrial': 'Manufacturing/Industrial',
-      'agriculture_fishery_forestry': 'Agriculture/Fishery/Forestry',
-      'construction_real_estate_housing': 'Construction/Real Estate/Housing',
-      'transportation_automotive_logistics': 'Transportation/Automotive/Logistics',
-      'financial_insurance_banking': 'Financial/Insurance/Banking'
-    }
-    return typeMap[type] || type
+    return getBusinessTypeLabel(type)
   }
 
   const formatRegistrationType = (type) => {

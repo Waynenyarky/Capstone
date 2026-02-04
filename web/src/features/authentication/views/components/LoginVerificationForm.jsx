@@ -28,16 +28,15 @@ export default function LoginVerificationForm({ email, onSubmit, title, otpExpir
       styles={{ body: { padding: 40 } }}
     >
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
-        <Title level={2} style={{ marginBottom: 8, fontWeight: 700 }}>{cardTitle}</Title>
-        <Text type="secondary" style={{ fontSize: 16 }}>
-          We sent a verification code to <Text strong style={{ color: token.colorPrimary }}>{email}</Text>
+        <Title level={3}>{cardTitle}</Title>
+        <Text type="secondary">
+          Please enter the 6-digit code sent to <br/><Text strong style={{ color: token.colorPrimary }}>{email}</Text>
         </Text>
       </div>
 
-      <Form name="loginVerification" form={form} layout="vertical" onFinish={handleFinish} size="large">
+      <Form name="loginVerification" form={form} layout="vertical" onFinish={handleFinish} size="default">
         <Form.Item 
           name="verificationCode" 
-          label={<Text strong>Verification Code</Text>}
           rules={[
             { required: true, message: 'Please enter the verification code' }
           ]}
@@ -49,31 +48,31 @@ export default function LoginVerificationForm({ email, onSubmit, title, otpExpir
               length={6} 
               style={{ width: '100%', justifyContent: 'center', gap: 8 }}
               inputType="numeric"
-            mask={false}
-            onChange={(value) => {
-              // Input.OTP already handles numeric input, just ensure it's set in form
-              form.setFieldsValue({ verificationCode: value })
-            }}
-            onKeyDown={(e) => {
-              // Allow: backspace, delete, tab, escape, enter, arrows, home, end
-              const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
-              if (allowedKeys.includes(e.key)) return
-              
-              // Allow Ctrl/Cmd + A, C, V, X
-              if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
-              
-              // Block any non-numeric key
-              if (!/^[0-9]$/.test(e.key)) {
-                e.preventDefault()
-                e.stopPropagation()
-              }
-            }}
-          />
+              mask={false}
+              onChange={(value) => {
+                // Input.OTP already handles numeric input, just ensure it's set in form
+                form.setFieldsValue({ verificationCode: value })
+              }}
+              onKeyDown={(e) => {
+                // Allow: backspace, delete, tab, escape, enter, arrows, home, end
+                const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
+                if (allowedKeys.includes(e.key)) return
+                
+                // Allow Ctrl/Cmd + A, C, V, X
+                if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
+                
+                // Block any non-numeric key
+                if (!/^[0-9]$/.test(e.key)) {
+                  e.preventDefault()
+                  e.stopPropagation()
+                }
+              }}
+            />
           </div>
         </Form.Item>
 
         <Flex vertical gap="middle">
-          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block size="large" style={{ height: 48, fontSize: 16 }}>
+          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block>
             Verify
           </Button>
 

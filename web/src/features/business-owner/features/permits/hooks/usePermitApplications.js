@@ -40,29 +40,34 @@ function determineRenewalStatus(renewal) {
   return currentStatus
 }
 
+const INITIAL_FETCH_STATUS = { loading: true, hasNoBusinesses: false }
+
 export function usePermitApplications() {
   const [permits, setPermits] = useState([])
   const [renewals, setRenewals] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [fetchStatus, setFetchStatus] = useState(INITIAL_FETCH_STATUS)
+
+  const loading = fetchStatus.loading
+  const hasNoBusinesses = fetchStatus.hasNoBusinesses
 
   const fetchBusinessRegistrations = useCallback(async () => {
-    setLoading(true)
+    setFetchStatus((s) => ({ ...s, loading: true }))
     try {
-      // Fetch all businesses and business profile to get updatedAt
       const [businessesResponse, profile] = await Promise.all([
         getBusinesses(),
-        getBusinessProfile().catch(() => null) // Don't fail if profile fetch fails
+        getBusinessProfile().catch(() => null)
       ])
       
       const { businesses } = businessesResponse
       
-      // Handle empty businesses array
       if (!businesses || businesses.length === 0) {
         setPermits([])
         setRenewals([])
-        setLoading(false)
+        setFetchStatus({ loading: false, hasNoBusinesses: true })
         return
       }
+
+      setFetchStatus((s) => ({ ...s, hasNoBusinesses: false }))
       
       // Create a map of businessId to business from profile for updatedAt
       const profileBusinessMap = new Map()
@@ -133,8 +138,9 @@ export function usePermitApplications() {
     } catch (err) {
       console.error('Failed to fetch business registrations:', err)
       setPermits([])
+      setFetchStatus((s) => ({ ...s, hasNoBusinesses: false }))
     } finally {
-      setLoading(false)
+      setFetchStatus((s) => ({ ...s, loading: false }))
     }
   }, [])
 
@@ -254,7 +260,7 @@ export function usePermitApplications() {
   }, [])
 
   const fetchAllData = useCallback(async () => {
-    setLoading(true)
+    setFetchStatus((s) => ({ ...s, loading: true }))
     try {
       await Promise.all([
         fetchBusinessRegistrations(),
@@ -263,7 +269,7 @@ export function usePermitApplications() {
     } catch (err) {
       console.error('Failed to fetch permit data:', err)
     } finally {
-      setLoading(false)
+      setFetchStatus((s) => ({ ...s, loading: false }))
     }
   }, [fetchBusinessRegistrations, fetchRenewals])
 
@@ -303,6 +309,7 @@ export function usePermitApplications() {
     permits,
     renewals,
     loading,
-    refresh: fetchAllData
+    refresh: fetchAllData,
+    hasNoBusinesses
   }
 }

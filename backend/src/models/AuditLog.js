@@ -139,10 +139,9 @@ const AuditLogSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Index for efficient querying
+// Index for efficient querying (txHash already has index: true on the field)
 AuditLogSchema.index({ userId: 1, createdAt: -1 });
 AuditLogSchema.index({ eventType: 1, createdAt: -1 });
-AuditLogSchema.index({ txHash: 1 });
 AuditLogSchema.index({ verified: 1 });
 
 // Note: Hash is now calculated manually before creating the document

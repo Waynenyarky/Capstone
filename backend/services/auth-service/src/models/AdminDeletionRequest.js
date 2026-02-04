@@ -77,9 +77,8 @@ const AdminDeletionRequestSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
-// Indexes for efficient querying
+// Indexes for efficient querying (approvingAdminId has index: true on field)
 AdminDeletionRequestSchema.index({ requestingAdminId: 1, status: 1 })
 AdminDeletionRequestSchema.index({ status: 1, createdAt: -1 })
-AdminDeletionRequestSchema.index({ approvingAdminId: 1 })
 
 module.exports = mongoose.models.AdminDeletionRequest || mongoose.model('AdminDeletionRequest', AdminDeletionRequestSchema)

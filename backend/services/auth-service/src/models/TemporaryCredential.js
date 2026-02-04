@@ -10,7 +10,6 @@ const TemporaryCredentialSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      index: true,
     },
     username: {
       type: String,
@@ -29,8 +28,7 @@ const TemporaryCredentialSchema = new mongoose.Schema(
     expiresAt: {
       type: Date,
       required: true,
-      index: true,
-      // Absolute expiration time (e.g., 24 hours from issuance)
+      // Absolute expiration time; index via schema.index below
     },
     expiresAfterFirstLogin: {
       type: Boolean,

@@ -23,13 +23,20 @@ export function useUserSignUpFlow() {
   }, [])
 
   const handleVerificationSubmit = useCallback((created) => {
-    const user = created?.user ?? created
-    if (!user) {
+    // API may return user at top level (id, role, token, ...) or as created.user
+    const rawUser = created?.user ?? created
+    const token = rawUser?.token ?? created?.token
+    const withToken = rawUser && token
+      ? { ...rawUser, token }
+      : created && token
+        ? { ...created, token }
+        : null
+
+    if (!withToken || !withToken.token) {
       notifyUserSignedUp(created)
       navigate('/login', { replace: true })
       return
     }
-    const withToken = user.token ? user : { ...user, token: created?.token }
     try {
       login(withToken, { remember: false })
     } catch { /* ignore */ }
@@ -40,6 +47,7 @@ export function useUserSignUpFlow() {
       return
     }
     if (role === 'business_owner') {
+      // /owner dashboard shows BusinessRegistrationWizard when profile is missing or draft
       navigate('/owner', { replace: true })
       return
     }

@@ -295,6 +295,75 @@ export default function useWebAuthn() {
     })
   }, [authenticate])
 
+  /**
+   * Conditional UI: start a passkey request that shows as autofill when the user
+   * focuses the username/email field. No email is sent — discoverable credentials
+   * only. Pass an AbortSignal to cancel when starting a modal passkey (e.g. button).
+   * Returns a Promise that resolves when the user selects a passkey (with the user
+   * object) or null if cancelled/unsupported/aborted.
+   */
+  const authenticateConditional = React.useCallback(async (signal) => {
+    if (!('credentials' in navigator)) return null
+    const isCMA = window.PublicKeyCredential?.isConditionalMediationAvailable
+      ? await window.PublicKeyCredential.isConditionalMediationAvailable()
+      : false
+    if (!isCMA) return null
+
+    let start
+    try {
+      start = await authenticateStart({})
+    } catch (err) {
+      if (err?.code === 'no_passkeys' || (err?.message || '').toLowerCase().includes('no passkey')) {
+        return null
+      }
+      throw err
+    }
+
+    const pub = start?.publicKey
+    if (!pub?.challenge) throw new Error('Invalid authentication response')
+    const publicKey = { ...pub, challenge: base64ToBuffer(pub.challenge) }
+    if (pub.allowCredentials?.length) {
+      publicKey.allowCredentials = pub.allowCredentials.map(c => ({
+        ...c,
+        id: base64ToBuffer(c.id)
+      }))
+    }
+
+    const getOptions = { publicKey, mediation: 'conditional' }
+    if (signal) getOptions.signal = signal
+
+    let cred
+    try {
+      cred = await navigator.credentials.get(getOptions)
+    } catch (webauthnErr) {
+      if (webauthnErr.name === 'NotAllowedError' || webauthnErr.name === 'AbortError') return null
+      throw webauthnErr
+    }
+
+    if (!cred?.response) return null
+    const resp = cred.response
+    const payload = {
+      id: cred.id,
+      rawId: bufferToBase64(cred.rawId),
+      type: cred.type,
+      response: {
+        clientDataJSON: bufferToBase64(resp.clientDataJSON),
+        authenticatorData: bufferToBase64(resp.authenticatorData),
+        signature: bufferToBase64(resp.signature),
+        userHandle: resp.userHandle ? bufferToBase64(resp.userHandle) : null
+      }
+    }
+
+    try {
+      const result = await authenticateComplete({ credential: payload })
+      success('Passkey authentication succeeded')
+      return result
+    } catch (completeErr) {
+      console.error('[useWebAuthn] authenticateConditional complete failed', completeErr)
+      throw completeErr
+    }
+  }, [success])
+
   // Start cross-device authentication
   const authenticateCrossDevice = React.useCallback(async ({ email, allowRegistration = false } = {}) => {
     // Email is optional - pass empty object if email is not provided
@@ -327,6 +396,7 @@ export default function useWebAuthn() {
   return { 
     register, 
     authenticate,
+    authenticateConditional,
     detectAuthenticatorTypes,
     authenticateWithPlatform,
     authenticateCrossDevice,

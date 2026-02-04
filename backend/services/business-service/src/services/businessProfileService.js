@@ -227,19 +227,21 @@ class BusinessProfileService {
       const oldValue = oldProfile ? JSON.stringify(oldProfile[stepName] || {}) : ''
       const newValue = JSON.stringify(data)
       
-      const auditLog = await AuditLog.create({
+      // Use auditLogger helper to ensure hash is calculated
+      const { createAuditLog } = require('../lib/auditLogger')
+      const auditLog = await createAuditLog(
         userId,
-        eventType: 'profile_update',
-        fieldChanged: stepName,
+        'profile_update',
+        stepName,
         oldValue,
         newValue,
-        role: roleSlug,
-        metadata: {
+        roleSlug,
+        {
           ...metadata,
           step,
           profileType: 'business',
-        },
-      })
+        }
+      )
 
       // Log hash to blockchain (non-blocking)
       if (blockchainService.isAvailable()) {
@@ -679,11 +681,6 @@ class BusinessProfileService {
 
     if (!profile.businesses || profile.businesses.length === 0) {
       throw new Error('No businesses found')
-    }
-
-    // Prevent deletion if it's the only business
-    if (profile.businesses.length === 1) {
-      throw new Error('Cannot delete the only business. At least one business must exist.')
     }
 
     const businessIndex = profile.businesses.findIndex(b => b.businessId === businessId)

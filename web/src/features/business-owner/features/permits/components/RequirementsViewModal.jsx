@@ -1,5 +1,5 @@
 import React from 'react'
-import { Modal, Card, List, Descriptions, Space, Tag, Typography, Divider, theme, Spin } from 'antd'
+import { Modal, Card, List, Descriptions, Space, Tag, Typography, Tooltip, theme, Spin, Button } from 'antd'
 import { CheckCircleOutlined, CloseCircleOutlined, EyeOutlined, FileTextOutlined } from '@ant-design/icons'
 import { resolveAvatarUrl } from '@/lib/utils'
 
@@ -102,16 +102,12 @@ export default function RequirementsViewModal({ visible, application, type, onCl
       title={
         <Space>
           <FileTextOutlined style={{ color: token.colorPrimary }} />
-          <span>View Requirements - {application?.businessName || 'Business Registration'}</span>
+          <span>View Requirements{application?.businessName ? ` - ${application.businessName}` : (application?.referenceNumber && application.referenceNumber !== 'N/A' ? ` - ${application.referenceNumber}` : '')}</span>
         </Space>
       }
       open={visible}
       onCancel={onClose}
-      footer={[
-        <button key="close" onClick={onClose} style={{ padding: '4px 15px', border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer' }}>
-          Close
-        </button>
-      ]}
+      footer={[<Button key="close" onClick={onClose}>Close</Button>]}
       width={900}
       style={{ top: 20 }}
     >
@@ -128,7 +124,7 @@ export default function RequirementsViewModal({ visible, application, type, onCl
           {/* Requirements Checklist Status */}
           <Card title="Requirements Checklist Status" size="small">
             <Descriptions column={1} bordered>
-              <Descriptions.Item label="Requirements Confirmed">
+              <Descriptions.Item label={<Tooltip title="You have confirmed you've read the requirements"><span>Requirements Confirmed</span></Tooltip>}>
                 {requirementsChecklist.confirmed ? (
                   <Tag color="green" icon={<CheckCircleOutlined />}>
                     Confirmed
@@ -144,7 +140,7 @@ export default function RequirementsViewModal({ visible, application, type, onCl
                   </Text>
                 )}
               </Descriptions.Item>
-              <Descriptions.Item label="PDF Downloaded">
+              <Descriptions.Item label={<Tooltip title="You have downloaded the requirements PDF"><span>Requirements PDF downloaded</span></Tooltip>}>
                 {requirementsChecklist.pdfDownloaded ? (
                   <Tag color="green" icon={<CheckCircleOutlined />}>
                     Downloaded
@@ -192,7 +188,7 @@ export default function RequirementsViewModal({ visible, application, type, onCl
               <Space>
                 <span>BIR Registration</span>
                 <Tag color={birDocsCompleted === totalBirDocs ? 'green' : 'orange'}>
-                  {birDocsCompleted} / {totalBirDocs} Documents
+                  {birDocsCompleted} / {totalBirDocs} Completed
                 </Tag>
               </Space>
             }
@@ -292,7 +288,7 @@ export default function RequirementsViewModal({ visible, application, type, onCl
               <Descriptions.Item label="Business Registration Type">
                 {businessRegistration.businessRegistrationType || 'N/A'}
               </Descriptions.Item>
-              <Descriptions.Item label="Registration Number">
+              <Descriptions.Item label="Business Registration Number (DTI/SEC)">
                 {businessRegistration.businessRegistrationNumber || 'N/A'}
               </Descriptions.Item>
               <Descriptions.Item label="Primary Line of Business">

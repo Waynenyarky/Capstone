@@ -112,18 +112,29 @@ async function start() {
 
     await connectDB(uri);
 
-    // Seed development data if enabled
+    // Seed development data if enabled (with retry for Docker startup)
     if (process.env.SEED_DEV === 'true') {
-      try {
-        const { seedDevDataIfEmpty } = require('./lib/seedDev');
-        await seedDevDataIfEmpty();
-      } catch (error) {
-        logger.warn('Failed to seed dev data', { error: error.message });
+      const maxSeedRetries = 5;
+      const seedRetryDelayMs = 3000;
+      for (let attempt = 1; attempt <= maxSeedRetries; attempt++) {
+        try {
+          const { seedDevDataIfEmpty } = require('./lib/seedDev');
+          await seedDevDataIfEmpty();
+          break;
+        } catch (error) {
+          logger.warn(`Dev seed attempt ${attempt}/${maxSeedRetries} failed`, { error: error.message });
+          if (attempt === maxSeedRetries) {
+            logger.warn('Dev seed failed after retries', { error: error.message });
+          } else {
+            await new Promise((r) => setTimeout(r, seedRetryDelayMs));
+          }
+        }
       }
     }
 
-    // Initialize IPFS service
+    // Initialize IPFS service (await so connection to ipfs:5001 in Docker completes before check)
     const ipfsService = require('./lib/ipfsService');
+    await ipfsService.initialize();
     if (ipfsService.isAvailable()) {
       logger.info('IPFS service available');
     } else {

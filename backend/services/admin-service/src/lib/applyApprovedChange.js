@@ -7,6 +7,7 @@
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
 const MaintenanceWindow = require('../models/MaintenanceWindow');
+const FormDefinition = require('../models/FormDefinition');
 const bcrypt = require('bcryptjs');
 const { addToPasswordHistory } = require('./passwordHistory');
 const { logToBlockchain } = require('./interServiceClient');
@@ -244,6 +245,63 @@ async function applyApprovedChange(approval) {
         );
 
         return { success: true };
+      }
+
+      case 'form_definition': {
+        const { formDefinitionId } = approval.requestDetails || {};
+        if (!formDefinitionId) {
+          return { success: false, error: 'Form definition ID not found in approval details' };
+        }
+
+        const formDefinition = await FormDefinition.findById(formDefinitionId);
+        if (!formDefinition) {
+          return { success: false, error: 'Form definition not found' };
+        }
+
+        if (formDefinition.status !== 'pending_approval') {
+          return { success: false, error: 'Form definition is not pending approval' };
+        }
+
+        const now = new Date();
+        const approvedBy = approval.approvals.map((a) => String(a.adminId));
+
+        // Update the form definition to published
+        formDefinition.status = 'published';
+        formDefinition.publishedBy = approval.approvals[approval.approvals.length - 1]?.adminId || approval.requestedBy;
+        formDefinition.publishedAt = now;
+        formDefinition.approvalId = '';
+        formDefinition.addChangeLog('published', formDefinition.publishedBy, {
+          approvalId: approval.approvalId,
+          approvedBy,
+        });
+
+        await formDefinition.save();
+
+        // Create audit log
+        await createAuditLog(
+          approval.requestedBy,
+          'form_definition_published',
+          'form_definition',
+          'pending_approval',
+          'published',
+          'admin',
+          {
+            approvalId: approval.approvalId,
+            formDefinitionId: String(formDefinition._id),
+            formType: formDefinition.formType,
+            version: formDefinition.version,
+            approvedBy,
+          }
+        );
+
+        logger.info('Form definition published', {
+          formDefinitionId: String(formDefinition._id),
+          formType: formDefinition.formType,
+          version: formDefinition.version,
+          approvalId: approval.approvalId,
+        });
+
+        return { success: true, formDefinition };
       }
 
       default:

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose')
+const { BUSINESS_TYPE_VALUES } = require('../../../../shared/constants')
 
 const BusinessProfileSchema = new mongoose.Schema(
   {
@@ -54,7 +55,7 @@ const BusinessProfileSchema = new mongoose.Schema(
       },
       businessType: {
         type: String,
-        enum: ['retail_trade', 'food_beverages', 'services', 'manufacturing_industrial', 'agriculture_fishery_forestry', 'construction_real_estate_housing', 'transportation_automotive_logistics', 'financial_insurance_banking']
+        enum: BUSINESS_TYPE_VALUES,
       },
       registrationAgency: {
         type: String,

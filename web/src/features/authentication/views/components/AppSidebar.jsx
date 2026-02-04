@@ -6,7 +6,7 @@ import { useAuthSession } from '../../hooks'
 import ConfirmLogoutModal from './ConfirmLogoutModal.jsx'
 import { useConfirmLogoutModal } from '../../hooks'
 
-export default function AppSidebar({ hiddenKeys = [], renamedKeys = {}, itemOverrides = {}, ...siderProps }) {
+export default function AppSidebar({ hiddenKeys = [], renamedKeys = {}, itemOverrides = {}, headerContent, ...siderProps }) {
   const { items: rawItems, selected, onSelect } = useSidebar()
   const { currentUser, logout } = useAuthSession()
   const navigate = useNavigate()
@@ -115,6 +115,7 @@ export default function AppSidebar({ hiddenKeys = [], renamedKeys = {}, itemOver
         items={items} 
         activeKey={activeKey} 
         onItemClick={handleItemClick} 
+        headerContent={headerContent}
         {...siderProps}
       />
       <ConfirmLogoutModal open={open} onConfirm={handleConfirm} onCancel={hide} confirmLoading={confirming} />

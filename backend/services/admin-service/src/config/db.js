@@ -66,21 +66,28 @@ async function connectDB(uri) {
     return;
   }
 
-  try {
-    // Connect using the provided URI. Mongoose will parse the DB name from the URI.
-    await mongoose.connect(uri);
-    // Log the resolved connection details to help debug which database was used.
+  const maxRetries = 10;
+  const retryDelayMs = 2000;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const dbName = mongoose.connection && mongoose.connection.name ? mongoose.connection.name : '<unknown-db>';
-      const host = mongoose.connection && mongoose.connection.host ? mongoose.connection.host : '<unknown-host>';
-      logger.info(`MongoDB connected to database '${dbName}' on host '${host}'`);
-    } catch (logErr) {
-      // Best-effort logging; do not fail the connection if logging fails.
-      logger.info('MongoDB connected (unable to resolve connection name/host)');
+      await mongoose.connect(uri);
+      try {
+        const dbName = mongoose.connection?.name || '<unknown-db>';
+        const host = mongoose.connection?.host || '<unknown-host>';
+        logger.info(`MongoDB connected to database '${dbName}' on host '${host}'`);
+      } catch (logErr) {
+        logger.info('MongoDB connected (unable to resolve connection name/host)');
+      }
+      return;
+    } catch (err) {
+      logger.warn(`MongoDB connection attempt ${attempt}/${maxRetries} failed`, { error: err.message });
+      if (attempt === maxRetries) {
+        logger.error('MongoDB connection failed after retries', { error: err });
+        throw err;
+      }
+      await new Promise((r) => setTimeout(r, retryDelayMs));
     }
-  } catch (err) {
-    logger.error('MongoDB connection error', { error: err });
-    throw err;
   }
 }
 

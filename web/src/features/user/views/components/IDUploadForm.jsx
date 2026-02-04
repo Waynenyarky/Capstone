@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Form, Upload, Button, Card, Typography, Space, Alert, Row, Col, Select, Input, message } from 'antd'
 import { UploadOutlined, DeleteOutlined, EyeOutlined, UndoOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import { uploadIdDocuments, getIdVerificationStatus, revertIdUpload } from '@/features/user/services/idUploadService.js'
+import { getBusinessProfile } from '@/features/business-owner/services/businessProfileService'
 import { useNotifier } from '@/shared/notifications.js'
 import { SendCodeForCurrentUser, TotpVerificationForm, useAuthSession } from '@/features/authentication'
 
@@ -31,12 +32,37 @@ export default function IDUploadForm() {
     try {
       setStatusLoading(true)
       const data = await getIdVerificationStatus(currentUser, role)
-      setIdStatus(data?.idVerification || null)
-      
-      if (data?.idVerification) {
+      let status = data?.idVerification || null
+      let idType = data?.idVerification?.idType
+      let idNumber = data?.idVerification?.idNumber
+
+      // If no IdVerification but user is business owner, check BusinessProfile (ID from registration flow)
+      if (!status && role?.slug === 'business_owner') {
+        try {
+          const bizProfile = await getBusinessProfile()
+          const oi = bizProfile?.ownerIdentity
+          if (oi?.idFileUrl && (oi.idFileUrl.startsWith('http') || oi.idFileUrl.startsWith('/'))) {
+            status = {
+              frontImageUrl: oi.idFileUrl,
+              backImageUrl: oi.idFileBackUrl || null,
+              status: oi.aiVerification?.status || 'pending',
+              uploadedAt: oi.aiVerification?.checkedAt || new Date(),
+              fromBusinessRegistration: true,
+            }
+            idType = oi.idType
+            idNumber = oi.idNumber
+          }
+        } catch (_) {
+          // Ignore - business profile may not exist
+        }
+      }
+
+      setIdStatus(status)
+
+      if (status && (idType || idNumber)) {
         form.setFieldsValue({
-          idType: data.idVerification.idType,
-          idNumber: data.idVerification.idNumber,
+          idType: idType || undefined,
+          idNumber: idNumber || undefined,
         })
       }
     } catch (err) {

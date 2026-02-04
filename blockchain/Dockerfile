@@ -12,8 +12,9 @@ RUN npm install
 # Copy contract files
 COPY contracts/ ./contracts/
 COPY migrations/ ./migrations/
+COPY scripts/ ./scripts/
 COPY truffle-config.js ./
-COPY extract-addresses.js ./
+COPY extract-addresses.js write-env.js ./
 
 # Compile contracts
 RUN npm run compile

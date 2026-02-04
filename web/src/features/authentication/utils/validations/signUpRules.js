@@ -19,13 +19,9 @@ export const phoneNumberRules = [
   })
 ]
 
+// Strength/requirements feedback is shown by PasswordStrengthIndicator only (no duplicate validation text)
 export const passwordRules = [
-    { required: true, message: 'Please enter your password' },
-    { min: 12, message: 'Password must be at least 12 characters long' },
-    { pattern: /[a-z]/, message: 'Password must contain at least one lowercase letter' },
-    { pattern: /[A-Z]/, message: 'Password must contain at least one uppercase letter' },
-    { pattern: /\d/, message: 'Password must contain at least one number' },
-    { pattern: /[^A-Za-z0-9]/, message: 'Password must contain at least one special character' },
+  { required: true, message: 'Please enter your password' },
 ]
 
 export const confirmPasswordRules = [

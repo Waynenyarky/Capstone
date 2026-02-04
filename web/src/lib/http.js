@@ -46,10 +46,12 @@ export async function fetchWithFallback(path, options = {}) {
     res = null
   }
 
-  // Fallback when request fails, returns non-ok, or dev server blocks (e.g., 403)
-  // Don't retry on 500 errors for auth endpoints (signup/login) to avoid double-counting rate limits
+  // Fallback when request fails or dev server blocks (e.g., 403)
+  // Do NOT fallback when we got a 4xx response - the server responded, use it (fallback to localhost:3001 often fails in Codespaces)
+  // Don't retry on 500 errors for auth endpoints to avoid double-counting rate limits
   const isAuthEndpoint = path.includes('/login') || path.includes('/signup') || path.includes('/sign-up') || path.includes('/forgot-password')
-  const shouldFallback = (!res || !res.ok) && !(isAuthEndpoint && res?.status === 500)
+  const has4xxResponse = res && res.status >= 400 && res.status < 500
+  const shouldFallback = (!res || !res.ok) && !has4xxResponse && !(isAuthEndpoint && res?.status === 500)
   const shouldFallbackFor403 = (res && res.status === 403)
   
   if ((shouldFallback || shouldFallbackFor403) && BACKEND_ORIGIN) {
@@ -119,7 +121,17 @@ export async function fetchJsonWithFallback(path, options = {}) {
           // Also check if error is an object with code property
           errMsg = err.error.message || errMsg
           errorCode = err.error.code
-        } else if (Array.isArray(err.errors) && err.errors.length > 0) {
+        }
+        // Backend validation: error.details is array of { message, path }
+        const details = err?.error?.details ?? err?.details
+        if (Array.isArray(details) && details.length > 0) {
+          const first = details[0]
+          const detailMsg = typeof first === 'string' ? first : first?.message
+          if (detailMsg && (errorCode === 'validation_error' || res?.status === 400)) {
+            errMsg = detailMsg
+          }
+        }
+        if (Array.isArray(err.errors) && err.errors.length > 0 && !errMsg) {
           const first = err.errors[0]
           if (typeof first === 'string') errMsg = first
           else if (typeof first?.message === 'string') errMsg = first.message
@@ -130,6 +142,7 @@ export async function fetchJsonWithFallback(path, options = {}) {
       
       // Map error codes to user-friendly messages
       const codeMap = {
+        'invalid_code': 'Incorrect verification code. Please check the code and try again.',
         'invalid_credentials': 'The email address or password you entered is incorrect. Please check your credentials and try again.',
         'webauthn_verification_failed': 'Passkey verification failed. Please try again.',
         'webauthn_verification_exception': 'Registration failed. Please try again.',
@@ -171,7 +184,8 @@ export async function fetchJsonWithFallback(path, options = {}) {
       }
       
       const errorObj = new Error(String(errMsg))
-      if (err && err.details) errorObj.details = err.details
+      const errDetails = err?.error?.details ?? err?.details
+      if (errDetails) errorObj.details = errDetails
       if (errorCode) {
         errorObj.code = errorCode
       }

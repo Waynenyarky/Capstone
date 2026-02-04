@@ -30,9 +30,7 @@ export default function SignUpVerificationForm({ email, onSubmit, title, devCode
       style={{ 
         maxWidth: 480, 
         margin: '0 auto', 
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
         borderRadius: 12,
-        border: '1px solid #f0f0f0'
       }}
       styles={{ body: { padding: 40 } }}
     >
@@ -45,7 +43,7 @@ export default function SignUpVerificationForm({ email, onSubmit, title, devCode
           height: 64, 
           borderRadius: '50%', 
           backgroundColor: token.colorPrimaryBg,
-          color: token.colorPrimary,
+          color: 'white',
           fontSize: 32,
           marginBottom: 24
         }}>
@@ -53,7 +51,7 @@ export default function SignUpVerificationForm({ email, onSubmit, title, devCode
         </div>
         
         <Title level={3} style={{ marginBottom: 8 }}>{title || 'Verify Your Email'}</Title>
-        <Paragraph type="secondary" style={{ fontSize: 16, marginBottom: 0 }}>
+        <Paragraph type="secondary" style={{ marginBottom: 0 }}>
           Please enter the 6-digit code sent to <br/>
           <Text strong style={{ color: token.colorText }}>{email || 'your email address'}</Text>
         </Paragraph>
@@ -91,7 +89,7 @@ export default function SignUpVerificationForm({ email, onSubmit, title, devCode
         </Form.Item>
 
         <Flex vertical gap="middle">
-          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting || attempts <= 0} block size="large" style={{ height: 48, fontSize: 16 }}>
+          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting || attempts <= 0} block>
             Verify Email
           </Button>
           
@@ -104,7 +102,7 @@ export default function SignUpVerificationForm({ email, onSubmit, title, devCode
               onClick={handleResend} 
               loading={isResending} 
               disabled={isCooling || isResending}
-              style={{ padding: 0, height: 'auto' }}
+              style={{ padding: 0, height: 'auto', fontSize: 13 }}
             >
               {isCooling ? `Resend available in ${remaining}s` : 'Resend Code'}
             </Button>

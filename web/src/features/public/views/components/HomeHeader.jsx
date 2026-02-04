@@ -37,7 +37,8 @@ export default function HomeHeader() {
         }}>
           <img 
             src={BizClearLogo} 
-            alt="BizClear Logo" 
+            alt="BizClear Logo"
+            fetchPriority="high"
             style={{ 
               height: '100%', 
               width: '100%',

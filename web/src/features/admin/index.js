@@ -12,6 +12,10 @@ export { default as AdminCreateRole } from './views/pages/AdminCreateRole'
 export { default as AdminFullDashboard } from './views/pages/AdminFullDashboard'
 export { default as AdminUsers } from './views/pages/AdminUsers'
 export { default as AdminMaintenance } from './views/pages/AdminMaintenance'
+export { default as AdminLGUs } from './views/pages/AdminLGUs'
+export { default as AdminFormDefinitions } from './views/pages/AdminFormDefinitions'
+export { default as AdminFormGroupDetail } from './views/pages/AdminFormGroupDetail'
+export { default as AdminFormDefinitionEditor } from './views/pages/AdminFormDefinitionEditor'
 
 // Notes:
 // - Users expose their own barrels.

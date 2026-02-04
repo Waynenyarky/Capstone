@@ -100,7 +100,7 @@ export default function NotificationHistoryPage() {
       
       // Navigate based on notification type
       if (notification.relatedEntityType === 'business_application' && notification.relatedEntityId) {
-        navigate('/owner/permit-applications')
+        navigate('/owner/permits')
       }
     } catch (error) {
       console.error('Failed to handle notification click:', error)

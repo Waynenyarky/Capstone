@@ -18,6 +18,7 @@ import {
   message,
   theme,
   Slider,
+  Tooltip,
 } from 'antd'
 import {
   UploadOutlined,
@@ -35,6 +36,7 @@ import Cropper from 'react-easy-crop'
 import { ID_TYPES, getIdTypeOptions, getIdTypeConfig } from '../../config/idTypeConfig'
 import IdVerificationStatus from './IdVerificationStatus'
 import PhilippineAddressFields from '../../../../shared/components/PhilippineAddressFields'
+import { uploadOwnerIdImage } from '../../services/businessProfileService'
 
 // Address field names to handle specially
 const ADDRESS_FIELDS = ['streetAddress', 'barangay', 'city', 'province', 'postalCode']
@@ -43,7 +45,11 @@ const { Title, Text, Paragraph } = Typography
 const { Option } = Select
 const { TextArea } = Input
 
-const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:3005'
+// In dev, use relative /ai so Vite proxies to localhost:3005 (works with port forwarding / Codespaces).
+// In production, use VITE_AI_SERVICE_URL or fallback.
+const AI_SERVICE_BASE = import.meta.env.DEV
+  ? '/ai'
+  : (import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:3005')
 
 // ID card aspect ratio (standard credit card size: 85.6mm x 53.98mm ≈ 1.586)
 const ID_CARD_ASPECT_RATIO = 1.586
@@ -103,6 +109,26 @@ const createImage = (url) =>
   })
 
 /**
+ * Compute default pixel crop (centered, aspect-fit) when react-easy-crop hasn't fired onCropComplete yet.
+ */
+const getDefaultPixelCrop = async (imageSrc) => {
+  const image = await createImage(imageSrc)
+  const { naturalWidth: w, naturalHeight: h } = image
+  const aspect = ID_CARD_ASPECT_RATIO
+  let cropW, cropH
+  if (w / h > aspect) {
+    cropH = h
+    cropW = Math.round(h * aspect)
+  } else {
+    cropW = w
+    cropH = Math.round(w / aspect)
+  }
+  const x = Math.max(0, Math.round((w - cropW) / 2))
+  const y = Math.max(0, Math.round((h - cropH) / 2))
+  return { x, y, width: cropW, height: cropH }
+}
+
+/**
  * Identity Verification Form Component
  * 
  * Features:
@@ -125,6 +151,7 @@ export default function IdentityVerificationForm({
   const [extractedData, setExtractedData] = useState(null)
   const [showVerifyModal, setShowVerifyModal] = useState(false)
   const [ocrAvailable, setOcrAvailable] = useState(true)
+  const [checkingOcr, setCheckingOcr] = useState(false)
 
   // Crop state
   const [showCropModal, setShowCropModal] = useState(false)
@@ -133,9 +160,12 @@ export default function IdentityVerificationForm({
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
+  const [uploadingCrop, setUploadingCrop] = useState(false)
 
-  // Watch for ID type changes
+  // Watch for ID type and uploads (Verify ID Details section only shows after at least one ID photo is uploaded)
   const idType = Form.useWatch('idType', form)
+  const idFileUrlList = Form.useWatch('idFileUrl', form)
+  const hasUploadedIdPhoto = !!(frontImage || backImage || (Array.isArray(idFileUrlList) && idFileUrlList.length > 0 && (idFileUrlList[0]?.url || idFileUrlList[0]?.originFileObj)))
 
   useEffect(() => {
     if (idType) {
@@ -160,13 +190,23 @@ export default function IdentityVerificationForm({
   }, [])
 
   const checkOcrStatus = async () => {
+    setCheckingOcr(true)
     try {
-      const res = await fetch(`${AI_SERVICE_URL}/ocr/status`)
+      const res = await fetch(`${AI_SERVICE_BASE}/ocr/status`)
       const data = await res.json()
       setOcrAvailable(data.available)
     } catch (err) {
-      console.warn('Could not check OCR status:', err)
+      // Expected when AI service isn't running (e.g. ERR_CONNECTION_REFUSED); avoid noisy console
+      if (err?.message?.includes('fetch') || err?.name === 'TypeError') {
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('OCR service unreachable (is the AI service running on', AI_SERVICE_BASE, '?):', err.message)
+        }
+      } else {
+        console.warn('Could not check OCR status:', err)
+      }
       setOcrAvailable(false)
+    } finally {
+      setCheckingOcr(false)
     }
   }
 
@@ -193,42 +233,41 @@ export default function IdentityVerificationForm({
 
   // Handle crop confirmation
   const handleCropConfirm = async () => {
-    if (!croppedAreaPixels || !cropImageSrc) return
+    if (!cropImageSrc) return
 
     try {
-      // Create cropped image blob
-      const croppedBlob = await createCroppedImage(cropImageSrc, croppedAreaPixels)
+      setUploadingCrop(true)
+      // Use crop area from onCropComplete, or default (full image at aspect ratio) if user confirmed before it fired
+      const pixelCrop = croppedAreaPixels || (await getDefaultPixelCrop(cropImageSrc))
+      const croppedBlob = await createCroppedImage(cropImageSrc, pixelCrop)
       
       // Create a File object from the blob
       const croppedFile = new File([croppedBlob], `cropped_${cropSide}_id.jpg`, {
         type: 'image/jpeg',
       })
-      
-      // Add originFileObj for antd Upload compatibility
-      croppedFile.originFileObj = croppedFile
 
-      // Store the cropped image
+      // Upload to server to get a persistent URL (IPFS or local storage)
+      const { url: serverUrl } = await uploadOwnerIdImage(croppedFile, cropSide)
+
+      // Store the cropped image and server URL for form submission
       if (cropSide === 'front') {
         setFrontImage(croppedFile)
-        
-        // Update the form's file list with the cropped image
-        const croppedUrl = URL.createObjectURL(croppedBlob)
         form.setFieldValue('idFileUrl', [{
           uid: '-1',
           name: croppedFile.name,
           status: 'done',
-          url: croppedUrl,
+          url: serverUrl,
+          response: { url: serverUrl },
           originFileObj: croppedFile,
         }])
       } else {
         setBackImage(croppedFile)
-        
-        const croppedUrl = URL.createObjectURL(croppedBlob)
         form.setFieldValue('idFileBackUrl', [{
           uid: '-2',
           name: croppedFile.name,
           status: 'done',
-          url: croppedUrl,
+          url: serverUrl,
+          response: { url: serverUrl },
           originFileObj: croppedFile,
         }])
       }
@@ -237,15 +276,18 @@ export default function IdentityVerificationForm({
       setShowCropModal(false)
       setCropImageSrc(null)
 
-      message.success('Image cropped successfully!')
+      message.success('Image cropped and uploaded successfully!')
 
-      // Trigger OCR for front image if available
-      if (cropSide === 'front' && selectedIdType && ocrAvailable) {
-        await extractTextFromImage(croppedFile)
+      // Trigger OCR for front image if available (use form idType as fallback so extraction runs even if state is stale)
+      const idTypeForOcr = form.getFieldValue('idType') || selectedIdType
+      if (cropSide === 'front' && idTypeForOcr && ocrAvailable) {
+        await extractTextFromImage(croppedFile, idTypeForOcr)
       }
     } catch (error) {
-      console.error('Error cropping image:', error)
-      message.error('Failed to crop image. Please try again.')
+      console.error('Error cropping/uploading image:', error)
+      message.error(error?.message || 'Failed to crop and upload image. Please try again.')
+    } finally {
+      setUploadingCrop(false)
     }
   }
 
@@ -256,22 +298,23 @@ export default function IdentityVerificationForm({
     setCropSide(null)
   }
 
-  const extractTextFromImage = async (file) => {
-    if (!file || !selectedIdType) return
+  const extractTextFromImage = async (file, idTypeOverride) => {
+    const idType = idTypeOverride ?? selectedIdType
+    if (!file || !idType) return
 
     setExtracting(true)
     try {
       // Convert file to base64
       const base64 = await fileToBase64(file)
       
-      const config = getIdTypeConfig(selectedIdType)
+      const config = getIdTypeConfig(idType)
       
-      const response = await fetch(`${AI_SERVICE_URL}/ocr/extract`, {
+      const response = await fetch(`${AI_SERVICE_BASE}/ocr/extract`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imageBase64: base64,
-          idType: selectedIdType,
+          idType,
           ocrMapping: config?.ocrMapping || null,
         }),
       })
@@ -317,11 +360,39 @@ export default function IdentityVerificationForm({
             if (parsed.isValid()) {
               form.setFieldValue(key, parsed)
             }
+          } else if (key === 'sex') {
+            // Normalize sex to M/F for select options
+            const v = String(value).trim().toLowerCase()
+            if (v === 'm' || v === 'male' || v === 'lalaki') {
+              form.setFieldValue(key, 'M')
+            } else if (v === 'f' || v === 'female' || v === 'babae') {
+              form.setFieldValue(key, 'F')
+            } else {
+              form.setFieldValue(key, value)
+            }
+          } else if (key === 'agencyCode') {
+            // Reject label fragment "Code"; derive from license number if invalid
+            const v = String(value).trim()
+            const validAgency = /^[A-Z]\d{2}$/i.test(v)
+            if (validAgency) {
+              form.setFieldValue(key, v.toUpperCase())
+            }
+            // If invalid, we'll fix from license number below
           } else {
             form.setFieldValue(key, value)
           }
         }
       })
+      // Derive agency code from license number if missing or invalid (e.g. "Code")
+      const licenseNumber = fields.licenseNumber || form.getFieldValue('licenseNumber')
+      const agencyCode = form.getFieldValue('agencyCode')
+      const agencyValid = agencyCode && /^[A-Z]\d{2}$/i.test(String(agencyCode).trim())
+      if (!agencyValid && licenseNumber) {
+        const match = String(licenseNumber).match(/^([A-Z]\d{2})[- \s]?\d{2}[- \s]?\d+/i)
+        if (match) {
+          form.setFieldValue('agencyCode', match[1].toUpperCase())
+        }
+      }
       message.success('Extracted data applied to form. Please verify and correct if needed.')
     }
     setShowVerifyModal(false)
@@ -493,10 +564,27 @@ export default function IdentityVerificationForm({
             </Space>
           }
           extra={
-            ocrAvailable && (
+            ocrAvailable ? (
               <Text type="secondary" style={{ fontSize: 12 }}>
                 <ScanOutlined /> Auto-extract enabled
               </Text>
+            ) : (
+              <Space size="small">
+                <Tooltip title="Start the AI service, then click Check again. From backend/services/ai-service: python -m uvicorn src.main:app --host 0.0.0.0 --port 3005 (or docker-compose up ai-service). View logs in Dozzle (port 9999) when using Docker.">
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    OCR unavailable — start the AI service to enable auto-extract
+                  </Text>
+                </Tooltip>
+                <Button
+                  type="link"
+                  size="small"
+                  loading={checkingOcr}
+                  onClick={() => checkOcrStatus()}
+                  style={{ padding: 0, height: 'auto', fontSize: 12 }}
+                >
+                  Check again
+                </Button>
+              </Space>
             )
           }
           style={{ marginBottom: 16 }}
@@ -524,7 +612,7 @@ export default function IdentityVerificationForm({
                 >
                   <div>
                     <ScissorOutlined />
-                    <div style={{ marginTop: 8 }}>Upload & Crop</div>
+                    <div style={{ marginTop: 8 }}>Upload & <br /> Crop</div>
                   </div>
                 </Upload>
               </Form.Item>
@@ -552,7 +640,7 @@ export default function IdentityVerificationForm({
                 >
                   <div>
                     <ScissorOutlined />
-                    <div style={{ marginTop: 8 }}>Upload & Crop</div>
+                    <div style={{ marginTop: 8 }}>Upload & <br /> Crop</div>
                   </div>
                 </Upload>
                 </Form.Item>
@@ -572,8 +660,8 @@ export default function IdentityVerificationForm({
         </Card>
       )}
 
-      {/* Step 3: ID Details (only show if ID type selected) */}
-      {selectedIdType && idTypeConfig && (
+      {/* Step 3: Verify ID Details (only show after at least one ID photo is uploaded) */}
+      {selectedIdType && idTypeConfig && hasUploadedIdPhoto && (
         <Card 
           size="default" 
           title={
@@ -619,11 +707,14 @@ export default function IdentityVerificationForm({
               if (ADDRESS_FIELDS.includes(field.name)) {
                 // Only render the address component for the first address field
                 if (field.name === 'streetAddress') {
+                  const addressRequired = idTypeConfig.fields.some(
+                    (f) => ADDRESS_FIELDS.includes(f.name) && f.required
+                  )
                   return (
                     <PhilippineAddressFields
                       key="address-fields"
                       form={form}
-                      required={false}
+                      required={!!addressRequired}
                       disabled={false}
                       initialProvince={extractedData?.extractedFields?.province || ''}
                       initialCity={extractedData?.extractedFields?.city || ''}
@@ -702,11 +793,7 @@ export default function IdentityVerificationForm({
               ))}
             </div>
 
-            <div style={{ marginTop: 16 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Confidence: {Math.round(extractedData.confidence * 100)}%
-              </Text>
-            </div>
+            
           </>
         )}
       </Modal>
@@ -723,7 +810,7 @@ export default function IdentityVerificationForm({
         onCancel={handleCropCancel}
         width={700}
         footer={[
-          <Button key="cancel" onClick={handleCropCancel}>
+          <Button key="cancel" onClick={handleCropCancel} disabled={uploadingCrop}>
             Cancel
           </Button>,
           <Button 
@@ -731,8 +818,9 @@ export default function IdentityVerificationForm({
             type="primary" 
             icon={<CheckCircleOutlined />} 
             onClick={handleCropConfirm}
+            loading={uploadingCrop}
           >
-            Crop & Continue
+            Crop & Upload
           </Button>,
         ]}
         destroyOnClose

@@ -46,10 +46,9 @@ const AuditViewLogSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
-// Indexes for efficient querying
+// Indexes for efficient querying (auditLogId has index: true on field)
 AuditViewLogSchema.index({ viewerId: 1, viewedAt: -1 })
 AuditViewLogSchema.index({ viewedUserId: 1, viewedAt: -1 })
-AuditViewLogSchema.index({ auditLogId: 1 })
 AuditViewLogSchema.index({ viewedAt: -1 })
 
 module.exports = mongoose.models.AuditViewLog || mongoose.model('AuditViewLog', AuditViewLogSchema)

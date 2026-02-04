@@ -1,15 +1,71 @@
-import React, { useState } from 'react'
-import { Card, Typography, Button, Checkbox, Alert, Space, List, Divider, App } from 'antd'
-import { FileTextOutlined, DownloadOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import React, { useState, useEffect } from 'react'
+import { Card, Typography, Button, Checkbox, Space, List, Divider, App, theme, Spin, Tag } from 'antd'
+import { FileTextOutlined, DownloadOutlined, CheckCircleOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FileOutlined } from '@ant-design/icons'
 import { downloadRequirementsPDF, confirmRequirementsChecklist } from '../services/businessRegistrationService'
+import { getRequirementsForType } from '../constants/requirementsByType.jsx'
+import { getActiveFormDefinition } from '@/features/admin/services/formDefinitionService'
 
-const { Title, Text, Paragraph } = Typography
+const { Title, Paragraph, Text } = Typography
 
-export default function RequirementsChecklistStep({ businessId, onConfirm, onNext }) {
+const FILE_ICONS = {
+  pdf: <FilePdfOutlined />,
+  doc: <FileWordOutlined />,
+  docx: <FileWordOutlined />,
+  xls: <FileExcelOutlined />,
+  xlsx: <FileExcelOutlined />,
+}
+
+export default function RequirementsChecklistStep({ businessId, businessType, lguCode, onConfirm, onNext }) {
   const { message } = App.useApp()
+  const { token } = theme.useToken()
   const [confirmed, setConfirmed] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [definition, setDefinition] = useState(null)
+  const [formDefinitionId, setFormDefinitionId] = useState(null)
+  const [deactivated, setDeactivated] = useState(null)
+
+  // Fetch requirements from API with fallback to hardcoded
+  useEffect(() => {
+    let cancelled = false
+    async function fetchRequirements() {
+      setLoading(true)
+      setDeactivated(null)
+      try {
+        const res = await getActiveFormDefinition('registration', businessType, lguCode)
+        if (cancelled) return
+        if (res.deactivated) {
+          setDeactivated({
+            availableAt: res.availableAt,
+            reason: res.reason || 'This form is temporarily unavailable.',
+          })
+          setDefinition(null)
+          setFormDefinitionId(null)
+        } else if (res.definition) {
+          setDefinition(res.definition)
+          setFormDefinitionId(res.definition._id)
+        }
+      } catch (err) {
+        // Fallback to hardcoded if API fails or no definition found
+        console.log('Using fallback requirements:', err.message || 'API unavailable')
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+    fetchRequirements()
+    return () => { cancelled = true }
+  }, [businessType, lguCode])
+
+  // Get requirements - from API definition or fallback to hardcoded
+  const requirements = definition?.sections || getRequirementsForType(businessType)
+  const downloads = definition?.downloads || []
+
+  const getFileIcon = (fileType) => {
+    return FILE_ICONS[fileType?.toLowerCase()] || <FileOutlined />
+  }
 
   const handleDownloadPDF = async () => {
     // PDF download works even for "new" businesses - it's just a static checklist
@@ -34,10 +90,17 @@ export default function RequirementsChecklistStep({ businessId, onConfirm, onNex
       return
     }
 
+    if (!businessId || businessId === 'new') {
+      if (onConfirm) onConfirm(formDefinitionId)
+      message.success('Requirements confirmed')
+      if (onNext) onNext()
+      return
+    }
+
     try {
       setConfirming(true)
-      await confirmRequirementsChecklist(businessId)
-      if (onConfirm) onConfirm()
+      await confirmRequirementsChecklist(businessId, formDefinitionId)
+      if (onConfirm) onConfirm(formDefinitionId)
       message.success('Requirements confirmed')
       if (onNext) onNext()
     } catch (error) {
@@ -48,106 +111,135 @@ export default function RequirementsChecklistStep({ businessId, onConfirm, onNex
     }
   }
 
+  // Render item based on format (string from hardcoded or object from API)
+  const renderItem = (item) => {
+    if (typeof item === 'string') {
+      return <List.Item>{item}</List.Item>
+    }
+    // Object format from API
+    return (
+      <List.Item>
+        <Space direction="vertical" size={0}>
+          <Space>
+            <Text>{item.label}</Text>
+            {item.required === false && <Tag color="default">Optional</Tag>}
+          </Space>
+          {item.notes && (
+            <Text type="secondary" style={{ fontSize: 12 }}>{item.notes}</Text>
+          )}
+        </Space>
+      </List.Item>
+    )
+  }
+
+  if (loading) {
+    return (
+      <Card style={{ textAlign: 'center', padding: 48 }}>
+        <Spin size="large" />
+        <Paragraph style={{ marginTop: 16 }}>Loading requirements...</Paragraph>
+      </Card>
+    )
+  }
+
+  if (deactivated) {
+    const availableDate = deactivated.availableAt
+      ? new Date(deactivated.availableAt).toLocaleString(undefined, {
+          dateStyle: 'long',
+          timeStyle: 'short',
+        })
+      : null
+    return (
+      <Card>
+        <div style={{ textAlign: 'center', padding: 32 }}>
+          <Title level={4} style={{ marginBottom: 16 }}>Form Temporarily Unavailable</Title>
+          <Paragraph style={{ marginBottom: 8 }}>
+            {deactivated.reason}
+          </Paragraph>
+          {availableDate && (
+            <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+              This form will be available again on <strong>{availableDate}</strong>.
+            </Paragraph>
+          )}
+          <Paragraph type="secondary" style={{ fontSize: 12 }}>
+            You cannot continue with your registration at this time. Please check back later or contact your LGU for assistance.
+          </Paragraph>
+        </div>
+      </Card>
+    )
+  }
+
   return (
     <div>
       <Card>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <FileTextOutlined style={{ fontSize: 48, color: '#1890ff', marginBottom: 16 }} />
-          <Title level={3} style={{ marginBottom: 8 }}>Complete Requirements Checklist</Title>
-          <Paragraph type="secondary" style={{ fontSize: 16 }}>
+        <div style={{ textAlign: 'left', marginBottom: 32 }}>
+          <FileTextOutlined style={{ fontSize: 32, color: token.colorPrimary, marginBottom: 16 }} />
+          <Title level={4} style={{ marginBottom: 8 }}>Requirements</Title>
+          <Paragraph type="secondary">
             Before proceeding with your business registration application, please review all required documents and registrations.
           </Paragraph>
         </div>
 
-        <Alert
-          message="Important"
-          description="Please prepare all required documents before proceeding. You can download this checklist as a PDF for reference."
-          type="info"
-          showIcon
-          style={{ marginBottom: 24 }}
-        />
+        <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+          Requirements can vary by LGU and business type. Use this list as guidance and confirm with your local office.
+        </Paragraph>
 
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          <div>
-            <Title level={4}>A. Local Government Unit (LGU) Requirements</Title>
-            <List
-              size="small"
-              bordered
-              dataSource={[
-                'Duly Accomplished Application Form',
-                'One (1) 2×2 ID Picture',
-                'Valid IDs of the business owner',
-                'Occupancy Permit (if applicable)',
-                'Fire Safety Inspection Certificate from the Bureau of Fire Protection',
-                'Sanitary Permit from the Local Health Office',
-                'Community Tax Certificate (CTC)',
-                'Barangay Business Clearance',
-                'DTI / SEC / CDA Registration',
-                'Lease Contract or Land Title (if applicable)',
-                'Certificate of Occupancy',
-                'Health Certificate (for food-related businesses)',
-                'Other applicable national or sectoral requirements'
-              ]}
-              renderItem={(item) => <List.Item>{item}</List.Item>}
-            />
-          </div>
-
-          <Divider />
-
-          <div>
-            <Title level={4}>B. Bureau of Internal Revenue (BIR) Requirements</Title>
-            <Paragraph strong>Required Documents:</Paragraph>
-            <List
-              size="small"
-              bordered
-              dataSource={[
-                "Mayor's Permit or proof of ongoing LGU application",
-                'DTI / SEC / CDA Registration',
-                'Barangay Clearance',
-                'Valid government-issued ID of the business owner',
-                'Lease Contract or Land Title'
-              ]}
-              renderItem={(item) => <List.Item>{item}</List.Item>}
-            />
-            <Paragraph style={{ marginTop: 16 }} strong>BIR Fees:</Paragraph>
-            <List
-              size="small"
-              bordered
-              dataSource={[
-                'Registration Fee: ₱500',
-                'Documentary Stamp Tax: Varies depending on business capital'
-              ]}
-              renderItem={(item) => <List.Item>{item}</List.Item>}
-            />
-            <Paragraph style={{ marginTop: 16 }} strong>Additional BIR Compliance:</Paragraph>
-            <List
-              size="small"
-              bordered
-              dataSource={[
-                'Registration of Books of Accounts',
-                'Authority to Print Official Receipts and Invoices'
-              ]}
-              renderItem={(item) => <List.Item>{item}</List.Item>}
-            />
-          </div>
-
-          <Divider />
-
-          <div>
-            <Title level={4}>C. Other Government Agencies (If Applicable – With Employees)</Title>
-            <Paragraph>If your business has employees, you must register with:</Paragraph>
-            <List
-              size="small"
-              bordered
-              dataSource={[
-                'Social Security System (SSS)',
-                'PhilHealth',
-                'Pag-IBIG Fund'
-              ]}
-              renderItem={(item) => <List.Item>{item}</List.Item>}
-            />
-          </div>
+          {requirements.map((section, index) => (
+            <div key={`${section.category}-${index}`}>
+              <Title level={5}>
+                <CheckCircleOutlined style={{ color: token.colorSuccess, marginRight: 8 }} />
+                {section.category}
+              </Title>
+              {section.source && (
+                <Text type="secondary" style={{ display: 'block', marginBottom: 8, fontSize: 12 }}>
+                  Source: {section.source}
+                </Text>
+              )}
+              <List
+                size="small"
+                bordered
+                dataSource={section.items}
+                renderItem={renderItem}
+              />
+              {index < requirements.length - 1 && <Divider />}
+            </div>
+          ))}
         </Space>
+
+        {/* Downloads section */}
+        {downloads.length > 0 && (
+          <>
+            <Divider />
+            <Title level={5}>Downloadable Forms</Title>
+            <Paragraph type="secondary">
+              Download and fill out these forms as part of your application.
+            </Paragraph>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              {downloads.map((download, index) => (
+                <Card key={index} size="small">
+                  <Space>
+                    <span style={{ fontSize: 20, color: token.colorPrimary }}>
+                      {getFileIcon(download.fileType)}
+                    </span>
+                    <div>
+                      <Text strong>{download.label}</Text>
+                      <br />
+                      <Tag>{download.fileType?.toUpperCase() || 'FILE'}</Tag>
+                    </div>
+                    <Button
+                      type="link"
+                      icon={<DownloadOutlined />}
+                      href={download.fileUrl}
+                      target="_blank"
+                    >
+                      Download
+                    </Button>
+                  </Space>
+                </Card>
+              ))}
+            </Space>
+          </>
+        )}
 
         <Divider />
 
@@ -155,7 +247,7 @@ export default function RequirementsChecklistStep({ businessId, onConfirm, onNex
           <Button
             type="default"
             icon={<DownloadOutlined />}
-            size="large"
+            size="default"
             onClick={handleDownloadPDF}
             loading={downloading}
             style={{ marginRight: 16 }}
@@ -179,7 +271,7 @@ export default function RequirementsChecklistStep({ businessId, onConfirm, onNex
         <div style={{ marginTop: 24, textAlign: 'right' }}>
           <Button
             type="primary"
-            size="large"
+            size="default"
             icon={<CheckCircleOutlined />}
             onClick={handleConfirm}
             loading={confirming}

@@ -1,8 +1,9 @@
 import { Form, App } from 'antd'
 import { useState } from 'react'
-import { changePassword, changePasswordAuthenticated, changePasswordStart, changePasswordVerify } from "@/features/authentication/services"
+import { changePassword, changePasswordStart, changePasswordVerify, loginPost } from "@/features/authentication/services"
 import { useNotifier } from '@/shared/notifications.js'
 import { getCurrentUser } from '@/features/authentication/lib/authEvents.js'
+import { useAuthSession } from '@/features/authentication/hooks/useAuthSession.js'
 
 export function useChangePasswordForm({ onSubmit, email, resetToken, isLoggedInFlow = false } = {}) {
   const [form] = Form.useForm()
@@ -10,6 +11,7 @@ export function useChangePasswordForm({ onSubmit, email, resetToken, isLoggedInF
   const [step, setStep] = useState('password') // 'password' or 'verify'
   const [otpSent, setOtpSent] = useState(false)
   const { success, error } = useNotifier()
+  const { login } = useAuthSession()
 
   const handleFinish = async (values) => {
     try {
@@ -22,8 +24,20 @@ export function useChangePasswordForm({ onSubmit, email, resetToken, isLoggedInF
       if (isResetFlow) {
         const payload = { email, resetToken, password: values.password }
         await changePassword(payload)
-        success('Password changed successfully')
         form.resetFields()
+        // Auto-login with new password so user doesn't have to sign in again
+        try {
+          const user = await loginPost({ email, password: values.password })
+          if (user?.token) {
+            login(user, { remember: true })
+            success('Password updated. You are now logged in.')
+          } else {
+            success('Password changed successfully')
+          }
+        } catch (loginErr) {
+          console.warn('Post-reset auto-login failed, user can log in manually:', loginErr)
+          success('Password changed successfully. Please log in with your new password.')
+        }
         if (typeof onSubmit === 'function') onSubmit()
         return
       }

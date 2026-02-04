@@ -255,16 +255,19 @@ export function useBusinessRegistrationDrawer(externalOpen = false, externalOnCl
     }
   }
 
-  const handleDelete = async () => {
-    if (selectedBusinessId === 'new') {
+  const handleDelete = async (businessId) => {
+    const idToDelete = businessId ?? selectedBusinessId
+    if (idToDelete === 'new' || !idToDelete) {
       return
     }
     try {
       setLoading(true)
-      await deleteBusinessAPI(selectedBusinessId)
+      await deleteBusinessAPI(idToDelete)
       message.success('Business deleted successfully')
       await fetchBusinesses()
-      handleClose()
+      if (idToDelete === selectedBusinessId) {
+        handleClose()
+      }
     } catch (err) {
       console.error('Failed to delete business:', err)
       message.error(err.message || 'Failed to delete business')

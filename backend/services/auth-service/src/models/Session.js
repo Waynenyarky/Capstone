@@ -10,7 +10,6 @@ const SessionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      index: true,
     },
     tokenVersion: {
       type: Number,
@@ -34,7 +33,6 @@ const SessionSchema = new mongoose.Schema(
       type: Date,
       required: true,
       default: Date.now,
-      index: true,
     },
     createdAt: {
       type: Date,
@@ -44,8 +42,7 @@ const SessionSchema = new mongoose.Schema(
     expiresAt: {
       type: Date,
       required: true,
-      index: true,
-      // Calculated based on role (1hr for BO/Staff, 10min for Admin)
+      // Calculated based on role (1hr for BO/Staff, 10min for Admin); index via schema.index below
     },
     isActive: {
       type: Boolean,

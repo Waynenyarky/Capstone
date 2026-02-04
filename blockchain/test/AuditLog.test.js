@@ -1,13 +1,18 @@
 const AuditLog = artifacts.require("AuditLog");
+const AccessControl = artifacts.require("AccessControl");
 const { expect } = require("chai");
 
 contract("AuditLog", function (accounts) {
   let auditLog;
+  let accessControl;
   const owner = accounts[0];
   const addr1 = accounts[1];
 
   beforeEach(async function () {
-    auditLog = await AuditLog.new({ from: owner });
+    // Deploy AccessControl first (owner gets AUDITOR_ROLE automatically)
+    accessControl = await AccessControl.new({ from: owner });
+    // Deploy AuditLog with AccessControl address
+    auditLog = await AuditLog.new(accessControl.address, { from: owner });
   });
 
   describe("Deployment", function () {

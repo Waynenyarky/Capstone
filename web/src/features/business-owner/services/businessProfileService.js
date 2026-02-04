@@ -1,4 +1,5 @@
 import { get, post, put, del } from '@/lib/http'
+import { fetchWithFallback } from '@/lib/http'
 
 export const getBusinessProfile = async () => {
   return get('/api/business/profile')
@@ -6,6 +7,26 @@ export const getBusinessProfile = async () => {
 
 export const updateBusinessProfile = async (step, data) => {
   return post('/api/business/profile', { step, data })
+}
+
+/**
+ * Upload owner ID image (front or back) during business registration.
+ * Returns { url, ipfsCid } for use in form submission.
+ */
+export const uploadOwnerIdImage = async (file, side = 'front') => {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('side', side)
+  const res = await fetchWithFallback('/api/business/profile/owner-id/upload', {
+    method: 'POST',
+    body: formData,
+    // Don't set Content-Type - browser sets it with boundary for multipart
+  })
+  if (!res?.ok) {
+    const err = await res?.json().catch(() => ({}))
+    throw new Error(err?.error?.message || err?.message || 'Failed to upload ID image')
+  }
+  return res.json()
 }
 
 // Multiple Business Management

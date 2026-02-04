@@ -15,7 +15,8 @@ const SidebarContent = ({
   backgroundColor,
   isLightSidebar,
   isDarkTheme,
-  currentTheme
+  currentTheme,
+  headerContent
 }) => {
   // Helper to check if a key is a child of any parent
   const isChildKey = React.useCallback((key) => {
@@ -478,7 +479,7 @@ const SidebarContent = ({
  * @param {function} onItemClick - Callback when item is clicked
  * @param {object} siderProps - Props passed to Antd Sider
  */
-export default function Sidebar({ items = [], activeKey, onItemClick, ...siderProps }) {
+export default function Sidebar({ items = [], activeKey, onItemClick, headerContent, ...siderProps }) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const screens = useBreakpoint()
@@ -545,6 +546,7 @@ export default function Sidebar({ items = [], activeKey, onItemClick, ...siderPr
               isLightSidebar={isLightSidebar}
               isDarkTheme={isDarkTheme}
               currentTheme={currentTheme}
+              headerContent={headerContent}
             />
           </Drawer>
         </>
@@ -592,6 +594,7 @@ export default function Sidebar({ items = [], activeKey, onItemClick, ...siderPr
             isLightSidebar={isLightSidebar}
             isDarkTheme={isDarkTheme}
             currentTheme={currentTheme}
+            headerContent={headerContent}
           />
         </Sider>
       )}

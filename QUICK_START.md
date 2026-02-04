@@ -122,6 +122,18 @@ chmod +x start.sh scripts/open-services.sh
 - On Linux, you might need: `xdg-open` instead
 - On Windows, the script should use `start`
 
+### Database empty after Docker restart?
+- **Form definitions** and **dev users/roles** seed automatically when the DB is empty (with `SEED_FORM_DEFINITIONS=true` and `SEED_DEV=true` in Docker).
+- If seeding didn't run (e.g. services started before MongoDB was ready), restart the admin and auth services:
+  ```bash
+  docker-compose restart admin-service auth-service
+  ```
+- To manually seed form definitions:
+  ```bash
+  docker exec -it capstone-admin-service npm run migrate:seed-forms
+  ```
+  (Requires `MONGO_URI` to point at the MongoDB container; the admin-service container has this set.)
+
 ## Pro Tips 💡
 
 1. **Bookmark the pages** that open - then you don't need the script!

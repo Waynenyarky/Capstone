@@ -230,6 +230,17 @@ else
     echo -e "${CYAN}      Check logs: docker-compose logs audit-service${NC}"
 fi
 
+# Dozzle - Live logs (all microservices in one tab)
+echo -e "\n${BLUE}📜 Opening Dozzle (live logs)...${NC}"
+sleep 1
+if command -v curl >/dev/null 2>&1 && curl -s --max-time 2 "http://localhost:9999" >/dev/null 2>&1; then
+    open_browser "http://localhost:9999" "Dozzle (Live Logs)"
+else
+    echo -e "${YELLOW}   ⚠️  Dozzle not ready yet - open manually when up: http://localhost:9999${NC}"
+    echo -e "${CYAN}      (Dozzle shows live logs from auth, business, admin, audit, etc.)${NC}"
+fi
+sleep 0.5
+
 # Web frontend - always try to open (will show error if not running)
 # Check if web server is running using multiple methods for cross-platform compatibility
 WEB_RUNNING=false
@@ -255,6 +266,7 @@ echo -e "${CYAN}💡 Tip: If tabs didn't open, check your browser - they might b
 echo -e "${CYAN}💡 Tip: Bookmark these pages for quick access!${NC}\n"
 echo -e "${YELLOW}📋 Quick URLs (copy/paste these if needed):${NC}"
 echo -e "   Web App: http://localhost:5173"
+echo -e "   Dozzle (live logs): http://localhost:9999"
 echo -e "   IPFS Gateway: http://localhost:8080/ipfs/{CID}"
 echo -e "   IPFS Web UI: http://localhost:5001/webui"
 echo -e "   Auth API: http://localhost:3001/api/health"

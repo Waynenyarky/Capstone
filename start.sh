@@ -12,6 +12,7 @@
 #   ./start.sh --retrain    # Force retrain AI model
 #   ./start.sh --clean      # Clean up unused Docker resources before starting
 #   ./start.sh --status     # Just show status, don't start anything
+#   ./start.sh --test       # Run all tests (backend, web, blockchain)
 
 # Don't exit on error - we want to continue even if web server fails
 set +e
@@ -31,6 +32,7 @@ RETRAIN_AI=false
 FULL_TRAIN=false
 CLEAN_DOCKER=false
 STATUS_ONLY=false
+TEST_MODE=false
 
 for arg in "$@"; do
   case $arg in
@@ -52,6 +54,9 @@ for arg in "$@"; do
       ;;
     --status)
       STATUS_ONLY=true
+      ;;
+    --test|-t)
+      TEST_MODE=true
       ;;
   esac
 done
@@ -106,7 +111,237 @@ if [ "$STATUS_ONLY" = true ]; then
   echo -e "   • Start services: ./start.sh --dev"
   echo -e "   • Stop services:  ./stop.sh"
   echo -e "   • Clean Docker:   ./start.sh --clean --dev"
+  echo -e "   • Run all tests:  ./start.sh --test"
   exit 0
+fi
+
+# ================================
+# Run All Tests (--test flag)
+# ================================
+run_all_tests() {
+  echo ""
+  echo -e "${CYAN}🧪 Running All Tests${NC}"
+  echo -e "${CYAN}===================${NC}"
+  
+  local TOTAL_PASSED=0
+  local TOTAL_FAILED=0
+  local FAILED_SUITES=""
+  
+  # Create temp directory for error logs
+  local ERROR_LOG_DIR=$(mktemp -d)
+  trap "rm -rf $ERROR_LOG_DIR" EXIT
+  
+  # Enable pipefail so we can capture exit codes through pipes
+  set -o pipefail
+  
+  # Backend Tests (Jest)
+  echo ""
+  echo -e "${BLUE}📦 Backend Tests (Jest)${NC}"
+  echo -e "${BLUE}------------------------${NC}"
+  if [ -d "backend" ] && [ -f "backend/package.json" ]; then
+    cd backend
+    if [ ! -d "node_modules" ]; then
+      echo -e "${YELLOW}   Installing backend dependencies...${NC}"
+      npm install --silent
+    fi
+    echo -e "${CYAN}   Running backend tests...${NC}"
+    local BACKEND_OUTPUT="$ERROR_LOG_DIR/backend.log"
+    npm test 2>&1 | tee "$BACKEND_OUTPUT"
+    local BACKEND_EXIT=${PIPESTATUS[0]}
+    if [ $BACKEND_EXIT -eq 0 ]; then
+      echo -e "${GREEN}   ✅ Backend tests passed${NC}"
+      ((TOTAL_PASSED++))
+    else
+      echo -e "${RED}   ❌ Backend tests failed (errors captured for summary)${NC}"
+      ((TOTAL_FAILED++))
+      FAILED_SUITES="${FAILED_SUITES}backend "
+    fi
+    cd ..
+  else
+    echo -e "${YELLOW}   ⚠️  Backend directory not found, skipping${NC}"
+  fi
+  
+  # Web Unit Tests (Vitest)
+  echo ""
+  echo -e "${BLUE}🌐 Web Unit Tests (Vitest)${NC}"
+  echo -e "${BLUE}---------------------------${NC}"
+  if [ -d "web" ] && [ -f "web/package.json" ]; then
+    cd web
+    if [ ! -d "node_modules" ]; then
+      echo -e "${YELLOW}   Installing web dependencies...${NC}"
+      npm install --silent
+    fi
+    echo -e "${CYAN}   Running web unit tests...${NC}"
+    local WEB_UNIT_OUTPUT="$ERROR_LOG_DIR/web-unit.log"
+    npm run test -- --run 2>&1 | tee "$WEB_UNIT_OUTPUT"
+    local WEB_UNIT_EXIT=${PIPESTATUS[0]}
+    if [ $WEB_UNIT_EXIT -eq 0 ]; then
+      echo -e "${GREEN}   ✅ Web unit tests passed${NC}"
+      ((TOTAL_PASSED++))
+    else
+      echo -e "${RED}   ❌ Web unit tests failed (errors captured for summary)${NC}"
+      ((TOTAL_FAILED++))
+      FAILED_SUITES="${FAILED_SUITES}web-unit "
+    fi
+    cd ..
+  else
+    echo -e "${YELLOW}   ⚠️  Web directory not found, skipping${NC}"
+  fi
+  
+  # Web E2E Tests (Playwright)
+  echo ""
+  echo -e "${BLUE}🎭 Web E2E Tests (Playwright)${NC}"
+  echo -e "${BLUE}------------------------------${NC}"
+  if [ -d "web" ] && [ -f "web/package.json" ]; then
+    cd web
+    # Install Playwright browsers if not already installed
+    # Check by counting browser directories in the cache
+    PW_CACHE="$HOME/.cache/ms-playwright"
+    BROWSER_COUNT=$(find "$PW_CACHE" -maxdepth 1 -type d 2>/dev/null | wc -l)
+    if [ "$BROWSER_COUNT" -lt 2 ]; then
+      echo -e "${YELLOW}   Installing Playwright browsers (this may take a few minutes)...${NC}"
+      npx playwright install --with-deps chromium webkit 2>&1
+      echo -e "${GREEN}   Playwright browsers installed${NC}"
+    fi
+    echo -e "${CYAN}   Running web e2e tests...${NC}"
+    local WEB_E2E_OUTPUT="$ERROR_LOG_DIR/web-e2e.log"
+    npm run test:e2e 2>&1 | tee "$WEB_E2E_OUTPUT"
+    local WEB_E2E_EXIT=${PIPESTATUS[0]}
+    if [ $WEB_E2E_EXIT -eq 0 ]; then
+      echo -e "${GREEN}   ✅ Web e2e tests passed${NC}"
+      ((TOTAL_PASSED++))
+    else
+      echo -e "${RED}   ❌ Web e2e tests failed (errors captured for summary)${NC}"
+      ((TOTAL_FAILED++))
+      FAILED_SUITES="${FAILED_SUITES}web-e2e "
+    fi
+    cd ..
+  else
+    echo -e "${YELLOW}   ⚠️  Web directory not found, skipping${NC}"
+  fi
+  
+  # Blockchain Tests (Truffle)
+  echo ""
+  echo -e "${BLUE}⛓️  Blockchain Tests (Truffle)${NC}"
+  echo -e "${BLUE}-------------------------------${NC}"
+  if [ -d "blockchain" ] && [ -f "blockchain/package.json" ]; then
+    cd blockchain
+    if [ ! -d "node_modules" ]; then
+      echo -e "${YELLOW}   Installing blockchain dependencies...${NC}"
+      npm install --silent
+    fi
+    # Check if Ganache is running (required for Truffle tests)
+    if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "ganache"; then
+      echo -e "${CYAN}   Running blockchain tests...${NC}"
+      local BLOCKCHAIN_OUTPUT="$ERROR_LOG_DIR/blockchain.log"
+      npm test 2>&1 | tee "$BLOCKCHAIN_OUTPUT"
+      local BLOCKCHAIN_EXIT=${PIPESTATUS[0]}
+      if [ $BLOCKCHAIN_EXIT -eq 0 ]; then
+        echo -e "${GREEN}   ✅ Blockchain tests passed${NC}"
+        ((TOTAL_PASSED++))
+      else
+        echo -e "${RED}   ❌ Blockchain tests failed (errors captured for summary)${NC}"
+        ((TOTAL_FAILED++))
+        FAILED_SUITES="${FAILED_SUITES}blockchain "
+      fi
+    else
+      echo -e "${YELLOW}   ⚠️  Ganache not running - skipping blockchain tests${NC}"
+      echo -e "${YELLOW}   💡 Start services first: ./start.sh --dev${NC}"
+    fi
+    cd ..
+  else
+    echo -e "${YELLOW}   ⚠️  Blockchain directory not found, skipping${NC}"
+  fi
+  
+  # Disable pipefail for rest of script
+  set +o pipefail
+  
+  # Summary
+  echo ""
+  echo -e "${CYAN}======================================${NC}"
+  echo -e "${CYAN}📊 Test Summary${NC}"
+  echo -e "${CYAN}======================================${NC}"
+  echo -e "   Passed: ${GREEN}$TOTAL_PASSED${NC}"
+  echo -e "   Failed: ${RED}$TOTAL_FAILED${NC}"
+  
+  if [ $TOTAL_FAILED -gt 0 ]; then
+    echo ""
+    echo -e "${RED}Failed test suites: $FAILED_SUITES${NC}"
+    
+    # Display error details for each failed suite
+    echo ""
+    echo -e "${CYAN}======================================${NC}"
+    echo -e "${RED}📋 Error Details${NC}"
+    echo -e "${CYAN}======================================${NC}"
+    
+    # Function to extract and display errors from log
+    display_errors() {
+      local suite_name=$1
+      local log_file=$2
+      local max_lines=${3:-100}  # Default to 100 lines max per suite
+      
+      if [ -f "$log_file" ] && [ -s "$log_file" ]; then
+        echo ""
+        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${RED}❌ $suite_name Errors:${NC}"
+        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        
+        # Extract relevant error lines (filter out noise, keep failures/errors)
+        # For Jest/Vitest: Look for FAIL, Error, expect, AssertionError
+        # For Playwright: Look for Error, failed, expect
+        # For Truffle: Look for Error, failing, AssertionError
+        
+        local error_output=$(grep -E -i "(FAIL|Error:|error|expect\(|AssertionError|failing|failed|✗|✘|×|at Object\.|at Test\.|at Context\.|Received:|Expected:|Difference:|- Expected|+ Received)" "$log_file" 2>/dev/null | head -n "$max_lines")
+        
+        if [ -n "$error_output" ]; then
+          echo "$error_output"
+        else
+          # If no specific errors found, show last 50 lines of output
+          echo -e "${CYAN}(Showing last 50 lines of output)${NC}"
+          tail -n 50 "$log_file"
+        fi
+        
+        # Show full log path
+        echo ""
+        echo -e "${CYAN}   Full log: $log_file${NC}"
+      fi
+    }
+    
+    # Display errors for each failed suite
+    for suite in $FAILED_SUITES; do
+      case $suite in
+        backend)
+          display_errors "Backend (Jest)" "$ERROR_LOG_DIR/backend.log"
+          ;;
+        web-unit)
+          display_errors "Web Unit (Vitest)" "$ERROR_LOG_DIR/web-unit.log"
+          ;;
+        web-e2e)
+          display_errors "Web E2E (Playwright)" "$ERROR_LOG_DIR/web-e2e.log"
+          ;;
+        blockchain)
+          display_errors "Blockchain (Truffle)" "$ERROR_LOG_DIR/blockchain.log"
+          ;;
+      esac
+    done
+    
+    echo ""
+    echo -e "${CYAN}======================================${NC}"
+    echo -e "${YELLOW}💡 Tip: Full logs are saved in: $ERROR_LOG_DIR${NC}"
+    echo -e "${YELLOW}   (Will be cleaned up on exit)${NC}"
+    echo -e "${CYAN}======================================${NC}"
+    
+    exit 1
+  else
+    echo ""
+    echo -e "${GREEN}✅ All tests passed!${NC}"
+    exit 0
+  fi
+}
+
+# If --test flag, run all tests and exit
+if [ "$TEST_MODE" = true ]; then
+  run_all_tests
 fi
 
 # Check if services are already running
@@ -154,11 +389,13 @@ fi
 # ================================
 MODEL_PATH="ai/models/id_verification/model_v1.h5"
 AUTO_TRAIN_SCRIPT="ai/id-verification/scripts/auto_train.sh"
+MODEL_VALIDATOR="ai/id-verification/scripts/validate_model.py"
 
 if [ "$SKIP_AI" = false ]; then
   echo ""
   echo -e "${CYAN}🤖 Checking AI model...${NC}"
   
+  # Force retrain if requested
   if [ "$RETRAIN_AI" = true ]; then
     if [ "$FULL_TRAIN" = true ]; then
       echo -e "${YELLOW}   Forcing FULL model retraining (1000 images, 30 epochs)...${NC}"
@@ -176,23 +413,53 @@ if [ "$SKIP_AI" = false ]; then
     else
       echo -e "${RED}   ❌ Auto-train script not found at $AUTO_TRAIN_SCRIPT${NC}"
     fi
-  elif [ ! -f "$MODEL_PATH" ]; then
-    echo -e "${YELLOW}   ⚠️  AI model not found at $MODEL_PATH${NC}"
-    echo -e "${CYAN}   Starting auto-training in QUICK mode (~200 images, 5 epochs)...${NC}"
-    echo -e "${CYAN}   For better accuracy, run: ./start.sh --full-train${NC}"
-    echo ""
-    
-    if [ -f "$AUTO_TRAIN_SCRIPT" ]; then
-      chmod +x "$AUTO_TRAIN_SCRIPT"
-      # Use quick mode for faster startup
-      bash "$AUTO_TRAIN_SCRIPT" --quick
-    else
-      echo -e "${RED}   ❌ Auto-train script not found${NC}"
-      echo -e "${YELLOW}   You can manually train the model later with:${NC}"
-      echo -e "${YELLOW}   cd ai/id-verification && ./scripts/auto_train.sh${NC}"
-    fi
   else
-    echo -e "${GREEN}   ✅ AI model found${NC}"
+    # Validate existing model
+    MODEL_VALID=false
+    if [ -f "$MODEL_VALIDATOR" ]; then
+      chmod +x "$MODEL_VALIDATOR"
+      VALIDATION_OUTPUT=$(python3 "$MODEL_VALIDATOR" "$MODEL_PATH" 2>&1)
+      VALIDATION_CODE=$?
+      
+      if [ $VALIDATION_CODE -eq 0 ]; then
+        echo -e "${GREEN}   ✅ $VALIDATION_OUTPUT${NC}"
+        MODEL_VALID=true
+      elif [ $VALIDATION_CODE -eq 1 ]; then
+        echo -e "${YELLOW}   ⚠️  $VALIDATION_OUTPUT${NC}"
+        MODEL_VALID=false
+      elif [ $VALIDATION_CODE -eq 2 ]; then
+        echo -e "${YELLOW}   ⚠️  $VALIDATION_OUTPUT${NC}"
+        echo -e "${YELLOW}   🔄 Model incompatible - will retrain automatically...${NC}"
+        MODEL_VALID=false
+      else
+        echo -e "${RED}   ❌ $VALIDATION_OUTPUT${NC}"
+        MODEL_VALID=false
+      fi
+    else
+      # Fallback: just check if file exists
+      if [ -f "$MODEL_PATH" ] || [ -f "${MODEL_PATH%.h5}.joblib" ]; then
+        echo -e "${GREEN}   ✅ AI model found${NC}"
+        MODEL_VALID=true
+      else
+        MODEL_VALID=false
+      fi
+    fi
+    
+    # Auto-train if model is invalid or missing
+    if [ "$MODEL_VALID" = false ]; then
+      echo -e "${CYAN}   Starting auto-training in QUICK mode (~200 images, 5 epochs)...${NC}"
+      echo -e "${CYAN}   For better accuracy, run: ./start.sh --full-train${NC}"
+      echo ""
+      
+      if [ -f "$AUTO_TRAIN_SCRIPT" ]; then
+        chmod +x "$AUTO_TRAIN_SCRIPT"
+        bash "$AUTO_TRAIN_SCRIPT" --quick
+      else
+        echo -e "${RED}   ❌ Auto-train script not found${NC}"
+        echo -e "${YELLOW}   You can manually train the model later with:${NC}"
+        echo -e "${YELLOW}   cd ai/id-verification && ./scripts/auto_train.sh${NC}"
+      fi
+    fi
     
     # Show model info if metadata exists
     METADATA_PATH="${MODEL_PATH%.h5}_metadata.json"
@@ -298,10 +565,11 @@ if [ -f "/tmp/web-dev-server.pid" ]; then
 fi
 echo ""
 echo -e "${CYAN}To view logs:${NC}"
+echo -e "   • Dozzle (live in browser): http://localhost:9999"
 if [ "$DEV_MODE" = true ]; then
-  echo -e "   • Docker: docker-compose -f docker-compose.yml -f docker-compose.dev.yml logs -f"
+  echo -e "   • Docker (terminal): docker-compose -f docker-compose.yml -f docker-compose.dev.yml logs -f"
 else
-  echo -e "   • Docker: docker-compose logs -f"
+  echo -e "   • Docker (terminal): docker-compose logs -f"
 fi
 if [ -f "/tmp/web-dev-server.pid" ]; then
   echo -e "   • Web: tail -f /tmp/web-dev-server.log"
@@ -313,3 +581,4 @@ fi
 echo -e "${CYAN}💡 Other options:${NC}"
 echo -e "   • ./start.sh --status    # Check what's running and disk usage"
 echo -e "   • ./start.sh --clean     # Clean unused Docker resources before starting"
+echo -e "   • ./start.sh --test      # Run all tests (backend, web, blockchain)"

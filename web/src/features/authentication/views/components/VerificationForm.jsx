@@ -1,22 +1,25 @@
-import { Form, Input, Button, Typography } from 'antd'
+import { Form, Input, Button, Typography, Flex } from 'antd'
+import { ArrowLeftOutlined } from '@ant-design/icons'
 import { useVerificationForm } from "@/features/authentication/hooks"
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 
 const { Title, Text } = Typography
 
-export default function VerificationForm({ email, onSubmit, title, isLoggedInFlow = false } = {}) {
+export default function VerificationForm({ email, onSubmit, title, isLoggedInFlow = false, onResend, isResending, isCooling, remaining } = {}) {
   const { form, handleFinish, isSubmitting } = useVerificationForm({ email, onSubmit })
   const navigate = useNavigate()
-  
+  const showResend = typeof onResend === 'function'
+
   return (
     <div style={{ maxWidth: 400, margin: '0 auto' }}>
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <Title level={3} style={{ marginBottom: 8 }}>{title || 'Verify Code'}</Title>
-        <Text type="secondary" style={{ fontSize: 16 }}>
+        <Text type="secondary" >
            Enter the 6-digit code sent to <br/>
-           <Text strong style={{ color: '#003a70' }}>{email}</Text>
+           <Text strong>{email}</Text>
         </Text>
+        
       </div>
 
       <Form name="verification" form={form} layout="vertical" onFinish={handleFinish} size="large" requiredMark={false}>
@@ -29,7 +32,7 @@ export default function VerificationForm({ email, onSubmit, title, isLoggedInFlo
         >
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <Input.OTP 
-              size="large" 
+              size="default" 
               length={6} 
               style={{ width: '100%' }}
               inputType="numeric"
@@ -51,18 +54,24 @@ export default function VerificationForm({ email, onSubmit, title, isLoggedInFlo
           </div>
         </Form.Item>
         
-        <Form.Item style={{ marginBottom: 16 }}>
-          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block size="large" style={{ height: 48, fontSize: 16 }}>
+        <Form.Item style={{ marginBottom: 24 }}>
+          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block>
             Verify
           </Button>
         </Form.Item>
 
-        {!isLoggedInFlow && (
-          <div style={{ textAlign: 'center', marginTop: 24 }}>
-            <Button type="link" onClick={() => navigate('/login')} style={{ padding: 0, fontWeight: 600, fontSize: 15 }}>
-              Back to Login
+        {showResend && (
+          <Flex justify="center" style={{ marginTop: 8, marginBottom: 8 }}>
+            <Button
+              type="link"
+              onClick={onResend}
+              loading={isResending}
+              disabled={isCooling || isResending}
+              style={{ padding: 0, height: 'auto', fontWeight: 600, fontSize: 15 }}
+            >
+              {isCooling ? `Resend code in ${remaining}s` : 'Resend code'}
             </Button>
-          </div>
+          </Flex>
         )}
       </Form>
     </div>

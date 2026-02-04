@@ -17,8 +17,7 @@ export default function HeroSection() {
       position: 'relative',
       overflow: 'hidden'
     }}>
-      {/* Decorative Elements */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'url("https://gw.alipayobjects.com/zos/rmsportal/FfdJeJRQWjEeGTpqgBKj.png") center top no-repeat', opacity: 0.1, pointerEvents: 'none' }} />
+      {/* Decorative pattern via CSS gradient - no external image for faster LCP */}
       
       <div style={{ maxWidth: '800px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
         <Badge.Ribbon text="Official Portal" color="#faad14" style={{ top: -12, scale: 1.1 }}>

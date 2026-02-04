@@ -1,6 +1,7 @@
 import React from 'react'
 import { Card, Typography, Descriptions, Alert, Space, Button, Tag } from 'antd'
 import { CheckCircleOutlined, EyeOutlined } from '@ant-design/icons'
+import { getBusinessTypeLabel } from '@/constants/businessTypes'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -138,7 +139,7 @@ export default function BusinessProfileReviewStep({ businessData, onConfirm, onN
                 {getValueOrNA(businessData.businessTradeName)}
               </Descriptions.Item>
               <Descriptions.Item label="Business Type">
-                {formatEnum(businessData.businessType)}
+                {businessData.businessType ? getBusinessTypeLabel(businessData.businessType) : 'N/A'}
               </Descriptions.Item>
               <Descriptions.Item label="Registration Type">
                 {formatEnum(businessData.businessRegistrationType)}

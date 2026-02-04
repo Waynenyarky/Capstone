@@ -57,6 +57,11 @@ const AuditLogSchema = new mongoose.Schema(
         'session',
         'recovery',
         'maintenance',
+        // Business profile fields
+        'ownerIdentity',
+        'consent',
+        'businessInfo',
+        'contactInfo',
       ],
     },
     oldValue: {

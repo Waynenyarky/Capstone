@@ -13,6 +13,8 @@ version: '3.8'
 services:
   # Auth Service - Development Mode
   auth-service:
+    environment:
+      - SEED_DEV=true
     volumes:
       # Mount source code for hot-reload (preserves existing contract_addresses volume)
       - ./backend/services/auth-service/src:/app/src
@@ -43,6 +45,8 @@ services:
 
   # Admin Service - Development Mode
   admin-service:
+    environment:
+      - SEED_FORM_DEFINITIONS=true
     volumes:
       - ./backend/services/admin-service/src:/app/src
       - ./backend/services/admin-service/lib:/app/lib

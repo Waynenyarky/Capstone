@@ -16,6 +16,7 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
+    "@ant-design/charts": "^2.6.7",
     "@ant-design/icons": "^6.1.0",
     "@ant-design/v5-patch-for-react-19": "^1.0.3",
     "antd": "^5.27.6",

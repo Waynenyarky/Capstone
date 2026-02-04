@@ -2,7 +2,9 @@ import React from 'react'
 import { Form, Input, Button, Flex, Checkbox, Dropdown, Typography, Grid, Alert, AutoComplete } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { loginEmailRules, loginPasswordRules } from "@/features/authentication/validations"
-import { useLoginFlow, useRememberedEmail } from "@/features/authentication/hooks"
+import { useLoginFlow, useRememberedEmail, useAuthSession } from "@/features/authentication/hooks"
+import useWebAuthn from '@/features/authentication/hooks/useWebAuthn.js'
+import { useNotifier } from '@/shared/notifications.js'
 import { LoginVerificationForm } from "@/features/authentication"
 import TotpVerificationForm from '@/features/authentication/views/components/TotpVerificationForm.jsx'
 import LockoutBanner from '@/features/authentication/views/components/LockoutBanner.jsx'
@@ -36,6 +38,9 @@ export default function LoginForm({ onSubmit } = {}) {
 
   const { getRememberedEmails } = useRememberedEmail()
   const [emailOptions, setEmailOptions] = React.useState([])
+  const { login } = useAuthSession()
+  const { authenticateConditional } = useWebAuthn()
+  const { success } = useNotifier()
 
   // Load remembered emails for autocomplete
   React.useEffect(() => {
@@ -84,6 +89,45 @@ export default function LoginForm({ onSubmit } = {}) {
         window.removeEventListener('pageshow', handlePageShow)
     }
   }, [form, initialValues])
+
+  // Conditional UI: start passkey autofill only when email field is focused (avoids
+  // "A request is already pending" when user clicks "Sign in with Passkey").
+  const conditionalPasskeyRef = React.useRef({ controller: null, promise: null })
+  const handleEmailFocusForPasskey = React.useCallback(() => {
+    if (step !== 'login') return
+    if (conditionalPasskeyRef.current.promise) return // already running
+    const controller = new AbortController()
+    conditionalPasskeyRef.current.controller = controller
+    conditionalPasskeyRef.current.promise = authenticateConditional(controller.signal)
+      .then((user) => {
+        conditionalPasskeyRef.current.promise = null
+        conditionalPasskeyRef.current.controller = null
+        if (!user) return
+        const remember = !!form.getFieldValue('rememberMe')
+        login(user, { remember })
+        success('Logged in with passkey')
+        if (typeof onSubmit === 'function') onSubmit(user)
+      })
+      .catch((err) => {
+        conditionalPasskeyRef.current.promise = null
+        conditionalPasskeyRef.current.controller = null
+        if (err?.name !== 'AbortError' && err?.code !== 'user_cancelled') {
+          console.error('[LoginForm] Conditional passkey error', err)
+        }
+      })
+  }, [step, form, login, success, onSubmit, authenticateConditional])
+
+  const getReadyForModalPasskey = React.useCallback(async () => {
+    const ref = conditionalPasskeyRef.current
+    if (ref.controller) {
+      ref.controller.abort()
+      if (ref.promise) await ref.promise.catch(() => {})
+      ref.controller = null
+      ref.promise = null
+      // Brief delay so the browser can release the pending request before we start the modal get()
+      await new Promise((r) => setTimeout(r, 100))
+    }
+  }, [])
 
   // Listen for devtools-driven prefill events (global FAB)
   React.useEffect(() => {
@@ -141,9 +185,7 @@ export default function LoginForm({ onSubmit } = {}) {
             style={{ marginBottom: isMobile ? 20 : 24 }}
           >
             <AutoComplete
-              placeholder="Enter your email" 
-              variant="filled" 
-              autoComplete="off"
+              placeholder="Enter your email"
               options={emailOptions}
               filterOption={(inputValue, option) => {
                 if (!inputValue || !option) return true
@@ -152,12 +194,11 @@ export default function LoginForm({ onSubmit } = {}) {
                 return value.includes(input)
               }}
               onSearch={(value) => {
-                // Filter options based on search value
                 const allEmails = getRememberedEmails()
                 if (!value || value.trim() === '') {
                   setEmailOptions(allEmails.slice(0, 10).map(email => ({ value: email, label: email })))
                 } else {
-                  const filtered = allEmails.filter(email => 
+                  const filtered = allEmails.filter(email =>
                     String(email).toLowerCase().includes(String(value).toLowerCase())
                   )
                   setEmailOptions(filtered.slice(0, 10).map(email => ({ value: email, label: email })))
@@ -166,11 +207,25 @@ export default function LoginForm({ onSubmit } = {}) {
               onSelect={(value) => {
                 form.setFieldsValue({ email: value })
               }}
-              onFocus={() => setFieldsReadOnly(false)}
+              onFocus={() => {
+                setFieldsReadOnly(false)
+                handleEmailFocusForPasskey()
+              }}
               notFoundContent={null}
               data-test="login-email"
               data-testid="login-email"
-            />
+            >
+              <Input
+                placeholder="Enter your email"
+                variant="filled"
+                autoComplete="username webauthn"
+                readOnly={fieldsReadOnly}
+                onFocus={() => {
+                  setFieldsReadOnly(false)
+                  handleEmailFocusForPasskey()
+                }}
+              />
+            </AutoComplete>
           </Form.Item>
           <Form.Item
             name="password"
@@ -205,7 +260,7 @@ export default function LoginForm({ onSubmit } = {}) {
           </Form.Item>
 
           <Flex justify="center" style={{ marginBottom: isMobile ? 20 : 24 }}>
-             <PasskeySignInOptions form={form} onAuthenticated={onSubmit} />
+             <PasskeySignInOptions form={form} onAuthenticated={onSubmit} onBeforePasskeyAuth={getReadyForModalPasskey} />
           </Flex>
 
           <div style={{ textAlign: 'center' }}>

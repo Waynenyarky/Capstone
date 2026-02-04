@@ -23,19 +23,20 @@ services:
     ports:
       - "7545:8545"
     command:
+      - "--mnemonic"
+      - "test test test test test test test test test test test junk"
       - "--host"
       - "0.0.0.0"
       - "--port"
       - "8545"
       - "--accounts"
       - "10"
-      - "--deterministic"
     healthcheck:
-      test: ["CMD-SHELL", "echo 'Ganache is running' || exit 1"]
+      test: ["CMD-SHELL", "node -e \"require('net').createConnection(8545,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))\" || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 3
-      start_period: 20s
+      retries: 5
+      start_period: 15s
 
   # IPFS Node
   ipfs:
@@ -85,18 +86,22 @@ services:
       ganache:
         condition: service_started
     environment:
+      - GANACHE_HOST=ganache
+      - GANACHE_PORT=8545
       - GANACHE_RPC_URL=http://ganache:8545
       - DEPLOYER_PRIVATE_KEY=${DEPLOYER_PRIVATE_KEY:-0xc87509a1c067bbde78beb793e6fa76530b6382a4c0241e5e4a9ec0a0f44dc0d3}
     volumes:
       - contract_addresses:/app/build/contracts
+      - ./.env:/env/.env
     command: >
       sh -c "
         echo 'Waiting for Ganache...' &&
         sleep 5 &&
+        npm run compile &&
         npm run migrate:ganache &&
         echo 'Contracts deployed!' &&
-        node extract-addresses.js > /app/contract-addresses.env &&
-        cat /app/contract-addresses.env
+        node extract-addresses.js &&
+        node write-env.js /env/.env
       "
 
   # Auth Service
@@ -108,9 +113,12 @@ services:
     ports:
       - "3001:3001"
     depends_on:
-      - mongodb
-      - ipfs
-      - deploy-contracts
+      mongodb:
+        condition: service_healthy
+      ipfs:
+        condition: service_healthy
+      deploy-contracts:
+        condition: service_completed_successfully
     env_file: .env
     environment:
       - MONGO_URI=mongodb://mongodb:27017/capstone_project
@@ -155,14 +163,17 @@ services:
     ports:
       - "3003:3003"
     depends_on:
-      - mongodb
-      - deploy-contracts
+      mongodb:
+        condition: service_healthy
+      deploy-contracts:
+        condition: service_completed_successfully
     env_file: .env
     environment:
       - MONGO_URI=mongodb://mongodb:27017/capstone_project
       - AUTH_SERVICE_URL=${DOCKER_AUTH_SERVICE_URL}
       - AUDIT_SERVICE_URL=${DOCKER_AUDIT_SERVICE_URL}
       - BUSINESS_SERVICE_URL=${DOCKER_BUSINESS_SERVICE_URL}
+      - SEED_FORM_DEFINITIONS=true
     volumes:
       - contract_addresses:/app/contract-addresses:ro
     restart: unless-stopped
@@ -183,16 +194,29 @@ services:
     environment:
       - MONGO_URI=mongodb://mongodb:27017/capstone_project
       - GANACHE_RPC_URL=http://ganache:8545
+      - CONTRACT_ABI_PATH=/app/contract-addresses
     volumes:
       - contract_addresses:/app/contract-addresses:ro
     restart: unless-stopped
 
-  # AI Service (ID Verification)
+  # Dozzle - Live log viewer for all containers (open in browser for POST/GET/fetch logs)
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: capstone-dozzle
+    ports:
+      - "9999:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+  # AI Service (OCR + ID Verification) — logs visible in Dozzle under group "AI"
   ai-service:
     build:
       context: ./backend/services/ai-service
       dockerfile: Dockerfile
     container_name: capstone-ai-service
+    labels:
+      - "dev.dozzle.group=AI"
     ports:
       - "3005:3005"
     depends_on:

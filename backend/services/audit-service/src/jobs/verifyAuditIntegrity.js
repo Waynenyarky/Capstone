@@ -1,5 +1,12 @@
 const AuditLog = require('../models/AuditLog')
-const TamperIncident = require('../../../admin-service/src/models/TamperIncident')
+// TamperIncident lives in admin-service; in Docker each service has its own codebase, so it may be missing
+let TamperIncident = null
+try {
+  TamperIncident = require('../../../admin-service/src/models/TamperIncident')
+} catch (_) {
+  // Running as standalone audit-service (e.g. Docker): skip persisting incidents, only log
+}
+
 const auditVerifier = require('../lib/auditVerifier')
 const logger = require('../lib/logger')
 
@@ -33,6 +40,17 @@ function classifyVerificationStatus(verification) {
 }
 
 async function recordIncident(auditLog, verification) {
+  if (!TamperIncident) {
+    const verificationStatus = classifyVerificationStatus(verification)
+    logger.warn('Audit tamper/integrity issue (TamperIncident model unavailable in this service)', {
+      auditLogId: String(auditLog._id),
+      userId: String(auditLog.userId),
+      verificationStatus,
+      error: verification.error || verification.errorMessage,
+    })
+    return null
+  }
+
   const verificationStatus = classifyVerificationStatus(verification)
   const severity = verificationStatus === 'tamper_detected' ? 'high' : 'medium'
   const message =

@@ -8,8 +8,9 @@ import { useNotifier } from '@/shared/notifications.js'
 /**
  * Login-only passkey UI. Always shows "Sign in with Passkey".
  * No registration on login; "no passkeys" is shown as an error.
+ * onBeforePasskeyAuth: optional async fn to run before modal passkey (e.g. abort conditional UI).
  */
-export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
+export default function PasskeySignInOptions({ form, onAuthenticated, onBeforePasskeyAuth } = {}) {
   const { authenticateWithPlatform } = useWebAuthn()
   const { login } = useAuthSession()
   const { success, error: notifyError } = useNotifier()
@@ -18,8 +19,12 @@ export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
   const handlePasskeyAuth = async () => {
     try {
       setLoading(true)
-      const email = form?.getFieldValue('email') ? String(form.getFieldValue('email')).trim() : undefined
-      const res = await authenticateWithPlatform({ email })
+      // Abort any pending conditional UI so we don't get "A request is already pending"
+      if (typeof onBeforePasskeyAuth === 'function') {
+        await onBeforePasskeyAuth()
+      }
+      // Always use discoverable flow: don't send email so the browser shows all passkeys for this site
+      const res = await authenticateWithPlatform({ email: undefined })
 
       if (res && typeof res === 'object') {
         const remember = !!form?.getFieldValue('rememberMe')
@@ -45,7 +50,6 @@ export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
         e?.originalError?.code ||
         (e?.originalError?.error && typeof e.originalError.error === 'object' ? e.originalError.error.code : null)
       const originalErrorMsg = (e?.message || '').toLowerCase()
-      const emailProvided = form?.getFieldValue('email') ? String(form.getFieldValue('email')).trim() : undefined
       const statusCode = e?.status || e?.originalError?.status
 
       const isNoPasskeys =
@@ -59,19 +63,12 @@ export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
         originalErrorMsg.includes('credential not recognized') ||
         originalErrorMsg.includes('credential not found')
 
-      const noPasskeyForAccount =
-        isNoPasskeys ||
-        (isCredentialNotFound && !emailProvided) ||
-        (statusCode === 404 && (isCredentialNotFound || originalErrorMsg.includes('credential')) && !emailProvided)
+      const noPasskeyForSite = isNoPasskeys || isCredentialNotFound || (statusCode === 404 && originalErrorMsg.includes('credential'))
 
       let errMsg = 'Passkey authentication failed. Please try again.'
 
-      if (noPasskeyForAccount) {
-        errMsg = emailProvided
-          ? 'No passkey found for this account. Sign in with your password or add a passkey from your account settings.'
-          : 'No passkey found.'
-      } else if (errorCode === 'credential_not_found' && emailProvided) {
-        errMsg = 'The passkey on this device is not registered for this account. Please use a different passkey or sign in with your password.'
+      if (noPasskeyForSite) {
+        errMsg = 'No passkey found for this site. Sign in with your email and password, then add a passkey in account settings.'
       } else if (errorCode === 'challenge_missing') {
         errMsg = 'Authentication session expired. Please try again.'
       } else if (errorCode === 'user_not_found') {
@@ -79,9 +76,11 @@ export default function PasskeySignInOptions({ form, onAuthenticated } = {}) {
       } else if (errorCode === 'webauthn_auth_failed') {
         errMsg = 'Passkey verification failed. Please try again.'
       } else if (e?.name === 'InvalidStateError' || e?.name === 'NotFoundError') {
-        errMsg = 'No passkey found for this account. Sign in with your password or add a passkey from your account settings.'
+        errMsg = 'No passkey found for this site. Sign in with your email and password, then add a passkey in account settings.'
       } else if (e?.name === 'SecurityError') {
         errMsg = 'Security error. Please make sure you\'re using a supported browser and try again.'
+      } else if (originalErrorMsg.includes('request is already pending')) {
+        errMsg = 'A passkey prompt is already open. Close it or wait a moment, then try again.'
       } else if (e?.name === 'NotSupportedError') {
         errMsg = 'Passkeys are not supported on this device or browser. Please use a different device or browser.'
       } else if (e?.message && typeof e.message === 'string') {

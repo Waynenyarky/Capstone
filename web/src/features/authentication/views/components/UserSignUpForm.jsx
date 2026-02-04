@@ -1,9 +1,10 @@
 // UserSignUpForm.jsx
-import React from 'react'
+import React, { useState } from 'react'
 import { ConfigProvider, Form, Input, Card, Flex, Button, Checkbox, Typography, Row, Col, Grid } from 'antd'
 import { useNavigate, Link } from 'react-router-dom'
 
 import { useUserSignUp, useUserSignUpFlow } from '@/features/authentication/hooks'
+import PasswordStrengthIndicator from './PasswordStrengthIndicator.jsx'
 import { SignUpVerificationForm } from '@/features/authentication'
 import {
   emailRules,
@@ -24,6 +25,7 @@ export default function UserSignUpForm({ extraContent }) {
   const navigate = useNavigate()
   const screens = useBreakpoint()
   const isMobile = !screens.md
+  const [passwordValue, setPasswordValue] = useState('')
   // Signup flow hooks (direct signup with auto-login, skipping verification)
   const { step, emailForVerify, devCodeForVerify, verifyEmail, handleVerificationSubmit } = useUserSignUpFlow()
   const { form, handleFinish, isSubmitting } = useUserSignUp({
@@ -93,8 +95,13 @@ export default function UserSignUpForm({ extraContent }) {
 
 
             <Form.Item name="password" label="Password" rules={passwordRules}>
-              <Input.Password placeholder="Create password" variant="filled" />
+              <Input.Password
+                placeholder="Create password"
+                variant="filled"
+                onChange={(e) => setPasswordValue(e?.target?.value ?? '')}
+              />
             </Form.Item>
+            <PasswordStrengthIndicator value={passwordValue} />
             <Form.Item
               name="confirmPassword"
               label="Confirm Password"

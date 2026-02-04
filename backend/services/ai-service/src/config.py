@@ -33,7 +33,10 @@ class Settings(BaseSettings):
     ID_VERIFICATION_MODEL_PATH: str = str(
         Path(__file__).parent.parent.parent.parent.parent / 'ai' / 'models' / 'id_verification' / 'model_v1.h5'
     )
-    LEGIT_THRESHOLD: float = 0.7  # Confidence threshold to classify as "legit"
+    # Lowered threshold to 0.5 to accept real photos that pass document characteristic checks
+    # The ML model was trained on synthetic data and struggles with real photos
+    # Document characteristics (aspect ratio, resolution, visual detail) provide additional signals
+    LEGIT_THRESHOLD: float = 0.5  # Confidence threshold to classify as "legit"
     HIGH_CONFIDENCE_THRESHOLD: float = 0.9  # Threshold for high confidence
     
     # === Future AI Models (placeholders) ===
