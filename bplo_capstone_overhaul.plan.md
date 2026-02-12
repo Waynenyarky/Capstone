@@ -4,19 +4,19 @@ overview: Complete overhaul of the BizClear capstone project to align with actua
 todos:
   - id: phase1a-ai-notebook
     content: "PHASE 1A: Create AI Document Validation Jupyter Notebook -- traditional ML pipeline (6 algorithms: SVM, RF, DT, LR, XGB, NN) + Gemini integration, synthetic dataset, overfitting prevention, model comparison, accuracy metrics"
-    status: pending
+    status: completed
   - id: phase1b-bc-notebook
     content: "PHASE 1B: Create Blockchain Audit Jupyter Notebook with Ganache, smart contract interaction, tamper detection, and re-entrancy tests"
-    status: pending
+    status: completed
   - id: phase1d-update-docs
     content: "PHASE 1D: Create ai_validation_prototype_plan.md, update blockchain_prototype_plan.md, create blockchain_audit_prototype_plan.md"
-    status: pending
+    status: completed
   - id: phase1-prep
     content: "PHASE 1 PREP: Add GEMINI_API_KEY to .env.example, create ai/notebooks/requirements.txt and blockchain/notebooks/requirements.txt, add docs/capstone-appendix placeholder for form photos, fix README Blockchain.md broken link"
-    status: pending
+    status: completed
   - id: phase1e-chapter2
     content: "PHASE 1E: Update Chapter 1 (processing times, office visits, performance targets) + Write Chapter 2 (Methodology) -- research design, SDM, scope, data gathering, sources"
-    status: pending
+    status: completed
   - id: phase2a-pis
     content: "PHASE 2A: Add PIS fields to User model, update signup flow, add duplicate prevention with existing-account linking"
     status: pending
@@ -123,6 +123,10 @@ isProject: false
 ---
 
 # BizClear Capstone -- Complete Overhaul Plan
+
+**Status:** Phase 1 completed (Feb 2025). Phase 2 (Core Workflow Overhaul) is next.
+
+---
 
 ## Discovery: Project Gaps (Fresh-Eye Review)
 
