@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { Layout, Row, Col, Card, Button, Typography, Space, Spin, theme } from 'antd'
-import { Link, useNavigate } from 'react-router-dom'
-import { FormOutlined, ShopOutlined, ReloadOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
+import { ShopOutlined, ReloadOutlined } from '@ant-design/icons'
 import { AppSidebar as Sidebar } from '@/features/authentication'
 import BusinessOwnerLayout from '../components/BusinessOwnerLayout'
-import BusinessRegistrationWizard from '../components/BusinessRegistrationWizard'
 import { useBusinessOwnerDashboard } from '../../hooks/useBusinessOwnerDashboard'
 
 // Dashboard Feature Imports
@@ -39,7 +38,7 @@ export default function BusinessOwnerDashboard() {
   if (!currentUser || roleSlug !== 'business_owner') {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <Spin size="large" tip="Redirecting..." />
+        <Spin size="large" tip="Redirecting..."><div style={{ minHeight: 48 }} /></Spin>
       </div>
     )
   }
@@ -68,32 +67,49 @@ export default function BusinessOwnerDashboard() {
     )
   }
 
-  // If profile is not yet created (null) or in draft/revision mode, show the registration wizard
-  if (!profile || profile.status === 'draft' || profile.status === 'needs_revision') {
+  // Dev-only: skip registration wizard for seeded business owner (business@example.com)
+  const isDev = typeof import.meta !== 'undefined' && import.meta.env?.DEV === true
+  const isSeededBusinessOwner = currentUser?.email === 'business@example.com'
+  const wouldShowWizard = !profile || profile.status === 'draft' || profile.status === 'needs_revision'
+  const skipWizardForDev = isDev && isSeededBusinessOwner && wouldShowWizard
+  const effectiveProfile = skipWizardForDev
+    ? { ...(profile || {}), status: 'pending_review', businessName: (profile && profile.businessName) || 'My Business' }
+    : profile
+
+  // If profile is not yet created (null) or in draft/revision mode, show CTA to My Businesses (Option B: business-first)
+  if (wouldShowWizard && !skipWizardForDev) {
     return (
       <BusinessOwnerLayout
-        pageTitle="Business Registration"
+        pageTitle="My Businesses"
         hiddenSidebarKeys={RESTRICTED_SIDEBAR_KEYS}
-        sidebarOverrides={{ dashboard: { label: 'Business Registration', icon: <FormOutlined /> } }}
-        hideSidebar={true}
-        hideNotifications={true}
-        hideProfileSettings={true}
       >
-          <div>
-            <BusinessRegistrationWizard onComplete={() => window.location.reload()} />
-          </div>
+        <div style={{ padding: 48, textAlign: 'center', maxWidth: 480, margin: '0 auto' }}>
+          <Title level={3} style={{ color: token.colorPrimary, marginBottom: 16 }}>Add your first business</Title>
+          <Paragraph type="secondary" style={{ marginBottom: 24 }}>
+            Create a business, then apply for its permit from My Businesses.
+          </Paragraph>
+          <Button
+            type="primary"
+            size="large"
+            icon={<ShopOutlined />}
+            onClick={() => navigate('/owner/businesses')}
+            style={{ background: token.colorPrimary, borderColor: token.colorPrimary }}
+          >
+            Go to My Businesses
+          </Button>
+        </div>
       </BusinessOwnerLayout>
     )
   }
 
   // Show business registration sidebar item if profile exists and is not in draft/needs_revision
   // This allows users to manage businesses after initial registration (pending_review or approved)
-  const shouldShowBusinessRegistration = profile && profile.status !== 'draft' && profile.status !== 'needs_revision'
+  const shouldShowBusinessRegistration = effectiveProfile && effectiveProfile.status !== 'draft' && effectiveProfile.status !== 'needs_revision'
   
   return (
     <BusinessOwnerLayout 
       pageTitle="Dashboard" 
-      businessName={profile?.businessName}
+      businessName={effectiveProfile?.businessName}
       hiddenSidebarKeys={!shouldShowBusinessRegistration ? ['business-registration'] : []}
       showPageHeader={false}
     >
@@ -114,7 +130,7 @@ export default function BusinessOwnerDashboard() {
                     type="primary"
                     icon={<ShopOutlined />} 
                     size="large"
-                    onClick={() => navigate('/owner/business-registration')}
+                    onClick={() => navigate('/owner/businesses')}
                     style={{ background: token.colorPrimary, borderColor: token.colorPrimary }}
                   >
                     My Businesses
@@ -123,9 +139,9 @@ export default function BusinessOwnerDashboard() {
                 <Button 
                   size="large" 
                   icon={<ReloadOutlined />}
-                  onClick={() => navigate('/owner/business-renewal')}
+                  onClick={() => navigate('/owner/businesses?tab=permits')}
                 >
-                  Business Renewal
+                  Permit applications
                 </Button>
               </Space>
             </div>

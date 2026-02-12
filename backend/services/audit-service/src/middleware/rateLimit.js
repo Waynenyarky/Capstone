@@ -92,6 +92,35 @@ function idUploadRateLimit() {
 }
 
 /**
+ * Rate limiter for blockchain audit logging
+ * 20 logs per minute per IP (called by other services)
+ */
+function auditLogRateLimit() {
+  return rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => {
+      // Use service ID if provided (e.g. x-service-id header from internal services)
+      const serviceId = req.headers['x-service-id'] || req.headers['x-correlation-id']
+      if (serviceId) return String(serviceId)
+      return ipKeyGenerator(req)
+    },
+    handler: (req, res) => {
+      req.rateLimitViolated = true
+      let retryAfterSec = 60
+      try {
+        const rl = req.rateLimit || {}
+        const resetMs = rl.resetTime ? new Date(rl.resetTime).getTime() : rl.resetMs
+        if (resetMs > Date.now()) retryAfterSec = Math.ceil((resetMs - Date.now()) / 1000)
+      } catch (_) {}
+      return respond.error(res, 429, 'audit_log_rate_limited', `Too many audit logs. Try again in ${retryAfterSec}s.`)
+    },
+  })
+}
+
+/**
  * Rate limiter for admin approval requests
  * 10 requests per hour per admin
  */
@@ -136,4 +165,5 @@ module.exports = {
   passwordChangeRateLimit,
   idUploadRateLimit,
   adminApprovalRateLimit,
+  auditLogRateLimit,
 }

@@ -156,8 +156,8 @@ function calculateRiskLevel(businessData) {
 
   // Business type
   const businessType = businessData.businessType || ''
-  const highRiskTypes = ['manufacturing_industrial', 'construction_real_estate_housing', 'transportation_automotive_logistics']
-  const mediumRiskTypes = ['services', 'agriculture_fishery_forestry']
+  const highRiskTypes = ['c', 'f', 'h'] // Manufacturing, Construction, Transport (PSIC)
+  const mediumRiskTypes = ['s', 'a'] // Other services, Agriculture (PSIC)
   if (highRiskTypes.includes(businessType)) {
     riskScore += 3
   } else if (mediumRiskTypes.includes(businessType)) {

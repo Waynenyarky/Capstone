@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { App, Form } from 'antd'
 import { addBusiness, updateBusiness } from '../../../services/businessProfileService'
 import { submitBusinessApplication } from '../services/businessRegistrationService'
+import { getActiveFormDefinition } from '@/features/admin/services/formDefinitionService'
+import { deriveDocumentFieldsFromDefinition } from '@/features/business-owner/utils/formDefinitionUtils'
 import { wizardSteps } from '../constants/wizardSteps.jsx'
 
 export function useBusinessRegistrationWizard({
@@ -28,6 +30,30 @@ export function useBusinessRegistrationWizard({
     referenceNumber: null,
     submittedAt: null
   })
+  const [activeDefinition, setActiveDefinition] = useState(null)
+
+  const businessTypeForDefinition = formData?.businessType || applicationData.businessData?.businessType
+
+  useEffect(() => {
+    let cancelled = false
+    async function fetchDefinition() {
+      try {
+        const res = await getActiveFormDefinition('registration', businessTypeForDefinition || undefined, undefined)
+        if (cancelled) return
+        if (res?.definition && !res.deactivated) {
+          setActiveDefinition(res.definition)
+        } else {
+          setActiveDefinition(null)
+        }
+      } catch {
+        if (!cancelled) setActiveDefinition(null)
+      }
+    }
+    fetchDefinition()
+    return () => { cancelled = true }
+  }, [businessTypeForDefinition])
+
+  const documentFields = activeDefinition ? deriveDocumentFieldsFromDefinition(activeDefinition) : []
 
   useEffect(() => {
     if (businessId && businessId !== 'new') {
@@ -432,6 +458,7 @@ export function useBusinessRegistrationWizard({
     loading,
     form,
     applicationData,
+    documentFields,
     effectiveLguDocumentsWithStorage,
     effectiveBirRegistration,
     isSubmitted: isSubmitted(formData),

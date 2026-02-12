@@ -118,7 +118,7 @@ See [DOCKER_DEPLOY.md](DOCKER_DEPLOY.md) for detailed deployment instructions.
 
 - **Deployment**: [DOCKER_DEPLOY.md](DOCKER_DEPLOY.md) - Docker deployment guide
 - **Backend**: [BACKEND_README.md](BACKEND_README.md) - Backend architecture and API documentation
-- **Blockchain**: [Blockchain.md](Blockchain.md) - Blockchain integration documentation
+- **Blockchain**: [blockchain_prototype_plan.md](blockchain_prototype_plan.md) - Blockchain prototype plan; [docs/blockchain-logging-flows.md](docs/blockchain-logging-flows.md) - Blockchain integration flows
 - **Features**:
   - [2FA_SETUP.md](2FA_SETUP.md) - Two-factor authentication setup
   - [BIOMETRICS.md](BIOMETRICS.md) - Biometric authentication

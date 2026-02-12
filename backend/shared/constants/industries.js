@@ -1,23 +1,37 @@
 /**
- * Industry Constants - Shared across all backend services
- * 
+ * Industry Constants - PSIC 2019 Sections (Philippine Standard Industrial Classification)
+ *
  * Single source of truth for industry/business type enums.
- * 
+ * Official classification from Philippine Statistics Authority (PSA).
+ *
  * These values must stay in sync with:
  * - web/src/constants/industries.js
  * - web/src/constants/businessTypes.js
  */
 
-// Business types (actual industry classifications)
+// PSIC 2019 Sections (business types)
 const BUSINESS_TYPES = [
-  { value: 'retail_trade', label: 'Retail Trade' },
-  { value: 'food_beverages', label: 'Food & Beverages' },
-  { value: 'services', label: 'Services' },
-  { value: 'manufacturing_industrial', label: 'Manufacturing / Industrial' },
-  { value: 'agriculture_fishery_forestry', label: 'Agriculture, Fishery & Forestry' },
-  { value: 'construction_real_estate_housing', label: 'Construction, Real Estate & Housing' },
-  { value: 'transportation_automotive_logistics', label: 'Transportation, Automotive & Logistics' },
-  { value: 'financial_insurance_banking', label: 'Financial, Insurance & Banking' },
+  { value: 'a', label: 'Agriculture, forestry and fishing' },
+  { value: 'b', label: 'Mining and quarrying' },
+  { value: 'c', label: 'Manufacturing' },
+  { value: 'd', label: 'Electricity, gas, steam and air conditioning supply' },
+  { value: 'e', label: 'Water supply; sewerage; waste management and remediation activities' },
+  { value: 'f', label: 'Construction' },
+  { value: 'g', label: 'Wholesale and retail trade; repair of motor vehicles and motorcycles' },
+  { value: 'h', label: 'Transport and storage' },
+  { value: 'i', label: 'Accommodation and food service activities' },
+  { value: 'j', label: 'Information and communication' },
+  { value: 'k', label: 'Financial and insurance activities' },
+  { value: 'l', label: 'Real estate activities' },
+  { value: 'm', label: 'Professional, scientific and technical activities' },
+  { value: 'n', label: 'Administrative and support service activities' },
+  { value: 'o', label: 'Public administration and defence; compulsory social security' },
+  { value: 'p', label: 'Education' },
+  { value: 'q', label: 'Human health and social work activities' },
+  { value: 'r', label: 'Arts, entertainment and recreation' },
+  { value: 's', label: 'Other service activities' },
+  { value: 't', label: 'Activities of households as employers' },
+  { value: 'u', label: 'Activities of extraterritorial organizations and bodies' },
 ]
 
 // Values for MongoDB enums and validation
@@ -75,18 +89,18 @@ function formatIndustryScope(value) {
 }
 
 module.exports = {
-  // Business types (without "all")
+  // Business types (PSIC sections, without "all")
   BUSINESS_TYPES,
   BUSINESS_TYPE_VALUES,
   BUSINESS_TYPE_LABELS,
   getBusinessTypeLabel,
-  
+
   // Industry scope (with "all")
   INDUSTRY_SCOPE_OPTIONS,
   INDUSTRY_SCOPE_VALUES,
   INDUSTRY_SCOPE_LABELS,
   getIndustryScopeLabel,
-  
+
   // Utility
   formatIndustryScope,
 }

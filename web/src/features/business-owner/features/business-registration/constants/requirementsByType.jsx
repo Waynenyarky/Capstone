@@ -1,3 +1,7 @@
+/**
+ * Requirements by PSIC 2019 section (Philippine Standard Industrial Classification)
+ * Sector-specific requirements in addition to general LGU/BIR requirements.
+ */
 export const requirementsByType = {
   general: [
     {
@@ -33,7 +37,8 @@ export const requirementsByType = {
       ]
     }
   ],
-  food_beverages: [
+  // i - Accommodation and food service activities
+  i: [
     {
       category: 'Food and Beverage',
       items: [
@@ -43,7 +48,8 @@ export const requirementsByType = {
       ]
     }
   ],
-  manufacturing_industrial: [
+  // c - Manufacturing
+  c: [
     {
       category: 'Manufacturing / Industrial',
       items: [
@@ -53,7 +59,8 @@ export const requirementsByType = {
       ]
     }
   ],
-  transportation_automotive_logistics: [
+  // h - Transport and storage
+  h: [
     {
       category: 'Transportation / Logistics',
       items: [
@@ -63,7 +70,8 @@ export const requirementsByType = {
       ]
     }
   ],
-  agriculture_fishery_forestry: [
+  // a - Agriculture, forestry and fishing
+  a: [
     {
       category: 'Agriculture / Fishery / Forestry',
       items: [
@@ -72,7 +80,8 @@ export const requirementsByType = {
       ]
     }
   ],
-  construction_real_estate_housing: [
+  // f - Construction
+  f: [
     {
       category: 'Construction / Real Estate / Housing',
       items: [
@@ -82,7 +91,8 @@ export const requirementsByType = {
       ]
     }
   ],
-  financial_insurance_banking: [
+  // k - Financial and insurance activities
+  k: [
     {
       category: 'Financial / Insurance / Banking',
       items: [

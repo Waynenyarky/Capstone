@@ -56,6 +56,7 @@ const BusinessProfileSchema = new mongoose.Schema(
         enum: ['not_yet_registered', 'proposed'], 
         default: 'not_yet_registered' 
       },
+      businessStatus: { type: String, enum: ['active', 'inactive', 'closed'], default: 'active' },
       location: {
         street: { type: String, default: '' },
         barangay: { type: String, default: '' },
@@ -140,23 +141,8 @@ const BusinessProfileSchema = new mongoose.Schema(
         pdfDownloaded: { type: Boolean, default: false },
         pdfDownloadedAt: { type: Date }
       },
-      lguDocuments: {
-        idPicture: { type: String, default: '' }, // Legacy: local file URL (for backward compatibility)
-        ctc: { type: String, default: '' }, // Legacy: local file URL
-        barangayClearance: { type: String, default: '' }, // Legacy: local file URL
-        dtiSecCda: { type: String, default: '' }, // Legacy: local file URL
-        leaseOrLandTitle: { type: String, default: '' }, // Legacy: local file URL
-        occupancyPermit: { type: String, default: '' }, // Legacy: local file URL
-        healthCertificate: { type: String, default: '' }, // Legacy: local file URL
-        // IPFS CIDs for LGU documents
-        idPictureIpfsCid: { type: String, default: '' },
-        ctcIpfsCid: { type: String, default: '' },
-        barangayClearanceIpfsCid: { type: String, default: '' },
-        dtiSecCdaIpfsCid: { type: String, default: '' },
-        leaseOrLandTitleIpfsCid: { type: String, default: '' },
-        occupancyPermitIpfsCid: { type: String, default: '' },
-        healthCertificateIpfsCid: { type: String, default: '' }
-      },
+      // LGU documents: Mixed so form-definition-driven keys (from admin) are persisted; legacy keys (idPicture, ctc, etc.) still work
+      lguDocuments: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
       birRegistration: {
         registrationNumber: { type: String, default: '' }, // Deprecated
         certificateUrl: { type: String, default: '' }, // Legacy: local file URL (for backward compatibility)

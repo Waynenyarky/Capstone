@@ -187,7 +187,7 @@ function FormTypeTabContent({
         description={`No ${formTypeLabel} form for this industry yet.`}
         style={{ marginTop: 48 }}
       >
-        <Text type="secondary">Use "New Definition" in the header to create one.</Text>
+        <Text type="secondary">Form definitions can be added by administrators.</Text>
       </Empty>
     )
   }

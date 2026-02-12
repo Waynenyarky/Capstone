@@ -66,11 +66,13 @@ async function createAuditLog(userId, eventType, fieldChanged, oldValue, newValu
 
     // Queue blockchain operation via Audit Service (non-blocking)
     const auditServiceUrl = process.env.AUDIT_SERVICE_URL || 'http://localhost:3004'
+    const headers = { 'Content-Type': 'application/json' }
+    if (process.env.AUDIT_SERVICE_API_KEY) headers['X-API-Key'] = process.env.AUDIT_SERVICE_API_KEY
     axios.post(`${auditServiceUrl}/api/audit/log`, {
       operation: 'logAuditHash',
       params: [auditLog.hash, eventType],
       auditLogId: String(auditLog._id)
-    }).catch((err) => {
+    }, { headers }).catch((err) => {
       logger.warn('Failed to log to blockchain via Audit Service', { error: err.message })
     })
 

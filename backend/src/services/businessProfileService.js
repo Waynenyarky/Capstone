@@ -244,68 +244,80 @@ class BusinessProfileService {
    * @returns {Promise<object>} Updated profile
    */
   async addBusiness(userId, businessData) {
-    const profile = await BusinessProfile.findOne({ userId })
+    let profile = await BusinessProfile.findOne({ userId })
     if (!profile) {
-      throw new Error('Business profile not found')
+      profile = await BusinessProfile.create({ userId, businesses: [] })
     }
 
-    // Validate business registration number format
-    const legacyFieldsPresent = businessData.registrationAgency || businessData.location || businessData.businessName
-    if (legacyFieldsPresent) {
-      const regValidation = validateBusinessRegistrationNumber(
-        businessData.registrationAgency,
-        businessData.businessRegistrationNumber
-      )
-      if (!regValidation.valid) {
-        throw new Error(regValidation.error)
-      }
+    const hasRegNum = businessData.businessRegistrationNumber && String(businessData.businessRegistrationNumber).trim()
+    const isMinimalAdd = businessData.businessName && !hasRegNum
 
-      // Validate geolocation
-      const geoValidation = validateGeolocation(
-        businessData.location?.geolocation?.lat,
-        businessData.location?.geolocation?.lng
-      )
-      if (!geoValidation.valid) {
-        throw new Error(geoValidation.error)
-      }
+    if (!isMinimalAdd) {
+      const legacyFieldsPresent = businessData.registrationAgency || businessData.location || businessData.businessName
+      if (legacyFieldsPresent) {
+        const regValidation = validateBusinessRegistrationNumber(
+          businessData.registrationAgency,
+          businessData.businessRegistrationNumber
+        )
+        if (!regValidation.valid) {
+          throw new Error(regValidation.error)
+        }
 
-      // Check for duplicate registration number (same agency)
-      const existingBusiness = profile.businesses?.find(
-        b => b.businessRegistrationNumber === businessData.businessRegistrationNumber &&
-             b.registrationAgency === businessData.registrationAgency
-      )
-      if (existingBusiness) {
-        throw new Error('Business registration number already exists for this agency')
+        const geoValidation = validateGeolocation(
+          businessData.location?.geolocation?.lat,
+          businessData.location?.geolocation?.lng
+        )
+        if (!geoValidation.valid) {
+          throw new Error(geoValidation.error)
+        }
+
+        const existingBusiness = profile.businesses?.find(
+          b => b.businessRegistrationNumber === businessData.businessRegistrationNumber &&
+               b.registrationAgency === businessData.registrationAgency
+        )
+        if (existingBusiness) {
+          throw new Error('Business registration number already exists for this agency')
+        }
       }
     }
 
-    // Generate unique business ID using mongoose ObjectId
     const businessId = new mongoose.Types.ObjectId().toString()
-
-    // Determine if this should be primary (first business)
     const isFirstBusiness = !profile.businesses || profile.businesses.length === 0
     const isPrimary = isFirstBusiness
 
-    // If setting as primary, unset current primary
     if (isPrimary && profile.businesses && profile.businesses.length > 0) {
       profile.businesses.forEach(b => {
         b.isPrimary = false
       })
     }
 
-    // Calculate initial risk level
-    const riskLevel = calculateRiskLevel(businessData)
+    const riskLevel = isMinimalAdd ? 'low' : calculateRiskLevel(businessData)
+    const placeholderRegNum = `PENDING-${businessId}`
+    const regAgency = isMinimalAdd ? 'LGU' : businessData.registrationAgency
+    const regNum = isMinimalAdd ? placeholderRegNum : businessData.businessRegistrationNumber
 
-    // Create new business object
+    const hasExistingPermit = !!businessData.hasExistingPermit
+    const locationFromPayload = businessData.location && typeof businessData.location === 'object' && Object.keys(businessData.location).length > 0
+      ? businessData.location
+      : (isMinimalAdd ? {} : (businessData.location || {}))
+    const validStatuses = ['active', 'inactive', 'closed']
+    const businessStatus = (businessData.businessStatus && validStatuses.includes(businessData.businessStatus))
+      ? businessData.businessStatus
+      : 'active'
+    const existingPermitRef = hasExistingPermit
+      ? (String(businessData.applicationReferenceNumber || '').trim() || `EXISTING-${businessId}`)
+      : ''
+
     const newBusiness = {
       businessId,
       isPrimary,
       businessName: businessData.businessName || businessData.registeredBusinessName,
       registrationStatus: businessData.registrationStatus || 'not_yet_registered',
-      location: businessData.location || {},
+      businessStatus,
+      location: locationFromPayload,
       businessType: businessData.businessType,
-      registrationAgency: businessData.registrationAgency,
-      businessRegistrationNumber: businessData.businessRegistrationNumber,
+      registrationAgency: regAgency,
+      businessRegistrationNumber: regNum,
       businessStartDate: businessData.businessStartDate ? new Date(businessData.businessStartDate) : null,
       numberOfBranches: businessData.numberOfBranches || 0,
       industryClassification: businessData.industryClassification || '',
@@ -317,9 +329,11 @@ class BusinessProfileService {
         businessActivitiesDescription: businessData.riskProfile?.businessActivitiesDescription || '',
         riskLevel
       },
-      // Initialize new Business Registration Application fields
-      applicationStatus: 'draft',
-      applicationReferenceNumber: '',
+      applicationStatus: hasExistingPermit ? 'submitted' : 'draft',
+      applicationReferenceNumber: hasExistingPermit ? existingPermitRef : '',
+      submittedAt: hasExistingPermit ? new Date() : null,
+      submittedToLguOfficer: hasExistingPermit,
+      isSubmitted: hasExistingPermit,
       requirementsChecklist: {
         confirmed: false,
         confirmedAt: null,
@@ -332,9 +346,9 @@ class BusinessProfileService {
       businessRegistrationDate: businessData.businessRegistrationDate ? new Date(businessData.businessRegistrationDate) : null,
       businessAddress: businessData.businessAddress || '',
       unitBuildingName: businessData.unitBuildingName || '',
-      street: businessData.street || '',
-      barangay: businessData.barangay || '',
-      cityMunicipality: businessData.cityMunicipality || '',
+      street: (locationFromPayload && locationFromPayload.street) || businessData.street || '',
+      barangay: (locationFromPayload && locationFromPayload.barangay) || businessData.barangay || '',
+      cityMunicipality: (locationFromPayload && (locationFromPayload.city || locationFromPayload.municipality)) || businessData.cityMunicipality || '',
       businessLocationType: businessData.businessLocationType || '',
       primaryLineOfBusiness: businessData.primaryLineOfBusiness || '',
       businessClassification: businessData.businessClassification || '',
@@ -389,9 +403,6 @@ class BusinessProfileService {
           proofUrl: ''
         }
       },
-      submittedAt: null,
-      submittedToLguOfficer: false,
-      isSubmitted: false,
       createdAt: new Date(),
       updatedAt: new Date()
     }
@@ -405,6 +416,48 @@ class BusinessProfileService {
     // Mark the array as modified for Mongoose
     profile.markModified('businesses')
     await profile.save()
+
+    // Create notifications for LGU Officers when owner adds business with "already has permit"
+    if (hasExistingPermit) {
+      try {
+        const notificationService = require('../services/notificationService')
+        const UserModel = require('../models/User')
+        const RoleModel = require('../models/Role')
+        const referenceNumber = newBusiness.applicationReferenceNumber || placeholderRegNum
+
+        const lguOfficerRole = await RoleModel.findOne({ slug: 'lgu_officer' }).lean()
+        if (lguOfficerRole) {
+          const lguOfficers = await UserModel.find({
+            role: lguOfficerRole._id,
+            isActive: true
+          }).lean()
+
+          const notificationPromises = lguOfficers.map(officer =>
+            notificationService.createNotification(
+              officer._id,
+              'application_status_update',
+              'New Application Submitted',
+              `A new business "${newBusiness.businessName}" (Reference: ${referenceNumber}) has been submitted with an existing permit claim and is ready for verification.`,
+              'business_application',
+              businessId,
+              {
+                businessName: newBusiness.businessName,
+                referenceNumber,
+                businessId,
+                submittedAt: newBusiness.submittedAt
+              }
+            ).catch(err => {
+              console.error(`Failed to create notification for LGU Officer ${officer._id}:`, err)
+              return null
+            })
+          )
+          await Promise.all(notificationPromises)
+          console.log(`[addBusiness] Created notifications for ${lguOfficers.length} LGU Officer(s) (existing permit claim)`)
+        }
+      } catch (notifError) {
+        console.error('[addBusiness] Failed to create LGU Officer notifications:', notifError)
+      }
+    }
 
     // Audit log
     try {
@@ -428,7 +481,7 @@ class BusinessProfileService {
       console.error('Error creating audit log for business add:', error)
     }
 
-    return profile
+    return { profile, businessId }
   }
 
   /**
@@ -846,6 +899,25 @@ class BusinessProfileService {
     }
     const business = profile.businesses?.find(b => b.businessId === businessId)
     return business || null
+  }
+
+  async updateBusinessStatus(userId, businessId, data) {
+    const profile = await BusinessProfile.findOne({ userId })
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+    const business = profile.businesses?.find(b => b.businessId === businessId)
+    if (!business) {
+      throw new Error('Business not found')
+    }
+    const valid = ['active', 'inactive', 'closed']
+    if (data.businessStatus && valid.includes(data.businessStatus)) {
+      business.businessStatus = data.businessStatus
+    }
+    business.updatedAt = new Date()
+    profile.markModified('businesses')
+    await profile.save()
+    return profile
   }
 
   /**

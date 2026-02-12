@@ -50,16 +50,28 @@ const upload = multer({
 })
 
 // Validation schemas
+const requirementItemSchema = Joi.object({
+  label: Joi.string().required(),
+  required: Joi.boolean().optional(),
+  notes: Joi.string().allow('', null).optional(),
+  type: Joi.string().valid('text', 'textarea', 'number', 'date', 'select', 'multiselect', 'file', 'download', 'checkbox', 'address').optional(),
+  placeholder: Joi.string().allow('', null).optional(),
+  helpText: Joi.string().allow('', null).optional(),
+  span: Joi.number().min(1).max(24).optional(),
+  validation: Joi.object().unknown(true).optional(),
+  dropdownSource: Joi.string().allow('', null).optional(),
+  dropdownOptions: Joi.array().items(Joi.string()).optional(),
+  downloadFileName: Joi.string().allow('', null).optional(),
+  downloadFileSize: Joi.number().optional(),
+  downloadFileType: Joi.string().allow('', null).optional(),
+  downloadFileUrl: Joi.string().allow('', null).optional(),
+  downloadIpfsCid: Joi.string().allow('', null).optional(),
+})
+
 const sectionSchema = Joi.object({
   category: Joi.string().required(),
   source: Joi.string().allow('', null).optional(),
-  items: Joi.array().items(
-    Joi.object({
-      label: Joi.string().required(),
-      required: Joi.boolean().optional(),
-      notes: Joi.string().allow('', null).optional(),
-    })
-  ).optional(),
+  items: Joi.array().items(requirementItemSchema).optional(),
   notes: Joi.string().allow('', null).optional(),
 })
 
@@ -73,7 +85,7 @@ const downloadSchema = Joi.object({
 })
 
 const createFormDefinitionSchema = Joi.object({
-  formType: Joi.string().valid('registration', 'permit', 'renewal', 'cessation', 'violation', 'appeal').required(),
+  formType: Joi.string().valid('registration', 'permit', 'renewal', 'cessation', 'violation', 'appeal', 'inspections').required(),
   version: Joi.string().required(),
   name: Joi.string().allow('', null).optional(),
   description: Joi.string().allow('', null).optional(),
@@ -152,7 +164,7 @@ router.get('/', requireJwt, requireRole(['admin']), async (req, res) => {
 // --- Form Groups (must be before /:id) ---
 
 const createFormGroupSchema = Joi.object({
-  formType: Joi.string().valid('registration', 'permit', 'renewal', 'cessation', 'violation', 'appeal').required(),
+  formType: Joi.string().valid('registration', 'permit', 'renewal', 'cessation', 'violation', 'appeal', 'inspections').required(),
   industryScope: Joi.string().valid(...INDUSTRY_SCOPE_VALUES).default('all'),
 })
 
@@ -324,6 +336,7 @@ router.post('/groups', requireJwt, requireRole(['admin']), validateBody(createFo
       cessation: 'Cessation',
       violation: 'Violation',
       appeal: 'Appeal',
+      inspections: 'Inspections',
     }
     const displayName = `${typeLabels[formType]} - ${INDUSTRY_SCOPE_LABELS[industryScope] || industryScope}`
 
@@ -934,6 +947,24 @@ router.post('/:id/upload', requireJwt, requireRole(['admin']), upload.single('fi
   } catch (err) {
     console.error('POST /api/admin/forms/:id/upload error:', err)
     return respond.error(res, 500, 'upload_failed', err.message || 'Failed to upload file')
+  }
+})
+
+// DELETE /api/admin/forms/:id - Delete draft form definition
+router.delete('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
+  try {
+    const definition = await FormDefinition.findById(req.params.id)
+    if (!definition) {
+      return respond.error(res, 404, 'form_not_found', 'Form definition not found')
+    }
+    if (!definition.canEdit()) {
+      return respond.error(res, 400, 'form_not_editable', 'Only draft form definitions can be deleted')
+    }
+    await FormDefinition.deleteOne({ _id: definition._id })
+    return res.json({ success: true })
+  } catch (err) {
+    console.error('DELETE /api/admin/forms/:id error:', err)
+    return respond.error(res, 500, 'form_delete_failed', 'Failed to delete form definition')
   }
 })
 

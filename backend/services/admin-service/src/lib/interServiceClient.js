@@ -58,7 +58,9 @@ async function callAuditService(endpoint, method = 'POST', data = null, token = 
         'Content-Type': 'application/json',
       },
     };
-    
+    if (process.env.AUDIT_SERVICE_API_KEY) {
+      config.headers['X-API-Key'] = process.env.AUDIT_SERVICE_API_KEY;
+    }
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }

@@ -1,4 +1,4 @@
-import { get, post, put, del } from '@/lib/http'
+import { get, post, put, patch, del } from '@/lib/http'
 import { fetchWithFallback } from '@/lib/http'
 
 export const getBusinessProfile = async () => {
@@ -49,6 +49,10 @@ export const addBusiness = async (data) => {
 
 export const updateBusiness = async (businessId, data) => {
   return put(`/api/business/businesses/${businessId}`, data)
+}
+
+export const updateBusinessStatus = async (businessId, { businessStatus }) => {
+  return patch(`/api/business/businesses/${businessId}`, { businessStatus })
 }
 
 export const deleteBusiness = async (businessId) => {

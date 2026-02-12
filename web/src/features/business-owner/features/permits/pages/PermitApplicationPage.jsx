@@ -82,7 +82,7 @@ export default function PermitApplicationPage() {
     >
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
-          <Spin size="large" tip="Loading..." />
+          <Spin size="large" tip="Loading..."><div style={{ minHeight: 48 }} /></Spin>
         </div>
       ) : showNoBusinessState ? (
         <div style={{ borderRadius: 8, width: '100%', padding: 48, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>

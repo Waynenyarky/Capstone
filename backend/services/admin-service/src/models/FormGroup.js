@@ -5,7 +5,7 @@ const FormGroupSchema = new mongoose.Schema(
   {
     formType: {
       type: String,
-      enum: ['registration', 'permit', 'renewal', 'cessation', 'violation', 'appeal'],
+      enum: ['registration', 'permit', 'renewal', 'cessation', 'violation', 'appeal', 'inspections'],
       required: true,
       index: true,
     },
@@ -56,6 +56,7 @@ FormGroupSchema.statics.getFormTypeLabel = function (formType) {
     cessation: 'Cessation',
     violation: 'Violation',
     appeal: 'Appeal',
+    inspections: 'Inspections',
   }
   return labels[formType] || formType
 }

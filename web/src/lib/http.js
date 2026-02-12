@@ -239,5 +239,15 @@ export const put = (path, body, options) => fetchJsonWithFallback(path, {
 
 export const del = (path, options) => fetchJsonWithFallback(path, { ...options, method: 'DELETE' })
 
+export const patch = (path, body, options) => fetchJsonWithFallback(path, {
+  ...options,
+  method: 'PATCH',
+  body: JSON.stringify(body),
+  headers: {
+    'Content-Type': 'application/json',
+    ...options?.headers
+  }
+})
+
 // Re-export shared header helper for convenience across feature services
 export { authHeaders }

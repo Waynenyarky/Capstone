@@ -193,11 +193,13 @@ router.post(
             try {
               const axios = require('axios')
               const auditServiceUrl = process.env.AUDIT_SERVICE_URL || 'http://localhost:3004'
+              const auditHeaders = { 'Content-Type': 'application/json' }
+              if (process.env.AUDIT_SERVICE_API_KEY) auditHeaders['X-API-Key'] = process.env.AUDIT_SERVICE_API_KEY
               await axios.post(`${auditServiceUrl}/api/audit/store-document`, {
                 userId: String(doc._id),
                 docType: 'ID_FRONT',
                 ipfsCid: frontCid
-              }).catch((err) => {
+              }, { headers: auditHeaders }).catch((err) => {
                 console.warn('Failed to store ID front CID in blockchain', { error: err.message })
               })
             } catch (blockchainError) {
@@ -233,11 +235,13 @@ router.post(
               try {
                 const axios = require('axios')
                 const auditServiceUrl = process.env.AUDIT_SERVICE_URL || 'http://localhost:3004'
+                const auditHeaders = { 'Content-Type': 'application/json' }
+                if (process.env.AUDIT_SERVICE_API_KEY) auditHeaders['X-API-Key'] = process.env.AUDIT_SERVICE_API_KEY
                 await axios.post(`${auditServiceUrl}/api/audit/store-document`, {
                   userId: String(doc._id),
                   docType: 'ID_BACK',
                   ipfsCid: backCid
-                }).catch((err) => {
+                }, { headers: auditHeaders }).catch((err) => {
                   console.warn('Failed to store ID back CID in blockchain', { error: err.message })
                 })
               } catch (blockchainError) {

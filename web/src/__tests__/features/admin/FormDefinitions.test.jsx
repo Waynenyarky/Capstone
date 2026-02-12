@@ -1,33 +1,18 @@
-import React from 'react'
+import React, { createRef } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderWithProviders, screen, waitFor, fireEvent } from '@/test/utils/renderWithProviders.jsx'
+import { renderWithProviders, screen, fireEvent, waitFor } from '@/test/utils/renderWithProviders.jsx'
 
-// Mock the services
-const mockGetFormGroups = vi.fn()
-const mockCreateFormGroup = vi.fn()
-
-vi.mock('@/features/admin/services', async () => {
-  const actual = await vi.importActual('@/features/admin/services')
-  return {
-    ...actual,
-    getFormGroups: (...args) => mockGetFormGroups(...args),
-    createFormGroup: (...args) => mockCreateFormGroup(...args),
-  }
-})
-
-// Mock navigation
-const mockNavigate = vi.fn()
+// ─── Mocks ────────────────────────────────────────────────────────
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
   return {
     ...actual,
-    useNavigate: () => mockNavigate,
+    useNavigate: () => vi.fn(),
     useParams: () => ({}),
     useSearchParams: () => [new URLSearchParams(), vi.fn()],
   }
 })
 
-// Mock authentication (AdminLayout uses useAuthSession)
 vi.mock('@/features/authentication', async (importOriginal) => {
   const actual = await importOriginal()
   return {
@@ -42,136 +27,239 @@ vi.mock('@/features/authentication', async (importOriginal) => {
   }
 })
 
+// Mock the form definition service
+vi.mock('@/features/admin/services/formDefinitionService', () => ({
+  getFormGroups: vi.fn().mockResolvedValue({ success: true, groups: [] }),
+  getFormGroupStats: vi.fn().mockResolvedValue({ success: true, stats: { activated: 3, deactivated: 1, retired: 2, pending: 0 } }),
+  getFormDefinitionsAuditLog: vi.fn().mockResolvedValue({ success: true, entries: [] }),
+  getFormGroup: vi.fn().mockResolvedValue({ success: true, group: {}, versions: [] }),
+  createFormGroup: vi.fn().mockResolvedValue({ success: true, group: { _id: 'g1' }, definition: { _id: 'd1', sections: [] } }),
+  createFormGroupVersion: vi.fn().mockResolvedValue({ success: true, definition: { _id: 'd2', version: '2026.2', sections: [] } }),
+  getFormDefinition: vi.fn().mockResolvedValue({ success: true, definition: { _id: 'd1', sections: [] } }),
+  updateFormDefinition: vi.fn().mockResolvedValue({ success: true, definition: { _id: 'd1', sections: [] } }),
+  deleteFormDefinition: vi.fn().mockResolvedValue({ success: true }),
+  submitForApproval: vi.fn().mockResolvedValue({ success: true }),
+  deactivateFormGroup: vi.fn().mockResolvedValue({ success: true }),
+  reactivateFormGroup: vi.fn().mockResolvedValue({ success: true }),
+  uploadFormTemplate: vi.fn().mockResolvedValue({ success: true, download: { label: 'test.pdf', fileUrl: '/test.pdf', fileType: 'pdf', fileSize: 1000 } }),
+}))
+
 import AdminFormDefinitions from '@/features/admin/views/pages/AdminFormDefinitions.jsx'
+import FormContentEditor from '@/features/admin/views/pages/formDefinitions/components/FormContentEditor.jsx'
 
-/** On mobile, header actions are in a dropdown; open it and return the New Definition button. */
-async function openHeaderActionsAndGetNewDefinition() {
-  const ellipsisBtn = screen.queryByRole('button', { name: /ellipsis/i })
-  if (ellipsisBtn) {
-    fireEvent.click(ellipsisBtn)
-    await waitFor(() => {
-      expect(screen.getByText('New Definition')).toBeInTheDocument()
-    })
-  }
-  return screen.getByText('New Definition')
-}
-
+// ─── Page-level tests ─────────────────────────────────────────────
 describe('AdminFormDefinitions Page', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockGetFormGroups.mockResolvedValue({
-      success: true,
-      groups: [
-        {
-          _id: '1',
-          formType: 'registration',
-          industryScope: 'retail_trade',
-          displayName: 'Business Registration - Retail Trade',
-          lastUpdated: '2026-01-15T10:00:00Z',
-        },
-        {
-          _id: '2',
-          formType: 'permit',
-          industryScope: 'food_beverages',
-          displayName: 'Business Permit - Food & Beverages',
-          lastUpdated: '2026-01-10T10:00:00Z',
-        },
-      ],
-      pagination: { page: 1, limit: 20, total: 2, pages: 1 },
-    })
   })
 
   it('should render the page title', async () => {
     renderWithProviders(<AdminFormDefinitions />)
-
-    await waitFor(() => {
-      expect(screen.getByText('Form Definitions')).toBeInTheDocument()
-    })
+    expect(screen.getByText('Form Definitions')).toBeInTheDocument()
   })
 
-  it('should load form groups and display table', async () => {
+  it('should show Overview and Logs in navigation', () => {
     renderWithProviders(<AdminFormDefinitions />)
-
-    await waitFor(() => {
-      expect(mockGetFormGroups).toHaveBeenCalled()
-    })
-
-    // Search placeholder indicates table is present
-    expect(screen.getByPlaceholderText('Search form type or industry')).toBeInTheDocument()
+    expect(screen.getAllByText('Overview').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Logs').length).toBeGreaterThan(0)
   })
 
-  it('should show New Definition button', async () => {
+  it('should show Global Forms in navigation', () => {
     renderWithProviders(<AdminFormDefinitions />)
-
-    await waitFor(() => {
-      expect(mockGetFormGroups).toHaveBeenCalled()
-    })
-    // On mobile, button is in dropdown - open it first
-    const newDefBtn = await openHeaderActionsAndGetNewDefinition()
-    expect(newDefBtn).toBeInTheDocument()
+    expect(screen.getAllByText('Global Forms').length).toBeGreaterThan(0)
   })
 
-  it('should open create modal when clicking New Definition', async () => {
+  it('should show PSIC industry options', () => {
     renderWithProviders(<AdminFormDefinitions />)
-
-    await waitFor(() => {
-      expect(mockGetFormGroups).toHaveBeenCalled()
-    })
-
-    const newDefBtn = await openHeaderActionsAndGetNewDefinition()
-    fireEvent.click(newDefBtn)
-
-    expect(await screen.findByText('New Form Group', {}, { timeout: 3000 })).toBeInTheDocument()
-    expect(screen.getByText('Form Type')).toBeInTheDocument()
-    expect(screen.getAllByText('Industry').length).toBeGreaterThan(0)
+    expect(screen.getByText('Agriculture, forestry and fishing')).toBeInTheDocument()
+    expect(screen.getByText('Manufacturing')).toBeInTheDocument()
   })
 
-  it('should show table with form groups data', async () => {
+  it('should show overview stats on load', async () => {
     renderWithProviders(<AdminFormDefinitions />)
-
     await waitFor(() => {
-      expect(mockGetFormGroups).toHaveBeenCalled()
+      expect(screen.getByText('Form summary')).toBeInTheDocument()
     })
-    // Table shows data; check pagination total
-    await waitFor(() => {
-      expect(screen.getByText(/Total \d+ form groups/)).toBeInTheDocument()
-    })
+    expect(screen.getByText('Active forms')).toBeInTheDocument()
+    expect(screen.getByText('Deactivated forms')).toBeInTheDocument()
+    expect(screen.getByText('Retired forms')).toBeInTheDocument()
   })
 })
 
-describe('Form Definitions Integration', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockGetFormGroups.mockResolvedValue({
-      success: true,
-      groups: [],
-      pagination: { page: 1, limit: 20, total: 0, pages: 0 },
-    })
+// ─── FormContentEditor tests ─────────────────────────────────────
+describe('FormContentEditor', () => {
+  it('should render with initial empty sections', () => {
+    renderWithProviders(<FormContentEditor initialSections={[]} />)
+    expect(screen.getByText('Add section')).toBeInTheDocument()
   })
 
-  it('should show create modal with form type and industry', async () => {
-    mockCreateFormGroup.mockResolvedValue({
-      success: true,
-      group: {
-        _id: 'new-1',
-        formType: 'registration',
-        industryScope: 'retail_trade',
+  it('should render with provided initial sections', () => {
+    const sections = [
+      {
+        category: 'Test Section',
+        source: 'BIR',
+        notes: '',
+        items: [
+          { label: 'Test Field', type: 'text', required: true, helpText: '', placeholder: '', validation: {}, dropdownSource: 'static', dropdownOptions: [] },
+        ],
       },
-    })
+    ]
+    renderWithProviders(<FormContentEditor initialSections={sections} />)
+    expect(screen.getByText('Section 1')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Test Field')).toBeInTheDocument()
+  })
 
-    renderWithProviders(<AdminFormDefinitions />)
+  it('should render add section button', () => {
+    renderWithProviders(<FormContentEditor initialSections={[]} />)
+    const addButton = screen.getByText('Add section')
+    expect(addButton).toBeInTheDocument()
+  })
 
-    await waitFor(() => {
-      expect(mockGetFormGroups).toHaveBeenCalled()
-    })
+  it('should expose getSections via ref', () => {
+    const ref = createRef()
+    const sections = [
+      {
+        category: 'Test',
+        source: '',
+        notes: '',
+        items: [{ label: 'Field 1', type: 'text', required: true }],
+      },
+    ]
 
-    const newDefBtn = await openHeaderActionsAndGetNewDefinition()
-    fireEvent.click(newDefBtn)
+    renderWithProviders(<FormContentEditor ref={ref} initialSections={sections} />)
 
-    await waitFor(() => {
-      expect(screen.getByText('New Form Group')).toBeInTheDocument()
-    })
+    expect(ref.current).toBeTruthy()
+    expect(typeof ref.current.getSections).toBe('function')
 
-    expect(screen.getByText('Create')).toBeInTheDocument()
+    const result = ref.current.getSections()
+    expect(result.length).toBe(1)
+    expect(result[0].category).toBe('Test')
+    expect(result[0].items.length).toBe(1)
+    expect(result[0].items[0].label).toBe('Field 1')
+    expect(result[0].items[0].type).toBe('text')
+  })
+
+  it('should show section metadata fields', () => {
+    const sections = [
+      {
+        category: 'LGU Requirements',
+        source: 'BPLO',
+        notes: 'Important notes',
+        items: [],
+      },
+    ]
+    renderWithProviders(<FormContentEditor initialSections={sections} />)
+    expect(screen.getByDisplayValue('LGU Requirements')).toBeInTheDocument()
+  })
+
+  it('should render download field type with upload UI', () => {
+    const sections = [
+      {
+        category: 'Downloads',
+        source: '',
+        notes: '',
+        items: [{
+          label: 'Application Form',
+          type: 'download',
+          required: true,
+          helpText: '',
+          placeholder: '',
+          validation: {},
+          dropdownSource: 'static',
+          dropdownOptions: [],
+          downloadFileName: 'app.pdf',
+          downloadFileSize: 1000,
+          downloadFileType: 'pdf',
+          downloadFileUrl: '/forms/app.pdf',
+        }],
+      },
+    ]
+    renderWithProviders(<FormContentEditor initialSections={sections} />)
+    expect(screen.getByDisplayValue('Application Form')).toBeInTheDocument()
+  })
+
+  it('should call onChange when sections are modified', () => {
+    const onChange = vi.fn()
+    renderWithProviders(
+      <FormContentEditor
+        initialSections={[{ category: 'Test', source: '', notes: '', items: [] }]}
+        onChange={onChange}
+      />
+    )
+
+    // Click "Add field" button
+    const addFieldBtn = screen.getByText('Add field')
+    fireEvent.click(addFieldBtn)
+
+    expect(onChange).toHaveBeenCalled()
+  })
+
+  it('should render in mobile mode', () => {
+    const sections = [
+      {
+        category: 'Test',
+        source: '',
+        notes: '',
+        items: [{ label: 'Field', type: 'text', required: true }],
+      },
+    ]
+    renderWithProviders(<FormContentEditor initialSections={sections} isMobile />)
+    expect(screen.getByDisplayValue('Field')).toBeInTheDocument()
+  })
+
+  it('should support multiple field types in one section', () => {
+    const sections = [
+      {
+        category: 'Mixed Fields',
+        source: '',
+        notes: '',
+        items: [
+          { label: 'Text Field', type: 'text', required: true },
+          { label: 'File Upload', type: 'file', required: true },
+          { label: 'Date Field', type: 'date', required: false },
+          { label: 'Number Field', type: 'number', required: true },
+        ],
+      },
+    ]
+    renderWithProviders(<FormContentEditor initialSections={sections} />)
+    expect(screen.getByDisplayValue('Text Field')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('File Upload')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Date Field')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Number Field')).toBeInTheDocument()
+  })
+})
+
+// ─── Constants tests ──────────────────────────────────────────────
+describe('Form Definitions Constants', () => {
+  it('should export all required constants', async () => {
+    const constants = await import('@/features/admin/views/pages/formDefinitions/constants.js')
+
+    expect(constants.FORM_TYPES).toBeDefined()
+    expect(constants.FORM_TYPES.length).toBeGreaterThan(0)
+
+    // Ensure inspections is included
+    const inspections = constants.FORM_TYPES.find((t) => t.value === 'inspections')
+    expect(inspections).toBeTruthy()
+    expect(inspections.label).toBe('Inspections')
+
+    expect(constants.FIELD_TYPES).toBeDefined()
+    expect(constants.FIELD_TYPES.length).toBe(10)
+
+    // All field types should be present
+    const fieldTypeValues = constants.FIELD_TYPES.map((t) => t.value)
+    expect(fieldTypeValues).toContain('text')
+    expect(fieldTypeValues).toContain('textarea')
+    expect(fieldTypeValues).toContain('number')
+    expect(fieldTypeValues).toContain('date')
+    expect(fieldTypeValues).toContain('select')
+    expect(fieldTypeValues).toContain('multiselect')
+    expect(fieldTypeValues).toContain('file')
+    expect(fieldTypeValues).toContain('download')
+    expect(fieldTypeValues).toContain('checkbox')
+    expect(fieldTypeValues).toContain('address')
+
+    expect(constants.FIELD_TYPE_DEFAULTS).toBeDefined()
+    expect(constants.FIELD_SPAN_OPTIONS).toBeDefined()
+    expect(constants.DEACTIVATE_REASON_TEMPLATES).toBeDefined()
   })
 })

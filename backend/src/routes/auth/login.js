@@ -314,6 +314,47 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       }
     }
 
+    // Dev-only: seeded business owner can skip email OTP entirely (no MFA required for this role)
+    const seedDevEnabled = process.env.SEED_DEV === 'true'
+    const isSeededBusinessOwner = roleSlug === 'business_owner' && emailKey === 'business@example.com'
+    if (seedDevEnabled && isSeededBusinessOwner && !requiresMfa) {
+      try {
+        const dbDoc = await User.findById(doc._id)
+        if (dbDoc) {
+          dbDoc.lastLoginAt = new Date()
+          await dbDoc.save()
+        }
+      } catch (_) {}
+      try {
+        const { token, expiresAtMs } = signAccessToken(doc)
+        await createSessionForUser(doc, roleSlug, req)
+        return res.json({
+          id: String(doc._id),
+          role: roleSlug,
+          firstName: doc.firstName,
+          lastName: doc.lastName,
+          email: doc.email,
+          phoneNumber: displayPhoneNumber(doc.phoneNumber),
+          termsAccepted: doc.termsAccepted,
+          createdAt: doc.createdAt,
+          username: doc.username || '',
+          office: doc.office || '',
+          isActive: doc.isActive !== false,
+          isStaff: !!doc.isStaff,
+          mustChangeCredentials: !!doc.mustChangeCredentials,
+          mustSetupMfa: !!doc.mustSetupMfa,
+          mfaEnabled: !!doc.mfaEnabled,
+          mfaMethod: doc.mfaMethod || '',
+          skipEmailVerification: true,
+          token,
+          expiresAt: new Date(expiresAtMs).toISOString(),
+        })
+      } catch (err) {
+        console.error('Failed to bypass OTP for seeded business owner:', err)
+        // Fall through to normal OTP flow
+      }
+    }
+
     // Update last login timestamp
     try {
       const dbDoc = await User.findById(doc._id)

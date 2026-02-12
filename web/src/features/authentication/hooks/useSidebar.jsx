@@ -13,7 +13,8 @@ import {
   SolutionOutlined,
   BarChartOutlined,
   CustomerServiceOutlined,
-  FormOutlined
+  FormOutlined,
+  ShopOutlined
 } from '@ant-design/icons'
 
 // Role keys used across the app: 'business_owner', 'admin', 'inspector', 'lgu_officer', 'lgu_manager', 'cso', 'user'
@@ -30,10 +31,8 @@ export default function useSidebar() {
 
     const businessItems = [
       { key: 'dashboard', label: 'Dashboard', to: '/owner', icon: <DashboardOutlined /> },
-      { key: 'permit-apps', label: 'Permit Applications', to: '/owner/permits', icon: <FileTextOutlined /> },
-      { key: 'cessation', label: 'Cessation', to: '/owner/cessation', icon: <StopOutlined /> },
+      { key: 'my-businesses', label: 'My Businesses', to: '/owner/businesses', icon: <ShopOutlined /> },
       { key: 'payments', label: 'Payments', to: '/owner/payments', icon: <CreditCardOutlined /> },
-      { key: 'appeals', label: 'Appeals', to: '/owner/appeals', icon: <AuditOutlined /> },
       { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
       { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
     ]

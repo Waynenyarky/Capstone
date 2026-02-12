@@ -1,0 +1,16 @@
+# Blockchain Audit Prototype Notebook
+# Install: pip install -r requirements.txt
+# Prerequisites: Ganache running (docker-compose up -d ganache) and contracts deployed
+
+# Web3 / Blockchain
+web3>=6.0.0
+eth-account>=0.10.0
+python-dotenv>=1.0.0
+
+# Jupyter & embedded UI
+jupyter>=1.0.0
+ipykernel>=6.0.0
+gradio>=4.0.0
+
+# Testing
+pytest>=7.0.0

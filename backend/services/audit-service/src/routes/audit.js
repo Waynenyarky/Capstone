@@ -1,17 +1,28 @@
 const express = require('express');
+const crypto = require('crypto');
 const { requireJwt, requireRole } = require('../middleware/auth');
 const respond = require('../middleware/respond');
+const { auditLogRateLimit } = require('../middleware/rateLimit');
+const { requireServiceAuth } = require('../middleware/requireServiceAuth');
 const AuditLog = require('../models/AuditLog');
 const blockchainService = require('../lib/blockchainService');
 const router = express.Router();
 
-// GET /api/audit/history - Get audit history
+// GET /api/audit/history - Get audit history (least privilege: non-admin sees only own logs)
 router.get('/history', requireJwt, async (req, res) => {
   try {
     const { userId, eventType, startDate, endDate, limit = 50, skip = 0 } = req.query;
+    const isAdmin = req._userRole === 'admin' || req._userRole === 'super_admin';
     
     const query = {};
-    if (userId) query.userId = userId;
+    if (userId) {
+      if (!isAdmin && userId !== req._userId) {
+        return respond.error(res, 403, 'forbidden', 'Cannot view other users\' audit history');
+      }
+      query.userId = userId;
+    } else if (!isAdmin) {
+      query.userId = req._userId;
+    }
     if (eventType) query.eventType = eventType;
     if (startDate || endDate) {
       query.createdAt = {};
@@ -73,8 +84,37 @@ router.get('/verify/:auditLogId', requireJwt, async (req, res) => {
   }
 });
 
+// POST /api/audit/verify-data - Verify raw data against on-chain hash (hash is one-way; we verify data matches)
+router.post('/verify-data', requireJwt, async (req, res) => {
+  try {
+    const { data } = req.body;
+    if (data == null || (typeof data === 'string' && !data.trim())) {
+      return respond.error(res, 400, 'missing_data', 'Request body must include "data" (string) to verify');
+    }
+    const dataStr = typeof data === 'object' ? JSON.stringify(data) : String(data);
+    const hash = crypto.createHash('sha256').update(dataStr).digest('hex');
+    const verifyResult = await blockchainService.verifyHash(hash);
+
+    return res.json({
+      success: true,
+      verified: verifyResult.exists || false,
+      hash,
+      blockchain: {
+        exists: verifyResult.exists,
+        timestamp: verifyResult.timestamp,
+      },
+      message: verifyResult.exists
+        ? 'Data matches a hash stored on-chain.'
+        : 'Data does not match any stored hash.',
+    });
+  } catch (err) {
+    console.error('POST /api/audit/verify-data error:', err);
+    return respond.error(res, 500, 'verification_failed', 'Failed to verify data');
+  }
+});
+
 // POST /api/audit/log - Queue blockchain operation (called by other services)
-router.post('/log', async (req, res) => {
+router.post('/log', requireServiceAuth, auditLogRateLimit(), async (req, res) => {
   try {
     const { operation, params, auditLogId } = req.body;
     
@@ -94,7 +134,7 @@ router.post('/log', async (req, res) => {
 });
 
 // POST /api/audit/store-document - Store document CID in DocumentStorage contract (called by other services)
-router.post('/store-document', async (req, res) => {
+router.post('/store-document', requireServiceAuth, async (req, res) => {
   try {
     const { userId, docType, ipfsCid } = req.body;
     
@@ -130,7 +170,7 @@ router.post('/store-document', async (req, res) => {
 });
 
 // POST /api/audit/register-user - Register user in UserRegistry contract (called by other services)
-router.post('/register-user', async (req, res) => {
+router.post('/register-user', requireServiceAuth, async (req, res) => {
   try {
     const { userId, userAddress, profileHash } = req.body;
     

@@ -55,6 +55,7 @@ const BusinessProfileSchema = new mongoose.Schema(
         enum: ['not_yet_registered', 'proposed'], 
         default: 'not_yet_registered' 
       },
+      businessStatus: { type: String, enum: ['active', 'inactive', 'closed'], default: 'active' },
       location: {
         street: { type: String, default: '' },
         barangay: { type: String, default: '' },
@@ -139,15 +140,8 @@ const BusinessProfileSchema = new mongoose.Schema(
         pdfDownloaded: { type: Boolean, default: false },
         pdfDownloadedAt: { type: Date }
       },
-      lguDocuments: {
-        idPicture: { type: String, default: '' }, // 2x2 ID Picture
-        ctc: { type: String, default: '' }, // Community Tax Certificate
-        barangayClearance: { type: String, default: '' }, // Barangay Business Clearance
-        dtiSecCda: { type: String, default: '' }, // DTI/SEC/CDA Registration
-        leaseOrLandTitle: { type: String, default: '' }, // Lease Contract or Land Title (if applicable)
-        occupancyPermit: { type: String, default: '' }, // Certificate of Occupancy
-        healthCertificate: { type: String, default: '' } // Health Certificate (for food-related businesses)
-      },
+      // LGU documents: Mixed so form-definition-driven keys (from admin) are persisted; legacy keys still work
+      lguDocuments: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
       aiValidation: {
         completed: { type: Boolean, default: false },
         completedAt: { type: Date },

@@ -23,6 +23,7 @@ const BusinessRegistrationWizard = forwardRef(function BusinessRegistrationWizar
     loading,
     form,
     applicationData,
+    documentFields,
     effectiveLguDocumentsWithStorage,
     effectiveBirRegistration,
     isSubmitted,
@@ -86,6 +87,7 @@ const BusinessRegistrationWizard = forwardRef(function BusinessRegistrationWizar
           form={form}
           formData={formData}
           applicationData={applicationData}
+          documentFields={documentFields}
           businessId={businessId}
           actualBusinessId={actualBusinessId}
           effectiveLguDocumentsWithStorage={effectiveLguDocumentsWithStorage}

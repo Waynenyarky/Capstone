@@ -181,8 +181,11 @@ router.post('/businesses', requireJwt, requireRole(['business_owner']), async (r
     const userId = req._userId
     const businessData = req.body
 
-    const profile = await businessProfileService.addBusiness(userId, businessData)
-    res.json(profile)
+    const result = await businessProfileService.addBusiness(userId, businessData)
+    const profileObj = result.profile && typeof result.profile.toObject === 'function'
+      ? result.profile.toObject()
+      : result.profile
+    res.json({ ...profileObj, businessId: result.businessId })
   } catch (err) {
     console.error('POST /api/business/businesses error:', err)
     return respond.error(res, 400, 'add_error', err.message || 'Failed to add business')
@@ -201,6 +204,21 @@ router.put('/businesses/:businessId', requireJwt, requireRole(['business_owner']
   } catch (err) {
     console.error('PUT /api/business/businesses/:businessId error:', err)
     return respond.error(res, 400, 'update_error', err.message || 'Failed to update business')
+  }
+})
+
+// PATCH /api/business/businesses/:businessId - Update business status (active/inactive/closed) only
+router.patch('/businesses/:businessId', requireJwt, requireRole(['business_owner']), async (req, res) => {
+  try {
+    const userId = req._userId
+    const { businessId } = req.params
+    const { businessStatus } = req.body || {}
+
+    const profile = await businessProfileService.updateBusinessStatus(userId, businessId, { businessStatus })
+    res.json(profile)
+  } catch (err) {
+    console.error('PATCH /api/business/businesses/:businessId error:', err)
+    return respond.error(res, 400, 'update_error', err.message || 'Failed to update business status')
   }
 })
 
@@ -414,11 +432,13 @@ router.post(
         try {
           const axios = require('axios')
           const auditServiceUrl = process.env.AUDIT_SERVICE_URL || 'http://localhost:3004'
+          const auditHeaders = { 'Content-Type': 'application/json' }
+          if (process.env.AUDIT_SERVICE_API_KEY) auditHeaders['X-API-Key'] = process.env.AUDIT_SERVICE_API_KEY
           await axios.post(`${auditServiceUrl}/api/audit/store-document`, {
             userId: req._userId,
             docType: 'LGU_DOCUMENT',
             ipfsCid: cid
-          }).catch((err) => {
+          }, { headers: auditHeaders }).catch((err) => {
             logger.warn('Failed to store document CID in blockchain', { cid, error: err.message })
           })
         } catch (blockchainError) {
@@ -684,11 +704,13 @@ router.post(
         try {
           const axios = require('axios')
           const auditServiceUrl = process.env.AUDIT_SERVICE_URL || 'http://localhost:3004'
+          const auditHeaders = { 'Content-Type': 'application/json' }
+          if (process.env.AUDIT_SERVICE_API_KEY) auditHeaders['X-API-Key'] = process.env.AUDIT_SERVICE_API_KEY
           await axios.post(`${auditServiceUrl}/api/audit/store-document`, {
             userId: req._userId,
             docType: 'RENEWAL_DOCUMENT',
             ipfsCid: cid
-          }).catch((err) => {
+          }, { headers: auditHeaders }).catch((err) => {
             logger.warn('Failed to store document CID in blockchain', { cid, error: err.message })
           })
         } catch (blockchainError) {

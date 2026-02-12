@@ -1,9 +1,11 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Modal, Form, Input, Select, Card, Tabs, Button, Space, Alert, Upload, Divider, Checkbox, Spin } from 'antd'
 import { UserOutlined, ShopOutlined, EnvironmentOutlined, UploadOutlined, BankOutlined, SafetyOutlined, PlusOutlined } from '@ant-design/icons'
 import { getRegistrationStatusTagDisplay } from '../constants/statusConfig.jsx'
 import { LGU_DOCUMENT_FIELDS, BIR_DOCUMENT_FIELDS } from '../constants/documentFields'
 import { BUSINESS_TYPE_OPTIONS } from '@/constants/businessTypes'
+import { getActiveFormDefinition } from '@/features/admin/services/formDefinitionService'
+import { deriveDocumentFieldsFromDefinition } from '@/features/business-owner/utils/formDefinitionUtils'
 
 const { Option } = Select
 
@@ -14,7 +16,7 @@ export default function EditRegistrationModal({
   selectedRecord,
   loading,
   form,
-  lguDocumentFields = LGU_DOCUMENT_FIELDS,
+  lguDocumentFields: lguDocumentFieldsProp = LGU_DOCUMENT_FIELDS,
   birDocumentFields = BIR_DOCUMENT_FIELDS,
   normFile,
   customUploadRequest,
@@ -22,6 +24,37 @@ export default function EditRegistrationModal({
   onResubmit,
   onSave
 }) {
+  const [definitionDocumentFields, setDefinitionDocumentFields] = useState(null)
+
+  const businessType = selectedRecord?.businessType ?? modalData?.businessDetails?.businessType
+
+  useEffect(() => {
+    if (!open || !businessType) {
+      setDefinitionDocumentFields(null)
+      return
+    }
+    let cancelled = false
+    async function fetchDefinition() {
+      try {
+        const res = await getActiveFormDefinition('registration', businessType, undefined)
+        if (cancelled) return
+        if (res?.definition && !res.deactivated) {
+          setDefinitionDocumentFields(deriveDocumentFieldsFromDefinition(res.definition))
+        } else {
+          setDefinitionDocumentFields(null)
+        }
+      } catch {
+        if (!cancelled) setDefinitionDocumentFields(null)
+      }
+    }
+    fetchDefinition()
+    return () => { cancelled = true }
+  }, [open, businessType])
+
+  const lguDocumentFields = (definitionDocumentFields?.length > 0)
+    ? definitionDocumentFields.map((f) => ({ key: f.key, label: f.label, listType: 'picture-card' }))
+    : lguDocumentFieldsProp
+
   return (
     <Modal
       title="Edit & Resubmit Business Registration"
@@ -216,7 +249,6 @@ export default function EditRegistrationModal({
           </Space>
         </Form>
       </div>
-      )}
     </Modal>
   )
 }

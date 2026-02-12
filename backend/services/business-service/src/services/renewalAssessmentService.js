@@ -18,12 +18,12 @@ function calculateLocalBusinessTax(grossReceipts, businessType, location) {
   // Can be adjusted per LGU or business type
   let taxRate = 0.015 // 1.5%
 
-  // Adjust rate based on business type (some types have different rates)
-  if (businessType === 'retail_trade') {
-    taxRate = 0.01 // 1% for retail
-  } else if (businessType === 'manufacturing_industrial') {
+  // Adjust rate based on business type (PSIC sections)
+  if (businessType === 'g') {
+    taxRate = 0.01 // 1% for wholesale/retail
+  } else if (businessType === 'c') {
     taxRate = 0.02 // 2% for manufacturing
-  } else if (businessType === 'financial_insurance_banking') {
+  } else if (businessType === 'k') {
     taxRate = 0.025 // 2.5% for financial services
   }
 
@@ -47,16 +47,16 @@ function calculateMayorsPermitFee(businessType, businessSize = 0) {
   // Base fee structure
   let baseFee = 1000 // Base fee: ₱1,000
 
-  // Adjust based on business type
+  // Adjust based on business type (PSIC sections)
   const typeMultipliers = {
-    'retail_trade': 1.0,
-    'food_beverages': 1.5,
-    'services': 1.2,
-    'manufacturing_industrial': 2.0,
-    'construction_real_estate_housing': 1.8,
-    'financial_insurance_banking': 2.5,
-    'transportation_automotive_logistics': 1.5,
-    'agriculture_fishery_forestry': 0.8
+    g: 1.0,  // Wholesale and retail trade
+    i: 1.5,  // Accommodation and food service
+    s: 1.2,  // Other service activities
+    c: 2.0,  // Manufacturing
+    f: 1.8,  // Construction
+    k: 2.5,  // Financial and insurance
+    h: 1.5,  // Transport and storage
+    a: 0.8   // Agriculture, forestry and fishing
   }
 
   const multiplier = typeMultipliers[businessType] || 1.0
@@ -145,8 +145,8 @@ function calculateFireSafetyInspectionFee(businessType) {
   // Base fee: ₱500
   let fee = 500
 
-  // Higher risk businesses pay more
-  const highRiskTypes = ['manufacturing_industrial', 'food_beverages', 'construction_real_estate_housing']
+  // Higher risk businesses pay more (PSIC sections)
+  const highRiskTypes = ['c', 'i', 'f'] // Manufacturing, Food service, Construction
   if (highRiskTypes.includes(businessType)) {
     fee = 1000
   }
@@ -162,8 +162,8 @@ function calculateFireSafetyInspectionFee(businessType) {
  * @returns {number} Sanitary Permit Fee
  */
 function calculateSanitaryPermitFee(businessType, hasFoodHandlers = false) {
-  // Only applicable for food-related businesses
-  if (businessType !== 'food_beverages' && !hasFoodHandlers) {
+  // Only applicable for food-related businesses (PSIC i = Accommodation and food service)
+  if (businessType !== 'i' && !hasFoodHandlers) {
     return 0
   }
 
@@ -206,8 +206,8 @@ function calculateGarbageFee(businessSize = 0, location) {
  * @returns {number} Environmental Fee
  */
 function calculateEnvironmentalFee(businessType, location) {
-  // Only applicable to certain business types
-  const applicableTypes = ['manufacturing_industrial', 'construction_real_estate_housing']
+  // Only applicable to certain business types (PSIC: c=Manufacturing, f=Construction)
+  const applicableTypes = ['c', 'f']
   
   if (!applicableTypes.includes(businessType)) {
     return 0

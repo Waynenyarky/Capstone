@@ -7,7 +7,28 @@ import { useAuthSession } from '@/features/authentication'
 
 const { Title, Text } = Typography
 
-export default function LGUDocumentsUploadStep({ businessId, businessType, initialDocuments, onSave, onNext, inModal = false }) {
+function getAcceptFromValidation(validation) {
+  const raw = validation?.acceptedFileTypes || 'pdf,jpg,png'
+  const parts = String(raw).split(',').map((ext) => {
+    const t = ext.trim().toLowerCase()
+    return t.startsWith('.') ? t : `.${t}`
+  })
+  return parts.filter(Boolean).join(',')
+}
+
+const FALLBACK_DOCUMENT_FIELDS = [
+  { key: 'idPicture', label: '2×2 ID Picture', required: true, validation: {} },
+  { key: 'ctc', label: 'Community Tax Certificate (CTC)', required: true, validation: {} },
+  { key: 'barangayClearance', label: 'Barangay Business Clearance', required: true, validation: {} },
+  { key: 'dtiSecCda', label: 'DTI/SEC/CDA Registration', required: true, validation: {} },
+  { key: 'leaseOrLandTitle', label: 'Lease Contract or Land Title', required: false, validation: {} },
+  { key: 'occupancyPermit', label: 'Certificate of Occupancy', required: true, validation: {} },
+  { key: 'healthCertificate', label: 'Health Certificate', required: false, validation: {} }
+]
+
+export default function LGUDocumentsUploadStep({ businessId, businessType, initialDocuments, documentFields: documentFieldsProp, onSave, onNext, inModal = false }) {
+  const documentFields = documentFieldsProp?.length > 0 ? documentFieldsProp : FALLBACK_DOCUMENT_FIELDS
+  const useDefinitionFields = documentFieldsProp?.length > 0
   const { message } = App.useApp()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
@@ -309,6 +330,44 @@ export default function LGUDocumentsUploadStep({ businessId, businessType, initi
         onFinish={handleFinish}
       >
         <Row gutter={16}>
+          {useDefinitionFields
+            ?               documentFields.map((field) => {
+                const accept = getAcceptFromValidation(field.validation)
+                return (
+                  <Col xs={24} md={12} key={field.key}>
+                    <Form.Item
+                      label={
+                        <Space>
+                          <span>{field.label}</span>
+                          <Badge count={<Space><RobotOutlined style={{ color: '#1890ff', fontSize: 12 }} /> AI Validation</Space>} style={{ backgroundColor: '#e6f7ff', color: '#1890ff' }} />
+                        </Space>
+                      }
+                      name={field.key}
+                      valuePropName="fileList"
+                      getValueFromEvent={(e) => normFile(e, field.key)}
+                      rules={field.required ? [{ required: true, message: `Please upload ${field.label}` }] : []}
+                    >
+                      <Upload
+                        customRequest={(options) => customUploadRequest(options, field.key)}
+                        listType="picture-card"
+                        maxCount={1}
+                        accept={accept}
+                        onRemove={() => handleRemove(field.key)}
+                        onPreview={(file) => {
+                          if (file.url || file.thumbUrl) window.open(file.url || file.thumbUrl, '_blank')
+                        }}
+                      >
+                        <div>
+                          <UploadOutlined />
+                          <div style={{ marginTop: 8 }}>Upload</div>
+                        </div>
+                      </Upload>
+                    </Form.Item>
+                  </Col>
+                )
+              })
+            : (
+          <>
           <Col xs={24} md={12}>
             <Form.Item
               label={
@@ -538,6 +597,8 @@ export default function LGUDocumentsUploadStep({ businessId, businessType, initi
               </Upload>
             </Form.Item>
           </Col>
+          </>
+          )}
         </Row>
 
         <div style={{ marginTop: 32, textAlign: 'right' }}>

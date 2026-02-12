@@ -14,6 +14,7 @@ export default function BusinessRegistrationStepContent({
   form,
   formData,
   applicationData,
+  documentFields = [],
   businessId,
   actualBusinessId,
   effectiveLguDocumentsWithStorage,
@@ -57,6 +58,7 @@ export default function BusinessRegistrationStepContent({
           businessId={actualBusinessId || businessId}
           businessType={applicationData.businessData?.businessType || formData?.businessType}
           initialDocuments={effectiveLguDocumentsWithStorage}
+          documentFields={documentFields}
           onSave={handleDocumentsSave}
           onNext={handleDocumentsSave}
         />
@@ -96,6 +98,7 @@ export default function BusinessRegistrationStepContent({
         <ApplicationReviewStep
           businessData={applicationData.businessData || formData}
           lguDocuments={reviewLguDocuments}
+          documentFields={documentFields}
           birRegistration={reviewBirRegistration}
           otherAgencyRegistrations={reviewOtherAgencies}
           onEdit={handleReviewEdit}

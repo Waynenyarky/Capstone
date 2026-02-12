@@ -1,12 +1,14 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useCallback } from 'react'
 import { Button, Space, Popconfirm, Card, Spin, Empty, Table, Modal } from 'antd'
 import { DeleteOutlined, FormOutlined, SaveOutlined, PlusOutlined, UnorderedListOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { useNavigate } from 'react-router-dom'
 import BusinessOwnerLayout from '../../../views/components/BusinessOwnerLayout'
 import BusinessRegistrationWizard from '../components/BusinessRegistrationWizard'
 import { useBusinessRegistrationPage } from '../hooks/useBusinessRegistrationPage'
 
 export default function BusinessRegistrationPage() {
+  const navigate = useNavigate()
   const wizardRef = useRef(null)
   const [isDraftListOpen, setIsDraftListOpen] = useState(false)
   const {
@@ -28,6 +30,11 @@ export default function BusinessRegistrationPage() {
 
   const wizardBusinessId = selectedBusinessId ?? 'new'
   const wizardIsNewBusiness = selectedBusinessId == null || isNewBusiness
+
+  const onWizardComplete = useCallback(() => {
+    handleWizardComplete()
+    navigate('/owner/businesses?tab=permits')
+  }, [handleWizardComplete, navigate])
 
   const onSaveDraftClick = async () => {
     const saved = await wizardRef.current?.saveDraft?.()
@@ -131,7 +138,7 @@ export default function BusinessRegistrationPage() {
           businessId={wizardBusinessId}
           isNewBusiness={wizardIsNewBusiness}
           formData={formData}
-          onComplete={handleWizardComplete}
+          onComplete={onWizardComplete}
           onSaveBusiness={handleBusinessSave}
         />
       </div>

@@ -34,6 +34,7 @@ const NotificationsPage = lazy(() => import("@/features/business-owner/features/
 const InspectionsPage = lazy(() => import("@/features/business-owner/features/inspections/pages/InspectionsPage.jsx"))
 const BusinessRegistrationPage = lazy(() => import("@/features/business-owner/features/business-registration/pages/BusinessRegistrationPage.jsx"))
 const BusinessRenewalPage = lazy(() => import("@/features/business-owner/features/business-renewal/pages/BusinessRenewalPage.jsx"))
+const MyBusinessesPage = lazy(() => import("@/features/business-owner/features/businesses/pages/MyBusinessesPage.jsx"))
 const StaffDashboard = lazy(() => import("@/features/staffs").then(m => ({ default: m.StaffDashboard })))
 const StaffOnboarding = lazy(() => import("@/features/staffs").then(m => ({ default: m.StaffOnboarding })))
 const StaffRecoveryRequest = lazy(() => import("@/features/staffs").then(m => ({ default: m.StaffRecoveryRequest })))
@@ -89,12 +90,13 @@ function App() {
       {/* Business Owner Routes */}
       <Route path="/owner" element={<ProtectedRoute allowedRoles={['business_owner']}><Outlet /></ProtectedRoute>}>
         <Route index element={<BusinessOwnerDashboard />} />
+        <Route path="businesses" element={<MyBusinessesPage />} />
         <Route path="business-registration" element={<BusinessRegistrationPage />} />
         <Route path="business-renewal" element={<BusinessRenewalPage />} />
-        <Route path="permits" element={<PermitApplicationPage />} />
-        <Route path="cessation" element={<CessationPage />} />
+        <Route path="permits" element={<Navigate to="/owner/businesses?tab=permits" replace />} />
+        <Route path="cessation" element={<Navigate to="/owner/businesses?tab=cessation" replace />} />
+        <Route path="appeals" element={<Navigate to="/owner/businesses?tab=appeals" replace />} />
         <Route path="payments" element={<PaymentsPage />} />
-        <Route path="appeals" element={<AppealsPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="inspections" element={<InspectionsPage />} />
       </Route>

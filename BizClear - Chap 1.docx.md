@@ -6,47 +6,140 @@
 
 ## **Background of the Study**
 
+### **The Importance of Efficient Business Permit Processing**
+
 Business permit processing is a fundamental regulatory function of Local Government Units (LGUs) that ensures businesses operate legally, safely, and in compliance with established standards. Efficient permit processing is essential because it directly affects local economic activity, public safety, and public trust in government institutions. When permit systems are slow, fragmented, or poorly monitored, they can discourage entrepreneurship, delay investments, and weaken regulatory enforcement.
 
-With the advancement of digital technologies, governments worldwide have increasingly adopted e-government systems to improve the efficiency, transparency, and accessibility of public services. Studies highlight that digital platforms reduce processing time, minimize human error, and allow real-time monitoring of transactions. The digital transformation of public administration has been recognized as a critical vector for modernizing government services, strengthening transparency, and enhancing citizen engagement (Ouboumlik & Ouazzani Touhami, 2024). More recently, Artificial Intelligence (AI) and blockchain have emerged as transformative technologies capable of further enhancing digital governance. AI has been widely used to automate document validation, detect inconsistencies, and support decision-making (Adesoga et al., 2024), while blockchain has been recognized for its ability to ensure data integrity, transparency, and tamper-proof recordkeeping (Kumar et al., 2023).
+### **Global Trends in Digital Government Transformation**
 
-In the public sector, AI adoption has been shown to enhance efficiency, boost service delivery, and optimize resource allocation through automation and advanced AI utilization (Tveita & Hustad, 2025). However, effective AI implementation requires addressing trust, ethical considerations, and human resource management, underscoring the need for clear regulatory guidelines and ethical frameworks (Tveita & Hustad, 2025). When combined with blockchain technology, these benefits are further amplified. Related literature suggests that the integration of AI and blockchain provides stronger benefits than using either technology alone. Kumar et al. (2023) emphasized that AI–blockchain convergence improves data reliability and trust across business processes. Similarly, Lubis et al. (2025) noted that AI's analytical capabilities, when combined with blockchain's immutable ledger, significantly enhance accountability and transparency in e-governance systems. Blockchain technology further strengthens accountability and transparency in digital asset management through its immutable and decentralized framework, which reduces fraud risk and increases stakeholder trust (Priatmaja et al., 2024). These studies collectively show that integrated digital solutions are effective in addressing long-standing issues in public sector service delivery.
+With the advancement of digital technologies, governments worldwide have increasingly adopted e-government systems to improve the efficiency, transparency, and accessibility of public services. According to the United Nations E-Government Survey 2024, nations worldwide have accelerated digital government strategies despite global crises, with significant progress driven by investments in resilient infrastructure and technologies including artificial intelligence, cloud computing, and broadband (United Nations Department of Economic and Social Affairs, 2024). The survey, which examined 193 member states, found that Denmark, Estonia, and Singapore topped the 2024 rankings, demonstrating how effective digital transformation can modernize public service delivery.
 
-Research on e-government service quality demonstrates that high-quality digital services significantly impact citizen satisfaction and trust. Studies have found that e-government service quality, particularly information quality, positively influences citizen satisfaction, which in turn enhances citizen trust in government competence and service delivery (Pramuditha et al., 2024). This relationship underscores the importance of prioritizing service quality improvements in digital government initiatives to foster healthier relationships between government and citizens.
+Research demonstrates that high-quality digital services significantly impact citizen satisfaction and trust in government. However, a 2024 study analyzing 36 OECD member countries found that e-government does not directly improve trust in government but has an indirect effect through governance quality—meaning e-government systems must actively contribute to governance quality to build citizen trust (Sasaki, 2024). This relationship underscores the importance of prioritizing service quality improvements in digital government initiatives to foster healthier relationships between government and citizens.
 
-In the Philippine context, e-government initiatives have been implemented to modernize local governance; however, progress remains uneven. De Castro and De Castro (2022) found that many LGUs rely on fragmented systems, limited integration, and manual procedures despite having basic ICT initiatives. Studies on smart city development in the Philippines further reveal that the lack of standardization, coordination, and unified digital platforms hinders the full realization of e-governance benefits (Liponhay, 2023). Additionally, research on Philippine e-governance initiatives indicates that while some cities have introduced online portals, these systems are often incomplete and unable to fully consolidate transactions and records (IOER International Multidisciplinary Research Journal, 2023). Studies on LGU e-governance strategies reveal that implementation remains in early stages due to insufficient budgets, outdated technologies and infrastructure, and operations that are not fully optimized for ICT use (Correa et al., 2022). Research on digital transformation adoption in Philippine LGUs further identifies significant obstacles including budget limitations, skill gaps, cybersecurity issues, and user adoption challenges (Espiritu et al., 2023). Despite these challenges, digital transformation has contributed to increased operational efficiency, improved revenue collection, and enhanced citizen access to government services in some regions, though uneven digital adoption, infrastructure limitations, and capacity gaps persist (Cereno, 2024). Research on business permit systems in Philippine cities further demonstrates the importance of efficient permit processing. A study on Business Permits and Licensing System (BPLS) compliance in Iloilo City found that high satisfaction with BPLS requirements was strongly correlated with system efficiency, with businesses reporting that easy and efficient systems lead to improved compliance and more favorable business conditions (Niño & Gentoral, 2023). The study recommended fully implementing electronic BPLS systems as part of ease of doing business initiatives, highlighting the need for digital permit processing solutions that enhance both compliance and business satisfaction.
+### **Artificial Intelligence in Government Operations**
 
-Despite existing efforts, significant gaps remain in business permit processing systems. Current challenges include manual document submission, repetitive requirements, delayed inspections, poor inter-office coordination, and weak record security. The digitalization of public services involving multiple offices requires effective coordination mechanisms, as the many actors involved in multi-office digital services need centralized coordination to benefit from both decentralized flexibility and centralized efficiency (Scholta et al., 2025). These limitations increase the risk of lost or altered records, reduce transparency, and make it difficult for LGUs to track compliance histories accurately. The reviewed studies indicate a lack of empirical implementations that combine AI-assisted validation and blockchain-based security in local-level permit systems, particularly in developing country settings (Lubis et al., 2025).
+More recently, Artificial Intelligence (AI) has emerged as a transformative technology capable of further enhancing digital governance. AI has been widely used to automate document validation, detect inconsistencies, and support decision-making in public administration. Research from the Alan Turing Institute demonstrates that AI-powered automation can significantly improve bureaucratic efficiency, with studies showing that 84% of the United Kingdom's 143 million complex government transactions are highly automatable, potentially saving the equivalent of 1,200 person-years of work annually if AI reduces processing time by just one minute per transaction (Bedi et al., 2024). Across U.S. federal agencies, generative AI use cases increased ninefold from 32 cases in 2023 to 282 in 2024, while total AI use cases nearly doubled from 571 to 1,110, demonstrating rapid adoption of AI technologies in government (U.S. Government Accountability Office, 2025). AI deployment in government offers substantial efficiency gains, with agencies using AI for case processing potentially saving up to 35% of budget costs over ten years (Boston Consulting Group, 2025).
 
-In Dagupan City, business permit processing involves multiple offices such as the Business Permit and Licensing Office (BPLO), Bureau of Fire Protection (BFP), Sanitary Office, Zoning Office, and Engineering Office. Business owners are typically required to submit physical documents and visit several offices to complete inspections and approvals. This process is largely manual, resulting in long queues, delayed approvals, difficulty in monitoring inspection status, and limited access to historical compliance records.
+Practical implementations have begun to emerge. For instance, the U.S. Department of Health and Human Services deployed an AI system in November 2024 to structure and validate the completeness of case data information, parsing free-form data into searchable formats and highlighting whether required fields are included, with human review teams verifying completeness before final data entry (U.S. Department of Health and Human Services, 2024). The UK Cabinet Office implemented an automated digital document review algorithm in January 2024 to assist in identifying digital records of long-term historic value, sorting large volumes of unorganized legacy digital information using classifications and language pattern matching (UK Cabinet Office, 2024).
 
-The current manual workflow in Dagupan City also poses challenges in terms of efficiency and accountability. Inspection results are recorded separately by different offices, making coordination difficult and slowing down decision-making. Retrieving records for verification or audit purposes is time-consuming, and the absence of a centralized system increases the risk of data inconsistencies and manipulation.
+### **Blockchain Technology for Government Transparency**
 
-For instance,
+Blockchain technology has been recognized for its ability to ensure data integrity, transparency, and tamper-proof recordkeeping. A systematic literature review by Enríquez et al. (2024) identified best-practice blockchain-based governance models specifically focused on corruption and transparency, examining their characteristics, components, and the role of token economies in addressing asset ownership issues. Blockchain's immutable ledger and cryptographic security enable enhanced tracking of government fund allocation while reducing corruption risks (Agyekum et al., 2024). A 2024 survey by Al-Rawy et al. examined the current status and challenges of blockchain implementation in e-government services, surveying existing use cases and identifying research gaps in blockchain deployment across governmental organizations. The European Commission's 2022 analysis of 167 blockchain use cases from European governments found that blockchain adoption by public administrations shows potential to improve effectiveness and efficiency, though implementation requires overcoming significant barriers including lack of large-scale deployment, inter-organizational collaboration challenges, and legal uncertainty (European Commission, 2022).
 
-To address these challenges, this study proposes BizClear, a blockchain-enhanced business permit processing and inspection tracking system with AI-assisted document validation. The proposed system will digitize permit application and renewal processes, automate inspection coordination among LGU offices, utilize AI to check document completeness and inconsistencies, and secure permit and inspection records using blockchain technology. Through these features, BizClear is expected to improve efficiency, transparency, accountability, and overall ease of doing business in Dagupan City.
+### **The Convergence of AI and Blockchain in E-Governance**
+
+When combined, AI and blockchain technologies provide stronger benefits than using either technology alone. A 2025 bibliometric analysis by Sana et al. found that while AI and blockchain are separately applied in e-governance, there is a clear gap in empirical studies addressing their combined use. The study identified that AI enables real-time data processing and predictive insights for policy decisions and resource distribution in smart cities, while blockchain provides secure, immutable records of transactions and decisions, enhancing transparency and public trust (Sana et al., 2025). Despite theoretical interest, researchers found insufficient cross-disciplinary collaboration and a significant gap between theoretical frameworks and real-world technology integration, recommending prioritization of longitudinal case studies and pilot projects to address regulatory, ethical, and practical challenges in responsible AI-blockchain adoption for digital governance.
+
+### **Multi-Office Coordination in Digital Government Services**
+
+The digitalization of public services involving multiple offices requires effective coordination mechanisms. The European Union established new governance structures through the Interoperable Europe Act (Regulation EU 2024/903), adopted in March 2024, which creates a framework for public sector interoperability across EU member states (European Commission, 2024). The regulation establishes a multi-level governance structure and defines standards for trans-European digital public services to enable seamless cross-border service delivery. This framework demonstrates that the many actors involved in multi-office digital services need centralized coordination to benefit from both decentralized flexibility and centralized efficiency.
+
+### **Digital Government Transformation in the Philippines**
+
+In the Philippines, Republic Act No. 11032, also known as the Ease of Doing Business and Efficient Government Service Delivery Act of 2018, mandates maximum processing times for government transactions: 3 working days for simple transactions, 7 working days for complex transactions, and 20 working days for highly technical applications (Republic Act No. 11032, 2018). The law requires LGUs to establish Business One-Stop-Shops (BOSS) and automate their business permitting and licensing systems. The legislation provides for automatic approval if applications are not acted upon within prescribed timeframes, provided the application is complete and fees are paid on time.
+
+As of December 2024, only 838 out of 1,642 LGUs (approximately 51%) have been digitally connected through the eLGU program, with 375 LGUs in Luzon, 238 in the Visayas, and 225 in Mindanao (Department of Information and Communications Technology, 2024). While approximately 60% of LGUs (921 out of 1,634) were automating business permit processing as of December 2023, only 39% accept online applications and merely 15% (222 LGUs) accept online payments (Department of the Interior and Local Government, 2023). Digitalization efforts have contributed to improved revenue collection, increasing from PHP 50 billion in 2018 to PHP 208 billion by late 2023, demonstrating the potential benefits of digital transformation. Processing times have been reduced from three days to minutes, and procedures have been streamlined from 27 steps to approximately three (Philippine News Agency, 2023).
+
+### **Challenges Facing Philippine LGU Digital Transformation**
+
+Despite these initiatives, progress remains uneven. A scoping review on digital governance in the Philippines found that while digital governance can improve public service delivery through responsiveness, accessibility, and efficiency, success requires overcoming adoption barriers, financial capability challenges, digital literacy deficiencies, and ICT infrastructure issues (Castillo, 2024). Recent research proposing an integrative smart city framework for Philippine LGUs identified critical gaps including limited research and development investment, lack of standardization, coordination deficiencies, and absence of unified digital platforms, despite established ICT plans and active e-governance initiatives (Castañeda & Dizon, 2024). The proposed framework, which reviewed the ASEAN Smart Cities Network Framework, DOST Smarter City Framework, ISO 37106:2021 guidelines, and the Asian Development Bank smart cities pathway model, emphasized that successful implementation requires national policy support, adoption of standards, local leadership, data infrastructure, and multi-stakeholder partnerships.
+
+Key challenges identified across multiple studies include inadequate digital infrastructure, limited technical expertise, budgetary constraints, lack of citizen engagement, data privacy and security concerns, connectivity gaps particularly affecting remote and rural areas, insufficient systems interoperability, and lack of standardized policies (Digital Watch, 2024). A significant portion of the Philippine population lacks reliable internet connectivity, which is crucial for driving economic growth and digital inclusion.
+
+### **Business Permit Processing in Philippine Cities**
+
+Research on business permit systems in Philippine cities demonstrates the importance of efficient permit processing. A 2024 study of 390 MSMEs in Iloilo City by Niño and Gentoral found that businesses reported high compliance with BPLS requirements, with very good to excellent business performance ratings. The research revealed a very strong positive relationship between compliance and satisfaction with BPLS, though only a negligible relationship between compliance and actual business performance (Niño & Gentoral, 2024). The study recommended fully implementing electronic BPLS systems as part of ease of doing business initiatives, highlighting the need for digital permit processing solutions that enhance both compliance and business satisfaction. Iloilo City received commendation from the Anti-Red Tape Authority in August 2024 for full compliance with the electronic Business One-Stop Shop (eBOSS) system, with 50% of barangays digitally integrated and business permit renewals increasing by 15% in January 2024 compared to the same period in 2023.
+
+### **The Current Situation in Alaminos City**
+
+In Alaminos City, Pangasinan, business permit processing involves multiple offices including the Business Permit and Licensing Office (BPLO), Bureau of Fire Protection (BFP), Sanitary Office, Zoning Office, and Engineering Office. The Business Permit and Licensing Section implements all laws, ordinances, rules, and regulations for issuing Mayor's Permits to business establishments including commercial establishments, fishing structures, fishponds, and ordinary permits. Business owners are typically required to submit physical documents and visit several offices to complete inspections and approvals. This process is largely manual, resulting in long queues, delayed approvals, difficulty in monitoring inspection status, and limited access to historical compliance records.
+
+The current manual workflow in Alaminos City poses significant challenges in terms of efficiency and accountability. Inspection results are recorded separately by different offices, making coordination difficult and slowing down decision-making. Retrieving records for verification or audit purposes is time-consuming, and the absence of a centralized system increases the risk of data inconsistencies and manipulation.
+
+### **Specific Inefficiencies in Alaminos City's Current System**
+
+The manual business permit processing system in Alaminos City exhibits several concrete inefficiencies that significantly impact business owners and government operations:
+
+**Multiple Office Visits and Redundant Submissions.** Business owners applying for a new permit must physically visit up to five different offices—BPLO, BFP, Sanitary Office, Zoning Office, and Engineering Office—often on separate days. Applicants are required to provide duplicate copies of the same documents such as DTI/SEC registration, barangay clearance, and lease contracts to each office, resulting in unnecessary paperwork and increased expenses for photocopying and transportation.
+
+**Sequential Processing Bottlenecks.** The sequential nature of the approval process creates substantial delays when deficiencies are discovered at later stages. For instance, if the Zoning Office finds an incomplete land use requirement after inspections have already been conducted by the BFP and Sanitary Office, applicants must return to the BPLO to resubmit corrected documents and then revisit all subsequent offices to repeat their inspections. This extends what should be a seven-day process under RA 11032 to three to four weeks or longer.
+
+**Uncoordinated Inspection Scheduling.** Inspections are scheduled independently by each office without coordination. Business owners must be available on multiple unpredictable dates for BFP fire safety inspection, Sanitary health inspection, and Engineering structural inspection. This lack of coordination can disrupt business operations, particularly for small enterprises with limited staff, and demands repeated coordination efforts by applicants who must contact each office separately to confirm schedules.
+
+**Paper-Based Recordkeeping Vulnerabilities.** All permit applications, inspection reports, and compliance records are maintained in physical files stored separately by each office. This makes it extremely difficult to locate historical compliance records when needed for audits, permit renewals, or verification purposes. Physical documents are susceptible to loss, damage from environmental factors, or unauthorized alteration. There is no systematic backup mechanism, and reconstruction of lost records is often impossible.
+
+**Limited Application Status Visibility.** Business owners have no centralized system to track the progress of their applications. To determine their permit status, they must call or physically visit each office individually—BPLO to check initial document review status, BFP to confirm fire inspection scheduling, Sanitary Office to verify health inspection completion, Zoning Office to check land use clearance, and Engineering Office to confirm structural compliance. This wastes considerable time for both applicants and government staff who must repeatedly respond to status inquiries.
+
+### **Research Gaps and the Need for Integrated Solutions**
+
+Despite existing efforts, significant gaps remain in business permit processing systems. Current challenges include manual document submission, repetitive requirements, delayed inspections, poor inter-office coordination, and weak record security. These limitations increase the risk of lost or altered records, reduce transparency, and make it difficult for LGUs to track compliance histories accurately. The reviewed studies indicate a lack of empirical implementations that combine AI-assisted validation and blockchain-based security in local-level permit systems, particularly in developing country settings (Sana et al., 2025).
+
+### **The Proposed Solution: BizClear**
+
+To address these challenges, this study proposes BizClear, a blockchain-enhanced business permit processing and inspection tracking system with AI-assisted document validation. The proposed system will digitize permit application and renewal processes, automate inspection coordination among LGU offices, utilize AI to check document completeness and inconsistencies, and secure permit and inspection records using blockchain technology. Through these features, BizClear is expected to improve efficiency, transparency, accountability, and overall ease of doing business in Alaminos City.
 
 ## **Conceptual Framework**
 
 This study adopts the Input–Process–Output (IPO) framework, which is appropriate for system development research as it illustrates how identified inputs are transformed through defined processes into desired outputs.
 
-**Input.** The inputs of the study include the existing manual business permit processes, identified problems such as delays and fragmented inspections, user requirements from business owners and LGU personnel, and the proposed system features including AI-assisted document validation and blockchain-based record security.
+### **Input**
 
-**Process.** The process involves requirements gathering and workflow analysis, system design and development using the Scrum Agile methodology, implementation of AI-based document validation, integration of digital inspection workflows, blockchain hashing and recording of permit and inspection data, and system testing and evaluation.
+The inputs of the study include:
 
-**Output.** The expected output is a fully developed digital business permit processing and inspection tracking system. The system is expected to produce faster permit processing, improved document accuracy, secure and tamper-proof records, and enhanced monitoring and reporting capabilities for LGUs.
+• Existing manual business permit processes and workflows
+• Identified problems: processing delays, fragmented inspections, redundant document submissions, uncoordinated inspection scheduling, paper-based recordkeeping vulnerabilities
+• User requirements from business owners and LGU personnel
+• Current system limitations: multiple office visits, sequential processing bottlenecks, limited application status visibility
+• Proposed system features: AI-assisted document validation, blockchain-based record security, centralized inspection coordination, digital application platform
+
+### **Process**
+
+The process involves the following stages:
+
+• Requirements gathering and workflow analysis
+• System design and development using Scrum Agile methodology
+• Implementation of AI-based document validation mechanism
+• Integration of centralized digital inspection workflows
+• Blockchain hashing and recording of permit and inspection data
+• User interface and dashboard development
+• System testing and evaluation
+• Feasibility and usability assessment
+
+### **Output**
+
+The expected outputs are:
+
+• Fully developed BizClear system: blockchain-enhanced business permit processing and inspection tracking platform with AI-assisted document validation
+• Faster permit processing (target: 7 working days or less)
+• Improved document accuracy (target: document rejection rate reduction to 10% or less)
+• Reduced office visits (target: 1-2 visits through digital submission)
+• Coordinated inspection scheduling (target: 5 days or less)
+• Secure and tamper-proof records maintained through blockchain technology
+• Enhanced monitoring and reporting capabilities through LGU dashboards
+• Real-time application tracking for business owners
+• Improved applicant satisfaction (target: 4.0 out of 5.0 or higher)
+
+### **Feedback**
+
+The feedback loop includes:
+
+• User feedback from business owners and LGU personnel
+• System performance monitoring and analytics
+• Continuous improvement recommendations
+• Identified areas for system enhancement
+• Policy and process adjustments based on implementation experience
 
 *Figure 1.1 presents the Input–Process–Output (IPO) framework of the BizClear system.*
 
 ## **Statement of the Problem**
 
-Business permit processing in Dagupan City is currently characterized by manual procedures, fragmented inspection workflows, and limited record security. These conditions result in processing delays, incomplete submissions, difficulty in monitoring compliance, and reduced transparency among involved LGU offices. There is a need for a unified digital system that streamlines permit processing, improves document validation, and ensures the integrity of official records.
+Business permit processing in Alaminos City is currently characterized by manual procedures, fragmented inspection workflows, and limited record security. These conditions result in processing delays, incomplete submissions, difficulty in monitoring compliance, and reduced transparency among involved LGU offices. There is a need for a unified digital system that streamlines permit processing, improves document validation, and ensures the integrity of official records.
 
 Specifically, this study seeks to answer the following questions:
 
-1. How can a digital business permit processing system improve the efficiency and accessibility of permit application and renewal in Dagupan City?  
-2. How can AI-assisted document validation reduce incomplete submissions and inconsistencies in business permit requirements?  
-3. How can blockchain technology enhance the integrity, transparency, and accountability of business permit and inspection records?  
+1. How can a digital business permit processing system with centralized inspection workflow improve the efficiency and accessibility of permit application and renewal in Alaminos City?
+2. How can AI-assisted document validation reduce incomplete submissions and inconsistencies in business permit requirements?
+3. How can blockchain technology enhance the integrity, transparency, and accountability of business permit and inspection records?
 4. How feasible and acceptable is the proposed BizClear system to business owners and LGU personnel?
 
 Given the system development nature of the study, formal research hypotheses are not applicable.
@@ -55,51 +148,209 @@ Given the system development nature of the study, formal research hypotheses are
 
 ### **General Objective**
 
-The general objective of this study is to design and develop BizClear, a blockchain-enhanced business permit processing and inspection tracking system with AI-assisted document validation for Dagupan City.
+The general objective of this study is to design and develop BizClear, a blockchain-enhanced business permit processing and inspection tracking system with AI-assisted document validation for Alaminos City.
 
-Specifically, it aims to attain the following:
+### **Specific Objectives**
 
-1. Design a digital platform for business permit application, renewal, and tracking.  
-2. Develop an AI-assisted mechanism to validate document completeness and detect inconsistencies.  
-3. Implement a centralized inspection workflow for BPLO, BFP, Sanitary, Zoning, and Engineering offices.  
-4. Secure permit and inspection records using blockchain technology.  
-5. Evaluate the feasibility and usability of the BizClear system for LGU personnel and business owners.
+Specifically, this study aims to:
+
+1. **Design and implement** a digital business permit processing platform with centralized inspection workflow for BPLO, BFP, Sanitary, Zoning, and Engineering offices to improve efficiency and accessibility of permit application and renewal in Alaminos City.
+
+2. **Develop** an AI-assisted document validation mechanism to automatically check document completeness and detect inconsistencies in business permit requirements.
+
+3. **Implement** blockchain technology to secure permit and inspection records and ensure data integrity, transparency, and accountability.
+
+4. **Evaluate** the feasibility, usability, and acceptability of the BizClear system among business owners and LGU personnel.
+
+## **Expected Outcomes and Performance Targets**
+
+The BizClear system is expected to significantly improve business permit processing in Alaminos City through measurable performance improvements:
+
+**Processing Time Reduction.** Average permit processing time is projected to decrease from the current 15–20 working days to 7 working days or less, ensuring full compliance with Republic Act 11032 mandates for complex transactions.
+
+**Document Accuracy Improvement.** The rate of document rejections or returns due to incomplete or inconsistent submissions is anticipated to drop from the current 30–40% to 10% or less through AI-assisted validation that checks completeness and detects inconsistencies before submission.
+
+**Office Visit Reduction.** The number of required office visits per application should reduce from the current 5–8 visits to just 1–2 visits through digital submission and centralized processing, significantly reducing applicant burden and transportation costs.
+
+**Inspection Coordination Efficiency.** Inspection coordination across offices (BFP, Sanitary, Zoning, Engineering) is expected to shorten from the current 10–14 days to 5 days or less through automated scheduling and inter-office coordination mechanisms.
+
+**Record Retrieval Speed.** Record retrieval time for audits, renewals, and verification purposes should improve from the current 30–60 minutes per record (involving physical file searches across multiple offices) to 2 minutes or less through centralized digital records with blockchain-secured audit trails.
+
+**Application Status Transparency.** The system will provide real-time tracking of application status through online dashboards, replacing the current manual inquiry process that requires multiple phone calls or office visits to different offices.
+
+**User Satisfaction Target.** The system is expected to achieve an applicant satisfaction rating of 4.0 out of 5.0 or higher, measured through post-transaction surveys evaluating system usability, processing speed, transparency, and overall experience.
 
 ## **Significance of the Study**
 
-**Business Owners and Entrepreneurs.** The proposed system will reduce processing time, minimize repeated document submissions, and provide real-time updates on permit and inspection status, improving overall ease of doing business.
+### **Business Owners and Entrepreneurs**
 
-**Business Permit and Licensing Office (BPLO).** The BPLO will benefit from a streamlined and centralized workflow that reduces manual workload, improves tracking of applications, and enhances decision-making efficiency.
+The proposed system will significantly benefit business owners and entrepreneurs by reducing processing time, minimizing repeated document submissions, and providing real-time updates on permit and inspection status, thereby improving overall ease of doing business. As primary end-users of the system, business owners will experience streamlined processes and enhanced transparency throughout the permit application lifecycle. They will be able to submit business permit applications and required documents through the online digital platform, eliminating the need for multiple physical office visits. Supporting documents such as DTI/SEC registration, barangay clearance, and lease contracts can be uploaded in digital format, reducing paperwork and photocopying expenses. The system will enable them to respond promptly to AI-generated deficiency notices by uploading corrected or missing documents, significantly reducing processing delays. Business owners will also be able to confirm inspection schedules coordinated by the system across multiple offices, track application status in real-time through the applicant dashboard, and receive digital permits and compliance certificates upon approval. Additionally, they will have convenient access to historical permit and inspection records for renewals and compliance verification, eliminating the need to search through physical files or make repeated inquiries to government offices.
 
-**Other LGU Offices (BFP, Sanitary, Zoning, Engineering).** These offices will benefit from coordinated digital inspections, shared access to records, and improved compliance monitoring.
+### **Business Permit and Licensing Office (BPLO)**
 
-**Local Government Unit (LGU) Administrators and Policymakers.** The system will provide reliable data, dashboards, and secure records that support transparent governance and data-driven policy decisions.
+The BPLO will benefit substantially from a streamlined and centralized workflow that reduces manual workload, improves tracking of applications, and enhances decision-making efficiency through data-driven insights. BPLO staff will be empowered to review and verify submitted applications processed through the digital platform with greater efficiency and accuracy. They will be able to coordinate seamlessly with other offices including BFP, Sanitary, Zoning, and Engineering through the centralized system, eliminating communication delays and coordination challenges. The AI validation recommendations will assist staff in managing document requirement verification more effectively, reducing the time spent on manual checking. Staff will process approvals and issue digital permits upon completion of all requirements, generate compliance reports, processing time analytics, and performance dashboards to monitor office productivity, and respond to applicant inquiries using real-time status information from the system. They will also be able to monitor workflow bottlenecks and flag applications requiring special attention for timely intervention. The BPLO Head will have enhanced oversight capabilities, providing final approval for business permit applications through the system while monitoring overall workflow efficiency and office performance metrics. The Head will be able to monitor staff performance through system-generated analytics and processing time reports, ensure compliance with Republic Act 11032 processing time standards, review and approve policy adjustments based on system data and feedback, and coordinate inter-office operations while resolving escalated issues through data-driven insights.
 
-**Future Researchers and Developers.** The study will serve as a reference for future research and system development projects involving AI, blockchain, and digital governance.
+### **Other LGU Offices (BFP, Sanitary, Zoning, Engineering)**
+
+The Bureau of Fire Protection, Sanitary Office, Zoning Office, and Engineering Office will benefit from coordinated digital inspections, shared access to application records, and improved compliance monitoring through centralized data management. Inspectors and officers from these offices will be able to access assigned inspection cases through the digital platform with complete application information readily available, eliminating the need to request documents from other offices or applicants. They will conduct inspections within their respective domains—fire safety, health standards, zoning compliance, and structural integrity—and submit digital inspection results, findings, and recommendations through the system in real-time. The platform will enable them to flag deficiencies or non-compliance issues with specific documentation and photographic evidence, providing clear audit trails for regulatory enforcement. Upon successful inspection completion, they will issue clearances digitally, reducing paperwork and accelerating the overall permit approval process. The centralized calendar system will allow them to coordinate inspection schedules to minimize business disruption, particularly beneficial for applicants operating existing businesses. They will also have access to historical inspection records for renewal applications and compliance verification, enabling more informed decision-making and consistent enforcement of fire safety regulations, health standards, zoning ordinances, and structural building codes.
+
+### **Local Government Unit (LGU) Administrators and Policymakers**
+
+LGU administrators and policymakers will gain access to reliable data, comprehensive dashboards, and secure records that support transparent governance and data-driven policy decisions for continuous improvement of local business regulations. They will be able to monitor LGU-wide permit statistics including application volumes, processing times, approval rates, and rejection reasons, providing critical insights into regulatory bottlenecks and operational efficiency. The system will enable them to evaluate compliance with national standards mandated by Republic Act 11032 and identify areas requiring intervention or resource allocation. Access to blockchain-secured audit trails will provide unprecedented transparency and accountability verification, strengthening public trust in government operations. Administrators will be able to use system-generated insights to inform policy development and operational efficiency improvements, ensuring evidence-based decision-making rather than relying on anecdotal information. They can review revenue collection data linked to permit issuance for fiscal planning and budget forecasting, assess inter-office coordination effectiveness and resource allocation needs to optimize staffing and workflows, and support strategic planning for business development and investment promotion initiatives by understanding permit application trends and business sector growth patterns.
+
+### **The Researchers**
+
+The researchers will gain valuable experience in system development, project management, and the integration of emerging technologies such as artificial intelligence and blockchain in public sector applications. This hands-on experience in developing a real-world e-governance solution will contribute significantly to their professional development and technical expertise. They will acquire practical skills in requirements analysis, agile software development methodology, AI implementation for document validation, blockchain integration for data security, user interface design for government applications, and system testing and evaluation. The project will also develop their capabilities in stakeholder engagement, interdisciplinary collaboration, and addressing complex socio-technical challenges in digital government transformation, preparing them for careers in technology innovation, public sector consulting, or further academic research in digital governance.
+
+### **Future Researchers**
+
+The study will serve as a comprehensive reference for future research projects examining the integration of artificial intelligence and blockchain technologies in e-governance applications. It will provide valuable empirical evidence addressing the identified research gap in combined AI-blockchain implementations for local-level government services, particularly in the context of business permit processing systems in developing country settings. Future researchers will benefit from the documented system architecture, implementation methodology, evaluation framework, lessons learned, and challenges encountered during the project. The study will contribute to the growing body of knowledge on digital government transformation in Philippine Local Government Units, offering insights into technical feasibility, organizational readiness, user acceptance, and policy implications of emerging technology adoption. Researchers investigating public service delivery improvement, smart city initiatives, regulatory efficiency, or blockchain applications in government will find relevant frameworks, methodologies, and findings that can inform their own investigations and advance the field of digital governance research.
+
+### **Future Developers**
+
+Future developers will benefit significantly from the system architecture, implementation approaches, and lessons learned documented in this study. The detailed documentation will provide practical insights for developing similar digital government platforms that combine AI-assisted validation, blockchain-secured records, and multi-office coordination mechanisms. Developers working on government digitalization projects will find valuable guidance on integrating emerging technologies within existing bureaucratic structures, designing user interfaces for diverse stakeholder groups with varying levels of digital literacy, implementing role-based access control for multi-office government systems, ensuring data security and privacy in public sector applications, and balancing automation with human oversight in regulatory decision-making. The open documentation of technical challenges, solutions, and best practices will accelerate the development of comparable systems in other LGUs and government agencies, contributing to broader digital transformation efforts and reducing duplication of effort across the public sector.
 
 ## **Scope and Limitations**
 
 ### **Scope**
 
- This study covers the design and development of a digital business permit processing and inspection tracking system for Dagupan City. The system will cater to business owners and LGU offices involved in permit processing, including BPLO, BFP, Sanitary, Zoning, and Engineering offices. Features include digital application and renewal, AI-assisted document validation, inspection tracking, blockchain-secured records, and monitoring dashboards. The study will be conducted from December 2025 to March 2026\.
+This study covers the design and development of a digital business permit processing and inspection tracking system for Alaminos City. The system will serve business owners and LGU offices involved in permit processing, including the Business Permit and Licensing Office (BPLO), Bureau of Fire Protection (BFP), Sanitary Office, Zoning Office, and Engineering Office.
 
-**Limitations.** The study will be limited to a pilot implementation within Dagupan City and will not include integration with national government systems. The system will focus on permit processing and inspection tracking and will not automate final approval decisions, which will remain under human authority.
+**Primary Users and Functions:**
+
+**Business Owners** will submit applications and supporting documents online, track inspection schedules, receive AI-based feedback on document completeness, monitor real-time application status, and receive digital permits upon approval.
+
+**BPLO Staff** will process applications, verify documents with AI assistance, coordinate with other offices through the centralized platform, generate compliance reports, and manage overall workflow efficiency. The BPLO Head will provide final approvals and oversee workflows through system dashboards.
+
+**Inspectors from BFP, Sanitary, Zoning, and Engineering Offices** will conduct inspections within their respective domains, submit results digitally, flag deficiencies for correction, and issue clearances through the system.
+
+**LGU Administrators and Policymakers** will monitor system dashboards displaying permit statistics, processing times, compliance metrics, and performance analytics to support transparent governance and data-driven decisions.
+
+**System Features:**
+
+The system will feature AI-assisted document validation to check completeness and detect inconsistencies, centralized inspection tracking and scheduling across multiple offices, blockchain-secured permit and inspection records ensuring data integrity and immutability, digital application and renewal workflows replacing manual paper-based processes, real-time status tracking dashboards for applicants, and comprehensive monitoring and reporting dashboards for LGU administrators.
+
+**Implementation Timeline:**
+
+The study will be conducted from December 2025 to March 2026, covering requirements analysis, system design and development, testing and evaluation, and feasibility assessment.
+
+### **Limitations**
+
+**Geographic Scope.** The study is limited to a pilot implementation within Alaminos City and will not extend to other municipalities or cities in Pangasinan or other provinces.
+
+**Decision Authority.** The system will focus on permit processing and inspection tracking but will not automate final approval decisions, which will remain under human authority and discretion of authorized LGU officials.
+
+**National System Integration.** The system will not integrate with national government databases or systems due to complexity and authorization requirements.
+
+### **Explicit Exclusions**
+
+The following are explicitly outside the scope of this study:
+
+**National System Integration.** No integration with national government databases including Bureau of Internal Revenue (BIR), Securities and Exchange Commission (SEC), Department of Trade and Industry (DTI), or Philippine Identification System (PhilSys) due to technical complexity, inter-agency authorization requirements, and data sharing policy constraints.
+
+**Payment Processing.** Fee computation and payment collection will continue through existing LGU payment systems and treasury processes. The system will only track payment status and confirmation, not process actual financial transactions.
+
+**Business Closure Processing.** Cessation of business operations, surrender of permits, clearance for business closure, and related termination processes are not included in the system scope.
+
+**Special Permits.** Specialized permits beyond standard business permits are excluded, including environmental compliance certificates (ECCs), special event permits, liquor licenses, billboard permits, and other specialized regulatory authorizations that require separate approval processes.
+
+**Mobile Application Development.** The system will be web-based only and accessible through standard web browsers. Development of native mobile applications for iOS or Android platforms is not included in this study.
+
+**Inter-LGU Operations.** Data sharing between different LGUs, permit portability across cities/municipalities, or reciprocity arrangements with other local government units are not covered by the system.
+
+**Automated Penalty Computation.** Calculation of fines, surcharges, or penalties for late renewal, non-compliance, or regulatory violations will not be automated. Penalty assessment will remain a manual function performed by authorized LGU personnel.
+
+**Legacy Data Migration.** Historical paper records and previously issued permits processed under the manual system will not be digitized or migrated into the new system. Only new applications processed through BizClear from the implementation date forward will be recorded digitally. Historical records will continue to be maintained in their current physical format.
+
+**Third-Party System Integrations.** Integration with private sector systems such as commercial banks for payment verification, private inspection companies, insurance providers, or other external service providers is not included.
+
+**Multi-Language Support.** The system will be developed in English and Filipino only. Support for other local languages or dialects is not included in this phase.
+
+**Advanced Analytics and Predictive Features.** While the system will provide reporting dashboards, advanced predictive analytics, machine learning models for forecasting application volumes, or business trend analysis are beyond the current scope.
 
 ## **Definition of Terms**
 
-* **Artificial Intelligence (AI)** – In this study, AI refers to the system component used to automatically validate document completeness and detect inconsistencies in submitted business permit requirements.  
-* **Blockchain** – A distributed ledger technology used in the study to store cryptographic hashes of permit and inspection records to ensure data integrity.  
-* **Business Permit** – An official authorization issued by the LGU allowing a business to operate legally, processed digitally through the BizClear system.  
-* **Business Permit and Licensing Office (BPLO)** – The LGU office responsible for processing and approving business permits using the proposed system.  
-* **Document Validation** – The automated checking of submitted documents for completeness and consistency using AI.  
-* **Inspection Log** – A digital record of inspection results from various LGU offices stored and secured by the system.  
-* **Immutability** – The property of blockchain records that prevents unauthorized modification of stored data.  
-* **LGU Dashboard** – A system interface that displays real-time permit status, inspection progress, and compliance metrics.  
-* **Permit Processing Time** – The duration from permit application submission to final approval, measured to evaluate system efficiency.  
-* **Role-Based Access Control (RBAC)** – A security mechanism that restricts system access based on user roles.  
-* **Scrum Agile Methodology** – The development approach used in the study to iteratively design and implement the system.  
-* **Smart Inspection Workflow** – The coordinated digital process of scheduling, conducting, and recording inspections across offices.  
-* **Tamper-Proof Record** – A record secured using blockchain to prevent undetected modification.  
-* **Transparency** – The ability of stakeholders to view and verify permit and inspection status in real time.  
-* **BizClear System** – The proposed blockchain-enhanced business permit processing and inspection tracking platform developed in this study.
+* **Artificial Intelligence (AI)** – In this study, AI refers to the system component used to automatically validate document completeness and detect inconsistencies in submitted business permit requirements through pattern recognition and rule-based checking algorithms.
+
+* **BizClear System** – The proposed blockchain-enhanced business permit processing and inspection tracking platform with AI-assisted document validation developed in this study for Alaminos City.
+
+* **Blockchain** – A distributed ledger technology used in the study to store cryptographic hashes of permit and inspection records to ensure data integrity, immutability, and tamper-proof verification.
+
+* **Business One-Stop-Shop (BOSS)** – A centralized location or online portal mandated by RA 11032 where LGUs receive and process business permit applications, receive payments, and issue licenses, clearances, permits, and authorizations.
+
+* **Business Permit** – An official authorization issued by the LGU allowing a business to operate legally, processed digitally through the BizClear system, also known as Mayor's Permit.
+
+* **Business Permit and Licensing Office (BPLO)** – The LGU office responsible for processing and approving business permits using the proposed system, also known as Business Permit and Licensing Section (BPLS).
+
+* **Centralized Inspection Workflow** – The coordinated digital process enabled by the BizClear system where inspections from multiple offices (BFP, Sanitary, Zoning, Engineering) are scheduled, conducted, and recorded through a unified platform, reducing redundancy and coordination time.
+
+* **Document Validation** – The automated checking of submitted documents for completeness, consistency, and compliance with requirements using AI algorithms that flag missing information or inconsistencies before documents reach human reviewers.
+
+* **Ease of Doing Business and Efficient Government Service Delivery Act (RA 11032)** – Philippine legislation enacted in 2018 that mandates maximum processing times for government transactions and requires LGUs to establish Business One-Stop-Shops and automate business permitting systems.
+
+* **eLGU System** – The electronic Local Government Unit system, a government initiative providing online access to local government services including business permit licensing, implemented in partnership with DICT, DILG, and ARTA.
+
+* **Immutability** – The property of blockchain records that prevents unauthorized modification of stored data, ensuring that once permit or inspection records are written, they cannot be altered or deleted without detection.
+
+* **Inspection Log** – A digital record of inspection results from various LGU offices (BFP, Sanitary, Zoning, Engineering) stored and secured by the system, containing inspection findings, compliance status, deficiency notes, and clearance issuance.
+
+* **LGU Dashboard** – A system interface that displays real-time permit status, inspection progress, processing times, compliance metrics, and performance analytics for monitoring by administrators and policymakers.
+
+* **Permit Processing Time** – The duration from permit application submission to final approval and issuance, measured in working days to evaluate system efficiency and compliance with RA 11032 standards (7 working days for complex transactions).
+
+* **Role-Based Access Control (RBAC)** – A security mechanism that restricts system access and functionality based on user roles (business owner, BPLO staff, inspector, administrator), ensuring appropriate access to sensitive information and functions.
+
+* **Scrum Agile Methodology** – The iterative software development approach used in the study to design and implement the system through time-boxed sprints, regular stakeholder feedback, and incremental feature delivery.
+
+* **Smart Inspection Workflow** – The coordinated digital process of scheduling, conducting, and recording inspections across offices, utilizing automated notifications, shared calendars, and centralized documentation to improve efficiency.
+
+* **Tamper-Proof Record** – A record secured using blockchain cryptographic hashing to prevent undetected modification, providing verifiable audit trails for permit applications, inspection results, and approval decisions.
+
+* **Transparency** – The ability of stakeholders to view and verify permit and inspection status in real time through the system, supporting accountability and reducing information asymmetry between applicants and government offices.
+
+---
+
+## **REFERENCES**
+
+Agyekum, K. O.-B. O., Botchway, R. K., & King, R. S. (2024). Blockchain-based system for enhancing transparency and accountability in government fund allocation. *Propulsion Technology Journal*, *1*(1), Article 6888. https://doi.org/10.5281/zenodo.10558888
+
+Al-Rawy, A., Salih, A., & Aljuboori, A. F. (2024). Blockchain in e-government services: Current status, challenges, and future directions. *arXiv preprint arXiv:2402.02483*. https://arxiv.org/abs/2402.02483
+
+Bedi, S., Mateen, B., Trillo, C., & Bright, J. (2024). AI for bureaucratic productivity: Measuring the potential of AI to help automate 143 million UK government transactions. *arXiv preprint arXiv:2403.14712*. The Alan Turing Institute. https://arxiv.org/html/2403.14712v1
+
+Boston Consulting Group. (2025). *How AI can cut through bureaucracy, boost efficiency, and build trust in government*. https://www.bcg.com/publications/2025/benefits-of-ai-in-government
+
+Castañeda, J. P., & Dizon, E. M. (2024). Developing a smart city framework for Philippine LGUs: A policy-driven approach to digital transformation. *International Journal of Multidisciplinary: Applied Business and Education Research*, *5*(11), Article 8998. https://doi.org/10.11594/ijmaber.05.11.01
+
+Castillo, J. C. (2024). Digital governance in the Philippines: A scoping review of current challenges and opportunities. *Global Scientific and Social Research*, *1*(2), Article 1204. https://doi.org/10.5281/zenodo.10558888
+
+Department of Information and Communications Technology. (2024, December 1). Over half of LGUs now digitally connected—DICT. *Manila Bulletin*. https://mb.com.ph/2024/12/1/over-half-of-lg-us-now-digitally-connected-dict
+
+Department of the Interior and Local Government. (2023, December). Nationwide streamlining of business permits and licensing system (BPLS). DILG Region XII. https://region12.dilg.gov.ph/programs-projects/nationwide-streamlining-business-permits-and-licensing-system-bpls
+
+Digital Watch. (2024). *E-government in the Philippines: Progress and challenges*. https://dig.watch/topics/e-government-philippines
+
+Enríquez, J. G., Durán, A., Fernández, A., & Domínguez-Mayo, F. J. (2024). Blockchain-based governance models supporting corruption-transparency: A systematic literature review. *Blockchain: Research and Applications*, *5*(1), Article 100168. https://doi.org/10.1016/j.bcra.2023.100168
+
+European Commission. (2022). *European landscape on the use of blockchain technology by the public sector* (JRC Technical Report). Publications Office of the European Union. https://publications.jrc.ec.europa.eu/repository/handle/JRC131202
+
+European Commission. (2024). *Regulation (EU) 2024/903 of the European Parliament and of the Council of 13 March 2024 laying down measures for a high level of public sector interoperability across the Union (Interoperable Europe Act)*. Official Journal of the European Union. https://interoperable-europe.ec.europa.eu/Interoperable-Europe-Act-Regulation
+
+Niño, A. G. M., & Gentoral, F. E. (2024). Compliance with business permits and licensing system requirements: Effects on business performance and satisfaction among MSMEs. *IIARI Journals*, *3*(3), 24445. https://ejournals.ph/article.php?id=24445
+
+Philippine News Agency. (2023, December). DILG: Digitalization raises LGUs' revenue collection to P208B. https://www.pna.gov.ph/articles/1217536
+
+Republic Act No. 11032. (2018). *An Act promoting ease of doing business and efficient delivery of government services*. Official Gazette of the Republic of the Philippines. https://lawphil.net/statutes/repacts/ra2018/ra_11032_2018.html
+
+Sana, A., Rehman, A., Iqbal, K., & Shah, S. M. A. (2025). Synergizing AI and blockchain: A bibliometric analysis of their potential for transforming e-governance in smart cities. *Frontiers in Sustainable Cities*, *7*, Article 1553816. https://doi.org/10.3389/frsc.2025.1553816
+
+Sasaki, Y. (2024). Linking e-government development and quality of governance to trust in government: Evidence from OECD member countries. *Transforming Government: People, Process and Policy*, *18*(4), 471–487. https://doi.org/10.1108/TG-11-2023-0175
+
+UK Cabinet Office. (2024). *Automated digital document review*. Algorithmic Transparency Recording Standard. https://www.gov.uk/algorithmic-transparency-records/cabinet-office-automated-digital-document-review
+
+United Nations Department of Economic and Social Affairs. (2024). *UN E-Government Survey 2024: Accelerating digital transformation for sustainable development*. https://desapublications.un.org/publications/un-e-government-survey-2024
+
+U.S. Department of Health and Human Services. (2024). *Structuring and validating completeness of case data information*. Office of Refugee Resettlement AI Use Cases. https://healthit.gov/hhs-ai-usecases/structuring-and-validating-completeness-case-data-information
+
+U.S. Government Accountability Office. (2025). *Artificial intelligence: Generative AI use and management at federal agencies* (Report No. GAO-25-107653). https://www.gao.gov/products/gao-25-107653
 

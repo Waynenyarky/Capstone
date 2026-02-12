@@ -1,12 +1,40 @@
 const mongoose = require('mongoose')
 const { INDUSTRY_SCOPE_VALUES, BUSINESS_TYPE_VALUES } = require('../../../../shared/constants')
 
-// Schema for individual requirement items
+// Valid field types for form builder items
+const FIELD_TYPES = ['text', 'textarea', 'number', 'date', 'select', 'multiselect', 'file', 'download', 'checkbox', 'address']
+
+// Schema for individual requirement items (expanded for form builder)
 const RequirementItemSchema = new mongoose.Schema(
   {
     label: { type: String, required: true },
     required: { type: Boolean, default: true },
     notes: { type: String, default: '' },
+
+    // Field type (defaults to 'file' for backward compat with legacy items)
+    type: { type: String, enum: FIELD_TYPES, default: 'file' },
+
+    // Storage key for form-driven UIs (e.g. idPicture, mayorsPermit); empty = frontend derives slug from label
+    key: { type: String, trim: true, default: '' },
+
+    // Display / UX
+    placeholder: { type: String, default: '' },
+    helpText: { type: String, default: '' },
+    span: { type: Number, default: 24, min: 1, max: 24 },
+
+    // Validation rules (flexible object: minLength, maxLength, pattern, minValue, maxValue, maxFileSize, acceptedFileTypes, etc.)
+    validation: { type: mongoose.Schema.Types.Mixed, default: {} },
+
+    // Dropdown configuration
+    dropdownSource: { type: String, default: 'static' }, // static | psgc_province | psgc_city | psgc_barangay | industries
+    dropdownOptions: [{ type: String }], // for static source
+
+    // Download field: template file that applicants download, fill, and re-upload
+    downloadFileName: { type: String, default: '' },
+    downloadFileSize: { type: Number, default: 0 },
+    downloadFileType: { type: String, default: '' },
+    downloadFileUrl: { type: String, default: '' },
+    downloadIpfsCid: { type: String, default: '' },
   },
   { _id: false }
 )
@@ -62,10 +90,10 @@ const FormDefinitionSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Form type (registration, permit, renewal, cessation, violation, appeal)
+    // Form type
     formType: {
       type: String,
-      enum: ['registration', 'permit', 'renewal', 'cessation', 'violation', 'appeal'],
+      enum: ['registration', 'permit', 'renewal', 'cessation', 'violation', 'appeal', 'inspections'],
       required: true,
       index: true,
     },

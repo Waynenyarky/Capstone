@@ -13,16 +13,19 @@ import { uploadBusinessRegistrationFile } from '@/features/business-owner/featur
 import { getRenewalStatus, updateGrossReceipts } from '@/features/business-owner/features/business-renewal/services/businessRenewalService'
 import { resolveAvatarUrl } from '@/lib/utils'
 
-export function usePermitApplicationPage() {
+export function usePermitApplicationPage(options = {}) {
+  const { embedded = false } = options
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { message } = App.useApp()
   const { permits, renewals, loading, refresh, hasNoBusinesses } = usePermitApplications()
 
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'registrations')
+  const [activeTab, setActiveTab] = useState(
+    embedded ? 'registrations' : (searchParams.get('tab') || 'registrations')
+  )
   useEffect(() => {
-    setActiveTab(searchParams.get('tab') || 'registrations')
-  }, [searchParams])
+    if (!embedded) setActiveTab(searchParams.get('tab') || 'registrations')
+  }, [embedded, searchParams])
 
   const {
     registrationFilters,
@@ -288,7 +291,7 @@ export function usePermitApplicationPage() {
 
   const setActiveTabAndNavigate = (key) => {
     setActiveTab(key)
-    navigate(`/owner/permits?tab=${key}`, { replace: true })
+    if (!embedded) navigate(`/owner/permits?tab=${key}`, { replace: true })
   }
 
   const closeViewModal = () => {

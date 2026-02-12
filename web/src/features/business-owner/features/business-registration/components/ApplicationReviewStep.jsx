@@ -10,9 +10,20 @@ import dayjs from 'dayjs'
 
 const { Title, Text, Paragraph } = Typography
 
+const FALLBACK_LGU_DOC_LABELS = [
+  { key: 'idPicture', label: '2×2 ID Picture' },
+  { key: 'ctc', label: 'Community Tax Certificate (CTC)' },
+  { key: 'barangayClearance', label: 'Barangay Business Clearance' },
+  { key: 'dtiSecCda', label: 'DTI/SEC/CDA Registration' },
+  { key: 'leaseOrLandTitle', label: 'Lease Contract or Land Title' },
+  { key: 'occupancyPermit', label: 'Certificate of Occupancy' },
+  { key: 'healthCertificate', label: 'Health Certificate' }
+]
+
 export default function ApplicationReviewStep({ 
   businessData, 
   lguDocuments, 
+  documentFields = [],
   birRegistration, 
   otherAgencyRegistrations,
   onEdit,
@@ -22,6 +33,9 @@ export default function ApplicationReviewStep({
   onAgenciesSave,
   onBusinessSave
 }) {
+  const lguDocumentList = documentFields?.length > 0
+    ? documentFields.map((f) => ({ label: f.label, url: lguDocuments?.[f.key] }))
+    : FALLBACK_LGU_DOC_LABELS.map((f) => ({ label: f.label, url: lguDocuments?.[f.key] }))
   const { message } = App.useApp()
   const [editDocumentsModalOpen, setEditDocumentsModalOpen] = useState(false)
   const [editBIRModalOpen, setEditBIRModalOpen] = useState(false)
@@ -288,15 +302,7 @@ export default function ApplicationReviewStep({
           <Card title="LGU Documents" size="small">
             <List
               bordered
-              dataSource={[
-                { label: '2×2 ID Picture', url: lguDocuments?.idPicture },
-                { label: 'Community Tax Certificate (CTC)', url: lguDocuments?.ctc },
-                { label: 'Barangay Business Clearance', url: lguDocuments?.barangayClearance },
-                { label: 'DTI/SEC/CDA Registration', url: lguDocuments?.dtiSecCda },
-                { label: 'Lease Contract or Land Title', url: lguDocuments?.leaseOrLandTitle },
-                { label: 'Certificate of Occupancy', url: lguDocuments?.occupancyPermit },
-                { label: 'Health Certificate', url: lguDocuments?.healthCertificate }
-              ]}
+              dataSource={lguDocumentList}
               renderItem={(item) => (
                 <List.Item>
                   <Space style={{ width: '100%', justifyContent: 'space-between' }}>
@@ -414,6 +420,7 @@ export default function ApplicationReviewStep({
           businessId={businessId}
           businessType={businessData?.businessType}
           initialDocuments={lguDocuments}
+          documentFields={documentFields}
           inModal={true}
           onSave={handleDocumentsSave}
         />

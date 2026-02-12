@@ -9,13 +9,11 @@ const BusinessProfile = ({ data }) => {
   if (!data) return null
 
   const handleEdit = () => {
-    // Navigate to business registration page with primary business
-    navigate('/owner/business-registration?businessId=primary')
+    navigate('/owner/businesses')
   }
 
   const handleManageAll = () => {
-    // Navigate to business registration page
-    navigate('/owner/business-registration')
+    navigate('/owner/businesses')
   }
 
   return (

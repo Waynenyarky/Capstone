@@ -32,15 +32,10 @@ services:
   # Business Service - Development Mode
   business-service:
     volumes:
-      - ./backend/services/business-service/src:/app/src
-      - ./backend/services/business-service/lib:/app/lib
-      - ./backend/services/business-service/routes:/app/routes
-      - ./backend/services/business-service/models:/app/models
-      - ./backend/services/business-service/services:/app/services
-      - ./backend/services/business-service/middleware:/app/middleware
-      - ./backend/services/business-service/config:/app/config
+      - ./backend/shared:/backend/shared:ro
+      - ./backend/services/business-service/src:/backend/services/business-service/src
       # Mount global .env file
-      - ./.env:/app/.env
+      - ./.env:/backend/services/business-service/.env
     command: npm start
 
   # Admin Service - Development Mode
@@ -48,15 +43,16 @@ services:
     environment:
       - SEED_FORM_DEFINITIONS=true
     volumes:
-      - ./backend/services/admin-service/src:/app/src
-      - ./backend/services/admin-service/lib:/app/lib
-      - ./backend/services/admin-service/routes:/app/routes
-      - ./backend/services/admin-service/models:/app/models
-      - ./backend/services/admin-service/middleware:/app/middleware
-      - ./backend/services/admin-service/config:/app/config
-      - ./backend/services/admin-service/jobs:/app/jobs
+      - ./backend/shared:/backend/shared:ro
+      - ./backend/services/admin-service/src:/backend/services/admin-service/src
+      - ./backend/services/admin-service/lib:/backend/services/admin-service/lib
+      - ./backend/services/admin-service/routes:/backend/services/admin-service/routes
+      - ./backend/services/admin-service/models:/backend/services/admin-service/models
+      - ./backend/services/admin-service/middleware:/backend/services/admin-service/middleware
+      - ./backend/services/admin-service/config:/backend/services/admin-service/config
+      - ./backend/services/admin-service/jobs:/backend/services/admin-service/jobs
       # Mount global .env file
-      - ./.env:/app/.env
+      - ./.env:/backend/services/admin-service/.env
     command: npm start
 
   # Audit Service - Development Mode

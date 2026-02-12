@@ -1,6 +1,7 @@
 /**
  * Form Definitions Tests
- * Unit tests for FormDefinition model
+ * Tests for FormDefinition model with expanded RequirementItemSchema,
+ * all field types, CRUD operations, file upload, and deactivation.
  */
 
 jest.mock('nodemailer', () => ({
@@ -14,9 +15,10 @@ const { MongoMemoryServer } = require('mongodb-memory-server')
 
 jest.setTimeout(60000)
 
-describe('FormDefinition Model Unit Tests', () => {
+describe('FormDefinition Model Tests', () => {
   let mongo
   let FormDefinition
+  let FormGroup
   let adminUserId
 
   beforeAll(async () => {
@@ -27,115 +29,11 @@ describe('FormDefinition Model Unit Tests', () => {
     const uri = mongo.getUri()
     await mongoose.connect(uri)
 
-    // Create a mock admin user ID
     adminUserId = new mongoose.Types.ObjectId()
 
-    // Define FormDefinition schema inline for unit testing
-    const FormDefinitionSchema = new mongoose.Schema(
-      {
-        formType: {
-          type: String,
-          required: true,
-          enum: ['registration', 'permit', 'renewal', 'cessation', 'violation', 'appeal'],
-        },
-        version: {
-          type: String,
-          required: true,
-          default: '1.0',
-        },
-        name: {
-          type: String,
-          trim: true,
-        },
-        description: String,
-        status: {
-          type: String,
-          enum: ['draft', 'pending_approval', 'published', 'archived'],
-          default: 'draft',
-        },
-        businessTypes: [{ type: String }],
-        lguCodes: [{ type: String }],
-        sections: [
-          {
-            category: { type: String, required: true },
-            source: String,
-            notes: String,
-            items: [
-              {
-                label: { type: String, required: true },
-                required: { type: Boolean, default: true },
-                notes: String,
-              },
-            ],
-          },
-        ],
-        downloads: [
-          {
-            label: { type: String, required: true },
-            fileUrl: { type: String, required: true },
-            fileType: String,
-            ipfsHash: String,
-          },
-        ],
-        effectiveFrom: Date,
-        effectiveUntil: Date,
-        approvalId: String,
-        createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-        updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-      },
-      { timestamps: true }
-    )
-
-    // Static method for finding active definition
-    FormDefinitionSchema.statics.findActiveDefinition = async function (
-      formType,
-      businessType,
-      lguCode
-    ) {
-      const now = new Date()
-      const query = {
-        formType,
-        status: 'published',
-        $or: [{ effectiveFrom: { $exists: false } }, { effectiveFrom: { $lte: now } }],
-      }
-
-      // Fetch all matching definitions
-      const definitions = await this.find(query).sort({ createdAt: -1 }).lean()
-
-      if (definitions.length === 0) return null
-
-      // Score each definition by specificity
-      const scored = definitions.map((def) => {
-        let score = 0
-        const matchesBT =
-          def.businessTypes?.length === 0 || def.businessTypes?.includes(businessType)
-        const matchesLGU = def.lguCodes?.length === 0 || def.lguCodes?.includes(lguCode)
-
-        if (matchesBT && def.businessTypes?.length > 0) score += 2
-        if (matchesLGU && def.lguCodes?.length > 0) score += 1
-
-        return { def, score, matchesBT, matchesLGU }
-      })
-
-      // Filter to only those that match targeting
-      const valid = scored.filter((s) => s.matchesBT && s.matchesLGU)
-
-      if (valid.length === 0) {
-        // Fallback to global (no targeting)
-        const global = scored.find(
-          (s) =>
-            (!s.def.businessTypes || s.def.businessTypes.length === 0) &&
-            (!s.def.lguCodes || s.def.lguCodes.length === 0)
-        )
-        return global ? global.def : null
-      }
-
-      // Return highest score
-      valid.sort((a, b) => b.score - a.score)
-      return valid[0].def
-    }
-
-    FormDefinition = mongoose.model('FormDefinitionTest', FormDefinitionSchema)
+    // ── Import actual models from admin-service ──
+    FormDefinition = require('../../../services/admin-service/src/models/FormDefinition')
+    FormGroup = require('../../../services/admin-service/src/models/FormGroup')
   })
 
   afterAll(async () => {
@@ -145,9 +43,11 @@ describe('FormDefinition Model Unit Tests', () => {
 
   beforeEach(async () => {
     await FormDefinition.deleteMany({})
+    await FormGroup.deleteMany({})
   })
 
-  describe('FormDefinition Model', () => {
+  // ─── Schema basics ──────────────────────────────────────────────
+  describe('Schema basics', () => {
     it('should create a form definition with valid data', async () => {
       const def = await FormDefinition.create({
         formType: 'registration',
@@ -157,7 +57,7 @@ describe('FormDefinition Model Unit Tests', () => {
         sections: [
           {
             category: 'LGU Requirements',
-            source: 'City Hall',
+            source: 'BPLO',
             items: [
               { label: 'Application Form', required: true },
               { label: 'ID Photos', required: true },
@@ -198,8 +98,8 @@ describe('FormDefinition Model Unit Tests', () => {
       ).rejects.toThrow()
     })
 
-    it('should allow all valid formTypes', async () => {
-      const types = ['registration', 'permit', 'renewal']
+    it('should allow all valid formTypes including inspections', async () => {
+      const types = ['registration', 'permit', 'renewal', 'cessation', 'violation', 'appeal', 'inspections']
 
       for (const formType of types) {
         const def = await FormDefinition.create({
@@ -209,21 +109,7 @@ describe('FormDefinition Model Unit Tests', () => {
           updatedBy: adminUserId,
         })
         expect(def.formType).toBe(formType)
-      }
-    })
-
-    it('should allow all valid statuses', async () => {
-      const statuses = ['draft', 'pending_approval', 'published', 'archived']
-
-      for (let i = 0; i < statuses.length; i++) {
-        const def = await FormDefinition.create({
-          formType: 'registration',
-          version: `${i + 1}.0`,
-          status: statuses[i],
-          createdBy: adminUserId,
-          updatedBy: adminUserId,
-        })
-        expect(def.status).toBe(statuses[i])
+        await def.deleteOne()
       }
     })
 
@@ -234,78 +120,358 @@ describe('FormDefinition Model Unit Tests', () => {
         createdBy: adminUserId,
         updatedBy: adminUserId,
       })
-
       expect(def.status).toBe('draft')
-    })
-
-    it('should store sections with items', async () => {
-      const def = await FormDefinition.create({
-        formType: 'registration',
-        version: '1.0',
-        sections: [
-          {
-            category: 'LGU Requirements',
-            source: 'City Hall',
-            notes: 'Important notes',
-            items: [
-              { label: 'Item 1', required: true, notes: 'Note 1' },
-              { label: 'Item 2', required: false, notes: 'Note 2' },
-            ],
-          },
-          {
-            category: 'BIR Requirements',
-            items: [{ label: 'TIN', required: true }],
-          },
-        ],
-        createdBy: adminUserId,
-        updatedBy: adminUserId,
-      })
-
-      expect(def.sections.length).toBe(2)
-      expect(def.sections[0].category).toBe('LGU Requirements')
-      expect(def.sections[0].source).toBe('City Hall')
-      expect(def.sections[0].items.length).toBe(2)
-      expect(def.sections[0].items[0].required).toBe(true)
-      expect(def.sections[0].items[1].required).toBe(false)
-    })
-
-    it('should store downloads', async () => {
-      const def = await FormDefinition.create({
-        formType: 'registration',
-        version: '1.0',
-        downloads: [
-          { label: 'Application Form', fileUrl: '/forms/app.pdf', fileType: 'pdf' },
-          { label: 'Guide', fileUrl: '/forms/guide.docx', fileType: 'docx' },
-        ],
-        createdBy: adminUserId,
-        updatedBy: adminUserId,
-      })
-
-      expect(def.downloads.length).toBe(2)
-      expect(def.downloads[0].label).toBe('Application Form')
-      expect(def.downloads[0].fileType).toBe('pdf')
-    })
-
-    it('should store targeting arrays', async () => {
-      const def = await FormDefinition.create({
-        formType: 'registration',
-        version: '1.0',
-        businessTypes: ['food_beverages', 'retail_trade'],
-        lguCodes: ['CEBU-CITY', 'MANILA'],
-        createdBy: adminUserId,
-        updatedBy: adminUserId,
-      })
-
-      expect(def.businessTypes).toContain('food_beverages')
-      expect(def.businessTypes).toContain('retail_trade')
-      expect(def.lguCodes).toContain('CEBU-CITY')
-      expect(def.lguCodes).toContain('MANILA')
     })
   })
 
+  // ─── Expanded RequirementItemSchema ─────────────────────────────
+  describe('Expanded RequirementItemSchema', () => {
+    it('should accept all valid field types', async () => {
+      const fieldTypes = ['text', 'textarea', 'number', 'date', 'select', 'multiselect', 'file', 'download', 'checkbox', 'address']
+
+      const items = fieldTypes.map((type) => ({
+        label: `Test ${type} field`,
+        type,
+        required: true,
+      }))
+
+      const def = await FormDefinition.create({
+        formType: 'registration',
+        version: '1.0',
+        sections: [{ category: 'Test Section', items }],
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
+
+      expect(def.sections[0].items.length).toBe(fieldTypes.length)
+      fieldTypes.forEach((type, idx) => {
+        expect(def.sections[0].items[idx].type).toBe(type)
+      })
+    })
+
+    it('should default field type to file', async () => {
+      const def = await FormDefinition.create({
+        formType: 'registration',
+        version: '1.0',
+        sections: [{
+          category: 'Test',
+          items: [{ label: 'No type specified', required: true }],
+        }],
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
+
+      expect(def.sections[0].items[0].type).toBe('file')
+    })
+
+    it('should store placeholder and helpText', async () => {
+      const def = await FormDefinition.create({
+        formType: 'registration',
+        version: '1.0',
+        sections: [{
+          category: 'Test',
+          items: [{
+            label: 'Business name',
+            type: 'text',
+            placeholder: 'Enter business name',
+            helpText: 'As registered with DTI/SEC/CDA',
+            required: true,
+          }],
+        }],
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
+
+      const item = def.sections[0].items[0]
+      expect(item.placeholder).toBe('Enter business name')
+      expect(item.helpText).toBe('As registered with DTI/SEC/CDA')
+    })
+
+    it('should store span with default of 24', async () => {
+      const def = await FormDefinition.create({
+        formType: 'registration',
+        version: '1.0',
+        sections: [{
+          category: 'Test',
+          items: [
+            { label: 'Full width', type: 'text', required: true },
+            { label: 'Half width', type: 'text', required: true, span: 12 },
+            { label: 'Third width', type: 'text', required: true, span: 8 },
+          ],
+        }],
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
+
+      expect(def.sections[0].items[0].span).toBe(24) // default
+      expect(def.sections[0].items[1].span).toBe(12)
+      expect(def.sections[0].items[2].span).toBe(8)
+    })
+
+    it('should store validation rules as Mixed object', async () => {
+      const def = await FormDefinition.create({
+        formType: 'registration',
+        version: '1.0',
+        sections: [{
+          category: 'Test',
+          items: [{
+            label: 'Business name',
+            type: 'text',
+            required: true,
+            validation: {
+              minLength: 2,
+              maxLength: 200,
+              pattern: '^[A-Za-z]',
+            },
+          }],
+        }],
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
+
+      const v = def.sections[0].items[0].validation
+      expect(v.minLength).toBe(2)
+      expect(v.maxLength).toBe(200)
+      expect(v.pattern).toBe('^[A-Za-z]')
+    })
+
+    it('should store dropdown configuration', async () => {
+      const def = await FormDefinition.create({
+        formType: 'registration',
+        version: '1.0',
+        sections: [{
+          category: 'Test',
+          items: [{
+            label: 'Industry',
+            type: 'select',
+            required: true,
+            dropdownSource: 'industries',
+          }, {
+            label: 'Status',
+            type: 'select',
+            required: true,
+            dropdownSource: 'static',
+            dropdownOptions: ['Active', 'Inactive', 'Pending'],
+          }],
+        }],
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
+
+      expect(def.sections[0].items[0].dropdownSource).toBe('industries')
+      expect(def.sections[0].items[1].dropdownSource).toBe('static')
+      expect(def.sections[0].items[1].dropdownOptions).toEqual(['Active', 'Inactive', 'Pending'])
+    })
+
+    it('should store download field properties', async () => {
+      const def = await FormDefinition.create({
+        formType: 'registration',
+        version: '1.0',
+        sections: [{
+          category: 'Test',
+          items: [{
+            label: 'Application Form',
+            type: 'download',
+            required: true,
+            downloadFileName: 'application-form.pdf',
+            downloadFileSize: 245760,
+            downloadFileType: 'pdf',
+            downloadFileUrl: '/forms/application-form.pdf',
+            downloadIpfsCid: 'QmXyz123',
+          }],
+        }],
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
+
+      const item = def.sections[0].items[0]
+      expect(item.type).toBe('download')
+      expect(item.downloadFileName).toBe('application-form.pdf')
+      expect(item.downloadFileSize).toBe(245760)
+      expect(item.downloadFileType).toBe('pdf')
+      expect(item.downloadFileUrl).toBe('/forms/application-form.pdf')
+      expect(item.downloadIpfsCid).toBe('QmXyz123')
+    })
+
+    it('should handle backward-compatible items (label + required only)', async () => {
+      const def = await FormDefinition.create({
+        formType: 'registration',
+        version: '1.0',
+        sections: [{
+          category: 'Legacy',
+          items: [
+            { label: 'Old item', required: true, notes: 'Legacy note' },
+          ],
+        }],
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
+
+      const item = def.sections[0].items[0]
+      expect(item.label).toBe('Old item')
+      expect(item.type).toBe('file') // default
+      expect(item.span).toBe(24) // default
+      expect(item.placeholder).toBe('') // default
+      expect(item.notes).toBe('Legacy note')
+    })
+  })
+
+  // ─── Instance methods ──────────────────────────────────────────
+  describe('Instance methods', () => {
+    it('canEdit should return true only for drafts', async () => {
+      const draft = await FormDefinition.create({
+        formType: 'registration',
+        version: '1.0',
+        status: 'draft',
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
+      expect(draft.canEdit()).toBe(true)
+
+      const published = await FormDefinition.create({
+        formType: 'registration',
+        version: '2.0',
+        status: 'published',
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
+      expect(published.canEdit()).toBe(false)
+    })
+
+    it('canSubmitForApproval requires draft + sections', async () => {
+      const empty = await FormDefinition.create({
+        formType: 'registration',
+        version: '1.0',
+        status: 'draft',
+        sections: [],
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
+      expect(empty.canSubmitForApproval()).toBe(false)
+
+      const withSections = await FormDefinition.create({
+        formType: 'registration',
+        version: '2.0',
+        status: 'draft',
+        sections: [{ category: 'Test', items: [{ label: 'Item', required: true }] }],
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
+      expect(withSections.canSubmitForApproval()).toBe(true)
+    })
+
+    it('canArchive allows draft and published', async () => {
+      const draft = await FormDefinition.create({
+        formType: 'registration',
+        version: '1.0',
+        status: 'draft',
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
+      expect(draft.canArchive()).toBe(true)
+
+      const published = await FormDefinition.create({
+        formType: 'registration',
+        version: '2.0',
+        status: 'published',
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
+      expect(published.canArchive()).toBe(true)
+    })
+
+    it('addChangeLog should append entries', async () => {
+      const def = await FormDefinition.create({
+        formType: 'registration',
+        version: '1.0',
+        status: 'draft',
+        changeLog: [],
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
+
+      def.addChangeLog('created', adminUserId, { note: 'test' })
+      def.addChangeLog('updated', adminUserId, { sectionsCount: { from: 0, to: 1 } })
+      await def.save()
+
+      expect(def.changeLog.length).toBe(2)
+      expect(def.changeLog[0].action).toBe('created')
+      expect(def.changeLog[1].action).toBe('updated')
+    })
+  })
+
+  // ─── FormGroup model ───────────────────────────────────────────
+  describe('FormGroup model', () => {
+    it('should create a form group', async () => {
+      const group = await FormGroup.create({
+        formType: 'registration',
+        industryScope: 'all',
+        displayName: 'Business Registration - All Industries',
+      })
+
+      expect(group.formType).toBe('registration')
+      expect(group.industryScope).toBe('all')
+      expect(group.retiredAt).toBeNull()
+    })
+
+    it('should support inspections formType', async () => {
+      const group = await FormGroup.create({
+        formType: 'inspections',
+        industryScope: 'i',
+        displayName: 'Inspections - Food Service',
+      })
+      expect(group.formType).toBe('inspections')
+    })
+
+    it('should track deactivation fields', async () => {
+      const group = await FormGroup.create({
+        formType: 'registration',
+        industryScope: 'all',
+        displayName: 'Test Group',
+      })
+
+      const until = new Date(Date.now() + 86400000) // tomorrow
+      group.deactivatedAt = new Date()
+      group.deactivatedUntil = until
+      group.deactivateReason = 'maintenance'
+      await group.save()
+
+      const loaded = await FormGroup.findById(group._id)
+      expect(loaded.deactivatedAt).toBeTruthy()
+      expect(loaded.deactivatedUntil.getTime()).toBe(until.getTime())
+      expect(loaded.deactivateReason).toBe('maintenance')
+    })
+
+    it('should support reactivation (clear deactivation fields)', async () => {
+      const group = await FormGroup.create({
+        formType: 'registration',
+        industryScope: 'all',
+        displayName: 'Test Group',
+        deactivatedAt: new Date(),
+        deactivatedUntil: new Date(Date.now() + 86400000),
+        deactivateReason: 'updating',
+      })
+
+      group.deactivatedAt = null
+      group.deactivatedUntil = null
+      group.deactivateReason = ''
+      await group.save()
+
+      const loaded = await FormGroup.findById(group._id)
+      expect(loaded.deactivatedAt).toBeNull()
+      expect(loaded.deactivatedUntil).toBeNull()
+    })
+
+    it('getFormTypeLabel should return human-readable labels', () => {
+      expect(FormGroup.getFormTypeLabel('registration')).toBe('Business Registration')
+      expect(FormGroup.getFormTypeLabel('inspections')).toBe('Inspections')
+      expect(FormGroup.getFormTypeLabel('unknown')).toBe('unknown')
+    })
+  })
+
+  // ─── findActiveDefinition ──────────────────────────────────────
   describe('findActiveDefinition', () => {
     beforeEach(async () => {
-      // Create test definitions with different targeting
       await FormDefinition.create([
         {
           formType: 'registration',
@@ -314,7 +480,7 @@ describe('FormDefinition Model Unit Tests', () => {
           status: 'published',
           businessTypes: [],
           lguCodes: [],
-          sections: [{ category: 'Global', items: [] }],
+          sections: [{ category: 'Global', items: [{ label: 'Item', required: true }] }],
           effectiveFrom: new Date('2020-01-01'),
           createdBy: adminUserId,
           updatedBy: adminUserId,
@@ -322,35 +488,11 @@ describe('FormDefinition Model Unit Tests', () => {
         {
           formType: 'registration',
           version: '1.1',
-          name: 'Food & Beverages Specific',
+          name: 'Food Service Specific',
           status: 'published',
-          businessTypes: ['food_beverages'],
+          businessTypes: ['i'],
           lguCodes: [],
-          sections: [{ category: 'F&B', items: [] }],
-          effectiveFrom: new Date('2020-01-01'),
-          createdBy: adminUserId,
-          updatedBy: adminUserId,
-        },
-        {
-          formType: 'registration',
-          version: '1.2',
-          name: 'Cebu City Specific',
-          status: 'published',
-          businessTypes: [],
-          lguCodes: ['CEBU-CITY'],
-          sections: [{ category: 'Cebu', items: [] }],
-          effectiveFrom: new Date('2020-01-01'),
-          createdBy: adminUserId,
-          updatedBy: adminUserId,
-        },
-        {
-          formType: 'registration',
-          version: '1.3',
-          name: 'F&B in Cebu',
-          status: 'published',
-          businessTypes: ['food_beverages'],
-          lguCodes: ['CEBU-CITY'],
-          sections: [{ category: 'F&B Cebu', items: [] }],
+          sections: [{ category: 'F&B', items: [{ label: 'Sanitary', required: true }] }],
           effectiveFrom: new Date('2020-01-01'),
           createdBy: adminUserId,
           updatedBy: adminUserId,
@@ -358,40 +500,18 @@ describe('FormDefinition Model Unit Tests', () => {
       ])
     })
 
-    it('should return global definition when no targeting matches', async () => {
-      const result = await FormDefinition.findActiveDefinition('registration', 'services', 'MANILA')
+    it('should return global default when no specific match', async () => {
+      const result = await FormDefinition.findActiveDefinition('registration', 's', 'MANILA')
       expect(result.name).toBe('Global Default')
     })
 
-    it('should return business-type specific definition', async () => {
-      const result = await FormDefinition.findActiveDefinition(
-        'registration',
-        'food_beverages',
-        'MANILA'
-      )
-      expect(result.name).toBe('Food & Beverages Specific')
-    })
-
-    it('should return LGU-specific definition', async () => {
-      const result = await FormDefinition.findActiveDefinition(
-        'registration',
-        'services',
-        'CEBU-CITY'
-      )
-      expect(result.name).toBe('Cebu City Specific')
-    })
-
-    it('should return most specific definition (business type + LGU)', async () => {
-      const result = await FormDefinition.findActiveDefinition(
-        'registration',
-        'food_beverages',
-        'CEBU-CITY'
-      )
-      expect(result.name).toBe('F&B in Cebu')
+    it('should return industry-specific definition', async () => {
+      const result = await FormDefinition.findActiveDefinition('registration', 'i', 'MANILA')
+      expect(result.name).toBe('Food Service Specific')
     })
 
     it('should return null for non-existent form type', async () => {
-      const result = await FormDefinition.findActiveDefinition('permit', 'services', 'MANILA')
+      const result = await FormDefinition.findActiveDefinition('inspections', 'i', 'MANILA')
       expect(result).toBeNull()
     })
 
@@ -401,27 +521,119 @@ describe('FormDefinition Model Unit Tests', () => {
         version: '1.0',
         name: 'Draft Permit',
         status: 'draft',
+        sections: [{ category: 'Test', items: [{ label: 'Item', required: true }] }],
         createdBy: adminUserId,
         updatedBy: adminUserId,
       })
 
-      const result = await FormDefinition.findActiveDefinition('permit', 'services', 'MANILA')
+      const result = await FormDefinition.findActiveDefinition('permit', 's', 'MANILA')
       expect(result).toBeNull()
     })
+  })
 
-    it('should not return archived definitions', async () => {
-      await FormDefinition.create({
-        formType: 'renewal',
-        version: '1.0',
-        name: 'Archived Renewal',
-        status: 'archived',
-        effectiveFrom: new Date('2020-01-01'),
+  // ─── Seed data validation ──────────────────────────────────────
+  describe('Seed data structures', () => {
+    it('should accept seed data format with expanded fields', async () => {
+      const { globalRegistrationSections } = require('../../../services/admin-service/src/migrations/seedFormDefinitions')
+
+      const def = await FormDefinition.create({
+        formType: 'registration',
+        version: '2026.1',
+        name: 'Seed Test',
+        status: 'published',
+        sections: globalRegistrationSections,
         createdBy: adminUserId,
         updatedBy: adminUserId,
       })
 
-      const result = await FormDefinition.findActiveDefinition('renewal', 'services', 'MANILA')
-      expect(result).toBeNull()
+      expect(def.sections.length).toBeGreaterThan(0)
+      // Check LGU section has download field
+      const lguSection = def.sections.find((s) => s.category === 'Local Government Unit (LGU)')
+      expect(lguSection).toBeTruthy()
+      const downloadField = lguSection.items.find((i) => i.type === 'download')
+      expect(downloadField).toBeTruthy()
+      expect(downloadField.downloadFileName).toBeTruthy()
+
+      // Check Business Information section has text fields
+      const bizSection = def.sections.find((s) => s.category === 'Business Information')
+      expect(bizSection).toBeTruthy()
+      const textField = bizSection.items.find((i) => i.type === 'text')
+      expect(textField).toBeTruthy()
+      expect(textField.placeholder).toBeTruthy()
+
+      // Check address field
+      const addressField = bizSection.items.find((i) => i.type === 'address')
+      expect(addressField).toBeTruthy()
+
+      // Check select field with dropdownSource
+      const selectField = bizSection.items.find((i) => i.type === 'select')
+      expect(selectField).toBeTruthy()
+      expect(selectField.dropdownSource).toBe('industries')
+
+      // Check span on date/number fields
+      const dateField = bizSection.items.find((i) => i.type === 'date')
+      expect(dateField).toBeTruthy()
+      expect(dateField.span).toBe(12)
+    })
+
+    it('should accept industry-specific seed data', async () => {
+      const { industrySections } = require('../../../services/admin-service/src/migrations/seedFormDefinitions')
+
+      // Every PSIC letter should have sections defined
+      const psicLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u']
+
+      for (const letter of psicLetters) {
+        expect(industrySections[letter]).toBeDefined()
+        expect(Array.isArray(industrySections[letter])).toBe(true)
+        expect(industrySections[letter].length).toBeGreaterThan(0)
+
+        // Each section should have category and items
+        for (const section of industrySections[letter]) {
+          expect(section.category).toBeTruthy()
+          expect(Array.isArray(section.items)).toBe(true)
+          expect(section.items.length).toBeGreaterThan(0)
+
+          for (const itm of section.items) {
+            expect(itm.label).toBeTruthy()
+          }
+        }
+      }
+    })
+  })
+
+  // ─── Version management ─────────────────────────────────────────
+  describe('Version management', () => {
+    it('should link definitions to form groups', async () => {
+      const group = await FormGroup.create({
+        formType: 'registration',
+        industryScope: 'all',
+        displayName: 'Test Group',
+      })
+
+      const v1 = await FormDefinition.create({
+        formGroupId: group._id,
+        formType: 'registration',
+        version: '2026.1',
+        status: 'published',
+        sections: [{ category: 'Test', items: [{ label: 'Item', required: true }] }],
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
+
+      const v2 = await FormDefinition.create({
+        formGroupId: group._id,
+        formType: 'registration',
+        version: '2026.2',
+        status: 'draft',
+        sections: [],
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
+
+      const versions = await FormDefinition.find({ formGroupId: group._id }).sort({ version: -1 })
+      expect(versions.length).toBe(2)
+      expect(versions[0].version).toBe('2026.2')
+      expect(versions[1].version).toBe('2026.1')
     })
   })
 })

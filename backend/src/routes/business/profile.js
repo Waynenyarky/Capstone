@@ -92,8 +92,11 @@ router.post('/businesses', requireJwt, requireRole(['business_owner']), async (r
     const userId = req._userId
     const businessData = req.body
 
-    const profile = await businessProfileService.addBusiness(userId, businessData)
-    res.json(profile)
+    const result = await businessProfileService.addBusiness(userId, businessData)
+    const profileObj = result.profile && typeof result.profile.toObject === 'function'
+      ? result.profile.toObject()
+      : result.profile
+    res.json({ ...profileObj, businessId: result.businessId })
   } catch (err) {
     console.error('POST /api/business/businesses error:', err)
     return respond.error(res, 400, 'add_error', err.message || 'Failed to add business')
@@ -112,6 +115,21 @@ router.put('/businesses/:businessId', requireJwt, requireRole(['business_owner']
   } catch (err) {
     console.error('PUT /api/business/businesses/:businessId error:', err)
     return respond.error(res, 400, 'update_error', err.message || 'Failed to update business')
+  }
+})
+
+// PATCH /api/business/businesses/:businessId - Update business status only
+router.patch('/businesses/:businessId', requireJwt, requireRole(['business_owner']), async (req, res) => {
+  try {
+    const userId = req._userId
+    const { businessId } = req.params
+    const { businessStatus } = req.body || {}
+
+    const profile = await businessProfileService.updateBusinessStatus(userId, businessId, { businessStatus })
+    res.json(profile)
+  } catch (err) {
+    console.error('PATCH /api/business/businesses/:businessId error:', err)
+    return respond.error(res, 400, 'update_error', err.message || 'Failed to update business status')
   }
 })
 

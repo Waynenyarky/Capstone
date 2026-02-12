@@ -136,9 +136,12 @@ async function seedDevDataIfEmpty() {
       isStaff: true,
     });
 
-    // Ensure business owner
+    // Ensure business owner (dev-only: no forced password change or MFA so you can log in without OTP/setup)
     await ensureUser('business@example.com', 'business_owner', 'Bob', 'Business', '+10000000093', {
-      mustChangeCredentials: true,
+      mustChangeCredentials: false,
+      mustSetupMfa: false,
+      mfaEnabled: false,
+      mfaMethod: '',
     });
 
     logger.info('Dev seed completed successfully');

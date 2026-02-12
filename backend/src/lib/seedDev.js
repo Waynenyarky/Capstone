@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs')
 const User = require('../models/User')
 const Role = require('../models/Role')
 const Office = require('../models/Office')
+const BusinessProfile = require('../models/BusinessProfile')
 const { getStaffRoles } = require('../lib/roleHelpers')
 // Removed provider seeding; unified user model
 
@@ -191,8 +192,21 @@ async function seedDevDataIfEmpty() {
       mustSetupMfa: true,
     })
     await ensureUser('business@example.com', 'business_owner', 'Bob', 'Business', '+10000000093', {
-      mustChangeCredentials: true,
+      mustChangeCredentials: false,
+      mustSetupMfa: false,
+      mfaEnabled: false,
+      mfaMethod: '',
     })
+
+    // Ensure business owner has a BusinessProfile so they can add businesses (e.g. from My Businesses tab)
+    const businessOwner = await User.findOne({ email: 'business@example.com' }).lean()
+    if (businessOwner?._id) {
+      const existingProfile = await BusinessProfile.findOne({ userId: businessOwner._id })
+      if (!existingProfile) {
+        await BusinessProfile.create({ userId: businessOwner._id, businesses: [] })
+        console.log('Created BusinessProfile for business@example.com')
+      }
+    }
 
     // Seed users if empty
     if (userCount === 0) {

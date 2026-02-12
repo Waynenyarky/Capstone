@@ -40,7 +40,7 @@ describe('RequirementsChecklistStep API Integration', () => {
       renderWithProviders(
         <RequirementsChecklistStep
           businessId="test-id"
-          businessType="retail_trade"
+          businessType="g"
           onConfirm={mockOnConfirm}
           onNext={mockOnNext}
         />
@@ -79,7 +79,7 @@ describe('RequirementsChecklistStep API Integration', () => {
       renderWithProviders(
         <RequirementsChecklistStep
           businessId="test-id"
-          businessType="retail_trade"
+          businessType="g"
           onConfirm={mockOnConfirm}
           onNext={mockOnNext}
         />
@@ -98,7 +98,7 @@ describe('RequirementsChecklistStep API Integration', () => {
       renderWithProviders(
         <RequirementsChecklistStep
           businessId="test-id"
-          businessType="retail_trade"
+          businessType="g"
           onConfirm={mockOnConfirm}
           onNext={mockOnNext}
         />
@@ -113,7 +113,7 @@ describe('RequirementsChecklistStep API Integration', () => {
       renderWithProviders(
         <RequirementsChecklistStep
           businessId="test-id"
-          businessType="retail_trade"
+          businessType="g"
           onConfirm={mockOnConfirm}
           onNext={mockOnNext}
         />
@@ -129,7 +129,7 @@ describe('RequirementsChecklistStep API Integration', () => {
       renderWithProviders(
         <RequirementsChecklistStep
           businessId="test-id"
-          businessType="retail_trade"
+          businessType="g"
           onConfirm={mockOnConfirm}
           onNext={mockOnNext}
         />
@@ -151,7 +151,7 @@ describe('RequirementsChecklistStep API Integration', () => {
       renderWithProviders(
         <RequirementsChecklistStep
           businessId="test-id"
-          businessType="food_beverages"
+          businessType="i"
           onConfirm={mockOnConfirm}
           onNext={mockOnNext}
         />
@@ -179,7 +179,7 @@ describe('RequirementsChecklistStep API Integration', () => {
       renderWithProviders(
         <RequirementsChecklistStep
           businessId="test-id"
-          businessType="retail_trade"
+          businessType="g"
           onConfirm={mockOnConfirm}
           onNext={mockOnNext}
         />
@@ -208,7 +208,7 @@ describe('RequirementsChecklistStep API Integration', () => {
       renderWithProviders(
         <RequirementsChecklistStep
           businessId="test-id"
-          businessType="retail_trade"
+          businessType="g"
           onConfirm={mockOnConfirm}
           onNext={mockOnNext}
         />
@@ -226,7 +226,7 @@ describe('RequirementsChecklistStep API Integration', () => {
       renderWithProviders(
         <RequirementsChecklistStep
           businessId="test-id"
-          businessType="retail_trade"
+          businessType="g"
           onConfirm={mockOnConfirm}
           onNext={mockOnNext}
         />
@@ -250,7 +250,7 @@ describe('RequirementsChecklistStep API Integration', () => {
       renderWithProviders(
         <RequirementsChecklistStep
           businessId="new"
-          businessType="retail_trade"
+          businessType="g"
           onConfirm={mockOnConfirm}
           onNext={mockOnNext}
         />
@@ -278,7 +278,7 @@ describe('RequirementsChecklistStep API Integration', () => {
       renderWithProviders(
         <RequirementsChecklistStep
           businessId="new"
-          businessType="retail_trade"
+          businessType="g"
           onConfirm={mockOnConfirm}
           onNext={mockOnNext}
         />
@@ -318,7 +318,7 @@ describe('RequirementsChecklistStep API Integration', () => {
       renderWithProviders(
         <RequirementsChecklistStep
           businessId="test-id"
-          businessType="retail_trade"
+          businessType="g"
           onConfirm={mockOnConfirm}
           onNext={mockOnNext}
         />
@@ -333,7 +333,7 @@ describe('RequirementsChecklistStep API Integration', () => {
       renderWithProviders(
         <RequirementsChecklistStep
           businessId="test-id"
-          businessType="retail_trade"
+          businessType="g"
           onConfirm={mockOnConfirm}
           onNext={mockOnNext}
         />

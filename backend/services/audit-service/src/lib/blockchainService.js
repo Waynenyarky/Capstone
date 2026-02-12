@@ -109,12 +109,10 @@ class BlockchainService {
     this.contractAddresses.documentStorage = process.env.DOCUMENT_STORAGE_CONTRACT_ADDRESS;
     this.contractAddresses.auditLog = process.env.AUDIT_LOG_CONTRACT_ADDRESS || process.env.AUDIT_CONTRACT_ADDRESS; // Backward compatibility
 
-    // Use development defaults if not set (for local Ganache)
     if (!privateKey) {
-      logger.warn('⚠️  DEPLOYER_PRIVATE_KEY not set. Using development default (first Ganache account).');
-      // Default private key from Ganache's first account (for development only)
-      privateKey = '0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d';
-      logger.warn('⚠️  Using test private key. Set DEPLOYER_PRIVATE_KEY in production!');
+      logger.error('❌ DEPLOYER_PRIVATE_KEY not set. Blockchain service will not initialize.');
+      logger.error('   Set DEPLOYER_PRIVATE_KEY in .env (Ganache first account from mnemonic).');
+      return;
     }
 
     try {
