@@ -68,10 +68,8 @@ services:
         condition: service_healthy
     command: >
       sh -c "
-        echo 'Waiting for all services to be ready...' &&
-        apk add --no-cache netcat-openbsd &&
-        timeout 60 sh -c 'until nc -z mongodb 27017 && nc -z ganache 8545 && nc -z ipfs 5001; do sleep 1; done' &&
-        echo 'All services are ready!'
+        echo 'All dependent services are healthy and ready!' &&
+        exit 0
       "
 
   # Deploy contracts (runs once)

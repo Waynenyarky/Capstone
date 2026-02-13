@@ -417,6 +417,8 @@ if [ "$SKIP_AI" = false ]; then
     # Validate existing model
     MODEL_VALID=false
     if [ -f "$MODEL_VALIDATOR" ]; then
+      # Ensure validation dependencies (joblib, scikit-learn, numpy) are installed for python3
+      pip3 install -q joblib scikit-learn numpy 2>/dev/null || true
       chmod +x "$MODEL_VALIDATOR"
       VALIDATION_OUTPUT=$(python3 "$MODEL_VALIDATOR" "$MODEL_PATH" 2>&1)
       VALIDATION_CODE=$?
@@ -502,15 +504,14 @@ sleep 5
 echo ""
 echo -e "${CYAN}🌐 Starting web frontend...${NC}"
 
-# Check if web directory exists and has node_modules
+# Check if web directory exists
 if [ -d "web" ]; then
   cd web
   
-  # Check if node_modules exists, if not, install dependencies
-  if [ ! -d "node_modules" ]; then
-    echo -e "${YELLOW}   Installing web dependencies (first time only)...${NC}"
-    npm install
-  fi
+  # Always run npm install to ensure package.json and node_modules stay in sync
+  # (catches new deps from git pull, fresh clones, or corrupted node_modules)
+  echo -e "${CYAN}   Ensuring web dependencies are installed...${NC}"
+  npm install
   
   # Start web dev server in background
   if ! pgrep -f "vite.*5173" > /dev/null; then
