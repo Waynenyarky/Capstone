@@ -1,0 +1,23 @@
+{
+  "name": "Capstone",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": []
+    }
+  },
+  "forwardPorts": [3000, 3001, 3002, 3003, 3004, 4173, 5000, 5173],
+  "portsAttributes": {
+    "3000": { "label": "Backend (unified)" },
+    "3001": { "label": "Auth Service" },
+    "3002": { "label": "Business Service" },
+    "3003": { "label": "Admin Service" },
+    "3004": { "label": "Audit Service" },
+    "4173": { "label": "Web (prod)" },
+    "5000": { "label": "Auth (alt)" },
+    "5173": { "label": "Web (dev)" }
+  }
+}

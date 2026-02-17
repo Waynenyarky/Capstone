@@ -617,4 +617,254 @@ router.delete('/admin/staff-roles/:roleId', requireJwt, requireRole(['admin']), 
   }
 })
 
+// ─── Admin Accounts Management (approval-gated) ───
+
+// GET /api/auth/admin/admins - List all admin users
+router.get('/admin/admins', requireJwt, requireRole(['admin']), async (req, res) => {
+  try {
+    const adminRole = await Role.findOne({ slug: 'admin' }).lean()
+    if (!adminRole) return res.json([])
+
+    const docs = await User.find({ role: adminRole._id }).populate('role').lean()
+
+    const creatorIds = [...new Set(
+      docs.map((d) => d.createdBy).filter((v) => v && mongoose.Types.ObjectId.isValid(v))
+    )]
+    const creators = creatorIds.length > 0
+      ? await User.find({ _id: { $in: creatorIds } }).populate('role').lean()
+      : []
+    const creatorMap = new Map(creators.map((c) => [String(c._id), c]))
+
+    const adminsSafe = docs.map((doc) => {
+      let createdBy = null
+      if (doc.createdBy === 'seeder') {
+        createdBy = { type: 'seeder', label: 'Seeder' }
+      } else if (doc.createdBy === 'self') {
+        createdBy = { type: 'self', label: 'Self-registration' }
+      } else if (doc.createdBy && mongoose.Types.ObjectId.isValid(doc.createdBy)) {
+        const creator = creatorMap.get(String(doc.createdBy))
+        if (creator) {
+          const cRole = (creator.role && creator.role.slug) ? creator.role.slug : 'user'
+          const name = [creator.firstName, creator.lastName].filter(Boolean).join(' ') || creator.email
+          createdBy = { type: 'user', label: name, role: cRole, id: String(creator._id) }
+        }
+      }
+      return {
+        id: String(doc._id),
+        role: 'admin',
+        firstName: doc.firstName,
+        lastName: doc.lastName,
+        email: doc.email,
+        username: doc.username || '',
+        phoneNumber: doc.phoneNumber || '',
+        isActive: doc.isActive !== false,
+        mustChangeCredentials: !!doc.mustChangeCredentials,
+        mustSetupMfa: !!doc.mustSetupMfa,
+        mfaEnabled: !!doc.mfaEnabled,
+        createdAt: doc.createdAt,
+        createdBy,
+      }
+    })
+    return res.json(adminsSafe)
+  } catch (err) {
+    console.error('GET /api/auth/admin/admins error:', err)
+    return respond.error(res, 500, 'admins_load_failed', 'Failed to load admin accounts')
+  }
+})
+
+const AdminApproval = require('../models/AdminApproval')
+
+const adminChangeRequestSchema = Joi.object({
+  requestType: Joi.string().valid(
+    'personal_info_change',
+    'account_status_change',
+    'role_change',
+    'password_reset'
+  ).required(),
+  changes: Joi.object().required(),
+  reason: Joi.string().trim().min(5).max(500).required(),
+})
+
+// POST /api/auth/admin/admins/:adminId/request-change - Request a change to an admin account (requires approval)
+router.post(
+  '/admin/admins/:adminId/request-change',
+  requireJwt,
+  requireRole(['admin']),
+  validateBody(adminChangeRequestSchema),
+  async (req, res) => {
+    try {
+      const requesterId = req._userId
+      const targetAdminId = req.params.adminId
+
+      if (!mongoose.Types.ObjectId.isValid(targetAdminId)) {
+        return respond.error(res, 400, 'invalid_id', 'Invalid admin ID')
+      }
+
+      const targetAdmin = await User.findById(targetAdminId).populate('role')
+      if (!targetAdmin) {
+        return respond.error(res, 404, 'admin_not_found', 'Admin user not found')
+      }
+
+      const targetRoleSlug = targetAdmin.role?.slug || ''
+      if (targetRoleSlug !== 'admin') {
+        return respond.error(res, 400, 'not_admin_user', 'Target user is not an admin')
+      }
+
+      // Admins cannot request changes to their own account through this endpoint
+      if (String(targetAdminId) === String(requesterId)) {
+        return respond.error(res, 400, 'self_change_not_allowed', 'You cannot request changes to your own admin account through this endpoint')
+      }
+
+      const { requestType, changes, reason } = req.body
+
+      // Build request details based on type
+      const oldValues = {}
+      const newValues = {}
+
+      switch (requestType) {
+        case 'personal_info_change': {
+          if (changes.firstName !== undefined) {
+            oldValues.firstName = targetAdmin.firstName || ''
+            newValues.firstName = sanitizeNameField(changes.firstName)
+          }
+          if (changes.lastName !== undefined) {
+            oldValues.lastName = targetAdmin.lastName || ''
+            newValues.lastName = sanitizeNameField(changes.lastName)
+          }
+          if (changes.phoneNumber !== undefined) {
+            oldValues.phoneNumber = targetAdmin.phoneNumber || ''
+            newValues.phoneNumber = sanitizePhoneNumber(String(changes.phoneNumber || ''))
+          }
+          if (changes.email !== undefined) {
+            const normalized = sanitizeEmail(changes.email || '')
+            if (!normalized) return respond.error(res, 400, 'invalid_email', 'Invalid email')
+            if (normalized !== targetAdmin.email) {
+              const exists = await User.findOne({ email: normalized }).lean()
+              if (exists && String(exists._id) !== String(targetAdmin._id)) {
+                return respond.error(res, 409, 'email_exists', 'Email already in use')
+              }
+            }
+            oldValues.email = targetAdmin.email || ''
+            newValues.email = normalized
+          }
+          if (Object.keys(newValues).length === 0) {
+            return respond.error(res, 400, 'no_changes', 'No valid changes provided')
+          }
+          break
+        }
+        case 'account_status_change': {
+          if (changes.isActive === undefined) {
+            return respond.error(res, 400, 'missing_field', 'isActive is required for account status change')
+          }
+          oldValues.isActive = String(targetAdmin.isActive !== false)
+          newValues.isActive = String(!!changes.isActive)
+          break
+        }
+        case 'password_reset': {
+          newValues.passwordReset = true
+          break
+        }
+        default:
+          return respond.error(res, 400, 'invalid_request_type', 'Invalid request type')
+      }
+
+      const approvalId = AdminApproval.generateApprovalId()
+      const approval = await AdminApproval.create({
+        approvalId,
+        requestType,
+        userId: targetAdminId,
+        requestedBy: requesterId,
+        requestDetails: {
+          oldValues,
+          newValues,
+          fields: Object.keys(newValues),
+          reason,
+          targetIsAdmin: true,
+        },
+        status: 'pending',
+        requiredApprovals: 2,
+        metadata: {
+          ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+          userAgent: req.headers['user-agent'] || 'unknown',
+        },
+      })
+
+      const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+      const userAgent = req.headers['user-agent'] || 'unknown'
+      const changedFields = Object.keys(newValues)
+      const fieldChanged = changedFields[0] || 'admin_change'
+      await createAuditLog(
+        targetAdminId,
+        'admin_approval',
+        fieldChanged,
+        JSON.stringify(oldValues),
+        JSON.stringify(newValues),
+        'admin',
+        {
+          ip,
+          userAgent,
+          approvalId,
+          requestType,
+          requestedBy: requesterId,
+          reason,
+        }
+      )
+
+      return res.status(201).json({
+        success: true,
+        approval: {
+          approvalId: approval.approvalId,
+          requestType: approval.requestType,
+          status: approval.status,
+          requiredApprovals: approval.requiredApprovals,
+          message: 'Approval request created. Waiting for 2 admin approvals before the change is applied.',
+        },
+      })
+    } catch (err) {
+      console.error('POST /api/auth/admin/admins/:adminId/request-change error:', err)
+      return respond.error(res, 500, 'admin_change_request_failed', 'Failed to create admin change request')
+    }
+  }
+)
+
+// GET /api/auth/admin/admins/:adminId/pending-approvals - Get pending approvals for an admin
+router.get(
+  '/admin/admins/:adminId/pending-approvals',
+  requireJwt,
+  requireRole(['admin']),
+  async (req, res) => {
+    try {
+      const { adminId } = req.params
+      if (!mongoose.Types.ObjectId.isValid(adminId)) {
+        return respond.error(res, 400, 'invalid_id', 'Invalid admin ID')
+      }
+
+      const approvals = await AdminApproval.find({
+        userId: adminId,
+        status: 'pending',
+      })
+        .populate('requestedBy', 'firstName lastName email')
+        .sort({ createdAt: -1 })
+        .lean()
+
+      return res.json({
+        success: true,
+        approvals: approvals.map((a) => ({
+          approvalId: a.approvalId,
+          requestType: a.requestType,
+          requestDetails: a.requestDetails,
+          status: a.status,
+          requiredApprovals: a.requiredApprovals,
+          currentApprovals: a.approvals?.length || 0,
+          requestedBy: a.requestedBy,
+          createdAt: a.createdAt,
+        })),
+      })
+    } catch (err) {
+      console.error('GET /api/auth/admin/admins/:adminId/pending-approvals error:', err)
+      return respond.error(res, 500, 'pending_approvals_failed', 'Failed to fetch pending approvals')
+    }
+  }
+)
+
 module.exports = router

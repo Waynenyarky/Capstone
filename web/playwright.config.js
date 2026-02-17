@@ -23,9 +23,9 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
+    // Webkit only when explicitly requested (requires system deps that may fail in CI/Codespaces)
+    ...(process.env.PLAYWRIGHT_WEBKIT === '1'
+      ? [{ name: 'webkit', use: { ...devices['Desktop Safari'] } }]
+      : []),
   ],
 })

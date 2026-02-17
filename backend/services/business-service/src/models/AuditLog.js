@@ -28,6 +28,7 @@ const AuditLogSchema = new mongoose.Schema(
         'account_unlock',
         'email_change',
         'phone_change',
+        'business_application_submitted',
         'other',
       ],
       index: true,
@@ -62,6 +63,7 @@ const AuditLogSchema = new mongoose.Schema(
         'consent',
         'businessInfo',
         'contactInfo',
+        'applicationStatus',
       ],
     },
     oldValue: {

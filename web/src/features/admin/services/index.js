@@ -1,6 +1,5 @@
 export * from './staffService'
 export * from './userService'
-export * from './recoveryService'
 export * from './maintenanceService'
 export * from './tamperService'
 export * from './auditService'

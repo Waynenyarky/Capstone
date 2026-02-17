@@ -94,6 +94,8 @@ async function seedDevDataIfEmpty() {
           mfaSecret: overrides.mfaSecret || '',
           isStaff: overrides.isStaff ?? false,
           isActive: overrides.isActive ?? true,
+          office: overrides.office ?? '',
+          createdBy: 'seeder',
         },
         { upsert: true, new: true, runValidators: false }
       );
@@ -114,26 +116,30 @@ async function seedDevDataIfEmpty() {
       mustSetupMfa: true,
     });
 
-    // Ensure staff accounts
+    // Ensure staff accounts (each assigned to an office)
     await ensureUser('officer@example.com', 'lgu_officer', 'Larry', 'Officer', '+1-555-0303', {
       mustChangeCredentials: true,
       mustSetupMfa: true,
       isStaff: true,
+      office: 'OSBC',
     });
     await ensureUser('manager@example.com', 'lgu_manager', 'Mary', 'Manager', '+1-555-0404', {
       mustChangeCredentials: true,
       mustSetupMfa: true,
       isStaff: true,
+      office: 'CTO',
     });
     await ensureUser('inspector@example.com', 'inspector', 'Ian', 'Inspector', '+1-555-0505', {
       mustChangeCredentials: true,
       mustSetupMfa: true,
       isStaff: true,
+      office: 'BFP',
     });
     await ensureUser('cso@example.com', 'cso', 'Charlie', 'Support', '+1-555-0606', {
       mustChangeCredentials: true,
       mustSetupMfa: true,
       isStaff: true,
+      office: 'OSBC',
     });
 
     // Ensure business owner (dev-only: no forced password change or MFA so you can log in without OTP/setup)

@@ -9,7 +9,6 @@ The deployment uses a single EC2 instance running Docker Compose with all servic
 - Ganache (blockchain)
 - IPFS (decentralized storage)
 - Auth, Business, Admin, Audit services (Node.js)
-- AI Service (Python/FastAPI with OCR)
 
 ## Quick Start
 
@@ -78,7 +77,6 @@ nano web/.env  # Set YOUR_EC2_PUBLIC_IP
 
 - Frontend: `http://YOUR_IP:5173`
 - Auth API: `http://YOUR_IP:3001`
-- AI Service: `http://YOUR_IP:3005`
 
 ## Configuration
 
@@ -98,7 +96,6 @@ SEED_DEV=false
 
 ```bash
 VITE_BACKEND_ORIGIN=http://YOUR_EC2_PUBLIC_IP:3001
-VITE_AI_SERVICE_URL=http://YOUR_EC2_PUBLIC_IP:3005
 ```
 
 ## Helper Scripts
@@ -129,7 +126,7 @@ VITE_AI_SERVICE_URL=http://YOUR_EC2_PUBLIC_IP:3005
 |------|------|-----|--------------|-------|
 | t3.medium | 2 | 4GB | ~$30 | Minimum (may be slow) |
 | t3.large | 2 | 8GB | ~$60 | Recommended |
-| t3.xlarge | 4 | 16GB | ~$120 | Best for AI service |
+| t3.xlarge | 4 | 16GB | ~$120 | Higher capacity |
 
 Add ~$5-10 for EBS storage (50GB).
 
@@ -151,7 +148,7 @@ INACTIVITY_MINUTES=60 ~/capstone/deploy/auto-shutdown.sh --install
 ~/capstone/deploy/auto-shutdown.sh --uninstall
 ```
 
-**How it works**: Monitors connections to your services (ports 3001-3005, 5173, 8080). If no traffic for 30 minutes, the instance shuts down automatically.
+**How it works**: Monitors connections to your services (ports 3001-3004, 5173, 8080). If no traffic for 30 minutes, the instance shuts down automatically.
 
 **To restart**: Go to AWS Console → EC2 → Select instance → Instance state → Start
 
@@ -166,12 +163,8 @@ docker-compose ps
 docker-compose logs auth-service
 ```
 
-### AI Service slow/OOM
-- Upgrade to t3.xlarge (16GB RAM)
-- Or add swap: `sudo fallocate -l 4G /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile`
-
 ### Can't connect from browser
-- Check security group allows ports 3001-3005, 5173
+- Check security group allows ports 3001-3004, 5173
 - Check CORS_ORIGIN in .env matches your access URL
 - Try with IP:PORT not localhost
 

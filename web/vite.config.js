@@ -51,7 +51,6 @@ const MICROSERVICES = {
   business: Number(process.env.VITE_BUSINESS_PORT) || 3002,
   admin: Number(process.env.VITE_ADMIN_PORT) || 3003,
   audit: Number(process.env.VITE_AUDIT_PORT) || 3004,
-  ai: Number(process.env.VITE_AI_SERVICE_PORT) || 3005,
 };
 
 // Unified backend configuration (local development)
@@ -60,7 +59,7 @@ const UNIFIED_BACKEND_TARGET = `http://localhost:${UNIFIED_BACKEND_PORT}`;
 
 if (USE_MICROSERVICES) {
   console.log(`[Vite Config] Using MICROSERVICES mode (Docker Compose)`);
-  console.log(`[Vite Config] Auth: ${MICROSERVICES.auth}, Business: ${MICROSERVICES.business}, Admin: ${MICROSERVICES.admin}, Audit: ${MICROSERVICES.audit}, AI: ${MICROSERVICES.ai} (proxied at /ai)`);
+  console.log(`[Vite Config] Auth: ${MICROSERVICES.auth}, Business: ${MICROSERVICES.business}, Admin: ${MICROSERVICES.admin}, Audit: ${MICROSERVICES.audit}`);
 } else {
   console.log(`[Vite Config] Using UNIFIED BACKEND mode (Local)`);
   console.log(`[Vite Config] Backend target: ${UNIFIED_BACKEND_TARGET}`);
@@ -225,21 +224,6 @@ export default defineConfig({
       // Uploads -> Business Service (port 3002)
       '/uploads': createProxyConfig('/uploads', `http://localhost:${MICROSERVICES.business}`),
       
-      // AI Service (OCR, ID verification) -> port 3005 — use relative URL /ai in dev so this proxy is used (works with port forwarding / Codespaces)
-      '/ai': {
-        target: `http://localhost:${MICROSERVICES.ai}`,
-        changeOrigin: true,
-        secure: false,
-        rewrite: (path) => path.replace(/^\/ai/, ''),
-        configure: (proxy) => {
-          proxy.on('error', (err, req, res) => {
-            if (err.code === 'ECONNREFUSED') {
-              console.warn('[Proxy] AI service unreachable at localhost:' + MICROSERVICES.ai + ' — is the AI service running? (docker-compose up ai-service or uvicorn in backend/services/ai-service)');
-            }
-          });
-        },
-      },
-      
       // Catch-all for other API routes -> Auth Service (port 3001)
       '/api': createProxyConfig('/api', `http://localhost:${MICROSERVICES.auth}`)
     } : {
@@ -256,13 +240,6 @@ export default defineConfig({
       '/api/forms': createProxyConfig('/api/forms', UNIFIED_BACKEND_TARGET),
       '/uploads': createProxyConfig('/uploads', UNIFIED_BACKEND_TARGET),
       '/api': createProxyConfig('/api', UNIFIED_BACKEND_TARGET),
-      // AI Service (OCR, ID verification) — same as microservices mode
-      '/ai': {
-        target: `http://localhost:${Number(process.env.VITE_AI_SERVICE_PORT) || 3005}`,
-        changeOrigin: true,
-        secure: false,
-        rewrite: (path) => path.replace(/^\/ai/, ''),
-      },
     }
   }
 });

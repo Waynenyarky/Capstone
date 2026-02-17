@@ -122,6 +122,19 @@ chmod +x start.sh scripts/open-services.sh
 - On Linux, you might need: `xdg-open` instead
 - On Windows, the script should use `start`
 
+### 404 errors on `/api/auth/audit/admin/recent` or `/api/auth/admin/admins`?
+- **Cause**: The web app proxies API requests to the backend. A 404 means the backend (auth service) is not running or not reachable.
+- **Fix**: Start the backend services first:
+  ```bash
+  ./start.sh --dev
+  ```
+  Or manually:
+  ```bash
+  docker-compose up -d
+  cd web && npm run dev
+  ```
+- The auth service must be running on port 3001 for admin/audit endpoints to work.
+
 ### Database empty after Docker restart?
 - **Form definitions** and **dev users/roles** seed automatically when the DB is empty (with `SEED_FORM_DEFINITIONS=true` and `SEED_DEV=true` in Docker).
 - If seeding didn't run (e.g. services started before MongoDB was ready), restart the admin and auth services:

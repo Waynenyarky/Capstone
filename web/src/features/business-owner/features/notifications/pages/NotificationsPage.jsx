@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { List, Typography, Card, Tag, Space, Button, theme, Empty, Modal, App, Spin } from 'antd'
-import { ArrowLeftOutlined, InfoCircleOutlined, WarningOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, BellOutlined, InfoCircleOutlined, WarningOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
 import { getNotifications, getUnreadCount, markAllAsRead, markAsRead } from '@/features/user/services/notificationService'
@@ -100,7 +100,7 @@ export default function NotificationsPage() {
   }
 
   return (
-    <BusinessOwnerLayout pageTitle="Notifications">
+    <BusinessOwnerLayout pageTitle="Notifications" pageIcon={<BellOutlined />}>
       <div style={{ width: '100%' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>

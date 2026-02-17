@@ -1,7 +1,8 @@
 const mongoose = require('mongoose')
 const { MongoMemoryServer } = require('mongodb-memory-server')
-const backendConnectDB = require('../../src/config/db')
 const authConnectDB = require('../../services/auth-service/src/config/db')
+const businessConnectDB = require('../../services/business-service/src/config/db')
+const adminConnectDB = require('../../services/admin-service/src/config/db')
 
 let mongoServer = null
 
@@ -34,27 +35,27 @@ async function setupMongoDB() {
   const uri = mongoServer.getUri()
   process.env.MONGO_URI = uri
 
-  // Connect both mongoose instances (backend and auth-service have separate ones)
-  await backendConnectDB(uri)
+  // Connect service mongoose instances (shared mongoose singleton)
   await authConnectDB(uri)
+  await businessConnectDB(uri)
+  await adminConnectDB(uri)
   
   // Seed dev data if seedDev exists (optional - may not be needed for all tests)
   try {
-    const { seedDevDataIfEmpty } = require('../../src/lib/seedDev')
+    const { seedDevDataIfEmpty } = require('../../services/auth-service/src/lib/seedDev')
     await seedDevDataIfEmpty()
   } catch (err) {
     // seedDev may not exist, that's okay
   }
   
-  // Ensure mongoose connection is ready (auth-service's mongoose is what the app uses)
-  const authMongoose = require('../../services/auth-service/node_modules/mongoose')
+  // Ensure mongoose connection is ready
   let retries = 0
-  while (authMongoose.connection.readyState !== 1 && retries < 50) {
+  while (mongoose.connection.readyState !== 1 && retries < 50) {
     await new Promise(resolve => setTimeout(resolve, 100))
     retries++
   }
 
-  if (authMongoose.connection.readyState !== 1) {
+  if (mongoose.connection.readyState !== 1) {
     throw new Error('Mongoose connection not ready after setup')
   }
   
@@ -70,11 +71,6 @@ async function setupMongoDB() {
 async function teardownMongoDB() {
   try {
     await mongoose.disconnect().catch(() => {})
-    // Also disconnect auth-service's mongoose
-    try {
-      const authMongoose = require('../../services/auth-service/node_modules/mongoose')
-      await authMongoose.disconnect().catch(() => {})
-    } catch (_) {}
   } catch (error) {
     console.error('Error disconnecting MongoDB:', error)
   } finally {
@@ -86,7 +82,7 @@ async function teardownMongoDB() {
 }
 
 /**
- * Setup Express app for testing (Auth Service)
+ * Setup Express app for testing
  * @param {string} service - Service name ('auth', 'business', 'admin', 'audit')
  * @returns {Express.Application}
  */
@@ -96,18 +92,13 @@ function setupApp(service = 'auth') {
     business: '../../services/business-service/src/index',
     admin: '../../services/admin-service/src/index',
     audit: '../../services/audit-service/src/index',
-    main: '../../src/index',
   }
 
-  const servicePath = serviceMap[service] || serviceMap.main
+  const servicePath = serviceMap[service] || serviceMap.auth
 
   // Clear require cache to get fresh app instance
   delete require.cache[require.resolve(servicePath)]
   const { app } = require(servicePath)
-
-  // For auth service, ensure database connection is established
-  // Note: Auth service uses same mongoose instance, so connection should be shared
-  // But we need to ensure auth service models are loaded after connection
 
   return app
 }

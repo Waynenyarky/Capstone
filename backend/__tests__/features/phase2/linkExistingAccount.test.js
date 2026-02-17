@@ -30,7 +30,7 @@ afterAll(async () => {
 
 const User = require('../../../services/auth-service/src/models/User')
 const Role = require('../../../services/auth-service/src/models/Role')
-const SignUpRequest = require('../../../src/models/SignUpRequest')
+const SignUpRequest = require('../../../services/auth-service/src/models/SignUpRequest')
 
 describe('Link Existing Account (2A)', () => {
   let businessOwnerRole

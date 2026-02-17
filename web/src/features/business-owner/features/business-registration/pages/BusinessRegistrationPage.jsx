@@ -102,7 +102,7 @@ export default function BusinessRegistrationPage() {
 
   if (!isAuthenticated) {
     return (
-      <BusinessOwnerLayout pageTitle="Business Registration">
+      <BusinessOwnerLayout pageTitle="Business Registration" pageIcon={<FormOutlined />}>
         <Card>
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
             <Spin size="large" />

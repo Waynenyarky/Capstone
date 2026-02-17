@@ -8,11 +8,10 @@
 # Usage:
 #   ./start.sh              # Production mode (no auto-reload)
 #   ./start.sh --dev        # Development mode (auto-reload enabled)
-#   ./start.sh --skip-ai    # Skip AI model check
-#   ./start.sh --retrain    # Force retrain AI model
 #   ./start.sh --clean      # Clean up unused Docker resources before starting
 #   ./start.sh --status     # Just show status, don't start anything
 #   ./start.sh --test       # Run all tests (backend, web, blockchain)
+#   ./start.sh --skip-ipfs  # Skip IPFS (use when IPFS container fails)
 
 # Don't exit on error - we want to continue even if web server fails
 set +e
@@ -27,9 +26,7 @@ NC='\033[0m' # No Color
 
 # Parse arguments
 DEV_MODE=false
-SKIP_AI=false
-RETRAIN_AI=false
-FULL_TRAIN=false
+SKIP_IPFS=false
 CLEAN_DOCKER=false
 STATUS_ONLY=false
 TEST_MODE=false
@@ -39,15 +36,8 @@ for arg in "$@"; do
     --dev|-d)
       DEV_MODE=true
       ;;
-    --skip-ai)
-      SKIP_AI=true
-      ;;
-    --retrain)
-      RETRAIN_AI=true
-      ;;
-    --full-train)
-      RETRAIN_AI=true
-      FULL_TRAIN=true
+    --skip-ipfs)
+      SKIP_IPFS=true
       ;;
     --clean)
       CLEAN_DOCKER=true
@@ -151,9 +141,9 @@ run_all_tests() {
     fi
     echo -e "${CYAN}   Running backend tests...${NC}"
     local BACKEND_OUTPUT="$ERROR_LOG_DIR/backend.log"
-    # Use script to allocate a pseudo-TTY so Jest shows output in real-time
-    script -q "$BACKEND_OUTPUT" bash -c 'npm test 2>&1'
-    local BACKEND_EXIT=$?
+    # Run tests and capture output (portable: avoids script -q which differs on Linux/macOS/Conda)
+    npm test 2>&1 | tee "$BACKEND_OUTPUT"
+    local BACKEND_EXIT=${PIPESTATUS[0]}
     local BACKEND_SUMMARY
     BACKEND_SUMMARY=$(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g; s/\x1b\[[?][0-9]*[a-zA-Z]//g' "$BACKEND_OUTPUT" 2>/dev/null | tr -d '\r' | grep -E "(Test Suites:|Tests:|Snapshots:|Time:)" || true)
     if [ $BACKEND_EXIT -eq 0 ]; then
@@ -187,8 +177,8 @@ run_all_tests() {
     fi
     echo -e "${CYAN}   Running web unit tests...${NC}"
     local WEB_UNIT_OUTPUT="$ERROR_LOG_DIR/web-unit.log"
-    script -q "$WEB_UNIT_OUTPUT" bash -c 'npm run test -- --run 2>&1'
-    local WEB_UNIT_EXIT=$?
+    npm run test -- --run 2>&1 | tee "$WEB_UNIT_OUTPUT"
+    local WEB_UNIT_EXIT=${PIPESTATUS[0]}
     local WEB_UNIT_SUMMARY
     WEB_UNIT_SUMMARY=$(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g; s/\x1b\[[?][0-9]*[a-zA-Z]//g' "$WEB_UNIT_OUTPUT" 2>/dev/null | tr -d '\r' | grep -E "(Test Files|Tests |Start at|Duration)" | tail -4 || true)
     if [ $WEB_UNIT_EXIT -eq 0 ]; then
@@ -221,14 +211,14 @@ run_all_tests() {
     PW_CACHE="$HOME/.cache/ms-playwright"
     BROWSER_COUNT=$(find "$PW_CACHE" -maxdepth 1 -type d 2>/dev/null | wc -l)
     if [ "$BROWSER_COUNT" -lt 2 ]; then
-      echo -e "${YELLOW}   Installing Playwright browsers (this may take a few minutes)...${NC}"
-      npx playwright install --with-deps chromium webkit 2>&1
+      echo -e "${YELLOW}   Installing Playwright browsers (chromium only; set PLAYWRIGHT_WEBKIT=1 for webkit)...${NC}"
+      npx playwright install chromium 2>&1
       echo -e "${GREEN}   Playwright browsers installed${NC}"
     fi
     echo -e "${CYAN}   Running web e2e tests...${NC}"
     local WEB_E2E_OUTPUT="$ERROR_LOG_DIR/web-e2e.log"
-    script -q "$WEB_E2E_OUTPUT" bash -c 'npm run test:e2e 2>&1'
-    local WEB_E2E_EXIT=$?
+    npm run test:e2e 2>&1 | tee "$WEB_E2E_OUTPUT"
+    local WEB_E2E_EXIT=${PIPESTATUS[0]}
     local WEB_E2E_SUMMARY
     WEB_E2E_SUMMARY=$(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g; s/\x1b\[[?][0-9]*[a-zA-Z]//g' "$WEB_E2E_OUTPUT" 2>/dev/null | tr -d '\r' | grep -E "([0-9]+ (passed|failed)|slow test)" | tail -4 || true)
     if [ $WEB_E2E_EXIT -eq 0 ]; then
@@ -264,8 +254,8 @@ run_all_tests() {
     if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "ganache"; then
       echo -e "${CYAN}   Running blockchain tests...${NC}"
       local BLOCKCHAIN_OUTPUT="$ERROR_LOG_DIR/blockchain.log"
-      script -q "$BLOCKCHAIN_OUTPUT" bash -c 'npm test 2>&1'
-      local BLOCKCHAIN_EXIT=$?
+      npm test 2>&1 | tee "$BLOCKCHAIN_OUTPUT"
+      local BLOCKCHAIN_EXIT=${PIPESTATUS[0]}
       local BLOCKCHAIN_SUMMARY
       BLOCKCHAIN_SUMMARY=$(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g; s/\x1b\[[?][0-9]*[a-zA-Z]//g' "$BLOCKCHAIN_OUTPUT" 2>/dev/null | tr -d '\r' | grep -E "(passing|failing|pending)" || true)
       if [ $BLOCKCHAIN_EXIT -eq 0 ]; then
@@ -432,134 +422,102 @@ fi
 if [ "$CLEAN_DOCKER" = true ]; then
   echo ""
   echo -e "${CYAN}🧹 Cleaning up Docker resources...${NC}"
-  
-  # Show current usage
-  echo -e "${CYAN}   Current Docker disk usage:${NC}"
+
+  # Show current disk usage
+  DISK_USED=$(df -h / 2>/dev/null | awk 'NR==2{print $3}')
+  DISK_AVAIL=$(df -h / 2>/dev/null | awk 'NR==2{print $4}')
+  DISK_PCT=$(df -h / 2>/dev/null | awk 'NR==2{print $5}')
+  echo -e "${CYAN}   Disk: ${DISK_USED} used, ${DISK_AVAIL} free (${DISK_PCT})${NC}"
+  echo -e "${CYAN}   Docker:${NC}"
   docker system df 2>/dev/null | head -5 | tail -4 | sed 's/^/      /'
-  
-  # Remove unused images, containers, and build cache
+
+  # ---- Docker cleanup ----
   echo ""
-  echo -e "${YELLOW}   Removing unused Docker resources (keeping active ones)...${NC}"
+  echo -e "${YELLOW}   Removing unused Docker resources...${NC}"
   docker system prune -f 2>/dev/null
-  
+
+  # Remove dangling (untagged) images that pile up from rebuilds
+  DANGLING=$(docker images -f "dangling=true" -q 2>/dev/null)
+  if [ -n "$DANGLING" ]; then
+    echo -e "${YELLOW}   Removing dangling Docker images...${NC}"
+    docker rmi $DANGLING 2>/dev/null || true
+  fi
+
+  # Remove Docker build cache
+  echo -e "${YELLOW}   Clearing Docker build cache...${NC}"
+  docker builder prune -af 2>/dev/null || true
+
+  # Remove corrupted IPFS volume if it exists (fixes "error loading plugins: EOF")
+  if docker volume inspect capstone_ipfs_data >/dev/null 2>&1; then
+    echo -e "${YELLOW}   Removing IPFS data volume (fixes plugin corruption)...${NC}"
+    docker volume rm capstone_ipfs_data 2>/dev/null || true
+  fi
+
+  # ---- System cache cleanup (critical for Codespaces with limited disk) ----
+  echo ""
+  echo -e "${YELLOW}   Clearing system caches (npm, pip, Playwright)...${NC}"
+
+  # npm cache
+  if [ -d "$HOME/.npm" ]; then
+    NPM_CACHE_SIZE=$(du -sh "$HOME/.npm" 2>/dev/null | cut -f1)
+    echo -e "${YELLOW}   npm cache: ${NPM_CACHE_SIZE}${NC}"
+    npm cache clean --force 2>/dev/null || true
+  fi
+
+  # pip cache
+  if [ -d "$HOME/.cache/pip" ]; then
+    PIP_CACHE_SIZE=$(du -sh "$HOME/.cache/pip" 2>/dev/null | cut -f1)
+    echo -e "${YELLOW}   pip cache: ${PIP_CACHE_SIZE}${NC}"
+    rm -rf "$HOME/.cache/pip" 2>/dev/null || true
+  fi
+
+  # Playwright browsers (huge — 500MB+, reinstalls on next test run)
+  PW_CACHE="$HOME/.cache/ms-playwright"
+  if [ -d "$PW_CACHE" ]; then
+    PW_SIZE=$(du -sh "$PW_CACHE" 2>/dev/null | cut -f1)
+    echo -e "${YELLOW}   Playwright browsers: ${PW_SIZE} (will reinstall on next test run)${NC}"
+    rm -rf "$PW_CACHE" 2>/dev/null || true
+  fi
+
+  # ---- Rebuild backend services ----
+  echo ""
+  echo -e "${YELLOW}   Rebuilding backend services (ensures package.json deps are installed)...${NC}"
+  if [ "$DEV_MODE" = true ]; then
+    docker-compose -f docker-compose.yml -f docker-compose.dev.yml build --no-cache auth-service business-service admin-service audit-service 2>/dev/null || true
+  else
+    docker-compose build --no-cache auth-service business-service admin-service audit-service 2>/dev/null || true
+  fi
+
   echo ""
   echo -e "${GREEN}   ✅ Cleanup complete!${NC}"
-  echo -e "${CYAN}   New Docker disk usage:${NC}"
+  DISK_AVAIL_NEW=$(df -h / 2>/dev/null | awk 'NR==2{print $4}')
+  DISK_PCT_NEW=$(df -h / 2>/dev/null | awk 'NR==2{print $5}')
+  echo -e "${CYAN}   Disk now: ${DISK_AVAIL_NEW} free (${DISK_PCT_NEW})${NC}"
+  echo -e "${CYAN}   Docker:${NC}"
   docker system df 2>/dev/null | head -5 | tail -4 | sed 's/^/      /'
   echo ""
 fi
 
 # ================================
-# Step 1: Check AI Model
-# ================================
-MODEL_PATH="ai/models/id_verification/model_v1.h5"
-AUTO_TRAIN_SCRIPT="ai/id-verification/scripts/auto_train.sh"
-MODEL_VALIDATOR="ai/id-verification/scripts/validate_model.py"
-
-if [ "$SKIP_AI" = false ]; then
-  echo ""
-  echo -e "${CYAN}🤖 Checking AI model...${NC}"
-  
-  # Force retrain if requested
-  if [ "$RETRAIN_AI" = true ]; then
-    if [ "$FULL_TRAIN" = true ]; then
-      echo -e "${YELLOW}   Forcing FULL model retraining (1000 images, 30 epochs)...${NC}"
-      echo -e "${YELLOW}   This will take 10-15 minutes...${NC}"
-    else
-      echo -e "${YELLOW}   Forcing model retraining (quick mode)...${NC}"
-    fi
-    if [ -f "$AUTO_TRAIN_SCRIPT" ]; then
-      chmod +x "$AUTO_TRAIN_SCRIPT"
-      if [ "$FULL_TRAIN" = true ]; then
-        bash "$AUTO_TRAIN_SCRIPT" --force
-      else
-        bash "$AUTO_TRAIN_SCRIPT" --force --quick
-      fi
-    else
-      echo -e "${RED}   ❌ Auto-train script not found at $AUTO_TRAIN_SCRIPT${NC}"
-    fi
-  else
-    # Validate existing model
-    MODEL_VALID=false
-    if [ -f "$MODEL_VALIDATOR" ]; then
-      # Ensure validation dependencies (joblib, scikit-learn, numpy) are installed for python3
-      pip3 install -q joblib scikit-learn numpy 2>/dev/null || true
-      chmod +x "$MODEL_VALIDATOR"
-      VALIDATION_OUTPUT=$(python3 "$MODEL_VALIDATOR" "$MODEL_PATH" 2>&1)
-      VALIDATION_CODE=$?
-      
-      if [ $VALIDATION_CODE -eq 0 ]; then
-        echo -e "${GREEN}   ✅ $VALIDATION_OUTPUT${NC}"
-        MODEL_VALID=true
-      elif [ $VALIDATION_CODE -eq 1 ]; then
-        echo -e "${YELLOW}   ⚠️  $VALIDATION_OUTPUT${NC}"
-        MODEL_VALID=false
-      elif [ $VALIDATION_CODE -eq 2 ]; then
-        echo -e "${YELLOW}   ⚠️  $VALIDATION_OUTPUT${NC}"
-        echo -e "${YELLOW}   🔄 Model incompatible - will retrain automatically...${NC}"
-        MODEL_VALID=false
-      else
-        echo -e "${RED}   ❌ $VALIDATION_OUTPUT${NC}"
-        MODEL_VALID=false
-      fi
-    else
-      # Fallback: just check if file exists
-      if [ -f "$MODEL_PATH" ] || [ -f "${MODEL_PATH%.h5}.joblib" ]; then
-        echo -e "${GREEN}   ✅ AI model found${NC}"
-        MODEL_VALID=true
-      else
-        MODEL_VALID=false
-      fi
-    fi
-    
-    # Auto-train if model is invalid or missing
-    if [ "$MODEL_VALID" = false ]; then
-      echo -e "${CYAN}   Starting auto-training in QUICK mode (~200 images, 5 epochs)...${NC}"
-      echo -e "${CYAN}   For better accuracy, run: ./start.sh --full-train${NC}"
-      echo ""
-      
-      if [ -f "$AUTO_TRAIN_SCRIPT" ]; then
-        chmod +x "$AUTO_TRAIN_SCRIPT"
-        bash "$AUTO_TRAIN_SCRIPT" --quick
-      else
-        echo -e "${RED}   ❌ Auto-train script not found${NC}"
-        echo -e "${YELLOW}   You can manually train the model later with:${NC}"
-        echo -e "${YELLOW}   cd ai/id-verification && ./scripts/auto_train.sh${NC}"
-      fi
-    fi
-    
-    # Show model info if metadata exists
-    METADATA_PATH="${MODEL_PATH%.h5}_metadata.json"
-    if [ -f "$METADATA_PATH" ] && command -v python3 &> /dev/null; then
-      python3 -c "
-import json
-try:
-    with open('$METADATA_PATH') as f:
-        m = json.load(f)
-        acc = m.get('metrics', {}).get('accuracy')
-        ver = m.get('model_version', 'unknown')
-        mode = m.get('training_mode', m.get('training_config', {}).get('training_mode', 'unknown'))
-        total = m.get('data_counts', {}).get('total', 0)
-        if acc:
-            print(f'      Version: {ver}, Accuracy: {acc:.2%}')
-            print(f'      Training: {mode} mode ({total} images)')
-except:
-    pass
-" 2>/dev/null
-    fi
-  fi
-fi
-
-# ================================
-# Step 2: Start Docker Services
+# Start Docker Services
 # ================================
 echo ""
 if [ "$DEV_MODE" = true ]; then
   echo -e "${CYAN}🚀 Starting in DEVELOPMENT mode (auto-reload enabled)...${NC}"
-  docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+  if [ "$SKIP_IPFS" = true ]; then
+    echo -e "${YELLOW}   Skipping IPFS (file uploads will use local storage fallback)${NC}"
+    docker-compose -f docker-compose.yml -f docker-compose.no-ipfs.yml -f docker-compose.dev.yml up -d
+  else
+    docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+  fi
 else
   echo -e "${CYAN}🚀 Starting Docker services...${NC}"
-  docker-compose up -d
+  if [ "$SKIP_IPFS" = true ]; then
+    echo -e "${YELLOW}   Skipping IPFS (file uploads will use local storage fallback)${NC}"
+    docker-compose -f docker-compose.yml -f docker-compose.no-ipfs.yml up -d
+  else
+    docker-compose up -d
+  fi
 fi
 
 echo ""
@@ -607,7 +565,11 @@ sleep 3
 
 echo ""
 echo -e "${CYAN}🌐 Opening browser tabs...${NC}"
-./scripts/open-services.sh
+if [ "$SKIP_IPFS" = true ]; then
+  SKIP_IPFS=1 ./scripts/open-services.sh
+else
+  ./scripts/open-services.sh
+fi
 
 echo ""
 echo -e "${GREEN}✅ All done! Your services are running and browser tabs are open.${NC}"
@@ -647,4 +609,5 @@ fi
 echo -e "${CYAN}💡 Other options:${NC}"
 echo -e "   • ./start.sh --status    # Check what's running and disk usage"
 echo -e "   • ./start.sh --clean     # Clean unused Docker resources before starting"
+echo -e "   • ./start.sh --skip-ipfs # Skip IPFS (use when IPFS container fails)"
 echo -e "   • ./start.sh --test      # Run all tests (backend, web, blockchain)"

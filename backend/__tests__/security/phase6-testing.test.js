@@ -125,11 +125,6 @@ describe('Phase 6: Testing - Security & Performance', () => {
   afterAll(async () => {
     try {
       await mongoose.disconnect().catch(() => {})
-      // Disconnect auth-service's mongoose (uses separate instance)
-      try {
-        const authMongoose = require('../../services/auth-service/node_modules/mongoose')
-        await authMongoose.disconnect().catch(() => {})
-      } catch (_) {}
     } finally {
       if (mongo) await mongo.stop()
     }

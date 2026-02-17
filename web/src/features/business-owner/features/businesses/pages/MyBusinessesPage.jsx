@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react'
 import { Tabs, theme } from 'antd'
+import { ShopOutlined } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
 import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
 import BusinessesTab from '../components/BusinessesTab'
@@ -47,7 +48,7 @@ export default function MyBusinessesPage() {
   ]
 
   return (
-    <BusinessOwnerLayout pageTitle="My Businesses" showPageHeader={true}>
+    <BusinessOwnerLayout pageTitle="My Businesses" pageIcon={<ShopOutlined />} showPageHeader={true}>
       <div style={{ paddingTop: 16 }}>
         <Tabs
           activeKey={currentTab}

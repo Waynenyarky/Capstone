@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { App } from 'antd'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { getDevActions } from './devActions'
+import { getDevActions, getPrimaryCategory } from './devActions'
 
 const DevToolsContext = createContext({
   enabled: false,
@@ -66,16 +66,22 @@ export function DevToolsProvider({ children }) {
     [enabled, location.pathname, navigate, notify, emitEvent],
   )
 
+  const primaryCategory = useMemo(
+    () => (enabled ? getPrimaryCategory(location.pathname) : null),
+    [enabled, location.pathname],
+  )
+
   const value = useMemo(
     () => ({
       enabled,
       pathname: location.pathname,
       actions,
+      primaryCategory,
       events,
       emitEvent,
       notify,
     }),
-    [enabled, location.pathname, actions, events, emitEvent, notify],
+    [enabled, location.pathname, actions, primaryCategory, events, emitEvent, notify],
   )
 
   return <DevToolsContext.Provider value={value}>{children}</DevToolsContext.Provider>

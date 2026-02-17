@@ -113,7 +113,7 @@ export default function NotificationHistoryPage() {
   const unreadCount = notifications.filter(n => !n.read).length
 
   return (
-    <BusinessOwnerLayout pageTitle="Notification History">
+    <BusinessOwnerLayout pageTitle="Notification History" pageIcon={<BellOutlined />}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
         <div>
           <Title level={2} style={{ color: token.colorPrimary, marginBottom: 8, fontSize: isMobile ? 20 : undefined }}>Notifications</Title>

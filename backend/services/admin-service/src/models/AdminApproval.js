@@ -15,11 +15,11 @@ const AdminApprovalSchema = new mongoose.Schema(
         'email_change',
         'password_change',
         'personal_info_change',
-        'id_verification',
         'account_status_change',
         'role_change',
         'maintenance_mode',
         'form_definition',
+        'password_reset',
         'other',
       ],
     },
@@ -119,4 +119,4 @@ AdminApprovalSchema.statics.generateApprovalId = function () {
   return `APPROVAL-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 };
 
-module.exports = mongoose.model('AdminApproval', AdminApprovalSchema);
+module.exports = mongoose.models.AdminApproval || mongoose.model('AdminApproval', AdminApprovalSchema);

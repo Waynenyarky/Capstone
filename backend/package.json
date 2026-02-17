@@ -2,10 +2,8 @@
   "name": "capstone_project",
   "version": "1.0.0",
   "description": "Backend API for Flutter authentication",
-  "main": "src/index.js",
+  "main": "services/auth-service/src/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
     "create-inspector": "node scripts/create-inspector.js",
     "seed-inspector": "node scripts/seed-inspector-data.js",
     "create-inspector:docker": "cross-env MONGO_URI=mongodb://localhost:27017/capstone_project node scripts/create-inspector.js",
@@ -28,9 +26,9 @@
       "/__tests__/helpers/"
     ],
     "collectCoverageFrom": [
-      "src/**/*.js",
-      "!src/index.js",
-      "!src/config/**",
+      "services/**/*.js",
+      "!services/**/index.js",
+      "!services/**/config/**",
       "!**/__tests__/**",
       "!**/node_modules/**"
     ],

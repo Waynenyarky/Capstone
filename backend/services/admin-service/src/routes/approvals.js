@@ -17,7 +17,6 @@ const createApprovalRequestSchema = Joi.object({
       'email_change',
       'password_change',
       'personal_info_change',
-      'id_verification',
       'account_status_change',
       'role_change',
       'maintenance_mode',
@@ -46,7 +45,7 @@ router.post('/approvals', requireJwt, requireRole(['admin']), async (req, res) =
       return respond.error(res, 400, 'validation_error', 'requestType and userId are required');
     }
 
-    const validRequestTypes = ['email_change', 'password_change', 'personal_info_change', 'id_verification', 'account_status_change', 'role_change', 'maintenance_mode', 'other'];
+    const validRequestTypes = ['email_change', 'password_change', 'personal_info_change', 'account_status_change', 'role_change', 'maintenance_mode', 'other'];
     if (!validRequestTypes.includes(requestType)) {
       return respond.error(res, 400, 'validation_error', `requestType must be one of: ${validRequestTypes.join(', ')}`);
     }
@@ -157,7 +156,7 @@ router.post('/approvals/:approvalId/approve', requireJwt, requireRole(['admin'])
       try {
         const applyResult = await applyApprovedChange(approval);
         if (!applyResult.success) {
-          console.error('Failed to apply approved change:', applyResult.error);
+          logger.error('Failed to apply approved change', { error: applyResult.error, approvalId });
           // Don't fail the approval, but log the error
         } else {
           // Send notification to requesting admin (non-blocking)

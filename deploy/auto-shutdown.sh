@@ -21,7 +21,7 @@ ACTIVITY_FILE="/tmp/last_activity"
 LOG_FILE="/var/log/auto-shutdown.log"
 
 # Ports to monitor for traffic (your services)
-MONITORED_PORTS="3001,3002,3003,3004,3005,5173,8080"
+MONITORED_PORTS="3001,3002,3003,3004,5173,8080"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | sudo tee -a "$LOG_FILE"
@@ -30,7 +30,7 @@ log() {
 # Check if there's active network connections on monitored ports
 check_activity() {
     # Count established connections to our service ports
-    CONNECTIONS=$(ss -tn state established "( dport = :3001 or dport = :3002 or dport = :3003 or dport = :3004 or dport = :3005 or dport = :5173 or dport = :8080 or sport = :3001 or sport = :3002 or sport = :3003 or sport = :3004 or sport = :3005 or sport = :5173 or sport = :8080 )" 2>/dev/null | wc -l)
+    CONNECTIONS=$(ss -tn state established "( dport = :3001 or dport = :3002 or dport = :3003 or dport = :3004 or dport = :5173 or dport = :8080 or sport = :3001 or sport = :3002 or sport = :3003 or sport = :3004 or sport = :5173 or sport = :8080 )" 2>/dev/null | wc -l)
     
     # Also check for recent HTTP access in docker logs (last 5 minutes)
     RECENT_REQUESTS=$(docker logs capstone-auth-service --since 5m 2>&1 | grep -c "HTTP" || echo "0")

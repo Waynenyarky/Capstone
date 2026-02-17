@@ -4,13 +4,7 @@ const { requireJwt, requireRole } = require('../middleware/auth')
 
 const router = express.Router()
 
-// Try to load Violation model (may be in main backend)
-let Violation
-try {
-  Violation = require('../../../../src/models/Violation')
-} catch {
-  Violation = null
-}
+const Violation = require('../models/Violation')
 
 /**
  * POST /api/business/:businessId/retire

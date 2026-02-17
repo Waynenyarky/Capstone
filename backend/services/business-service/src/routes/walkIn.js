@@ -2,7 +2,6 @@ const express = require('express')
 const { requireJwt, requireRole } = require('../middleware/auth')
 const BusinessProfile = require('../models/BusinessProfile')
 const { computeApplicationFees } = require('../lib/feeCalculator')
-const { v4: uuidv4 } = require('uuid')
 
 const router = express.Router()
 

@@ -3,7 +3,7 @@ const mongoose = require('mongoose')
 const bcrypt = require('bcryptjs')
 const { setupTestEnvironment, setupMongoDB, teardownMongoDB, setupApp } = require('../../helpers/setup')
 
-jest.mock('../../../src/jobs', () => ({
+jest.mock('../../../services/auth-service/src/jobs', () => ({
   startJobs: jest.fn(),
   stopJobs: jest.fn(),
 }))

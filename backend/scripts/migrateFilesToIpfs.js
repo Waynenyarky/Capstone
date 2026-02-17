@@ -29,7 +29,6 @@ try {
 
 // Import models
 const User = require('../services/auth-service/src/models/User');
-const IdVerification = require('../services/auth-service/src/models/IdVerification');
 const BusinessProfile = require('../services/business-service/src/models/BusinessProfile');
 
 const DRY_RUN = process.argv.includes('--dry-run');
@@ -110,102 +109,6 @@ async function migrateAvatars() {
     console.log(`   ✅ Avatars: ${migrated} migrated, ${skipped} skipped, ${errors} errors`);
   } catch (error) {
     console.error('❌ Error in avatar migration:', error);
-  }
-
-  return { migrated, skipped, errors };
-}
-
-/**
- * Migrate ID verification files to IPFS
- */
-async function migrateIdDocuments() {
-  console.log('\n🆔 Migrating ID verification documents to IPFS...');
-  
-  let migrated = 0;
-  let skipped = 0;
-  let errors = 0;
-
-  try {
-    const idVerifications = await IdVerification.find({
-      $or: [
-        { frontImageUrl: { $ne: '', $exists: true } },
-        { backImageUrl: { $ne: '', $exists: true } }
-      ]
-    });
-    console.log(`   Found ${idVerifications.length} ID verification records`);
-
-    for (const idVer of idVerifications) {
-      try {
-        // Migrate front image
-        if (idVer.frontImageUrl && !idVer.frontImageIpfsCid) {
-          const imagePath = idVer.frontImageUrl.replace('/uploads/', '');
-          const fullPath = path.join(__dirname, '..', 'uploads', imagePath);
-
-          try {
-            await fs.access(fullPath);
-            const fileBuffer = await fs.readFile(fullPath);
-            const fileName = path.basename(fullPath);
-
-            if (DRY_RUN) {
-              console.log(`   [DRY RUN] Would migrate front image: ${fileName}`);
-            } else {
-              const { cid } = await ipfsService.uploadFile(fileBuffer, fileName);
-              await ipfsService.pinFile(cid).catch(err => {
-                console.warn(`   ⚠️  Failed to pin file: ${cid}`, err.message);
-              });
-              idVer.frontImageIpfsCid = cid;
-              console.log(`   ✅ Migrated front image: ${fileName} → ${cid}`);
-            }
-            migrated++;
-          } catch (error) {
-            console.warn(`   ⚠️  File not found: ${fullPath}`);
-            errors++;
-          }
-        }
-
-        // Migrate back image
-        if (idVer.backImageUrl && !idVer.backImageIpfsCid) {
-          const imagePath = idVer.backImageUrl.replace('/uploads/', '');
-          const fullPath = path.join(__dirname, '..', 'uploads', imagePath);
-
-          try {
-            await fs.access(fullPath);
-            const fileBuffer = await fs.readFile(fullPath);
-            const fileName = path.basename(fullPath);
-
-            if (DRY_RUN) {
-              console.log(`   [DRY RUN] Would migrate back image: ${fileName}`);
-            } else {
-              const { cid } = await ipfsService.uploadFile(fileBuffer, fileName);
-              await ipfsService.pinFile(cid).catch(err => {
-                console.warn(`   ⚠️  Failed to pin file: ${cid}`, err.message);
-              });
-              idVer.backImageIpfsCid = cid;
-              console.log(`   ✅ Migrated back image: ${fileName} → ${cid}`);
-            }
-            migrated++;
-          } catch (error) {
-            console.warn(`   ⚠️  File not found: ${fullPath}`);
-            errors++;
-          }
-        }
-
-        if (!DRY_RUN && (idVer.isModified('frontImageIpfsCid') || idVer.isModified('backImageIpfsCid'))) {
-          await idVer.save();
-        }
-
-        if (idVer.frontImageIpfsCid && idVer.backImageIpfsCid) {
-          skipped++;
-        }
-      } catch (error) {
-        console.error(`   ❌ Error migrating ID verification ${idVer._id}:`, error.message);
-        errors++;
-      }
-    }
-
-    console.log(`   ✅ ID Documents: ${migrated} migrated, ${skipped} skipped, ${errors} errors`);
-  } catch (error) {
-    console.error('❌ Error in ID document migration:', error);
   }
 
   return { migrated, skipped, errors };
@@ -367,7 +270,6 @@ async function main() {
     // Migrate based on service filter
     if (!SERVICE_FILTER || SERVICE_FILTER === 'auth') {
       results.avatars = await migrateAvatars();
-      results.idDocuments = await migrateIdDocuments();
     }
 
     if (!SERVICE_FILTER || SERVICE_FILTER === 'business') {
@@ -402,4 +304,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { main, migrateAvatars, migrateIdDocuments, migrateBusinessDocuments };
+module.exports = { main, migrateAvatars, migrateBusinessDocuments };

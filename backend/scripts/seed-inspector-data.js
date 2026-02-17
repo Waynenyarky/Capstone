@@ -53,12 +53,12 @@ async function main() {
     process.exit(1)
   }
 
-  const User = require('../src/models/User')
-  const Role = require('../src/models/Role')
-  const BusinessProfile = require('../src/models/BusinessProfile')
-  const Inspection = require('../src/models/Inspection')
-  const Violation = require('../src/models/Violation')
-  const Notification = require('../src/models/Notification')
+  const User = require('../services/auth-service/src/models/User')
+  const Role = require('../services/auth-service/src/models/Role')
+  const BusinessProfile = require('../services/business-service/src/models/BusinessProfile')
+  const Inspection = require('../services/business-service/src/models/Inspection')
+  const Violation = require('../services/business-service/src/models/Violation')
+  const Notification = require('../services/auth-service/src/models/Notification')
 
   try {
     // Ensure inspector role exists

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Card, Typography, Alert, Skeleton } from 'antd'
+import { SyncOutlined } from '@ant-design/icons'
 import { useAuthSession } from '@/features/authentication'
 import { useNotifier } from '@/shared/notifications.js'
 import { useSearchParams } from 'react-router-dom'
@@ -151,7 +152,7 @@ const BusinessRenewalPage = () => {
 
   if (loading) {
     return (
-      <BusinessOwnerLayout pageTitle="Business Renewal">
+      <BusinessOwnerLayout pageTitle="Business Renewal" pageIcon={<SyncOutlined />}>
         <Card>
           <Skeleton active paragraph={{ rows: 4 }} />
         </Card>
@@ -162,7 +163,7 @@ const BusinessRenewalPage = () => {
   const businesses = profile?.businesses || []
 
   return (
-    <BusinessOwnerLayout pageTitle="Business Renewal">
+    <BusinessOwnerLayout pageTitle="Business Renewal" pageIcon={<SyncOutlined />}>
       <Card>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <Title level={2} style={{ marginBottom: 8 }}>Business Permit Renewal</Title>

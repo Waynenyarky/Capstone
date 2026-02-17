@@ -16,7 +16,6 @@ const AuditLogSchema = new mongoose.Schema(
         'profile_update',
         'email_change',
         'password_change',
-        'id_verification',
         'admin_approval',
         'admin_approval_request',
         'admin_approval_approved',

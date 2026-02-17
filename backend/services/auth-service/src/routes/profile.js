@@ -7,7 +7,6 @@ const router = express.Router()
 // - profileAvatar.js - Avatar upload/delete operations
 // - profilePassword.js - Password change operations
 // - profileEmail.js - Email change operations
-// - profileIdVerification.js - ID verification operations
 // - profileAdmin.js - Admin user management operations
 // - profileBusinessOwner.js - Business owner profile operations (name, contact, audit-history, approvals, verification)
 // - profileFirstLogin.js - First login credentials change

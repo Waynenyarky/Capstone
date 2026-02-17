@@ -13,7 +13,6 @@ import LoggedInPasswordChangeFlow from '@/features/authentication/flows/LoggedIn
 import DeleteAccountFlow from '@/features/authentication/flows/DeleteAccountFlow.jsx'
 import EmailChangeGracePeriod from '@/features/authentication/components/EmailChangeGracePeriod.jsx'
 import MfaReenrollmentAlert from '@/features/authentication/components/MfaReenrollmentAlert.jsx'
-import IDUploadForm from '@/features/user/components/IDUploadForm.jsx'
 import PendingApprovalAlert from '@/features/user/components/PendingApprovalAlert.jsx'
 import NotificationPreferences from '@/features/user/components/NotificationPreferences.jsx'
 import NotificationHistory from '@/features/user/components/NotificationHistory.jsx'
@@ -337,58 +336,6 @@ export default function ProfileSettings() {
           </Card>
 
           {/* ID Upload Section (Business Owners Only) */}
-          {String(role?.slug || role || '').toLowerCase() === 'business_owner' && (
-            <Card 
-              style={{ 
-                marginTop: 24,
-                border: `1px solid ${token.colorBorderSecondary}`,
-                borderRadius: token.borderRadiusLG,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-              }}
-              styles={{
-                body: {
-                  padding: 0
-                }
-              }}
-            >
-              {/* Header Section */}
-              <div style={{
-                padding: '24px 24px 20px',
-                background: token.colorFillAlter,
-                borderBottom: `1px solid ${token.colorBorderSecondary}`,
-                borderTopLeftRadius: token.borderRadiusLG,
-                borderTopRightRadius: token.borderRadiusLG
-              }}>
-                <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-                  <div style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 12,
-                    background: `linear-gradient(135deg, ${token.colorPrimary}20, ${token.colorPrimary}10)`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: `1px solid ${token.colorPrimary}40`,
-                    flexShrink: 0,
-                    boxShadow: `0 2px 8px ${token.colorPrimary}15`
-                  }}>
-                    <SafetyCertificateOutlined style={{ fontSize: 28, color: token.colorPrimary }} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <Title level={4} style={{ margin: 0, marginBottom: 8 }}>ID Verification</Title>
-                    <Text type="secondary" style={{ fontSize: 14, lineHeight: 1.6, display: 'block' }}>
-                      Upload your government-issued ID for verification. This helps us verify your identity and comply with regulatory requirements.
-                    </Text>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Content Section */}
-              <div style={{ padding: 24 }}>
-                <IDUploadForm />
-              </div>
-            </Card>
-          )}
         </div>
       )
     },

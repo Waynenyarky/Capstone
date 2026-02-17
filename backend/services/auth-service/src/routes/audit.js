@@ -401,6 +401,52 @@ router.get('/export', requireJwt, async (req, res) => {
   }
 })
 
+// GET /api/auth/admin/audit/recent
+// Get recent audit activity across all staff (admin only)
+router.get('/admin/recent', requireJwt, requireRole(['admin']), async (req, res) => {
+  try {
+    const Role = require('../models/Role')
+    const { getStaffRoles } = require('../lib/roleHelpers')
+    await require('../lib/roleHelpers').refreshStaffRoleCache()
+    const staffRoleSlugs = [...getStaffRoles(), 'admin']
+    const staffRoles = await Role.find({ slug: { $in: staffRoleSlugs } }).lean()
+    const roleIds = staffRoles.map((r) => r._id)
+    const staffUsers = await User.find({ role: { $in: roleIds } }).select('_id firstName lastName email office role').populate('role').lean()
+    const staffIds = staffUsers.map((u) => u._id)
+    const userMap = new Map(staffUsers.map((u) => [String(u._id), u]))
+
+    const limit = Math.min(Number(req.query.limit) || 20, 50)
+    const auditLogs = await AuditLog.find({ userId: { $in: staffIds } })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean()
+
+    const safeLogs = auditLogs.map((log) => {
+      const masked = maskAuditLogData(log)
+      const user = userMap.get(String(masked.userId))
+      const roleSlug = user?.role?.slug || ''
+      return {
+        id: String(masked._id),
+        eventType: masked.eventType,
+        fieldChanged: masked.fieldChanged,
+        user: user ? [user.firstName, user.lastName].filter(Boolean).join(' ') : '—',
+        role: roleSlug,
+        office: user?.office || '—',
+        createdAt: masked.createdAt,
+        metadata: masked.metadata,
+      }
+    })
+
+    return res.json({
+      success: true,
+      logs: safeLogs,
+    })
+  } catch (err) {
+    console.error('GET /api/auth/admin/audit/recent error:', err)
+    return respond.error(res, 500, 'recent_audit_failed', 'Failed to retrieve recent audit activity')
+  }
+})
+
 // GET /api/auth/audit/stats
 // Get audit statistics (admin only)
 router.get('/stats', requireJwt, requireRole(['admin']), async (req, res) => {

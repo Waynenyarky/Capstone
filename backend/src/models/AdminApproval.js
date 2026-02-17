@@ -15,7 +15,6 @@ const AdminApprovalSchema = new mongoose.Schema(
         'email_change',
         'password_change',
         'personal_info_change',
-        'id_verification',
         'account_status_change',
         'role_change',
         'maintenance_mode',

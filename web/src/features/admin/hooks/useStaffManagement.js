@@ -4,13 +4,7 @@ import {
   getStaffList,
   createStaff,
   getOffices,
-  createOffice,
-  updateOffice,
-  deleteOffice,
   getStaffRoles,
-  createStaffRole,
-  updateStaffRole,
-  deleteStaffRole,
 } from '../services'
 import { useNotifier } from '@/shared/notifications'
 
@@ -106,7 +100,7 @@ export function useStaffManagement() {
   const { success, error } = useNotifier()
   const [staff, setStaff] = useState([])
   const [loadingStaff, setLoadingStaff] = useState(false)
-  const [tabKey, setTabKey] = useState('staff')
+  const [tabKey, setTabKey] = useState('overview')
   const [createOpen, setCreateOpen] = useState(false)
   const [form] = Form.useForm()
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -116,8 +110,6 @@ export function useStaffManagement() {
   const [successData, setSuccessData] = useState(null)
   const [offices, setOffices] = useState(defaultOffices)
   const [roles, setRoles] = useState(defaultRoles)
-  const [loadingOffices, setLoadingOffices] = useState(false)
-  const [loadingRoles, setLoadingRoles] = useState(false)
 
   const loadStaff = useCallback(async () => {
     setLoadingStaff(true)
@@ -138,7 +130,6 @@ export function useStaffManagement() {
   }, [loadStaff])
 
   const loadOffices = useCallback(async () => {
-    setLoadingOffices(true)
     try {
       const list = await getOffices()
       if (Array.isArray(list) && list.length) {
@@ -150,13 +141,10 @@ export function useStaffManagement() {
       console.error('Load offices error:', e)
       setOffices(defaultOffices)
       error(e, 'Failed to load offices')
-    } finally {
-      setLoadingOffices(false)
     }
   }, [error])
 
   const loadRoles = useCallback(async () => {
-    setLoadingRoles(true)
     try {
       const list = await getStaffRoles()
       if (Array.isArray(list) && list.length) {
@@ -168,8 +156,6 @@ export function useStaffManagement() {
       console.error('Load roles error:', e)
       setRoles(defaultRoles)
       error(e, 'Failed to load roles')
-    } finally {
-      setLoadingRoles(false)
     }
   }, [error])
 
@@ -193,6 +179,9 @@ export function useStaffManagement() {
         office: values.office,
         role: values.role,
       }
+      if (values.phoneNumber?.trim()) {
+        payload.phoneNumber = values.phoneNumber.trim()
+      }
       const created = await createStaff(payload)
       const elapsed = Date.now() - startedAt
       if (elapsed < 1200) {
@@ -208,10 +197,10 @@ export function useStaffManagement() {
       setSuccessData({
         id: created?.id,
         email: created?.email || values.email,
+        phoneNumber: created?.phoneNumber || values.phoneNumber,
         office: created?.office || values.office,
         role: created?.role || values.role,
         status: 'Pending First Login & MFA Setup',
-        username: created?.username,
         devTempPassword: created?.devTempPassword,
       })
       setSuccessOpen(true)
@@ -227,42 +216,6 @@ export function useStaffManagement() {
   const closeCreateModal = () => setCreateOpen(false)
   const closeConfirmModal = () => !confirming && setConfirmOpen(false)
   const closeSuccessModal = () => setSuccessOpen(false)
-
-  const addOffice = async (office) => {
-    if (!office) return
-    await createOffice(office)
-    await loadOffices()
-  }
-
-  const updateOfficeEntry = async (officeId, updates) => {
-    if (!officeId) return
-    await updateOffice(officeId, updates)
-    await loadOffices()
-  }
-
-  const removeOfficeEntry = async (officeId) => {
-    if (!officeId) return
-    await deleteOffice(officeId)
-    await loadOffices()
-  }
-
-  const addRole = async (role) => {
-    if (!role) return
-    await createStaffRole(role)
-    await loadRoles()
-  }
-
-  const updateRoleEntry = async (roleId, updates) => {
-    if (!roleId) return
-    await updateStaffRole(roleId, updates)
-    await loadRoles()
-  }
-
-  const removeRoleEntry = async (roleId) => {
-    if (!roleId) return
-    await deleteStaffRole(roleId)
-    await loadRoles()
-  }
 
   const officeGroupsState = offices.reduce((acc, office) => {
     const groupLabel = office.group || 'Other Offices'
@@ -301,16 +254,8 @@ export function useStaffManagement() {
     closeSuccessModal,
     offices,
     roles,
-    loadingOffices,
-    loadingRoles,
     officeGroupsState,
     roleOptionsState,
-    addOffice,
-    updateOffice: updateOfficeEntry,
-    removeOffice: removeOfficeEntry,
-    addRole,
-    updateRole: updateRoleEntry,
-    removeRole: removeRoleEntry,
     loadOffices,
     loadRoles,
   }

@@ -14,21 +14,21 @@ const {
 } = require('../helpers/fixtures')
 const { cleanupTestData } = require('../helpers/cleanup')
 const { requestOTPVerification, verifyVerificationCode, getVerificationStatus } = require('../helpers/verification')
-const User = require('../../src/models/User')
-const Role = require('../../src/models/Role')
-const AuditLog = require('../../src/models/AuditLog')
-const IdVerification = require('../../src/models/IdVerification')
-const AdminApproval = require('../../src/models/AdminApproval')
-const { signAccessToken } = require('../../src/middleware/auth')
-const { requestVerification, verifyCode, checkVerificationStatus } = require('../../src/lib/verificationService')
-const { isStaffRole, getStaffRoles, isRestrictedFieldForStaff, isAdminRole, isBusinessOwnerRole } = require('../../src/lib/roleHelpers')
-const { checkFieldPermission } = require('../../src/middleware/fieldPermissions')
+const User = require('../../services/auth-service/src/models/User')
+const Role = require('../../services/auth-service/src/models/Role')
+const AuditLog = require('../../services/auth-service/src/models/AuditLog')
+const AdminApproval = require('../../services/auth-service/src/models/AdminApproval')
+const { signAccessToken } = require('../../services/auth-service/src/middleware/auth')
+const { requestVerification, verifyCode, checkVerificationStatus } = require('../../services/auth-service/src/lib/verificationService')
+const { isStaffRole, getStaffRoles, isRestrictedFieldForStaff, isAdminRole, isBusinessOwnerRole } = require('../../services/auth-service/src/lib/roleHelpers')
+const { checkFieldPermission } = require('../../services/auth-service/src/middleware/fieldPermissions')
 const { alertRestrictedFieldAttempt } = require('../../services/admin-service/src/lib/adminAlertService')
 const bcrypt = require('bcryptjs')
 
 describe('Phase 2: Core Features', () => {
   let mongo
   let app
+  let adminApp
   let businessOwnerRole
   let staffRole
   let adminRole
@@ -130,10 +130,9 @@ describe('Phase 2: Core Features', () => {
     staffToken = signAccessToken(staffUser).token
     adminToken = signAccessToken(adminUser).token
 
-    // Use main backend app for admin approval endpoints
-    delete require.cache[require.resolve('../../src/index')]
-    const { app: mainApp } = require('../../src/index')
-    app = mainApp
+    // Use auth service for profile endpoints, admin service for approval endpoints
+    app = setupApp('auth')
+    adminApp = setupApp('admin')
   })
 
   afterAll(async () => {
@@ -418,44 +417,7 @@ describe('Phase 2: Core Features', () => {
     })
   })
 
-  describe('7. ID Upload Endpoints', () => {
-    it('should require verification for ID upload', async () => {
-      const response = await request(app)
-        .post('/api/auth/profile/id-upload')
-        .set('Authorization', `Bearer ${businessOwnerToken}`)
-        .attach('front', Buffer.from('fake image data'), 'test.jpg')
-
-      expect(response.status).toBe(428)
-      expect(response.body.error.code).toBe('verification_required')
-    })
-
-    it('should get ID verification status', async () => {
-      const response = await request(app)
-        .get('/api/auth/profile/id-verification')
-        .set('Authorization', `Bearer ${businessOwnerToken}`)
-
-      expect(response.status).toBe(200)
-      expect(response.body.exists).toBeDefined()
-    })
-
-    it('should reject non-business owner from ID endpoints', async () => {
-      // Ensure staff user is populated and token is fresh
-      await staffUser.populate('role')
-      const freshStaffToken = signAccessToken(staffUser).token
-
-      const response = await request(app)
-        .get('/api/auth/profile/id-verification')
-        .set('Authorization', `Bearer ${freshStaffToken}`)
-
-      // Should be 403 (forbidden) or 401 (unauthorized) if token invalid
-      expect([403, 401]).toContain(response.status)
-      if (response.status === 403) {
-        expect(response.body.error.code).toBe('forbidden')
-      }
-    })
-  })
-
-  describe('8. Admin Approval Endpoints', () => {
+  describe('7. Admin Approval Endpoints', () => {
     it('should allow admin to update contact without approval', async () => {
       // Ensure admin user is populated and token is fresh
       await adminUser.populate('role')
@@ -538,7 +500,7 @@ describe('Phase 2: Core Features', () => {
       })
 
       // Try to approve own request
-      const response = await request(app)
+      const response = await request(adminApp)
         .post(`/api/admin/approvals/${approval.approvalId}/approve`)
         .set('Authorization', `Bearer ${freshAdminToken}`)
         .send({
@@ -590,7 +552,7 @@ describe('Phase 2: Core Features', () => {
       })
 
       // Admin2 approves
-      const response = await request(app)
+      const response = await request(adminApp)
         .post(`/api/admin/approvals/${approval.approvalId}/approve`)
         .set('Authorization', `Bearer ${admin2Token}`)
         .send({
@@ -678,7 +640,7 @@ describe('Phase 2: Core Features', () => {
       })
 
       // First approval
-      await request(app)
+      await request(adminApp)
         .post(`/api/admin/approvals/${approval.approvalId}/approve`)
         .set('Authorization', `Bearer ${admin2Token}`)
         .send({
@@ -687,7 +649,7 @@ describe('Phase 2: Core Features', () => {
         })
 
       // Second approval (should trigger auto-apply)
-      const response = await request(app)
+      const response = await request(adminApp)
         .post(`/api/admin/approvals/${approval.approvalId}/approve`)
         .set('Authorization', `Bearer ${admin3Token}`)
         .send({

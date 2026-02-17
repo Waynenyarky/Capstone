@@ -102,6 +102,8 @@ const UserSchema = new mongoose.Schema(
     profileHash: { type: String, default: '' }, // SHA256 hash of profile data
     profileIpfsCid: { type: String, default: '' }, // IPFS CID of full profile JSON
     userEthereumAddress: { type: String, default: '' }, // Ethereum address (for blockchain registration)
+    // Who created this account: ObjectId (staff/admin), or string marker ('seeder', 'self')
+    createdBy: { type: mongoose.Schema.Types.Mixed, default: null },
   },
   { timestamps: true }
 )

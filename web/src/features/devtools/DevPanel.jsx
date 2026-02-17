@@ -14,7 +14,7 @@ const formatTime = (ts) =>
   }).format(ts)
 
 export default function DevPanel({ open, onClose }) {
-  const { enabled, pathname, actions, events } = useDevTools()
+  const { enabled, pathname, actions, events, primaryCategory } = useDevTools()
 
   const groupedActions = useMemo(() => {
     const byCategory = {}
@@ -23,8 +23,12 @@ export default function DevPanel({ open, onClose }) {
       if (!byCategory[cat]) byCategory[cat] = []
       byCategory[cat].push(action)
     })
-    return Object.entries(byCategory).sort(([a], [b]) => a.localeCompare(b))
-  }, [actions])
+    return Object.entries(byCategory).sort(([a], [b]) => {
+      if (primaryCategory && a === primaryCategory) return -1
+      if (primaryCategory && b === primaryCategory) return 1
+      return a.localeCompare(b)
+    })
+  }, [actions, primaryCategory])
 
   if (!enabled) return null
 

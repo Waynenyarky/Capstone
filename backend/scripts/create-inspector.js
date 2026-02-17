@@ -60,8 +60,8 @@ async function main() {
   }
 
   try {
-    const User = require('../src/models/User')
-    const Role = require('../src/models/Role')
+    const User = require('../services/auth-service/src/models/User')
+    const Role = require('../services/auth-service/src/models/Role')
 
     const roleDoc = await Role.findOne({ slug: 'inspector' })
     if (!roleDoc) {

@@ -84,9 +84,18 @@ async function callAuditService(endpoint, method = 'POST', data = null, token = 
 
 /**
  * Apply approved change
- * Uses local implementation since it needs direct model access
+ * Uses auth service's implementation when in test (shared DB) for correct User model;
+ * otherwise uses local admin implementation
  */
 async function applyApprovedChange(approval, token = null) {
+  if (process.env.NODE_ENV === 'test') {
+    try {
+      const authApply = require('../../../auth-service/src/lib/applyApprovedChange');
+      return await authApply(approval);
+    } catch (err) {
+      // Fallback to local if auth path not available
+    }
+  }
   const applyApprovedChangeImpl = require('./applyApprovedChange');
   return await applyApprovedChangeImpl(approval);
 }

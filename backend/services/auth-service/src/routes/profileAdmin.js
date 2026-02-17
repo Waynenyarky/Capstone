@@ -97,6 +97,13 @@ router.get('/users', requireJwt, requireRole(['admin']), async (req, res) => {
     const roleMap = new Map(allRoles.map(r => [String(r._id), r]))
     const roleSlugMap = new Map(allRoles.map(r => [r.slug, r]))
 
+    // Batch-resolve createdBy ObjectIds
+    const creatorIds = [...new Set(
+      docs.map((d) => d.createdBy).filter((v) => v && mongoose.Types.ObjectId.isValid(v))
+    )]
+    const creators = creatorIds.length > 0 ? await User.find({ _id: { $in: creatorIds } }).populate('role').lean() : []
+    const creatorMap = new Map(creators.map((c) => [String(c._id), c]))
+
     const usersSafe = []
     for (const doc of docs) {
       let roleData = null
@@ -117,6 +124,20 @@ router.get('/users', requireJwt, requireRole(['admin']), async (req, res) => {
       }
 
       const roleSlug = roleData ? roleData.slug : 'user'
+
+      let createdBy = null
+      if (doc.createdBy === 'seeder') {
+        createdBy = { type: 'seeder', label: 'Seeder' }
+      } else if (doc.createdBy === 'self') {
+        createdBy = { type: 'self', label: 'Self-registration' }
+      } else if (doc.createdBy && mongoose.Types.ObjectId.isValid(doc.createdBy)) {
+        const creator = creatorMap.get(String(doc.createdBy))
+        if (creator) {
+          const cRole = (creator.role && creator.role.slug) ? creator.role.slug : 'user'
+          const name = [creator.firstName, creator.lastName].filter(Boolean).join(' ') || creator.email
+          createdBy = { type: 'user', label: name, role: cRole, id: String(creator._id) }
+        }
+      }
       
       usersSafe.push({
         id: String(doc._id),
@@ -134,6 +155,7 @@ router.get('/users', requireJwt, requireRole(['admin']), async (req, res) => {
         isEmailVerified: !!doc.isEmailVerified,
         termsAccepted: doc.termsAccepted,
         createdAt: doc.createdAt,
+        createdBy,
       })
     }
     
@@ -152,8 +174,31 @@ router.get('/staff', requireJwt, requireRole(['admin']), async (req, res) => {
     const staffRoles = await Role.find({ slug: { $in: staffRoleSlugs } }).lean()
     const ids = staffRoles.map((r) => r._id)
     const docs = await User.find({ role: { $in: ids } }).populate('role').lean()
+
+    // Collect unique createdBy ObjectIds for batch lookup
+    const creatorIds = [...new Set(
+      docs.map((d) => d.createdBy).filter((v) => v && mongoose.Types.ObjectId.isValid(v))
+    )]
+    const creators = creatorIds.length > 0
+      ? await User.find({ _id: { $in: creatorIds } }).populate('role').lean()
+      : []
+    const creatorMap = new Map(creators.map((c) => [String(c._id), c]))
+
     const staffSafe = docs.map((doc) => {
       const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+      let createdBy = null
+      if (doc.createdBy === 'seeder') {
+        createdBy = { type: 'seeder', label: 'Seeder' }
+      } else if (doc.createdBy === 'self') {
+        createdBy = { type: 'self', label: 'Self-registration' }
+      } else if (doc.createdBy && mongoose.Types.ObjectId.isValid(doc.createdBy)) {
+        const creator = creatorMap.get(String(doc.createdBy))
+        if (creator) {
+          const creatorRole = (creator.role && creator.role.slug) ? creator.role.slug : 'user'
+          const name = [creator.firstName, creator.lastName].filter(Boolean).join(' ') || creator.email
+          createdBy = { type: 'user', label: name, role: creatorRole, id: String(creator._id) }
+        }
+      }
       return {
         id: String(doc._id),
         role: roleSlug,
@@ -167,6 +212,7 @@ router.get('/staff', requireJwt, requireRole(['admin']), async (req, res) => {
         mustChangeCredentials: !!doc.mustChangeCredentials,
         mustSetupMfa: !!doc.mustSetupMfa,
         createdAt: doc.createdAt,
+        createdBy,
       }
     })
     return res.json(staffSafe)
@@ -190,17 +236,6 @@ router.post('/staff', requireJwt, requireRole(['admin']), validateBody(staffCrea
       return respond.error(res, 400, 'role_not_found', 'Role not found')
     }
 
-    let username = ''
-    for (let i = 0; i < 20; i++) {
-      const candidate = generateTempUsername(12)
-      const taken = await User.findOne({ username: candidate }).lean()
-      if (!taken) {
-        username = candidate
-        break
-      }
-    }
-    if (!username) return respond.error(res, 500, 'username_generation_failed', 'Failed to generate a unique username')
-
     const tempPassword = generateTempPassword()
     const passwordHash = await bcrypt.hash(tempPassword, 10)
     const storedPhone = phoneNumber && String(phoneNumber).trim() ? String(phoneNumber).trim() : `__unset__${generateToken().slice(0, 16)}`
@@ -218,7 +253,6 @@ router.post('/staff', requireJwt, requireRole(['admin']), validateBody(staffCrea
       lastName: safeLastName,
       email: emailKey,
       phoneNumber: storedPhone,
-      username,
       office: canonicalOffice,
       isStaff: true,
       isActive: false,
@@ -227,10 +261,11 @@ router.post('/staff', requireJwt, requireRole(['admin']), validateBody(staffCrea
       termsAccepted: true,
       passwordHash,
       isEmailVerified: true,
+      createdBy: req._userId || null,
     })
 
     const roleLabel = roleDoc.name || role
-    await sendStaffCredentialsEmail({ to: emailKey, username, tempPassword, office: canonicalOffice, roleLabel })
+    await sendStaffCredentialsEmail({ to: emailKey, tempPassword, office: canonicalOffice, roleLabel })
 
     const safe = {
       id: String(created._id),
@@ -238,7 +273,6 @@ router.post('/staff', requireJwt, requireRole(['admin']), validateBody(staffCrea
       firstName: created.firstName,
       lastName: created.lastName,
       email: created.email,
-      username: created.username || '',
       office: created.office || '',
       phoneNumber: displayPhoneNumber(created.phoneNumber),
       isActive: created.isActive !== false,

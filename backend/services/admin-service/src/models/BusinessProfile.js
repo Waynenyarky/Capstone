@@ -201,4 +201,4 @@ const BusinessProfileSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
-module.exports = mongoose.model('BusinessProfile', BusinessProfileSchema)
+module.exports = mongoose.models.BusinessProfile || mongoose.model('BusinessProfile', BusinessProfileSchema)

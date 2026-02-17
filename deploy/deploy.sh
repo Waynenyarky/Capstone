@@ -156,7 +156,6 @@ echo -e "  Auth Service:     ${GREEN}http://${PUBLIC_IP}:3001${NC}"
 echo -e "  Business Service: ${GREEN}http://${PUBLIC_IP}:3002${NC}"
 echo -e "  Admin Service:    ${GREEN}http://${PUBLIC_IP}:3003${NC}"
 echo -e "  Audit Service:    ${GREEN}http://${PUBLIC_IP}:3004${NC}"
-echo -e "  AI Service:       ${GREEN}http://${PUBLIC_IP}:3005${NC}"
 echo -e "  IPFS Gateway:     ${GREEN}http://${PUBLIC_IP}:8080${NC}"
 echo ""
 

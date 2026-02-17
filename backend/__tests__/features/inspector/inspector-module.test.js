@@ -12,13 +12,13 @@ const {
   teardownMongoDB,
 } = require('../../helpers/setup')
 const { createTestUser } = require('../../helpers/fixtures')
-const User = require('../../../src/models/User')
-const Role = require('../../../src/models/Role')
-const Inspection = require('../../../src/models/Inspection')
-const Violation = require('../../../src/models/Violation')
-const Notification = require('../../../src/models/Notification')
-const BusinessProfile = require('../../../src/models/BusinessProfile')
-const { signAccessToken } = require('../../../src/middleware/auth')
+const User = require('../../../services/auth-service/src/models/User')
+const Role = require('../../../services/auth-service/src/models/Role')
+const Inspection = require('../../../services/business-service/src/models/Inspection')
+const Violation = require('../../../services/business-service/src/models/Violation')
+const Notification = require('../../../services/auth-service/src/models/Notification')
+const BusinessProfile = require('../../../services/business-service/src/models/BusinessProfile')
+const { signAccessToken } = require('../../../services/auth-service/src/middleware/auth')
 
 jest.setTimeout(30000)
 
@@ -166,9 +166,8 @@ describe('Inspector Module API', () => {
       read: false,
     })
 
-    delete require.cache[require.resolve('../../../src/index')]
-    const { app: mainApp } = require('../../../src/index')
-    app = mainApp
+    const { setupApp } = require('../../helpers/setup')
+    app = setupApp('business')
   })
 
   afterAll(async () => {

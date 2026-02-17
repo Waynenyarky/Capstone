@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Layout, Row, Col, Card, Button, Typography, Space, Spin, theme } from 'antd'
 import { useNavigate } from 'react-router-dom'
-import { ShopOutlined, ReloadOutlined } from '@ant-design/icons'
+import { ShopOutlined, ReloadOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import { AppSidebar as Sidebar } from '@/features/authentication'
 import BusinessOwnerLayout from '../components/BusinessOwnerLayout'
 import { useBusinessOwnerDashboard } from '../hooks/useBusinessOwnerDashboard'
@@ -57,7 +57,7 @@ export default function BusinessOwnerDashboard() {
 
   if (fetchError) {
     return (
-      <BusinessOwnerLayout pageTitle="Error">
+      <BusinessOwnerLayout pageTitle="Error" pageIcon={<ExclamationCircleOutlined />}>
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
           <Title level={4} type="danger">Failed to load profile</Title>
           <Paragraph>{fetchError.message || 'Unknown error occurred'}</Paragraph>
@@ -81,6 +81,7 @@ export default function BusinessOwnerDashboard() {
     return (
       <BusinessOwnerLayout
         pageTitle="My Businesses"
+        pageIcon={<ShopOutlined />}
         hiddenSidebarKeys={RESTRICTED_SIDEBAR_KEYS}
       >
         <div style={{ padding: 48, textAlign: 'center', maxWidth: 480, margin: '0 auto' }}>

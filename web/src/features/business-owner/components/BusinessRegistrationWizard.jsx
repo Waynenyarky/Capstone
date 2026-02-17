@@ -7,9 +7,6 @@ import { useMfaSetup } from '@/features/authentication/hooks'
 import { usePasskeyManager } from '@/features/authentication/presentation/passkey/hooks/usePasskeyManager'
 import { mfaStatus } from '@/features/authentication/services/mfaService'
 import QrDisplay from '@/features/authentication/components/QrDisplay'
-import IdVerificationStatus from './IdVerificationStatus'
-import IdentityVerificationForm from './IdentityVerificationForm'
-
 const { Title, Paragraph, Text } = Typography
 const { useBreakpoint } = Grid
 
@@ -340,11 +337,12 @@ export default function BusinessRegistrationWizard({ onComplete }) {
       case 1: // Identity
         return (
           <div>
-            <IdentityVerificationForm
-              form={form}
-              profileData={profileData}
-              refreshProfile={refreshProfile}
-              isMobile={isMobile}
+            <Title level={isMobile ? 4 : 3} style={{ marginBottom: 20, textAlign: 'center' }}>Identity Verification</Title>
+            <Alert
+              type="info"
+              showIcon
+              message="Please fill in your identity details in the form fields below."
+              style={{ marginBottom: 16 }}
             />
           </div>
         )

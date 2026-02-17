@@ -82,3 +82,23 @@ export async function deleteStaffRole(roleId) {
     method: 'DELETE',
   })
 }
+
+// ─── Admin Account Management ───
+
+export async function getAdminList() {
+  const data = await fetchJsonWithFallback('/api/auth/admin/admins', { method: 'GET' })
+  return Array.isArray(data) ? data : (data?.admins || [])
+}
+
+export async function requestAdminChange(adminId, payload) {
+  return await fetchJsonWithFallback(`/api/auth/admin/admins/${adminId}/request-change`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function getAdminPendingApprovals(adminId) {
+  const data = await fetchJsonWithFallback(`/api/auth/admin/admins/${adminId}/pending-approvals`, { method: 'GET' })
+  return data?.approvals || []
+}

@@ -6,3 +6,9 @@ export async function getAuditHistoryAdmin(params = {}) {
     method: 'GET',
   })
 }
+
+export async function getRecentAuditActivityAdmin(params = {}) {
+  const queryParams = new URLSearchParams(params).toString()
+  const url = queryParams ? `/api/auth/audit/admin/recent?${queryParams}` : '/api/auth/audit/admin/recent'
+  return fetchJsonWithFallback(url, { method: 'GET' })
+}

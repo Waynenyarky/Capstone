@@ -7,6 +7,15 @@ const fireLoginPrefill = (preset) => {
   )
 }
 
+const fireUsermgmt = (payload) => {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(
+    new CustomEvent('devtools:usermgmt', {
+      detail: payload,
+    }),
+  )
+}
+
 const emitSimulated = (emitEvent, notify, { type = 'info', title, description, data }) => {
   emitEvent({ type, title, description, data })
   notify({ type: type === 'error' ? 'error' : type, title, description })
@@ -111,6 +120,101 @@ export function getDevActions({ pathname, navigate, emitEvent, notify }) {
     })
   }
 
+  // User Management page dev actions
+  if (pathname.startsWith('/admin/users')) {
+    addAction({
+      id: 'usermgmt-tab-overview',
+      category: 'User Management',
+      label: 'Switch to Overview Tab',
+      description: 'Set active tab to Overview',
+      run: () => fireUsermgmt({ action: 'setTab', tab: 'overview' }),
+    })
+    addAction({
+      id: 'usermgmt-tab-staff',
+      category: 'User Management',
+      label: 'Switch to Staff Accounts Tab',
+      description: 'Set active tab to Staff Accounts',
+      run: () => fireUsermgmt({ action: 'setTab', tab: 'staff' }),
+    })
+    addAction({
+      id: 'usermgmt-tab-office-role',
+      category: 'User Management',
+      label: 'Switch to Staff by Office & Role Tab',
+      description: 'Set active tab to Staff by Office & Role',
+      run: () => fireUsermgmt({ action: 'setTab', tab: 'office-role' }),
+    })
+    addAction({
+      id: 'usermgmt-tab-admins',
+      category: 'User Management',
+      label: 'Switch to Admins Tab',
+      description: 'Set active tab to Admins',
+      run: () => fireUsermgmt({ action: 'setTab', tab: 'admins' }),
+    })
+    addAction({
+      id: 'usermgmt-tab-business',
+      category: 'User Management',
+      label: 'Switch to Business Owners Tab',
+      description: 'Set active tab to Business Owners',
+      run: () => fireUsermgmt({ action: 'setTab', tab: 'business' }),
+    })
+    addAction({
+      id: 'usermgmt-open-create',
+      category: 'User Management',
+      label: 'Open Create Staff Modal',
+      description: 'Open the Create Staff Account modal',
+      run: () => fireUsermgmt({ action: 'openCreateModal' }),
+    })
+    addAction({
+      id: 'usermgmt-open-create-invalid',
+      category: 'User Management',
+      label: 'Create Staff with Invalid Data',
+      description: 'Open Create modal and prefill invalid values to trigger validation',
+      run: () => fireUsermgmt({ action: 'openCreateModal', prefillInvalid: true }),
+    })
+    addAction({
+      id: 'usermgmt-open-edit',
+      category: 'User Management',
+      label: 'Open Edit Staff Modal',
+      description: 'Open Edit modal for first staff (or mock)',
+      run: () => fireUsermgmt({ action: 'openEditModal', useFirstStaff: true }),
+    })
+    addAction({
+      id: 'usermgmt-open-edit-invalid',
+      category: 'User Management',
+      label: 'Edit Staff with Invalid Data',
+      description: 'Open Edit modal and prefill invalid values to trigger validation',
+      run: () => fireUsermgmt({ action: 'openEditModal', useFirstStaff: true, prefillInvalid: true }),
+    })
+    addAction({
+      id: 'usermgmt-open-reset',
+      category: 'User Management',
+      label: 'Open Reset Password Modal',
+      description: 'Open Reset Password modal for first staff (or mock)',
+      run: () => fireUsermgmt({ action: 'openResetModal', useFirstStaff: true }),
+    })
+    addAction({
+      id: 'usermgmt-open-disable',
+      category: 'User Management',
+      label: 'Open Disable Account Modal',
+      description: 'Open Disable modal for first staff (or mock). Submit without reason to test validation.',
+      run: () => fireUsermgmt({ action: 'openDisableModal', useFirstStaff: true }),
+    })
+    addAction({
+      id: 'usermgmt-open-user-detail',
+      category: 'User Management',
+      label: 'Open Business Owner Detail',
+      description: 'Switch to Business Owners tab and open first user detail panel',
+      run: () => fireUsermgmt({ action: 'openUserDetail', useFirstUser: true }),
+    })
+    addAction({
+      id: 'usermgmt-open-admin-edit',
+      category: 'User Management',
+      label: 'Open Admin Edit Modal',
+      description: 'Switch to Admins tab and open Edit modal for first admin',
+      run: () => fireUsermgmt({ action: 'openAdminEdit', useFirstAdmin: true }),
+    })
+  }
+
   // Business owner flows
   if (pathname.startsWith('/owner')) {
     addAction({
@@ -204,4 +308,15 @@ export function getDevActions({ pathname, navigate, emitEvent, notify }) {
   })
 
   return actions
+}
+
+/** Category that represents the current page context (for FAB section ordering) */
+export function getPrimaryCategory(pathname) {
+  if (pathname.startsWith('/login')) return 'Authentication'
+  if (pathname.startsWith('/admin/users')) return 'User Management'
+  if (pathname.startsWith('/admin')) return 'Admin'
+  if (pathname.startsWith('/owner')) return 'Owner'
+  if (pathname.startsWith('/staff')) return 'Staff'
+  if (pathname === '/' || pathname === '/dashboard') return 'Home'
+  return null
 }

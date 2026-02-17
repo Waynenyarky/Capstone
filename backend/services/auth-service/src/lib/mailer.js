@@ -457,13 +457,15 @@ async function sendStaffCredentialsEmail({ to, username, tempPassword, office, r
   const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
   const supportEmail = process.env.SUPPORT_EMAIL || process.env.EMAIL_HOST_USER || 'support@bizclear.com'
 
-  const text = [
+  const textLines = [
     `Welcome to ${brandName} Staff Portal`,
     '',
     'Your staff account has been created successfully.',
     '',
     'Here are your login credentials:',
-    `Username: ${username}`,
+  ]
+  if (username) textLines.push(`Username: ${username}`)
+  textLines.push(
     `Temporary Password: ${tempPassword}`,
     '',
     `Office: ${office}`,
@@ -474,7 +476,8 @@ async function sendStaffCredentialsEmail({ to, username, tempPassword, office, r
     '',
     'Thank you,',
     brandName
-  ].join('\n')
+  )
+  const text = textLines.join('\n')
 
   const html = `
   <!DOCTYPE html>
@@ -502,10 +505,10 @@ async function sendStaffCredentialsEmail({ to, username, tempPassword, office, r
         </p>
 
         <div style="background:#f8f9fa;padding:24px;border-radius:8px;border:1px solid #e8e8e8;margin-bottom:24px;text-align:left;display:inline-block;min-width:300px;">
-           <div style="margin-bottom:12px;">
+           ${username ? `<div style="margin-bottom:12px;">
              <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Username</span><br>
              <span style="color:#003a70;font-size:18px;font-weight:700;">${username}</span>
-           </div>
+           </div>` : ''}
            <div style="margin-bottom:12px;">
              <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Temporary Password</span><br>
              <span style="color:#003a70;font-size:18px;font-weight:700;font-family:monospace;">${tempPassword}</span>

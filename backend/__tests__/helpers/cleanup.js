@@ -1,15 +1,14 @@
 const mongoose = require('mongoose')
-const User = require('../../src/models/User')
-const Role = require('../../src/models/Role')
-const AuditLog = require('../../src/models/AuditLog')
-const IdVerification = require('../../src/models/IdVerification')
-const AdminApproval = require('../../src/models/AdminApproval')
-const EmailChangeRequest = require('../../src/models/EmailChangeRequest')
-const ResetRequest = require('../../src/models/ResetRequest')
-const DeleteRequest = require('../../src/models/DeleteRequest')
-const RecoveryRequest = require('../../src/models/RecoveryRequest')
-const TemporaryCredential = require('../../src/models/TemporaryCredential')
-const Session = require('../../src/models/Session')
+const User = require('../../services/auth-service/src/models/User')
+const Role = require('../../services/auth-service/src/models/Role')
+const AuditLog = require('../../services/auth-service/src/models/AuditLog')
+const AdminApproval = require('../../services/auth-service/src/models/AdminApproval')
+const EmailChangeRequest = require('../../services/auth-service/src/models/EmailChangeRequest')
+const ResetRequest = require('../../services/auth-service/src/models/ResetRequest')
+const DeleteRequest = require('../../services/auth-service/src/models/DeleteRequest')
+const RecoveryRequest = require('../../services/auth-service/src/models/RecoveryRequest')
+const TemporaryCredential = require('../../services/auth-service/src/models/TemporaryCredential')
+const Session = require('../../services/auth-service/src/models/Session')
 
 /**
  * Clean up all test users (users with test email pattern)
@@ -49,9 +48,6 @@ async function cleanupTestData() {
     await Promise.allSettled([
       AuditLog.deleteMany({}).catch(err => {
         console.warn('Error cleaning up AuditLog:', err.message)
-      }),
-      IdVerification.deleteMany({}).catch(err => {
-        console.warn('Error cleaning up IdVerification:', err.message)
       }),
       AdminApproval.deleteMany({}).catch(err => {
         console.warn('Error cleaning up AdminApproval:', err.message)
@@ -107,7 +103,7 @@ async function resetDatabase() {
     await cleanupDatabase()
     // Re-seed if needed
     try {
-      const { seedDevDataIfEmpty } = require('../../src/lib/seedDev')
+      const { seedDevDataIfEmpty } = require('../../services/auth-service/src/lib/seedDev')
       await seedDevDataIfEmpty()
     } catch (err) {
       // seedDev may not exist, that's okay

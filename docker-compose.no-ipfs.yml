@@ -1,0 +1,29 @@
+# Override to run without IPFS (use with --skip-ipfs when IPFS container fails)
+# Usage: docker compose -f docker-compose.yml -f docker-compose.no-ipfs.yml -f docker-compose.dev.yml up -d
+#
+# IPFS is placed in a profile so it won't start unless --profile ipfs is passed.
+# Dependencies are updated so auth/business services and wait-for-services don't block on IPFS.
+
+services:
+  ipfs:
+    profiles:
+      - ipfs
+
+  wait-for-services:
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      ganache:
+        condition: service_healthy
+
+  auth-service:
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      deploy-contracts:
+        condition: service_completed_successfully
+
+  business-service:
+    depends_on:
+      - mongodb
+      - deploy-contracts

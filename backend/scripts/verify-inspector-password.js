@@ -36,8 +36,8 @@ async function main() {
   console.log('MONGO_URI:', uri.replace(/:[^:@]+@/, ':****@'))
   await mongoose.connect(uri)
 
-  const User = require('../src/models/User')
-  const Role = require('../src/models/Role')
+  const User = require('../services/auth-service/src/models/User')
+  const Role = require('../services/auth-service/src/models/Role')
 
   const emailKey = email.trim().toLowerCase()
   const doc = await User.findOne({ email: emailKey }).populate('role').lean()

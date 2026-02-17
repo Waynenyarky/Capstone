@@ -60,7 +60,7 @@ export default function CessationPage() {
   ]
 
   return (
-    <BusinessOwnerLayout pageTitle="Cessation Requests">
+    <BusinessOwnerLayout pageTitle="Cessation Requests" pageIcon={<StopOutlined />}>
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
             <div>

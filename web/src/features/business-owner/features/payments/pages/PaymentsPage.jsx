@@ -105,7 +105,7 @@ export default function PaymentsPage() {
   ]
 
   return (
-    <BusinessOwnerLayout pageTitle="Payments">
+    <BusinessOwnerLayout pageTitle="Payments" pageIcon={<DollarCircleOutlined />}>
         <div>
           <Title level={2} style={{ marginBottom: 32, color: brandColor }}>Payments & Billing</Title>
           

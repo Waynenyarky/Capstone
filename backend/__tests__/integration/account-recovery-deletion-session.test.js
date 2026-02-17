@@ -647,7 +647,7 @@ describe('Account Recovery, Deletion & Session Management', () => {
       })
 
       const { isWithinOfficeHours } = require('../../services/auth-service/src/lib/officeHoursValidator')
-      const check = await isWithinOfficeHours('OSBC', new Date('2024-01-15T02:00:00Z')) // Monday 10 AM Manila (UTC+8)
+      const check = await isWithinOfficeHours('OSBC', new Date('2024-01-15T10:00:00Z')) // Monday 10 AM UTC (within 08:00-17:00)
 
       expect(check.isWithinHours).toBe(true)
     })

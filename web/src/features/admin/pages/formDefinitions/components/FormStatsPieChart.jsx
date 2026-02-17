@@ -6,9 +6,9 @@ export default function FormStatsPieChart({ stats, size = 100 }) {
 
   const data = useMemo(
     () => [
-      { type: 'Active', value: stats?.activated ?? 0 },
-      { type: 'Deactivated', value: stats?.deactivated ?? 0 },
-      { type: 'Retired', value: stats?.retired ?? 0 },
+      { type: 'Active', count: stats?.activated ?? 0 },
+      { type: 'Deactivated', count: stats?.deactivated ?? 0 },
+      { type: 'Retired', count: stats?.retired ?? 0 },
     ],
     [stats?.activated, stats?.deactivated, stats?.retired]
   )
@@ -16,7 +16,7 @@ export default function FormStatsPieChart({ stats, size = 100 }) {
   const config = useMemo(
     () => ({
       data,
-      angleField: 'value',
+      angleField: 'count',
       colorField: 'type',
       color: ['#52c41a', '#faad14', 'rgba(0,0,0,0.25)'],
       radius: 1.2,

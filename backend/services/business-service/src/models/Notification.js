@@ -17,6 +17,9 @@ const NotificationSchema = new mongoose.Schema(
         'application_approved',
         'application_rejected',
         'application_needs_revision',
+        'inspection_assigned',
+        'inspection_schedule_changed',
+        'appeal_outcome',
         'system_alert',
         'general'
       ],
@@ -34,7 +37,7 @@ const NotificationSchema = new mongoose.Schema(
     },
     relatedEntityType: {
       type: String,
-      enum: ['business_application', 'business_renewal', 'payment', 'system', null],
+      enum: ['business_application', 'business_renewal', 'payment', 'inspection', 'system', null],
       default: null
     },
     relatedEntityId: {
@@ -63,4 +66,4 @@ const NotificationSchema = new mongoose.Schema(
 NotificationSchema.index({ userId: 1, read: 1, createdAt: -1 })
 NotificationSchema.index({ userId: 1, createdAt: -1 })
 
-module.exports = mongoose.model('Notification', NotificationSchema)
+module.exports = mongoose.models.Notification || mongoose.model('Notification', NotificationSchema)

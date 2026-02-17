@@ -97,20 +97,44 @@ async function applyApprovedChange(approval) {
 
     switch (approval.requestType) {
       case 'personal_info_change': {
-        const { newValues } = approval.requestDetails;
-        if (newValues.firstName) user.firstName = newValues.firstName;
-        if (newValues.lastName) user.lastName = newValues.lastName;
-        if (newValues.phoneNumber !== undefined) user.phoneNumber = newValues.phoneNumber;
-        await user.save();
+        const requestDetails = approval.requestDetails;
+        if (!requestDetails) {
+          logger.error('Missing requestDetails for personal_info_change', { approvalId: approval.approvalId });
+          return { success: false, error: 'Invalid request details' };
+        }
+        const newValues = requestDetails.newValues || requestDetails.requestedChanges || {};
+        if (typeof newValues !== 'object') {
+          logger.error('Invalid newValues for personal_info_change', { approvalId: approval.approvalId });
+          return { success: false, error: 'Invalid request details' };
+        }
+        const update = {};
+        if (newValues.firstName) update.firstName = newValues.firstName;
+        if (newValues.lastName) update.lastName = newValues.lastName;
+        if (newValues.phoneNumber !== undefined) update.phoneNumber = newValues.phoneNumber;
+        if (Object.keys(update).length > 0) {
+          const userId = approval.userId && (typeof approval.userId === 'object' && approval.userId._id
+            ? approval.userId._id
+            : approval.userId);
+          const updateResult = await User.findByIdAndUpdate(
+            userId,
+            { $set: update },
+            { new: true }
+          );
+          if (!updateResult) {
+            logger.error('User update failed - user not found', { userId, update });
+            return { success: false, error: 'User not found' };
+          }
+        }
 
         // Create audit log
         const changedFields = Object.keys(newValues);
         const primaryField = changedFields[0] || 'firstName';
+        const oldValues = requestDetails.oldValues || {};
         await createAuditLog(
-          user._id,
+          approval.userId,
           'admin_approval_approved',
           primaryField,
-          JSON.stringify(approval.requestDetails.oldValues),
+          JSON.stringify(oldValues),
           JSON.stringify(newValues),
           roleSlug,
           {
@@ -302,6 +326,104 @@ async function applyApprovedChange(approval) {
         });
 
         return { success: true, formDefinition };
+      }
+
+      case 'account_status_change': {
+        const details = approval.requestDetails || {};
+        const newValues = details.newValues || {};
+        const oldValues = details.oldValues || {};
+        const isActive = newValues.isActive === 'true' || newValues.isActive === true;
+        const wasActive = user.isActive !== false;
+
+        if (isActive === wasActive) {
+          return { success: true };
+        }
+
+        user.isActive = isActive;
+        if (!isActive) {
+          user.tokenVersion = (user.tokenVersion || 0) + 1;
+        }
+        await user.save();
+
+        await createAuditLog(
+          user._id,
+          'admin_approval_approved',
+          'account',
+          String(wasActive),
+          String(isActive),
+          roleSlug,
+          {
+            approvalId: approval.approvalId,
+            requestType: approval.requestType,
+            approvedBy: approval.approvals.map((a) => String(a.adminId)),
+            reason: details.reason || '',
+            targetIsAdmin: !!details.targetIsAdmin,
+          }
+        );
+
+        return { success: true };
+      }
+
+      case 'password_reset': {
+        const crypto = require('crypto');
+        const details = approval.requestDetails || {};
+
+        const length = 14;
+        const lowers = 'abcdefghijklmnopqrstuvwxyz';
+        const uppers = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const digits = '0123456789';
+        const specials = '!@#$%^&*';
+        const all = lowers + uppers + digits + specials;
+        function pick(set) {
+          return set[crypto.randomBytes(1)[0] % set.length];
+        }
+        const required = [pick(lowers), pick(uppers), pick(digits), pick(specials)];
+        const remaining = Array.from({ length: length - required.length }, () => pick(all));
+        const raw = required.concat(remaining);
+        for (let i = raw.length - 1; i > 0; i--) {
+          const j = crypto.randomBytes(1)[0] % (i + 1);
+          [raw[i], raw[j]] = [raw[j], raw[i]];
+        }
+        const tempPassword = raw.join('');
+
+        const oldHash = String(user.passwordHash || '');
+        const newHash = await bcrypt.hash(tempPassword, 10);
+        const updatedHistory = addToPasswordHistory(oldHash, user.passwordHistory || []);
+
+        user.passwordHash = newHash;
+        user.passwordHistory = updatedHistory;
+        user.tokenVersion = (user.tokenVersion || 0) + 1;
+        user.mustChangeCredentials = true;
+        user.mustSetupMfa = true;
+        user.mfaEnabled = false;
+        user.mfaSecret = '';
+        user.fprintEnabled = false;
+        user.mfaMethod = '';
+        user.mfaDisablePending = false;
+        user.mfaDisableRequestedAt = null;
+        user.mfaDisableScheduledFor = null;
+        user.tokenFprint = '';
+        await user.save();
+
+        await createAuditLog(
+          user._id,
+          'admin_approval_approved',
+          'password',
+          '[REDACTED]',
+          '[REDACTED]',
+          roleSlug,
+          {
+            approvalId: approval.approvalId,
+            requestType: approval.requestType,
+            approvedBy: approval.approvals.map((a) => String(a.adminId)),
+            reason: details.reason || '',
+            targetIsAdmin: !!details.targetIsAdmin,
+            mustChangeCredentials: true,
+            mustSetupMfa: true,
+          }
+        );
+
+        return { success: true };
       }
 
       default:

@@ -14,13 +14,12 @@ const {
 } = require('../helpers/fixtures')
 const { cleanupTestData } = require('../helpers/cleanup')
 const { requestOTPVerification, verifyVerificationCode, getVerificationStatus } = require('../helpers/verification')
-const User = require('../../src/models/User')
-const AuditLog = require('../../src/models/AuditLog')
-const EmailChangeRequest = require('../../src/models/EmailChangeRequest')
-const IdVerification = require('../../src/models/IdVerification')
-const AdminApproval = require('../../src/models/AdminApproval')
-const Role = require('../../src/models/Role')
-const { signAccessToken } = require('../../src/middleware/auth')
+const User = require('../../services/auth-service/src/models/User')
+const AuditLog = require('../../services/auth-service/src/models/AuditLog')
+const EmailChangeRequest = require('../../services/auth-service/src/models/EmailChangeRequest')
+const AdminApproval = require('../../services/auth-service/src/models/AdminApproval')
+const Role = require('../../services/auth-service/src/models/Role')
+const { signAccessToken } = require('../../services/auth-service/src/middleware/auth')
 
 describe('Profile Edit Integration Tests', () => {
   let mongo
@@ -493,71 +492,6 @@ describe('Profile Edit Integration Tests', () => {
       })
     })
 
-    describe('ID Information Updates', () => {
-      it('should update ID info with verification', async () => {
-        // Request verification
-        const verifyRequestResponse = await request(app)
-          .post('/api/auth/profile/verification/request')
-          .set('Authorization', `Bearer ${businessOwnerToken}`)
-          .send({
-            field: 'idType',
-            method: 'otp',
-          })
-        const verificationCode = verifyRequestResponse.body.devCode || '123456'
-
-        const response = await request(app)
-          .patch('/api/auth/profile/id-info')
-          .set('Authorization', `Bearer ${businessOwnerToken}`)
-          .send({
-            idType: 'passport',
-            idNumber: 'P123456',
-            verificationCode,
-          })
-
-        expect(response.status).toBe(200)
-        expect(response.body.updated).toBe(true)
-
-        // Verify ID verification record
-        const idVerification = await IdVerification.findOne({
-          userId: businessOwner._id,
-        })
-        expect(idVerification).toBeDefined()
-        expect(idVerification.idType).toBe('passport')
-        expect(idVerification.idNumber).toBe('P123456')
-      })
-
-      it('should require verification for ID info update', async () => {
-        const response = await request(app)
-          .patch('/api/auth/profile/id-info')
-          .set('Authorization', `Bearer ${businessOwnerToken}`)
-          .send({
-            idType: 'passport',
-            idNumber: 'P123456',
-          })
-
-        expect(response.status).toBe(428)
-        expect(response.body.error.code).toBe('verification_required')
-      })
-
-      it('should get ID verification status', async () => {
-        // Create ID verification first
-        await IdVerification.create({
-          userId: businessOwner._id,
-          idType: 'passport',
-          idNumber: 'P123456',
-          status: 'pending',
-        })
-
-        const response = await request(app)
-          .get('/api/auth/profile/id-verification')
-          .set('Authorization', `Bearer ${businessOwnerToken}`)
-
-        expect(response.status).toBe(200)
-        expect(response.body.exists).toBe(true)
-        expect(response.body.status).toBe('pending')
-      })
-    })
-
     describe('Avatar Upload', () => {
       it('should upload avatar', async () => {
         // Create a minimal valid base64 image
@@ -601,7 +535,7 @@ describe('Profile Edit Integration Tests', () => {
     describe('Audit History', () => {
       it('should get audit history', async () => {
         // Create some audit logs using the helper function
-        const { createAuditLog } = require('../../src/lib/auditLogger')
+        const { createAuditLog } = require('../../services/auth-service/src/lib/auditLogger')
         const auditLog = await createAuditLog(
           businessOwner._id,
           'name_update',
@@ -717,71 +651,33 @@ describe('Profile Edit Integration Tests', () => {
     })
 
     it('should prevent self-approval', async () => {
-      // Ensure mongoose is connected before requiring main app
-      const mongoose = require('mongoose')
-      if (mongoose.connection.readyState !== 1) {
-        await new Promise((resolve) => {
-          if (mongoose.connection.readyState === 1) {
-            resolve()
-          } else {
-            mongoose.connection.once('connected', resolve)
-          }
-        })
-      }
+      // Use auth service for creating approval request, admin service for approving
+      const adminApp = setupApp('admin')
       
-      // Use main app for admin routes - ensure it uses the same DB connection
-      delete require.cache[require.resolve('../../src/index')]
-      const { app: mainApp } = require('../../src/index')
-      
-      // Create approval request
-      const approvalResponse = await request(mainApp)
+      // Create approval request via auth service
+      const approvalResponse = await request(app)
         .patch('/api/auth/profile/personal-info')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           firstName: 'NewFirstName',
         })
 
-      // Check if request was successful or if there's an auth issue
-      if (approvalResponse.status === 401) {
-        // Token might not be valid for main app - try using the same app instance
-        const approvalResponse2 = await request(app)
-          .patch('/api/auth/profile/personal-info')
-          .set('Authorization', `Bearer ${adminToken}`)
-          .send({
-            firstName: 'NewFirstName',
-          })
-        expect(approvalResponse2.status).toBe(200)
-        expect(approvalResponse2.body.success).toBe(true)
-        expect(approvalResponse2.body.approval).toBeDefined()
-        const approvalId = approvalResponse2.body.approval.approvalId
-        
-        // Try to self-approve using main app
-        const response = await request(mainApp)
-          .post(`/api/admin/approvals/${approvalId}/approve`)
-          .set('Authorization', `Bearer ${adminToken}`)
-          .send({
-            approved: true,
-          })
-        expect(response.status).toBe(400)
-        expect(response.body.error.code).toBe('self_approval_not_allowed')
-      } else {
-        expect(approvalResponse.status).toBe(200)
-        expect(approvalResponse.body.success).toBe(true)
-        expect(approvalResponse.body.approval).toBeDefined()
-        const approvalId = approvalResponse.body.approval.approvalId
-        expect(approvalId).toBeDefined()
+      expect(approvalResponse.status).toBe(200)
+      expect(approvalResponse.body.success).toBe(true)
+      expect(approvalResponse.body.approval).toBeDefined()
+      const approvalId = approvalResponse.body.approval.approvalId
+      expect(approvalId).toBeDefined()
 
-        // Try to self-approve
-        const response = await request(mainApp)
-          .post(`/api/admin/approvals/${approvalId}/approve`)
-          .set('Authorization', `Bearer ${adminToken}`)
-          .send({
-            approved: true,
-          })
+      // Try to self-approve via admin service
+      const response = await request(adminApp)
+        .post(`/api/admin/approvals/${approvalId}/approve`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          approved: true,
+        })
 
-        expect(response.status).toBe(400)
-        expect(response.body.error.code).toBe('self_approval_not_allowed')
-      }
+      expect(response.status).toBe(400)
+      expect(response.body.error.code).toBe('self_approval_not_allowed')
     })
 
     it('should apply changes after 2 approvals', async () => {
@@ -797,9 +693,8 @@ describe('Profile Edit Integration Tests', () => {
         })
       }
       
-      // Use main app for admin routes - ensure it uses the same DB connection
-      delete require.cache[require.resolve('../../src/index')]
-      const { app: mainApp } = require('../../src/index')
+      // Use auth service for creating approval, admin service for approving
+      const adminApp = setupApp('admin')
       
       // Get admin role
       const adminRole = await Role.findOne({ slug: 'admin' })
@@ -819,23 +714,13 @@ describe('Profile Edit Integration Tests', () => {
       await admin2.populate('role')
       const admin2Token = signAccessToken(admin2).token
 
-      // Create approval request - try main app first, fallback to regular app
-      let approvalResponse = await request(mainApp)
+      // Create approval request via auth service
+      const approvalResponse = await request(app)
         .patch('/api/auth/profile/personal-info')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           firstName: 'NewFirstName',
         })
-
-      // If main app returns 401, use regular app for creating approval
-      if (approvalResponse.status === 401) {
-        approvalResponse = await request(app)
-          .patch('/api/auth/profile/personal-info')
-          .set('Authorization', `Bearer ${adminToken}`)
-          .send({
-            firstName: 'NewFirstName',
-          })
-      }
 
       expect(approvalResponse.status).toBe(200)
       expect(approvalResponse.body.success).toBe(true)
@@ -843,8 +728,8 @@ describe('Profile Edit Integration Tests', () => {
       const approvalId = approvalResponse.body.approval.approvalId
       expect(approvalId).toBeDefined()
 
-      // First approval - use main app for admin routes
-      const firstApprovalResponse = await request(mainApp)
+      // First approval via admin service
+      const firstApprovalResponse = await request(adminApp)
         .post(`/api/admin/approvals/${approvalId}/approve`)
         .set('Authorization', `Bearer ${admin2Token}`)
         .send({
@@ -868,7 +753,7 @@ describe('Profile Edit Integration Tests', () => {
       const admin3Token = signAccessToken(admin3).token
 
       // Second approval (should trigger change application)
-      const response = await request(mainApp)
+      const response = await request(adminApp)
         .post(`/api/admin/approvals/${approvalId}/approve`)
         .set('Authorization', `Bearer ${admin3Token}`)
         .send({

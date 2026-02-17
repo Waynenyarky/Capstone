@@ -1,5 +1,5 @@
-const User = require('../../src/models/User')
-const Role = require('../../src/models/Role')
+const User = require('../../services/auth-service/src/models/User')
+const Role = require('../../services/auth-service/src/models/Role')
 const bcrypt = require('bcryptjs')
 
 /**
@@ -50,15 +50,6 @@ async function createTestRole(slug) {
 
 /**
  * Create a test user with unique data
- * @param {object} options - User options
- * @param {string} options.roleSlug - Role slug
- * @param {string} options.email - Email (optional, will generate unique if not provided)
- * @param {string} options.phoneNumber - Phone number (optional, will generate unique if not provided)
- * @param {string} options.password - Password (default: 'Test123!@#')
- * @param {string} options.firstName - First name (optional)
- * @param {string} options.lastName - Last name (optional)
- * @param {object} options.extraFields - Additional fields to set
- * @returns {Promise<User>}
  */
 async function createTestUser(options = {}) {
   const {
@@ -99,7 +90,6 @@ async function createTestUser(options = {}) {
 
 /**
  * Create all standard test users (businessOwner, staff, admin)
- * @returns {Promise<{businessOwner: User, staffUser: User, adminUser: User, roles: {businessOwnerRole: Role, staffRole: Role, adminRole: Role}}>}
  */
 async function createTestUsers() {
   const businessOwnerRole = await createTestRole('business_owner')
@@ -142,11 +132,9 @@ async function createTestUsers() {
 
 /**
  * Generate tokens for test users
- * @param {object} users - Object with businessOwner, staffUser, adminUser
- * @returns {object} Tokens object
  */
 function getTestTokens(users) {
-  const { signAccessToken } = require('../../src/middleware/auth')
+  const { signAccessToken } = require('../../services/auth-service/src/middleware/auth')
   
   return {
     businessOwnerToken: signAccessToken(users.businessOwner).token,
@@ -157,13 +145,9 @@ function getTestTokens(users) {
 
 /**
  * Create a test verification request
- * @param {string} userId - User ID
- * @param {string} purpose - Verification purpose
- * @param {string} method - Verification method ('otp' or 'mfa')
- * @returns {Promise<object>} Verification request result
  */
 async function createTestVerificationRequest(userId, purpose, method = 'otp') {
-  const { requestVerification } = require('../../src/lib/verificationService')
+  const { requestVerification } = require('../../services/auth-service/src/lib/verificationService')
   return await requestVerification(userId, method, purpose)
 }
 

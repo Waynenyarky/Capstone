@@ -20,7 +20,7 @@ set -e
 # Configuration - Modify these as needed
 REGION="${AWS_REGION:-ap-southeast-1}"  # Default: Singapore
 INSTANCE_TYPE="${INSTANCE_TYPE:-t3.large}"  # 2 vCPU, 8GB RAM (~$60/month)
-# Use t3.xlarge for 4 vCPU, 16GB RAM if AI service needs more resources (~$120/month)
+# Use t3.xlarge for 4 vCPU, 16GB RAM for higher capacity (~$120/month)
 VOLUME_SIZE=50  # GB
 KEY_NAME="${KEY_NAME:-capstone-key}"
 SECURITY_GROUP_NAME="capstone-sg"
@@ -169,14 +169,14 @@ setup_security_group() {
             --region "$REGION" 2>/dev/null || true
         print_success "HTTPS (443) - from anywhere"
         
-        # Backend services (ports 3001-3005)
+        # Backend services (ports 3001-3004)
         aws ec2 authorize-security-group-ingress \
             --group-id "$SG_ID" \
             --protocol tcp \
-            --port 3001-3005 \
+            --port 3001-3004 \
             --cidr "0.0.0.0/0" \
             --region "$REGION" 2>/dev/null || true
-        print_success "Backend services (3001-3005) - from anywhere"
+        print_success "Backend services (3001-3004) - from anywhere"
         
         # Frontend dev server (port 5173)
         aws ec2 authorize-security-group-ingress \
@@ -294,7 +294,6 @@ print_summary() {
     echo "4. Access your services at:"
     echo -e "   Frontend:  ${GREEN}http://${PUBLIC_IP}:5173${NC}"
     echo -e "   Auth API:  ${GREEN}http://${PUBLIC_IP}:3001${NC}"
-    echo -e "   AI API:    ${GREEN}http://${PUBLIC_IP}:3005${NC}"
     echo ""
     
     # Save instance info

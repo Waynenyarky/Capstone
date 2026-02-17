@@ -51,7 +51,7 @@ export default function AppealsPage() {
   ]
 
   return (
-    <BusinessOwnerLayout pageTitle="Appeals & Disputes">
+    <BusinessOwnerLayout pageTitle="Appeals & Disputes" pageIcon={<ExclamationCircleOutlined />}>
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
             <div>

@@ -179,7 +179,7 @@ install_utilities() {
     print_success "Utilities installed (htop, vim, nano, wget, jq)"
 }
 
-# Configure swap (helpful for memory-intensive AI service)
+# Configure swap (helpful for memory-intensive workloads)
 configure_swap() {
     print_header "Configuring Swap Space"
     
@@ -217,7 +217,7 @@ configure_firewall() {
     # But check if firewalld is running
     if systemctl is-active --quiet firewalld 2>/dev/null; then
         print_warning "firewalld is running. Adding Docker ports..."
-        sudo firewall-cmd --permanent --add-port=3001-3005/tcp
+        sudo firewall-cmd --permanent --add-port=3001-3004/tcp
         sudo firewall-cmd --permanent --add-port=5173/tcp
         sudo firewall-cmd --permanent --add-port=8080/tcp
         sudo firewall-cmd --permanent --add-port=80/tcp

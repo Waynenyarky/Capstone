@@ -30,6 +30,11 @@ jobs:
         working-directory: backend
         run: npm ci
 
+      - name: Check backend service dependencies
+        run: ./scripts/check-backend-deps.sh
+        env:
+          CI: true
+
       - name: Run tests
         working-directory: backend
         run: npm test

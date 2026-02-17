@@ -23,7 +23,7 @@ Conventions:
 Examples:
 - Admin components:
   ```js
-  import { AdminLayout, TamperIncidentsPanel, RecoveryRequestsTable } from '@/features/admin'
+  import { AdminLayout, TamperIncidentsPanel } from '@/features/admin'
   ```
 - User management:
   ```js

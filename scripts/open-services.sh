@@ -110,11 +110,15 @@ else
     echo -e "${RED}❌ MongoDB not ready${NC}"
 fi
 
-# Check IPFS
-if check_service "capstone-ipfs" 5001; then
-    echo -e "${GREEN}✅ IPFS is ready${NC}"
+# Check IPFS (skip when SKIP_IPFS=1, e.g. ./start.sh --skip-ipfs)
+if [ "${SKIP_IPFS:-0}" != "1" ]; then
+    if check_service "capstone-ipfs" 5001; then
+        echo -e "${GREEN}✅ IPFS is ready${NC}"
+    else
+        echo -e "${RED}❌ IPFS not ready${NC}"
+    fi
 else
-    echo -e "${RED}❌ IPFS not ready${NC}"
+    echo -e "${YELLOW}   ℹ️  IPFS skipped (--skip-ipfs)${NC}"
 fi
 
 # Check Ganache
@@ -159,16 +163,19 @@ sleep 2
 echo -e "\n${GREEN}🌐 Opening browser tabs...${NC}\n"
 echo -e "${CYAN}💡 Note: Browser tabs may open in the background. Check your browser!${NC}\n"
 
-# Open IPFS Gateway with a test file (IPFS logo) to verify it works
-# The root URL doesn't work, so we use a known test CID
-open_browser "http://localhost:8080/ipfs/QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG" "IPFS Gateway (Test)"
+# Open IPFS Gateway and Web UI (skip when SKIP_IPFS=1)
+if [ "${SKIP_IPFS:-0}" != "1" ]; then
+    # Open IPFS Gateway with a test file (IPFS logo) to verify it works
+    # The root URL doesn't work, so we use a known test CID
+    open_browser "http://localhost:8080/ipfs/QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG" "IPFS Gateway (Test)"
 
-# Small delay before next
-sleep 1
+    # Small delay before next
+    sleep 1
 
-# Open IPFS Web UI (if available)
-open_browser "http://localhost:5001/webui" "IPFS Web UI"
-sleep 1
+    # Open IPFS Web UI (if available)
+    open_browser "http://localhost:5001/webui" "IPFS Web UI"
+    sleep 1
+fi
 
 # Print MongoDB connection info instead of trying to open HTML file
 echo -e "\n${BLUE}🔌 MongoDB Connection Info:${NC}"

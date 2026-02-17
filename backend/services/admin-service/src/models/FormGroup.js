@@ -67,4 +67,4 @@ FormGroupSchema.methods.computeDisplayName = function () {
   return `${typeLabel} - ${scopeLabel}`
 }
 
-module.exports = mongoose.model('FormGroup', FormGroupSchema)
+module.exports = mongoose.models.FormGroup || mongoose.model('FormGroup', FormGroupSchema)

@@ -3,12 +3,6 @@
 .env.local
 .env.production
 
-# ID verification datasets (downloaded via ai/datasets/download_id_datasets.py)
-ai/datasets/id_verification/
-
-# AI training data (large - hundreds of MB)
-ai/id-verification/data/
-
 # User uploads (avatars, etc.)
 backend/services/uploads/
 backend/uploads/

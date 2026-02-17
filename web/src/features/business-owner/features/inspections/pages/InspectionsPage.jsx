@@ -78,7 +78,7 @@ export default function InspectionsPage() {
   ]
 
   return (
-    <BusinessOwnerLayout pageTitle="Inspections & Violations">
+    <BusinessOwnerLayout pageTitle="Inspections & Violations" pageIcon={<SafetyCertificateOutlined />}>
       <div>
         <div style={{ marginBottom: 32 }}>
           <Title level={2} style={{ color: token.colorPrimary, marginBottom: 8 }}>Inspections & Violations</Title>

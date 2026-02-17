@@ -34,7 +34,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Services:"
             echo "  auth-service, business-service, admin-service"
-            echo "  audit-service, ai-service, mongodb, ipfs, ganache"
+            echo "  audit-service, mongodb, ipfs, ganache"
             echo ""
             echo "Options:"
             echo "  -n, --lines N     Show last N lines"

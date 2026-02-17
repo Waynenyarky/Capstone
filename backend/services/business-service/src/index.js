@@ -77,6 +77,14 @@ app.use('/api/business/retirements', retirementRouter);
 app.use('/api/business', retirementRouter); // Also mount at /api/business/:businessId/retire
 app.use('/api/business/dashboard', dashboardRouter);
 
+// Inspector routes
+const inspectorRouter = require('./routes/inspector/index');
+app.use('/api/inspector', inspectorRouter);
+
+// LGU Officer inspection assignment routes
+const inspectionAssignmentsRouter = require('./routes/lgu-officer/inspectionAssignments');
+app.use('/api/lgu-officer', inspectionAssignmentsRouter);
+
 // Global Error Handler (must be last middleware)
 app.use(errorHandlerMiddleware);
 

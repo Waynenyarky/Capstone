@@ -1,9 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Form, message, Modal } from 'antd'
+import { Form, message } from 'antd'
 import { getBusinessProfile, updateBusinessProfile } from '../services/businessProfileService'
-
-// Use Vite proxy in development (works in Codespaces), direct URL in production
-const AI_SERVICE_URL = import.meta.env.DEV ? '/ai' : (import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:3005')
 
 export function useBusinessRegistration({ onComplete } = {}) {
   const [currentStep, setCurrentStep] = useState(0) 
@@ -116,91 +113,6 @@ export function useBusinessRegistration({ onComplete } = {}) {
       const values = await form.validateFields()
       
       setLoading(true)
-      
-      // For Identity step (step 1), verify AI check on uploaded ID BEFORE normalizing files
-      if (currentStep === 1) {
-        const idFileList = form.getFieldValue('idFileUrl')
-        if (idFileList && idFileList.length > 0) {
-          const file = idFileList[0]
-          
-          // If it's a new upload (has originFileObj), verify it
-          if (file.originFileObj) {
-            try {
-              const base64 = await new Promise((resolve, reject) => {
-                const reader = new FileReader()
-                reader.onload = () => resolve(reader.result)
-                reader.onerror = reject
-                reader.readAsDataURL(file.originFileObj)
-              })
-
-              // Call AI verification
-              const verifyResponse = await fetch(`${AI_SERVICE_URL}/id-verification/verify`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  frontImageBase64: base64,
-                }),
-              })
-
-              if (verifyResponse.ok) {
-                const verifyResult = await verifyResponse.json()
-                
-                if (!verifyResult.legit) {
-                  // Block proceeding if AI says ID is not legitimate
-                  Modal.error({
-                    title: 'ID Verification Failed',
-                    content: (
-                      <div>
-                        <p>Our system could not verify that the uploaded image is a legitimate government ID.</p>
-                        <p><strong>Confidence Score:</strong> {Math.round(verifyResult.confidence * 100)}%</p>
-                        <p style={{ marginTop: 16 }}>Please ensure you upload:</p>
-                        <ul style={{ marginLeft: 16 }}>
-                          <li>A clear, readable photo of a valid government-issued ID</li>
-                          <li>The full document is visible (no cropping)</li>
-                          <li>Good lighting with no glare or blur</li>
-                        </ul>
-                      </div>
-                    ),
-                    okText: 'Try Again',
-                  })
-                  setLoading(false)
-                  return
-                }
-                
-                // Verification passed
-                message.success('ID verification passed!')
-              } else {
-                // AI service returned an error response
-                throw new Error('AI service returned an error')
-              }
-            } catch (verifyErr) {
-              console.warn('AI verification check failed:', verifyErr)
-              // Show warning when AI service is unavailable
-              const proceed = await new Promise((resolve) => {
-                Modal.confirm({
-                  title: 'Verification Service Unavailable',
-                  content: (
-                    <div>
-                      <p>The ID verification service is currently unavailable.</p>
-                      <p>You can proceed, but your application will require manual review by an officer.</p>
-                      <p style={{ color: '#faad14', marginTop: 8 }}>This may delay your application processing.</p>
-                    </div>
-                  ),
-                  okText: 'Proceed Without Verification',
-                  cancelText: 'Try Again Later',
-                  onOk: () => resolve(true),
-                  onCancel: () => resolve(false),
-                })
-              })
-
-              if (!proceed) {
-                setLoading(false)
-                return
-              }
-            }
-          }
-        }
-      }
       
       // Normalize file uploads (Convert FileList back to URL string)
       const fileFields = ['idFileUrl', 'idFileBackUrl']

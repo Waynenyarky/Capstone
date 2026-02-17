@@ -299,4 +299,4 @@ FormDefinitionSchema.methods.canArchive = function () {
   return this.status === 'published' || this.status === 'draft'
 }
 
-module.exports = mongoose.model('FormDefinition', FormDefinitionSchema)
+module.exports = mongoose.models.FormDefinition || mongoose.model('FormDefinition', FormDefinitionSchema)

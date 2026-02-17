@@ -20,6 +20,9 @@ const AuditLogSchema = new mongoose.Schema(
         'login',
         'logout',
         'admin_approval',
+        'admin_approval_request',
+        'admin_approval_approved',
+        'admin_approval_rejected',
         'admin_rejection',
         'document_upload',
         'document_delete',
@@ -85,4 +88,4 @@ AuditLogSchema.index({ userId: 1, createdAt: -1 })
 AuditLogSchema.index({ eventType: 1, createdAt: -1 })
 AuditLogSchema.index({ txHash: 1 })
 
-module.exports = mongoose.model('AuditLog', AuditLogSchema)
+module.exports = mongoose.models.AuditLog || mongoose.model('AuditLog', AuditLogSchema)

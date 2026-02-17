@@ -207,12 +207,11 @@ describe('Integration Flows Tests', () => {
 
   describe('Complete Admin Approval Workflow', () => {
     it('should complete admin approval: create request → first approval → second approval → apply changes', async () => {
-      // Use main app for admin routes
-      delete require.cache[require.resolve('../../src/index')]
-      const { app: mainApp } = require('../../src/index')
+      // Use auth service for creating approval, admin service for approving
+      const adminApp = setupApp('admin')
       
-      // Step 1: Create approval request
-      const createResponse = await request(mainApp)
+      // Step 1: Create approval request via auth service
+      const createResponse = await request(app)
         .patch('/api/auth/profile/personal-info')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
@@ -224,8 +223,8 @@ describe('Integration Flows Tests', () => {
       expect(createResponse.body.approval).toBeDefined()
       const approvalId = createResponse.body.approval.approvalId
 
-      // Step 2: First approval
-      const firstApprovalResponse = await request(mainApp)
+      // Step 2: First approval via admin service
+      const firstApprovalResponse = await request(adminApp)
         .post(`/api/admin/approvals/${approvalId}/approve`)
         .set('Authorization', `Bearer ${adminToken2}`)
         .send({
@@ -255,7 +254,7 @@ describe('Integration Flows Tests', () => {
       const adminToken3 = signAccessToken(adminUser3).token
 
       // Step 5: Second approval (should trigger change application)
-      const secondApprovalResponse = await request(mainApp)
+      const secondApprovalResponse = await request(adminApp)
         .post(`/api/admin/approvals/${approvalId}/approve`)
         .set('Authorization', `Bearer ${adminToken3}`)
         .send({
