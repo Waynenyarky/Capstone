@@ -1,7 +1,7 @@
 const mongoose = require('mongoose')
 const { MongoMemoryServer } = require('mongodb-memory-server')
-// Use the main app's db config to ensure models use the same connection
-const connectDB = require('../../src/config/db')
+const backendConnectDB = require('../../src/config/db')
+const authConnectDB = require('../../services/auth-service/src/config/db')
 
 let mongoServer = null
 
@@ -31,9 +31,12 @@ async function setupMongoDB() {
   }
 
   mongoServer = await MongoMemoryServer.create()
-  process.env.MONGO_URI = mongoServer.getUri()
-  
-  await connectDB(process.env.MONGO_URI)
+  const uri = mongoServer.getUri()
+  process.env.MONGO_URI = uri
+
+  // Connect both mongoose instances (backend and auth-service have separate ones)
+  await backendConnectDB(uri)
+  await authConnectDB(uri)
   
   // Seed dev data if seedDev exists (optional - may not be needed for all tests)
   try {
@@ -43,15 +46,15 @@ async function setupMongoDB() {
     // seedDev may not exist, that's okay
   }
   
-  // Ensure mongoose connection is ready before returning
-  // Mongoose buffers operations if not connected, so we need to wait
+  // Ensure mongoose connection is ready (auth-service's mongoose is what the app uses)
+  const authMongoose = require('../../services/auth-service/node_modules/mongoose')
   let retries = 0
-  while (mongoose.connection.readyState !== 1 && retries < 50) {
+  while (authMongoose.connection.readyState !== 1 && retries < 50) {
     await new Promise(resolve => setTimeout(resolve, 100))
     retries++
   }
-  
-  if (mongoose.connection.readyState !== 1) {
+
+  if (authMongoose.connection.readyState !== 1) {
     throw new Error('Mongoose connection not ready after setup')
   }
   
@@ -66,7 +69,12 @@ async function setupMongoDB() {
  */
 async function teardownMongoDB() {
   try {
-    await mongoose.disconnect()
+    await mongoose.disconnect().catch(() => {})
+    // Also disconnect auth-service's mongoose
+    try {
+      const authMongoose = require('../../services/auth-service/node_modules/mongoose')
+      await authMongoose.disconnect().catch(() => {})
+    } catch (_) {}
   } catch (error) {
     console.error('Error disconnecting MongoDB:', error)
   } finally {

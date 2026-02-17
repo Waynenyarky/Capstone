@@ -1,5 +1,5 @@
 import React, { useImperativeHandle, forwardRef } from 'react'
-import { Tabs, Button, Card, App } from 'antd'
+import { Tabs, Button, App, Space } from 'antd'
 import { CheckCircleOutlined } from '@ant-design/icons'
 import { wizardSteps } from '../constants/wizardSteps.jsx'
 import { useBusinessRegistrationWizard } from '../hooks/useBusinessRegistrationWizard.jsx'
@@ -53,12 +53,14 @@ const BusinessRegistrationWizard = forwardRef(function BusinessRegistrationWizar
 
   useImperativeHandle(ref, () => ({ saveDraft }), [saveDraft])
 
+  const totalSteps = wizardSteps.length
+
   return (
     <div>
       <Tabs
         activeKey={wizardSteps[currentStep]?.key}
         onChange={(key) => {
-          if (isSubmitted && currentStep < 7) return
+          if (isSubmitted && currentStep < totalSteps - 1) return
           const nextIndex = wizardSteps.findIndex((step) => step.key === key)
           if (nextIndex >= 0) handleStepChange(nextIndex)
         }}
@@ -79,9 +81,7 @@ const BusinessRegistrationWizard = forwardRef(function BusinessRegistrationWizar
         })}
       />
 
-      <div style={{ 
-        minHeight: isMobile ? 300 : 400,
-      }}>
+      <div style={{ minHeight: isMobile ? 300 : 400 }}>
         <BusinessRegistrationStepContent
           currentStep={currentStep}
           form={form}
@@ -107,10 +107,11 @@ const BusinessRegistrationWizard = forwardRef(function BusinessRegistrationWizar
         />
       </div>
 
+      {/* Navigation buttons for steps 0-5 (not review/submit or status) */}
       {currentStep < 6 && !isSubmitted && (
-        <div style={{ 
-          marginTop: isMobile ? 24 : 32, 
-          display: 'flex', 
+        <div style={{
+          marginTop: isMobile ? 24 : 32,
+          display: 'flex',
           justifyContent: 'space-between',
           flexDirection: isMobile ? 'column' : 'row',
           gap: isMobile ? 12 : 0
@@ -123,36 +124,32 @@ const BusinessRegistrationWizard = forwardRef(function BusinessRegistrationWizar
           >
             Previous
           </Button>
-          <div>
-            {currentStep === 1 && (
-              <Button
-                type="primary"
-                size="default"
-                onClick={async () => {
-                  try {
-                    const values = await form.validateFields()
+          <Space>
+            <Button
+              type="primary"
+              size="default"
+              onClick={async () => {
+                try {
+                  // Validate current step fields before proceeding
+                  await form.validateFields()
+                  if (currentStep === 1 || currentStep === 0) {
+                    // Save form data on taxpayer info or application type step
+                    const values = form.getFieldsValue(true)
                     await handleFormSave(values)
-                  } catch (error) {
-                    if (!error.errorFields) {
-                      message.error('Please fill in all required fields')
-                    }
+                  } else {
+                    handleNext()
                   }
-                }}
-                loading={loading}
-              >
-                Save and Continue
-              </Button>
-            )}
-            {currentStep === 5 && (
-              <Button
-                type="primary"
-                size="default"
-                onClick={handleNext}
-              >
-                Proceed to Submit
-              </Button>
-            )}
-          </div>
+                } catch (error) {
+                  if (error?.errorFields?.length) {
+                    message.error(`Please fix ${error.errorFields.length} error(s) in this step before continuing.`)
+                  }
+                }
+              }}
+              loading={loading}
+            >
+              {currentStep === 5 ? 'Proceed to Review' : 'Save & Continue'}
+            </Button>
+          </Space>
         </div>
       )}
     </div>

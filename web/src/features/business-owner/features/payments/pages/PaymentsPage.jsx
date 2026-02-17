@@ -1,6 +1,6 @@
 import React from 'react'
 import { Tabs, Table, Card, Button, Typography, Tag, Space, List, Statistic, Alert, Badge, theme } from 'antd'
-import BusinessOwnerLayout from '@/features/business-owner/views/components/BusinessOwnerLayout'
+import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
 import { DollarCircleOutlined, HistoryOutlined, RobotOutlined, CheckCircleOutlined, FilePdfOutlined } from '@ant-design/icons'
 import PaymentModal from '../components/PaymentModal'
 import { usePayments } from '../hooks/usePayments'
@@ -50,7 +50,7 @@ export default function PaymentsPage() {
       key: '1',
       label: (
         <span>
-          <DollarCircleOutlined /> Pending Bills <Badge count={bills.length} offset={[8, -2]} size="small" style={{ backgroundColor: '#faad14' }} />
+          <DollarCircleOutlined /> Pending Bills <Badge count={bills.length} offset={[8, -2]} size="small" style={{ backgroundColor: token.colorWarning }} />
         </span>
       ),
       children: (
@@ -63,7 +63,7 @@ export default function PaymentsPage() {
               <Card 
                 title={item.type} 
                 extra={<Tag color="#faad14">Unpaid</Tag>}
-                style={{ borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+                style={{ borderRadius: token.borderRadiusLG, boxShadow: token.boxShadowSecondary }}
                 actions={[
                   <Button type="primary" onClick={() => setSelectedBill(item)} style={{ background: token.colorPrimary, borderColor: token.colorPrimary }}>Pay Now</Button>
                 ]}
@@ -73,7 +73,7 @@ export default function PaymentsPage() {
                   value={item.amount} 
                   precision={2} 
                   prefix="₱" 
-                  valueStyle={{ color: '#faad14' }}
+                  valueStyle={{ color: token.colorWarning }}
                 />
                 <div style={{ marginTop: 12 }}>
                   <Text type="secondary">Due Date: {item.dueDate}</Text>
@@ -98,7 +98,7 @@ export default function PaymentsPage() {
           <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
             <Tag color="blue">Blockchain Verified</Tag>
           </div>
-          <Table columns={columns} dataSource={history} rowKey="id" loading={loading} />
+          <Table columns={columns} dataSource={history} rowKey="id" loading={loading} scroll={{ x: 'max-content' }} />
         </Card>
       )
     }

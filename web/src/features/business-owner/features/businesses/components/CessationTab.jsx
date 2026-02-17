@@ -1,12 +1,15 @@
 import React from 'react'
-import { Table, Button, Tag, Space, Typography, Card, Empty, theme } from 'antd'
+import { Table, Button, Tag, Space, Typography, Card, Empty, theme, Grid } from 'antd'
 import { StopOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import CessationForm from '@/features/business-owner/features/cessation/components/CessationForm'
 import { useCessation } from '@/features/business-owner/features/cessation/hooks/useCessation'
 
 const { Title, Paragraph } = Typography
+const { useBreakpoint } = Grid
 
 export default function CessationTab() {
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const {
     requests,
     loading,
@@ -39,7 +42,7 @@ export default function CessationTab() {
       key: 'blockchainTimestamp',
       render: (hash) => (
         <Space>
-          <SafetyCertificateOutlined style={{ color: '#faad14' }} />
+          <SafetyCertificateOutlined style={{ color: token.colorWarning }} />
           <Typography.Text ellipsis style={{ maxWidth: 100 }} type="secondary">{hash}</Typography.Text>
         </Space>
       )
@@ -60,7 +63,7 @@ export default function CessationTab() {
         )}
       </div>
 
-      <Card style={{ borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+      <Card style={{ borderRadius: token.borderRadiusLG, boxShadow: token.boxShadowSecondary }}>
         {requests.length === 0 && !loading ? (
           <Empty description="No cessation requests found. Operating normally.">
             <Button type="primary" danger icon={<StopOutlined />} onClick={openModal}>
@@ -68,7 +71,7 @@ export default function CessationTab() {
             </Button>
           </Empty>
         ) : (
-          <Table columns={columns} dataSource={requests} rowKey="id" loading={loading} />
+          <Table columns={columns} dataSource={requests} rowKey="id" loading={loading} scroll={{ x: 'max-content' }} />
         )}
       </Card>
 
@@ -77,7 +80,7 @@ export default function CessationTab() {
         open={isModalVisible}
         onCancel={closeModal}
         footer={null}
-        width={800}
+        width={isMobile ? '95%' : 800}
       >
         <CessationForm onFinish={handleCreate} />
       </Modal>

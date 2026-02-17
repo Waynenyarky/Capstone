@@ -22,10 +22,14 @@ vi.mock('@/shared/notifications.js', () => ({
 }))
 
 // Mock auth
-vi.mock('@/features/authentication/lib/authEvents.js', () => ({
-  getCurrentUser: () => ({ id: '123', email: 'test@example.com' }),
-  setCurrentUser: vi.fn(),
-}))
+vi.mock('@/features/authentication/lib/authEvents.js', async () => {
+  const actual = await vi.importActual('@/features/authentication/lib/authEvents.js')
+  return {
+    ...actual,
+    getCurrentUser: () => ({ id: '123', email: 'test@example.com' }),
+    setCurrentUser: vi.fn(),
+  }
+})
 
 vi.mock('@/features/authentication/hooks', async () => {
   const actual = await vi.importActual('@/features/authentication/hooks')

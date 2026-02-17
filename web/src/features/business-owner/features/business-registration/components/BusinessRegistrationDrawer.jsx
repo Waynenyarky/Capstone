@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Drawer, Steps, Button, Form, Space, Tag, message, Popconfirm, Alert } from 'antd'
+import { Drawer, Steps, Button, Form, Space, Tag, message, Popconfirm, Alert, Grid } from 'antd'
 import { ShopOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useBusinessRegistrationDrawer } from '../hooks/useBusinessRegistrationDrawer'
@@ -41,7 +41,11 @@ const calculateRiskLevelClient = (businessData) => {
   else return 'high'
 }
 
+const { useBreakpoint } = Grid
+
 const BusinessRegistrationDrawer = ({ open, onClose, initialBusinessId = null }) => {
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const {
     businesses,
     selectedBusinessId,
@@ -197,7 +201,7 @@ const BusinessRegistrationDrawer = ({ open, onClose, initialBusinessId = null })
           )}
         </Space>
       }
-      width={900}
+      width={isMobile ? '100%' : 900}
       open={open}
       onClose={closeDrawer}
       extra={

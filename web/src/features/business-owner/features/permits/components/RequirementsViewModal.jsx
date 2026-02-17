@@ -1,12 +1,15 @@
 import React from 'react'
-import { Modal, Card, List, Descriptions, Space, Tag, Typography, Tooltip, theme, Spin, Button } from 'antd'
+import { Modal, Card, List, Descriptions, Space, Tag, Typography, Tooltip, theme, Spin, Button, Grid } from 'antd'
 import { CheckCircleOutlined, CloseCircleOutlined, EyeOutlined, FileTextOutlined } from '@ant-design/icons'
 import { resolveAvatarUrl } from '@/lib/utils'
 
 const { Title, Text } = Typography
+const { useBreakpoint } = Grid
 
 export default function RequirementsViewModal({ visible, application, type, onClose, loading = false }) {
   const { token } = theme.useToken()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
 
   // Extract data from application (handle null case)
   const business = application?.businessDetails || {}
@@ -108,7 +111,7 @@ export default function RequirementsViewModal({ visible, application, type, onCl
       open={visible}
       onCancel={onClose}
       footer={[<Button key="close" onClick={onClose}>Close</Button>]}
-      width={900}
+      width={isMobile ? '95%' : 900}
       style={{ top: 20 }}
     >
       <div style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto', padding: '8px 0' }}>

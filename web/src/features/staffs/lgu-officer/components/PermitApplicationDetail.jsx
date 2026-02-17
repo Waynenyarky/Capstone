@@ -19,6 +19,7 @@ import {
   Checkbox,
   Row,
   Col,
+  Grid,
   theme,
   Image,
   App
@@ -50,6 +51,7 @@ import dayjs from 'dayjs'
 
 const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
+const { useBreakpoint } = Grid
 
 export default function PermitApplicationDetail({
   visible,
@@ -67,6 +69,8 @@ export default function PermitApplicationDetail({
   const [decision, setDecision] = useState(null)
   const { token } = theme.useToken()
   const { message } = App.useApp()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
 
   const permitService = new PermitApplicationService()
 
@@ -594,6 +598,33 @@ export default function PermitApplicationDetail({
           </Card>
         )}
 
+        {/* Fee Computation & Permit Issuance (Phase 2) */}
+        {application?.status === 'approved' && (
+          <Card
+            size="small"
+            style={{
+              background: token.colorSuccessBg,
+              border: `1px solid ${token.colorSuccessBorder || token.colorSuccess}`,
+              borderRadius: token.borderRadius,
+            }}
+          >
+            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <Text strong style={{ fontSize: 13 }}>Permit Actions</Text>
+              <Button
+                type="primary"
+                block
+                icon={<FileTextOutlined />}
+                onClick={() => {
+                  // Simulate payment + permit issuance
+                  message.success('Payment simulated. Permit issued successfully.')
+                }}
+              >
+                Issue Permit (Simulate Payment)
+              </Button>
+            </Space>
+          </Card>
+        )}
+
         {/* Review Form */}
         {!canReview ? (
           <Alert
@@ -914,7 +945,7 @@ export default function PermitApplicationDetail({
       open={visible}
       onCancel={onClose}
       footer={null}
-      width={1400}
+      width={isMobile ? '95%' : 1400}
       style={{ top: 20 }}
     >
       <Spin spinning={loading || startingReview}>

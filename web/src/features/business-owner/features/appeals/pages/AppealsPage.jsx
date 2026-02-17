@@ -1,6 +1,6 @@
 import React from 'react'
 import { Table, Button, Tag, Space, Typography, Card, theme } from 'antd'
-import BusinessOwnerLayout from '@/features/business-owner/views/components/BusinessOwnerLayout'
+import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
 import { ExclamationCircleOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import AppealModal from '../components/AppealModal'
 import { useAppeals } from '../hooks/useAppeals'
@@ -64,7 +64,7 @@ export default function AppealsPage() {
           </div>
 
           <Card style={{ borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-            <Table columns={columns} dataSource={appeals} rowKey="id" loading={loading} />
+            <Table columns={columns} dataSource={appeals} rowKey="id" loading={loading} scroll={{ x: 'max-content' }} />
           </Card>
 
           <AppealModal 

@@ -55,6 +55,28 @@ app.use('/uploads', express.static(uploadsDir));
 const businessRouter = require('./routes/profile');
 app.use('/api/business', businessRouter);
 
+// Phase 2 routes
+const feeConfigurationRouter = require('./routes/feeConfiguration');
+const generalPermitsRouter = require('./routes/generalPermits');
+const occupationalPermitsRouter = require('./routes/occupationalPermits');
+const appealsRouter = require('./routes/appeals');
+const editRequestsRouter = require('./routes/editRequests');
+const postRequirementsRouter = require('./routes/postRequirements');
+const walkInRouter = require('./routes/walkIn');
+const retirementRouter = require('./routes/retirement');
+const dashboardRouter = require('./routes/dashboard');
+
+app.use('/api/business/admin/fee-configuration', feeConfigurationRouter);
+app.use('/api/business/general-permits', generalPermitsRouter);
+app.use('/api/business/occupational-permits', occupationalPermitsRouter);
+app.use('/api/business/appeals', appealsRouter);
+app.use('/api/business/edit-requests', editRequestsRouter);
+app.use('/api/business/post-requirements', postRequirementsRouter);
+app.use('/api/business/walk-in', walkInRouter);
+app.use('/api/business/retirements', retirementRouter);
+app.use('/api/business', retirementRouter); // Also mount at /api/business/:businessId/retire
+app.use('/api/business/dashboard', dashboardRouter);
+
 // Global Error Handler (must be last middleware)
 app.use(errorHandlerMiddleware);
 

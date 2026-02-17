@@ -1,10 +1,11 @@
 import React from 'react'
-import { Card, Descriptions, Tag, Button, Space } from 'antd'
+import { Card, Descriptions, Tag, Button, Space, theme } from 'antd'
 import { ShopOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 
 const BusinessProfile = ({ data }) => {
   const navigate = useNavigate()
+  const { token } = theme.useToken()
   
   if (!data) return null
 
@@ -18,9 +19,9 @@ const BusinessProfile = ({ data }) => {
 
   return (
     <Card 
-      title={<Space><ShopOutlined style={{ color: '#001529' }} /> Business Profile</Space>}
+      title={<Space><ShopOutlined style={{ color: token.colorPrimary }} /> Business Profile</Space>}
       extra={<Button type="link" size="small" onClick={handleEdit}>Edit</Button>}
-      style={{ height: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderRadius: 8 }}
+      style={{ height: '100%', boxShadow: token.boxShadowSecondary, borderRadius: token.borderRadiusLG }}
     >
       <Descriptions column={1} size="small">
         <Descriptions.Item label="Name">{data.name}</Descriptions.Item>
@@ -34,12 +35,7 @@ const BusinessProfile = ({ data }) => {
       </Descriptions>
       
       <div style={{ marginTop: 16 }}>
-        <Space style={{ width: '100%' }} direction="vertical">
-           <Button type="primary" ghost block style={{ color: '#001529', borderColor: '#001529' }} onClick={handleEdit}>
-             Edit Business
-           </Button>
-           <Button block onClick={handleManageAll}>Manage All Businesses</Button>
-        </Space>
+        <Button block onClick={handleManageAll}>Manage All Businesses</Button>
       </div>
     </Card>
   )

@@ -12,7 +12,7 @@ afterEach(() => {
   cleanup()
 })
 
-vi.mock('@/features/authentication/views/components/PasskeySignInOptions.jsx', () => ({
+vi.mock('@/features/authentication/components/PasskeySignInOptions.jsx', () => ({
   default: () => null,
 }))
 

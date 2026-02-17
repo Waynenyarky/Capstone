@@ -62,7 +62,8 @@ export default function UsersTable() {
         columns={columns} 
         dataSource={users} 
         loading={isLoading} 
-        pagination={false} 
+        pagination={false}
+        scroll={{ x: 'max-content' }}
         />
     </>
   )

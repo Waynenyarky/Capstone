@@ -1,10 +1,10 @@
-export { default as EditUserProfileForm } from './views/components/EditUserProfileForm.jsx'
-export { default as UserWorkspaceGate } from './views/components/UserWorkspaceGate.jsx'
-export * from './views/components/index.js'
+export { default as EditUserProfileForm } from './components/EditUserProfileForm.jsx'
+export { default as UserWorkspaceGate } from './components/UserWorkspaceGate.jsx'
+export * from './components/index.js'
 
 // Pages
-export { default as Dashboard } from './views/pages/Dashboard'
-export { default as ProfileSettings } from './views/pages/ProfileSettings'
+export { default as Dashboard } from './pages/Dashboard'
+export { default as ProfileSettings } from './pages/ProfileSettings'
 
 export { useEditUserProfileForm } from './hooks/useEditUserProfileForm.jsx'
 

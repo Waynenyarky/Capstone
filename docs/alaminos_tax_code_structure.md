@@ -1,48 +1,46 @@
-# Alaminos City BPLO: Tax Code & Line of Business Structure
+# Alaminos Tax Code Structure
 
-## What You Observed
+> **Status:** Placeholder — awaiting official data from BPLO Alaminos.
 
-From the field visit, the Alaminos BPLO system uses a **cascading dropdown** structure:
+## Overview
 
-1. **Tax Code** (first dropdown) – Letter codes, e.g. `C`, `D`, or combined formats like `C-D`
-2. **Line of Business** (second dropdown) – Options depend on the selected tax code
-3. **Detailed Line of Business** (third dropdown) – More specific options under the line of business
+Alaminos, Pangasinan uses LGU-specific tax codes (e.g., C, D, C-D) for classifying business activities. The exact mapping of these codes to lines of business and fee schedules must be obtained from the BPLO office.
 
-Important points:
-- The officer selects the tax code first, then line of business, then detailed line.
-- Because of this cascading flow, **the officer cannot choose a wrong tax code together with a mismatched line of business** – the second dropdown only shows options valid for the selected tax code.
-- This is **not** the same as PSIC 2019 (Philippine Standard Industrial Classification). PSIC uses single letters `a–u` for sections; the Alaminos system uses letter codes that can include combinations like `C-D`.
-- The line of business describes **what the business sells or does**.
+## Placeholder Mapping
 
-## What We Could Not Find Online
+Until the official Alaminos tax codes are provided, the system uses the **General Trias, Cavite** business classification structure as a placeholder. This structure is based on the General Trias Citizens Charter (OCBPLO 2025) and RA 7160 Section 143 categories.
 
-Exact tax code lists for Alaminos City are not publicly available. Public sources show:
+### Current Tax Codes (General Trias Placeholder)
 
-- **PSIC 2019**: Sections A–U (Agriculture through Extraterritorial), used by BIR and some LGUs.
-- **LGC Section 143**: Legal categories (manufacturers, wholesalers, retailers, contractors, banks, etc.) – not letter codes.
-- **LGU-specific codes**: Many LGUs have their own tax codes in local revenue ordinances.
-- **iBPLS**: DICT’s system; the exact code sets may be configured per LGU.
+| Tax Code | Category         | Description                                      |
+| -------- | ---------------- | ------------------------------------------------ |
+| RET      | Retail           | Sari-sari, convenience, general merchandise, etc |
+| WHL      | Wholesale        | Agricultural, food, household goods, etc         |
+| FDS      | Food Service     | Restaurant, catering, food cart, bakery, etc     |
+| MFG      | Manufacturing    | Food processing, garments, metal, etc            |
+| SVC      | Services         | Salon, laundry, IT/BPO, medical, legal, etc      |
+| FIN      | Financial        | Lending, pawnshop, insurance, cooperative, etc   |
+| RES      | Real Estate      | Brokerage, leasing, subdivision, etc             |
+| TRN      | Transportation   | Trucking, passenger, courier, freight, etc       |
+| AGR      | Agriculture      | Crop farming, livestock, aquaculture, etc        |
+| CON      | Construction     | General contractor, specialty trade, etc         |
+| MIN      | Mining           | Sand & gravel, stone quarrying, etc              |
+| UTL      | Utilities        | Water, electric, waste, sewerage                 |
 
-## Recommendation
+## Alaminos-Specific Codes (To Be Filled)
 
-**Obtain the taxonomy from Alaminos BPLO:**
+When the BPLO provides the official tax codes, update the following:
 
-1. **BPLO officer (e.g. Wilfredo Villena)** – Ask for:
-   - Full list of tax codes (with descriptions)
-   - For each tax code, the list of line of business options
-   - For each line of business, the list of detailed line options (if applicable)
+| Alaminos Code | Category | Lines of Business | Mayor's Permit Fee | Tax Brackets |
+| ------------- | -------- | ----------------- | ------------------ | ------------ |
+| C             | TBD      | TBD               | TBD                | TBD          |
+| D             | TBD      | TBD               | TBD                | TBD          |
+| C-D           | TBD      | TBD               | TBD                | TBD          |
 
-2. **System export** – If they use iBPLS or another software, request:
-   - Export of the tax code master list
-   - Export of the line-of-business tree (code → line → detailed line)
+## Action Items
 
-3. **Local revenue ordinance** – Check Alaminos City’s revenue/tax ordinance for business classifications and codes.
-
-## Impact on BizClear
-
-- **Dataset**: The AI dataset should use this tax_code → line_of_business → detailed_line structure instead of PSIC.
-- **Validation**: Because of cascading dropdowns, “wrong tax code + wrong line of business” is unlikely in practice. Validation should focus on:
-  - Missing selections
-  - Invalid or obsolete codes
-  - Consistency with other application data (e.g. business description)
-- **Placeholder**: Until the real taxonomy is available, we use a simplified structure that can be replaced once the official codes are provided.
+1. Contact BPLO Alaminos for official tax code list
+2. Map each Alaminos code to the corresponding line-of-business categories
+3. Update `backend/shared/constants/lineOfBusiness.js` with Alaminos-specific codes
+4. Update `web/src/constants/lineOfBusiness.js` (frontend mirror)
+5. Seed `FeeConfiguration` collection with Alaminos-specific rates

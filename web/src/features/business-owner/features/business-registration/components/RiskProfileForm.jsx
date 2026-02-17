@@ -1,9 +1,12 @@
 import React from 'react'
-import { Form, InputNumber, Input, Tag, Card, Row, Col } from 'antd'
+import { Form, InputNumber, Input, Tag, Card, Row, Col, Grid } from 'antd'
 
 const { TextArea } = Input
+const { useBreakpoint } = Grid
 
 const RiskProfileForm = ({ form, initialValues, onValuesChange, riskLevel }) => {
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const getRiskColor = (level) => {
     switch (level) {
       case 'low': return 'green'
@@ -26,7 +29,7 @@ const RiskProfileForm = ({ form, initialValues, onValuesChange, riskLevel }) => 
   return (
     <Card title="Risk Profile Details" style={{ marginBottom: 24 }}>
         <Row gutter={16}>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item
               name={['riskProfile', 'businessSize']}
               label="Business Size (Number of Employees)"
@@ -38,7 +41,7 @@ const RiskProfileForm = ({ form, initialValues, onValuesChange, riskLevel }) => 
               />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item
               name={['riskProfile', 'annualRevenue']}
               label="Annual Revenue (PHP)"

@@ -1,0 +1,122 @@
+const express = require('express')
+const EditRequest = require('../models/EditRequest')
+const { requireJwt } = require('../middleware/auth')
+
+const router = express.Router()
+
+// Allowed fields per Appendix K UC-2N-3
+const ALLOWED_EDIT_FIELDS = [
+  'address',
+  'tradeName',
+  'businessActivities',
+  'capital',
+  'contact',
+  'businessName',
+  'registeredBusinessName',
+  'phoneNumber',
+  'email',
+]
+
+// GET /api/business/edit-requests
+router.get('/', requireJwt, async (req, res) => {
+  try {
+    const { page = 1, limit = 20, role } = req.query
+    let filter = {}
+    if (role !== 'staff' && req._userRole === 'business_owner') {
+      filter.requestedBy = req._userId
+    }
+    const skip = (Number(page) - 1) * Number(limit)
+    const [requests, total] = await Promise.all([
+      EditRequest.find(filter).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)).lean(),
+      EditRequest.countDocuments(filter),
+    ])
+    return res.json({ data: requests, meta: { page: Number(page), limit: Number(limit), total } })
+  } catch (err) {
+    console.error('GET /edit-requests error:', err)
+    return res.status(500).json({ error: { code: 'INTERNAL', message: 'Failed to fetch edit requests' } })
+  }
+})
+
+// POST /api/business/edit-requests — submit
+router.post('/', requireJwt, async (req, res) => {
+  try {
+    const { businessId, fieldName, currentValue, requestedValue, reason, supportingDocuments } = req.body
+    if (!businessId || !fieldName || !requestedValue) {
+      return res.status(400).json({
+        error: { code: 'VALIDATION_ERROR', message: 'businessId, fieldName, and requestedValue are required' },
+      })
+    }
+
+    // Edge case UC-2N-3: Validate allowed fields
+    if (!ALLOWED_EDIT_FIELDS.includes(fieldName)) {
+      return res.status(400).json({
+        error: {
+          code: 'FIELD_NOT_EDITABLE',
+          message: `Field "${fieldName}" is not editable. Allowed fields: ${ALLOWED_EDIT_FIELDS.join(', ')}`,
+        },
+      })
+    }
+
+    // Edge case UC-2N-6: Block duplicate pending EditRequest for same field
+    const existingPending = await EditRequest.findOne({
+      businessId,
+      fieldName,
+      status: 'pending',
+    })
+    if (existingPending) {
+      return res.status(409).json({
+        error: {
+          code: 'DUPLICATE_EDIT_REQUEST',
+          message: `A pending edit request already exists for field "${fieldName}" on this business`,
+        },
+      })
+    }
+
+    const editRequest = await EditRequest.create({
+      businessId,
+      requestedBy: req._userId,
+      fieldName,
+      currentValue: currentValue || '',
+      requestedValue,
+      reason: reason || '',
+      supportingDocuments: supportingDocuments || [],
+      status: 'pending',
+    })
+    return res.status(201).json({ data: editRequest })
+  } catch (err) {
+    console.error('POST /edit-requests error:', err)
+    return res.status(500).json({ error: { code: 'INTERNAL', message: 'Failed to create edit request' } })
+  }
+})
+
+// PUT /api/business/edit-requests/:id — approve / reject (officer)
+router.put('/:id', requireJwt, async (req, res) => {
+  try {
+    const editRequest = await EditRequest.findById(req.params.id)
+    if (!editRequest) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Edit request not found' } })
+    }
+
+    // Cannot update already resolved requests
+    if (editRequest.status === 'approved' || editRequest.status === 'rejected') {
+      return res.status(400).json({
+        error: { code: 'ALREADY_RESOLVED', message: 'This edit request has already been resolved' },
+      })
+    }
+
+    const { status, reviewNotes } = req.body
+    if (status) {
+      editRequest.status = status
+      editRequest.reviewedBy = req._userId
+      editRequest.reviewNotes = reviewNotes || ''
+      editRequest.resolvedAt = new Date()
+    }
+    await editRequest.save()
+    return res.json({ data: editRequest })
+  } catch (err) {
+    console.error('PUT /edit-requests error:', err)
+    return res.status(500).json({ error: { code: 'INTERNAL', message: 'Failed to update edit request' } })
+  }
+})
+
+module.exports = router

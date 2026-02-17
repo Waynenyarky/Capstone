@@ -51,6 +51,7 @@ require('./models/AuditLog');
 require('./models/LGU');
 require('./models/FormGroup');
 require('./models/FormDefinition');
+require('./models/PenaltyConfiguration');
 
 // Admin routes
 const adminRouter = require('./routes/approvals');
@@ -61,6 +62,8 @@ const lguOfficerPermitRouter = require('./routes/permitApplications');
 const lgusRouter = require('./routes/lgus');
 const formDefinitionsRouter = require('./routes/formDefinitions');
 const publicFormsRouter = require('./routes/publicForms');
+const penaltyConfigRouter = require('./routes/penaltyConfiguration');
+const generalPermitConfigRouter = require('./routes/generalPermitConfig');
 
 app.use('/api/admin', adminRouter);
 app.use('/api/admin/monitoring', monitoringRouter);
@@ -68,6 +71,8 @@ app.use('/api/admin/maintenance', maintenanceRouter);
 app.use('/api/admin/tamper', tamperIncidentsRouter);
 app.use('/api/admin/lgus', lgusRouter);
 app.use('/api/admin/forms', formDefinitionsRouter);
+app.use('/api/admin/penalty-configuration', penaltyConfigRouter);
+app.use('/api/admin/general-permit-config', generalPermitConfigRouter);
 // Public maintenance status endpoint (for frontend to check)
 app.use('/api/maintenance', maintenanceRouter);
 // Public LGU endpoints

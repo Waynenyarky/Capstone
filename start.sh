@@ -127,12 +127,17 @@ run_all_tests() {
   local TOTAL_FAILED=0
   local FAILED_SUITES=""
   
-  # Create temp directory for error logs
+  # Single persistent error log (overwritten each run)
+  local PROJECT_ROOT
+  PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || pwd)
+  local TEST_LOG_FILE="${PROJECT_ROOT}/test-results.log"
+  : > "$TEST_LOG_FILE"  # Truncate at start of each run
+  echo "Test run started at $(date)" >> "$TEST_LOG_FILE"
+  echo "========================================" >> "$TEST_LOG_FILE"
+  
+  # Create temp directory for per-suite output (used during run)
   local ERROR_LOG_DIR=$(mktemp -d)
   trap "rm -rf $ERROR_LOG_DIR" EXIT
-  
-  # Enable pipefail so we can capture exit codes through pipes
-  set -o pipefail
   
   # Backend Tests (Jest)
   echo ""
@@ -146,16 +151,25 @@ run_all_tests() {
     fi
     echo -e "${CYAN}   Running backend tests...${NC}"
     local BACKEND_OUTPUT="$ERROR_LOG_DIR/backend.log"
-    npm test 2>&1 | tee "$BACKEND_OUTPUT"
-    local BACKEND_EXIT=${PIPESTATUS[0]}
+    # Use script to allocate a pseudo-TTY so Jest shows output in real-time
+    script -q "$BACKEND_OUTPUT" bash -c 'npm test 2>&1'
+    local BACKEND_EXIT=$?
+    local BACKEND_SUMMARY
+    BACKEND_SUMMARY=$(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g; s/\x1b\[[?][0-9]*[a-zA-Z]//g' "$BACKEND_OUTPUT" 2>/dev/null | tr -d '\r' | grep -E "(Test Suites:|Tests:|Snapshots:|Time:)" || true)
     if [ $BACKEND_EXIT -eq 0 ]; then
       echo -e "${GREEN}   ✅ Backend tests passed${NC}"
       ((TOTAL_PASSED++))
+      echo "[PASS] Backend (Jest)" >> "$TEST_LOG_FILE"
     else
       echo -e "${RED}   ❌ Backend tests failed (errors captured for summary)${NC}"
       ((TOTAL_FAILED++))
       FAILED_SUITES="${FAILED_SUITES}backend "
+      echo "[FAIL] Backend (Jest)" >> "$TEST_LOG_FILE"
     fi
+    if [ -n "$BACKEND_SUMMARY" ]; then
+      echo "$BACKEND_SUMMARY" >> "$TEST_LOG_FILE"
+    fi
+    echo "" >> "$TEST_LOG_FILE"
     cd ..
   else
     echo -e "${YELLOW}   ⚠️  Backend directory not found, skipping${NC}"
@@ -173,16 +187,24 @@ run_all_tests() {
     fi
     echo -e "${CYAN}   Running web unit tests...${NC}"
     local WEB_UNIT_OUTPUT="$ERROR_LOG_DIR/web-unit.log"
-    npm run test -- --run 2>&1 | tee "$WEB_UNIT_OUTPUT"
-    local WEB_UNIT_EXIT=${PIPESTATUS[0]}
+    script -q "$WEB_UNIT_OUTPUT" bash -c 'npm run test -- --run 2>&1'
+    local WEB_UNIT_EXIT=$?
+    local WEB_UNIT_SUMMARY
+    WEB_UNIT_SUMMARY=$(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g; s/\x1b\[[?][0-9]*[a-zA-Z]//g' "$WEB_UNIT_OUTPUT" 2>/dev/null | tr -d '\r' | grep -E "(Test Files|Tests |Start at|Duration)" | tail -4 || true)
     if [ $WEB_UNIT_EXIT -eq 0 ]; then
       echo -e "${GREEN}   ✅ Web unit tests passed${NC}"
       ((TOTAL_PASSED++))
+      echo "[PASS] Web Unit (Vitest)" >> "$TEST_LOG_FILE"
     else
       echo -e "${RED}   ❌ Web unit tests failed (errors captured for summary)${NC}"
       ((TOTAL_FAILED++))
       FAILED_SUITES="${FAILED_SUITES}web-unit "
+      echo "[FAIL] Web Unit (Vitest)" >> "$TEST_LOG_FILE"
     fi
+    if [ -n "$WEB_UNIT_SUMMARY" ]; then
+      echo "$WEB_UNIT_SUMMARY" >> "$TEST_LOG_FILE"
+    fi
+    echo "" >> "$TEST_LOG_FILE"
     cd ..
   else
     echo -e "${YELLOW}   ⚠️  Web directory not found, skipping${NC}"
@@ -205,16 +227,24 @@ run_all_tests() {
     fi
     echo -e "${CYAN}   Running web e2e tests...${NC}"
     local WEB_E2E_OUTPUT="$ERROR_LOG_DIR/web-e2e.log"
-    npm run test:e2e 2>&1 | tee "$WEB_E2E_OUTPUT"
-    local WEB_E2E_EXIT=${PIPESTATUS[0]}
+    script -q "$WEB_E2E_OUTPUT" bash -c 'npm run test:e2e 2>&1'
+    local WEB_E2E_EXIT=$?
+    local WEB_E2E_SUMMARY
+    WEB_E2E_SUMMARY=$(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g; s/\x1b\[[?][0-9]*[a-zA-Z]//g' "$WEB_E2E_OUTPUT" 2>/dev/null | tr -d '\r' | grep -E "([0-9]+ (passed|failed)|slow test)" | tail -4 || true)
     if [ $WEB_E2E_EXIT -eq 0 ]; then
       echo -e "${GREEN}   ✅ Web e2e tests passed${NC}"
       ((TOTAL_PASSED++))
+      echo "[PASS] Web E2E (Playwright)" >> "$TEST_LOG_FILE"
     else
       echo -e "${RED}   ❌ Web e2e tests failed (errors captured for summary)${NC}"
       ((TOTAL_FAILED++))
       FAILED_SUITES="${FAILED_SUITES}web-e2e "
+      echo "[FAIL] Web E2E (Playwright)" >> "$TEST_LOG_FILE"
     fi
+    if [ -n "$WEB_E2E_SUMMARY" ]; then
+      echo "$WEB_E2E_SUMMARY" >> "$TEST_LOG_FILE"
+    fi
+    echo "" >> "$TEST_LOG_FILE"
     cd ..
   else
     echo -e "${YELLOW}   ⚠️  Web directory not found, skipping${NC}"
@@ -234,16 +264,24 @@ run_all_tests() {
     if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "ganache"; then
       echo -e "${CYAN}   Running blockchain tests...${NC}"
       local BLOCKCHAIN_OUTPUT="$ERROR_LOG_DIR/blockchain.log"
-      npm test 2>&1 | tee "$BLOCKCHAIN_OUTPUT"
-      local BLOCKCHAIN_EXIT=${PIPESTATUS[0]}
+      script -q "$BLOCKCHAIN_OUTPUT" bash -c 'npm test 2>&1'
+      local BLOCKCHAIN_EXIT=$?
+      local BLOCKCHAIN_SUMMARY
+      BLOCKCHAIN_SUMMARY=$(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g; s/\x1b\[[?][0-9]*[a-zA-Z]//g' "$BLOCKCHAIN_OUTPUT" 2>/dev/null | tr -d '\r' | grep -E "(passing|failing|pending)" || true)
       if [ $BLOCKCHAIN_EXIT -eq 0 ]; then
         echo -e "${GREEN}   ✅ Blockchain tests passed${NC}"
         ((TOTAL_PASSED++))
+        echo "[PASS] Blockchain (Truffle)" >> "$TEST_LOG_FILE"
       else
         echo -e "${RED}   ❌ Blockchain tests failed (errors captured for summary)${NC}"
         ((TOTAL_FAILED++))
         FAILED_SUITES="${FAILED_SUITES}blockchain "
+        echo "[FAIL] Blockchain (Truffle)" >> "$TEST_LOG_FILE"
       fi
+      if [ -n "$BLOCKCHAIN_SUMMARY" ]; then
+        echo "$BLOCKCHAIN_SUMMARY" >> "$TEST_LOG_FILE"
+      fi
+      echo "" >> "$TEST_LOG_FILE"
     else
       echo -e "${YELLOW}   ⚠️  Ganache not running - skipping blockchain tests${NC}"
       echo -e "${YELLOW}   💡 Start services first: ./start.sh --dev${NC}"
@@ -252,9 +290,6 @@ run_all_tests() {
   else
     echo -e "${YELLOW}   ⚠️  Blockchain directory not found, skipping${NC}"
   fi
-  
-  # Disable pipefail for rest of script
-  set +o pipefail
   
   # Summary
   echo ""
@@ -274,11 +309,12 @@ run_all_tests() {
     echo -e "${RED}📋 Error Details${NC}"
     echo -e "${CYAN}======================================${NC}"
     
-    # Function to extract and display errors from log
+    # Function to extract and display errors from log (also appends to persistent log file)
     display_errors() {
       local suite_name=$1
       local log_file=$2
       local max_lines=${3:-100}  # Default to 100 lines max per suite
+      local persist_log=${4:-}    # Optional: path to persistent error log
       
       if [ -f "$log_file" ] && [ -s "$log_file" ]; then
         echo ""
@@ -291,14 +327,24 @@ run_all_tests() {
         # For Playwright: Look for Error, failed, expect
         # For Truffle: Look for Error, failing, AssertionError
         
-        local error_output=$(grep -E -i "(FAIL|Error:|error|expect\(|AssertionError|failing|failed|✗|✘|×|at Object\.|at Test\.|at Context\.|Received:|Expected:|Difference:|- Expected|+ Received)" "$log_file" 2>/dev/null | head -n "$max_lines")
+        local error_output
+        error_output=$(grep -E -i "(FAIL|Error:|error|expect\(|AssertionError|failing|failed|✗|✘|×|at Object\.|at Test\.|at Context\.|Received:|Expected:|Difference:|- Expected|+ Received)" "$log_file" 2>/dev/null | head -n "$max_lines")
         
-        if [ -n "$error_output" ]; then
-          echo "$error_output"
-        else
-          # If no specific errors found, show last 50 lines of output
+        if [ -z "$error_output" ]; then
+          error_output=$(tail -n 50 "$log_file")
           echo -e "${CYAN}(Showing last 50 lines of output)${NC}"
-          tail -n 50 "$log_file"
+        fi
+        echo "$error_output"
+        
+        # Append to persistent log file (strip ANSI codes for clean plain text)
+        if [ -n "$persist_log" ]; then
+          {
+            echo ""
+            echo "========================================"
+            echo "❌ $suite_name Errors"
+            echo "========================================"
+            echo "$error_output" | sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' | sed 's/\x1b\[[?][0-9]*[a-zA-Z]//g' | tr -d '\r'
+          } >> "$persist_log"
         fi
         
         # Show full log path
@@ -307,34 +353,53 @@ run_all_tests() {
       fi
     }
     
-    # Display errors for each failed suite
+    # Display errors for each failed suite (and append to persistent log)
     for suite in $FAILED_SUITES; do
       case $suite in
         backend)
-          display_errors "Backend (Jest)" "$ERROR_LOG_DIR/backend.log"
+          display_errors "Backend (Jest)" "$ERROR_LOG_DIR/backend.log" 100 "$TEST_LOG_FILE"
           ;;
         web-unit)
-          display_errors "Web Unit (Vitest)" "$ERROR_LOG_DIR/web-unit.log"
+          display_errors "Web Unit (Vitest)" "$ERROR_LOG_DIR/web-unit.log" 100 "$TEST_LOG_FILE"
           ;;
         web-e2e)
-          display_errors "Web E2E (Playwright)" "$ERROR_LOG_DIR/web-e2e.log"
+          display_errors "Web E2E (Playwright)" "$ERROR_LOG_DIR/web-e2e.log" 100 "$TEST_LOG_FILE"
           ;;
         blockchain)
-          display_errors "Blockchain (Truffle)" "$ERROR_LOG_DIR/blockchain.log"
+          display_errors "Blockchain (Truffle)" "$ERROR_LOG_DIR/blockchain.log" 100 "$TEST_LOG_FILE"
           ;;
       esac
     done
     
     echo ""
     echo -e "${CYAN}======================================${NC}"
-    echo -e "${YELLOW}💡 Tip: Full logs are saved in: $ERROR_LOG_DIR${NC}"
-    echo -e "${YELLOW}   (Will be cleaned up on exit)${NC}"
+    echo -e "${YELLOW}💡 Errors saved to: $TEST_LOG_FILE${NC}"
+    echo -e "${YELLOW}   (Overwritten each run)${NC}"
     echo -e "${CYAN}======================================${NC}"
     
+    # Add overall summary to persistent log
+    {
+      echo ""
+      echo "========================================"
+      echo "OVERALL SUMMARY"
+      echo "========================================"
+      echo "Suites passed: $TOTAL_PASSED"
+      echo "Suites failed: $TOTAL_FAILED"
+      echo "Failed: $FAILED_SUITES"
+      echo "Run completed at $(date)"
+    } >> "$TEST_LOG_FILE"
     exit 1
   else
     echo ""
     echo -e "${GREEN}✅ All tests passed!${NC}"
+    {
+      echo ""
+      echo "========================================"
+      echo "OVERALL SUMMARY"
+      echo "========================================"
+      echo "All $TOTAL_PASSED suite(s) passed!"
+      echo "Run completed at $(date)"
+    } >> "$TEST_LOG_FILE"
     exit 0
   fi
 }

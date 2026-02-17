@@ -1,17 +1,37 @@
-import React from 'react'
-import { Table, Button, Tag, Space, Typography, Card, theme, Alert, Tabs } from 'antd'
+import React, { useState, useCallback } from 'react'
+import { Table, Button, Tag, Space, Typography, Card, theme, Alert, Tabs, Modal, Descriptions, Input } from 'antd'
 import { SafetyCertificateOutlined, FileTextOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
-import BusinessOwnerLayout from '@/features/business-owner/views/components/BusinessOwnerLayout'
+import { useNavigate } from 'react-router-dom'
+import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
 import { useDashboardData } from '../../dashboard/hooks/useDashboardData'
 
 const { Title, Paragraph, Text } = Typography
+const { TextArea } = Input
 
 export default function InspectionsPage() {
   const { token } = theme.useToken()
+  const navigate = useNavigate()
   const { data, loading } = useDashboardData()
+  const [reportModal, setReportModal] = useState(null)
+  const [complianceModal, setComplianceModal] = useState(null)
+  const [complianceNotes, setComplianceNotes] = useState('')
   
   const inspections = data?.inspections?.list || []
   const upcoming = data?.inspections?.upcoming
+
+  const handleViewReport = useCallback((record) => {
+    setReportModal(record)
+  }, [])
+
+  const handleSubmitCompliance = useCallback((record) => {
+    setComplianceModal(record)
+    setComplianceNotes('')
+  }, [])
+
+  const handleConfirmAvailability = useCallback(() => {
+    // Navigate to inspections detail or trigger confirmation
+    navigate('/owner/inspections')
+  }, [navigate])
 
   const columns = [
     {
@@ -48,20 +68,13 @@ export default function InspectionsPage() {
       key: 'action',
       render: (_, record) => (
         <Space size="middle">
-          <Button type="link" size="small">View Report</Button>
+          <Button type="link" size="small" onClick={() => handleViewReport(record)}>View Report</Button>
           {record.status === 'Open' && (
-            <Button type="primary" size="small" ghost style={{ borderColor: token.colorPrimary, color: token.colorPrimary }}>Submit Compliance</Button>
+            <Button type="primary" size="small" ghost style={{ borderColor: token.colorPrimary, color: token.colorPrimary }} onClick={() => handleSubmitCompliance(record)}>Submit Compliance</Button>
           )}
         </Space>
       ),
     },
-  ]
-
-  // Mock data augmentation since dashboard data is limited
-  const fullInspections = [
-    ...inspections,
-    { id: 3, date: '2023-05-10', finding: 'Fire extinguisher expired', status: 'Resolved', inspector: 'Bureau of Fire Protection' },
-    { id: 4, date: '2022-11-20', finding: 'No violations found', status: 'Passed', inspector: 'Sanitary Office' },
   ]
 
   return (
@@ -86,7 +99,7 @@ export default function InspectionsPage() {
             icon={<SafetyCertificateOutlined />}
             style={{ marginBottom: 24, border: `1px solid ${token.colorInfoBorder}`, background: token.colorInfoBg }}
             action={
-              <Button size="small" type="primary" style={{ background: token.colorPrimary, borderColor: token.colorPrimary }}>
+              <Button size="small" type="primary" onClick={handleConfirmAvailability}>
                 Confirm Availability
               </Button>
             }
@@ -104,16 +117,59 @@ export default function InspectionsPage() {
               {
                 key: '1',
                 label: 'Inspection History',
-                children: <Table columns={columns} dataSource={fullInspections} rowKey="id" loading={loading} />
+                children: <Table aria-label="Inspection history" columns={columns} dataSource={inspections} rowKey="id" loading={loading} scroll={{ x: 'max-content' }} />
               },
               {
                 key: '2',
                 label: 'Violations',
-                children: <Table columns={columns} dataSource={fullInspections.filter(i => i.status === 'Open')} rowKey="id" loading={loading} />
+                children: <Table aria-label="Active violations" columns={columns} dataSource={inspections.filter(i => i.status === 'Open')} rowKey="id" loading={loading} scroll={{ x: 'max-content' }} />
               }
             ]}
           />
         </Card>
+
+        {/* View Report Modal */}
+        <Modal
+          title="Inspection Report"
+          open={!!reportModal}
+          onCancel={() => setReportModal(null)}
+          footer={<Button onClick={() => setReportModal(null)}>Close</Button>}
+        >
+          {reportModal && (
+            <Descriptions column={1} bordered size="small">
+              <Descriptions.Item label="Date">{new Date(reportModal.date).toLocaleDateString()}</Descriptions.Item>
+              <Descriptions.Item label="Inspector">{reportModal.inspector || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="Finding">{reportModal.finding}</Descriptions.Item>
+              <Descriptions.Item label="Status">
+                <Tag color={reportModal.status === 'Open' ? 'error' : reportModal.status === 'Resolved' ? 'success' : 'default'}>{reportModal.status}</Tag>
+              </Descriptions.Item>
+            </Descriptions>
+          )}
+        </Modal>
+
+        {/* Submit Compliance Modal */}
+        <Modal
+          title="Submit Compliance Evidence"
+          open={!!complianceModal}
+          onCancel={() => setComplianceModal(null)}
+          onOk={() => {
+            // TODO: Submit compliance evidence via API
+            setComplianceModal(null)
+          }}
+          okText="Submit"
+        >
+          {complianceModal && (
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <Alert message={`Submitting compliance for: ${complianceModal.finding}`} type="info" showIcon />
+              <TextArea
+                rows={4}
+                placeholder="Describe the corrective actions taken..."
+                value={complianceNotes}
+                onChange={e => setComplianceNotes(e.target.value)}
+              />
+            </Space>
+          )}
+        </Modal>
       </div>
     </BusinessOwnerLayout>
   )

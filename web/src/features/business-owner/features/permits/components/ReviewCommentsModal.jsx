@@ -1,16 +1,19 @@
 import React from 'react'
-import { Modal, Space, Typography, Card, Alert, Button } from 'antd'
+import { Modal, Space, Typography, Card, Alert, Button, Grid } from 'antd'
 import { MessageOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { getRegistrationStatusTagDisplay } from '../constants/statusConfig.jsx'
 
 const { Text } = Typography
+const { useBreakpoint } = Grid
 
 export default function ReviewCommentsModal({
   open,
   onClose,
   selectedComments
 }) {
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   if (!selectedComments) return null
 
   return (
@@ -24,7 +27,7 @@ export default function ReviewCommentsModal({
       open={open}
       onCancel={onClose}
       footer={[<Button key="close" onClick={onClose}>Close</Button>]}
-      width={600}
+      width={isMobile ? '95%' : 600}
     >
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <div><Text strong>Business Name:</Text><Text style={{ marginLeft: 8 }}>{selectedComments.businessName || 'N/A'}</Text></div>

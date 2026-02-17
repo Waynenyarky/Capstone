@@ -105,6 +105,7 @@ export default function RenewalTable({
       loading={loading}
       pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Total ${total} renewal applications` }}
       locale={{ emptyText: 'No renewal applications found' }}
+      scroll={{ x: 'max-content' }}
     />
   )
 }

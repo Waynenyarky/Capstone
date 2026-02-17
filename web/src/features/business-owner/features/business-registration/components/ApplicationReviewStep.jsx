@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Card, Typography, Alert, Descriptions, Space, Tag, Button, List, Divider, Modal, App, Form } from 'antd'
+import { Card, Typography, Alert, Descriptions, Space, Tag, Button, List, Divider, Modal, App, Form, Grid } from 'antd'
 import { CheckCircleOutlined, FileTextOutlined, WarningOutlined, EyeOutlined } from '@ant-design/icons'
 import { resolveAvatarUrl } from '@/lib/utils'
 import LGUDocumentsUploadStep from './LGUDocumentsUploadStep'
@@ -20,6 +20,8 @@ const FALLBACK_LGU_DOC_LABELS = [
   { key: 'healthCertificate', label: 'Health Certificate' }
 ]
 
+const { useBreakpoint } = Grid
+
 export default function ApplicationReviewStep({ 
   businessData, 
   lguDocuments, 
@@ -33,6 +35,9 @@ export default function ApplicationReviewStep({
   onAgenciesSave,
   onBusinessSave
 }) {
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
+  const modalWidth = isMobile ? '95%' : 900
   const lguDocumentList = documentFields?.length > 0
     ? documentFields.map((f) => ({ label: f.label, url: lguDocuments?.[f.key] }))
     : FALLBACK_LGU_DOC_LABELS.map((f) => ({ label: f.label, url: lguDocuments?.[f.key] }))
@@ -413,7 +418,7 @@ export default function ApplicationReviewStep({
         open={editDocumentsModalOpen}
         onCancel={() => setEditDocumentsModalOpen(false)}
         footer={null}
-        width={900}
+        width={modalWidth}
         destroyOnClose
       >
         <LGUDocumentsUploadStep
@@ -432,7 +437,7 @@ export default function ApplicationReviewStep({
         open={editBIRModalOpen}
         onCancel={() => setEditBIRModalOpen(false)}
         footer={null}
-        width={900}
+        width={modalWidth}
         destroyOnClose
       >
         <BIRRegistrationStep
@@ -449,7 +454,7 @@ export default function ApplicationReviewStep({
         open={editAgenciesModalOpen}
         onCancel={() => setEditAgenciesModalOpen(false)}
         footer={null}
-        width={900}
+        width={modalWidth}
         destroyOnClose
       >
         <OtherAgenciesStep
@@ -465,7 +470,7 @@ export default function ApplicationReviewStep({
         open={editBusinessModalOpen}
         onCancel={() => setEditBusinessModalOpen(false)}
         onOk={handleBusinessSave}
-        width={900}
+        width={modalWidth}
         destroyOnClose
       >
         <Form form={businessForm} layout="vertical">

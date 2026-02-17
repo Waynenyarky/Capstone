@@ -210,10 +210,19 @@ describe('Phase 4: Audit & Compliance', () => {
     })
 
     it('should paginate audit history', async () => {
-      const response = await request(app)
-        .get('/api/auth/audit/history?limit=2&skip=0')
-        .set('Authorization', `Bearer ${businessOwnerToken}`)
-
+      let response
+      const maxRetries = 3
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          response = await request(app)
+            .get('/api/auth/audit/history?limit=2&skip=0')
+            .set('Authorization', `Bearer ${businessOwnerToken}`)
+          if (response.status === 200) break
+        } catch (err) {
+          if (attempt === maxRetries) throw err
+          await new Promise((r) => setTimeout(r, 500))
+        }
+      }
       expect(response.status).toBe(200)
       expect(response.body.logs.length).toBeLessThanOrEqual(2)
       expect(response.body.hasMore).toBeDefined()

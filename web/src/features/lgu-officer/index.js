@@ -1,8 +1,7 @@
 // LGU Officer feature barrel
-// Clean Architecture with MVC pattern
 
 // Pages
-export { default as LGUOfficerDashboard } from './views/pages/LGUOfficerDashboard'
+export { default as LGUOfficerDashboard } from './pages/LGUOfficerDashboard'
 
 // Components
 export * from './presentation/components'

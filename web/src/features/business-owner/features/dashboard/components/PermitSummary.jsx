@@ -1,10 +1,11 @@
 import React from 'react'
 import { Card, Table, Tag, Button, Space, Statistic, Row, Col, theme } from 'antd'
 import { FileProtectOutlined } from '@ant-design/icons'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 
 const PermitSummary = ({ data }) => {
   const { token } = theme.useToken();
+  const navigate = useNavigate()
   if (!data) return null
 
   const columns = [
@@ -37,19 +38,19 @@ const PermitSummary = ({ data }) => {
   return (
     <Card 
       title={<Space><FileProtectOutlined style={{ color: token.colorPrimary }} /> Permit Summary</Space>}
-      extra={<Button type="link" size="small">View All</Button>}
+      extra={<Button type="link" size="small" onClick={() => navigate('/owner/businesses?tab=permits')}>View All</Button>}
       style={{ height: '100%', boxShadow: token.boxShadowSecondary, borderRadius: token.borderRadiusLG }}
     >
       <Row gutter={[16, 24]}>
         <Col span={24}>
            <Row gutter={16}>
-            <Col span={8} style={{ textAlign: 'center' }}>
+            <Col xs={24} sm={8} style={{ textAlign: 'center' }}>
               <Statistic title="Active" value={data.active} valueStyle={{ color: token.colorSuccess }} />
             </Col>
-            <Col span={8} style={{ textAlign: 'center', borderLeft: `1px solid ${token.colorBorderSecondary}`, borderRight: `1px solid ${token.colorBorderSecondary}` }}>
+            <Col xs={24} sm={8} style={{ textAlign: 'center', borderLeft: `1px solid ${token.colorBorderSecondary}`, borderRight: `1px solid ${token.colorBorderSecondary}` }}>
               <Statistic title="Pending" value={data.pending} valueStyle={{ color: token.colorWarning }} />
             </Col>
-            <Col span={8} style={{ textAlign: 'center' }}>
+            <Col xs={24} sm={8} style={{ textAlign: 'center' }}>
               <Statistic title="Expiring" value={data.expiring} valueStyle={{ color: token.colorError }} />
             </Col>
            </Row>
@@ -63,13 +64,14 @@ const PermitSummary = ({ data }) => {
             size="small"
             rowKey="id"
             showHeader={false}
+            scroll={{ x: 'max-content' }}
           />
         </Col>
 
         <Col span={24} style={{ marginTop: 'auto' }}>
           <Space style={{ width: '100%' }} direction="vertical">
-            <Button type="primary" block style={{ background: token.colorPrimary, borderColor: token.colorPrimary }}>Apply for New Permit</Button>
-            <Button block>Renew Existing Permits</Button>
+            <Button type="primary" block style={{ background: token.colorPrimary, borderColor: token.colorPrimary }} onClick={() => navigate('/owner/business-registration')}>Apply for New Permit</Button>
+            <Button block onClick={() => navigate('/owner/business-renewal')}>Renew Existing Permits</Button>
           </Space>
         </Col>
       </Row>

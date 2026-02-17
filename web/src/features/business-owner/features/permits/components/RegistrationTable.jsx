@@ -92,6 +92,7 @@ export default function RegistrationTable({
       loading={loading}
       pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Total ${total} business registrations` }}
       locale={{ emptyText: 'No registration applications found' }}
+      scroll={{ x: 'max-content' }}
     />
   )
 }

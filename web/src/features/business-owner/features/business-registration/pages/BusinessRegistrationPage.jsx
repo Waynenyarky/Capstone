@@ -1,14 +1,18 @@
 import React, { useRef, useState, useCallback } from 'react'
-import { Button, Space, Popconfirm, Card, Spin, Empty, Table, Modal } from 'antd'
+import { Button, Space, Popconfirm, Card, Spin, Empty, Table, Modal, Grid } from 'antd'
 import { DeleteOutlined, FormOutlined, SaveOutlined, PlusOutlined, UnorderedListOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useNavigate } from 'react-router-dom'
-import BusinessOwnerLayout from '../../../views/components/BusinessOwnerLayout'
+import BusinessOwnerLayout from '../../../components/BusinessOwnerLayout'
 import BusinessRegistrationWizard from '../components/BusinessRegistrationWizard'
 import { useBusinessRegistrationPage } from '../hooks/useBusinessRegistrationPage'
 
+const { useBreakpoint } = Grid
+
 export default function BusinessRegistrationPage() {
   const navigate = useNavigate()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const wizardRef = useRef(null)
   const [isDraftListOpen, setIsDraftListOpen] = useState(false)
   const {
@@ -148,7 +152,7 @@ export default function BusinessRegistrationPage() {
         open={isDraftListOpen}
         onCancel={() => setIsDraftListOpen(false)}
         footer={null}
-        width={720}
+        width={isMobile ? '95%' : 720}
       >
         <div style={{ marginBottom: 16 }}>
           <p style={{ margin: 0, color: '#666', fontSize: 14 }}>
@@ -175,6 +179,7 @@ export default function BusinessRegistrationPage() {
             rowKey="businessId"
             pagination={false}
             showHeader={false}
+            scroll={{ x: 'max-content' }}
           />
         )}
         {businesses.length > 0 && (

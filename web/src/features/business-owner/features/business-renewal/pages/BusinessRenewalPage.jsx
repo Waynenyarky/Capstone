@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { Card, Typography, Alert, Spin } from 'antd'
+import { Card, Typography, Alert, Skeleton } from 'antd'
 import { useAuthSession } from '@/features/authentication'
+import { useNotifier } from '@/shared/notifications.js'
 import { useSearchParams } from 'react-router-dom'
-import BusinessOwnerLayout from '../../../views/components/BusinessOwnerLayout'
+import BusinessOwnerLayout from '../../../components/BusinessOwnerLayout'
 import BusinessRenewalWizard from '../components/BusinessRenewalWizard'
 import BusinessSelector from '../components/BusinessSelector'
 import { getBusinessProfile } from '@/features/business-owner/services/businessProfileService'
@@ -58,6 +59,7 @@ const findMostRelevantRenewal = (business) => {
 
 const BusinessRenewalPage = () => {
   const { currentUser } = useAuthSession()
+  const { error: notifyError } = useNotifier()
   const [searchParams] = useSearchParams()
   const queryBusinessId = searchParams.get('businessId')
   const queryRenewalId = searchParams.get('renewalId')
@@ -113,7 +115,7 @@ const BusinessRenewalPage = () => {
           }
         }
       } catch (error) {
-        console.error('Failed to load business profile:', error)
+        notifyError(error, 'Failed to load business profile')
       } finally {
         setLoading(false)
       }
@@ -141,7 +143,7 @@ const BusinessRenewalPage = () => {
         const data = await getBusinessProfile()
         setProfile(data)
       } catch (error) {
-        console.error('Failed to refresh profile:', error)
+        notifyError(error, 'Failed to refresh profile')
       }
     }
     fetchProfile()
@@ -151,10 +153,7 @@ const BusinessRenewalPage = () => {
     return (
       <BusinessOwnerLayout pageTitle="Business Renewal">
         <Card>
-          <div style={{ textAlign: 'center', padding: 40 }}>
-            <Spin size="large" />
-            <div style={{ marginTop: 16, color: '#666' }}>Loading...</div>
-          </div>
+          <Skeleton active paragraph={{ rows: 4 }} />
         </Card>
       </BusinessOwnerLayout>
     )

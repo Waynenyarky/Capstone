@@ -1,0 +1,13 @@
+
+[1;33m⚠️  Capstone services are already running![0m
+[0;36m   Found 9 container(s):[0m
+• capstone-admin-service
+• capstone-audit-service
+• capstone-business-service
+• capstone-auth-service
+• capstone-ai-service
+• capstone-ipfs
+• capstone-mongodb
+• capstone-dozzle
+• capstone-ganache
+

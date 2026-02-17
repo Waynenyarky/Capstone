@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Form, Select, Input, DatePicker, Upload, Button, Card, Row, Col, Typography, message, Space, Badge, Divider, Checkbox, theme } from 'antd'
+import { Form, Select, Input, DatePicker, Upload, Button, Card, Row, Col, Typography, message, Space, Badge, Divider, Checkbox, theme, Grid } from 'antd'
 import { UploadOutlined, RobotOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { calculateFee } from '../services/permitService'
@@ -7,9 +7,12 @@ import { calculateFee } from '../services/permitService'
 const { Title, Text } = Typography
 const { Option } = Select
 const { RangePicker } = DatePicker
+const { useBreakpoint } = Grid
 
 export default function PermitApplicationForm({ onSubmit, onCancel, initialValues }) {
   const { token } = theme.useToken()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [fee, setFee] = useState(0)
@@ -99,12 +102,12 @@ export default function PermitApplicationForm({ onSubmit, onCancel, initialValue
         initialValues={{ businessSize: 'Small' }}
       >
         <Row gutter={16}>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item label="Application Number" name="applicationNumber">
               <Input disabled />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item label="Application Date" name="applicationDate">
               <DatePicker style={{ width: '100%' }} disabled format="YYYY-MM-DD" />
             </Form.Item>
@@ -113,17 +116,17 @@ export default function PermitApplicationForm({ onSubmit, onCancel, initialValue
 
         <Card title="Business Information (Auto-filled)" size="small" style={{ marginBottom: 24, background: '#f9f9f9' }}>
           <Row gutter={16}>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item label="Business Name" name="name">
                 <Input disabled />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item label="TIN" name="tin">
                 <Input disabled />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item label="Address" name="address">
                 <Input disabled />
               </Form.Item>
@@ -132,7 +135,7 @@ export default function PermitApplicationForm({ onSubmit, onCancel, initialValue
         </Card>
 
         <Row gutter={16}>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item label="Permit Type" name="permitType" rules={[{ required: true }]}>
               <Select placeholder="Select Permit Type">
                 <Option value="Mayor's Permit">Mayor's Permit</Option>
@@ -143,7 +146,7 @@ export default function PermitApplicationForm({ onSubmit, onCancel, initialValue
               </Select>
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
              <Form.Item label="Business Size (for fee calc)" name="businessSize">
               <Select>
                 <Option value="Small">Small</Option>

@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react'
 import { Tabs, theme } from 'antd'
 import { useSearchParams } from 'react-router-dom'
-import BusinessOwnerLayout from '@/features/business-owner/views/components/BusinessOwnerLayout'
+import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
 import BusinessesTab from '../components/BusinessesTab'
 import PermitApplicationsTab from '../components/PermitApplicationsTab'
 import CessationTab from '../components/CessationTab'

@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Table, Card, Input, Select, DatePicker, Button, Space, Tag, Typography, Row, Col, message, Badge } from 'antd'
+import { useNotifier } from '@/shared/notifications.js'
 import { SearchOutlined, ReloadOutlined, EyeOutlined, FilterOutlined, ClearOutlined } from '@ant-design/icons'
-import { StaffLayout } from '../../views/components'
+import { StaffLayout } from '../../components'
 import { usePermitApplications } from '@/features/lgu-officer/presentation/hooks/usePermitApplications'
 import PermitApplicationDetail from '../components/PermitApplicationDetail'
 import dayjs from 'dayjs'
@@ -12,6 +13,7 @@ const { Option } = Select
 
 export default function PermitReviewPage() {
   const { loading, applications, pagination, loadApplications, reviewApplication } = usePermitApplications()
+  const { error: notifyError } = useNotifier()
   const [selectedApplication, setSelectedApplication] = useState(null)
   const [detailModalVisible, setDetailModalVisible] = useState(false)
   const [filters, setFilters] = useState({
@@ -23,8 +25,14 @@ export default function PermitReviewPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
+  // Debounce filter changes to avoid excessive API calls
+  const debounceRef = useRef(null)
   useEffect(() => {
-    loadApplicationsData()
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      loadApplicationsData()
+    }, 400)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, pageSize, filters])
 
@@ -46,7 +54,7 @@ export default function PermitReviewPage() {
         }
       })
     } catch (error) {
-      console.error('Failed to load applications:', error)
+      notifyError(error, 'Failed to load applications')
     }
   }
 
@@ -303,6 +311,7 @@ export default function PermitReviewPage() {
         </div>
 
         <Table
+          aria-label="Permit applications"
           columns={columns}
           dataSource={sortedApplications}
           loading={loading}

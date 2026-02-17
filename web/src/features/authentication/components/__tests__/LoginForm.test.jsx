@@ -1,9 +1,20 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Form } from 'antd'
+import { MemoryRouter } from 'react-router-dom'
+import { App as AntdApp } from 'antd'
 import { fireEvent } from '@testing-library/react'
-import LoginForm from '../../views/components/LoginForm.jsx'
+import LoginForm from '../LoginForm.jsx'
 import { renderWithProviders, screen, renderHook, waitFor, act } from '@/test/utils/renderWithProviders.jsx'
+import { ThemeProvider } from '@/shared/theme/ThemeProvider.jsx'
+
+const TestWrapper = ({ children }) => (
+  <MemoryRouter initialEntries={['/']}>
+    <ThemeProvider>
+      <AntdApp>{children}</AntdApp>
+    </ThemeProvider>
+  </MemoryRouter>
+)
 
 const mockNavigate = vi.fn()
 const mockUseLoginFlow = vi.fn()
@@ -34,13 +45,36 @@ vi.mock('@/features/authentication/hooks', async () => {
       getAllRememberedEmailsWithDetails: mockGetAllRememberedEmailsWithDetails,
       clearRememberedEmail: mockClearRememberedEmail,
     }),
+    useAuthSession: () => ({
+      currentUser: null,
+      role: null,
+      login: vi.fn(),
+      logout: vi.fn(),
+    }),
   }
 })
 
-vi.mock('@/features/authentication/views/components/PasskeySignInOptions.jsx', () => ({
+vi.mock('@/features/authentication/hooks/useWebAuthn.js', () => ({
+  default: () => ({
+    authenticateConditional: vi.fn(),
+    registerPasskey: vi.fn(),
+    authenticatePasskey: vi.fn(),
+  }),
+}))
+
+vi.mock('@/shared/notifications.js', () => ({
+  useNotifier: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+  }),
+}))
+
+vi.mock('@/features/authentication/components/PasskeySignInOptions.jsx', () => ({
   default: () => null,
 }))
-vi.mock('../../views/components/PasskeySignInOptions.jsx', () => ({
+vi.mock('../PasskeySignInOptions.jsx', () => ({
   default: () => null,
 }))
 
@@ -56,12 +90,20 @@ describe('LoginForm', () => {
     })
   }
 
-  beforeEach(() => {
+  let form
+
+  beforeEach(async () => {
     mockGetRememberedEmails.mockClear()
     mockGetAllRememberedEmailsWithDetails.mockClear()
     mockClearRememberedEmail.mockClear()
-    const { result } = renderHook(() => Form.useForm())
-    const form = result.current[0]
+    const { result } = renderHook(() => Form.useForm(), {
+      wrapper: TestWrapper,
+    })
+    await waitFor(() => {
+      expect(result.current).toBeTruthy()
+      expect(result.current?.[0]).toBeTruthy()
+    }, { timeout: 5000 })
+    form = result.current[0]
     mockUseLoginFlow.mockReturnValue({
       step: 'form',
       form,

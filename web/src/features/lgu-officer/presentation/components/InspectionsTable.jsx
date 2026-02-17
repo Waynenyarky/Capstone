@@ -89,6 +89,7 @@ export default function InspectionsTable({ inspections, loading, onView, onCondu
       loading={loading}
       rowKey="id"
       pagination={{ pageSize: 10 }}
+      scroll={{ x: 'max-content' }}
     />
   )
 }

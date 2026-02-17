@@ -1,8 +1,9 @@
 import React from 'react'
-import { Modal, Descriptions, Typography, Tag, Spin, Alert } from 'antd'
+import { Modal, Descriptions, Typography, Tag, Spin, Alert, Grid } from 'antd'
 import { getRegistrationStatusTagDisplay, getRenewalStatusTag, getPaymentStatusTag, formatDate } from '../constants/statusConfig.jsx'
 
 const { Text } = Typography
+const { useBreakpoint } = Grid
 
 export default function ViewDetailsModal({
   open,
@@ -12,13 +13,15 @@ export default function ViewDetailsModal({
   loading,
   token
 }) {
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   return (
     <Modal
       title={modalType === 'registration' ? 'Business Registration Details' : 'Business Renewal Details'}
       open={open}
       onCancel={onClose}
       footer={[{ key: 'close', children: 'Close', onClick: onClose }]}
-      width={800}
+      width={isMobile ? '95%' : 800}
     >
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40 }}><Spin size="large" /></div>

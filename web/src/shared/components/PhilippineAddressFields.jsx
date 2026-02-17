@@ -263,7 +263,7 @@ export default function PhilippineAddressFields({
       </Col>
 
       {/* Province Select */}
-      <Col span={12}>
+      <Col xs={24} sm={12}>
         <Form.Item
           name="province"
           label="Province"
@@ -292,7 +292,7 @@ export default function PhilippineAddressFields({
       </Col>
 
       {/* City/Municipality Select */}
-      <Col span={12}>
+      <Col xs={24} sm={12}>
         <Form.Item
           name="city"
           label="City/Municipality"
@@ -325,7 +325,7 @@ export default function PhilippineAddressFields({
       </Col>
 
       {/* Barangay Select */}
-      <Col span={12}>
+      <Col xs={24} sm={12}>
         <Form.Item
           name="barangay"
           label="Barangay"
@@ -358,7 +358,7 @@ export default function PhilippineAddressFields({
       </Col>
 
       {/* Postal Code */}
-      <Col span={12}>
+      <Col xs={24} sm={12}>
         <Form.Item
           name="postalCode"
           label="Postal Code"

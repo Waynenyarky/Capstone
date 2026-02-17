@@ -15,7 +15,8 @@ test('renders login form and accepts input', async ({ page }) => {
   await page.goto('/login')
 
   await expect(page.getByTestId('login-email')).toBeVisible()
-  await page.getByTestId('login-email').fill('user@example.com')
+  // login-email testid is on the AutoComplete wrapper, so target the inner input
+  await page.getByTestId('login-email').locator('input').fill('user@example.com')
   await page.getByTestId('login-password').fill('StrongP@ssw0rd!')
 
   await expect(page.getByTestId('login-submit')).toBeEnabled()

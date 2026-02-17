@@ -4,27 +4,30 @@ import { ProtectedRoute, PublicRoute } from "@/features/authentication"
 import { useNavigationNotifications } from "@/features/authentication/hooks"
 
 // Eager-load only the homepage (LCP) and auth shell - everything else is lazy
-import Home from "@/features/public/views/pages/Home"
+import Home from "@/features/public/pages/Home"
 import { Login, SignUp, ForgotPassword, DeletionPendingScreen } from "@/features/authentication"
 
 // Lazy load routes - chunks load on navigation
 const TermsOfService = lazy(() => import("@/features/public").then(m => ({ default: m.TermsOfService })))
 const PrivacyPolicy = lazy(() => import("@/features/public").then(m => ({ default: m.PrivacyPolicy })))
 const Maintenance = lazy(() => import("@/features/public").then(m => ({ default: m.Maintenance })))
-const PasskeyMobileAuth = lazy(() => import("@/features/authentication/views/pages/PasskeyMobileAuth.jsx"))
-const MfaSetup = lazy(() => import("@/features/authentication/views/components/MfaSetup.jsx"))
+const PasskeyMobileAuth = lazy(() => import("@/features/authentication/pages/PasskeyMobileAuth.jsx"))
+const MfaSetup = lazy(() => import("@/features/authentication/components/MfaSetup.jsx"))
 const Dashboard = lazy(() => import("@/features/user").then(m => ({ default: m.Dashboard })))
 const ProfileSettings = lazy(() => import("@/features/user").then(m => ({ default: m.ProfileSettings })))
 const NotificationHistoryPage = lazy(() => import("@/features/user/pages/NotificationHistoryPage.jsx"))
 const AdminDashboard = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminDashboard })))
-const AdminCreateRole = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminCreateRole })))
-const AdminFullDashboard = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminFullDashboard })))
 const AdminUsers = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminUsers })))
 const AdminMaintenance = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminMaintenance })))
 const AdminLGUs = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminLGUs })))
 const AdminFormDefinitions = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminFormDefinitions })))
 const AdminFormGroupDetail = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminFormGroupDetail })))
 const AdminFormDefinitionEditor = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminFormDefinitionEditor })))
+// Phase 2 admin pages
+const AdminPenaltyConfig = lazy(() => import("@/features/admin/pages/AdminPenaltyConfig.jsx"))
+const AdminFeeConfiguration = lazy(() => import("@/features/admin/pages/AdminFeeConfiguration.jsx"))
+const AdminGeneralPermitConfig = lazy(() => import("@/features/admin/pages/AdminGeneralPermitConfig.jsx"))
+const AdminActivityDashboard = lazy(() => import("@/features/admin/pages/AdminActivityDashboard.jsx"))
 const BusinessOwnerDashboard = lazy(() => import("@/features/business-owner").then(m => ({ default: m.BusinessOwnerDashboard })))
 const PermitApplicationPage = lazy(() => import("@/features/business-owner/features/permits/pages/PermitApplicationPage.jsx"))
 const CessationPage = lazy(() => import("@/features/business-owner/features/cessation/pages/CessationPage.jsx"))
@@ -35,10 +38,21 @@ const InspectionsPage = lazy(() => import("@/features/business-owner/features/in
 const BusinessRegistrationPage = lazy(() => import("@/features/business-owner/features/business-registration/pages/BusinessRegistrationPage.jsx"))
 const BusinessRenewalPage = lazy(() => import("@/features/business-owner/features/business-renewal/pages/BusinessRenewalPage.jsx"))
 const MyBusinessesPage = lazy(() => import("@/features/business-owner/features/businesses/pages/MyBusinessesPage.jsx"))
+// Phase 2 owner pages
+const RetirementApplicationPage = lazy(() => import("@/features/business-owner/features/retirement/pages/RetirementApplicationPage.jsx"))
+const GeneralPermitPage = lazy(() => import("@/features/business-owner/features/general-permits/pages/GeneralPermitPage.jsx"))
+const OccupationalPermitPage = lazy(() => import("@/features/business-owner/features/occupational-permits/pages/OccupationalPermitPage.jsx"))
+const OwnerAppealsPage = lazy(() => import("@/features/business-owner/features/appeals/pages/OwnerAppealsPage.jsx"))
+const EditRequestPage = lazy(() => import("@/features/business-owner/features/edit-requests/pages/EditRequestPage.jsx"))
 const StaffDashboard = lazy(() => import("@/features/staffs").then(m => ({ default: m.StaffDashboard })))
 const StaffOnboarding = lazy(() => import("@/features/staffs").then(m => ({ default: m.StaffOnboarding })))
 const StaffRecoveryRequest = lazy(() => import("@/features/staffs").then(m => ({ default: m.StaffRecoveryRequest })))
 const PermitReviewPage = lazy(() => import("@/features/staffs/lgu-officer/pages/PermitReviewPage.jsx"))
+// Phase 2 staff pages
+const WalkInApplicationPage = lazy(() => import("@/features/staffs/lgu-officer/pages/WalkInApplicationPage.jsx"))
+const InspectionManagementPage = lazy(() => import("@/features/staffs/lgu-officer/pages/InspectionManagementPage.jsx"))
+const CessationReviewPage = lazy(() => import("@/features/staffs/lgu-officer/pages/CessationReviewPage.jsx"))
+const StaffAppealsPage = lazy(() => import("@/features/staffs/lgu-officer/pages/StaffAppealsPage.jsx"))
 const PlaceholderPage = lazy(() => import("@/features/shared").then(m => ({ default: m.PlaceholderPage })))
 const LGUManagerDashboard = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.LGUManagerDashboard })))
 const ReportsAnalyticsPage = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.ReportsAnalyticsPage })))
@@ -77,14 +91,16 @@ function App() {
       <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><Outlet /></ProtectedRoute>}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboard />} />
-        <Route path="create-role" element={<AdminCreateRole />} />
-        <Route path="full" element={<AdminFullDashboard />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="maintenance" element={<AdminMaintenance />} />
         <Route path="lgus" element={<AdminLGUs />} />
         <Route path="form-definitions" element={<AdminFormDefinitions />} />
         <Route path="form-definitions/group/:groupId" element={<AdminFormGroupDetail />} />
         <Route path="form-definitions/:id" element={<AdminFormDefinitionEditor />} />
+        <Route path="penalty-configuration" element={<AdminPenaltyConfig />} />
+        <Route path="fee-configuration" element={<AdminFeeConfiguration />} />
+        <Route path="general-permit-config" element={<AdminGeneralPermitConfig />} />
+        <Route path="activity" element={<AdminActivityDashboard />} />
       </Route>
 
       {/* Business Owner Routes */}
@@ -95,10 +111,14 @@ function App() {
         <Route path="business-renewal" element={<BusinessRenewalPage />} />
         <Route path="permits" element={<Navigate to="/owner/businesses?tab=permits" replace />} />
         <Route path="cessation" element={<Navigate to="/owner/businesses?tab=cessation" replace />} />
-        <Route path="appeals" element={<Navigate to="/owner/businesses?tab=appeals" replace />} />
         <Route path="payments" element={<PaymentsPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="inspections" element={<InspectionsPage />} />
+        <Route path="retirement" element={<RetirementApplicationPage />} />
+        <Route path="general-permits" element={<GeneralPermitPage />} />
+        <Route path="occupational-permits" element={<OccupationalPermitPage />} />
+        <Route path="my-appeals" element={<OwnerAppealsPage />} />
+        <Route path="edit-requests" element={<EditRequestPage />} />
       </Route>
       
       {/* Staff Routes */}
@@ -106,10 +126,11 @@ function App() {
         <Route index element={<StaffDashboard />} />
         <Route path="onboarding" element={<StaffOnboarding />} />
         <Route path="recovery-request" element={<StaffRecoveryRequest />} />
-        <Route path="inspections" element={<PlaceholderPage title="Inspections" />} />
+        <Route path="inspections" element={<InspectionManagementPage />} />
         <Route path="applications" element={<PermitReviewPage />} />
-        <Route path="cessation" element={<PlaceholderPage title="Cessation Review" />} />
-        <Route path="appeals" element={<PlaceholderPage title="Appeals Review" />} />
+        <Route path="walk-in" element={<WalkInApplicationPage />} />
+        <Route path="cessation" element={<CessationReviewPage />} />
+        <Route path="appeals" element={<StaffAppealsPage />} />
         <Route path="reports" element={<PlaceholderPage title="Reports & Analytics" />} />
         <Route path="support" element={<PlaceholderPage title="Customer Support" />} />
       </Route>

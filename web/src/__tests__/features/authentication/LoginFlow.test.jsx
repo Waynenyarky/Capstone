@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Form } from 'antd'
 import { fireEvent } from '@testing-library/react'
 import { renderWithProviders, screen, waitFor, renderHook, act } from '@/test/utils/renderWithProviders.jsx'
-import LoginForm from '@/features/authentication/views/components/LoginForm.jsx'
+import LoginForm from '@/features/authentication/components/LoginForm.jsx'
 
 // Mock hooks
 const mockUseLoginFlow = vi.fn()
@@ -23,10 +23,10 @@ vi.mock('@/features/authentication/hooks', async () => {
   }
 })
 
-vi.mock('@/features/authentication/views/components/PasskeySignInOptions.jsx', () => ({
+vi.mock('@/features/authentication/components/PasskeySignInOptions.jsx', () => ({
   default: () => null,
 }))
-vi.mock('../../features/authentication/views/components/PasskeySignInOptions.jsx', () => ({
+vi.mock('../../features/authentication/components/PasskeySignInOptions.jsx', () => ({
   default: () => null,
 }))
 

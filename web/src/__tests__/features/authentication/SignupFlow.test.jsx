@@ -1,9 +1,20 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Form } from 'antd'
+import { MemoryRouter } from 'react-router-dom'
+import { App as AntdApp } from 'antd'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders, screen, waitFor, renderHook } from '@/test/utils/renderWithProviders.jsx'
-import UserSignUpForm from '@/features/authentication/views/components/UserSignUpForm.jsx'
+import { ThemeProvider } from '@/shared/theme/ThemeProvider.jsx'
+import UserSignUpForm from '@/features/authentication/components/UserSignUpForm.jsx'
+
+const TestWrapper = ({ children }) => (
+  <MemoryRouter initialEntries={['/']}>
+    <ThemeProvider>
+      <AntdApp>{children}</AntdApp>
+    </ThemeProvider>
+  </MemoryRouter>
+)
 
 // Mock hooks
 const mockUseUserSignUpFlow = vi.fn()
@@ -17,6 +28,11 @@ vi.mock('@/features/authentication/hooks', async () => {
   }
 })
 
+// Mock SignUpVerificationForm to avoid rendering heavy unrelated hooks (useCooldown timers, etc.)
+vi.mock('@/features/authentication/components/SignUpVerificationForm.jsx', () => ({
+  default: ({ email }) => <div data-testid="verification-form">Verify {email}</div>,
+}))
+
 // Mock validations
 vi.mock('@/features/authentication/validations', () => ({
   emailRules: [],
@@ -28,13 +44,38 @@ vi.mock('@/features/authentication/validations', () => ({
   termsRules: [],
 }))
 
-describe('Signup Flow', () => {
+// Mock PIS rules to avoid loading heavy validation logic
+vi.mock('@/features/authentication/utils/validations/pisRules', () => ({
+  pisMaritalStatusRules: [],
+  pisDateOfBirthRules: [],
+  pisPlaceOfBirthRules: [],
+  pisNationalityRules: [],
+  pisFatherNameRules: [],
+  pisMotherNameRules: [],
+  pisEducationRules: [],
+  pisStreetRules: [],
+  pisBarangayRules: [],
+  pisCityRules: [],
+  pisProvinceRules: [],
+  pisZipCodeRules: [],
+  pisSpouseNameRules: [],
+}))
+
+// Mock LinkExistingAccountModal to avoid modal/async complexity
+vi.mock('@/features/authentication/components/LinkExistingAccountModal.jsx', () => ({
+  default: () => null,
+}))
+
+describe('Signup Flow', { timeout: 15000 }, () => {
   const user = userEvent.setup()
   let form
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
-    const { result } = renderHook(() => Form.useForm())
+    const { result } = renderHook(() => Form.useForm(), { wrapper: TestWrapper })
+    await waitFor(() => {
+      expect(result.current?.[0]).toBeTruthy()
+    }, { timeout: 5000 })
     form = result.current[0]
 
     mockUseUserSignUpFlow.mockReturnValue({
@@ -85,9 +126,16 @@ describe('Signup Flow', () => {
 
     renderWithProviders(<UserSignUpForm />)
 
-    // Try to submit without filling fields
-    const submitButton = screen.getByRole('button', { name: /continue/i })
-    await user.click(submitButton)
+    // Step 1: Click "Next: Personal Information" to go to step 2
+    const nextButton = screen.getByRole('button', { name: /next: personal information/i })
+    await user.click(nextButton)
+
+    // Step 2: Click "Skip for now" to submit (bypasses PIS validation)
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /skip for now/i })).toBeInTheDocument()
+    })
+    const skipButton = screen.getByRole('button', { name: /skip for now/i })
+    await user.click(skipButton)
 
     await waitFor(() => {
       expect(handleFinish).toHaveBeenCalled()

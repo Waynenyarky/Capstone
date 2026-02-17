@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Modal, Form, Input, Select, Card, Tabs, Button, Space, Alert, Upload, Divider, Checkbox, Spin } from 'antd'
+import { Modal, Form, Input, Select, Card, Tabs, Button, Space, Alert, Upload, Divider, Checkbox, Spin, Grid } from 'antd'
 import { UserOutlined, ShopOutlined, EnvironmentOutlined, UploadOutlined, BankOutlined, SafetyOutlined, PlusOutlined } from '@ant-design/icons'
 import { getRegistrationStatusTagDisplay } from '../constants/statusConfig.jsx'
 import { LGU_DOCUMENT_FIELDS, BIR_DOCUMENT_FIELDS } from '../constants/documentFields'
@@ -8,6 +8,7 @@ import { getActiveFormDefinition } from '@/features/admin/services/formDefinitio
 import { deriveDocumentFieldsFromDefinition } from '@/features/business-owner/utils/formDefinitionUtils'
 
 const { Option } = Select
+const { useBreakpoint } = Grid
 
 export default function EditRegistrationModal({
   open,
@@ -24,6 +25,8 @@ export default function EditRegistrationModal({
   onResubmit,
   onSave
 }) {
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const [definitionDocumentFields, setDefinitionDocumentFields] = useState(null)
 
   const businessType = selectedRecord?.businessType ?? modalData?.businessDetails?.businessType
@@ -61,7 +64,7 @@ export default function EditRegistrationModal({
       open={open}
       onCancel={onCancel}
       footer={null}
-      width={900}
+      width={isMobile ? '95%' : 900}
       style={{ top: 20 }}
     >
       <div style={{ maxHeight: 'calc(100vh - 250px)', overflowY: 'auto', padding: '8px 0' }}>

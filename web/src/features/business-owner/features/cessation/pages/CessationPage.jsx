@@ -1,13 +1,16 @@
 import React from 'react'
-import { Table, Button, Tag, Space, Typography, Modal, Card, Empty, theme } from 'antd'
-import BusinessOwnerLayout from '@/features/business-owner/views/components/BusinessOwnerLayout'
+import { Table, Button, Tag, Space, Typography, Modal, Card, Empty, theme, Grid } from 'antd'
+import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
 import { StopOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import CessationForm from '../components/CessationForm'
 import { useCessation } from '../hooks/useCessation'
 
 const { Title, Paragraph } = Typography
+const { useBreakpoint } = Grid
 
 export default function CessationPage() {
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const { 
     requests, 
     loading, 
@@ -81,7 +84,7 @@ export default function CessationPage() {
                 </Button>
               </Empty>
             ) : (
-              <Table columns={columns} dataSource={requests} rowKey="id" loading={loading} />
+              <Table columns={columns} dataSource={requests} rowKey="id" loading={loading} scroll={{ x: 'max-content' }} />
             )}
           </Card>
 
@@ -90,7 +93,7 @@ export default function CessationPage() {
             open={isModalVisible}
             onCancel={closeModal}
             footer={null}
-            width={800}
+            width={isMobile ? '95%' : 800}
           >
             <CessationForm onFinish={handleCreate} />
           </Modal>

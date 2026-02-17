@@ -92,6 +92,7 @@ export default function ViolationsPanel({ violations, loading, onView, onUpdateS
         loading={loading}
         rowKey="id"
         pagination={{ pageSize: 10 }}
+        scroll={{ x: 'max-content' }}
       />
     </Card>
   )

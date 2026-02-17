@@ -1,9 +1,11 @@
 import React from 'react'
-import { Card, Table, Tag, Button, Space, Statistic, Row, Col, theme } from 'antd'
+import { Card, Table, Tag, Button, Space, Statistic, Row, Col, Empty, theme } from 'antd'
 import { DollarCircleOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 
 const PaymentsDue = ({ data }) => {
   const { token } = theme.useToken();
+  const navigate = useNavigate()
   if (!data) return null
 
   const columns = [
@@ -26,7 +28,7 @@ const PaymentsDue = ({ data }) => {
       render: status => {
         let color = 'default'
         if (status === 'Overdue') color = 'red'
-        if (status === 'Unpaid') color = '#faad14'
+        if (status === 'Unpaid') color = token.colorWarning
         if (status === 'Paid') color = 'green'
         return <Tag color={color}>{status}</Tag>
       }
@@ -36,7 +38,7 @@ const PaymentsDue = ({ data }) => {
   return (
     <Card 
       title={<Space><DollarCircleOutlined style={{ color: token.colorPrimary }} /> Payments Due</Space>}
-      extra={<Button type="link" size="small">History</Button>}
+      extra={<Button type="link" size="small" onClick={() => navigate('/owner/payments')}>History</Button>}
       style={{ height: '100%', boxShadow: token.boxShadowSecondary, borderRadius: token.borderRadiusLG }}
     >
       <Row gutter={[16, 24]}>
@@ -50,20 +52,25 @@ const PaymentsDue = ({ data }) => {
         </Col>
         
         <Col span={24}>
-          <Table 
-            dataSource={data.list} 
-            columns={columns} 
-            pagination={false} 
-            size="small"
-            rowKey="id"
-            showHeader={false}
-          />
+          {(data.list || []).length === 0 ? (
+            <Empty description="No payments due" style={{ padding: 24 }} />
+          ) : (
+            <Table 
+              dataSource={data.list} 
+              columns={columns} 
+              pagination={false} 
+              size="small"
+              rowKey="id"
+              showHeader={false}
+              scroll={{ x: 'max-content' }}
+            />
+          )}
         </Col>
 
         <Col span={24} style={{ marginTop: 'auto' }}>
           <Space style={{ width: '100%' }} direction="vertical">
-            <Button type="primary" block style={{ background: token.colorPrimary, borderColor: token.colorPrimary }}>Pay Now</Button>
-            <Button block>View Receipts</Button>
+            <Button type="primary" block style={{ background: token.colorPrimary, borderColor: token.colorPrimary }} onClick={() => navigate('/owner/payments')}>Pay Now</Button>
+            <Button block onClick={() => navigate('/owner/payments')}>View Receipts</Button>
           </Space>
         </Col>
       </Row>

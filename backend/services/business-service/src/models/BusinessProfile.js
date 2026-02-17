@@ -94,6 +94,94 @@ const BusinessProfileSchema = new mongoose.Schema(
           default: 'low'
         }
       },
+
+      // ── Phase 2: Unified Business Permit Form fields (2B) ──
+      applicationType: {
+        type: String,
+        enum: ['', 'new', 'renewal', 'amendment', 'additional'],
+        default: 'new',
+      },
+      organizationType: {
+        type: String,
+        enum: ['', 'sole_proprietorship', 'partnership', 'corporation', 'cooperative'],
+        default: '',
+      },
+      businessPlateNo: { type: String, default: '' },
+      yearEstablished: { type: Number, default: null },
+      // Business address extra fields
+      houseBldgNo: { type: String, default: '' },
+      buildingName: { type: String, default: '' },
+      subdivision: { type: String, default: '' },
+      blockCode: { type: String, default: '' },
+      pin: { type: String, default: '' },
+      buildingRegistryNo: { type: String, default: '' },
+      businessAreaSqm: { type: Number, default: 0 },
+      totalEmployees: { type: Number, default: 0 },
+      employeesResidingInLgu: { type: Number, default: 0 },
+      // Owner address
+      ownerAddress: {
+        street: { type: String, default: '' },
+        barangay: { type: String, default: '' },
+        city: { type: String, default: '' },
+        province: { type: String, default: '' },
+        zipCode: { type: String, default: '' },
+      },
+      // Lessor info (if renting)
+      lessorInfo: {
+        name: { type: String, default: '' },
+        businessAddress: { type: String, default: '' },
+      },
+      // Emergency contact
+      emergencyContact: {
+        name: { type: String, default: '' },
+        phone: { type: String, default: '' },
+        relationship: { type: String, default: '' },
+      },
+      // President/Treasurer (for corporation/cooperative)
+      presidentName: { type: String, default: '' },
+      treasurerName: { type: String, default: '' },
+      // Business Activities (multiple rows)
+      businessActivities: [{
+        taxCode: { type: String, default: '' },
+        lineOfBusiness: { type: String, default: '' },
+        detailedLine: { type: String, default: '' },
+        psicCode: { type: String, default: '' },
+        grossSales: { type: Number, default: 0 },
+        _id: false,
+      }],
+      // Capital & Financial
+      capital: {
+        initialBuilding: { type: Number, default: 0 },
+        mev: [{ description: { type: String }, amount: { type: Number, default: 0 }, _id: false }],
+        equity: { type: Number, default: 0 },
+        payable: { type: Number, default: 0 },
+      },
+      // Accreditations
+      accreditations: {
+        dtiSecCda: { type: String, default: '' },
+        nfa: { type: String, default: '' },
+        bfad: { type: String, default: '' },
+        bir: { type: String, default: '' },
+        tin: { type: String, default: '' },
+        other: { type: String, default: '' },
+      },
+      oathOfUndertaking: { type: Boolean, default: false },
+
+      // ── Phase 2: Retirement / Cessation fields (2F) ──
+      retirementStatus: {
+        type: String,
+        enum: ['', 'requested', 'inspector_verified', 'confirmed', 'rejected'],
+        default: '',
+      },
+      retirementRequestedAt: { type: Date, default: null },
+      retirementApplicationLetter: { type: String, default: '' }, // URL or text
+      swornStatementGrossSales: { type: Number, default: 0 },
+      yearsActive: { type: Number, default: 0 },
+      inspectorVerifiedClosed: { type: Boolean, default: false },
+      inspectorVerifiedAt: { type: Date, default: null },
+      retirementConfirmedAt: { type: Date, default: null },
+      retirementRejectionReason: { type: String, default: '' },
+
       // New Business Registration Application Fields
       applicationStatus: {
         type: String,

@@ -1,2 +1,1 @@
-// Admin workspace components barrel
-export { default as AdminWorkspaceGate } from './AdminWorkspaceGate.jsx'
+// Admin workspace components – reserved for future use

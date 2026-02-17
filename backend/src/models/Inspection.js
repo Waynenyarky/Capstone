@@ -50,9 +50,19 @@ const InspectionSchema = new mongoose.Schema(
     },
     inspectionType: {
       type: String,
-      enum: ['initial', 'renewal', 'follow_up'],
+      enum: ['initial', 'renewal', 'follow_up', 'joint', 'compliance', 'complaint'],
       required: true
     },
+    // Phase 2: Additional fields for joint/compliance/complaint inspections
+    complaintDetails: { type: String, default: '' },
+    complianceRequirementId: { type: mongoose.Schema.Types.ObjectId, ref: 'PostRequirement', default: null },
+    jointInspectors: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    violationsFound: [{
+      type: { type: String, default: '' },
+      description: { type: String, default: '' },
+      severity: { type: String, enum: ['low', 'medium', 'high', 'critical'], default: 'medium' },
+      _id: false,
+    }],
     scheduledDate: { type: Date, required: true, index: true },
     scheduledTimeWindow: {
       start: { type: Date },

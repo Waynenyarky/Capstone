@@ -25,6 +25,15 @@ const emailWithTld = (value, helpers) => {
   return value
 }
 
+// PIS (Personal Information Sheet) sub-schema — optional at signup, required before first permit
+const pisAddressSchema = Joi.object({
+  street: Joi.string().trim().max(200).allow('', null),
+  barangay: Joi.string().trim().max(100).allow('', null),
+  city: Joi.string().trim().max(100).allow('', null),
+  province: Joi.string().trim().max(100).allow('', null),
+  zipCode: Joi.string().trim().pattern(/^\d{4}$/).allow('', null),
+}).default({})
+
 const signupPayloadSchema = Joi.object({
   firstName: Joi.string().trim().min(1).max(100).required(),
   lastName: Joi.string().trim().min(1).max(100).required(),
@@ -33,6 +42,17 @@ const signupPayloadSchema = Joi.object({
   password: Joi.string().min(6).max(200).required(), // Min 6 for Joi, actual strength validated separately
   termsAccepted: Joi.boolean().truthy('true', 'TRUE', 'True', 1, '1').valid(true).required(),
   role: Joi.string().valid(BUSINESS_OWNER_ROLE_SLUG).default(BUSINESS_OWNER_ROLE_SLUG),
+  // PIS fields (optional at signup)
+  address: pisAddressSchema,
+  maritalStatus: Joi.string().valid('single', 'married', 'widowed', 'divorced', 'separated').allow('', null),
+  dateOfBirth: Joi.date().iso().max('now').allow(null),
+  placeOfBirth: Joi.string().trim().max(200).allow('', null),
+  nationality: Joi.string().trim().max(50).allow('', null),
+  spouseName: Joi.string().trim().max(100).allow('', null),
+  fatherName: Joi.string().trim().max(100).allow('', null),
+  motherName: Joi.string().trim().max(100).allow('', null),
+  distinctiveMark: Joi.string().trim().max(200).allow('', null),
+  highestEducationalAttainment: Joi.string().valid('elementary', 'high_school', 'vocational', 'college', 'postgraduate').allow('', null),
 })
 
 const verifyCodeSchema = Joi.object({
@@ -76,6 +96,31 @@ async function checkExistingEmailBeforeLimiter(req, res, next) {
   }
 }
 
+// Helper: extract PIS fields from a payload object
+function extractPisFields(body) {
+  const pis = {}
+  if (body.address && typeof body.address === 'object') pis.address = body.address
+  if (body.maritalStatus) pis.maritalStatus = body.maritalStatus
+  if (body.dateOfBirth) pis.dateOfBirth = body.dateOfBirth
+  if (body.placeOfBirth) pis.placeOfBirth = body.placeOfBirth
+  if (body.nationality) pis.nationality = body.nationality
+  if (body.spouseName) pis.spouseName = body.spouseName
+  if (body.fatherName) pis.fatherName = body.fatherName
+  if (body.motherName) pis.motherName = body.motherName
+  if (body.distinctiveMark) pis.distinctiveMark = body.distinctiveMark
+  if (body.highestEducationalAttainment) pis.highestEducationalAttainment = body.highestEducationalAttainment
+  // Mark PIS as completed if all required fields are present
+  const hasPis = !!(
+    pis.address?.street && pis.address?.barangay && pis.address?.city &&
+    pis.address?.province && pis.address?.zipCode &&
+    pis.maritalStatus && pis.dateOfBirth && pis.placeOfBirth &&
+    pis.nationality && pis.fatherName && pis.motherName &&
+    pis.highestEducationalAttainment
+  )
+  if (hasPis) pis.pisCompleted = true
+  return pis
+}
+
 // POST /api/auth/signup
 router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
   try {
@@ -104,6 +149,7 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
     if (!roleDoc) {
       return respond.error(res, 500, 'role_not_configured', 'Business owner role not configured')
     }
+    const pisFields = extractPisFields(req.body || {})
     const doc = await User.create({
       role: roleDoc._id,
       firstName,
@@ -113,6 +159,7 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
       termsAccepted: !!termsAccepted,
       passwordHash,
       theme: 'default', // Set default theme for new accounts
+      ...pisFields,
     })
 
     const response = {
@@ -191,6 +238,7 @@ router.post('/signup/start', validatePasswordStrengthMiddleware, validateBody(si
     }
     if (existing) return respond.error(res, 409, 'email_exists', 'Email already exists')
 
+    const pisFields = extractPisFields(req.body || {})
     const payload = {
       firstName,
       lastName,
@@ -199,6 +247,7 @@ router.post('/signup/start', validatePasswordStrengthMiddleware, validateBody(si
       password,
       termsAccepted: !!termsAccepted,
       role: BUSINESS_OWNER_ROLE_SLUG,
+      ...pisFields,
     }
 
     const code = generateCode()
@@ -333,6 +382,7 @@ router.post('/signup/verify', validateBody(verifyCodeSchema), signupVerifyLimite
       return respond.error(res, 500, 'role_not_configured', 'Business owner role not configured')
     }
     
+    const pisFields = extractPisFields(p)
     const doc = await User.create({
       role: roleDoc._id,
       firstName: p.firstName,
@@ -342,6 +392,7 @@ router.post('/signup/verify', validateBody(verifyCodeSchema), signupVerifyLimite
       termsAccepted: !!p.termsAccepted,
       passwordHash,
       theme: 'default', // Set default theme for new accounts
+      ...pisFields,
     })
     
     // Manually attach role slug for token signing
@@ -376,6 +427,145 @@ router.post('/signup/verify', validateBody(verifyCodeSchema), signupVerifyLimite
     }
     console.error('POST /api/auth/signup/verify error:', err)
     return respond.error(res, 500, 'signup_verify_failed', 'Failed to verify signup')
+  }
+})
+
+// ── Link Existing Account ──
+// For users who already have a permit and want to create a web account linked to their PIS record
+
+const linkExistingSchema = Joi.object({
+  email: Joi.string().trim().email().custom(emailWithTld, 'require domain TLD').required(),
+  businessPlateNo: Joi.string().trim().max(50).required(),
+})
+
+const linkVerifySchema = Joi.object({
+  email: Joi.string().trim().email().custom(emailWithTld, 'require domain TLD').required(),
+  businessPlateNo: Joi.string().trim().max(50).required(),
+  code: Joi.string().trim().pattern(/^[0-9]{6}$/).required(),
+})
+
+// POST /api/auth/link-existing-account
+// Step 1: Search by email + business plate number, send verification code
+router.post('/link-existing-account', validateBody(linkExistingSchema), async (req, res) => {
+  try {
+    const { email, businessPlateNo } = req.body || {}
+    const emailKey = String(email || '').toLowerCase().trim()
+
+    // Check if user with this email already exists
+    const existingUser = await User.findOne({ email: emailKey }).lean()
+    if (existingUser) {
+      return respond.error(res, 409, 'BUSINESS_ALREADY_LINKED', 'An account with this email already exists. Please log in instead.')
+    }
+
+    // Generate verification code and store the link request
+    const code = generateCode()
+    const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10)
+    const expiresAtMs = Date.now() + ttlMin * 60 * 1000
+
+    const useDB = mongoose.connection && mongoose.connection.readyState === 1
+    if (useDB) {
+      await SignUpRequest.findOneAndUpdate(
+        { email: emailKey },
+        {
+          code,
+          expiresAt: new Date(expiresAtMs),
+          payload: { email: emailKey, businessPlateNo, linkExisting: true },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      )
+    } else {
+      signUpRequests.set(`link_${emailKey}`, {
+        code,
+        expiresAt: expiresAtMs,
+        payload: { email: emailKey, businessPlateNo, linkExisting: true },
+      })
+    }
+
+    const emailResult = await sendOtp({ to: email, code, subject: 'Verify your existing account link' })
+    if (!emailResult || !emailResult.success) {
+      return respond.error(res, 500, 'email_send_failed', 'Failed to send verification email')
+    }
+
+    return respond.success(res, 200, { data: { verificationSent: true, expiresIn: ttlMin * 60 } })
+  } catch (err) {
+    console.error('POST /api/auth/link-existing-account error:', err)
+    return respond.error(res, 500, 'link_failed', 'Failed to initiate account linking')
+  }
+})
+
+// POST /api/auth/link-existing-account/verify
+// Step 2: Verify code and create account linked to existing business
+router.post('/link-existing-account/verify', validateBody(linkVerifySchema), async (req, res) => {
+  try {
+    const { email, businessPlateNo, code } = req.body || {}
+    const emailKey = String(email || '').toLowerCase().trim()
+
+    const useDB = mongoose.connection && mongoose.connection.readyState === 1
+    let reqObj = null
+    const lookupKey = useDB ? emailKey : `link_${emailKey}`
+
+    if (useDB) {
+      reqObj = await SignUpRequest.findOne({ email: emailKey }).lean()
+    } else {
+      reqObj = signUpRequests.get(lookupKey)
+    }
+
+    if (!reqObj) return respond.error(res, 404, 'NOT_FOUND', 'No link request found. Please start again.')
+    const expiresAt = useDB ? new Date(reqObj.expiresAt).getTime() : reqObj.expiresAt
+    if (Date.now() > expiresAt) return respond.error(res, 400, 'LINK_CODE_EXPIRED', 'Verification code expired')
+    if (String(reqObj.code) !== String(code)) return respond.error(res, 400, 'LINK_CODE_INVALID', 'Wrong verification code')
+
+    // Verify the payload matches
+    const p = reqObj.payload || {}
+    if (!p.linkExisting || p.businessPlateNo !== businessPlateNo) {
+      return respond.error(res, 400, 'LINK_CODE_INVALID', 'Request mismatch')
+    }
+
+    // Check if email already taken
+    const existing = await User.findOne({ email: emailKey }).lean()
+    if (existing) {
+      if (useDB) await SignUpRequest.deleteOne({ email: emailKey })
+      else signUpRequests.delete(lookupKey)
+      return respond.error(res, 409, 'BUSINESS_ALREADY_LINKED', 'Account already exists for this email')
+    }
+
+    // Create user account (without password — they'll set it up via login flow or password reset)
+    // For now, create with a random password; user must use "forgot password" to set their own
+    const tempPassword = require('crypto').randomBytes(32).toString('hex')
+    const passwordHash = await bcrypt.hash(tempPassword, 10)
+    const roleDoc = await Role.findOne({ slug: BUSINESS_OWNER_ROLE_SLUG })
+    if (!roleDoc) {
+      return respond.error(res, 500, 'role_not_configured', 'Business owner role not configured')
+    }
+
+    const doc = await User.create({
+      role: roleDoc._id,
+      firstName: 'Pending',
+      lastName: 'User',
+      email: emailKey,
+      passwordHash,
+      isEmailVerified: true,
+      mustChangeCredentials: true, // Force password setup on first login
+      theme: 'default',
+    })
+
+    // Cleanup
+    if (useDB) await SignUpRequest.deleteOne({ email: emailKey })
+    else signUpRequests.delete(lookupKey)
+
+    return respond.success(res, 201, {
+      data: {
+        linked: true,
+        userId: String(doc._id),
+        message: 'Account linked successfully. Please log in and set your password.',
+      },
+    })
+  } catch (err) {
+    if (err && err.code === 11000) {
+      return respond.error(res, 409, 'BUSINESS_ALREADY_LINKED', 'Account already exists')
+    }
+    console.error('POST /api/auth/link-existing-account/verify error:', err)
+    return respond.error(res, 500, 'link_verify_failed', 'Failed to verify and link account')
   }
 })
 

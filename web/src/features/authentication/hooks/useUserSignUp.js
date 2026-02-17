@@ -22,6 +22,21 @@ export function useUserSignUp({ onBegin, onSubmit } = {}) {
       role: values.role || 'business_owner',
     }
 
+    // Include PIS fields if provided (step 2 of signup)
+    if (values.address) payload.address = values.address
+    if (values.maritalStatus) payload.maritalStatus = values.maritalStatus
+    if (values.dateOfBirth) {
+      // Convert dayjs/moment to ISO string for API
+      payload.dateOfBirth = values.dateOfBirth.toISOString ? values.dateOfBirth.toISOString() : values.dateOfBirth
+    }
+    if (values.placeOfBirth) payload.placeOfBirth = values.placeOfBirth
+    if (values.nationality) payload.nationality = values.nationality
+    if (values.spouseName) payload.spouseName = values.spouseName
+    if (values.fatherName) payload.fatherName = values.fatherName
+    if (values.motherName) payload.motherName = values.motherName
+    if (values.distinctiveMark) payload.distinctiveMark = values.distinctiveMark
+    if (values.highestEducationalAttainment) payload.highestEducationalAttainment = values.highestEducationalAttainment
+
     try {
       setSubmitting(true)
       if (typeof onBegin === 'function') {

@@ -21,3 +21,6 @@ anaconda_projects/
 *.pem
 deploy/instance-info.txt
 backups/
+
+# Test run error log (overwritten each run)
+test-results.log

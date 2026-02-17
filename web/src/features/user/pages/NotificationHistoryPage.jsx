@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react'
-import { List, Typography, Card, Tag, Space, Button, theme, Empty, Spin, Dropdown, Menu, Divider, Popconfirm, message, Select } from 'antd'
+import { List, Typography, Card, Tag, Space, Button, theme, Empty, Spin, Dropdown, Menu, Divider, Popconfirm, message, Select, Grid } from 'antd'
 import { BellOutlined, CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, InfoCircleOutlined, MoreOutlined, DeleteOutlined, CheckOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { getNotifications, markAsRead, markAllAsRead, deleteNotification } from '../services/notificationService'
 import dayjs from 'dayjs'
-import BusinessOwnerLayout from '@/features/business-owner/views/components/BusinessOwnerLayout'
+import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
 
 const { Title, Paragraph, Text } = Typography
 const { Option } = Select
+const { useBreakpoint } = Grid
 
 export default function NotificationHistoryPage() {
   const { token } = theme.useToken()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const navigate = useNavigate()
   
   const [notifications, setNotifications] = useState([])
@@ -111,12 +114,12 @@ export default function NotificationHistoryPage() {
 
   return (
     <BusinessOwnerLayout pageTitle="Notification History">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
         <div>
-          <Title level={2} style={{ color: token.colorPrimary, marginBottom: 8 }}>Notifications</Title>
+          <Title level={2} style={{ color: token.colorPrimary, marginBottom: 8, fontSize: isMobile ? 20 : undefined }}>Notifications</Title>
           <Paragraph type="secondary">View and manage all your notifications</Paragraph>
         </div>
-        <Space>
+        <Space wrap>
           <Select
             value={filterType}
             onChange={setFilterType}

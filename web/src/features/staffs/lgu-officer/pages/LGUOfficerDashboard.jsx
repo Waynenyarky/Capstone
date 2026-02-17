@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Row, Col, Card, Button, Typography, Space, Tag } from 'antd'
 import { Link } from 'react-router-dom'
-import { StaffLayout } from '../../views/components'
+import { StaffLayout } from '../../components'
 import { useAuthSession } from '@/features/authentication'
 import { getOffices, resolveOfficeLabel } from '@/features/shared/services/officeService.js'
 

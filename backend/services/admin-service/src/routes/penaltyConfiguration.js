@@ -1,0 +1,138 @@
+const express = require('express')
+const PenaltyConfiguration = require('../models/PenaltyConfiguration')
+const { requireJwt, requireRole } = require('../middleware/auth')
+
+const router = express.Router()
+
+// GET /api/admin/penalty-configuration — get active config (or all)
+router.get('/', requireJwt, async (req, res) => {
+  try {
+    const { all } = req.query
+    if (all === 'true') {
+      const configs = await PenaltyConfiguration.find().sort({ createdAt: -1 }).lean()
+      return res.json({ data: configs })
+    }
+    // Return active config
+    let active = await PenaltyConfiguration.findOne({ isActive: true }).lean()
+    if (!active) {
+      // Seed default if none exists
+      active = await PenaltyConfiguration.create({
+        surchargePercentage: 25,
+        monthlyInterestRate: 2,
+        penaltyStartDay: 20,
+        effectiveDate: new Date(),
+        isActive: true,
+      })
+      active = active.toObject()
+    }
+    return res.json({ data: active })
+  } catch (err) {
+    console.error('GET /penalty-configuration error:', err)
+    return res.status(500).json({ error: { code: 'INTERNAL', message: 'Failed to fetch penalty configuration' } })
+  }
+})
+
+// POST /api/admin/penalty-configuration — create new config
+router.post('/', requireJwt, requireRole(['admin']), async (req, res) => {
+  try {
+    const { surchargePercentage, monthlyInterestRate, penaltyStartDay, compliancePeriods, effectiveDate } = req.body
+
+    // Validate penaltyStartDay
+    if (penaltyStartDay !== undefined && (penaltyStartDay < 1 || penaltyStartDay > 31)) {
+      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Penalty start day must be between 1 and 31' } })
+    }
+
+    // Warn if penaltyStartDay is 31 (February issue)
+    const warnings = []
+    if (penaltyStartDay === 31) {
+      warnings.push('Penalty start day 31 may cause issues in February (only 28/29 days)')
+    }
+
+    const config = await PenaltyConfiguration.create({
+      surchargePercentage: surchargePercentage ?? 25,
+      monthlyInterestRate: monthlyInterestRate ?? 2,
+      penaltyStartDay: penaltyStartDay ?? 20,
+      compliancePeriods: compliancePeriods || {},
+      effectiveDate: effectiveDate || new Date(),
+      isActive: true,
+      createdBy: req._userId,
+      updatedBy: req._userId,
+    })
+
+    return res.status(201).json({ data: config, warnings })
+  } catch (err) {
+    console.error('POST /penalty-configuration error:', err)
+    return res.status(500).json({ error: { code: 'INTERNAL', message: 'Failed to create penalty configuration' } })
+  }
+})
+
+// PUT /api/admin/penalty-configuration/:id — update config
+router.put('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params
+    const { surchargePercentage, monthlyInterestRate, penaltyStartDay, compliancePeriods, effectiveDate, isActive } = req.body
+
+    if (penaltyStartDay !== undefined && (penaltyStartDay < 1 || penaltyStartDay > 31)) {
+      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Penalty start day must be between 1 and 31' } })
+    }
+
+    const config = await PenaltyConfiguration.findById(id)
+    if (!config) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Penalty configuration not found' } })
+    }
+
+    // Prevent deactivating the last active config
+    if (isActive === false) {
+      const activeCount = await PenaltyConfiguration.countDocuments({ isActive: true, _id: { $ne: id } })
+      if (activeCount === 0) {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Cannot deactivate the last active penalty configuration' } })
+      }
+    }
+
+    if (surchargePercentage !== undefined) config.surchargePercentage = surchargePercentage
+    if (monthlyInterestRate !== undefined) config.monthlyInterestRate = monthlyInterestRate
+    if (penaltyStartDay !== undefined) config.penaltyStartDay = penaltyStartDay
+    if (compliancePeriods !== undefined) config.compliancePeriods = compliancePeriods
+    if (effectiveDate !== undefined) config.effectiveDate = effectiveDate
+    if (isActive !== undefined) config.isActive = isActive
+    config.updatedBy = req._userId
+
+    await config.save()
+
+    const warnings = []
+    if (config.penaltyStartDay === 31) {
+      warnings.push('Penalty start day 31 may cause issues in February')
+    }
+
+    return res.json({ data: config, warnings })
+  } catch (err) {
+    console.error('PUT /penalty-configuration error:', err)
+    return res.status(500).json({ error: { code: 'INTERNAL', message: 'Failed to update penalty configuration' } })
+  }
+})
+
+// POST /api/admin/penalty-configuration/reset — reset to defaults
+router.post('/reset', requireJwt, requireRole(['admin']), async (req, res) => {
+  try {
+    // Deactivate all existing
+    await PenaltyConfiguration.updateMany({}, { $set: { isActive: false } })
+
+    // Create default
+    const config = await PenaltyConfiguration.create({
+      surchargePercentage: 25,
+      monthlyInterestRate: 2,
+      penaltyStartDay: 20,
+      effectiveDate: new Date(),
+      isActive: true,
+      createdBy: req._userId,
+      updatedBy: req._userId,
+    })
+
+    return res.json({ data: config, message: 'Reset to defaults' })
+  } catch (err) {
+    console.error('POST /penalty-configuration/reset error:', err)
+    return res.status(500).json({ error: { code: 'INTERNAL', message: 'Failed to reset penalty configuration' } })
+  }
+})
+
+module.exports = router

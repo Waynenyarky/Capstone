@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react'
-import { Form, Select, Input, DatePicker, Button, Card, Row, Col, Typography, message, Space, List, Tag, Divider } from 'antd'
+import { Form, Select, Input, DatePicker, Button, Card, Row, Col, Typography, message, Space, List, Tag, Divider, Grid } from 'antd'
 import { EditOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import { getAssociatedPermits } from '../services/cessationService'
 
 const { Title, Text } = Typography
 const { Option } = Select
 const { TextArea } = Input
+const { useBreakpoint } = Grid
 
 export default function CessationForm({ onSubmit, onCancel }) {
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [activePermits, setActivePermits] = useState([])
@@ -41,7 +44,7 @@ export default function CessationForm({ onSubmit, onCancel }) {
         onFinish={handleFinish}
       >
         <Row gutter={16}>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item label="Cessation Type" name="type" rules={[{ required: true }]}>
               <Select placeholder="Select Type">
                 <Option value="Temporary Halt">Temporary Halt</Option>
@@ -49,7 +52,7 @@ export default function CessationForm({ onSubmit, onCancel }) {
               </Select>
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item label="Effective Date" name="effectiveDate" rules={[{ required: true }]}>
               <DatePicker style={{ width: '100%' }} />
             </Form.Item>

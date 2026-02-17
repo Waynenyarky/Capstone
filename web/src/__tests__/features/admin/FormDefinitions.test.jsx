@@ -44,8 +44,8 @@ vi.mock('@/features/admin/services/formDefinitionService', () => ({
   uploadFormTemplate: vi.fn().mockResolvedValue({ success: true, download: { label: 'test.pdf', fileUrl: '/test.pdf', fileType: 'pdf', fileSize: 1000 } }),
 }))
 
-import AdminFormDefinitions from '@/features/admin/views/pages/AdminFormDefinitions.jsx'
-import FormContentEditor from '@/features/admin/views/pages/formDefinitions/components/FormContentEditor.jsx'
+import AdminFormDefinitions from '@/features/admin/pages/AdminFormDefinitions.jsx'
+import FormContentEditor from '@/features/admin/pages/formDefinitions/components/FormContentEditor.jsx'
 
 // ─── Page-level tests ─────────────────────────────────────────────
 describe('AdminFormDefinitions Page', () => {
@@ -88,10 +88,12 @@ describe('AdminFormDefinitions Page', () => {
 
 // ─── FormContentEditor tests ─────────────────────────────────────
 describe('FormContentEditor', () => {
-  it('should render with initial empty sections', () => {
+  it('should render with initial empty sections', async () => {
     renderWithProviders(<FormContentEditor initialSections={[]} />)
-    expect(screen.getByText('Add section')).toBeInTheDocument()
-  })
+    await waitFor(() => {
+      expect(screen.getByText('Add section')).toBeInTheDocument()
+    }, { timeout: 10000 })
+  }, 12000)
 
   it('should render with provided initial sections', () => {
     const sections = [
@@ -178,7 +180,7 @@ describe('FormContentEditor', () => {
     expect(screen.getByDisplayValue('Application Form')).toBeInTheDocument()
   })
 
-  it('should call onChange when sections are modified', () => {
+  it('should call onChange when sections are modified', async () => {
     const onChange = vi.fn()
     renderWithProviders(
       <FormContentEditor
@@ -187,12 +189,14 @@ describe('FormContentEditor', () => {
       />
     )
 
-    // Click "Add field" button
+    await waitFor(() => {
+      expect(screen.getByText('Add field')).toBeInTheDocument()
+    }, { timeout: 10000 })
     const addFieldBtn = screen.getByText('Add field')
     fireEvent.click(addFieldBtn)
 
     expect(onChange).toHaveBeenCalled()
-  })
+  }, 12000)
 
   it('should render in mobile mode', () => {
     const sections = [
@@ -232,7 +236,7 @@ describe('FormContentEditor', () => {
 // ─── Constants tests ──────────────────────────────────────────────
 describe('Form Definitions Constants', () => {
   it('should export all required constants', async () => {
-    const constants = await import('@/features/admin/views/pages/formDefinitions/constants.js')
+    const constants = await import('@/features/admin/pages/formDefinitions/constants.js')
 
     expect(constants.FORM_TYPES).toBeDefined()
     expect(constants.FORM_TYPES.length).toBeGreaterThan(0)

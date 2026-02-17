@@ -250,6 +250,7 @@ export default function BusinessesTab({ onSwitchTab }) {
           dataSource={businesses}
           loading={loading}
           pagination={false}
+          scroll={{ x: 'max-content' }}
         />
       )}
 

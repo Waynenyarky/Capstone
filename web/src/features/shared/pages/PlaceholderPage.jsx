@@ -1,16 +1,17 @@
 import React from 'react'
-import { Layout, Typography, Button, Result } from 'antd'
+import { Layout, Typography, Button, Result, theme } from 'antd'
 import { useNavigate } from 'react-router-dom'
 
 const { Content } = Layout
 
 export default function PlaceholderPage({ title = "Under Construction" }) {
   const navigate = useNavigate()
+  const { token } = theme.useToken()
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#f5f7fb' }}>
+    <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
       <Content style={{ padding: 32 }}>
-        <div style={{ background: '#fff', padding: 48, borderRadius: 8, minHeight: '80vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <div style={{ background: '#fff', padding: 48, borderRadius: token.borderRadiusLG, minHeight: '80vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <Result
             status="404"
             title={title}

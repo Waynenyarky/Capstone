@@ -14,7 +14,14 @@ import {
   BarChartOutlined,
   CustomerServiceOutlined,
   FormOutlined,
-  ShopOutlined
+  ShopOutlined,
+  BankOutlined,
+  DollarOutlined,
+  ScheduleOutlined,
+  IdcardOutlined,
+  EditOutlined,
+  HistoryOutlined,
+  FileProtectOutlined,
 } from '@ant-design/icons'
 
 // Role keys used across the app: 'business_owner', 'admin', 'inspector', 'lgu_officer', 'lgu_manager', 'cso', 'user'
@@ -32,6 +39,11 @@ export default function useSidebar() {
     const businessItems = [
       { key: 'dashboard', label: 'Dashboard', to: '/owner', icon: <DashboardOutlined /> },
       { key: 'my-businesses', label: 'My Businesses', to: '/owner/businesses', icon: <ShopOutlined /> },
+      { key: 'general-permits', label: 'General Permits', to: '/owner/general-permits', icon: <FileProtectOutlined /> },
+      { key: 'occupational-permits', label: 'Occupational Permits', to: '/owner/occupational-permits', icon: <IdcardOutlined /> },
+      { key: 'retirement', label: 'Business Retirement', to: '/owner/retirement', icon: <StopOutlined /> },
+      { key: 'my-appeals', label: 'Appeals', to: '/owner/my-appeals', icon: <AuditOutlined /> },
+      { key: 'edit-requests', label: 'Edit Requests', to: '/owner/edit-requests', icon: <EditOutlined /> },
       { key: 'payments', label: 'Payments', to: '/owner/payments', icon: <CreditCardOutlined /> },
       { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
       { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
@@ -42,9 +54,13 @@ export default function useSidebar() {
       business_owner: businessItems,
       admin: [
         { key: 'dashboard', label: 'Dashboard', to: '/admin/dashboard', icon: <DashboardOutlined /> },
-        { key: 'admin-full', label: 'Admin — Full', to: '/admin/full', icon: <SafetyCertificateOutlined /> },
         { key: 'admin-users', label: 'User Management', to: '/admin/users', icon: <TeamOutlined /> },
         { key: 'form-definitions', label: 'Form Definitions', to: '/admin/form-definitions', icon: <FormOutlined /> },
+        { key: 'lgus', label: 'LGU Configuration', to: '/admin/lgus', icon: <BankOutlined /> },
+        { key: 'fee-configuration', label: 'Fee Configuration', to: '/admin/fee-configuration', icon: <DollarOutlined /> },
+        { key: 'penalty-configuration', label: 'Penalty Configuration', to: '/admin/penalty-configuration', icon: <ScheduleOutlined /> },
+        { key: 'general-permit-config', label: 'General Permit Config', to: '/admin/general-permit-config', icon: <FileProtectOutlined /> },
+        { key: 'activity', label: 'Admin Activity', to: '/admin/activity', icon: <HistoryOutlined /> },
         { key: 'maintenance', label: 'Maintenance', to: '/admin/maintenance', icon: <SafetyCertificateOutlined /> },
         { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
         { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
@@ -69,6 +85,7 @@ export default function useSidebar() {
       ],
       lgu_officer: [
         { key: 'dashboard', label: 'Dashboard', to: '/staff', icon: <DashboardOutlined /> },
+        { key: 'walk-in', label: 'Walk-in Application', to: '/staff/walk-in', icon: <FormOutlined /> },
         { key: 'applications', label: 'Permit Applications (Review)', to: '/staff/applications', icon: <FileTextOutlined /> },
         { key: 'cessation', label: 'Cessation (Review)', to: '/staff/cessation', icon: <StopOutlined /> },
         { key: 'inspections', label: 'Violations / Inspections', to: '/staff/inspections', icon: <SolutionOutlined /> },

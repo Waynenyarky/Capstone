@@ -3,20 +3,17 @@
 Preferred import paths and usage:
 
 - Components and views: import from `@/features/admin` and sub-feature barrels.
-  - Example: `import { AdminWorkspaceGate } from '@/features/admin'`
-  - Example: `import { ServiceTable, CreateServiceForm } from '@/features/admin/services'`
-  - Example: `import { ProvidersTable } from '@/features/admin/providers'`
+  - Example: `import { AdminLayout, TamperIncidentsPanel } from '@/features/admin'`
+  - Example: `import { UsersTable } from '@/features/admin/users'`
 
 - Hooks: import from the corresponding sub-feature barrel.
-  - Example: `import { useServiceTable, useServiceForm } from '@/features/admin/services'`
-  - Example: `import { useProvidersTable } from '@/features/admin/providers'`
+  - Example: `import { useStaffManagement } from '@/features/admin/hooks'`
   - Example: `import { useUsersTable } from '@/features/admin/users'`
-  - Example: `import { useConfirmAreasSave } from '@/features/admin/areas'`
 
 - Services: internal to each sub-feature. Use admin services only within admin hooks/components.
 
 Notes:
-- The root barrel `@/features/admin` re-exports `AdminWorkspaceGate` and sub-feature barrels (`services`, `providers`, `users`, `areas`) to avoid deep imports.
+- The root barrel `@/features/admin` re-exports components and sub-feature barrels (`users`, `components`) to avoid deep imports.
 - Each sub-feature barrel consolidates its components, hooks, constants, and helpers. Prefer importing from these barrels instead of nested paths.
 
 Conventions:
@@ -24,15 +21,12 @@ Conventions:
 - For Ant Design forms, use `form.setFieldsValue()` for programmatic changes; do not rely on dynamic `initialValues`.
 
 Examples:
-- Admin workspace:
+- Admin components:
   ```js
-  import { AdminWorkspaceGate } from '@/features/admin'
+  import { AdminLayout, TamperIncidentsPanel, RecoveryRequestsTable } from '@/features/admin'
   ```
-- Admin services table and hooks:
+- User management:
   ```js
-  import { ServiceTable, useServiceTable } from '@/features/admin/services'
-  ```
-- Supported areas:
-  ```js
-  import { SupportedAreasTable, useConfirmAreasSave } from '@/features/admin/areas'
+  import { UsersTable } from '@/features/admin/users'
+  import { useStaffManagement } from '@/features/admin/hooks'
   ```

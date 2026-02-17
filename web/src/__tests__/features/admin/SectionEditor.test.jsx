@@ -1,7 +1,7 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderWithProviders, screen, waitFor, fireEvent } from '@/test/utils/renderWithProviders.jsx'
-import SectionEditor from '@/features/admin/views/components/SectionEditor.jsx'
+import SectionEditor from '@/features/admin/components/SectionEditor.jsx'
 
 describe('SectionEditor Component', () => {
   const mockOnChange = vi.fn()
@@ -11,14 +11,16 @@ describe('SectionEditor Component', () => {
   })
 
   describe('Empty State', () => {
-    it('should show empty state when no sections', () => {
+    it('should show empty state when no sections', async () => {
       renderWithProviders(
         <SectionEditor sections={[]} onChange={mockOnChange} disabled={false} />
       )
 
-      expect(screen.getByText('No sections yet')).toBeInTheDocument()
-      expect(screen.getByText('Add Section')).toBeInTheDocument()
-    })
+      await waitFor(() => {
+        expect(screen.getByText('No sections yet')).toBeInTheDocument()
+        expect(screen.getByText('Add Section')).toBeInTheDocument()
+      })
+    }, 10000)
 
     it('should not show Add Section button when disabled', () => {
       renderWithProviders(

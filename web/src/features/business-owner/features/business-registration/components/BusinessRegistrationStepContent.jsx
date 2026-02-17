@@ -1,12 +1,14 @@
 import React from 'react'
-import { Button, Card, Form } from 'antd'
-import { CheckCircleOutlined } from '@ant-design/icons'
-import RequirementsChecklistStep from './RequirementsChecklistStep'
-import BusinessRegistrationForm from './BusinessRegistrationForm'
-import LGUDocumentsUploadStep from './LGUDocumentsUploadStep'
-import BIRRegistrationStep from './BIRRegistrationStep'
-import OtherAgenciesStep from './OtherAgenciesStep'
-import ApplicationReviewStep from './ApplicationReviewStep'
+import { Form } from 'antd'
+import {
+  Step1ApplicationType,
+  Step2TaxpayerInfo,
+  Step3Addresses,
+  Step4BusinessActivities,
+  Step5Capital,
+  Step6Accreditations,
+  Step7ReviewSubmit,
+} from './BusinessRegistrationForm'
 import ApplicationStatusCard from './ApplicationStatusCard'
 
 export default function BusinessRegistrationStepContent({
@@ -14,13 +16,16 @@ export default function BusinessRegistrationStepContent({
   form,
   formData,
   applicationData,
-  documentFields = [],
   businessId,
   actualBusinessId,
+  handleFormValuesChange,
+  handleFinalSubmit,
+  loading,
+  // Legacy props kept for backward compatibility (unused in new flow)
+  documentFields,
   effectiveLguDocumentsWithStorage,
   effectiveBirRegistration,
   handleRequirementsConfirm,
-  handleFormValuesChange,
   handleDocumentsSave,
   handleDocumentsSaveFromModal,
   handleBIRSave,
@@ -29,115 +34,62 @@ export default function BusinessRegistrationStepContent({
   handleAgenciesSaveFromModal,
   handleBusinessSaveFromModal,
   handleReviewEdit,
-  handleFinalSubmit,
-  loading
 }) {
   switch (currentStep) {
     case 0:
       return (
-        <RequirementsChecklistStep
-          businessId={businessId}
-          businessType={applicationData.businessData?.businessType || formData?.businessType}
-          onConfirm={handleRequirementsConfirm}
-          onNext={handleRequirementsConfirm}
-        />
+        <Form form={form} layout="vertical" onValuesChange={handleFormValuesChange}>
+          <Step1ApplicationType form={form} />
+        </Form>
       )
     case 1:
       return (
         <Form form={form} layout="vertical" onValuesChange={handleFormValuesChange}>
-          <BusinessRegistrationForm
-            form={form}
-            initialValues={applicationData.businessData || formData}
-            onValuesChange={() => {}}
-          />
+          <Step2TaxpayerInfo form={form} />
         </Form>
       )
     case 2:
       return (
-        <LGUDocumentsUploadStep
-          businessId={actualBusinessId || businessId}
-          businessType={applicationData.businessData?.businessType || formData?.businessType}
-          initialDocuments={effectiveLguDocumentsWithStorage}
-          documentFields={documentFields}
-          onSave={handleDocumentsSave}
-          onNext={handleDocumentsSave}
-        />
+        <Form form={form} layout="vertical" onValuesChange={handleFormValuesChange}>
+          <Step3Addresses form={form} />
+        </Form>
       )
     case 3:
       return (
-        <BIRRegistrationStep
-          businessId={actualBusinessId || businessId}
-          initialData={effectiveBirRegistration}
-          onSave={handleBIRSave}
-          onNext={handleBIRSave}
-        />
+        <Form form={form} layout="vertical" onValuesChange={handleFormValuesChange}>
+          <Step4BusinessActivities form={form} />
+        </Form>
       )
     case 4:
       return (
-        <OtherAgenciesStep
-          businessId={actualBusinessId || businessId}
-          initialData={applicationData.otherAgencyRegistrations}
-          onSave={handleAgenciesSave}
-          onNext={handleAgenciesSave}
-        />
+        <Form form={form} layout="vertical" onValuesChange={handleFormValuesChange}>
+          <Step5Capital form={form} />
+        </Form>
       )
-    case 5: {
-      let reviewLguDocuments = null
-      if (effectiveLguDocumentsWithStorage) {
-        reviewLguDocuments = effectiveLguDocumentsWithStorage
-      }
-      let reviewBirRegistration = null
-      if (applicationData.birRegistration) {
-        reviewBirRegistration = applicationData.birRegistration
-      } else if (formData?.birRegistration) {
-        reviewBirRegistration = formData.birRegistration
-      }
-      const reviewOtherAgencies = applicationData.otherAgencyRegistrations || formData?.otherAgencyRegistrations || null
-
+    case 5:
       return (
-        <ApplicationReviewStep
-          businessData={applicationData.businessData || formData}
-          lguDocuments={reviewLguDocuments}
-          documentFields={documentFields}
-          birRegistration={reviewBirRegistration}
-          otherAgencyRegistrations={reviewOtherAgencies}
-          onEdit={handleReviewEdit}
-          businessId={actualBusinessId || businessId}
-          onDocumentsSave={handleDocumentsSaveFromModal}
-          onBIRSave={handleBIRSaveFromModal}
-          onAgenciesSave={handleAgenciesSaveFromModal}
-          onBusinessSave={handleBusinessSaveFromModal}
-        />
+        <Form form={form} layout="vertical" onValuesChange={handleFormValuesChange}>
+          <Step6Accreditations form={form} />
+        </Form>
       )
-    }
     case 6:
       return (
-        <Card>
-          <div style={{ textAlign: 'center', padding: 40 }}>
-            <CheckCircleOutlined style={{ fontSize: 64, color: '#52c41a', marginBottom: 24 }} />
-            <h2>Ready to Submit</h2>
-            <p style={{ fontSize: 16, color: '#666', marginBottom: 32 }}>
-              Review all information and submit your application to the LGU Officer for permit verification.
-            </p>
-            <Button
-              type="primary"
-              size="default"
-              onClick={handleFinalSubmit}
-              loading={loading}
-              icon={<CheckCircleOutlined />}
-            >
-              Submit Application
-            </Button>
-          </div>
-        </Card>
+        <Form form={form} layout="vertical" onValuesChange={handleFormValuesChange}>
+          <Step7ReviewSubmit
+            form={form}
+            formData={applicationData?.businessData || formData}
+            onSubmit={handleFinalSubmit}
+            loading={loading}
+          />
+        </Form>
       )
     case 7:
       return (
         <ApplicationStatusCard
           businessId={businessId}
           status={formData?.applicationStatus}
-          referenceNumber={applicationData.referenceNumber || formData?.applicationReferenceNumber}
-          submittedAt={applicationData.submittedAt || formData?.submittedAt}
+          referenceNumber={applicationData?.referenceNumber || formData?.applicationReferenceNumber}
+          submittedAt={applicationData?.submittedAt || formData?.submittedAt}
         />
       )
     default:

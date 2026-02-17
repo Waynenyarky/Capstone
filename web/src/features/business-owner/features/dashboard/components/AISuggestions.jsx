@@ -1,32 +1,35 @@
 import React from 'react'
-import { Card, Alert, Button, Space, Row, Col, Typography, Badge } from 'antd'
+import { Card, Alert, Button, Space, Row, Col, Typography, Badge, theme } from 'antd'
 import { BulbOutlined, ArrowRightOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 
 const { Text } = Typography
 
 const AISuggestions = ({ data }) => {
   if (!data) return null
+  const { token } = theme.useToken()
+  const navigate = useNavigate()
 
   return (
     <Card 
-      title={<Space><BulbOutlined style={{ color: '#001529' }} /> Smart Insights</Space>}
+      title={<Space><BulbOutlined style={{ color: token.colorPrimary }} /> Smart Insights</Space>}
       variant="borderless"
       style={{ 
         marginTop: 24, 
-        background: 'linear-gradient(to right, #f0f5ff, #ffffff)', 
-        border: '1px solid #d6e4ff',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-        borderRadius: 8
+        background: `linear-gradient(to right, ${token.colorPrimaryBg}, ${token.colorBgContainer})`, 
+        border: `1px solid ${token.colorPrimaryBorder}`,
+        boxShadow: token.boxShadowSecondary,
+        borderRadius: token.borderRadiusLG
       }}
-      extra={<Badge count={data.length} style={{ backgroundColor: '#faad14' }} />}
+      extra={<Badge count={data.length} style={{ backgroundColor: token.colorWarning }} />}
     >
       <Row gutter={[24, 24]}>
         {data.map(item => (
           <Col xs={24} md={8} key={item.id}>
              <Card 
-               hoverable 
-               style={{ height: '100%', borderColor: item.type === 'warning' ? '#ffccc7' : '#d9f7be' }}
+               style={{ height: '100%', borderColor: item.type === 'warning' ? token.colorErrorBorder : token.colorSuccessBorder, cursor: 'pointer' }}
                styles={{ body: { padding: '16px' } }}
+               onClick={() => navigate('/owner/businesses')}
              >
                <Space direction="vertical" style={{ width: '100%' }}>
                  <Space align="start">
@@ -40,7 +43,7 @@ const AISuggestions = ({ data }) => {
                  </Space>
                  
                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-                   <Button type="link" size="small" style={{ padding: 0 }} icon={<ArrowRightOutlined />}>
+                   <Button type="link" size="small" style={{ padding: 0 }} icon={<ArrowRightOutlined />} onClick={() => navigate('/owner/businesses')}>
                      Action
                    </Button>
                  </div>

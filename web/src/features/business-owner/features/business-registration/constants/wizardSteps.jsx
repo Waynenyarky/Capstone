@@ -2,55 +2,55 @@ import React from 'react'
 import {
   FileTextOutlined,
   FormOutlined,
-  UploadOutlined,
-  BankOutlined,
-  TeamOutlined,
-  EyeOutlined,
+  EnvironmentOutlined,
+  ShopOutlined,
+  DollarOutlined,
+  SafetyCertificateOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined
 } from '@ant-design/icons'
 
 export const wizardSteps = [
   {
-    key: 'requirements',
-    title: 'Requirements',
-    description: 'Checklist',
+    key: 'application-type',
+    title: 'Application Type',
+    description: 'Type & Organization',
     icon: <FileTextOutlined />
   },
   {
-    key: 'form',
-    title: 'Application Form',
-    description: 'Business Details',
+    key: 'taxpayer-info',
+    title: 'Taxpayer Info',
+    description: 'Business & Owner Details',
     icon: <FormOutlined />
   },
   {
-    key: 'documents',
-    title: 'LGU Documents',
-    description: 'Upload Files',
-    icon: <UploadOutlined />
+    key: 'addresses',
+    title: 'Addresses',
+    description: 'Business, Owner & Lessor',
+    icon: <EnvironmentOutlined />
   },
   {
-    key: 'bir',
-    title: 'BIR Registration',
-    description: 'BIR Info',
-    icon: <BankOutlined />
+    key: 'business-activities',
+    title: 'Business Activities',
+    description: 'Tax Code & PSIC',
+    icon: <ShopOutlined />
   },
   {
-    key: 'agencies',
-    title: 'Other Agencies',
-    description: 'SSS, PhilHealth',
-    icon: <TeamOutlined />
+    key: 'capital',
+    title: 'Capital & Financial',
+    description: 'Investment & MEV',
+    icon: <DollarOutlined />
   },
   {
-    key: 'review',
-    title: 'Review',
-    description: 'Check Details',
-    icon: <EyeOutlined />
+    key: 'accreditations',
+    title: 'Accreditations',
+    description: 'DTI, SEC, BIR, etc.',
+    icon: <SafetyCertificateOutlined />
   },
   {
-    key: 'submit',
-    title: 'Submit',
-    description: 'Final Step',
+    key: 'review-submit',
+    title: 'Review & Submit',
+    description: 'Oath & Final Review',
     icon: <CheckCircleOutlined />
   },
   {
@@ -59,4 +59,9 @@ export const wizardSteps = [
     description: 'Track Progress',
     icon: <ClockCircleOutlined />
   }
+]
+
+// Legacy steps mapping for backward compatibility
+export const LEGACY_STEP_KEYS = [
+  'requirements', 'form', 'documents', 'bir', 'agencies', 'review', 'submit', 'status'
 ]

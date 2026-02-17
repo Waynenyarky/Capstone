@@ -67,6 +67,7 @@ export default function ReportsPanel({ reports, loading, onGenerate, onDownload 
         loading={loading}
         rowKey="id"
         pagination={{ pageSize: 10 }}
+        scroll={{ x: 'max-content' }}
       />
     </Card>
   )

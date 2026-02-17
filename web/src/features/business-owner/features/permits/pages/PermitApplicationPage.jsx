@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, Space, theme, Tabs, Spin, Typography } from 'antd'
-import BusinessOwnerLayout from '@/features/business-owner/views/components/BusinessOwnerLayout'
+import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
 import { PlusOutlined, ReloadOutlined, FileSyncOutlined, FileTextOutlined, ShopOutlined } from '@ant-design/icons'
 import PermitApplicationFilters from '../components/PermitApplicationFilters'
 import RegistrationTable from '../components/RegistrationTable'

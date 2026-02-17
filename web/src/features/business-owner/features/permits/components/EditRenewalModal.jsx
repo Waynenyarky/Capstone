@@ -1,6 +1,8 @@
 import React from 'react'
-import { Modal, Form, Input, Button, Space, Alert, Spin } from 'antd'
+import { Modal, Form, Input, Button, Space, Alert, Spin, Grid } from 'antd'
 import { getRenewalStatusTag } from '../constants/statusConfig.jsx'
+
+const { useBreakpoint } = Grid
 
 export default function EditRenewalModal({
   open,
@@ -12,13 +14,15 @@ export default function EditRenewalModal({
   canEdit,
   onSave
 }) {
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   return (
     <Modal
       title="Edit Business Renewal"
       open={open}
       onCancel={onCancel}
       footer={null}
-      width={900}
+      width={isMobile ? '95%' : 900}
       style={{ top: 20 }}
     >
       {loading && !modalData ? (
