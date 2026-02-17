@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Select, Button, Typography, theme, Space, Badge, Empty, Modal, Spin, message, Form, Alert, Tag } from 'antd'
+import { Select, Button, Typography, theme, Space, Badge, Empty, Modal, Spin, message, Form, Alert, Tag, Row, Col, Card } from 'antd'
 import {
   ArrowLeftOutlined,
   SaveOutlined,
@@ -13,6 +13,9 @@ import {
   ReloadOutlined,
   EyeOutlined,
   EditOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  StopOutlined,
 } from '@ant-design/icons'
 
 import { FORM_TYPES, FORM_DEFINITIONS_INDUSTRIES_ONLY, STATUS_COLORS, ACTION_LABELS } from '../constants'
@@ -56,30 +59,18 @@ function formatDraftDate(date) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function OverviewPanelItem({ label, value, token }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '10px 12px',
-        background: token.colorFillQuaternary,
-        borderRadius: token.borderRadius,
-        marginBottom: 6,
-      }}
-    >
-      <Text style={{ fontSize: 13 }}>{label}</Text>
-      <Text type="secondary" style={{ fontSize: 13 }}>{value}</Text>
-    </div>
-  )
+const OVERVIEW_CARD_COLORS = {
+  active: '#52c41a',
+  pending: '#fa8c16',
+  deactivated: '#faad14',
+  retired: '#8c8c8c',
 }
 
 function isGroupDeactivated(group) {
   return group?.deactivatedUntil && new Date(group.deactivatedUntil) > new Date()
 }
 
-function FormDefinitionsMobileView({ refreshKey = 0 } = {}) {
+function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
   const { token } = theme.useToken()
   const editorRef = useRef(null)
   const [deactivateForm] = Form.useForm()
@@ -157,10 +148,11 @@ function FormDefinitionsMobileView({ refreshKey = 0 } = {}) {
     try {
       const res = await getFormGroupStats()
       if (res?.success) setStats(res.stats)
+      onLastUpdated?.(new Date())
     } catch (err) {
       console.error('Failed to load stats', err)
     }
-  }, [])
+  }, [onLastUpdated])
 
   const loadAuditLog = useCallback(async () => {
     try {
@@ -216,7 +208,7 @@ function FormDefinitionsMobileView({ refreshKey = 0 } = {}) {
   }, [selectedFormType, industryScope, isIndustryPage, isLogs])
 
   useEffect(() => { loadStats() }, [loadStats, refreshKey])
-  useEffect(() => { if (isOverview || isLogs) loadAuditLog() }, [isOverview, isLogs, loadAuditLog, refreshKey])
+  useEffect(() => { if (isLogs) loadAuditLog() }, [isLogs, loadAuditLog, refreshKey])
   useEffect(() => {
     if (isIndustryPage) {
       setIsEditingDraft(false)
@@ -522,43 +514,43 @@ function FormDefinitionsMobileView({ refreshKey = 0 } = {}) {
         </div>
 
         {isOverview ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div>
               <Text strong style={{ display: 'block', marginBottom: 10, fontSize: 13 }}>Form summary</Text>
-              <OverviewPanelItem label="Active forms" value={stats.activated} token={token} />
-              <OverviewPanelItem label="Pending forms" value={stats.pending || 0} token={token} />
-              <OverviewPanelItem label="Deactivated forms" value={stats.deactivated} token={token} />
-              <OverviewPanelItem label="Retired forms" value={stats.retired} token={token} />
-            </div>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                <Text strong style={{ fontSize: 13 }}>Recent activity</Text>
-                <Button type="link" size="small" icon={<ReloadOutlined />} onClick={() => { loadStats(); loadAuditLog(); }}>Refresh</Button>
-              </div>
-              {auditLog.length > 0 ? (
-                auditLog.slice(0, 5).map((entry, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      padding: '10px 12px',
-                      background: token.colorFillQuaternary,
-                      borderRadius: token.borderRadius,
-                      marginBottom: 6,
-                      fontSize: 13,
-                    }}
-                  >
-                    <Text>{ACTION_LABELS[entry.action] || entry.action}: {entry.name || entry.formType} v{entry.version}</Text>
-                    <br />
-                    <Text type="secondary">
-                      {entry.user ? `by ${entry.user.firstName || entry.user.email}` : ''} · {formatDraftDate(entry.at)}
-                    </Text>
-                  </div>
-                ))
-              ) : (
-                <div style={{ padding: 20, background: token.colorFillQuaternary, borderRadius: token.borderRadius, textAlign: 'center' }}>
-                  <Text type="secondary" style={{ fontSize: 13 }}>No recent activity</Text>
-                </div>
-              )}
+              <Row gutter={[12, 12]}>
+                {[
+                  { key: 'active', label: 'Active forms', value: stats.activated, icon: CheckCircleOutlined },
+                  { key: 'pending', label: 'Pending forms', value: stats.pending || 0, icon: ClockCircleOutlined },
+                  { key: 'deactivated', label: 'Deactivated forms', value: stats.deactivated, icon: StopOutlined },
+                  { key: 'retired', label: 'Retired forms', value: stats.retired, icon: HistoryOutlined },
+                ].map(({ key, label, value, icon: Icon }) => (
+                  <Col xs={12} sm={12} key={key}>
+                    <Card size="small" style={{ height: '100%' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <span style={{ fontSize: 12, color: token.colorTextSecondary }}>{label}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: token.borderRadius,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                              background: OVERVIEW_CARD_COLORS[key] || token.colorPrimary,
+                              color: '#fff',
+                            }}
+                          >
+                            <Icon style={{ fontSize: 14 }} />
+                          </span>
+                          <span style={{ fontSize: 14, fontWeight: 600 }}>{value}</span>
+                        </div>
+                      </div>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
             </div>
           </div>
         ) : isLogs ? (

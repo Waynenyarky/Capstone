@@ -5,6 +5,7 @@ import UserManagementDesktopView from './UserManagementDesktopView'
 import StaffAccountsTab from './StaffAccountsTab'
 import StaffByOfficeRoleTab from './StaffByOfficeRoleTab'
 import AdminAccountsTab from './AdminAccountsTab'
+import AdminLogsTab from './AdminLogsTab'
 import OverviewTab from './OverviewTab'
 import { UsersTable } from '@/features/admin/users'
 
@@ -14,6 +15,7 @@ const TAB_ITEMS = [
   { key: 'office-role', label: 'Staff by Office & Role' },
   { key: 'admins', label: 'Admins' },
   { key: 'business', label: 'Business Owners' },
+  { key: 'logs', label: 'Logs' },
 ]
 
 export default function UserManagementContent({
@@ -73,6 +75,7 @@ export default function UserManagementContent({
       <AdminAccountsTab currentUserId={currentUserId} />
     ),
     business: <UsersTable />,
+    logs: <AdminLogsTab />,
   }
 
   if (isMobile) {

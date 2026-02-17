@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Select, Button, Typography, theme, Space, Badge, Empty, Modal, Spin, message, Form, Alert, Tag } from 'antd'
+import { Select, Button, Typography, theme, Space, Badge, Empty, Modal, Spin, message, Form, Alert, Tag, Row, Col, Card } from 'antd'
 import {
   ArrowLeftOutlined,
   SaveOutlined,
@@ -13,6 +13,9 @@ import {
   ReloadOutlined,
   EyeOutlined,
   EditOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  StopOutlined,
 } from '@ant-design/icons'
 
 import { FORM_TYPES, FORM_DEFINITIONS_INDUSTRIES_ONLY, STATUS_COLORS, ACTION_LABELS } from '../constants'
@@ -37,7 +40,7 @@ import {
   reactivateFormGroup,
 } from '@/features/admin/services/formDefinitionService'
 
-const { Text, Title } = Typography
+const { Text } = Typography
 
 const OVERVIEW_KEY = '__overview__'
 const LOGS_KEY = '__logs__'
@@ -51,23 +54,11 @@ const VERSION_STATUS_LABELS = {
   archived: 'Archived',
 }
 
-function OverviewPanelItem({ label, value, token }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '12px 16px',
-        background: token.colorFillQuaternary,
-        borderRadius: token.borderRadius,
-        marginBottom: 8,
-      }}
-    >
-      <Text>{label}</Text>
-      <Text type="secondary">{value}</Text>
-    </div>
-  )
+const OVERVIEW_CARD_COLORS = {
+  active: '#52c41a',
+  pending: '#fa8c16',
+  deactivated: '#faad14',
+  retired: '#8c8c8c',
 }
 
 function formatDraftDate(date) {
@@ -76,7 +67,7 @@ function formatDraftDate(date) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export default function FormDefinitionsDesktopView({ refreshKey = 0 } = {}) {
+export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdated } = {}) {
   const { token } = theme.useToken()
   const editorRef = useRef(null)
   const [deactivateForm] = Form.useForm()
@@ -177,10 +168,11 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0 } = {}) {
       if (res?.success) {
         setStats(res.stats)
       }
+      onLastUpdated?.(new Date())
     } catch (err) {
       console.error('Failed to load stats', err)
     }
-  }, [])
+  }, [onLastUpdated])
 
   const loadAuditLog = useCallback(async () => {
     try {
@@ -246,10 +238,10 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0 } = {}) {
     loadStats()
   }, [loadStats, refreshKey])
 
-  // Load audit log when Overview or Logs tab selected
+  // Load audit log when Logs tab selected
   useEffect(() => {
-    if (isOverview || isLogs) loadAuditLog()
-  }, [isOverview, isLogs, loadAuditLog, refreshKey])
+    if (isLogs) loadAuditLog()
+  }, [isLogs, loadAuditLog, refreshKey])
 
   // Load form group when industry/formType changes
   useEffect(() => {
@@ -581,7 +573,7 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0 } = {}) {
         <div
           style={{
             flexShrink: 0,
-            padding: '16px 16px 12px',
+            padding: '16px 16px',
             borderBottom: `1px solid ${token.colorBorderSecondary}`,
             background: token.colorBgContainer,
             zIndex: 1,
@@ -604,7 +596,7 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0 } = {}) {
                 <TitleIcon style={{ fontSize: 18 }} />
               </span>
             )}
-            <Title level={4} style={{ margin: 0 }}>{selectedIndustryLabel}</Title>
+            <Text strong style={{ fontSize: 16 }}>{selectedIndustryLabel}</Text>
             {/* Status badge for the form group */}
             {isIndustryPage && !isEditingDraft && groupStatusLabel && (
               <Tag color={groupStatusColor} style={{ marginLeft: 4 }}>{groupStatusLabel}</Tag>
@@ -674,51 +666,45 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0 } = {}) {
         {/* Scrollable content */}
         <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
           {isOverview ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 32, maxWidth: 1000, margin: '0 auto' }}>
               <div>
-                <Text strong style={{ display: 'block', marginBottom: 12 }}>Form summary</Text>
-                <OverviewPanelItem label="Active forms" value={stats.activated} token={token} />
-                <OverviewPanelItem label="Pending forms" value={stats.pending || 0} token={token} />
-                <OverviewPanelItem label="Deactivated forms" value={stats.deactivated} token={token} />
-                <OverviewPanelItem label="Retired forms" value={stats.retired} token={token} />
-              </div>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <Text strong>Recent activity</Text>
-                  <Button type="link" size="small" icon={<ReloadOutlined />} onClick={() => { loadStats(); loadAuditLog(); }}>Refresh</Button>
-                </div>
-                {auditLog.length > 0 ? (
-                  auditLog.slice(0, 5).map((entry, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        padding: '10px 16px',
-                        background: token.colorFillQuaternary,
-                        borderRadius: token.borderRadius,
-                        marginBottom: 6,
-                        fontSize: 13,
-                      }}
-                    >
-                      <Text>{ACTION_LABELS[entry.action] || entry.action}: {entry.name || entry.formType} v{entry.version}</Text>
-                      <Text type="secondary" style={{ marginLeft: 8 }}>
-                        {entry.user ? `by ${entry.user.firstName || entry.user.email}` : ''}
-                        {' · '}
-                        {formatDraftDate(entry.at)}
-                      </Text>
-                    </div>
-                  ))
-                ) : (
-                  <div
-                    style={{
-                      padding: 24,
-                      background: token.colorFillQuaternary,
-                      borderRadius: token.borderRadius,
-                      textAlign: 'center',
-                    }}
-                  >
-                    <Text type="secondary">No recent activity</Text>
-                  </div>
-                )}
+                <Text strong style={{ display: 'block', marginBottom: 12, fontSize: 15, color: token.colorText }}>
+                  Form summary
+                </Text>
+                <Row gutter={[16, 16]} align="stretch">
+                  {[
+                    { key: 'active', label: 'Active forms', value: stats.activated, icon: CheckCircleOutlined },
+                    { key: 'pending', label: 'Pending forms', value: stats.pending || 0, icon: ClockCircleOutlined },
+                    { key: 'deactivated', label: 'Deactivated forms', value: stats.deactivated, icon: StopOutlined },
+                    { key: 'retired', label: 'Retired forms', value: stats.retired, icon: HistoryOutlined },
+                  ].map(({ key, label, value, icon: Icon }) => (
+                    <Col xs={24} sm={12} md={8} lg={6} key={key}>
+                      <Card size="small" style={{ height: '100%' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <span style={{ fontSize: 13, color: token.colorTextSecondary }}>{label}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span
+                              style={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: token.borderRadius,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                background: OVERVIEW_CARD_COLORS[key] || token.colorPrimary,
+                                color: '#fff',
+                              }}
+                            >
+                              <Icon style={{ fontSize: 18 }} />
+                            </span>
+                            <span style={{ fontSize: 16, fontWeight: 600 }}>{value}</span>
+                          </div>
+                        </div>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
               </div>
             </div>
           ) : isLogs ? (

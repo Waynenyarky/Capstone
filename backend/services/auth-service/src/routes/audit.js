@@ -401,6 +401,125 @@ router.get('/export', requireJwt, async (req, res) => {
   }
 })
 
+// GET /api/auth/audit/admin/all — register before /admin/recent so static path matches first
+// Get all audit logs across all users (admin only) with pagination, filters, search
+router.get('/admin/all', requireJwt, requireRole(['admin']), async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 50, 100)
+    const skip = Number(req.query.skip) || 0
+    const eventType = req.query.eventType
+    const startDate = req.query.startDate ? new Date(req.query.startDate) : null
+    const endDate = req.query.endDate ? new Date(req.query.endDate) : null
+    const search = req.query.search ? String(req.query.search).trim() : ''
+
+    const query = {}
+    if (eventType) query.eventType = eventType
+    if (startDate || endDate) {
+      query.createdAt = {}
+      if (startDate) query.createdAt.$gte = startDate
+      if (endDate) query.createdAt.$lte = endDate
+    }
+
+    // If search is provided, find matching users first
+    let userFilter = null
+    if (search) {
+      const searchRegex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+      const matchingUsers = await User.find({
+        $or: [
+          { firstName: searchRegex },
+          { lastName: searchRegex },
+          { email: searchRegex },
+        ],
+      }).select('_id').lean()
+      userFilter = matchingUsers.map((u) => u._id)
+      query.userId = { $in: userFilter }
+    }
+
+    const [auditLogs, total] = await Promise.all([
+      AuditLog.find(query).sort({ createdAt: -1 }).limit(limit).skip(skip).lean(),
+      AuditLog.countDocuments(query),
+    ])
+
+    // Collect unique userIds (target users) to resolve names
+    const userIds = [...new Set(auditLogs.map((l) => String(l.userId)))]
+    const users = await User.find({ _id: { $in: userIds } })
+      .select('_id firstName lastName email office role')
+      .populate('role')
+      .lean()
+    const userMap = new Map(users.map((u) => [String(u._id), u]))
+
+    // Resolve "performed by" (actor) from metadata: changedBy, resetBy, issuedBy, approvedBy, deniedBy, reviewedBy
+    const performerIdKeys = ['changedBy', 'resetBy', 'issuedBy', 'approvedBy', 'deniedBy', 'reviewedBy']
+    const performerIds = new Set()
+    auditLogs.forEach((log) => {
+      const meta = log.metadata || {}
+      for (const key of performerIdKeys) {
+        const val = meta[key]
+        if (val != null) {
+          const ids = Array.isArray(val) ? val : [val]
+          ids.forEach((id) => {
+            const sid = String(id)
+            if (sid && /^[0-9a-fA-F]{24}$/.test(sid)) performerIds.add(sid)
+          })
+          break
+        }
+      }
+    })
+    const performerUsers = await User.find({ _id: { $in: [...performerIds] } })
+      .select('_id firstName lastName email')
+      .lean()
+    const performerMap = new Map(performerUsers.map((u) => [String(u._id), u]))
+
+    const safeLogs = auditLogs.map((log) => {
+      const masked = maskAuditLogData(log)
+      const user = userMap.get(String(masked.userId))
+      let performedBy = null
+      const meta = masked.metadata || {}
+      for (const key of performerIdKeys) {
+        const val = meta[key]
+        if (val != null) {
+          const id = Array.isArray(val) ? val[0] : val
+          const sid = String(id)
+          if (sid && /^[0-9a-fA-F]{24}$/.test(sid)) {
+            const performer = performerMap.get(sid)
+            performedBy = performer ? [performer.firstName, performer.lastName].filter(Boolean).join(' ') || performer.email : null
+            if (performedBy) break
+          }
+          break
+        }
+      }
+      return {
+        id: String(masked._id),
+        userId: String(masked.userId),
+        eventType: masked.eventType,
+        fieldChanged: masked.fieldChanged,
+        oldValue: masked.oldValue,
+        newValue: masked.newValue,
+        role: masked.role,
+        performedBy: performedBy || undefined,
+        user: user ? [user.firstName, user.lastName].filter(Boolean).join(' ') : '—',
+        userEmail: user?.email || '—',
+        userRole: user?.role?.slug || '—',
+        office: user?.office || '—',
+        createdAt: masked.createdAt,
+        metadata: masked.metadata,
+      }
+    })
+
+    return res.json({
+      success: true,
+      logs: safeLogs,
+      total,
+      limit,
+      skip,
+      hasMore: skip + limit < total,
+    })
+  } catch (err) {
+    console.error('GET /api/auth/audit/admin/all error:', err)
+    return respond.error(res, 500, 'admin_audit_failed', 'Failed to retrieve admin audit logs')
+  }
+})
+
 // GET /api/auth/admin/audit/recent
 // Get recent audit activity across all staff (admin only)
 router.get('/admin/recent', requireJwt, requireRole(['admin']), async (req, res) => {

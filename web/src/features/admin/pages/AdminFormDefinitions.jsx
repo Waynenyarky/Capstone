@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { Button, Space, Grid } from 'antd'
+import { Button, Grid, Typography } from 'antd'
 import {
   FormOutlined,
   ReloadOutlined,
@@ -10,11 +10,14 @@ import AdminLayout from '../components/AdminLayout'
 import { FormDefinitionsDesktopView, FormDefinitionsMobileView } from './formDefinitions/components'
 import FormDefinitionsInfoModal from './FormDefinitionsInfoModal'
 
+const { Text } = Typography
+
 export default function AdminFormDefinitions() {
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md
   const [refreshKey, setRefreshKey] = useState(0)
   const [infoOpen, setInfoOpen] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState(null)
 
   const handleRefresh = useCallback(() => setRefreshKey((k) => k + 1), [])
   const openInfo = useCallback(() => setInfoOpen(true), [])
@@ -25,20 +28,21 @@ export default function AdminFormDefinitions() {
       pageTitle="Form Definitions"
       pageIcon={<FormOutlined />}
       headerActions={
-        <Space size="middle">
-          <Button icon={<ReloadOutlined />} onClick={handleRefresh} aria-label="Refresh">
-            Refresh
-          </Button>
-          <Button icon={<InfoCircleOutlined />} type={isMobile ? 'text' : 'default'} onClick={openInfo} aria-label="About">
-            About
-          </Button>
-        </Space>
+        <>
+          {lastUpdated && (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Last updated: {lastUpdated.toLocaleTimeString()}
+            </Text>
+          )}
+          <Button icon={<ReloadOutlined />} onClick={handleRefresh} aria-label="Refresh" />
+          <Button icon={<InfoCircleOutlined />} onClick={openInfo} aria-label="About" />
+        </>
       }
     >
       {isMobile ? (
-        <FormDefinitionsMobileView refreshKey={refreshKey} />
+        <FormDefinitionsMobileView refreshKey={refreshKey} onLastUpdated={setLastUpdated} />
       ) : (
-        <FormDefinitionsDesktopView refreshKey={refreshKey} />
+        <FormDefinitionsDesktopView refreshKey={refreshKey} onLastUpdated={setLastUpdated} />
       )}
       <FormDefinitionsInfoModal open={infoOpen} onClose={closeInfo} isMobile={isMobile} />
     </AdminLayout>

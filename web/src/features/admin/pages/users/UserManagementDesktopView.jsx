@@ -1,6 +1,6 @@
 import React from 'react'
 import { Typography, theme } from 'antd'
-import { DashboardOutlined, TeamOutlined, UserOutlined, SafetyCertificateOutlined, ApartmentOutlined } from '@ant-design/icons'
+import { DashboardOutlined, TeamOutlined, UserOutlined, SafetyCertificateOutlined, ApartmentOutlined, FileTextOutlined } from '@ant-design/icons'
 const { Text } = Typography
 
 const NAV_ITEMS = [
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { key: 'staff', label: 'Staff Accounts', icon: TeamOutlined },
   { key: 'admins', label: 'Admins', icon: SafetyCertificateOutlined },
   { key: 'business', label: 'Business Owners', icon: UserOutlined },
+  { key: 'logs', label: 'Logs', icon: FileTextOutlined },
 ]
 
 export default function UserManagementDesktopView({
