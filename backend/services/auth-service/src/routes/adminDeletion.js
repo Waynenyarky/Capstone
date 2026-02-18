@@ -13,6 +13,7 @@ const { isAdminRole } = require('../lib/roleHelpers')
 const { checkLockout } = require('../lib/accountLockout')
 const { verifyCode } = require('../lib/verificationService')
 const securityMonitor = require('../middleware/securityMonitor')
+const { sendAdminAlert, createInAppNotificationsForAdmins } = require('../lib/notificationService')
 
 const router = express.Router()
 
@@ -119,6 +120,46 @@ router.post('/admin/request-deletion', requireJwt, requireRole(['admin']), valid
         suspiciousActivityDetected: suspiciousActivity,
       }
     )
+
+    // In-app notification for other admins (exclude requesting admin)
+    const adminName = [requestingAdmin.firstName, requestingAdmin.lastName].filter(Boolean).join(' ') || requestingAdmin.email
+    createInAppNotificationsForAdmins(
+      'deletion_request_pending',
+      'Admin deletion request pending',
+      `Admin ${adminName} (${requestingAdmin.email}) requested account deletion. Another admin must approve.`,
+      'system',
+      String(deletionRequest._id),
+      { requestingAdminId: String(requestingAdminId) },
+      requestingAdminId
+    ).catch((err) => console.error('Failed to create admin-deletion in-app notifications:', err))
+
+    // High sensitivity: email other admins when admin requests own deletion
+    sendAdminAlert('admin_deletion_requested', {
+      deletionRequestId: String(deletionRequest._id),
+      requestingAdminEmail: requestingAdmin.email,
+      ipAddress,
+      message: 'An admin has requested account deletion. Another admin must approve.',
+    }).catch((err) => console.error('Failed to send admin deletion alert:', err))
+
+    // Security: alert when request is from unusual IP
+    if (suspiciousActivity) {
+      sendAdminAlert('admin_deletion_from_unusual_ip', {
+        deletionRequestId: String(deletionRequest._id),
+        requestingAdminEmail: requestingAdmin.email,
+        ipAddress,
+        userAgent,
+        message: 'Admin deletion request from unusual IP; verify identity before approving.',
+      }).catch((err) => console.error('Failed to send admin security alert:', err))
+      createInAppNotificationsForAdmins(
+        'security_alert',
+        'Security: admin deletion request from unusual IP',
+        `Admin ${requestingAdmin.email} requested deletion from an unusual IP. Verify identity before approving.`,
+        'system',
+        String(deletionRequest._id),
+        { requestingAdminId: String(requestingAdminId), ipAddress },
+        requestingAdminId
+      ).catch((err) => console.error('Failed to create security in-app notifications:', err))
+    }
 
     return res.json({
       success: true,

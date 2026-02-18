@@ -2,7 +2,24 @@ const mongoose = require('mongoose')
 const { INDUSTRY_SCOPE_VALUES, BUSINESS_TYPE_VALUES } = require('../../../../shared/constants')
 
 // Valid field types for form builder items
-const FIELD_TYPES = ['text', 'textarea', 'number', 'date', 'select', 'multiselect', 'file', 'download', 'checkbox', 'address']
+const FIELD_TYPES = ['text', 'textarea', 'number', 'date', 'select', 'multiselect', 'file', 'download', 'checkbox', 'address', 'repeatable_group']
+
+// Sub-field schema for repeatable_group columns (simplified version of RequirementItemSchema)
+const GroupFieldSchema = new mongoose.Schema(
+  {
+    label: { type: String, required: true },
+    type: { type: String, enum: ['text', 'number', 'date', 'select', 'multiselect'], default: 'text' },
+    key: { type: String, trim: true, default: '' },
+    required: { type: Boolean, default: true },
+    placeholder: { type: String, default: '' },
+    helpText: { type: String, default: '' },
+    span: { type: Number, default: 8, min: 1, max: 24 },
+    validation: { type: mongoose.Schema.Types.Mixed, default: {} },
+    dropdownSource: { type: String, default: 'static' },
+    dropdownOptions: [{ type: String }],
+  },
+  { _id: false }
+)
 
 // Schema for individual requirement items (expanded for form builder)
 const RequirementItemSchema = new mongoose.Schema(
@@ -35,17 +52,28 @@ const RequirementItemSchema = new mongoose.Schema(
     downloadFileType: { type: String, default: '' },
     downloadFileUrl: { type: String, default: '' },
     downloadIpfsCid: { type: String, default: '' },
+
+    // Repeatable group: defines the columns/sub-fields for each row the user can add
+    groupFields: [GroupFieldSchema],
+    minRows: { type: Number, default: 1 },
+    maxRows: { type: Number, default: 20 },
   },
   { _id: false }
 )
 
 // Schema for requirement sections
+// showWhen: optional; when set, section is only shown when formValues[field] matches value or is in values (for conditional sections, e.g. general permit category)
 const SectionSchema = new mongoose.Schema(
   {
     category: { type: String, required: true },
     source: { type: String, default: '' },
     items: [RequirementItemSchema],
     notes: { type: String, default: '' },
+    showWhen: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+      description: 'Optional: { field: string, value?: string, values?: string[] }. Section visible only when formValues[field] === value or formValues[field] in values.',
+    },
   },
   { _id: false }
 )
@@ -93,7 +121,7 @@ const FormDefinitionSchema = new mongoose.Schema(
     // Form type
     formType: {
       type: String,
-      enum: ['registration', 'permit', 'renewal', 'cessation', 'violation', 'appeal', 'inspections'],
+      enum: ['permit', 'general_permit', 'renewal', 'cessation', 'violation', 'appeal', 'inspections'],
       required: true,
       index: true,
     },

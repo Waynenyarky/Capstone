@@ -5,7 +5,7 @@ const respond = require('../middleware/respond');
 const AdminApproval = require('../models/AdminApproval');
 const User = require('../models/User'); // Shared model - all services access same DB
 const { applyApprovedChange, logToBlockchain } = require('../lib/interServiceClient');
-const { sendApprovalNotification } = require('../lib/notificationService');
+const { sendApprovalNotification, createInAppNotificationsForAdmins, createInAppNotification } = require('../lib/notificationService');
 const logger = require('../lib/logger');
 
 const router = express.Router();
@@ -81,6 +81,19 @@ router.post('/approvals', requireJwt, requireRole(['admin']), async (req, res) =
       status: 'pending',
       requiredApprovals: 2,
     });
+
+    // Notify other admins (in-app) so they can approve
+    const targetUser = await User.findById(userId).select('firstName lastName email').lean();
+    const targetName = targetUser ? `${targetUser.firstName || ''} ${targetUser.lastName || ''}`.trim() || targetUser.email : 'User';
+    createInAppNotificationsForAdmins(
+      'approval_request_pending',
+      'New approval request',
+      `${requestType.replace(/_/g, ' ')} for ${targetName} (${approvalId}). Action required.`,
+      'approval',
+      approvalId,
+      { requestType, userId: String(userId) },
+      requestedBy
+    ).catch((err) => console.error('Failed to create approval-pending notifications:', err));
 
     return res.status(201).json({
       success: true,
@@ -159,7 +172,7 @@ router.post('/approvals/:approvalId/approve', requireJwt, requireRole(['admin'])
           logger.error('Failed to apply approved change', { error: applyResult.error, approvalId });
           // Don't fail the approval, but log the error
         } else {
-          // Send notification to requesting admin (non-blocking)
+          // Send email and in-app notification to requesting admin (non-blocking)
           const approver = await User.findById(approverId).lean();
           const approverName = approver ? `${approver.firstName} ${approver.lastName}` : 'Admin';
           sendApprovalNotification(approval.requestedBy, approval.approvalId, 'approved', {
@@ -169,6 +182,15 @@ router.post('/approvals/:approvalId/approve', requireJwt, requireRole(['admin'])
           }).catch((err) => {
             console.error('Failed to send approval notification:', err);
           });
+          createInAppNotification(
+            approval.requestedBy,
+            'approval_resolved',
+            'Approval request approved',
+            `Your ${approval.requestType.replace(/_/g, ' ')} request (${approval.approvalId}) was approved by ${approverName}.`,
+            'approval',
+            approval.approvalId,
+            { status: 'approved', approverName }
+          ).catch((err) => console.error('Failed to create approval-resolved in-app notification:', err));
         }
       } catch (applyError) {
         console.error('Error applying approved change:', applyError);
@@ -186,6 +208,15 @@ router.post('/approvals/:approvalId/approve', requireJwt, requireRole(['admin'])
       }).catch((err) => {
         console.error('Failed to send rejection notification:', err);
       });
+      createInAppNotification(
+        approval.requestedBy,
+        'approval_resolved',
+        'Approval request rejected',
+        `Your ${approval.requestType.replace(/_/g, ' ')} request (${approval.approvalId}) was rejected by ${approverName}.`,
+        'approval',
+        approval.approvalId,
+        { status: 'rejected', approverName }
+      ).catch((err) => console.error('Failed to create approval-rejected in-app notification:', err));
     }
 
     // Log to blockchain if approved or rejected (on-chain storage for critical events)

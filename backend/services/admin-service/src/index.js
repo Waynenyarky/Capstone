@@ -52,6 +52,8 @@ require('./models/LGU');
 require('./models/FormGroup');
 require('./models/FormDefinition');
 require('./models/PenaltyConfiguration');
+require('./models/TamperIncident');
+require('./models/Notification');
 
 // Admin routes
 const adminRouter = require('./routes/approvals');
@@ -127,6 +129,32 @@ async function start() {
             await new Promise((r) => setTimeout(r, seedRetryDelayMs))
           }
         }
+      }
+    }
+
+    // Seed approval requests when SEED_APPROVAL_REQUESTS or SEED_DEV is set (idempotent)
+    if (process.env.NODE_ENV !== 'test' && (process.env.SEED_APPROVAL_REQUESTS === 'true' || process.env.SEED_DEV === 'true')) {
+      try {
+        const { seedApprovalRequestsIfEmpty } = require('./seed/seedApprovalRequests')
+        const result = await seedApprovalRequestsIfEmpty()
+        if (result.seeded) {
+          logger.info('Approval requests seeded', { created: result.created })
+        }
+      } catch (error) {
+        logger.warn('Approval requests seed failed', { error: error.message })
+      }
+    }
+
+    // Seed tamper incidents when SEED_TAMPER_INCIDENTS or SEED_DEV is set (idempotent)
+    if (process.env.NODE_ENV !== 'test' && (process.env.SEED_TAMPER_INCIDENTS === 'true' || process.env.SEED_DEV === 'true')) {
+      try {
+        const { seedTamperIncidentsIfEmpty } = require('./seed/seedTamperIncidents')
+        const result = await seedTamperIncidentsIfEmpty()
+        if (result.seeded) {
+          logger.info('Tamper incidents seeded', { created: result.created })
+        }
+      } catch (error) {
+        logger.warn('Tamper incidents seed failed', { error: error.message })
       }
     }
 

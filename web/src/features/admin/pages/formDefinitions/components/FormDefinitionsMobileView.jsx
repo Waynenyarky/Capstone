@@ -9,8 +9,6 @@ import {
   PlusOutlined,
   HistoryOutlined,
   FileTextOutlined,
-  GlobalOutlined,
-  ReloadOutlined,
   EyeOutlined,
   EditOutlined,
   CheckCircleOutlined,
@@ -18,17 +16,17 @@ import {
   StopOutlined,
 } from '@ant-design/icons'
 
-import { FORM_TYPES, FORM_DEFINITIONS_INDUSTRIES_ONLY, STATUS_COLORS, ACTION_LABELS } from '../constants'
+import { FORM_TYPES, STATUS_COLORS, GENERAL_PERMIT_PREVIEW_CATEGORIES } from '../constants'
 import DraftsModal from './DraftsModal'
 import AddVersionModal from './AddVersionModal'
 import FormContentEditor from './FormContentEditor'
 import FormPreview from './FormPreview'
 import DeactivateFormModal from './DeactivateFormModal'
+import FormDefinitionsLogsTab from './FormDefinitionsLogsTab'
 
 import {
   getFormGroups,
   getFormGroupStats,
-  getFormDefinitionsAuditLog,
   getFormGroup,
   createFormGroup,
   createFormGroupVersion,
@@ -44,7 +42,6 @@ const { Text, Title } = Typography
 
 const OVERVIEW_KEY = '__overview__'
 const LOGS_KEY = '__logs__'
-const GLOBAL_FORMS_KEY = '__global_forms__'
 
 const VERSION_STATUS_LABELS = {
   draft: 'Draft',
@@ -57,6 +54,11 @@ function formatDraftDate(date) {
   if (!date) return ''
   const d = typeof date === 'string' ? new Date(date) : date
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+/** Strip " - All Industries" (or en-dash) from form/definition display name */
+function formDisplayTitle(name) {
+  return (name || '').replace(/\s*[–-]\s*All Industries$/i, '').trim() || name || ''
 }
 
 const OVERVIEW_CARD_COLORS = {
@@ -76,16 +78,17 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
   const [deactivateForm] = Form.useForm()
 
   // Navigation
-  const [selectedIndustry, setSelectedIndustry] = useState(OVERVIEW_KEY)
+  const [selectedNav, setSelectedNav] = useState(OVERVIEW_KEY)
 
-  // Form selection
-  const [selectedFormType, setSelectedFormType] = useState(FORM_TYPES[0]?.value ?? 'registration')
+  // The selected form type is derived from selectedNav when it's a form type key
+  const selectedFormType = (!selectedNav || selectedNav === OVERVIEW_KEY || selectedNav === LOGS_KEY)
+    ? null
+    : selectedNav
 
   // API data
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [stats, setStats] = useState({ activated: 0, deactivated: 0, retired: 0, pending: 0 })
-  const [auditLog, setAuditLog] = useState([])
   const [formGroup, setFormGroup] = useState(null)
   const [versions, setVersions] = useState([])
   const [currentDefinition, setCurrentDefinition] = useState(null)
@@ -106,31 +109,26 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
   const [deactivateModalOpen, setDeactivateModalOpen] = useState(false)
   const [deactivateLoading, setDeactivateLoading] = useState(false)
   const [reasonTemplate, setReasonTemplate] = useState('maintenance')
+  const [generalPermitPreviewCategory, setGeneralPermitPreviewCategory] = useState('cooperative')
 
   // Computed
-  const isOverview = selectedIndustry === OVERVIEW_KEY
-  const isLogs = selectedIndustry === LOGS_KEY
-  const isGlobalForms = selectedIndustry === GLOBAL_FORMS_KEY
-  const industryScope = isGlobalForms ? 'all' : selectedIndustry
-  const isIndustryPage = !isOverview && !isLogs
+  const isOverview = selectedNav === OVERVIEW_KEY
+  const isLogs = selectedNav === LOGS_KEY
+  const industryScope = 'all'
+  const isFormPage = !isOverview && !isLogs && !!selectedFormType
 
-  const selectedIndustryLabel = isOverview
+  const selectedFormLabel = FORM_TYPES.find((t) => t.value === selectedFormType)?.label ?? selectedFormType ?? ''
+  const selectedPageLabel = isOverview
     ? 'Overview'
     : isLogs
-      ? 'Logs'
-      : isGlobalForms
-        ? 'Global Forms'
-        : (FORM_DEFINITIONS_INDUSTRIES_ONLY.find((o) => o.value === selectedIndustry)?.label ?? selectedIndustry)
+      ? 'History'
+      : selectedFormLabel
 
   const TitleIcon = isOverview
     ? DashboardOutlined
     : isLogs
       ? HistoryOutlined
-      : isGlobalForms
-        ? GlobalOutlined
-        : (FORM_DEFINITIONS_INDUSTRIES_ONLY.find((o) => o.value === selectedIndustry)?.icon ?? null)
-
-  const selectedFormLabel = FORM_TYPES.find((t) => t.value === selectedFormType)?.label ?? selectedFormType
+      : FileTextOutlined
 
   // Version dropdown — exclude drafts (those are in the Drafts modal)
   const versionOptions = versions
@@ -141,7 +139,6 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
     })
 
   const hasPreviousVersion = versions.length > 0
-  const hasGlobalForm = false
 
   // ─── Data fetching ──────────────────────────────────────────────
   const loadStats = useCallback(async () => {
@@ -154,17 +151,8 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
     }
   }, [onLastUpdated])
 
-  const loadAuditLog = useCallback(async () => {
-    try {
-      const res = await getFormDefinitionsAuditLog({ limit: 20 })
-      if (res?.success) setAuditLog(res.entries || [])
-    } catch (err) {
-      console.error('Failed to load audit log', err)
-    }
-  }, [])
-
   const loadFormGroupForSelection = useCallback(async () => {
-    if (!isIndustryPage || isLogs) return
+    if (!isFormPage || isLogs) return
     setLoading(true)
     try {
       const res = await getFormGroups({
@@ -205,17 +193,16 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
     } finally {
       setLoading(false)
     }
-  }, [selectedFormType, industryScope, isIndustryPage, isLogs])
+  }, [selectedFormType, industryScope, isFormPage, isLogs])
 
   useEffect(() => { loadStats() }, [loadStats, refreshKey])
-  useEffect(() => { if (isLogs) loadAuditLog() }, [isLogs, loadAuditLog, refreshKey])
   useEffect(() => {
-    if (isIndustryPage) {
+    if (isFormPage) {
       setIsEditingDraft(false)
       setHasUnsavedChanges(false)
       loadFormGroupForSelection()
     }
-  }, [loadFormGroupForSelection, isIndustryPage, refreshKey])
+  }, [loadFormGroupForSelection, isFormPage, refreshKey])
   useEffect(() => {
     if (selectedVersion && versions.length > 0) {
       const found = versions.find((v) => v._id === selectedVersion)
@@ -438,18 +425,17 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
           <div className="form-def-industries-scroll" style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
             {[
               { value: OVERVIEW_KEY, label: 'Overview', icon: DashboardOutlined },
-              { value: LOGS_KEY, label: 'Logs', icon: HistoryOutlined },
-              { value: GLOBAL_FORMS_KEY, label: 'Global Forms', icon: GlobalOutlined },
-              ...FORM_DEFINITIONS_INDUSTRIES_ONLY,
+              { value: LOGS_KEY, label: 'History', icon: HistoryOutlined },
+              ...FORM_TYPES.map(ft => ({ value: ft.value, label: ft.label, icon: FileTextOutlined })),
             ].map(({ value, label, icon: Icon }) => {
-              const isSelected = selectedIndustry === value
+              const isSelected = selectedNav === value
               return (
                 <div
                   key={value}
                   role="button"
                   tabIndex={0}
-                  onClick={() => setSelectedIndustry(value)}
-                  onKeyDown={(e) => e.key === 'Enter' && setSelectedIndustry(value)}
+                  onClick={() => setSelectedNav(value)}
+                  onKeyDown={(e) => e.key === 'Enter' && setSelectedNav(value)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -510,7 +496,7 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
               <TitleIcon style={{ fontSize: 16 }} />
             </span>
           )}
-          <Title level={4} style={{ margin: 0 }}>{selectedIndustryLabel}</Title>
+            <Title level={4} style={{ margin: 0 }}>{selectedPageLabel}</Title>
         </div>
 
         {isOverview ? (
@@ -554,36 +540,8 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
             </div>
           </div>
         ) : isLogs ? (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-              <Text strong style={{ fontSize: 13 }}>Form definition logs</Text>
-              <Button type="link" size="small" icon={<ReloadOutlined />} onClick={loadAuditLog}>Refresh</Button>
-            </div>
-            {auditLog.length > 0 ? (
-              auditLog.map((entry, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    padding: '10px 12px',
-                    background: token.colorFillQuaternary,
-                    borderRadius: token.borderRadius,
-                    marginBottom: 6,
-                    fontSize: 13,
-                  }}
-                >
-                  <Text strong>{ACTION_LABELS[entry.action] || entry.action}</Text>
-                  <Text>{' '}{entry.name || entry.formType} v{entry.version}</Text>
-                  <br />
-                  <Text type="secondary">
-                    {entry.user ? `by ${entry.user.firstName || entry.user.email}` : ''} · {formatDraftDate(entry.at)}
-                  </Text>
-                </div>
-              ))
-            ) : (
-              <div style={{ padding: 20, background: token.colorFillQuaternary, borderRadius: token.borderRadius, textAlign: 'center' }}>
-                <Text type="secondary" style={{ fontSize: 13 }}>Form definition logs will appear here</Text>
-              </div>
-            )}
+          <div style={{ minHeight: 300 }}>
+            <FormDefinitionsLogsTab />
           </div>
         ) : (
           <>
@@ -591,7 +549,6 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
             {!isEditingDraft && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
                 <Space size="small" wrap>
-                  <Select value={selectedFormType} onChange={setSelectedFormType} options={FORM_TYPES} style={{ minWidth: 160 }} placeholder="Form type" />
                   {versionOptions.length > 0 && (
                     <Select value={selectedVersion} onChange={setSelectedVersion} options={versionOptions} style={{ minWidth: 150 }} placeholder="Version" />
                   )}
@@ -631,10 +588,10 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
             <AddVersionModal
               open={addVersionModalOpen}
               onClose={() => setAddVersionModalOpen(false)}
-              industryLabel={isGlobalForms ? 'all industries' : selectedIndustryLabel}
+              industryLabel="all industries"
               formTypeLabel={selectedFormLabel}
               hasPreviousVersion={hasPreviousVersion}
-              hasGlobalForm={isGlobalForms ? false : hasGlobalForm}
+              hasGlobalForm={false}
               onConfirm={handleAddVersion}
             />
             <DraftsModal
@@ -679,7 +636,24 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
             ) : isEditingDraft && currentDefinition ? (
               /* ── Editing a draft ── */
               isPreviewMode ? (
-                <FormPreview sections={currentDefinition.sections} isMobile />
+                <>
+                  {selectedFormType === 'general_permit' && (
+                    <div style={{ marginBottom: 12 }}>
+                      <Text type="secondary" style={{ marginRight: 8 }}>Preview as category:</Text>
+                      <Select
+                        value={generalPermitPreviewCategory}
+                        onChange={setGeneralPermitPreviewCategory}
+                        options={GENERAL_PERMIT_PREVIEW_CATEGORIES}
+                        style={{ minWidth: 200, width: '100%' }}
+                      />
+                    </div>
+                  )}
+                  <FormPreview
+                    sections={currentDefinition.sections}
+                    isMobile
+                    formValues={selectedFormType === 'general_permit' ? { generalPermitCategory: generalPermitPreviewCategory } : undefined}
+                  />
+                </>
               ) : (
                 <FormContentEditor
                   ref={editorRef}
@@ -694,7 +668,7 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <Text strong>{currentDefinition.name || selectedFormLabel}</Text>
+                    <Text strong>{formDisplayTitle(currentDefinition.name || selectedFormLabel)}</Text>
                     <Text type="secondary">v{currentDefinition.version}</Text>
                     <Tag color={STATUS_COLORS[currentDefinition.status === 'published' ? 'active' : currentDefinition.status === 'pending_approval' ? 'pending' : currentDefinition.status === 'archived' ? 'retired' : 'pending']}>
                       {VERSION_STATUS_LABELS[currentDefinition.status] || currentDefinition.status}
@@ -718,11 +692,25 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
                 )}
 
                 {currentDefinition.sections?.length > 0 ? (
-                  <FormPreview
-                    key={currentDefinition._id + '-preview'}
-                    sections={currentDefinition.sections}
-                    isMobile
-                  />
+                  <>
+                    {selectedFormType === 'general_permit' && (
+                      <div style={{ marginBottom: 12 }}>
+                        <Text type="secondary" style={{ marginRight: 8 }}>Preview as category:</Text>
+                        <Select
+                          value={generalPermitPreviewCategory}
+                          onChange={setGeneralPermitPreviewCategory}
+                          options={GENERAL_PERMIT_PREVIEW_CATEGORIES}
+                          style={{ minWidth: 200, width: '100%' }}
+                        />
+                      </div>
+                    )}
+                    <FormPreview
+                      key={currentDefinition._id + '-preview'}
+                      sections={currentDefinition.sections}
+                      isMobile
+                      formValues={selectedFormType === 'general_permit' ? { generalPermitCategory: generalPermitPreviewCategory } : undefined}
+                    />
+                  </>
                 ) : (
                   <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<Text type="secondary">This version has no sections yet.</Text>} />
                 )}
@@ -734,7 +722,7 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
                     <Text strong>No form content yet</Text>
                     <Text type="secondary" style={{ fontSize: 13, textAlign: 'center' }}>
-                      No {selectedFormLabel.toLowerCase()} form has been defined{isGlobalForms ? '' : ` for ${selectedIndustryLabel}`}.
+                      No {selectedFormLabel.toLowerCase()} form has been defined.
                     </Text>
                     <Text type="secondary" style={{ fontSize: 13, textAlign: 'center' }}>
                       Use &quot;Add version&quot; above to create one.

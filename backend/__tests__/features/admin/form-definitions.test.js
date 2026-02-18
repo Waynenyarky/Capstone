@@ -50,7 +50,7 @@ describe('FormDefinition Model Tests', () => {
   describe('Schema basics', () => {
     it('should create a form definition with valid data', async () => {
       const def = await FormDefinition.create({
-        formType: 'registration',
+        formType: 'permit',
         version: '2026.1',
         name: 'Test Registration Requirements',
         status: 'draft',
@@ -68,7 +68,7 @@ describe('FormDefinition Model Tests', () => {
         updatedBy: adminUserId,
       })
 
-      expect(def.formType).toBe('registration')
+      expect(def.formType).toBe('permit')
       expect(def.version).toBe('2026.1')
       expect(def.status).toBe('draft')
       expect(def.sections.length).toBe(1)
@@ -89,7 +89,7 @@ describe('FormDefinition Model Tests', () => {
     it('should validate status enum', async () => {
       await expect(
         FormDefinition.create({
-          formType: 'registration',
+          formType: 'permit',
           version: '1.0',
           status: 'invalid_status',
           createdBy: adminUserId,
@@ -98,8 +98,8 @@ describe('FormDefinition Model Tests', () => {
       ).rejects.toThrow()
     })
 
-    it('should allow all valid formTypes including inspections', async () => {
-      const types = ['registration', 'permit', 'renewal', 'cessation', 'violation', 'appeal', 'inspections']
+    it('should allow all valid formTypes including general_permit and inspections', async () => {
+      const types = ['permit', 'general_permit', 'renewal', 'cessation', 'violation', 'appeal', 'inspections']
 
       for (const formType of types) {
         const def = await FormDefinition.create({
@@ -115,7 +115,7 @@ describe('FormDefinition Model Tests', () => {
 
     it('should default status to draft', async () => {
       const def = await FormDefinition.create({
-        formType: 'registration',
+        formType: 'permit',
         version: '1.0',
         createdBy: adminUserId,
         updatedBy: adminUserId,
@@ -136,7 +136,7 @@ describe('FormDefinition Model Tests', () => {
       }))
 
       const def = await FormDefinition.create({
-        formType: 'registration',
+        formType: 'permit',
         version: '1.0',
         sections: [{ category: 'Test Section', items }],
         createdBy: adminUserId,
@@ -151,7 +151,7 @@ describe('FormDefinition Model Tests', () => {
 
     it('should default field type to file', async () => {
       const def = await FormDefinition.create({
-        formType: 'registration',
+        formType: 'permit',
         version: '1.0',
         sections: [{
           category: 'Test',
@@ -166,7 +166,7 @@ describe('FormDefinition Model Tests', () => {
 
     it('should store placeholder and helpText', async () => {
       const def = await FormDefinition.create({
-        formType: 'registration',
+        formType: 'permit',
         version: '1.0',
         sections: [{
           category: 'Test',
@@ -189,7 +189,7 @@ describe('FormDefinition Model Tests', () => {
 
     it('should store span with default of 24', async () => {
       const def = await FormDefinition.create({
-        formType: 'registration',
+        formType: 'permit',
         version: '1.0',
         sections: [{
           category: 'Test',
@@ -210,7 +210,7 @@ describe('FormDefinition Model Tests', () => {
 
     it('should store validation rules as Mixed object', async () => {
       const def = await FormDefinition.create({
-        formType: 'registration',
+        formType: 'permit',
         version: '1.0',
         sections: [{
           category: 'Test',
@@ -237,7 +237,7 @@ describe('FormDefinition Model Tests', () => {
 
     it('should store dropdown configuration', async () => {
       const def = await FormDefinition.create({
-        formType: 'registration',
+        formType: 'permit',
         version: '1.0',
         sections: [{
           category: 'Test',
@@ -265,7 +265,7 @@ describe('FormDefinition Model Tests', () => {
 
     it('should store download field properties', async () => {
       const def = await FormDefinition.create({
-        formType: 'registration',
+        formType: 'permit',
         version: '1.0',
         sections: [{
           category: 'Test',
@@ -295,7 +295,7 @@ describe('FormDefinition Model Tests', () => {
 
     it('should handle backward-compatible items (label + required only)', async () => {
       const def = await FormDefinition.create({
-        formType: 'registration',
+        formType: 'permit',
         version: '1.0',
         sections: [{
           category: 'Legacy',
@@ -320,7 +320,7 @@ describe('FormDefinition Model Tests', () => {
   describe('Instance methods', () => {
     it('canEdit should return true only for drafts', async () => {
       const draft = await FormDefinition.create({
-        formType: 'registration',
+        formType: 'permit',
         version: '1.0',
         status: 'draft',
         createdBy: adminUserId,
@@ -329,7 +329,7 @@ describe('FormDefinition Model Tests', () => {
       expect(draft.canEdit()).toBe(true)
 
       const published = await FormDefinition.create({
-        formType: 'registration',
+        formType: 'permit',
         version: '2.0',
         status: 'published',
         createdBy: adminUserId,
@@ -340,7 +340,7 @@ describe('FormDefinition Model Tests', () => {
 
     it('canSubmitForApproval requires draft + sections', async () => {
       const empty = await FormDefinition.create({
-        formType: 'registration',
+        formType: 'permit',
         version: '1.0',
         status: 'draft',
         sections: [],
@@ -350,7 +350,7 @@ describe('FormDefinition Model Tests', () => {
       expect(empty.canSubmitForApproval()).toBe(false)
 
       const withSections = await FormDefinition.create({
-        formType: 'registration',
+        formType: 'permit',
         version: '2.0',
         status: 'draft',
         sections: [{ category: 'Test', items: [{ label: 'Item', required: true }] }],
@@ -362,7 +362,7 @@ describe('FormDefinition Model Tests', () => {
 
     it('canArchive allows draft and published', async () => {
       const draft = await FormDefinition.create({
-        formType: 'registration',
+        formType: 'permit',
         version: '1.0',
         status: 'draft',
         createdBy: adminUserId,
@@ -371,7 +371,7 @@ describe('FormDefinition Model Tests', () => {
       expect(draft.canArchive()).toBe(true)
 
       const published = await FormDefinition.create({
-        formType: 'registration',
+        formType: 'permit',
         version: '2.0',
         status: 'published',
         createdBy: adminUserId,
@@ -382,7 +382,7 @@ describe('FormDefinition Model Tests', () => {
 
     it('addChangeLog should append entries', async () => {
       const def = await FormDefinition.create({
-        formType: 'registration',
+        formType: 'permit',
         version: '1.0',
         status: 'draft',
         changeLog: [],
@@ -404,12 +404,12 @@ describe('FormDefinition Model Tests', () => {
   describe('FormGroup model', () => {
     it('should create a form group', async () => {
       const group = await FormGroup.create({
-        formType: 'registration',
+        formType: 'permit',
         industryScope: 'all',
         displayName: 'Business Registration - All Industries',
       })
 
-      expect(group.formType).toBe('registration')
+      expect(group.formType).toBe('permit')
       expect(group.industryScope).toBe('all')
       expect(group.retiredAt).toBeNull()
     })
@@ -425,7 +425,7 @@ describe('FormDefinition Model Tests', () => {
 
     it('should track deactivation fields', async () => {
       const group = await FormGroup.create({
-        formType: 'registration',
+        formType: 'permit',
         industryScope: 'all',
         displayName: 'Test Group',
       })
@@ -444,7 +444,7 @@ describe('FormDefinition Model Tests', () => {
 
     it('should support reactivation (clear deactivation fields)', async () => {
       const group = await FormGroup.create({
-        formType: 'registration',
+        formType: 'permit',
         industryScope: 'all',
         displayName: 'Test Group',
         deactivatedAt: new Date(),
@@ -463,51 +463,47 @@ describe('FormDefinition Model Tests', () => {
     })
 
     it('getFormTypeLabel should return human-readable labels', () => {
-      expect(FormGroup.getFormTypeLabel('registration')).toBe('Business Registration')
+      expect(FormGroup.getFormTypeLabel('permit')).toBe('Unified Business Permit')
+      expect(FormGroup.getFormTypeLabel('general_permit')).toBe('General Permit')
       expect(FormGroup.getFormTypeLabel('inspections')).toBe('Inspections')
       expect(FormGroup.getFormTypeLabel('unknown')).toBe('unknown')
+    })
+
+    it('should support general_permit formType', async () => {
+      const group = await FormGroup.create({
+        formType: 'general_permit',
+        industryScope: 'all',
+        displayName: 'General Permit - All Industries',
+      })
+      expect(group.formType).toBe('general_permit')
     })
   })
 
   // ─── findActiveDefinition ──────────────────────────────────────
   describe('findActiveDefinition', () => {
     beforeEach(async () => {
-      await FormDefinition.create([
-        {
-          formType: 'registration',
-          version: '1.0',
-          name: 'Global Default',
-          status: 'published',
-          businessTypes: [],
-          lguCodes: [],
-          sections: [{ category: 'Global', items: [{ label: 'Item', required: true }] }],
-          effectiveFrom: new Date('2020-01-01'),
-          createdBy: adminUserId,
-          updatedBy: adminUserId,
-        },
-        {
-          formType: 'registration',
-          version: '1.1',
-          name: 'Food Service Specific',
-          status: 'published',
-          businessTypes: ['i'],
-          lguCodes: [],
-          sections: [{ category: 'F&B', items: [{ label: 'Sanitary', required: true }] }],
-          effectiveFrom: new Date('2020-01-01'),
-          createdBy: adminUserId,
-          updatedBy: adminUserId,
-        },
-      ])
+      await FormDefinition.create({
+        formType: 'permit',
+        version: '1.0',
+        name: 'Global Default',
+        status: 'published',
+        businessTypes: [],
+        lguCodes: [],
+        sections: [{ category: 'Global', items: [{ label: 'Item', required: true }] }],
+        effectiveFrom: new Date('2020-01-01'),
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
     })
 
-    it('should return global default when no specific match', async () => {
-      const result = await FormDefinition.findActiveDefinition('registration', 's', 'MANILA')
+    it('should return the single permit form when no specific match', async () => {
+      const result = await FormDefinition.findActiveDefinition('permit', 's', 'MANILA')
       expect(result.name).toBe('Global Default')
     })
 
-    it('should return industry-specific definition', async () => {
-      const result = await FormDefinition.findActiveDefinition('registration', 'i', 'MANILA')
-      expect(result.name).toBe('Food Service Specific')
+    it('should return the same permit form for any business type (unified)', async () => {
+      const result = await FormDefinition.findActiveDefinition('permit', 'i', 'MANILA')
+      expect(result.name).toBe('Global Default')
     })
 
     it('should return null for non-existent form type', async () => {
@@ -516,6 +512,8 @@ describe('FormDefinition Model Tests', () => {
     })
 
     it('should not return draft definitions', async () => {
+      // Remove the published permit from beforeEach so only a draft remains
+      await FormDefinition.deleteMany({ formType: 'permit' })
       await FormDefinition.create({
         formType: 'permit',
         version: '1.0',
@@ -534,46 +532,87 @@ describe('FormDefinition Model Tests', () => {
   // ─── Seed data validation ──────────────────────────────────────
   describe('Seed data structures', () => {
     it('should accept seed data format with expanded fields', async () => {
-      const { globalRegistrationSections } = require('../../../services/admin-service/src/migrations/seedFormDefinitions')
+      const { globalRenewalSections } = require('../../../services/admin-service/src/migrations/seedFormDefinitions')
 
       const def = await FormDefinition.create({
-        formType: 'registration',
+        formType: 'renewal',
         version: '2026.1',
         name: 'Seed Test',
         status: 'published',
-        sections: globalRegistrationSections,
+        sections: globalRenewalSections,
         createdBy: adminUserId,
         updatedBy: adminUserId,
       })
 
       expect(def.sections.length).toBeGreaterThan(0)
-      // Check LGU section has download field
-      const lguSection = def.sections.find((s) => s.category === 'Local Government Unit (LGU)')
-      expect(lguSection).toBeTruthy()
-      const downloadField = lguSection.items.find((i) => i.type === 'download')
+      // Check Renewal section has download field
+      const renewalSection = def.sections.find((s) => s.category === 'Renewal Documents')
+      expect(renewalSection).toBeTruthy()
+      const downloadField = renewalSection.items.find((i) => i.type === 'download')
       expect(downloadField).toBeTruthy()
       expect(downloadField.downloadFileName).toBeTruthy()
 
-      // Check Business Information section has text fields
-      const bizSection = def.sections.find((s) => s.category === 'Business Information')
-      expect(bizSection).toBeTruthy()
-      const textField = bizSection.items.find((i) => i.type === 'text')
-      expect(textField).toBeTruthy()
-      expect(textField.placeholder).toBeTruthy()
+      // Check section has file fields
+      const fileField = renewalSection.items.find((i) => i.type === 'file')
+      expect(fileField).toBeTruthy()
+    })
 
-      // Check address field
-      const addressField = bizSection.items.find((i) => i.type === 'address')
-      expect(addressField).toBeTruthy()
+    it('should accept unified business permit seed data', async () => {
+      const { unifiedBusinessPermitSections } = require('../../../services/admin-service/src/migrations/seedFormDefinitions')
 
-      // Check select field with dropdownSource
-      const selectField = bizSection.items.find((i) => i.type === 'select')
-      expect(selectField).toBeTruthy()
-      expect(selectField.dropdownSource).toBe('industries')
+      const def = await FormDefinition.create({
+        formType: 'permit',
+        version: '2026.1',
+        name: 'Unified Business Permit Seed Test',
+        status: 'published',
+        sections: unifiedBusinessPermitSections,
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
 
-      // Check span on date/number fields
-      const dateField = bizSection.items.find((i) => i.type === 'date')
-      expect(dateField).toBeTruthy()
-      expect(dateField.span).toBe(12)
+      expect(def.sections.length).toBeGreaterThan(0)
+
+      // Check Business Activity section exists with tax code, line of business in repeatable group
+      const activitySection = def.sections.find((s) => s.category === 'Business Activity')
+      expect(activitySection).toBeTruthy()
+      const repeatableItem = activitySection.items.find((i) => i.type === 'repeatable_group' && i.groupFields)
+      expect(repeatableItem).toBeTruthy()
+      const taxCodeField = repeatableItem.groupFields.find((f) => f.key === 'taxCode')
+      expect(taxCodeField).toBeTruthy()
+      expect(taxCodeField.type).toBe('select')
+      const lobField = repeatableItem.groupFields.find((f) => f.key === 'lineOfBusiness')
+      expect(lobField).toBeTruthy()
+      expect(lobField.type).toBe('select')
+
+      // Check Ownership / Lease section
+      const ownershipSection = def.sections.find((s) => s.category === 'Ownership / Lease Information')
+      expect(ownershipSection).toBeTruthy()
+      const propertyField = ownershipSection.items.find((i) => i.key === 'propertyOwnership')
+      expect(propertyField).toBeTruthy()
+    })
+
+    it('should accept general permit seed data', async () => {
+      const { generalPermitSections } = require('../../../services/admin-service/src/migrations/seedFormDefinitions')
+
+      const def = await FormDefinition.create({
+        formType: 'general_permit',
+        version: '2026.1',
+        name: 'General Permit Seed Test',
+        status: 'published',
+        sections: generalPermitSections,
+        createdBy: adminUserId,
+        updatedBy: adminUserId,
+      })
+
+      expect(def.sections.length).toBeGreaterThan(0)
+
+      // Check General Permit Details section with category dropdown
+      const detailsSection = def.sections.find((s) => s.category === 'General Permit Details')
+      expect(detailsSection).toBeTruthy()
+      const categoryField = detailsSection.items.find((i) => i.key === 'generalPermitCategory')
+      expect(categoryField).toBeTruthy()
+      expect(categoryField.type).toBe('select')
+      expect(categoryField.dropdownOptions.length).toBeGreaterThan(0)
     })
 
     it('should accept industry-specific seed data', async () => {
@@ -605,14 +644,14 @@ describe('FormDefinition Model Tests', () => {
   describe('Version management', () => {
     it('should link definitions to form groups', async () => {
       const group = await FormGroup.create({
-        formType: 'registration',
+        formType: 'permit',
         industryScope: 'all',
         displayName: 'Test Group',
       })
 
       const v1 = await FormDefinition.create({
         formGroupId: group._id,
-        formType: 'registration',
+        formType: 'permit',
         version: '2026.1',
         status: 'published',
         sections: [{ category: 'Test', items: [{ label: 'Item', required: true }] }],
@@ -622,7 +661,7 @@ describe('FormDefinition Model Tests', () => {
 
       const v2 = await FormDefinition.create({
         formGroupId: group._id,
-        formType: 'registration',
+        formType: 'permit',
         version: '2026.2',
         status: 'draft',
         sections: [],

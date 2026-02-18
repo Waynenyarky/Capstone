@@ -1,6 +1,6 @@
 const blockchainService = require('./blockchainService')
 const blockchainQueue = require('./blockchainQueue')
-const { sendAdminAlert } = require('./notificationService')
+const { sendAdminAlert, createInAppNotificationsForAdmins } = require('./notificationService')
 
 const AuditLog = require('../models/AuditLog')
 
@@ -89,6 +89,16 @@ async function alertRestrictedFieldAttempt(userId, field, attemptedValue, roleSl
     sendAdminAlert(userId, field, attemptedValue, roleSlug, metadata).catch((err) => {
       console.error('Failed to send admin alert emails:', err)
     })
+
+    // In-app notification for all admins
+    createInAppNotificationsForAdmins(
+      'restricted_field_attempt',
+      'Restricted field attempt',
+      `Staff (${roleSlug}) attempted to change restricted field "${field}". Review audit log.`,
+      'system',
+      String(auditLog._id),
+      { userId: String(userId), field, roleSlug }
+    ).catch((err) => console.error('Failed to create restricted-field in-app notifications:', err))
 
     return {
       success: true,

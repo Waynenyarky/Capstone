@@ -44,6 +44,7 @@ describe('Fee Calculator', () => {
       lineOfBusiness: 'retail',
       mayorsPermitFee: 500,
       businessTaxCategory: 'A',
+      bracketKind: 'rate', // default for legacy tests
       brackets: [
         { min: 0, max: 100000, rate: 0.5 },
         { min: 100001, max: 400000, rate: 1 },
@@ -183,6 +184,37 @@ describe('Fee Calculator', () => {
       // Falls back to last bracket rate (2%)
       expect(tax).toBe(100)
     })
+
+    it('bracketKind tiered: applies rate per segment and sums', async () => {
+      await FeeConfiguration.deleteMany({})
+      await seedFeeConfig({
+        lineOfBusiness: 'retail_tiered',
+        bracketKind: 'tiered',
+        brackets: [
+          { min: 0, max: 400000, rate: 2.2 },
+          { min: 400001, max: null, rate: 1.1 },
+        ],
+      })
+      // 500,000: first 400k * 2.2% = 8800, next 100k * 1.1% = 1100, total 9900
+      const tax = await computeBusinessTax('retail_tiered', 500000)
+      expect(tax).toBeCloseTo(9900, 0)
+    })
+
+    it('bracketKind fixed: returns bracket amount when gross in [min, max]', async () => {
+      await FeeConfiguration.deleteMany({})
+      await seedFeeConfig({
+        lineOfBusiness: 'manufacturing_fixed',
+        bracketKind: 'fixed',
+        brackets: [
+          { min: 0, max: 9999, amount: 99.5 },
+          { min: 10000, max: 49999, amount: 199.5 },
+          { min: 50000, max: null, amount: 299.5 },
+        ],
+      })
+      expect(await computeBusinessTax('manufacturing_fixed', 5000)).toBe(99.5)
+      expect(await computeBusinessTax('manufacturing_fixed', 25000)).toBe(199.5)
+      expect(await computeBusinessTax('manufacturing_fixed', 100000)).toBe(299.5)
+    })
   })
 
   // ────────────────────────────────────────────────
@@ -244,10 +276,13 @@ describe('Fee Calculator', () => {
       const result = await computeApplicationFees({
         businessActivities: [{ lineOfBusiness: 'retail', grossSales: 200000 }],
       })
-      // Mayor's permit: 500, Business tax: 200000 * 1% = 2000
+      // Mayor's permit: 500, Business tax: 200000 * 1% = 2000; Fire Safety (Charter): 15% of BPLO min P500 = 500
       expect(result.mayorsPermitFee).toBe(500)
       expect(result.businessTax).toBe(2000)
-      expect(result.total).toBe(2500)
+      expect(result.sanitaryFee).toBe(0)
+      expect(result.environmentalFee).toBe(0)
+      expect(result.fireSafetyFee).toBe(500)
+      expect(result.total).toBe(3000)
       expect(result.breakdown).toHaveLength(1)
       expect(result.errors).toBeUndefined()
     })
@@ -264,8 +299,9 @@ describe('Fee Calculator', () => {
           { lineOfBusiness: 'food', grossSales: 50000 },
         ],
       })
-      // Retail: 500 + 2000 = 2500, Food: 300 + 1000 = 1300
-      expect(result.total).toBe(3800)
+      // Retail: 500 + 2000 = 2500, Food: 300 + 1000 = 1300; BPLO = 3800; Fire Safety 15% = 570
+      expect(result.total).toBe(4370)
+      expect(result.fireSafetyFee).toBe(570)
       expect(result.breakdown).toHaveLength(2)
     })
 
@@ -292,7 +328,8 @@ describe('Fee Calculator', () => {
       })
       expect(result.mayorsPermitFee).toBe(500)
       expect(result.businessTax).toBe(0)
-      expect(result.total).toBe(500)
+      expect(result.fireSafetyFee).toBe(500)
+      expect(result.total).toBe(1000)
     })
   })
 

@@ -37,10 +37,16 @@ When the BPLO provides the official tax codes, update the following:
 | D             | TBD      | TBD               | TBD                | TBD          |
 | C-D           | TBD      | TBD               | TBD                | TBD          |
 
+## Fee Configuration Seed Data
+
+The `FeeConfiguration` collection is seeded with placeholder rates and business tax brackets based on the **General Trias Citizens Charter (OCBPLO 2025)** and **RA 7160 Section 143**. See the seed script at `backend/services/business-service/src/seed/seedFeeConfiguration.js`.
+
+Reference: [Citizen's Charter - OCBPLO 2025 (General Trias)](https://www.generaltrias.gov.ph/storage/pdf_files/Citizen%27s%20Charter%20-%20OCBPLO%202025..pdf)
+
 ## Action Items
 
 1. Contact BPLO Alaminos for official tax code list
 2. Map each Alaminos code to the corresponding line-of-business categories
 3. Update `backend/shared/constants/lineOfBusiness.js` with Alaminos-specific codes
 4. Update `web/src/constants/lineOfBusiness.js` (frontend mirror)
-5. Seed `FeeConfiguration` collection with Alaminos-specific rates
+5. Re-seed `FeeConfiguration` collection with Alaminos-specific rates (update the seed script)

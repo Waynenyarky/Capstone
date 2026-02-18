@@ -9,6 +9,7 @@ const FormDefinition = require('../models/FormDefinition')
 const FormGroup = require('../models/FormGroup')
 const AdminApproval = require('../models/AdminApproval')
 const logger = require('../lib/logger')
+const { createInAppNotificationsForAdmins } = require('../lib/notificationService')
 const { INDUSTRY_SCOPE_VALUES, BUSINESS_TYPE_VALUES, INDUSTRY_SCOPE_LABELS } = require('../../../../shared/constants')
 
 const router = express.Router()
@@ -85,7 +86,7 @@ const downloadSchema = Joi.object({
 })
 
 const createFormDefinitionSchema = Joi.object({
-  formType: Joi.string().valid('registration', 'permit', 'renewal', 'cessation', 'violation', 'appeal', 'inspections').required(),
+  formType: Joi.string().valid('permit', 'general_permit', 'renewal', 'cessation', 'violation', 'appeal', 'inspections').required(),
   version: Joi.string().required(),
   name: Joi.string().allow('', null).optional(),
   description: Joi.string().allow('', null).optional(),
@@ -164,7 +165,7 @@ router.get('/', requireJwt, requireRole(['admin']), async (req, res) => {
 // --- Form Groups (must be before /:id) ---
 
 const createFormGroupSchema = Joi.object({
-  formType: Joi.string().valid('registration', 'permit', 'renewal', 'cessation', 'violation', 'appeal', 'inspections').required(),
+  formType: Joi.string().valid('permit', 'general_permit', 'renewal', 'cessation', 'violation', 'appeal', 'inspections').required(),
   industryScope: Joi.string().valid(...INDUSTRY_SCOPE_VALUES).default('all'),
 })
 
@@ -330,8 +331,8 @@ router.post('/groups', requireJwt, requireRole(['admin']), validateBody(createFo
     }
 
     const typeLabels = {
-      registration: 'Business Registration',
-      permit: 'Business Permit',
+      permit: 'Unified Business Permit',
+      general_permit: 'General Permit',
       renewal: 'Business Renewal',
       cessation: 'Cessation',
       violation: 'Violation',
@@ -726,6 +727,17 @@ router.post('/:id/submit-for-approval', requireJwt, requireRole(['admin']), asyn
     definition.addChangeLog('submitted_for_approval', userId, { approvalId })
 
     await definition.save()
+
+    // Notify other admins (in-app) so they can approve
+    createInAppNotificationsForAdmins(
+      'approval_request_pending',
+      'Form definition pending approval',
+      `"${definition.name}" (${definition.formType}) was submitted for approval (${approvalId}). Action required.`,
+      'approval',
+      approvalId,
+      { requestType: 'form_definition', formDefinitionId: String(definition._id) },
+      userId
+    ).catch((err) => console.error('Failed to create form-approval-pending notifications:', err))
 
     logger.info('Form definition submitted for approval', {
       formDefinitionId: String(definition._id),

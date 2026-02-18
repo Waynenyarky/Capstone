@@ -1,5 +1,59 @@
 const User = require('../models/User')
+const Role = require('../models/Role')
 const mailer = require('./mailer')
+const internalNotificationService = require('../services/notificationService')
+
+/**
+ * Get active admin user IDs (for in-app notifications)
+ * @param {string|ObjectId} [excludeUserId] - Optional user ID to exclude (e.g. requesting admin)
+ * @returns {Promise<string[]>} Array of admin user IDs
+ */
+async function getActiveAdminUserIds(excludeUserId = null) {
+  const adminRole = await Role.findOne({ slug: 'admin' })
+  if (!adminRole) return []
+  const admins = await User.find({ role: adminRole._id, isActive: true }).lean()
+  let ids = admins.map((a) => String(a._id))
+  if (excludeUserId) {
+    const exclude = String(excludeUserId)
+    ids = ids.filter((id) => id !== exclude)
+  }
+  return ids
+}
+
+/**
+ * Create in-app notifications for all active admins (or all except excludeUserId)
+ * Non-blocking; logs errors.
+ * @param {string} type - Notification type
+ * @param {string} title - Title
+ * @param {string} message - Message
+ * @param {string} [relatedEntityType] - Related entity type
+ * @param {string} [relatedEntityId] - Related entity ID
+ * @param {object} [metadata] - Metadata
+ * @param {string|ObjectId} [excludeUserId] - Admin user ID to exclude from recipients
+ */
+async function createInAppNotificationsForAdmins(type, title, message, relatedEntityType = null, relatedEntityId = null, metadata = {}, excludeUserId = null) {
+  try {
+    const adminIds = await getActiveAdminUserIds(excludeUserId)
+    if (adminIds.length === 0) return
+    for (const adminId of adminIds) {
+      try {
+        await internalNotificationService.createNotification(
+          adminId,
+          type,
+          title,
+          message,
+          relatedEntityType,
+          relatedEntityId,
+          metadata
+        )
+      } catch (err) {
+        console.error(`Failed to create in-app notification for admin ${adminId}:`, err.message)
+      }
+    }
+  } catch (err) {
+    console.error('Error creating in-app notifications for admins:', err)
+  }
+}
 
 /**
  * Notification Service
@@ -102,11 +156,12 @@ async function sendPasswordChangeNotification(userId, options = {}) {
  */
 async function sendAdminAlert(type, data = {}) {
   try {
-    // Find all admin users
-    const adminUsers = await User.find({ 'role.slug': 'admin' }).lean()
-    if (!adminUsers || adminUsers.length === 0) {
+    // Find all admin users (role is ObjectId ref, so resolve by Role slug first)
+    const adminIds = await getActiveAdminUserIds()
+    if (adminIds.length === 0) {
       return { success: false, error: 'No admin users found' }
     }
+    const adminUsers = await User.find({ _id: { $in: adminIds } }).lean()
 
     const results = []
     for (const admin of adminUsers) {
@@ -115,7 +170,7 @@ async function sendAdminAlert(type, data = {}) {
           to: admin.email,
           type,
           data,
-          adminName: admin.firstName || 'Admin',
+          adminName: (admin.firstName || admin.lastName) ? [admin.firstName, admin.lastName].filter(Boolean).join(' ') : 'Admin',
         })
         results.push({ email: admin.email, success: true })
       } catch (error) {
@@ -170,6 +225,8 @@ async function sendApprovalNotification(userId, type, options = {}) {
 }
 
 module.exports = {
+  getActiveAdminUserIds,
+  createInAppNotificationsForAdmins,
   sendEmailChangeNotification,
   sendPasswordChangeNotification,
   sendAdminAlert,

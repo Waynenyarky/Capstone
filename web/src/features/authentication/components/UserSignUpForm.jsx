@@ -10,12 +10,15 @@ import {
   emailRules,
   firstNameRules,
   lastNameRules,
+  middleNameRules,
+  suffixRules,
   phoneNumberRules,
   signUpPasswordRules as passwordRules,
   signUpConfirmPasswordRules,
   termsRules,
 } from '@/features/authentication/validations'
 import {
+  pisSexRules,
   pisMaritalStatusRules,
   pisDateOfBirthRules,
   pisPlaceOfBirthRules,
@@ -36,6 +39,11 @@ import LinkExistingAccountModal from './LinkExistingAccountModal.jsx'
 
 const { Title, Text } = Typography
 const { useBreakpoint } = Grid
+
+const SEX_OPTIONS = [
+  { value: 'male', label: 'Male' },
+  { value: 'female', label: 'Female' },
+]
 
 const MARITAL_STATUS_OPTIONS = [
   { value: 'single', label: 'Single' },
@@ -136,6 +144,12 @@ export default function UserSignUpForm({ extraContent }) {
           <Form.Item name="lastName" label="Last Name" rules={lastNameRules}>
             <Input placeholder="Last name" variant="filled" />
           </Form.Item>
+          <Form.Item name="middleName" label="Middle Name (optional)" rules={middleNameRules}>
+            <Input placeholder="Middle name" variant="filled" />
+          </Form.Item>
+          <Form.Item name="suffix" label="Suffix (optional)" rules={suffixRules}>
+            <Input placeholder="e.g. Jr., Sr., III" variant="filled" />
+          </Form.Item>
           <Form.Item name="email" label="Email" rules={emailRules}>
             <Input placeholder="Email address" variant="filled" />
           </Form.Item>
@@ -220,6 +234,11 @@ export default function UserSignUpForm({ extraContent }) {
             <Col xs={24} sm={12}>
               <Form.Item name={['address', 'zipCode']} label="Zip Code" rules={pisZipCodeRules}>
                 <Input placeholder="e.g. 2500" maxLength={4} variant="filled" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item name="sex" label="Sex" rules={pisSexRules}>
+                <Select placeholder="Select sex" options={SEX_OPTIONS} allowClear />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>

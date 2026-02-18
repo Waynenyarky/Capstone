@@ -11,11 +11,11 @@ import { UsersTable } from '@/features/admin/users'
 
 const TAB_ITEMS = [
   { key: 'overview', label: 'Overview' },
+  { key: 'logs', label: 'History' },
   { key: 'staff', label: 'Staff Accounts' },
   { key: 'office-role', label: 'Staff by Office & Role' },
   { key: 'admins', label: 'Admins' },
   { key: 'business', label: 'Business Owners' },
-  { key: 'logs', label: 'Logs' },
 ]
 
 export default function UserManagementContent({
@@ -98,6 +98,7 @@ export default function UserManagementContent({
     <UserManagementDesktopView
       tabKey={tabKey}
       setTabKey={setTabKey}
+      tabItems={TAB_ITEMS}
       tabChildren={tabChildren}
       headerActions={
         tabKey === 'staff' ? (

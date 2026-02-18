@@ -57,6 +57,7 @@ app.use('/api/business', businessRouter);
 
 // Phase 2 routes
 const feeConfigurationRouter = require('./routes/feeConfiguration');
+const regulatoryFeeConfigRouter = require('./routes/regulatoryFeeConfig');
 const generalPermitsRouter = require('./routes/generalPermits');
 const occupationalPermitsRouter = require('./routes/occupationalPermits');
 const appealsRouter = require('./routes/appeals');
@@ -67,6 +68,7 @@ const retirementRouter = require('./routes/retirement');
 const dashboardRouter = require('./routes/dashboard');
 
 app.use('/api/business/admin/fee-configuration', feeConfigurationRouter);
+app.use('/api/business/admin/regulatory-fee-config', regulatoryFeeConfigRouter);
 app.use('/api/business/general-permits', generalPermitsRouter);
 app.use('/api/business/occupational-permits', occupationalPermitsRouter);
 app.use('/api/business/appeals', appealsRouter);
@@ -96,6 +98,31 @@ async function start() {
     logger.info('Business Service starting', { mongoUri: uri ? '<set>' : '<not-set>' });
 
     await connectDB(uri);
+
+    // Seed fee configuration if empty (idempotent). Runs when SEED_FEE_CONFIGURATION=true (Docker) or in non-production.
+    const shouldSeedFeeConfig = process.env.NODE_ENV !== 'test' &&
+      (process.env.SEED_FEE_CONFIGURATION === 'true' || process.env.NODE_ENV !== 'production');
+    if (shouldSeedFeeConfig) {
+      const maxSeedRetries = 5;
+      const seedRetryDelayMs = 3000;
+      for (let attempt = 1; attempt <= maxSeedRetries; attempt++) {
+        try {
+          const { seedIfEmpty } = require('./seed/seedFeeConfiguration');
+          const result = await seedIfEmpty();
+          if (result.seeded) {
+            logger.info('Fee configuration seeded', { count: result.count });
+          }
+          break;
+        } catch (error) {
+          logger.warn(`Fee configuration seed attempt ${attempt}/${maxSeedRetries} failed`, { error: error.message });
+          if (attempt === maxSeedRetries) {
+            logger.warn('Fee configuration seed failed after retries', { error: error.message });
+          } else {
+            await new Promise((r) => setTimeout(r, seedRetryDelayMs));
+          }
+        }
+      }
+    }
 
     // IPFS service is lazy-loaded in routes when needed
     // Don't initialize here to avoid module loading issues

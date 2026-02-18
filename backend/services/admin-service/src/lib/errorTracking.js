@@ -205,8 +205,7 @@ class ErrorTrackingService {
   }
 
   /**
-   * Send alert notification
-   * TODO: Integrate with email/Slack/PagerDuty/etc.
+   * Send alert notification (email + in-app to admins, rate-limited)
    */
   async sendAlert(alertType, details) {
     logger.warn(`Alert: ${alertType}`, {
@@ -217,9 +216,12 @@ class ErrorTrackingService {
       },
     });
 
-    // Future: Send email/Slack notification
-    // const notificationService = require('./notificationService');
-    // await notificationService.sendAdminAlert('system', alertType, details);
+    try {
+      const { notifyAdminsOfSystemAlert } = require('./notificationService');
+      await notifyAdminsOfSystemAlert(alertType, details);
+    } catch (err) {
+      logger.error('Failed to send admin alert for error-tracking', { alertType, error: err.message });
+    }
   }
 
   /**

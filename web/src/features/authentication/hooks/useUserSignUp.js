@@ -21,9 +21,12 @@ export function useUserSignUp({ onBegin, onSubmit } = {}) {
       termsAccepted: values.termsAndConditions === true,
       role: values.role || 'business_owner',
     }
+    if (values.middleName) payload.middleName = values.middleName
+    if (values.suffix) payload.suffix = values.suffix
 
     // Include PIS fields if provided (step 2 of signup)
     if (values.address) payload.address = values.address
+    if (values.sex) payload.sex = values.sex
     if (values.maritalStatus) payload.maritalStatus = values.maritalStatus
     if (values.dateOfBirth) {
       // Convert dayjs/moment to ISO string for API

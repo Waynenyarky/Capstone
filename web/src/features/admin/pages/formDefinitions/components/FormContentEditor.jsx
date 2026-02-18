@@ -36,7 +36,7 @@ const { Text } = Typography
 /** Build a new field with type-specific defaults */
 function createFieldWithDefaults(type = 'text', overrides = {}) {
   const defaults = FIELD_TYPE_DEFAULTS[type] || FIELD_TYPE_DEFAULTS.text
-  return {
+  const base = {
     id: createId(),
     label: '',
     type,
@@ -50,14 +50,22 @@ function createFieldWithDefaults(type = 'text', overrides = {}) {
     span: 24,
     ...overrides,
   }
+  if (type === 'repeatable_group') {
+    base.groupFields = overrides.groupFields || []
+    base.minRows = overrides.minRows ?? 1
+    base.maxRows = overrides.maxRows ?? 20
+  }
+  return base
 }
 
 /** Apply type-specific defaults when field type changes (preserves id, label, required, helpText, span) */
 function applyFieldTypeDefaults(field, newType) {
   const defaults = FIELD_TYPE_DEFAULTS[newType] || FIELD_TYPE_DEFAULTS.text
-  // Strip download-specific fields when switching away from download
-  const { downloadFileName, downloadFileSize, downloadFileType, downloadFileUrl, ...rest } = field
-  const base = newType === 'download' ? field : rest
+  // Strip type-specific fields when switching away
+  const { downloadFileName, downloadFileSize, downloadFileType, downloadFileUrl, groupFields, minRows, maxRows, ...rest } = field
+  let base = rest
+  if (newType === 'download') base = { ...rest, downloadFileName, downloadFileSize, downloadFileType, downloadFileUrl }
+  if (newType === 'repeatable_group') base = { ...rest, groupFields: groupFields || [], minRows: minRows ?? 1, maxRows: maxRows ?? 20 }
   return {
     ...base,
     type: newType,
@@ -364,8 +372,182 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
             </>
           )}
 
+          {/* Repeatable group: sub-field editor */}
+          {field.type === 'repeatable_group' && (
+            <>
+              <div>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Help text (shown to user)</Text>
+                <Input
+                  value={field.helpText}
+                  onChange={(e) => onUpdate({ ...field, helpText: e.target.value })}
+                  placeholder="e.g. Add one row for each business activity"
+                  size="small"
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Min rows</Text>
+                  <Input
+                    type="number"
+                    value={field.minRows ?? 1}
+                    onChange={(e) => onUpdate({ ...field, minRows: Number(e.target.value) || 0 })}
+                    size="small"
+                    min={0}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Max rows</Text>
+                  <Input
+                    type="number"
+                    value={field.maxRows ?? 20}
+                    onChange={(e) => onUpdate({ ...field, maxRows: Number(e.target.value) || 20 })}
+                    size="small"
+                    min={1}
+                  />
+                </div>
+              </div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Columns (sub-fields per row)</Text>
+                  <Button
+                    type="dashed"
+                    size="small"
+                    icon={<PlusOutlined />}
+                    onClick={() => {
+                      const newGf = {
+                        id: createId(),
+                        label: '',
+                        type: 'text',
+                        key: '',
+                        required: true,
+                        placeholder: '',
+                        helpText: '',
+                        span: 8,
+                        validation: {},
+                        dropdownSource: 'static',
+                        dropdownOptions: [],
+                      }
+                      onUpdate({ ...field, groupFields: [...(field.groupFields || []), newGf] })
+                    }}
+                  >
+                    Add column
+                  </Button>
+                </div>
+                {(field.groupFields || []).length === 0 && (
+                  <Text type="secondary" style={{ fontSize: 12, display: 'block', textAlign: 'center', padding: '8px 0' }}>
+                    No columns defined yet. Add a column above.
+                  </Text>
+                )}
+                {(field.groupFields || []).map((gf, gfIdx) => (
+                  <div
+                    key={gf.id || gfIdx}
+                    style={{
+                      border: `1px solid ${token.colorBorderSecondary}`,
+                      borderRadius: token.borderRadius,
+                      padding: '8px 10px',
+                      marginBottom: 6,
+                      background: token.colorFillQuaternary,
+                    }}
+                  >
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                      <Input
+                        value={gf.label}
+                        onChange={(e) => {
+                          const updated = [...field.groupFields]
+                          updated[gfIdx] = { ...gf, label: e.target.value }
+                          onUpdate({ ...field, groupFields: updated })
+                        }}
+                        placeholder="Column label"
+                        size="small"
+                        style={{ flex: 1 }}
+                      />
+                      <Select
+                        value={gf.type}
+                        onChange={(val) => {
+                          const updated = [...field.groupFields]
+                          updated[gfIdx] = { ...gf, type: val, dropdownOptions: val === 'select' || val === 'multiselect' ? gf.dropdownOptions : [] }
+                          onUpdate({ ...field, groupFields: updated })
+                        }}
+                        options={[
+                          { value: 'text', label: 'Text' },
+                          { value: 'number', label: 'Number' },
+                          { value: 'date', label: 'Date' },
+                          { value: 'select', label: 'Dropdown' },
+                          { value: 'multiselect', label: 'Multi-select' },
+                        ]}
+                        style={{ width: 120 }}
+                        size="small"
+                        popupMatchSelectWidth={false}
+                      />
+                      <Switch
+                        size="small"
+                        checked={gf.required}
+                        onChange={(checked) => {
+                          const updated = [...field.groupFields]
+                          updated[gfIdx] = { ...gf, required: checked }
+                          onUpdate({ ...field, groupFields: updated })
+                        }}
+                      />
+                      <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>Req</Text>
+                      <Popconfirm
+                        title="Remove this column?"
+                        onConfirm={() => {
+                          const updated = field.groupFields.filter((_, i) => i !== gfIdx)
+                          onUpdate({ ...field, groupFields: updated })
+                        }}
+                        okText="Remove"
+                        okButtonProps={{ danger: true }}
+                      >
+                        <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                      </Popconfirm>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <Input
+                        value={gf.placeholder}
+                        onChange={(e) => {
+                          const updated = [...field.groupFields]
+                          updated[gfIdx] = { ...gf, placeholder: e.target.value }
+                          onUpdate({ ...field, groupFields: updated })
+                        }}
+                        placeholder="Placeholder text"
+                        size="small"
+                        style={{ flex: 1, minWidth: 120 }}
+                      />
+                      <Input
+                        value={gf.key}
+                        onChange={(e) => {
+                          const updated = [...field.groupFields]
+                          updated[gfIdx] = { ...gf, key: e.target.value.trim() }
+                          onUpdate({ ...field, groupFields: updated })
+                        }}
+                        placeholder="Storage key"
+                        size="small"
+                        style={{ flex: 1, minWidth: 120 }}
+                      />
+                    </div>
+                    {(gf.type === 'select' || gf.type === 'multiselect') && (
+                      <div style={{ marginTop: 6 }}>
+                        <Input
+                          value={(gf.dropdownOptions || []).join(', ')}
+                          onChange={(e) => {
+                            const opts = e.target.value.split(',').map((s) => s.trim()).filter(Boolean)
+                            const updated = [...field.groupFields]
+                            updated[gfIdx] = { ...gf, dropdownOptions: opts }
+                            onUpdate({ ...field, groupFields: updated })
+                          }}
+                          placeholder="Options (comma-separated)"
+                          size="small"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
           {/* Non-download types: standard settings */}
-          {!isDownload && (
+          {!isDownload && field.type !== 'repeatable_group' && (
             <>
               {/* Field key (for file type: storage key used in business owner uploads) */}
               {field.type === 'file' && (
@@ -624,7 +806,93 @@ function SectionPanel({ section, sectionIndex, onUpdate, onDelete, onMoveUp, onM
                       size="small"
                     />
                   </div>
+
+                  {/* Show when (conditional visibility) */}
+                  <div style={{ marginBottom: 12, padding: 12, background: token.colorFillQuaternary, borderRadius: token.borderRadius }}>
+                    <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                      <Space>
+                        <Switch
+                          checked={!!(section.showWhen && section.showWhen.field)}
+                          onChange={(enabled) => {
+                            if (enabled) {
+                              onUpdate({ ...section, showWhen: { field: section.showWhen?.field || 'generalPermitCategory', value: section.showWhen?.value || '' } })
+                            } else {
+                              onUpdate({ ...section, showWhen: null })
+                            }
+                          }}
+                          size="small"
+                        />
+                        <Text type="secondary" style={{ fontSize: 12 }}>Only show when a form field matches</Text>
+                      </Space>
+                      {section.showWhen && section.showWhen.field && (
+                        <>
+                          <div>
+                            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Field key</Text>
+                            <Input
+                              value={section.showWhen.field}
+                              onChange={(e) => onUpdate({ ...section, showWhen: { ...section.showWhen, field: e.target.value } })}
+                              placeholder="e.g. generalPermitCategory"
+                              size="small"
+                              style={{ maxWidth: 240 }}
+                            />
+                          </div>
+                          <Space>
+                            <Select
+                              value={section.showWhen.values !== undefined ? 'values' : 'value'}
+                              onChange={(mode) => {
+                                const next = { ...section.showWhen, field: section.showWhen.field }
+                                if (mode === 'values') {
+                                  next.values = section.showWhen.value ? [section.showWhen.value] : []
+                                  delete next.value
+                                } else {
+                                  next.value = (section.showWhen.values && section.showWhen.values[0]) || ''
+                                  delete next.values
+                                }
+                                onUpdate({ ...section, showWhen: next })
+                              }}
+                              options={[
+                                { value: 'value', label: 'Single value' },
+                                { value: 'values', label: 'Any of these values' },
+                              ]}
+                              size="small"
+                              style={{ width: 160 }}
+                            />
+                            {section.showWhen.values !== undefined ? (
+                              <Select
+                                mode="tags"
+                                value={section.showWhen.values || []}
+                                onChange={(vals) => onUpdate({ ...section, showWhen: { ...section.showWhen, values: vals || [] } })}
+                                placeholder="e.g. cooperative, peddlers"
+                                size="small"
+                                style={{ minWidth: 200, flex: 1 }}
+                                tokenSeparators={[',']}
+                              />
+                            ) : (
+                              <Input
+                                value={section.showWhen.value || ''}
+                                onChange={(e) => onUpdate({ ...section, showWhen: { ...section.showWhen, value: e.target.value } })}
+                                placeholder="e.g. cooperative"
+                                size="small"
+                                style={{ width: 160 }}
+                              />
+                            )}
+                          </Space>
+                        </>
+                      )}
+                    </Space>
+                  </div>
                 </>
+              )}
+
+              {readOnly && section.showWhen && section.showWhen.field && (
+                <div style={{ marginBottom: 12 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Show when: </Text>
+                  <Text style={{ fontSize: 13 }}>
+                    {section.showWhen.values?.length
+                      ? `${section.showWhen.field} is one of [${section.showWhen.values.join(', ')}]`
+                      : `${section.showWhen.field} = ${section.showWhen.value || '(empty)'}`}
+                  </Text>
+                </div>
               )}
 
               <Divider style={{ margin: '8px 0 12px' }} />
@@ -682,6 +950,7 @@ function hydrateFromApi(apiSections) {
     category: s.category || '',
     source: s.source || '',
     notes: s.notes || '',
+    showWhen: s.showWhen && typeof s.showWhen === 'object' && s.showWhen.field ? { ...s.showWhen } : null,
     items: (s.items || []).map((item) => ({
       id: createId(),
       label: item.label || '',
@@ -700,17 +969,35 @@ function hydrateFromApi(apiSections) {
         downloadFileType: item.downloadFileType || '',
         downloadFileUrl: item.downloadFileUrl || '',
       } : {}),
+      ...(item.type === 'repeatable_group' ? {
+        groupFields: (item.groupFields || []).map((gf) => ({
+          id: createId(),
+          label: gf.label || '',
+          type: gf.type || 'text',
+          key: gf.key || '',
+          required: gf.required ?? true,
+          placeholder: gf.placeholder || '',
+          helpText: gf.helpText || '',
+          span: gf.span ?? 8,
+          validation: gf.validation || {},
+          dropdownSource: gf.dropdownSource || 'static',
+          dropdownOptions: gf.dropdownOptions || [],
+        })),
+        minRows: item.minRows ?? 1,
+        maxRows: item.maxRows ?? 20,
+      } : {}),
     })),
   }))
 }
 
 /** Strip local ids and produce clean API-ready sections */
 function dehydrateForApi(editorSections) {
-  return editorSections.map((s) => ({
-    category: s.category,
-    source: s.source,
-    notes: s.notes,
-    items: s.items.map((item) => {
+  return editorSections.map((s) => {
+    const out = {
+      category: s.category,
+      source: s.source,
+      notes: s.notes,
+      items: s.items.map((item) => {
       const base = {
         label: item.label,
         type: item.type || 'file',
@@ -730,9 +1017,32 @@ function dehydrateForApi(editorSections) {
         base.downloadFileType = item.downloadFileType || ''
         base.downloadFileUrl = item.downloadFileUrl || ''
       }
+      if (item.type === 'repeatable_group') {
+        base.groupFields = (item.groupFields || []).map((gf) => ({
+          label: gf.label || '',
+          type: gf.type || 'text',
+          key: gf.key || '',
+          required: gf.required ?? true,
+          placeholder: gf.placeholder || '',
+          helpText: gf.helpText || '',
+          span: gf.span ?? 8,
+          validation: gf.validation || {},
+          dropdownSource: gf.dropdownSource || 'static',
+          dropdownOptions: gf.dropdownOptions || [],
+        }))
+        base.minRows = item.minRows ?? 1
+        base.maxRows = item.maxRows ?? 20
+      }
       return base
     }),
-  }))
+    }
+    if (s.showWhen && typeof s.showWhen === 'object' && s.showWhen.field) {
+      out.showWhen = s.showWhen.values !== undefined
+        ? { field: s.showWhen.field, values: Array.isArray(s.showWhen.values) ? s.showWhen.values : [] }
+        : { field: s.showWhen.field, value: s.showWhen.value }
+    }
+    return out
+  })
 }
 
 // ─── Main editor ───────────────────────────────────────────────────
@@ -807,6 +1117,7 @@ const FormContentEditor = forwardRef(function FormContentEditor({ initialSection
         category: '',
         source: '',
         notes: '',
+        showWhen: null,
         items: [],
       },
     ])

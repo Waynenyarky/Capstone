@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Select, Button, Typography, theme, Space, Badge, Empty, Modal, Spin, message, Form, Alert, Tag, Row, Col, Card } from 'antd'
+import { Select, Button, Typography, theme, Space, Badge, Empty, Modal, Spin, message, Form, Alert, Tag, Row, Col, Card } from 'antd' // Select still used for version dropdown
 import {
   ArrowLeftOutlined,
   SaveOutlined,
@@ -9,8 +9,6 @@ import {
   PlusOutlined,
   HistoryOutlined,
   FileTextOutlined,
-  GlobalOutlined,
-  ReloadOutlined,
   EyeOutlined,
   EditOutlined,
   CheckCircleOutlined,
@@ -18,17 +16,17 @@ import {
   StopOutlined,
 } from '@ant-design/icons'
 
-import { FORM_TYPES, FORM_DEFINITIONS_INDUSTRIES_ONLY, STATUS_COLORS, ACTION_LABELS } from '../constants'
+import { FORM_TYPES, STATUS_COLORS, GENERAL_PERMIT_PREVIEW_CATEGORIES } from '../constants'
 import DraftsModal from './DraftsModal'
 import AddVersionModal from './AddVersionModal'
 import FormContentEditor from './FormContentEditor'
 import FormPreview from './FormPreview'
 import DeactivateFormModal from './DeactivateFormModal'
+import FormDefinitionsLogsTab from './FormDefinitionsLogsTab'
 
 import {
   getFormGroups,
   getFormGroupStats,
-  getFormDefinitionsAuditLog,
   getFormGroup,
   createFormGroup,
   createFormGroupVersion,
@@ -44,7 +42,6 @@ const { Text } = Typography
 
 const OVERVIEW_KEY = '__overview__'
 const LOGS_KEY = '__logs__'
-const GLOBAL_FORMS_KEY = '__global_forms__'
 
 /** Human-readable status for a definition */
 const VERSION_STATUS_LABELS = {
@@ -67,22 +64,28 @@ function formatDraftDate(date) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+/** Strip " - All Industries" (or en-dash) from form/definition display name */
+function formDisplayTitle(name) {
+  return (name || '').replace(/\s*[–-]\s*All Industries$/i, '').trim() || name || ''
+}
+
 export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdated } = {}) {
   const { token } = theme.useToken()
   const editorRef = useRef(null)
   const [deactivateForm] = Form.useForm()
 
-  // Navigation
-  const [selectedIndustry, setSelectedIndustry] = useState(OVERVIEW_KEY)
+  // Navigation: now form-type-centric (Overview | Logs | form type list)
+  const [selectedNav, setSelectedNav] = useState(OVERVIEW_KEY)
 
-  // Form selection
-  const [selectedFormType, setSelectedFormType] = useState(FORM_TYPES[0]?.value ?? 'registration')
+  // The selected form type is derived from selectedNav when it's a form type key
+  const selectedFormType = (!selectedNav || selectedNav === OVERVIEW_KEY || selectedNav === LOGS_KEY)
+    ? null
+    : selectedNav
 
   // API data
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [stats, setStats] = useState({ activated: 0, deactivated: 0, retired: 0, pending: 0 })
-  const [auditLog, setAuditLog] = useState([])
   const [formGroup, setFormGroup] = useState(null)
   const [versions, setVersions] = useState([])
   const [currentDefinition, setCurrentDefinition] = useState(null)
@@ -103,31 +106,27 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
   const [deactivateModalOpen, setDeactivateModalOpen] = useState(false)
   const [deactivateLoading, setDeactivateLoading] = useState(false)
   const [reasonTemplate, setReasonTemplate] = useState('maintenance')
+  const [generalPermitPreviewCategory, setGeneralPermitPreviewCategory] = useState('cooperative')
 
   // Computed
-  const isOverview = selectedIndustry === OVERVIEW_KEY
-  const isLogs = selectedIndustry === LOGS_KEY
-  const isGlobalForms = selectedIndustry === GLOBAL_FORMS_KEY
-  const industryScope = isGlobalForms ? 'all' : selectedIndustry
-  const isIndustryPage = !isOverview && !isLogs
+  const isOverview = selectedNav === OVERVIEW_KEY
+  const isLogs = selectedNav === LOGS_KEY
+  const isFormPage = !isOverview && !isLogs && !!selectedFormType
+  const industryScope = 'all'
 
-  const selectedIndustryLabel = isOverview
+  const selectedFormLabel = FORM_TYPES.find((t) => t.value === selectedFormType)?.label ?? selectedFormType ?? ''
+
+  const selectedPageLabel = isOverview
     ? 'Overview'
     : isLogs
-      ? 'Logs'
-      : isGlobalForms
-        ? 'Global Forms'
-        : (FORM_DEFINITIONS_INDUSTRIES_ONLY.find((o) => o.value === selectedIndustry)?.label ?? selectedIndustry)
+      ? 'History'
+      : selectedFormLabel
 
   const TitleIcon = isOverview
     ? DashboardOutlined
     : isLogs
       ? HistoryOutlined
-      : isGlobalForms
-        ? GlobalOutlined
-        : (FORM_DEFINITIONS_INDUSTRIES_ONLY.find((o) => o.value === selectedIndustry)?.icon ?? null)
-
-  const selectedFormLabel = FORM_TYPES.find((t) => t.value === selectedFormType)?.label ?? selectedFormType
+      : FileTextOutlined
 
   // Build version dropdown options with status labels
   // Active (published) version first, then others in reverse chronological order
@@ -139,7 +138,6 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
     })
 
   const hasPreviousVersion = versions.length > 0
-  const hasGlobalForm = false // TODO: check if a global form group exists for this form type
 
   // Form group status for the status badge
   const groupStatusLabel = formGroup
@@ -174,19 +172,8 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
     }
   }, [onLastUpdated])
 
-  const loadAuditLog = useCallback(async () => {
-    try {
-      const res = await getFormDefinitionsAuditLog({ limit: 20 })
-      if (res?.success) {
-        setAuditLog(res.entries || [])
-      }
-    } catch (err) {
-      console.error('Failed to load audit log', err)
-    }
-  }, [])
-
   const loadFormGroupForSelection = useCallback(async () => {
-    if (!isIndustryPage || isLogs) return
+    if (!isFormPage || isLogs) return
 
     setLoading(true)
     try {
@@ -231,26 +218,21 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
     } finally {
       setLoading(false)
     }
-  }, [selectedFormType, industryScope, isIndustryPage, isLogs])
+  }, [selectedFormType, industryScope, isFormPage, isLogs])
 
   // Load overview stats on mount and when parent triggers refresh
   useEffect(() => {
     loadStats()
   }, [loadStats, refreshKey])
 
-  // Load audit log when Logs tab selected
+  // Load form group when form type changes
   useEffect(() => {
-    if (isLogs) loadAuditLog()
-  }, [isLogs, loadAuditLog, refreshKey])
-
-  // Load form group when industry/formType changes
-  useEffect(() => {
-    if (isIndustryPage) {
+    if (isFormPage) {
       setIsEditingDraft(false)
       setHasUnsavedChanges(false)
       loadFormGroupForSelection()
     }
-  }, [loadFormGroupForSelection, isIndustryPage, refreshKey])
+  }, [loadFormGroupForSelection, isFormPage, refreshKey])
 
   // Load definition details when selected version changes
   useEffect(() => {
@@ -472,8 +454,8 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
       key={value}
       role="button"
       tabIndex={0}
-      onClick={() => setSelectedIndustry(value)}
-      onKeyDown={(e) => e.key === 'Enter' && setSelectedIndustry(value)}
+      onClick={() => setSelectedNav(value)}
+      onKeyDown={(e) => e.key === 'Enter' && setSelectedNav(value)}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -545,15 +527,14 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {renderNavItem({ value: OVERVIEW_KEY, label: 'Overview', icon: DashboardOutlined }, isOverview)}
-          {renderNavItem({ value: LOGS_KEY, label: 'Logs', icon: HistoryOutlined }, isLogs)}
-          {renderNavItem({ value: GLOBAL_FORMS_KEY, label: 'Global Forms', icon: GlobalOutlined }, isGlobalForms)}
+          {renderNavItem({ value: LOGS_KEY, label: 'History', icon: HistoryOutlined }, isLogs)}
         </div>
         <Text type="secondary" style={{ display: 'block', marginTop: 16, marginBottom: 6, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          Industries
+          Forms &amp; Permits
         </Text>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {FORM_DEFINITIONS_INDUSTRIES_ONLY.map(({ value, label, icon: Icon }) =>
-            renderNavItem({ value, label, icon: Icon }, selectedIndustry === value)
+          {FORM_TYPES.map(({ value, label }) =>
+            renderNavItem({ value, label, icon: FileTextOutlined }, selectedNav === value)
           )}
         </div>
       </div>
@@ -579,7 +560,7 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
             zIndex: 1,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: isIndustryPage ? 12 : 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: isFormPage ? 12 : 0 }}>
             {TitleIcon && (
               <span
                 style={{
@@ -596,24 +577,17 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
                 <TitleIcon style={{ fontSize: 18 }} />
               </span>
             )}
-            <Text strong style={{ fontSize: 16 }}>{selectedIndustryLabel}</Text>
+            <Text strong style={{ fontSize: 16 }}>{selectedPageLabel}</Text>
             {/* Status badge for the form group */}
-            {isIndustryPage && !isEditingDraft && groupStatusLabel && (
+            {isFormPage && !isEditingDraft && groupStatusLabel && (
               <Tag color={groupStatusColor} style={{ marginLeft: 4 }}>{groupStatusLabel}</Tag>
             )}
           </div>
 
           {/* Filter/action bar (not editing) */}
-          {isIndustryPage && !isEditingDraft && (
+          {isFormPage && !isEditingDraft && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
               <Space size="middle">
-                <Select
-                  value={selectedFormType}
-                  onChange={setSelectedFormType}
-                  options={FORM_TYPES}
-                  style={{ minWidth: 200 }}
-                  placeholder="Select form type"
-                />
                 {versionOptions.length > 0 && (
                   <Select
                     value={selectedVersion}
@@ -642,7 +616,7 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
           )}
 
           {/* Draft editing toolbar */}
-          {isIndustryPage && isEditingDraft && (
+          {isFormPage && isEditingDraft && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
               <Space size="middle">
                 <Button icon={<ArrowLeftOutlined />} onClick={handleBack}>Back</Button>
@@ -664,9 +638,9 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
         </div>
 
         {/* Scrollable content */}
-        <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
+        <div style={{ flex: 1, overflow: 'auto' }}>
           {isOverview ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 32, maxWidth: 1000, margin: '0 auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 32, maxWidth: 1000, margin: '0 auto', padding: 16 }}>
               <div>
                 <Text strong style={{ display: 'block', marginBottom: 12, fontSize: 15, color: token.colorText }}>
                   Form summary
@@ -708,44 +682,8 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
               </div>
             </div>
           ) : isLogs ? (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                <Text strong>Form definition logs</Text>
-                <Button type="link" size="small" icon={<ReloadOutlined />} onClick={loadAuditLog}>Refresh</Button>
-              </div>
-              {auditLog.length > 0 ? (
-                auditLog.map((entry, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      padding: '10px 16px',
-                      background: token.colorFillQuaternary,
-                      borderRadius: token.borderRadius,
-                      marginBottom: 6,
-                      fontSize: 13,
-                    }}
-                  >
-                    <Text strong>{ACTION_LABELS[entry.action] || entry.action}</Text>
-                    <Text>{' '}{entry.name || entry.formType} v{entry.version}</Text>
-                    <Text type="secondary" style={{ marginLeft: 8 }}>
-                      {entry.user ? `by ${entry.user.firstName || entry.user.email}` : ''}
-                      {' · '}
-                      {formatDraftDate(entry.at)}
-                    </Text>
-                  </div>
-                ))
-              ) : (
-                <div
-                  style={{
-                    padding: 24,
-                    background: token.colorFillQuaternary,
-                    borderRadius: token.borderRadius,
-                    textAlign: 'center',
-                  }}
-                >
-                  <Text type="secondary">Form definition logs will appear here</Text>
-                </div>
-              )}
+            <div style={{ height: '100%', minHeight: 400, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <FormDefinitionsLogsTab />
             </div>
           ) : (
             <>
@@ -753,10 +691,10 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
               <AddVersionModal
                 open={addVersionModalOpen}
                 onClose={() => setAddVersionModalOpen(false)}
-                industryLabel={isGlobalForms ? 'all industries' : selectedIndustryLabel}
+                industryLabel="all industries"
                 formTypeLabel={selectedFormLabel}
                 hasPreviousVersion={hasPreviousVersion}
-                hasGlobalForm={isGlobalForms ? false : hasGlobalForm}
+                hasGlobalForm={false}
                 onConfirm={handleAddVersion}
               />
               <DraftsModal
@@ -803,7 +741,23 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
               ) : isEditingDraft && currentDefinition ? (
                 /* ── Editing a draft ── */
                 isPreviewMode ? (
-                  <FormPreview sections={currentDefinition.sections} />
+                  <>
+                    {selectedFormType === 'general_permit' && (
+                      <div style={{ marginBottom: 16 }}>
+                        <Text type="secondary" style={{ marginRight: 8 }}>Preview as category:</Text>
+                        <Select
+                          value={generalPermitPreviewCategory}
+                          onChange={setGeneralPermitPreviewCategory}
+                          options={GENERAL_PERMIT_PREVIEW_CATEGORIES}
+                          style={{ minWidth: 220 }}
+                        />
+                      </div>
+                    )}
+                    <FormPreview
+                      sections={currentDefinition.sections}
+                      formValues={selectedFormType === 'general_permit' ? { generalPermitCategory: generalPermitPreviewCategory } : undefined}
+                    />
+                  </>
                 ) : (
                   <FormContentEditor
                     ref={editorRef}
@@ -814,10 +768,10 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
                 )
               ) : currentDefinition ? (
                 /* ── Viewing a version (always preview mode for published/archived) ── */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Text strong>{currentDefinition.name || selectedFormLabel}</Text>
+                      <Text strong>{formDisplayTitle(currentDefinition.name || selectedFormLabel)}</Text>
                       <Text type="secondary">v{currentDefinition.version}</Text>
                       <Tag color={STATUS_COLORS[currentDefinition.status === 'published' ? 'active' : currentDefinition.status === 'pending_approval' ? 'pending' : currentDefinition.status === 'archived' ? 'retired' : 'pending']}>
                         {VERSION_STATUS_LABELS[currentDefinition.status] || currentDefinition.status}
@@ -841,10 +795,24 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
                   )}
 
                   {currentDefinition.sections?.length > 0 ? (
-                    <FormPreview
-                      key={currentDefinition._id + '-preview'}
-                      sections={currentDefinition.sections}
-                    />
+                    <>
+                      {selectedFormType === 'general_permit' && (
+                        <div style={{ marginBottom: 16 }}>
+                          <Text type="secondary" style={{ marginRight: 8 }}>Preview as category:</Text>
+                          <Select
+                            value={generalPermitPreviewCategory}
+                            onChange={setGeneralPermitPreviewCategory}
+                            options={GENERAL_PERMIT_PREVIEW_CATEGORIES}
+                            style={{ minWidth: 220 }}
+                          />
+                        </div>
+                      )}
+                      <FormPreview
+                        key={currentDefinition._id + '-preview'}
+                        sections={currentDefinition.sections}
+                        formValues={selectedFormType === 'general_permit' ? { generalPermitCategory: generalPermitPreviewCategory } : undefined}
+                      />
+                    </>
                   ) : (
                     <Empty
                       image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -861,7 +829,7 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
                       <Text strong>No form content yet</Text>
                       <Text type="secondary" style={{ fontSize: 13, textAlign: 'center' }}>
-                        No {selectedFormLabel.toLowerCase()} form has been defined{isGlobalForms ? '' : ` for ${selectedIndustryLabel}`}.
+                        No {selectedFormLabel.toLowerCase()} form has been defined yet.
                       </Text>
                       <Text type="secondary" style={{ fontSize: 13, textAlign: 'center' }}>
                         Use &quot;Add version&quot; above to create one.

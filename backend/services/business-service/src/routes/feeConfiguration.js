@@ -5,25 +5,39 @@ const { requireJwt, requireRole } = require('../middleware/auth')
 const router = express.Router()
 
 /**
- * Validate bracket structure
+ * Validate bracket structure. For bracketKind 'fixed', amount is required; for 'rate'/'tiered', rate is required.
  * @param {Array} brackets
+ * @param {string} bracketKind - 'rate' | 'tiered' | 'fixed'
  * @returns {{ valid: boolean, errors: string[] }}
  */
-function validateBrackets(brackets) {
+function validateBrackets(brackets, bracketKind = 'rate') {
   const errors = []
   if (!Array.isArray(brackets)) return { valid: true, errors }
 
+  const useFixed = bracketKind === 'fixed'
+
   for (let i = 0; i < brackets.length; i++) {
     const b = brackets[i]
-    if (b.min == null || b.rate == null) {
-      errors.push(`Bracket ${i + 1}: min and rate are required`)
+    if (b.min == null) {
+      errors.push(`Bracket ${i + 1}: min is required`)
       continue
     }
     if (b.min < 0) {
       errors.push(`Bracket ${i + 1}: min cannot be negative`)
     }
-    if (b.rate < 0 || b.rate > 100) {
-      errors.push(`Bracket ${i + 1}: rate must be between 0 and 100`)
+    if (useFixed) {
+      if (b.amount == null) {
+        errors.push(`Bracket ${i + 1}: amount is required when bracketKind is fixed`)
+      }
+      if (b.amount != null && b.amount < 0) {
+        errors.push(`Bracket ${i + 1}: amount cannot be negative`)
+      }
+    } else {
+      if (b.rate == null) {
+        errors.push(`Bracket ${i + 1}: rate is required when bracketKind is rate or tiered`)
+      } else if (b.rate < 0 || b.rate > 100) {
+        errors.push(`Bracket ${i + 1}: rate must be between 0 and 100`)
+      }
     }
     if (b.max != null && b.max < b.min) {
       errors.push(`Bracket ${i + 1}: max cannot be less than min`)
@@ -46,7 +60,7 @@ function validateBrackets(brackets) {
 // GET /api/business/admin/fee-configuration — list all configs
 router.get('/', requireJwt, async (req, res) => {
   try {
-    const configs = await FeeConfiguration.find().sort({ lineOfBusiness: 1 }).lean()
+    const configs = await FeeConfiguration.find().sort({ taxCode: 1, lineOfBusiness: 1 }).lean()
     return res.json({ data: configs })
   } catch (err) {
     console.error('GET /fee-configuration error:', err)
@@ -57,16 +71,18 @@ router.get('/', requireJwt, async (req, res) => {
 // POST /api/business/admin/fee-configuration — create
 router.post('/', requireJwt, requireRole(['admin']), async (req, res) => {
   try {
-    const { lineOfBusiness, mayorsPermitFee, businessTaxCategory, brackets } = req.body
+    const { taxCode, lineOfBusiness, mayorsPermitFee, businessTaxCategory, bracketKind, brackets } = req.body
     if (!lineOfBusiness || mayorsPermitFee == null) {
       return res.status(400).json({
         error: { code: 'VALIDATION_ERROR', message: 'lineOfBusiness and mayorsPermitFee are required' },
       })
     }
 
+    const kind = ['rate', 'tiered', 'fixed'].includes(bracketKind) ? bracketKind : 'rate'
+
     // Validate brackets if provided
     if (brackets && brackets.length > 0) {
-      const bracketValidation = validateBrackets(brackets)
+      const bracketValidation = validateBrackets(brackets, kind)
       if (!bracketValidation.valid) {
         return res.status(400).json({
           error: { code: 'VALIDATION_ERROR', message: bracketValidation.errors.join('; ') },
@@ -75,9 +91,11 @@ router.post('/', requireJwt, requireRole(['admin']), async (req, res) => {
     }
 
     const config = await FeeConfiguration.create({
+      taxCode: taxCode ? taxCode.toUpperCase().trim() : '',
       lineOfBusiness: lineOfBusiness.toLowerCase().trim(),
       mayorsPermitFee,
       businessTaxCategory: businessTaxCategory || '',
+      bracketKind: kind,
       brackets: brackets || [],
       effectiveDate: new Date(),
       isActive: true,
@@ -99,15 +117,19 @@ router.post('/', requireJwt, requireRole(['admin']), async (req, res) => {
 router.put('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
   try {
     const { id } = req.params
-    const { lineOfBusiness, mayorsPermitFee, businessTaxCategory, brackets, isActive } = req.body
+    const { taxCode, lineOfBusiness, mayorsPermitFee, businessTaxCategory, bracketKind, brackets, isActive } = req.body
     const config = await FeeConfiguration.findById(id)
     if (!config) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Fee configuration not found' } })
     }
 
+    const kind = bracketKind !== undefined
+      ? (['rate', 'tiered', 'fixed'].includes(bracketKind) ? bracketKind : config.bracketKind)
+      : config.bracketKind
+
     // Validate brackets if provided
     if (brackets && brackets.length > 0) {
-      const bracketValidation = validateBrackets(brackets)
+      const bracketValidation = validateBrackets(brackets, kind)
       if (!bracketValidation.valid) {
         return res.status(400).json({
           error: { code: 'VALIDATION_ERROR', message: bracketValidation.errors.join('; ') },
@@ -115,9 +137,11 @@ router.put('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
       }
     }
 
+    if (taxCode !== undefined) config.taxCode = taxCode ? taxCode.toUpperCase().trim() : ''
     if (lineOfBusiness) config.lineOfBusiness = lineOfBusiness.toLowerCase().trim()
     if (mayorsPermitFee != null) config.mayorsPermitFee = mayorsPermitFee
     if (businessTaxCategory !== undefined) config.businessTaxCategory = businessTaxCategory
+    if (bracketKind !== undefined) config.bracketKind = kind
     if (brackets !== undefined) config.brackets = brackets
     if (isActive !== undefined) config.isActive = isActive
 

@@ -2,6 +2,10 @@ export const firstNameRules = [{ required: true, message: 'Please enter your fir
 
 export const lastNameRules = [{ required: true, message: 'Please enter your last name' }]
 
+export const middleNameRules = [{ max: 100, message: 'Middle name must be at most 100 characters' }]
+
+export const suffixRules = [{ max: 20, message: 'Suffix must be at most 20 characters (e.g. Jr., Sr., III)' }]
+
 export const phoneNumberRules = [
   { required: true, message: 'Please enter your phone number' },
   () => ({

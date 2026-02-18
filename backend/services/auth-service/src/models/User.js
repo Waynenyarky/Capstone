@@ -5,6 +5,8 @@ const UserSchema = new mongoose.Schema(
     role: { type: mongoose.Schema.Types.ObjectId, ref: 'Role', required: true },
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
+    middleName: { type: String, default: '' },
+    suffix: { type: String, default: '' },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     phoneNumber: { type: String, default: '', unique: true, sparse: true },
     username: { type: String, unique: true, sparse: true, lowercase: true, trim: true },
@@ -78,6 +80,11 @@ const UserSchema = new mongoose.Schema(
       city: { type: String, default: '' },
       province: { type: String, default: '' },
       zipCode: { type: String, default: '' },
+    },
+    sex: {
+      type: String,
+      enum: ['', 'male', 'female'],
+      default: '',
     },
     maritalStatus: {
       type: String,

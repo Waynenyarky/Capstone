@@ -89,11 +89,12 @@ describe('Fee Configuration (2C)', () => {
   // ── Happy Paths ──
 
   describe('UC-2C-1: Admin creates fee config', () => {
-    it('should create fee configuration with brackets', async () => {
+    it('should create fee configuration with brackets and taxCode', async () => {
       const res = await request(app)
         .post('/api/business/admin/fee-configuration')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
+          taxCode: 'ret',
           lineOfBusiness: 'Retail',
           mayorsPermitFee: 500,
           businessTaxCategory: 'A',
@@ -105,9 +106,65 @@ describe('Fee Configuration (2C)', () => {
         })
 
       expect(res.status).toBe(201)
+      expect(res.body.data.taxCode).toBe('RET') // uppercased
       expect(res.body.data.lineOfBusiness).toBe('retail') // lowercased
       expect(res.body.data.brackets).toHaveLength(3)
       expect(res.body.data.isActive).toBe(true)
+    })
+
+    it('should create fee configuration without taxCode (defaults to empty)', async () => {
+      const res = await request(app)
+        .post('/api/business/admin/fee-configuration')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          lineOfBusiness: 'Wholesale',
+          mayorsPermitFee: 800,
+        })
+
+      expect(res.status).toBe(201)
+      expect(res.body.data.taxCode).toBe('')
+      expect(res.body.data.lineOfBusiness).toBe('wholesale')
+    })
+
+    it('should create fee configuration with bracketKind tiered', async () => {
+      const res = await request(app)
+        .post('/api/business/admin/fee-configuration')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          taxCode: 'RET',
+          lineOfBusiness: 'retail_tiered',
+          mayorsPermitFee: 500,
+          bracketKind: 'tiered',
+          brackets: [
+            { min: 0, max: 400000, rate: 2.2 },
+            { min: 400001, max: null, rate: 1.1 },
+          ],
+        })
+
+      expect(res.status).toBe(201)
+      expect(res.body.data.bracketKind).toBe('tiered')
+      expect(res.body.data.brackets).toHaveLength(2)
+    })
+
+    it('should create fee configuration with bracketKind fixed and bracket amount', async () => {
+      const res = await request(app)
+        .post('/api/business/admin/fee-configuration')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          taxCode: 'MFG',
+          lineOfBusiness: 'manufacturing_fixed',
+          mayorsPermitFee: 1000,
+          bracketKind: 'fixed',
+          brackets: [
+            { min: 0, max: 9999, amount: 99.5 },
+            { min: 10000, max: 49999, amount: 199.5 },
+            { min: 50000, max: null, amount: 299.5 },
+          ],
+        })
+
+      expect(res.status).toBe(201)
+      expect(res.body.data.bracketKind).toBe('fixed')
+      expect(res.body.data.brackets[0].amount).toBe(99.5)
     })
   })
 
@@ -129,11 +186,30 @@ describe('Fee Configuration (2C)', () => {
       expect(res.status).toBe(200)
       expect(res.body.data.mayorsPermitFee).toBe(600)
     })
+
+    it('should update taxCode', async () => {
+      const config = await FeeConfiguration.create({
+        lineOfBusiness: 'services',
+        mayorsPermitFee: 1200,
+        brackets: [],
+        effectiveDate: new Date(),
+        isActive: true,
+      })
+
+      const res = await request(app)
+        .put(`/api/business/admin/fee-configuration/${config._id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ taxCode: 'svc' })
+
+      expect(res.status).toBe(200)
+      expect(res.body.data.taxCode).toBe('SVC')
+    })
   })
 
   describe('Admin lists fee configs', () => {
-    it('should list all fee configurations', async () => {
+    it('should list all fee configurations with taxCode', async () => {
       await FeeConfiguration.create({
+        taxCode: 'RET',
         lineOfBusiness: 'retail',
         mayorsPermitFee: 500,
         brackets: [],
@@ -141,6 +217,7 @@ describe('Fee Configuration (2C)', () => {
         isActive: true,
       })
       await FeeConfiguration.create({
+        taxCode: 'FDS',
         lineOfBusiness: 'food',
         mayorsPermitFee: 300,
         brackets: [],
@@ -154,6 +231,7 @@ describe('Fee Configuration (2C)', () => {
 
       expect(res.status).toBe(200)
       expect(res.body.data.length).toBe(2)
+      expect(res.body.data[0]).toHaveProperty('taxCode')
     })
   })
 
@@ -247,6 +325,38 @@ describe('Fee Configuration (2C)', () => {
 
       expect(res.status).toBe(400)
       expect(res.body.error.code).toBe('VALIDATION_ERROR')
+    })
+
+    it('should reject fixed bracketKind when bracket missing amount', async () => {
+      const res = await request(app)
+        .post('/api/business/admin/fee-configuration')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          lineOfBusiness: 'manufacturing_fixed',
+          mayorsPermitFee: 1000,
+          bracketKind: 'fixed',
+          brackets: [{ min: 0, max: 50000, rate: 1 }],
+        })
+
+      expect(res.status).toBe(400)
+      expect(res.body.error.code).toBe('VALIDATION_ERROR')
+      expect(res.body.error.message).toMatch(/amount is required when bracketKind is fixed/i)
+    })
+
+    it('should reject rate/tiered bracketKind when bracket missing rate', async () => {
+      const res = await request(app)
+        .post('/api/business/admin/fee-configuration')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          lineOfBusiness: 'retail',
+          mayorsPermitFee: 500,
+          bracketKind: 'tiered',
+          brackets: [{ min: 0, max: 100000, amount: 100 }],
+        })
+
+      expect(res.status).toBe(400)
+      expect(res.body.error.code).toBe('VALIDATION_ERROR')
+      expect(res.body.error.message).toMatch(/rate is required/i)
     })
   })
 

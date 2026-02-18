@@ -4,13 +4,18 @@ const BracketSchema = new mongoose.Schema(
   {
     min: { type: Number, required: true },
     max: { type: Number, default: null }, // null = open-ended/unlimited
-    rate: { type: Number, required: true },
+    rate: { type: Number, default: null }, // required when bracketKind is 'rate' or 'tiered'
+    amount: { type: Number, default: null }, // fixed tax in pesos when bracketKind is 'fixed'
   },
   { _id: false }
 )
 
 const FeeConfigurationSchema = new mongoose.Schema(
   {
+    taxCode: {
+      type: String,
+      default: '',
+    },
     lineOfBusiness: {
       type: String,
       required: true,
@@ -19,9 +24,20 @@ const FeeConfigurationSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    /** Charter Section 4W.01 — Environmental Protection Fee per annum (optional, by industry). */
+    environmentalProtectionFee: {
+      type: Number,
+      default: null,
+    },
     businessTaxCategory: {
       type: String,
       default: '',
+    },
+    // 'rate' = one rate applied to full gross (current); 'tiered' = rate per bracket segment; 'fixed' = bracket.amount
+    bracketKind: {
+      type: String,
+      enum: ['rate', 'tiered', 'fixed'],
+      default: 'rate',
     },
     brackets: {
       type: [BracketSchema],

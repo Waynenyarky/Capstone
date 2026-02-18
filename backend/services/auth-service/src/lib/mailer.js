@@ -930,6 +930,46 @@ async function sendAdminAlertEmail({ to, adminName, userId, userName, userEmail,
 }
 
 /**
+ * Send generic admin alert (suspicious activity, recovery/deletion from unusual IP, etc.)
+ * @param {object} options - { to, adminName, type, data }
+ */
+async function sendAdminAlert({ to, adminName, type, data = {} }) {
+  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
+  const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
+  const subject = `Security Alert: ${type} - ${brandName}`
+  const dataStr = typeof data === 'object' ? JSON.stringify(data, null, 2) : String(data)
+  const text = [
+    `Hello ${adminName},`,
+    '',
+    `Security alert (${type}):`,
+    '',
+    dataStr,
+    '',
+    `Dashboard: ${appUrl}/admin`,
+    '',
+    brandName,
+  ].join('\n')
+  const html = `
+  <!DOCTYPE html><html><body style="font-family:sans-serif;">
+  <h2>Security Alert: ${type}</h2>
+  <p>Hello ${adminName},</p>
+  <pre style="background:#f5f5f5;padding:12px;border-radius:4px;">${dataStr}</pre>
+  <p><a href="${appUrl}/admin">Open Admin Dashboard</a></p>
+  <p style="color:#8c8c8c;">${brandName}</p>
+  </body></html>
+  `
+  try {
+    const from = process.env.DEFAULT_FROM_EMAIL || 'noreply@example.com'
+    await sendEmailViaAPI({ to, from, subject, text, html })
+  } catch (err) {
+    console.log('--------------------------------------------------')
+    console.log('⚠️  EMAIL API FAILED (Admin Alert) ⚠️')
+    console.log('To:', to, 'Error:', err.message)
+    console.log('--------------------------------------------------')
+  }
+}
+
+/**
  * Send approval notification
  * @param {object} options - Notification options
  * @param {string} options.to - Admin email
@@ -1065,5 +1105,6 @@ module.exports = {
   sendEmailChangeNotification,
   sendPasswordChangeNotification,
   sendAdminAlertEmail,
+  sendAdminAlert,
   sendApprovalNotification,
 }

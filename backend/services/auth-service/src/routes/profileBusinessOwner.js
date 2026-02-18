@@ -110,37 +110,21 @@ router.post(
   }
 )
 
+const sanitizeString = (value, helpers) => {
+  if (!value) return value
+  if (containsSqlInjection(value)) return helpers.error('string.sqlInjection')
+  if (containsXss(value)) return helpers.error('string.xss')
+  return value
+}
+
 // PATCH /api/auth/profile/name
-// Update name and date of birth (no verification required, but system verified)
+// Update name, middle name, suffix, sex, and date of birth (no verification required, but system verified)
 const updateNameSchema = Joi.object({
-  firstName: Joi.string()
-    .min(1)
-    .max(100)
-    .custom((value, helpers) => {
-      if (!value) return value
-      if (containsSqlInjection(value)) {
-        return helpers.error('string.sqlInjection');
-      }
-      if (containsXss(value)) {
-        return helpers.error('string.xss');
-      }
-      return value;
-    })
-    .optional(),
-  lastName: Joi.string()
-    .min(1)
-    .max(100)
-    .custom((value, helpers) => {
-      if (!value) return value
-      if (containsSqlInjection(value)) {
-        return helpers.error('string.sqlInjection');
-      }
-      if (containsXss(value)) {
-        return helpers.error('string.xss');
-      }
-      return value;
-    })
-    .optional(),
+  firstName: Joi.string().min(1).max(100).custom(sanitizeString).optional(),
+  lastName: Joi.string().min(1).max(100).custom(sanitizeString).optional(),
+  middleName: Joi.string().max(100).allow('', null).custom(sanitizeString).optional(),
+  suffix: Joi.string().max(20).allow('', null).custom(sanitizeString).optional(),
+  sex: Joi.string().valid('male', 'female').allow('', null).optional(),
   dateOfBirth: Joi.date().optional(),
 }).min(1).messages({
   'object.min': 'At least one field must be provided',
@@ -155,27 +139,8 @@ router.patch(
   validateBody(updateNameSchema),
   async (req, res) => {
     try {
-      const { firstName, lastName, dateOfBirth } = req.body || {}
-      
-      // Additional validation for SQL injection and XSS (double-check after Joi)
-      if (firstName !== undefined) {
-        if (containsSqlInjection(String(firstName))) {
-          return respond.error(res, 400, 'validation_error', 'Invalid input: SQL injection attempt detected')
-        }
-        if (containsXss(String(firstName))) {
-          return respond.error(res, 400, 'validation_error', 'Invalid input: XSS attempt detected')
-        }
-      }
-      
-      if (lastName !== undefined) {
-        if (containsSqlInjection(String(lastName))) {
-          return respond.error(res, 400, 'validation_error', 'Invalid input: SQL injection attempt detected')
-        }
-        if (containsXss(String(lastName))) {
-          return respond.error(res, 400, 'validation_error', 'Invalid input: XSS attempt detected')
-        }
-      }
-      
+      const { firstName, lastName, middleName, suffix, sex, dateOfBirth } = req.body || {}
+
       const doc = await User.findById(req._userId).populate('role')
       if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
@@ -187,24 +152,67 @@ router.patch(
       const changes = []
       const oldValues = {}
 
+      const checkSanitize = (value, fieldName) => {
+        if (value === undefined) return undefined
+        const str = String(value ?? '').trim()
+        if (containsSqlInjection(str) || containsXss(str)) return null
+        return fieldName === 'firstName' || fieldName === 'lastName' ? sanitizeName(str) : str
+      }
+
       if (firstName !== undefined) {
-        const sanitized = sanitizeName(firstName)
+        const sanitized = checkSanitize(firstName, 'firstName')
+        if (sanitized === null) {
+          return respond.error(res, 400, 'validation_error', 'Invalid input: SQL injection or XSS attempt detected')
+        }
         if (sanitized !== doc.firstName) {
           oldValues.firstName = doc.firstName
           doc.firstName = sanitized
           changes.push('firstName')
         }
       }
-
       if (lastName !== undefined) {
-        const sanitized = sanitizeName(lastName)
+        const sanitized = checkSanitize(lastName, 'lastName')
+        if (sanitized === null) {
+          return respond.error(res, 400, 'validation_error', 'Invalid input: SQL injection or XSS attempt detected')
+        }
         if (sanitized !== doc.lastName) {
           oldValues.lastName = doc.lastName
           doc.lastName = sanitized
           changes.push('lastName')
         }
       }
-
+      if (middleName !== undefined) {
+        const sanitized = checkSanitize(middleName, 'middleName')
+        if (sanitized === null) {
+          return respond.error(res, 400, 'validation_error', 'Invalid input: SQL injection or XSS attempt detected')
+        }
+        const val = (sanitized ?? '').toString().trim()
+        if (val !== (doc.middleName || '')) {
+          oldValues.middleName = doc.middleName
+          doc.middleName = val
+          changes.push('middleName')
+        }
+      }
+      if (suffix !== undefined) {
+        const sanitized = checkSanitize(suffix, 'suffix')
+        if (sanitized === null) {
+          return respond.error(res, 400, 'validation_error', 'Invalid input: SQL injection or XSS attempt detected')
+        }
+        const valS = (sanitized ?? '').toString().trim()
+        if (valS !== (doc.suffix || '')) {
+          oldValues.suffix = doc.suffix
+          doc.suffix = valS
+          changes.push('suffix')
+        }
+      }
+      if (sex !== undefined) {
+        const val = sex === null || sex === '' ? '' : sex
+        if (val !== (doc.sex || '')) {
+          oldValues.sex = doc.sex
+          doc.sex = val
+          changes.push('sex')
+        }
+      }
       if (dateOfBirth !== undefined) {
         const dob = new Date(dateOfBirth)
         if (dob.getTime() !== doc.dateOfBirth?.getTime()) {
@@ -220,10 +228,8 @@ router.patch(
 
       await doc.save()
 
-      // Create audit log
       const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
       const userAgent = req.headers['user-agent'] || 'unknown'
-      // Use first field for fieldChanged (enum constraint), full list in metadata
       const primaryField = changes[0] || 'firstName'
       await createAuditLog(
         doc._id,
@@ -247,7 +253,10 @@ router.patch(
         role: roleSlug,
         firstName: doc.firstName,
         lastName: doc.lastName,
+        middleName: doc.middleName,
+        suffix: doc.suffix,
         email: doc.email,
+        sex: doc.sex,
         dateOfBirth: doc.dateOfBirth,
       }
 

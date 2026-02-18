@@ -1,21 +1,44 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Table, Button, Modal, Form, Input, InputNumber, Select, Spin, Alert, Empty, Space, Popconfirm, message, Typography } from 'antd'
-import { DollarOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { useSearchParams } from 'react-router-dom'
+import { Button, Spin, Alert, Grid, Tabs, Typography, Modal } from 'antd'
+import { DollarOutlined, PlusOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import AdminLayout from '../components/AdminLayout.jsx'
 import { get, post, put, del } from '@/lib/http.js'
 import { useNotifier } from '@/shared/notifications.js'
-import { LINE_OF_BUSINESS } from '@/constants/lineOfBusiness.js'
+import FeeConfigurationDesktopView from './feeConfiguration/FeeConfigurationDesktopView'
+import FeeConfigOverview from './feeConfiguration/FeeConfigOverview'
+import FeeByLobTab from './feeConfiguration/FeeByLobTab'
+import PenaltyConfigForm from './feeConfiguration/PenaltyConfigForm'
+import FeeConfigLogsTab from './feeConfiguration/FeeConfigLogsTab'
+import SpecialFeesTab from './feeConfiguration/SpecialFeesTab'
 
 const { Text } = Typography
 
+const TAB_ITEMS = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'fee-by-lob', label: 'Fee by Line of Business' },
+  { key: 'special-fees', label: 'Special fees' },
+  { key: 'penalty', label: 'Penalty & Surcharge' },
+  { key: 'logs', label: 'History' },
+]
+
 export default function AdminFeeConfiguration() {
+  const [searchParams] = useSearchParams()
+  const screens = Grid.useBreakpoint()
+  const isMobile = !screens.md
+  const [tabKey, setTabKey] = useState('overview')
+  const [infoOpen, setInfoOpen] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState(null)
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab === 'penalty') setTabKey('penalty')
+  }, [searchParams])
   const [loading, setLoading] = useState(true)
   const [configs, setConfigs] = useState([])
   const [error, setError] = useState(null)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editingId, setEditingId] = useState(null)
   const [saving, setSaving] = useState(false)
-  const [form] = Form.useForm()
+  const [selectedFeeConfigId, setSelectedFeeConfigId] = useState(null)
   const { success, error: notifyError } = useNotifier()
 
   const fetchConfigs = useCallback(async () => {
@@ -24,6 +47,7 @@ export default function AdminFeeConfiguration() {
       setError(null)
       const res = await get('/api/business/admin/fee-configuration')
       setConfigs(res?.data || [])
+      setLastUpdated(new Date())
     } catch (err) {
       setError(err?.message || 'Failed to load fee configurations')
     } finally {
@@ -31,92 +55,97 @@ export default function AdminFeeConfiguration() {
     }
   }, [])
 
-  useEffect(() => { fetchConfigs() }, [fetchConfigs])
+  useEffect(() => {
+    fetchConfigs()
+  }, [fetchConfigs])
 
-  const handleSave = useCallback(async (values) => {
-    try {
-      setSaving(true)
-      const payload = {
-        lineOfBusiness: values.lineOfBusiness,
-        mayorsPermitFee: values.mayorsPermitFee,
-        businessTaxCategory: values.businessTaxCategory || '',
-        brackets: values.brackets || [],
+  const handleSave = useCallback(
+    async (id, payload) => {
+      try {
+        setSaving(true)
+        if (id) {
+          await put(`/api/business/admin/fee-configuration/${id}`, payload)
+        } else {
+          const res = await post('/api/business/admin/fee-configuration', payload)
+          if (res?.data?._id) setSelectedFeeConfigId(res.data._id)
+        }
+        success('Fee configuration saved')
+        await fetchConfigs()
+        if (id) setSelectedFeeConfigId(id)
+      } catch (err) {
+        notifyError(err, 'Failed to save fee configuration')
+      } finally {
+        setSaving(false)
       }
-      if (editingId) {
-        await put(`/api/business/admin/fee-configuration/${editingId}`, payload)
-      } else {
-        await post('/api/business/admin/fee-configuration', payload)
-      }
-      success('Fee configuration saved')
-      setModalOpen(false)
-      form.resetFields()
-      setEditingId(null)
-      fetchConfigs()
-    } catch (err) {
-      notifyError(err, 'Failed to save fee configuration')
-    } finally {
-      setSaving(false)
-    }
-  }, [editingId, form, success, notifyError, fetchConfigs])
-
-  const handleEdit = useCallback((record) => {
-    setEditingId(record._id)
-    form.setFieldsValue({
-      lineOfBusiness: record.lineOfBusiness,
-      mayorsPermitFee: record.mayorsPermitFee,
-      businessTaxCategory: record.businessTaxCategory,
-      brackets: record.brackets || [],
-    })
-    setModalOpen(true)
-  }, [form])
-
-  const handleDelete = useCallback(async (id) => {
-    try {
-      await del(`/api/business/admin/fee-configuration/${id}`)
-      success('Fee configuration deleted')
-      fetchConfigs()
-    } catch (err) {
-      notifyError(err, 'Failed to delete')
-    }
-  }, [success, notifyError, fetchConfigs])
-
-  const columns = [
-    { title: 'Line of Business', dataIndex: 'lineOfBusiness', key: 'lineOfBusiness' },
-    {
-      title: "Mayor's Permit Fee",
-      dataIndex: 'mayorsPermitFee',
-      key: 'mayorsPermitFee',
-      render: (v) => v != null ? `₱${Number(v).toLocaleString()}` : '-',
     },
-    {
-      title: 'Tax Brackets',
-      dataIndex: 'brackets',
-      key: 'brackets',
-      render: (brackets) => brackets?.length ? `${brackets.length} bracket(s)` : 'None',
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_, record) => (
-        <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>Edit</Button>
-          <Popconfirm title="Delete this configuration?" onConfirm={() => handleDelete(record._id)}>
-            <Button size="small" danger icon={<DeleteOutlined />}>Delete</Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ]
-
-  const headerActions = (
-    <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingId(null); form.resetFields(); setModalOpen(true) }}>
-      Add Line of Business
-    </Button>
+    [success, notifyError, fetchConfigs]
   )
 
-  if (loading) {
+  const handleDelete = useCallback(
+    async (id) => {
+      try {
+        await del(`/api/business/admin/fee-configuration/${id}`)
+        success('Fee configuration deleted')
+        setSelectedFeeConfigId(null)
+        await fetchConfigs()
+      } catch (err) {
+        notifyError(err, 'Failed to delete')
+      }
+    },
+    [success, notifyError, fetchConfigs]
+  )
+
+  const handleAddLob = useCallback(() => {
+    setSelectedFeeConfigId('new')
+  }, [])
+
+  const selectedConfig =
+    selectedFeeConfigId === 'new'
+      ? { _id: null }
+      : configs.find((c) => (c._id || c.id) === selectedFeeConfigId) || null
+
+  const tabChildren = {
+    overview: <FeeConfigOverview configs={configs} />,
+    'fee-by-lob': (
+      <FeeByLobTab
+        configs={configs}
+        loading={loading}
+        onRefresh={fetchConfigs}
+        onAdd={handleAddLob}
+        onSave={handleSave}
+        onDelete={handleDelete}
+        saving={saving}
+        selectedConfigId={selectedFeeConfigId}
+        setSelectedConfigId={setSelectedFeeConfigId}
+      />
+    ),
+    'special-fees': <SpecialFeesTab />,
+    penalty: <PenaltyConfigForm />,
+    logs: <FeeConfigLogsTab />,
+  }
+
+  const desktopHeaderActions =
+    tabKey === 'fee-by-lob' ? (
+      <Button type="primary" icon={<PlusOutlined />} onClick={handleAddLob}>
+        Add Line of Business
+      </Button>
+    ) : null
+
+  const mainHeaderActions = (
+    <>
+      {lastUpdated && (
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          Last updated: {lastUpdated.toLocaleTimeString()}
+        </Text>
+      )}
+      <Button icon={<ReloadOutlined />} onClick={fetchConfigs} loading={loading} aria-label="Refresh" />
+      <Button icon={<InfoCircleOutlined />} onClick={() => setInfoOpen(true)} aria-label="About" />
+    </>
+  )
+
+  if (loading && !configs.length) {
     return (
-      <AdminLayout pageTitle="Fee Configuration" pageIcon={<DollarOutlined />}>
+      <AdminLayout pageTitle="Fee Configuration" pageIcon={<DollarOutlined />} headerActions={mainHeaderActions}>
         <div style={{ display: 'flex', justifyContent: 'center', padding: 64 }}>
           <Spin tip="Loading fee configurations..." />
         </div>
@@ -124,89 +153,80 @@ export default function AdminFeeConfiguration() {
     )
   }
 
-  return (
-    <AdminLayout pageTitle="Fee Configuration" pageIcon={<DollarOutlined />} headerActions={headerActions}>
-      <div style={{ padding: 16 }}>
-        <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          Configure the mayor's permit fee and business tax brackets per line of business.
-        </Text>
-
+  if (isMobile) {
+    return (
+      <AdminLayout pageTitle="Fee Configuration" pageIcon={<DollarOutlined />} headerActions={mainHeaderActions}>
         {error ? (
           <Alert type="error" message={error} action={<Button onClick={fetchConfigs}>Retry</Button>} />
         ) : (
-          <Table
-            aria-label="Fee configurations"
-            dataSource={configs}
-            columns={columns}
-            rowKey={(r) => r._id || r.id}
-            locale={{ emptyText: <Empty description="No fee configuration. Add your first line of business." /> }}
-            scroll={{ x: 'max-content' }}
+          <Tabs
+            activeKey={tabKey}
+            onChange={setTabKey}
+            items={TAB_ITEMS.map(({ key, label }) => ({ key, label, children: tabChildren[key] }))}
           />
         )}
-      </div>
+        <FeeConfigInfoModal open={infoOpen} onClose={() => setInfoOpen(false)} />
+      </AdminLayout>
+    )
+  }
 
-      <Modal
-        title={editingId ? 'Edit Fee Configuration' : 'Add Fee Configuration'}
-        open={modalOpen}
-        onCancel={() => { setModalOpen(false); form.resetFields(); setEditingId(null) }}
-        footer={null}
-        destroyOnClose
-      >
-        <Form form={form} layout="vertical" onFinish={handleSave}>
-          <Form.Item name="lineOfBusiness" label="Line of Business" rules={[{ required: true, message: 'Required' }]}>
-            <Select
-              showSearch
-              allowClear
-              placeholder="Select line of business"
-              optionFilterProp="label"
-              options={[
-                ...LINE_OF_BUSINESS.map((lob) => ({
-                  value: lob.lineOfBusiness,
-                  label: `${lob.taxCode} — ${lob.label}`,
-                })),
-                { value: '__custom__', label: 'Custom' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item name="mayorsPermitFee" label="Mayor's Permit Fee (₱)" rules={[{ required: true, message: 'Required' }]}>
-            <InputNumber min={0} style={{ width: '100%' }} placeholder="e.g. 500" />
-          </Form.Item>
-          <Form.Item name="businessTaxCategory" label="Business Tax Category">
-            <Input placeholder="e.g. Section 143(a)" />
-          </Form.Item>
-
-          <Text strong style={{ display: 'block', marginBottom: 8 }}>Tax Brackets</Text>
-          <Form.List name="brackets">
-            {(fields, { add, remove }) => (
-              <>
-                {fields.map(({ key, name, ...restField }) => (
-                  <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
-                    <Form.Item {...restField} name={[name, 'min']} rules={[{ required: true, message: 'Min' }]}>
-                      <InputNumber placeholder="Min" min={0} style={{ width: 120 }} />
-                    </Form.Item>
-                    <Form.Item {...restField} name={[name, 'max']} rules={[{ required: true, message: 'Max' }]}>
-                      <InputNumber placeholder="Max" min={0} style={{ width: 120 }} />
-                    </Form.Item>
-                    <Form.Item {...restField} name={[name, 'rate']} rules={[{ required: true, message: 'Rate' }]}>
-                      <InputNumber placeholder="Rate %" min={0} max={100} step={0.001} style={{ width: 120 }} />
-                    </Form.Item>
-                    <Button danger onClick={() => remove(name)}>Remove</Button>
-                  </Space>
-                ))}
-                <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                  Add Bracket
-                </Button>
-              </>
-            )}
-          </Form.List>
-
-          <Form.Item style={{ marginTop: 16 }}>
-            <Button type="primary" htmlType="submit" loading={saving} block>
-              {editingId ? 'Update' : 'Create'}
-            </Button>
-          </Form.Item>
-        </Form>
-      </Modal>
+  return (
+    <AdminLayout pageTitle="Fee Configuration" pageIcon={<DollarOutlined />} headerActions={mainHeaderActions}>
+      {error && (
+        <Alert
+          type="error"
+          message={error}
+          action={<Button onClick={fetchConfigs}>Retry</Button>}
+          style={{ marginBottom: 16 }}
+        />
+      )}
+      <FeeConfigurationDesktopView
+        tabKey={tabKey}
+        setTabKey={setTabKey}
+        tabChildren={tabChildren}
+        headerActions={desktopHeaderActions}
+      />
+      <FeeConfigInfoModal open={infoOpen} onClose={() => setInfoOpen(false)} />
     </AdminLayout>
+  )
+}
+
+function FeeConfigInfoModal({ open, onClose }) {
+  return (
+    <Modal
+      title="Fee Configuration"
+      open={open}
+      onCancel={onClose}
+      footer={[<Button key="close" onClick={onClose}>Close</Button>]}
+      width={560}
+    >
+      <p>
+        This page configures all fees used when computing business permit and renewal fees. Values align with the General Trias Citizen&apos;s Charter (OCBPLO 2025) where applicable.
+      </p>
+
+      <p><strong>Overview</strong> — Summary of fee configurations by line of business (LOB) and quick stats.</p>
+
+      <p>
+        <strong>Fee by Line of Business</strong> — Add, edit, or remove LOBs. For each LOB you set the Mayor&apos;s Permit fee, business tax category, and tax brackets (rate, tiered, or fixed amount). Optional Environmental Protection Fee can be set per LOB. These values are used when calculating application and renewal fees.
+      </p>
+
+      <p>
+        <strong>Special fees</strong> — Sanitary Inspection Fee (by floor area in sq.m.) and Fire Safety Inspection Fee (percentage of BPLO fees with a minimum). Edit the area brackets and house-for-rent fee for sanitary, and the rate and minimum for fire safety. Changes apply immediately to new fee calculations.
+      </p>
+
+      <p>
+        <strong>Penalty &amp; Surcharge</strong> — Configure late renewal penalty: surcharge percentage, monthly interest rate, and penalty start day (e.g. January 20). You can reset to charter defaults.
+      </p>
+
+      <p>
+        <strong>History</strong> — View the audit trail of changes to fee configuration (who changed what and when).
+      </p>
+
+      <p>
+        <a href="https://www.generaltrias.gov.ph/storage/pdf_files/Citizen%27s%20Charter%20-%20OCBPLO%202025..pdf" target="_blank" rel="noopener noreferrer">
+          General Trias Citizen&apos;s Charter (OCBPLO 2025)
+        </a>
+      </p>
+    </Modal>
   )
 }

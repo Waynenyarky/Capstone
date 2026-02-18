@@ -24,6 +24,10 @@ function industryScopeFromBusinessTypes(businessTypes) {
   return 'all'
 }
 
+function effectiveIndustryScope(formType, industryScope, businessTypes) {
+  return industryScope || industryScopeFromBusinessTypes(businessTypes)
+}
+
 async function backfill() {
   const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI || ''
   if (!mongoUri) {
@@ -52,7 +56,7 @@ async function backfill() {
         continue
       }
 
-      const industryScope = def.industryScope || industryScopeFromBusinessTypes(def.businessTypes)
+      const industryScope = effectiveIndustryScope(def.formType, def.industryScope, def.businessTypes)
       const key = groupKey(def.formType, industryScope)
 
       let group = groupMap.get(key)
@@ -62,12 +66,13 @@ async function backfill() {
           group = existing
         } else {
           const typeLabels = {
-            registration: 'Business Registration',
-            permit: 'Business Permit',
+            permit: 'Unified Business Permit',
+            general_permit: 'General Permit',
             renewal: 'Business Renewal',
             cessation: 'Cessation',
             violation: 'Violation',
             appeal: 'Appeal',
+            inspections: 'Inspections',
           }
           const displayName = `${typeLabels[def.formType] || def.formType} - ${INDUSTRY_SCOPE_LABELS[industryScope] || industryScope}`
           existing = await FormGroup.create({

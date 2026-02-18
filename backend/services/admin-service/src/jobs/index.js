@@ -8,6 +8,7 @@ const logger = require('../lib/logger')
 // Import job functions
 const finalizeAccountDeletions = require('./finalizeAccountDeletions')
 const sendDeletionReminders = require('./sendDeletionReminders')
+const notifyTamperIncidents = require('./notifyTamperIncidents')
 
 // Try to use node-cron, fallback to setInterval if not available
 let cron = null
@@ -34,6 +35,8 @@ function scheduleJob(cronExpression, jobFunction, description) {
       intervalMs = 24 * 60 * 60 * 1000 // Daily at 2 AM
     } else if (cronExpression === '0 9 * * *') {
       intervalMs = 24 * 60 * 60 * 1000 // Daily at 9 AM
+    } else if (cronExpression === '*/10 * * * *') {
+      intervalMs = 10 * 60 * 1000 // Every 10 minutes
     }
     
     const interval = setInterval(jobFunction, intervalMs)
@@ -72,6 +75,15 @@ function startJobs() {
       logger.error('Error in sendDeletionReminders job', { error })
     }
   }, 'sendDeletionReminders')
+
+  // Notify admins of new tamper incidents (every 10 minutes)
+  scheduleJob('*/10 * * * *', async () => {
+    try {
+      await notifyTamperIncidents()
+    } catch (error) {
+      logger.error('Error in notifyTamperIncidents job', { error })
+    }
+  }, 'notifyTamperIncidents')
 
   logger.info('Admin Service background jobs started successfully')
 }

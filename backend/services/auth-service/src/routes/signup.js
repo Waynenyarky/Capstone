@@ -37,6 +37,8 @@ const pisAddressSchema = Joi.object({
 const signupPayloadSchema = Joi.object({
   firstName: Joi.string().trim().min(1).max(100).required(),
   lastName: Joi.string().trim().min(1).max(100).required(),
+  middleName: Joi.string().trim().max(100).allow('', null),
+  suffix: Joi.string().trim().max(20).allow('', null),
   email: Joi.string().trim().email().custom(emailWithTld, 'require domain TLD').required(),
   phoneNumber: Joi.string().trim().allow('', null),
   password: Joi.string().min(6).max(200).required(), // Min 6 for Joi, actual strength validated separately
@@ -44,6 +46,7 @@ const signupPayloadSchema = Joi.object({
   role: Joi.string().valid(BUSINESS_OWNER_ROLE_SLUG).default(BUSINESS_OWNER_ROLE_SLUG),
   // PIS fields (optional at signup)
   address: pisAddressSchema,
+  sex: Joi.string().valid('male', 'female').allow('', null),
   maritalStatus: Joi.string().valid('single', 'married', 'widowed', 'divorced', 'separated').allow('', null),
   dateOfBirth: Joi.date().iso().max('now').allow(null),
   placeOfBirth: Joi.string().trim().max(200).allow('', null),
@@ -100,6 +103,7 @@ async function checkExistingEmailBeforeLimiter(req, res, next) {
 function extractPisFields(body) {
   const pis = {}
   if (body.address && typeof body.address === 'object') pis.address = body.address
+  if (body.sex) pis.sex = body.sex
   if (body.maritalStatus) pis.maritalStatus = body.maritalStatus
   if (body.dateOfBirth) pis.dateOfBirth = body.dateOfBirth
   if (body.placeOfBirth) pis.placeOfBirth = body.placeOfBirth
@@ -127,6 +131,8 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
     const {
       firstName,
       lastName,
+      middleName,
+      suffix,
       email,
       phoneNumber,
       password,
@@ -154,6 +160,8 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
       role: roleDoc._id,
       firstName,
       lastName,
+      middleName: middleName || '',
+      suffix: suffix || '',
       email: emailKey,
       phoneNumber: phoneNumber || '',
       termsAccepted: !!termsAccepted,
@@ -168,6 +176,9 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
         id: String(doc._id),
         firstName: doc.firstName,
         lastName: doc.lastName,
+        middleName: doc.middleName || '',
+        suffix: doc.suffix || '',
+        sex: doc.sex || '',
         email: doc.email,
         phoneNumber: doc.phoneNumber,
         role: roleSlug,
@@ -224,6 +235,8 @@ router.post('/signup/start', validatePasswordStrengthMiddleware, validateBody(si
     const {
       firstName,
       lastName,
+      middleName,
+      suffix,
       email,
       phoneNumber,
       password,
@@ -243,6 +256,8 @@ router.post('/signup/start', validatePasswordStrengthMiddleware, validateBody(si
     const payload = {
       firstName,
       lastName,
+      middleName: middleName || '',
+      suffix: suffix || '',
       email: emailKey,
       phoneNumber: phoneNumber || '',
       password,
@@ -388,6 +403,8 @@ router.post('/signup/verify', validateBody(verifyCodeSchema), signupVerifyLimite
       role: roleDoc._id,
       firstName: p.firstName,
       lastName: p.lastName,
+      middleName: p.middleName || '',
+      suffix: p.suffix || '',
       email: normalizedEmail,
       phoneNumber: p.phoneNumber || '',
       termsAccepted: !!p.termsAccepted,
@@ -407,6 +424,9 @@ router.post('/signup/verify', validateBody(verifyCodeSchema), signupVerifyLimite
       role: roleSlug,
       firstName: doc.firstName,
       lastName: doc.lastName,
+      middleName: doc.middleName || '',
+      suffix: doc.suffix || '',
+      sex: doc.sex || '',
       email: doc.email,
       phoneNumber: doc.phoneNumber,
       termsAccepted: doc.termsAccepted,

@@ -22,6 +22,8 @@ services:
 
   # Business Service - Development Mode (nodemon for hot-reload)
   business-service:
+    environment:
+      - SEED_FEE_CONFIGURATION=true
     volumes:
       - ./backend/shared:/backend/shared:ro
       - ./backend/services/business-service/src:/backend/services/business-service/src

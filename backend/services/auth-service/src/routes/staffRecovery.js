@@ -13,6 +13,7 @@ const { isWithinOfficeHours } = require('../lib/officeHoursValidator')
 const { trackIP, isUnusualIP } = require('../lib/ipTracker')
 const { createAuditLog } = require('../lib/auditLogger')
 const { sendStaffCredentialsEmail } = require('../lib/mailer')
+const { sendAdminAlert, createInAppNotificationsForAdmins } = require('../lib/notificationService')
 const { isStaffRole } = require('../lib/roleHelpers')
 const { signAccessToken } = require('../middleware/auth')
 
@@ -122,6 +123,37 @@ router.post('/staff/recovery-request', requireJwt, validateBody(recoveryRequestS
         suspiciousActivityDetected: suspiciousActivity,
       }
     )
+
+    // In-app notification for all admins
+    const staffName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email
+    createInAppNotificationsForAdmins(
+      'recovery_request_pending',
+      'Recovery request pending',
+      `Staff ${staffName} requested password recovery. Review the request.`,
+      'system',
+      String(recoveryRequest._id),
+      { userId: String(user._id), office: user.office || '', role: roleSlug }
+    ).catch((err) => console.error('Failed to create recovery-request in-app notifications:', err))
+
+    // Security: alert admins when request is from unusual IP (important only)
+    if (suspiciousActivity) {
+      sendAdminAlert('recovery_from_unusual_ip', {
+        recoveryRequestId: String(recoveryRequest._id),
+        userId: String(user._id),
+        userEmail: user.email,
+        ipAddress,
+        userAgent,
+        message: 'Staff recovery request from unusual IP; verify identity before approving.',
+      }).catch((err) => console.error('Failed to send admin security alert:', err))
+      createInAppNotificationsForAdmins(
+        'security_alert',
+        'Security: recovery from unusual IP',
+        `Recovery request from ${user.email} from an unusual IP. Verify identity before approving.`,
+        'system',
+        String(recoveryRequest._id),
+        { userId: String(user._id), ipAddress }
+      ).catch((err) => console.error('Failed to create security in-app notifications:', err))
+    }
 
     return res.json({
       success: true,

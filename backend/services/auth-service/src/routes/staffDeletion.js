@@ -12,6 +12,7 @@ const { createAuditLog } = require('../lib/auditLogger')
 const { isStaffRole } = require('../lib/roleHelpers')
 const { checkLockout } = require('../lib/accountLockout')
 const securityMonitor = require('../middleware/securityMonitor')
+const { sendAdminAlert, createInAppNotificationsForAdmins } = require('../lib/notificationService')
 
 const router = express.Router()
 
@@ -97,6 +98,36 @@ router.post('/staff/request-deletion', requireJwt, validateBody(staffDeletionReq
         suspiciousActivityDetected: suspiciousActivity,
       }
     )
+
+    // In-app notification for all admins
+    const staffName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email
+    createInAppNotificationsForAdmins(
+      'deletion_request_pending',
+      'Staff deletion request pending',
+      `Staff ${staffName} requested account deletion. Review the request.`,
+      'system',
+      String(user._id),
+      { userId: String(user._id), office: user.office || '', role: roleSlug }
+    ).catch((err) => console.error('Failed to create deletion-request in-app notifications:', err))
+
+    // Security: alert admins when request is from unusual IP (important only)
+    if (suspiciousActivity) {
+      sendAdminAlert('deletion_from_unusual_ip', {
+        userId: String(user._id),
+        userEmail: user.email,
+        ipAddress,
+        userAgent,
+        message: 'Staff deletion request from unusual IP; verify identity before approving.',
+      }).catch((err) => console.error('Failed to send admin security alert:', err))
+      createInAppNotificationsForAdmins(
+        'security_alert',
+        'Security: deletion request from unusual IP',
+        `Deletion request from ${user.email} from an unusual IP. Verify identity before approving.`,
+        'system',
+        String(user._id),
+        { userId: String(user._id), ipAddress }
+      ).catch((err) => console.error('Failed to create security in-app notifications:', err))
+    }
 
     return res.json({
       success: true,

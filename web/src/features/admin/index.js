@@ -7,10 +7,12 @@ export * from './components/index.js'
 export { default as AdminDashboard } from './pages/AdminDashboard'
 export { default as AdminUsers } from './pages/AdminUsers'
 export { default as AdminMaintenance } from './pages/AdminMaintenance'
-export { default as AdminLGUs } from './pages/AdminLGUs'
 export { default as AdminFormDefinitions } from './pages/AdminFormDefinitions'
 export { default as AdminFormGroupDetail } from './pages/AdminFormGroupDetail'
 export { default as AdminFormDefinitionEditor } from './pages/AdminFormDefinitionEditor'
+export { default as AdminAuditTamper } from './pages/AdminAuditTamper'
+export { default as AdminRequests } from './pages/AdminRequests'
+export { default as AdminFinance } from './pages/AdminFinance'
 
 // Notes:
 // - Users expose their own barrels.

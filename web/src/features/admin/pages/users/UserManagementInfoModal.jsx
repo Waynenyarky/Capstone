@@ -19,7 +19,7 @@ const InfoContent = () => (
         <li><Text><strong>Staff by Office & Role</strong> – Browse staff by office. Select an office to see its employees, then click a row to open their detail in Staff Accounts.</Text></li>
         <li><Text><strong>Admins</strong> – View and manage admin accounts. Password reset and disable requests require approval from other administrators.</Text></li>
         <li><Text><strong>Business Owners</strong> – View all registered business owners</Text></li>
-        <li><Text><strong>Logs</strong> – View all admin actions across every user. Search by name or email, filter by action type and date range, and click a row for full details.</Text></li>
+        <li><Text><strong>History</strong> – View all admin actions across every user. Search by name or email, filter by action type and date range, and click a row for full details.</Text></li>
       </ul>
     </div>
 

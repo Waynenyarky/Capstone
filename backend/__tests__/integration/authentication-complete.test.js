@@ -323,6 +323,48 @@ describe('Authentication Complete Integration Tests', () => {
   })
 
   describe('Signup Flow', () => {
+    describe('POST /api/auth/signup (single-step with PIS fields)', () => {
+      it('should create user with middleName, suffix, sex and return them in profile', async () => {
+        const email = generateUniqueEmail('signup_pis')
+        const signupRes = await request(app)
+          .post('/api/auth/signup')
+          .send({
+            firstName: 'Jane',
+            lastName: 'Doe',
+            middleName: 'Maria',
+            suffix: 'Jr.',
+            email,
+            password: 'StrongPassword123!@#',
+            termsAccepted: true,
+            role: 'business_owner',
+            sex: 'female',
+          })
+
+        expect(signupRes.status).toBe(201)
+        expect(signupRes.body.user).toBeDefined()
+        expect(signupRes.body.user.firstName).toBe('Jane')
+        expect(signupRes.body.user.lastName).toBe('Doe')
+        expect(signupRes.body.user.middleName).toBe('Maria')
+        expect(signupRes.body.user.suffix).toBe('Jr.')
+        expect(signupRes.body.user.sex).toBe('female')
+        expect(signupRes.body.user.token).toBeDefined()
+
+        const profileRes = await request(app)
+          .get('/api/auth/profile')
+          .set('Authorization', `Bearer ${signupRes.body.user.token}`)
+
+        expect(profileRes.status).toBe(200)
+        expect(profileRes.body.middleName).toBe('Maria')
+        expect(profileRes.body.suffix).toBe('Jr.')
+        expect(profileRes.body.sex).toBe('female')
+
+        const userInDb = await User.findOne({ email }).lean()
+        expect(userInDb.middleName).toBe('Maria')
+        expect(userInDb.suffix).toBe('Jr.')
+        expect(userInDb.sex).toBe('female')
+      })
+    })
+
     describe('POST /api/auth/signup/start', () => {
       it('should accept valid signup request', async () => {
         const email = generateUniqueEmail('signup')

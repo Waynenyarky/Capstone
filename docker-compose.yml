@@ -148,6 +148,7 @@ services:
       - IPFS_GATEWAY_URL=${DOCKER_IPFS_GATEWAY_URL}
       - AUDIT_SERVICE_URL=${DOCKER_AUDIT_SERVICE_URL}
       - AUTH_SERVICE_URL=${DOCKER_AUTH_SERVICE_URL}
+      - SEED_FEE_CONFIGURATION=true
     volumes:
       - contract_addresses:/app/contract-addresses:ro
     restart: unless-stopped

@@ -19,14 +19,14 @@ const NotificationHistoryPage = lazy(() => import("@/features/user/pages/Notific
 const AdminDashboard = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminDashboard })))
 const AdminUsers = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminUsers })))
 const AdminMaintenance = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminMaintenance })))
-const AdminLGUs = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminLGUs })))
 const AdminFormDefinitions = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminFormDefinitions })))
 const AdminFormGroupDetail = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminFormGroupDetail })))
 const AdminFormDefinitionEditor = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminFormDefinitionEditor })))
+const AdminAuditTamper = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminAuditTamper })))
+const AdminRequests = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminRequests })))
+const AdminFinance = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminFinance })))
 // Phase 2 admin pages
-const AdminPenaltyConfig = lazy(() => import("@/features/admin/pages/AdminPenaltyConfig.jsx"))
 const AdminFeeConfiguration = lazy(() => import("@/features/admin/pages/AdminFeeConfiguration.jsx"))
-const AdminGeneralPermitConfig = lazy(() => import("@/features/admin/pages/AdminGeneralPermitConfig.jsx"))
 const AdminActivityDashboard = lazy(() => import("@/features/admin/pages/AdminActivityDashboard.jsx"))
 const BusinessOwnerDashboard = lazy(() => import("@/features/business-owner").then(m => ({ default: m.BusinessOwnerDashboard })))
 const PermitApplicationPage = lazy(() => import("@/features/business-owner/features/permits/pages/PermitApplicationPage.jsx"))
@@ -92,14 +92,15 @@ function App() {
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="users" element={<AdminUsers />} />
+        <Route path="requests" element={<AdminRequests />} />
         <Route path="maintenance" element={<AdminMaintenance />} />
-        <Route path="lgus" element={<AdminLGUs />} />
         <Route path="form-definitions" element={<AdminFormDefinitions />} />
         <Route path="form-definitions/group/:groupId" element={<AdminFormGroupDetail />} />
         <Route path="form-definitions/:id" element={<AdminFormDefinitionEditor />} />
-        <Route path="penalty-configuration" element={<AdminPenaltyConfig />} />
+        <Route path="penalty-configuration" element={<Navigate to="/admin/fee-configuration?tab=penalty" replace />} />
         <Route path="fee-configuration" element={<AdminFeeConfiguration />} />
-        <Route path="general-permit-config" element={<AdminGeneralPermitConfig />} />
+        <Route path="finance" element={<AdminFinance />} />
+        <Route path="audit-tamper" element={<AdminAuditTamper />} />
         <Route path="activity" element={<AdminActivityDashboard />} />
       </Route>
 

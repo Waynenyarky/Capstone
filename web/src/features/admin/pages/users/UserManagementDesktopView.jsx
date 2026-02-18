@@ -3,21 +3,23 @@ import { Typography, theme } from 'antd'
 import { DashboardOutlined, TeamOutlined, UserOutlined, SafetyCertificateOutlined, ApartmentOutlined, FileTextOutlined } from '@ant-design/icons'
 const { Text } = Typography
 
-const NAV_ITEMS = [
-  { key: 'overview', label: 'Overview', icon: DashboardOutlined },
-  { key: 'office-role', label: 'Staff by Office & Role', icon: ApartmentOutlined },
-  { key: 'staff', label: 'Staff Accounts', icon: TeamOutlined },
-  { key: 'admins', label: 'Admins', icon: SafetyCertificateOutlined },
-  { key: 'business', label: 'Business Owners', icon: UserOutlined },
-  { key: 'logs', label: 'Logs', icon: FileTextOutlined },
-]
+const KEY_TO_ICON = {
+  overview: DashboardOutlined,
+  'office-role': ApartmentOutlined,
+  staff: TeamOutlined,
+  admins: SafetyCertificateOutlined,
+  business: UserOutlined,
+  logs: FileTextOutlined,
+}
 
 export default function UserManagementDesktopView({
   tabKey,
   setTabKey,
+  tabItems = [],
   tabChildren,
   headerActions,
 }) {
+  const navItems = tabItems.map(({ key, label }) => ({ key, label, icon: KEY_TO_ICON[key] || FileTextOutlined }))
   const { token } = theme.useToken()
 
   const renderNavItem = ({ key, label, icon: Icon }, isSelected) => (
@@ -72,8 +74,8 @@ export default function UserManagementDesktopView({
     </div>
   )
 
-  const selectedLabel = NAV_ITEMS.find((i) => i.key === tabKey)?.label ?? tabKey
-  const SelectedIcon = NAV_ITEMS.find((i) => i.key === tabKey)?.icon
+  const selectedLabel = navItems.find((i) => i.key === tabKey)?.label ?? tabKey
+  const SelectedIcon = navItems.find((i) => i.key === tabKey)?.icon
 
   return (
     <div
@@ -97,7 +99,7 @@ export default function UserManagementDesktopView({
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {NAV_ITEMS.map((item) => renderNavItem(item, tabKey === item.key))}
+          {navItems.map((item) => renderNavItem(item, tabKey === item.key))}
         </div>
       </div>
 

@@ -24,7 +24,7 @@ const SYSTEM_USER_ID = new mongoose.Types.ObjectId('000000000000000000000001')
 
 // ─── Helper: create a requirement item with full field type info ────
 function item(label, type = 'file', opts = {}) {
-  return {
+  const base = {
     label,
     type,
     key: opts.key || '',
@@ -36,143 +36,20 @@ function item(label, type = 'file', opts = {}) {
     validation: opts.validation || {},
     dropdownSource: opts.dropdownSource || 'static',
     dropdownOptions: opts.dropdownOptions || [],
-    ...(type === 'download' ? {
-      downloadFileName: opts.downloadFileName || '',
-      downloadFileSize: opts.downloadFileSize || 0,
-      downloadFileType: opts.downloadFileType || 'pdf',
-      downloadFileUrl: opts.downloadFileUrl || '',
-    } : {}),
   }
+  if (type === 'download') {
+    base.downloadFileName = opts.downloadFileName || ''
+    base.downloadFileSize = opts.downloadFileSize || 0
+    base.downloadFileType = opts.downloadFileType || 'pdf'
+    base.downloadFileUrl = opts.downloadFileUrl || ''
+  }
+  if (type === 'repeatable_group') {
+    base.groupFields = opts.groupFields || []
+    base.minRows = opts.minRows ?? 1
+    base.maxRows = opts.maxRows ?? 20
+  }
+  return base
 }
-
-// ─── GLOBAL Registration Requirements (applicable to ALL industries) ──────
-const globalRegistrationSections = [
-  {
-    category: 'Local Government Unit (LGU)',
-    source: 'BPLO',
-    notes: 'Requirements from the Business Permits and Licensing Office',
-    items: [
-      item('Duly accomplished application form', 'download', {
-        helpText: 'Download this form, fill it out, then upload the completed version',
-        downloadFileName: 'business-permit-application.pdf',
-        downloadFileSize: 245760,
-        downloadFileType: 'pdf',
-        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
-      }),
-      item('Two 2×2 ID photos', 'file', {
-        helpText: 'Recent passport-sized photos with white background',
-        validation: { acceptedFileTypes: 'jpg,png', maxFileSize: 5 },
-      }),
-      item('Valid government-issued IDs of the business owner', 'file', {
-        helpText: 'Upload a clear scan or photo of a valid government-issued ID (e.g. Philippine passport, driver\'s license, SSS UMID, PhilSys national ID)',
-        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
-      }),
-      item('Barangay Business Clearance', 'file', {
-        helpText: 'Obtained from the Barangay Hall where the business is located',
-        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
-      }),
-      item('Occupancy Permit', 'file', {
-        required: false,
-        helpText: 'Required for establishments with physical premises; issued by the Building Official',
-        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
-      }),
-      item('Fire Safety Inspection Certificate (FSIC)', 'file', {
-        helpText: 'Issued by the Bureau of Fire Protection (BFP) after fire safety inspection',
-        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
-      }),
-      item('Community Tax Certificate (CTC / Cedula)', 'file', {
-        helpText: 'Obtainable from City/Municipal Treasurer\'s Office',
-        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
-      }),
-      item('Lease contract or land title', 'file', {
-        required: false,
-        helpText: 'Proof of right to use the business premises (lease, contract of sale, or land title)',
-        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
-      }),
-    ],
-  },
-  {
-    category: 'Bureau of Internal Revenue (BIR)',
-    source: 'BIR',
-    notes: 'Tax registration requirements from the BIR Revenue District Office',
-    items: [
-      item("Mayor's permit or proof of ongoing LGU application", 'file', {
-        helpText: 'Copy of the business permit or official receipt of application',
-        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
-      }),
-      item('DTI / SEC / CDA Certificate of Registration', 'file', {
-        helpText: 'DTI for sole proprietorship, SEC for corporation/partnership, CDA for cooperatives',
-        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
-      }),
-      item('Barangay Clearance', 'file', {
-        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
-      }),
-      item('BIR Form 1901 / 1903 (Registration form)', 'download', {
-        helpText: 'BIR Form 1901 for self-employed / professionals; 1903 for corporations',
-        downloadFileName: 'bir-form-1901.pdf',
-        downloadFileSize: 350000,
-        downloadFileType: 'pdf',
-        validation: { acceptedFileTypes: 'pdf', maxFileSize: 10 },
-      }),
-    ],
-  },
-  {
-    category: 'Business Information',
-    source: '',
-    notes: 'Basic business details collected during registration',
-    items: [
-      item('Registered business name', 'text', {
-        helpText: 'As registered with DTI/SEC/CDA',
-        placeholder: 'Enter registered business name',
-        validation: { minLength: 2, maxLength: 200 },
-      }),
-      item('Business type / industry classification', 'select', {
-        helpText: 'Select the PSIC industry classification',
-        placeholder: 'Select industry',
-        dropdownSource: 'industries',
-      }),
-      item('Business address', 'address', {
-        helpText: 'Philippine address using PSGC standard geographic codes',
-      }),
-      item('Date of establishment', 'date', {
-        span: 12,
-      }),
-      item('Number of employees', 'number', {
-        placeholder: 'e.g. 5',
-        validation: { minValue: 1 },
-        span: 12,
-      }),
-      item('Brief description of business activities', 'textarea', {
-        required: false,
-        helpText: 'Describe the main products or services offered',
-        placeholder: 'Describe your business...',
-        validation: { maxLength: 1000 },
-      }),
-    ],
-  },
-  {
-    category: 'Other Government Agencies',
-    source: '',
-    notes: 'Mandatory employer registrations (if applicable)',
-    items: [
-      item('Social Security System (SSS) Employer Registration', 'file', {
-        required: false,
-        helpText: 'Required if business has employees; SSS Form R-1',
-        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
-      }),
-      item('PhilHealth Employer Registration', 'file', {
-        required: false,
-        helpText: 'Required if business has employees',
-        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
-      }),
-      item('Pag-IBIG Fund Employer Registration', 'file', {
-        required: false,
-        helpText: 'Required if business has employees',
-        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
-      }),
-    ],
-  },
-]
 
 // ─── Global Renewal Requirements ──────────────────────────────────
 const globalRenewalSections = [
@@ -310,35 +187,537 @@ const globalViolationSections = [
   },
 ]
 
-// ─── Global Inspections Requirements (staff/inspector use only) ─────
-const globalInspectionsSections = [
+// ─── Unified Business Permit Form (per BPLO unified form requirement) ─────
+// Based on Alaminos City BPLO unified business permit form and Immediate_Requirements.md.
+// All businesses fill this single form; business activity section drives fee computation.
+// Applicant/owner details come from PIS (account registration); no separate section here.
+const unifiedBusinessPermitSections = [
   {
-    category: 'Inspection Checklist',
+    category: 'Required Documents',
     source: 'BPLO',
-    notes: 'Requirements and checklist items for conducting inspections',
+    notes: 'Supporting documents for the unified business permit application. Applicant/owner details are taken from the PIS (account registration).',
     items: [
-      item('Inspection date', 'date', { span: 12 }),
-      item('Inspector name', 'text', {
-        placeholder: 'Full name of inspector',
-        validation: { minLength: 2, maxLength: 200 },
-        span: 12,
-      }),
-      item('Compliance status', 'select', {
-        helpText: 'Overall compliance result',
-        placeholder: 'Select status',
-        dropdownOptions: ['Compliant', 'Non-compliant', 'Partial', 'Pending'],
-      }),
-      item('Findings / remarks', 'textarea', {
-        required: false,
-        placeholder: 'Inspection findings and remarks',
-        validation: { maxLength: 2000 },
-      }),
-      item('Inspection report or photos', 'file', {
-        key: 'inspectionReport',
-        required: false,
-        helpText: 'Upload inspection report or supporting photos',
+      item('Valid government-issued ID of the business owner', 'file', {
+        key: 'ownerGovernmentId',
+        helpText: 'Upload a clear scan or photo of a valid government-issued ID (e.g. Philippine passport, driver\'s license, SSS UMID, PhilSys national ID). Owner details are from your account.',
         validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
       }),
+      item('Barangay Business Clearance', 'file', {
+        key: 'barangayClearance',
+        helpText: 'Obtained from the Barangay Hall where the business is located',
+        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
+      }),
+      item('DTI / SEC / CDA Certificate of Registration', 'file', {
+        key: 'dtiSecCdaCertificate',
+        helpText: 'DTI for sole proprietorship, SEC for corporation/partnership, CDA for cooperatives',
+        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
+      }),
+      item('Lease contract or land title', 'file', {
+        key: 'leaseContractOrTitle',
+        required: false,
+        helpText: 'Proof of right to use the business premises (lease, contract of sale, or land title). Required if property is leased.',
+        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
+      }),
+      item('Community Tax Certificate (CTC / Cedula)', 'file', {
+        key: 'ctcCedula',
+        helpText: 'Obtainable from City/Municipal Treasurer\'s Office',
+        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
+      }),
+      item('Occupancy Permit', 'file', {
+        key: 'occupancyPermit',
+        required: false,
+        helpText: 'Required for establishments with physical premises; issued by the Building Official',
+        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
+      }),
+    ],
+  },
+  {
+    category: 'Business Information',
+    source: 'BPLO',
+    notes: 'Details about the business being registered or permitted',
+    items: [
+      item('Business / trade name', 'text', {
+        key: 'businessName',
+        helpText: 'As registered with DTI/SEC/CDA',
+        placeholder: 'Enter business name',
+        validation: { minLength: 2, maxLength: 200 },
+      }),
+      item('Business address', 'address', {
+        key: 'businessAddress',
+        helpText: 'Physical location of the business',
+      }),
+      item('Business telephone / mobile number', 'text', {
+        key: 'businessPhone',
+        required: false,
+        placeholder: 'e.g. 09171234567',
+        validation: { maxLength: 15 },
+        span: 12,
+      }),
+      item('Business email', 'text', {
+        key: 'businessEmail',
+        required: false,
+        placeholder: 'e.g. business@example.com',
+        validation: { maxLength: 200 },
+        span: 12,
+      }),
+      item('Business area (sq. m.)', 'number', {
+        key: 'businessArea',
+        required: false,
+        placeholder: 'e.g. 50',
+        helpText: 'Total floor area in square meters',
+        validation: { minValue: 0 },
+        span: 12,
+      }),
+      item('Number of employees (male)', 'number', {
+        key: 'employeesMale',
+        required: false,
+        placeholder: '0',
+        validation: { minValue: 0 },
+        span: 6,
+      }),
+      item('Number of employees (female)', 'number', {
+        key: 'employeesFemale',
+        required: false,
+        placeholder: '0',
+        validation: { minValue: 0 },
+        span: 6,
+      }),
+      item('Total number of employees', 'number', {
+        key: 'employeesTotal',
+        placeholder: '0',
+        validation: { minValue: 0 },
+        span: 12,
+      }),
+      item('DTI / SEC / CDA registration number', 'text', {
+        key: 'dtiSecCdaNumber',
+        placeholder: 'Enter registration number',
+        validation: { minLength: 1, maxLength: 100 },
+        span: 12,
+      }),
+      item('Date of registration', 'date', {
+        key: 'registrationDate',
+        span: 12,
+      }),
+      item('TIN (Tax Identification Number)', 'text', {
+        key: 'tin',
+        placeholder: 'e.g. 123-456-789-000',
+        validation: { minLength: 9, maxLength: 20 },
+        span: 12,
+      }),
+      item('Type of organization', 'select', {
+        key: 'organizationType',
+        placeholder: 'Select type',
+        dropdownOptions: ['Sole Proprietorship', 'Partnership', 'Corporation', 'Cooperative', 'Others'],
+        span: 12,
+      }),
+    ],
+  },
+  {
+    category: 'Business Activity',
+    source: 'BPLO',
+    notes: 'Tax code, line of business, and detailed line of business. These determine the fees the business must pay. Add one row per business activity.',
+    items: [
+      item('Business activities', 'repeatable_group', {
+        key: 'businessActivities',
+        helpText: 'Add one row for each business activity. Click "Add row" to add more.',
+        groupFields: [
+          {
+            label: 'Tax code',
+            type: 'select',
+            key: 'taxCode',
+            required: true,
+            placeholder: 'Select tax code',
+            helpText: 'Each code corresponds to a line of business category',
+            span: 8,
+            validation: {},
+            dropdownSource: 'static',
+            dropdownOptions: ['RET', 'WHL', 'FDS', 'MFG', 'SVC', 'FIN', 'RES', 'TRN', 'AGR', 'CON', 'MIN', 'UTL'],
+          },
+          {
+            label: 'Line of business',
+            type: 'select',
+            key: 'lineOfBusiness',
+            required: true,
+            placeholder: 'Select line of business',
+            helpText: 'The broad business category',
+            span: 8,
+            validation: {},
+            dropdownSource: 'static',
+            dropdownOptions: ['Retail', 'Wholesale', 'Food Service', 'Manufacturing', 'Services', 'Financial', 'Real Estate', 'Transportation', 'Agriculture', 'Construction', 'Mining', 'Utilities'],
+          },
+          {
+            label: 'Detailed line of business',
+            type: 'select',
+            key: 'detailedLineOfBusiness',
+            required: true,
+            placeholder: 'Select detailed activity',
+            helpText: 'e.g. Sari-sari store, Restaurant, Salon',
+            span: 8,
+            validation: {},
+            dropdownSource: 'static',
+            dropdownOptions: [],
+          },
+        ],
+        minRows: 1,
+        maxRows: 20,
+      }),
+    ],
+  },
+  {
+    category: 'Ownership / Lease Information',
+    source: 'BPLO',
+    notes: 'Whether the business owner owns or leases the property',
+    items: [
+      item('Property ownership status', 'select', {
+        key: 'propertyOwnership',
+        helpText: 'Does the business owner own or lease the business premises?',
+        placeholder: 'Select',
+        dropdownOptions: ['Owned', 'Leased / Rented'],
+        span: 12,
+      }),
+      item('Monthly rental (if leased)', 'number', {
+        key: 'monthlyRental',
+        required: false,
+        placeholder: '0.00',
+        helpText: 'Monthly rental amount in pesos (required if property is leased)',
+        validation: { minValue: 0 },
+        span: 12,
+      }),
+      item('Lessor name', 'text', {
+        key: 'lessorName',
+        required: false,
+        placeholder: 'Full name of lessor / property owner',
+        helpText: 'Required if property is leased',
+        validation: { maxLength: 200 },
+        span: 12,
+      }),
+      item('Lessor address', 'address', {
+        key: 'lessorAddress',
+        required: false,
+        helpText: 'Address of the lessor / property owner (required if leased)',
+      }),
+    ],
+  },
+  {
+    category: 'Capital (Initial)',
+    source: 'BPLO',
+    notes: 'Building and list of machineries, equipment, and delivery vehicles used in the business.',
+    items: [
+      item('Building', 'number', {
+        key: 'building',
+        required: false,
+        placeholder: '0.00',
+        helpText: 'Declared value of building/structure in pesos',
+        validation: { minValue: 0 },
+        span: 12,
+      }),
+      item('Machineries / equipment / vehicles', 'repeatable_group', {
+        key: 'machineriesEquipmentVehicles',
+        helpText: 'Add one row for each machinery, equipment, or delivery vehicle. Click "Add row" to add more.',
+        required: false,
+        groupFields: [
+          {
+            label: 'Name / description',
+            type: 'text',
+            key: 'name',
+            required: true,
+            placeholder: 'e.g. Delivery truck, Generator, Oven',
+            helpText: 'Name or description of the machinery/equipment/vehicle',
+            span: 8,
+            validation: { minLength: 1, maxLength: 200 },
+            dropdownSource: 'static',
+            dropdownOptions: [],
+          },
+          {
+            label: 'Type',
+            type: 'select',
+            key: 'type',
+            required: true,
+            placeholder: 'Select type',
+            helpText: '',
+            span: 8,
+            validation: {},
+            dropdownSource: 'static',
+            dropdownOptions: ['Machinery', 'Equipment', 'Delivery Vehicle', 'Other'],
+          },
+          {
+            label: 'Quantity',
+            type: 'number',
+            key: 'quantity',
+            required: true,
+            placeholder: '1',
+            helpText: '',
+            span: 8,
+            validation: { minValue: 1 },
+            dropdownSource: 'static',
+            dropdownOptions: [],
+          },
+        ],
+        minRows: 0,
+        maxRows: 50,
+      }),
+    ],
+  },
+  {
+    category: 'Operating Capital',
+    source: 'BPLO',
+    notes: 'Owner must declare equity and payables for the business.',
+    items: [
+      item('Equity', 'number', {
+        key: 'operatingCapitalEquity',
+        required: false,
+        placeholder: '0.00',
+        helpText: 'Declared equity in pesos',
+        validation: { minValue: 0 },
+        span: 12,
+      }),
+      item('Payable', 'number', {
+        key: 'operatingCapitalPayable',
+        required: false,
+        placeholder: '0.00',
+        helpText: 'Declared payables in pesos',
+        validation: { minValue: 0 },
+        span: 12,
+      }),
+    ],
+  },
+  {
+    category: 'Accreditation / License',
+    source: 'BPLO',
+    notes: 'List any accreditations, licenses, or special permits held by the business from government agencies.',
+    items: [
+      item('Accreditations / licenses', 'repeatable_group', {
+        key: 'accreditationsLicenses',
+        helpText: 'Add one row for each accreditation or license. Click "Add row" to add more.',
+        required: false,
+        groupFields: [
+          {
+            label: 'Issuing agency',
+            type: 'text',
+            key: 'issuingAgency',
+            required: true,
+            placeholder: 'e.g. DOH, FDA, DENR, PRC',
+            helpText: 'Government agency that issued the accreditation or license',
+            span: 8,
+            validation: { minLength: 1, maxLength: 200 },
+            dropdownSource: 'static',
+            dropdownOptions: [],
+          },
+          {
+            label: 'License / accreditation type',
+            type: 'text',
+            key: 'licenseType',
+            required: true,
+            placeholder: 'e.g. License to Operate, Sanitary Permit',
+            helpText: 'Type or name of the license or accreditation',
+            span: 8,
+            validation: { minLength: 1, maxLength: 200 },
+            dropdownSource: 'static',
+            dropdownOptions: [],
+          },
+          {
+            label: 'License number',
+            type: 'text',
+            key: 'licenseNumber',
+            required: false,
+            placeholder: 'e.g. LTO-2026-001234',
+            helpText: '',
+            span: 8,
+            validation: { maxLength: 100 },
+            dropdownSource: 'static',
+            dropdownOptions: [],
+          },
+        ],
+        minRows: 0,
+        maxRows: 20,
+      }),
+    ],
+  },
+  {
+    category: 'Oath of Undertaking',
+    source: 'BPLO',
+    notes: 'The applicant must certify that all information provided is true and correct.',
+    items: [
+      item('I hereby certify that all information stated above is true and correct to the best of my knowledge and belief. I further understand that any falsification or misrepresentation of information shall be a ground for denial or revocation of the business permit and may subject me to criminal prosecution under applicable laws.', 'checkbox', {
+        key: 'oathOfUndertaking',
+        required: true,
+        helpText: 'You must agree to the oath of undertaking to proceed with the application.',
+        placeholder: 'I agree to the oath of undertaking',
+      }),
+    ],
+  },
+]
+
+// ─── General Permit Form (CBPLO-GPI-F06) ──────────────────────────
+// For cooperatives, associations, firecracker stall holders, bazaar/festival vendors,
+// peddlers, promotions/exhibitors, cemetery stallholders, fish trap/pen, fish pond, etc.
+// Applicant details come from PIS (account registration); no separate section here.
+const generalPermitSections = [
+  {
+    category: 'General Permit Details',
+    source: 'BPLO',
+    notes: 'Type and details of the general permit being applied for',
+    items: [
+      item('General permit category', 'select', {
+        key: 'generalPermitCategory',
+        helpText: 'Select the type of general permit',
+        placeholder: 'Select category',
+        dropdownOptions: [
+          'cooperative',
+          'association_foundation',
+          'chainsaw',
+          'firecrackers_stallholders',
+          'bazaar_festival_vendors',
+          'peddlers',
+          'promotions_exhibitors',
+          'cemetery_stallholders',
+          'fish_trap_fish_pen',
+          'fish_pond',
+        ],
+      }),
+      item('Business / activity name', 'text', {
+        key: 'activityName',
+        placeholder: 'Enter name of business or activity',
+        validation: { minLength: 2, maxLength: 200 },
+      }),
+      item('Location of activity', 'address', {
+        key: 'activityLocation',
+        helpText: 'Where the business activity or stall will be located',
+      }),
+      item('Duration of activity', 'text', {
+        key: 'activityDuration',
+        required: false,
+        placeholder: 'e.g. December 15–31, 2026',
+        helpText: 'For temporary permits (bazaar, festival, etc.), specify the dates',
+        validation: { maxLength: 200 },
+      }),
+      item('Brief description of activity', 'textarea', {
+        key: 'activityDescription',
+        required: false,
+        placeholder: 'Describe the products or services...',
+        validation: { maxLength: 1000 },
+      }),
+    ],
+  },
+  // ─── Category-specific requirements (CBPLO-GPI-F06 per Alaminos requirements) ───
+  {
+    category: 'Requirements – Cooperative (New/Renewal)',
+    source: 'BPLO',
+    notes: 'Before processing: PIS, CTC, Barangay Clearance, CDA Registration (new), Certificate of Compliance from City Cooperatives Office, SPA/Authorization, Lease + Mayor\'s Permit of Lessor (if lessee). During: Application Form, Receipt of Payment.',
+    showWhen: { field: 'generalPermitCategory', value: 'cooperative' },
+    items: [
+      item('Community Tax Certificate (CTC)', 'file', { key: 'ctc', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Barangay Clearance where business is located', 'file', { key: 'barangayClearance', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Cooperative Development Authority Registration (for NEW)', 'file', { key: 'cdaRegistration', required: false, validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Certificate of Compliance from City Cooperatives Office', 'file', { key: 'cityCooperativesCompliance', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('SPA or Authorization letter of Representative', 'file', { key: 'spaOrAuthLetter', required: false, validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Contract of Lease and xerox copy of Mayor\'s Permit of Lessor (if lessee)', 'file', { key: 'leaseAndLessorPermit', required: false, validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+    ],
+  },
+  {
+    category: 'Requirements – Association/Foundation (New/Renewal)',
+    source: 'BPLO',
+    notes: 'Before: PIS, CTC, Barangay Clearance, SEC/DOLE Registration, SPA/Authorization. During: Application Form, Receipt of Payment, Real Property Tax Clearance, Account Clearance (renewal).',
+    showWhen: { field: 'generalPermitCategory', value: 'association_foundation' },
+    items: [
+      item('Community Tax Certificate (CTC)', 'file', { key: 'ctc', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Barangay Clearance where business is located', 'file', { key: 'barangayClearance', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('SEC / DOLE Registration', 'file', { key: 'secDoleRegistration', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('SPA or Authorization letter of Representative', 'file', { key: 'spaOrAuthLetter', required: false, validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Real Property Tax Clearance', 'file', { key: 'rptClearance', required: false, validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Account Clearance (for Renewal)', 'file', { key: 'accountClearance', required: false, validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+    ],
+  },
+  {
+    category: 'Requirements – Chainsaw Permit (New/Renewal)',
+    source: 'BPLO',
+    notes: 'Before: PIS, CTC, Barangay Clearance, Certification of Chainsaw Ownership, Stencil of Chainsaw Serial No. During: Application Form, Receipt of Payment, RPT Clearance, Account Clearance (renewal).',
+    showWhen: { field: 'generalPermitCategory', value: 'chainsaw' },
+    items: [
+      item('Community Tax Certificate (CTC)', 'file', { key: 'ctc', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Barangay Clearance where business is located', 'file', { key: 'barangayClearance', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Certification of Chainsaw Ownership', 'file', { key: 'chainsawOwnershipCert', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Stencil of Chainsaw Serial No.', 'file', { key: 'chainsawStencil', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Real Property Tax Clearance', 'file', { key: 'rptClearance', required: false, validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Account Clearance (for Renewal)', 'file', { key: 'accountClearance', required: false, validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+    ],
+  },
+  {
+    category: 'Requirements – Firecrackers Stallholders',
+    source: 'BPLO',
+    notes: 'Before: PIS, CTC, Barangay Clearance, Letter of Approval (City Market and Cemetery Section) with assessment, Dealers/Manufacturer\'s License from Camp Crame, Authorization/Certification of Dealers, Fireworks Retailers Seminar Certificate. During: Application Form, Receipt of Payment, Fire Safety Inspection Certificate (BFP).',
+    showWhen: { field: 'generalPermitCategory', value: 'firecrackers_stallholders' },
+    items: [
+      item('Community Tax Certificate (CTC)', 'file', { key: 'ctc', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Barangay Clearance where business is located', 'file', { key: 'barangayClearance', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Letter of Approval by City Market and Cemetery Section Head with assessment of fees', 'file', { key: 'marketCemeteryApproval', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Authenticated photocopy of Dealers/Manufacturer\'s License of Source from Camp Crame', 'file', { key: 'campCrameLicense', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Authorization/Certification of Dealers/Licensee of Source', 'file', { key: 'dealerAuthorization', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Fireworks Retailers Seminar Certificate', 'file', { key: 'fireworksSeminarCert', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Fire Safety Inspection Certificate from BFP', 'file', { key: 'bfpFireSafetyCert', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+    ],
+  },
+  {
+    category: 'Requirements – Bazaar / Festival Vendors / Peddlers',
+    source: 'BPLO',
+    notes: 'PIS, CTC, Barangay Clearance, Certification from City Tourism Office (Lucap Wharf only), Letter of Approval by City Market and Cemetery Section Head with assessment of fees, Application Form, Receipt of Payment.',
+    showWhen: { field: 'generalPermitCategory', values: ['bazaar_festival_vendors', 'peddlers'] },
+    items: [
+      item('Community Tax Certificate (CTC)', 'file', { key: 'ctc', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Barangay Clearance where business is located', 'file', { key: 'barangayClearance', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Certification from City Tourism Office (Lucap Wharf only)', 'file', { key: 'tourismCert', required: false, validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Letter of Approval by City Market and Cemetery Section Head with assessment of fees', 'file', { key: 'marketCemeteryApproval', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+    ],
+  },
+  {
+    category: 'Requirements – Promotions & Exhibitors',
+    source: 'BPLO',
+    notes: 'PIS of requesting party, Request letter approved by City Administrator, Letter of Approval by City Market and Cemetery Section Head with assessment of fees.',
+    showWhen: { field: 'generalPermitCategory', value: 'promotions_exhibitors' },
+    items: [
+      item('Request letter approved by City Administrator', 'file', { key: 'requestLetterApproved', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Letter of Approval by City Market and Cemetery Section Head with assessment of fees', 'file', { key: 'marketCemeteryApproval', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+    ],
+  },
+  {
+    category: 'Requirements – Cemetery Stallholders',
+    source: 'BPLO',
+    notes: 'PIS, CTC, Barangay Clearance, Letter of Approval (City Market and Cemetery Section) with assessment, Application Form, Receipt of Payment.',
+    showWhen: { field: 'generalPermitCategory', value: 'cemetery_stallholders' },
+    items: [
+      item('Community Tax Certificate (CTC)', 'file', { key: 'ctc', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Barangay Clearance where business is located', 'file', { key: 'barangayClearance', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Letter of Approval by City Market and Cemetery Section Head with assessment of fees', 'file', { key: 'marketCemeteryApproval', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+    ],
+  },
+  {
+    category: 'Requirements – Fish Trap / Fish Pen (New/Renewal)',
+    source: 'BPLO',
+    notes: 'Before: PIS, CTC, Barangay Clearance, Certification from Brgy. Captain & CFARMC Chairman, Certification from City Agriculturist, Contract of Lease (NEW), Assessment of fees. During: Application Form, Receipt of Payment, RPT Clearance, Account Clearance (renewal).',
+    showWhen: { field: 'generalPermitCategory', value: 'fish_trap_fish_pen' },
+    items: [
+      item('Community Tax Certificate (CTC)', 'file', { key: 'ctc', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Barangay Clearance where business is located', 'file', { key: 'barangayClearance', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Certification from the Brgy. Captain & duly noted by CFARMC Chairman', 'file', { key: 'brgyCfarmcCert', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Certification from City Agriculturist (City Agriculture Office)', 'file', { key: 'cityAgriculturistCert', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Contract of Lease (NEW) from City Agriculture Office', 'file', { key: 'leaseContract', required: false, validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Assessment of fees (City Agriculture Office)', 'file', { key: 'assessmentOfFees', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Real Property Tax Clearance', 'file', { key: 'rptClearance', required: false, validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Account Clearance (for Renewal)', 'file', { key: 'accountClearance', required: false, validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+    ],
+  },
+  {
+    category: 'Requirements – Fish Pond (New/Renewal)',
+    source: 'BPLO',
+    notes: 'Before: PIS, CTC, Barangay Clearance, Tax Declaration of property (photocopy), Assessment of fees. During: Application Form, Receipt of Payment, RPT Clearance, Account Clearance (renewal).',
+    showWhen: { field: 'generalPermitCategory', value: 'fish_pond' },
+    items: [
+      item('Community Tax Certificate (CTC)', 'file', { key: 'ctc', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Barangay Clearance where business is located', 'file', { key: 'barangayClearance', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Tax Declaration of property (Photocopy)', 'file', { key: 'taxDeclaration', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Assessment of fees (City Agriculture Office)', 'file', { key: 'assessmentOfFees', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Real Property Tax Clearance', 'file', { key: 'rptClearance', required: false, validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
+      item('Account Clearance (for Renewal)', 'file', { key: 'accountClearance', required: false, validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
     ],
   },
 ]
@@ -848,13 +1227,12 @@ const industrySections = {
 async function createFormGroupAndDefinition({ formType, industryScope, sections, version = '2026.1', now }) {
   const scopeLabel = industryScope === 'all' ? 'All Industries' : (INDUSTRY_SCOPE_LABELS[industryScope] || industryScope)
   const typeLabels = {
-    registration: 'Business Registration',
-    permit: 'Business Permit',
+    permit: 'Unified Business Permit',
+    general_permit: 'General Permit',
     renewal: 'Business Renewal',
     cessation: 'Cessation',
     violation: 'Violation',
     appeal: 'Appeal',
-    inspections: 'Inspections',
   }
   const displayName = `${typeLabels[formType] || formType} - ${scopeLabel}`
 
@@ -914,32 +1292,26 @@ async function seed() {
 
     const now = new Date()
     let count = 0
-    const psicSections = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u']
 
-    // === Global Registration ===
+    // === Unified Business Permit (the main BPLO form) ===
     await createFormGroupAndDefinition({
-      formType: 'registration',
+      formType: 'permit',
       industryScope: 'all',
-      sections: globalRegistrationSections,
+      sections: unifiedBusinessPermitSections,
       now,
     })
-    console.log('  Created: Registration - All Industries (global)')
+    console.log('  Created: Unified Business Permit - All Industries')
     count++
 
-    // === Industry-specific Registration ===
-    for (const psic of psicSections) {
-      const extra = industrySections[psic] || []
-      const sections = [...globalRegistrationSections, ...extra]
-      await createFormGroupAndDefinition({
-        formType: 'registration',
-        industryScope: psic,
-        sections,
-        now,
-      })
-      const label = INDUSTRY_SCOPE_LABELS[psic] || psic
-      console.log(`  Created: Registration - ${label}`)
-      count++
-    }
+    // === General Permit (CBPLO-GPI-F06) ===
+    await createFormGroupAndDefinition({
+      formType: 'general_permit',
+      industryScope: 'all',
+      sections: generalPermitSections,
+      now,
+    })
+    console.log('  Created: General Permit - All Industries')
+    count++
 
     // === Global Renewal ===
     await createFormGroupAndDefinition({
@@ -981,16 +1353,6 @@ async function seed() {
     console.log('  Created: Violation - All Industries (global)')
     count++
 
-    // === Global Inspections (staff/inspector only; not on public API) ===
-    await createFormGroupAndDefinition({
-      formType: 'inspections',
-      industryScope: 'all',
-      sections: globalInspectionsSections,
-      now,
-    })
-    console.log('  Created: Inspections - All Industries (global)')
-    count++
-
     console.log(`\nSeed completed! Total definitions created: ${count}`)
     await mongoose.disconnect()
     console.log('Disconnected from MongoDB')
@@ -1017,18 +1379,14 @@ async function seedIfEmpty() {
     console.log('[FormDefinitions] No definitions found. Seeding initial data...')
     const now = new Date()
     let count = 0
-    const psicSections = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u']
 
-    // Global registration
-    await createFormGroupAndDefinition({ formType: 'registration', industryScope: 'all', sections: globalRegistrationSections, now })
+    // Unified Business Permit
+    await createFormGroupAndDefinition({ formType: 'permit', industryScope: 'all', sections: unifiedBusinessPermitSections, now })
     count++
 
-    // Industry-specific registration
-    for (const psic of psicSections) {
-      const extra = industrySections[psic] || []
-      await createFormGroupAndDefinition({ formType: 'registration', industryScope: psic, sections: [...globalRegistrationSections, ...extra], now })
-      count++
-    }
+    // General Permit (CBPLO-GPI-F06)
+    await createFormGroupAndDefinition({ formType: 'general_permit', industryScope: 'all', sections: generalPermitSections, now })
+    count++
 
     // Global renewal
     await createFormGroupAndDefinition({ formType: 'renewal', industryScope: 'all', sections: globalRenewalSections, now })
@@ -1038,12 +1396,10 @@ async function seedIfEmpty() {
     await createFormGroupAndDefinition({ formType: 'cessation', industryScope: 'all', sections: globalCessationSections, now })
     count++
 
-    // Global appeal, violation, inspections
+    // Global appeal, violation
     await createFormGroupAndDefinition({ formType: 'appeal', industryScope: 'all', sections: globalAppealSections, now })
     count++
     await createFormGroupAndDefinition({ formType: 'violation', industryScope: 'all', sections: globalViolationSections, now })
-    count++
-    await createFormGroupAndDefinition({ formType: 'inspections', industryScope: 'all', sections: globalInspectionsSections, now })
     count++
 
     console.log(`[FormDefinitions] Seeded ${count} form definitions successfully.`)
@@ -1062,11 +1418,11 @@ module.exports = {
   seed,
   seedIfEmpty,
   SYSTEM_USER_ID,
-  globalRegistrationSections,
+  unifiedBusinessPermitSections,
+  generalPermitSections,
   globalRenewalSections,
   globalCessationSections,
   globalAppealSections,
   globalViolationSections,
-  globalInspectionsSections,
   industrySections,
 }

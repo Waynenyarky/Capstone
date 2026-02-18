@@ -3,6 +3,7 @@ import { Layout, Typography, Card, Tabs, Row, Col, Avatar, Tag, Space, Grid, Upl
 import { useNavigate } from 'react-router-dom'
 import { UserOutlined, SafetyCertificateOutlined, SettingOutlined, ControlOutlined, CameraOutlined, LoadingOutlined, BgColorsOutlined, CheckCircleFilled, InfoCircleOutlined, TabletOutlined, ScanOutlined, CheckOutlined, KeyOutlined, EditOutlined, MailOutlined, DeleteOutlined, WarningOutlined, LockOutlined, BellOutlined } from '@ant-design/icons'
 import { AppSidebar as Sidebar } from '@/features/authentication'
+import AdminLayout from '@/features/admin/components/AdminLayout'
 import useProfile from '@/features/authentication/hooks/useProfile'
 import EditUserProfileForm from '@/features/user/components/EditUserProfileForm.jsx'
 import ActiveSessions from '@/features/user/components/ActiveSessions.jsx'
@@ -43,6 +44,7 @@ export default function ProfileSettings() {
   const officeCode = currentUser?.office || ''
   const roleSlug = String(role?.slug || role || '').toLowerCase()
   const isStaffRole = ['lgu_officer', 'lgu_manager', 'inspector', 'cso', 'staff'].includes(roleSlug)
+  const isAdmin = roleSlug === 'admin'
 
   useEffect(() => {
     let mounted = true
@@ -1075,31 +1077,132 @@ export default function ProfileSettings() {
     }
   ]
 
+  if (isAdmin) {
+    return (
+      <>
+        {contextHolder}
+        <AdminLayout pageTitle="Profile & Settings" pageIcon={<UserOutlined />}>
+          <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 16 }}>
+            <Card
+              style={{
+                marginBottom: 16,
+                border: `1px solid ${token.colorBorder}`,
+                borderRadius: token.borderRadiusLG,
+              }}
+              styles={{ body: { padding: 16 } }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: isMobile ? 'column' : 'row',
+                  alignItems: isMobile ? 'flex-start' : 'center',
+                  gap: 16,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div style={{ position: 'relative', display: 'inline-block', flexShrink: 0 }}>
+                  <Avatar
+                    size={48}
+                    src={user?.avatar ? <img src={resolveAvatarUrl(user?.avatar)} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null}
+                    style={{
+                      backgroundColor: token.colorPrimary,
+                      fontSize: 18,
+                    }}
+                  >
+                    {!user?.avatar && initials}
+                  </Avatar>
+                  <Upload
+                    showUploadList={false}
+                    customRequest={handleAvatarUpload}
+                    accept="image/png,image/jpeg,image/webp"
+                    disabled={uploading}
+                  >
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: -4,
+                        right: -4,
+                        background: token.colorBgContainer,
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: uploading ? 'not-allowed' : 'pointer',
+                        border: `1px solid ${token.colorBorder}`,
+                        boxShadow: token.boxShadowSecondary,
+                      }}
+                      title="Change profile photo"
+                    >
+                      {uploading ? <LoadingOutlined style={{ fontSize: 12, color: token.colorText }} /> : <CameraOutlined style={{ fontSize: 12, color: token.colorTextSecondary }} />}
+                    </div>
+                  </Upload>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Title level={5} style={{ margin: 0, marginBottom: 4 }}>{user?.name || 'User'}</Title>
+                  <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 8 }}>{user?.email}</Text>
+                  <Space size={[8, 8]} wrap>
+                    <Tag color={token.colorPrimary} style={{ margin: 0 }}>{user?.role ? String(user.role).toUpperCase() : 'USER'}</Tag>
+                    {user?.mfaEnabled ? (
+                      <Tag color="success" style={{ margin: 0 }}>MFA</Tag>
+                    ) : (
+                      <Tag color="warning" style={{ margin: 0 }}>MFA off</Tag>
+                    )}
+                    {passkeyLoading ? (
+                      <Tag color="default" style={{ margin: 0 }}>...</Tag>
+                    ) : passkeyEnabled ? (
+                      <Tag color="success" style={{ margin: 0 }}>Passkey</Tag>
+                    ) : (
+                      <Tag color="warning" style={{ margin: 0 }}>Passkey off</Tag>
+                    )}
+                  </Space>
+                </div>
+              </div>
+            </Card>
+            <Card
+              style={{
+                border: `1px solid ${token.colorBorder}`,
+                borderRadius: token.borderRadiusLG,
+              }}
+              styles={{ body: { padding: isMobile ? 12 : 24 } }}
+            >
+              <Tabs
+                defaultActiveKey="general"
+                size="large"
+                items={tabItems}
+                tabBarStyle={{ marginBottom: 24 }}
+              />
+            </Card>
+          </div>
+        </AdminLayout>
+      </>
+    )
+  }
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       {contextHolder}
       <Sidebar />
 
-      <Layout.Content style={{ 
-        padding: isMobile ? '16px' : '24px', 
+      <Layout.Content style={{
+        padding: isMobile ? '16px' : '24px',
         background: token.colorBgLayout,
         minHeight: '100vh'
       }}>
         <div>
-          
           <div style={{ marginBottom: 32 }}>
             <Title level={2} style={{ marginBottom: 8, fontSize: isMobile ? 24 : 30, color: brandColor }}>Profile & Settings</Title>
             <Text type="secondary" style={{ fontSize: 16 }}>Manage your personal information, security preferences, and account settings.</Text>
           </div>
 
           <Row gutter={[24, 24]}>
-            {/* Left Column: User Summary Card */}
             <Col xs={24} lg={8}>
-              <Card 
-                variant="borderless" 
-                style={{ 
-                  textAlign: 'center', 
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)', 
+              <Card
+                variant="borderless"
+                style={{
+                  textAlign: 'center',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
                   borderRadius: 8,
                   overflow: 'hidden'
                 }}
@@ -1108,15 +1211,15 @@ export default function ProfileSettings() {
                 <div style={{ background: headerBackground, height: 100 }}></div>
                 <div style={{ padding: '0 24px 24px', marginTop: -50 }}>
                   <div style={{ position: 'relative', display: 'inline-block', marginBottom: 16 }}>
-                    <Avatar 
-                      size={100} 
+                    <Avatar
+                      size={100}
                       src={user?.avatar ? <img src={resolveAvatarUrl(user?.avatar)} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null}
-                      style={{ 
+                      style={{
                         backgroundColor: brandColor,
                         border: '4px solid #fff',
                         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                         fontSize: 36
-                      }} 
+                      }}
                     >
                       {!user?.avatar && initials}
                     </Avatar>
@@ -1143,9 +1246,9 @@ export default function ProfileSettings() {
                         transition: 'all 0.3s'
                       }}
                       title="Change profile photo"
-                      >
-                        {uploading ? <LoadingOutlined style={{ fontSize: 16, color: '#001529' }} /> : <CameraOutlined style={{ fontSize: 18, color: '#595959' }} />}
-                      </div>
+                    >
+                      {uploading ? <LoadingOutlined style={{ fontSize: 16, color: '#001529' }} /> : <CameraOutlined style={{ fontSize: 18, color: '#595959' }} />}
+                    </div>
                     </Upload>
                   </div>
                   <Title level={4} style={{ marginBottom: 4, color: brandColor }}>{user?.name || 'User'}</Title>
@@ -1168,8 +1271,8 @@ export default function ProfileSettings() {
                     </div>
                   ) : null}
                   <Space size={[8, 8]} wrap style={{ justifyContent: 'center' }}>
-                    {user?.mfaEnabled ? 
-                      <Tag color="success" style={{ margin: 0, padding: '4px 12px', borderRadius: 4 }}>MFA ENABLED</Tag> : 
+                    {user?.mfaEnabled ?
+                      <Tag color="success" style={{ margin: 0, padding: '4px 12px', borderRadius: 4 }}>MFA ENABLED</Tag> :
                       <Tag color="warning" style={{ margin: 0, padding: '4px 12px', borderRadius: 4 }}>MFA DISABLED</Tag>
                     }
                     {passkeyLoading ? (
@@ -1184,21 +1287,20 @@ export default function ProfileSettings() {
               </Card>
             </Col>
 
-            {/* Right Column: Settings Tabs */}
             <Col xs={24} lg={16}>
-              <Card 
-                variant="borderless" 
-                style={{ 
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)', 
-                  borderRadius: 8, 
-                  minHeight: 600 
+              <Card
+                variant="borderless"
+                style={{
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  borderRadius: 8,
+                  minHeight: 600
                 }}
                 styles={{ body: { padding: isMobile ? 12 : 32 } }}
               >
-                <Tabs 
-                  defaultActiveKey="general" 
-                  size="large" 
-                  items={tabItems} 
+                <Tabs
+                  defaultActiveKey="general"
+                  size="large"
+                  items={tabItems}
                   tabBarStyle={{ marginBottom: 32 }}
                 />
               </Card>

@@ -241,8 +241,8 @@ export default function AdminLogsTab() {
       const is404 = msg.includes('404') || err?.status === 404
       setLoadError(
         is404
-          ? 'Audit logs API not available (404). Ensure the auth service is running and up to date.'
-          : msg || 'Failed to load logs'
+          ? 'Audit history API not available (404). Ensure the auth service is running and up to date.'
+          : msg || 'Failed to load history'
       )
       setLogs([])
       setTotal(0)
@@ -399,7 +399,7 @@ export default function AdminLogsTab() {
                     loadError ? (
                       <Text type="danger">{loadError}</Text>
                     ) : (
-                      <Text type="secondary">No audit logs found</Text>
+                      <Text type="secondary">No audit history found</Text>
                     )
                   }
                 />

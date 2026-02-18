@@ -9,7 +9,7 @@ const router = express.Router()
  * Public endpoint to get the active (published) form definition for given criteria
  * 
  * Query params:
- * - type: 'registration' | 'permit' | 'renewal' | 'cessation' | 'violation' | 'appeal' (required)
+ * - type: 'permit' | 'renewal' | 'cessation' | 'violation' | 'appeal' (required)
  * - businessType: business type enum value (optional)
  * - lgu: LGU code (optional)
  */
@@ -21,11 +21,11 @@ router.get('/active', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'type_required',
-        message: 'Form type is required (registration, permit, renewal, cessation, violation, or appeal)',
+        message: 'Form type is required (permit, renewal, cessation, violation, or appeal)',
       })
     }
 
-    const validTypes = ['registration', 'permit', 'renewal', 'cessation', 'violation', 'appeal']
+    const validTypes = ['permit', 'general_permit', 'renewal', 'cessation', 'violation', 'appeal']
     if (!validTypes.includes(type)) {
       return res.status(400).json({
         success: false,
@@ -96,8 +96,8 @@ router.get('/types', async (_req, res) => {
   return res.json({
     success: true,
     types: [
-      { value: 'registration', label: 'Business Registration' },
-      { value: 'permit', label: 'Business Permit' },
+      { value: 'permit', label: 'Unified Business Permit' },
+      { value: 'general_permit', label: 'General Permit' },
       { value: 'renewal', label: 'Business Renewal' },
       { value: 'cessation', label: 'Cessation' },
       { value: 'violation', label: 'Violation' },

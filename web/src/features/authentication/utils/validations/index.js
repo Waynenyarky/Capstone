@@ -4,6 +4,8 @@
 export {
   firstNameRules,
   lastNameRules,
+  middleNameRules,
+  suffixRules,
   phoneNumberRules,
   emailRules,
   termsRules,

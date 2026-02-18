@@ -56,7 +56,7 @@ describe('RequirementsChecklistStep API Integration', () => {
         success: true,
         definition: {
           _id: 'def-123',
-          formType: 'registration',
+          formType: 'permit',
           version: '2026.1',
           sections: [
             {

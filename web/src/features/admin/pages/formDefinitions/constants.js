@@ -66,18 +66,17 @@ export const FORM_DEFINITIONS_INDUSTRIES_ONLY = _INDUSTRIES_RAW.sort(
 )
 
 export const FORM_TYPES = [
-  { value: 'registration', label: 'Business Registration' },
-  { value: 'permit', label: 'Business Permit' },
+  { value: 'permit', label: 'Unified Business Permit' },
+  { value: 'general_permit', label: 'General Permit' },
   { value: 'renewal', label: 'Business Renewal' },
   { value: 'cessation', label: 'Cessation' },
   { value: 'violation', label: 'Violation' },
   { value: 'appeal', label: 'Appeal' },
-  { value: 'inspections', label: 'Inspections' },
 ]
 
 /** Group form types for UI (e.g., tabs, filters) */
 export const FORM_TYPE_CATEGORIES = {
-  business: ['registration', 'permit', 'renewal', 'cessation'],
+  business: ['permit', 'general_permit', 'renewal', 'cessation'],
   compliance: ['violation'],
   disputes: ['appeal'],
 }
@@ -88,22 +87,35 @@ export const STATUS_OPTIONS = [
 ]
 
 export const FORM_TYPE_LABELS = {
-  registration: 'Registration',
-  permit: 'Permit',
+  permit: 'Unified Business Permit',
+  general_permit: 'General Permit',
   renewal: 'Renewal',
   cessation: 'Cessation',
   violation: 'Violation',
   appeal: 'Appeal',
-  inspections: 'Inspections',
 }
 
+/** For General Permit form preview: category options (value matches showWhen in seed). */
+export const GENERAL_PERMIT_PREVIEW_CATEGORIES = [
+  { value: 'cooperative', label: 'Cooperative' },
+  { value: 'association_foundation', label: 'Association / Foundation' },
+  { value: 'chainsaw', label: 'Chainsaw Permit' },
+  { value: 'firecrackers_stallholders', label: 'Firecrackers Stallholders' },
+  { value: 'bazaar_festival_vendors', label: 'Bazaar / Festival Vendors' },
+  { value: 'peddlers', label: 'Peddlers' },
+  { value: 'promotions_exhibitors', label: 'Promotions / Exhibitors' },
+  { value: 'cemetery_stallholders', label: 'Cemetery Stallholders' },
+  { value: 'fish_trap_fish_pen', label: 'Fish Trap / Fish Pen' },
+  { value: 'fish_pond', label: 'Fish Pond' },
+]
+
 export const ACTION_LABELS = {
-  created: 'Created',
-  updated: 'Updated',
-  submitted_for_approval: 'Submitted',
-  published: 'Published',
-  archived: 'Archived',
-  rejected: 'Rejected',
+  created: 'Form version created',
+  updated: 'Form version updated',
+  submitted_for_approval: 'Submitted for approval',
+  published: 'Form version published',
+  archived: 'Form version archived',
+  rejected: 'Approval rejected',
 }
 
 export const TABLE_MIN_WIDTH = 320
@@ -142,6 +154,7 @@ export const FIELD_TYPES = [
   { value: 'download', label: 'Downloadable Form' },
   { value: 'checkbox', label: 'Checkbox' },
   { value: 'address', label: 'Philippine Address (PSGC)' },
+  { value: 'repeatable_group', label: 'Repeatable Row Group' },
 ]
 
 export const FIELD_TYPE_LABELS = Object.fromEntries(
@@ -209,6 +222,15 @@ export const FIELD_TYPE_DEFAULTS = {
     validation: {},
     dropdownSource: 'static',
     dropdownOptions: [],
+  },
+  repeatable_group: {
+    placeholder: '',
+    validation: {},
+    dropdownSource: 'static',
+    dropdownOptions: [],
+    groupFields: [],
+    minRows: 1,
+    maxRows: 20,
   },
 }
 

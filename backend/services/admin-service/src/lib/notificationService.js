@@ -28,6 +28,87 @@ function getRoleModel() {
 }
 
 const mailer = require('./mailer')
+const internalNotificationService = require('../services/notificationService')
+
+/**
+ * Get active admin user IDs (for in-app notifications)
+ * @param {string|ObjectId} [excludeUserId] - Optional user ID to exclude (e.g. requesting admin)
+ * @returns {Promise<string[]>} Array of admin user IDs
+ */
+async function getActiveAdminUserIds(excludeUserId = null) {
+  const UserModel = getUserModel()
+  const RoleModel = getRoleModel()
+  const adminRole = await RoleModel.findOne({ slug: 'admin' })
+  if (!adminRole) return []
+  const admins = await UserModel.find({ role: adminRole._id, isActive: true }).lean()
+  let ids = admins.map((a) => String(a._id))
+  if (excludeUserId) {
+    const exclude = String(excludeUserId)
+    ids = ids.filter((id) => id !== exclude)
+  }
+  return ids
+}
+
+/**
+ * Create in-app notifications for all active admins (or all except excludeUserId)
+ * Non-blocking; logs errors.
+ * @param {string} type - Notification type
+ * @param {string} title - Title
+ * @param {string} message - Message
+ * @param {string} [relatedEntityType] - Related entity type
+ * @param {string} [relatedEntityId] - Related entity ID
+ * @param {object} [metadata] - Metadata
+ * @param {string|ObjectId} [excludeUserId] - Admin user ID to exclude from recipients
+ */
+async function createInAppNotificationsForAdmins(type, title, message, relatedEntityType = null, relatedEntityId = null, metadata = {}, excludeUserId = null) {
+  try {
+    const adminIds = await getActiveAdminUserIds(excludeUserId)
+    if (adminIds.length === 0) return
+    for (const adminId of adminIds) {
+      try {
+        await internalNotificationService.createNotification(
+          adminId,
+          type,
+          title,
+          message,
+          relatedEntityType,
+          relatedEntityId,
+          metadata
+        )
+      } catch (err) {
+        console.error(`Failed to create in-app notification for admin ${adminId}:`, err.message)
+      }
+    }
+  } catch (err) {
+    console.error('Error creating in-app notifications for admins:', err)
+  }
+}
+
+/**
+ * Create a single in-app notification for a user (e.g. requesting admin when approval resolved)
+ * @param {string|ObjectId} userId - User ID
+ * @param {string} type - Notification type
+ * @param {string} title - Title
+ * @param {string} message - Message
+ * @param {string} [relatedEntityType] - Related entity type
+ * @param {string} [relatedEntityId] - Related entity ID
+ * @param {object} [metadata] - Metadata
+ */
+async function createInAppNotification(userId, type, title, message, relatedEntityType = null, relatedEntityId = null, metadata = {}) {
+  try {
+    await internalNotificationService.createNotification(
+      userId,
+      type,
+      title,
+      message,
+      relatedEntityType,
+      relatedEntityId,
+      metadata
+    )
+  } catch (err) {
+    console.error('Failed to create in-app notification:', err.message)
+  }
+}
 
 /**
  * Notification Service
@@ -226,9 +307,137 @@ async function sendApprovalNotification(adminId, approvalId, status, options = {
   }
 }
 
+/** Rate limit for system alerts: min ms between same alert type */
+const SYSTEM_ALERT_COOLDOWN_MS = 15 * 60 * 1000
+const lastSystemAlertByType = new Map()
+
+/**
+ * Notify all admins of a system/error-tracking alert (email + in-app). Rate-limited per alert type.
+ * @param {string} alertType - e.g. 'high_error_rate', 'high_critical_errors'
+ * @param {object} details - Alert details
+ * @returns {Promise<{notified: boolean}>}
+ */
+async function notifyAdminsOfSystemAlert(alertType, details = {}) {
+  const now = Date.now()
+  const last = lastSystemAlertByType.get(alertType) || 0
+  if (now - last < SYSTEM_ALERT_COOLDOWN_MS) {
+    return { notified: false }
+  }
+  try {
+    const UserModel = getUserModel()
+    const RoleModel = getRoleModel()
+    const adminRole = await RoleModel.findOne({ slug: 'admin' })
+    if (!adminRole) return { notified: false }
+    const admins = await UserModel.find({ role: adminRole._id, isActive: true }).lean()
+    if (admins.length === 0) return { notified: false }
+
+    const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
+    const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
+    const subject = `System alert: ${alertType} - ${brandName}`
+    const detailsStr = typeof details === 'object' ? JSON.stringify(details, null, 2) : String(details)
+    const text = [`System alert (${alertType}):`, '', detailsStr, '', `Dashboard: ${appUrl}/admin`, '', brandName].join('\n')
+    const html = `<p>System alert: <strong>${alertType}</strong></p><pre>${detailsStr.replace(/</g, '&lt;')}</pre><p><a href="${appUrl}/admin">Open Admin</a></p>`
+
+    for (const admin of admins) {
+      try {
+        await mailer.sendEmail({ to: admin.email, subject, text, html })
+      } catch (err) {
+        console.error(`Failed to send system alert to ${admin.email}:`, err.message)
+      }
+    }
+
+    await createInAppNotificationsForAdmins(
+      'system_alert',
+      `System alert: ${alertType}`,
+      (detailsStr || alertType).slice(0, 200),
+      'system',
+      null,
+      { alertType, ...details }
+    )
+
+    lastSystemAlertByType.set(alertType, now)
+    return { notified: true }
+  } catch (err) {
+    console.error('Error notifying admins of system alert:', err)
+    return { notified: false }
+  }
+}
+
+/**
+ * Notify all admins of a tamper incident (email + in-app).
+ * Call only for important incidents: severity high, or (severity medium and verificationStatus tamper_detected).
+ * @param {object} incident - TamperIncident document (with _id, severity, verificationStatus, message, detectedAt)
+ * @returns {Promise<{notified: boolean, error?: string}>}
+ */
+async function notifyAdminsOfTamperIncident(incident) {
+  try {
+    const UserModel = getUserModel()
+    const RoleModel = getRoleModel()
+    const adminRole = await RoleModel.findOne({ slug: 'admin' })
+    if (!adminRole) return { notified: false, error: 'Admin role not found' }
+    const admins = await UserModel.find({ role: adminRole._id, isActive: true }).lean()
+    if (admins.length === 0) return { notified: false, error: 'No active admins' }
+
+    const incidentId = String(incident._id)
+    const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
+    const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
+    const subject = `Audit tamper incident (${incident.severity}) - ${brandName}`
+    const text = [
+      'An audit tamper or integrity issue was detected.',
+      '',
+      `Severity: ${incident.severity}`,
+      `Status: ${incident.verificationStatus}`,
+      `Message: ${incident.message || 'N/A'}`,
+      `Detected: ${incident.detectedAt ? new Date(incident.detectedAt).toLocaleString() : 'N/A'}`,
+      '',
+      `View and triage: ${appUrl}/admin/audit-tamper`,
+      '',
+      brandName,
+    ].join('\n')
+    const html = `
+    <p>An audit tamper or integrity issue was detected.</p>
+    <p><strong>Severity:</strong> ${incident.severity}<br><strong>Status:</strong> ${incident.verificationStatus}</p>
+    <p>${(incident.message || 'N/A').replace(/</g, '&lt;')}</p>
+    <p><a href="${appUrl}/admin/audit-tamper">View and triage</a></p>
+    `
+
+    for (const admin of admins) {
+      try {
+        await mailer.sendEmail({
+          to: admin.email,
+          subject,
+          text,
+          html,
+        })
+      } catch (err) {
+        console.error(`Failed to send tamper email to ${admin.email}:`, err.message)
+      }
+    }
+
+    await createInAppNotificationsForAdmins(
+      'tamper_incident',
+      'Audit tamper incident',
+      (incident.message || 'Audit integrity issue detected. Review and triage.').slice(0, 200),
+      'tamper_incident',
+      incidentId,
+      { severity: incident.severity, verificationStatus: incident.verificationStatus }
+    )
+
+    return { notified: true }
+  } catch (err) {
+    console.error('Error notifying admins of tamper incident:', err)
+    return { notified: false, error: err.message }
+  }
+}
+
 module.exports = {
+  getActiveAdminUserIds,
+  createInAppNotificationsForAdmins,
+  createInAppNotification,
   sendEmailChangeNotification,
   sendPasswordChangeNotification,
   sendAdminAlert,
   sendApprovalNotification,
+  notifyAdminsOfSystemAlert,
+  notifyAdminsOfTamperIncident,
 }
