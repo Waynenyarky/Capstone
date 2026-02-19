@@ -17,18 +17,21 @@ class MongoDBService {
     try {
       final u = Uri.parse(primary);
       final host = u.host.toLowerCase();
+      final isLocal = host == 'localhost' || host == '127.0.0.1';
       final port = (u.hasPort ? u.port : (u.scheme == 'https' ? 443 : 80));
-      final altPort = port == 3000 ? 5001 : 5001;
-      // On Android emulator, try 10.0.2.2 first (host machine) - localhost always fails
-      if (Platform.isAndroid && (host == 'localhost' || host == '127.0.0.1')) {
-        urls.add(Uri(scheme: u.scheme, host: '10.0.2.2', port: port).toString());
-        urls.add(Uri(scheme: u.scheme, host: '10.0.2.2', port: altPort).toString());
-      }
-      urls.add(primary);
-      urls.add(Uri(scheme: u.scheme, host: u.host, port: altPort).toString());
-      if (host == 'localhost' || host == '127.0.0.1') {
-        urls.add(Uri(scheme: u.scheme, host: '10.0.2.2', port: port).toString());
-        urls.add(Uri(scheme: u.scheme, host: '10.0.2.2', port: altPort).toString());
+      const altPort = 5001;
+
+      // Production/remote: single base URL only (no alternate port - e.g. Render uses 443)
+      if (!isLocal) {
+        urls.add(primary);
+      } else {
+        // Local dev: try primary and alternate auth port (5001) for split auth/main setup
+        if (Platform.isAndroid) {
+          urls.add(Uri(scheme: u.scheme, host: '10.0.2.2', port: port).toString());
+          urls.add(Uri(scheme: u.scheme, host: '10.0.2.2', port: altPort).toString());
+        }
+        urls.add(primary);
+        urls.add(Uri(scheme: u.scheme, host: u.host, port: altPort).toString());
       }
     } catch (_) {
       urls.add(primary);
