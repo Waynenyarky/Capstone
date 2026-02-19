@@ -90,7 +90,11 @@ This will automatically:
 - Deploy smart contracts
 - Start all microservices (Auth, Business, Admin, Audit)
 
-**Database (MongoDB):** MongoDB runs with authentication (IAS-3.7). Copy [.env.example](.env.example) to `.env` and set `MONGO_ROOT_USER`, `MONGO_ROOT_PASSWORD`, `MONGO_APP_USER`, `MONGO_APP_PASSWORD` (defaults work for local dev; change in production). Optional: set `BACKUP_ENCRYPTION_PASSWORD` so [deploy/backup.sh](deploy/backup.sh) produces encrypted backups. See [docs/security-database.md](docs/security-database.md).
+**Database (MongoDB):** MongoDB runs with authentication (IAS-3.7). Copy [.env.example](.env.example) to `.env` and set `MONGO_ROOT_USER`, `MONGO_ROOT_PASSWORD`, `MONGO_APP_USER`, `MONGO_APP_PASSWORD` (defaults work for local dev; change in production). Optional: set `BACKUP_ENCRYPTION_PASSWORD` so [deploy/backup.sh](deploy/backup.sh) produces encrypted backups. See [docs/security/database.md](docs/security/database.md).
+
+## Documentation
+
+- **[docs/README.md](docs/README.md)** — Security, deployment, troubleshooting, and maintenance.
 
 ## Manual Setup
 

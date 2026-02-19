@@ -1,7 +1,7 @@
 # Override to use MongoDB Atlas instead of local MongoDB (IAS-3.3, 3.6).
 # Usage: set MONGO_URI in .env to your Atlas connection string, then:
 #   docker compose -f docker-compose.yml -f docker-compose.atlas.yml up -d
-# See docs/mongodb-atlas-setup.md for full setup.
+# See docs/deployment/atlas.md for full setup.
 #
 # We replace the mongodb service with a lightweight stub so base compose's
 # depends_on: mongodb stays valid; app services use MONGO_URI (Atlas) from env.

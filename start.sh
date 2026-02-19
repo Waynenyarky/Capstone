@@ -16,7 +16,7 @@
 #   ./start.sh --test       # Run all tests (backend, web, blockchain)
 #   ./start.sh --skip-ipfs  # Skip IPFS (use when IPFS container fails)
 #   ./start.sh --slow-network  # Use longer wait times (for slow or high-latency networks)
-#   ./start.sh --atlas     # Use MongoDB Atlas instead of local MongoDB (set MONGO_URI in .env; see docs/mongodb-atlas-setup.md)
+#   ./start.sh --atlas     # Use MongoDB Atlas instead of local MongoDB (set MONGO_URI in .env; see docs/deployment/atlas.md)
 #
 # Note: --production cannot be combined with --dev or --clean. --demo cannot be combined with --dev, --production, or --clean.
 
@@ -179,7 +179,7 @@ if [ "$STATUS_ONLY" = true ]; then
   echo -e "   • Start services: ./start.sh --dev"
   echo -e "   • Stop services:  ./stop.sh"
   echo -e "   • Production:     ./start.sh --production  (full reset + empty DB)"
-  echo -e "   • MongoDB Atlas:  ./start.sh --atlas  (set MONGO_URI in .env; see docs/mongodb-atlas-setup.md)"
+  echo -e "   • MongoDB Atlas:  ./start.sh --atlas  (set MONGO_URI in .env; see docs/deployment/atlas.md)"
   echo -e "   • Clean Docker:   ./start.sh --clean --dev"
   echo -e "   • Run all tests:  ./start.sh --test"
   exit 0
