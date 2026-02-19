@@ -7,6 +7,7 @@ import {
   resolveIncident,
   updateContainment,
 } from '@/features/admin/services'
+import { useAdminStepUp } from '@/features/admin/hooks/useAdminStepUp'
 
 const statusColors = {
   new: 'red',
@@ -24,6 +25,7 @@ export default function TamperIncidentsPanel() {
   const [loading, setLoading] = useState(false)
   const [incidents, setIncidents] = useState([])
   const [stats, setStats] = useState(null)
+  const { runWithStepUp, stepUpModal } = useAdminStepUp()
 
   const load = async () => {
     setLoading(true)
@@ -44,32 +46,39 @@ export default function TamperIncidentsPanel() {
 
   const handleAck = async (id) => {
     try {
-      await acknowledgeIncident(id)
-      message.success('Incident acknowledged')
-      load()
-    } catch {
-      message.error('Failed to acknowledge')
+      await runWithStepUp(async (stepUpToken) => {
+        await acknowledgeIncident(id, undefined, { stepUpToken })
+        message.success('Incident acknowledged')
+        load()
+      })
+    } catch (e) {
+      if (e?.message !== 'Step-up cancelled') message.error('Failed to acknowledge')
     }
   }
 
   const handleContainment = async (id, next) => {
     try {
-      await updateContainment(id, next)
-      message.success(next ? 'Containment enabled' : 'Containment lifted')
-      load()
-    } catch {
-      message.error('Failed to update containment')
+      await runWithStepUp(async (stepUpToken) => {
+        await updateContainment(id, next, { stepUpToken })
+        message.success(next ? 'Containment enabled' : 'Containment lifted')
+        load()
+      })
+    } catch (e) {
+      if (e?.message !== 'Step-up cancelled') message.error('Failed to update containment')
     }
   }
 
   const handleResolve = async (id) => {
     const notes = window.prompt('Add a short resolution note (optional):', '')
+    if (notes === null) return
     try {
-      await resolveIncident(id, notes || '', false)
-      message.success('Incident resolved')
-      load()
-    } catch {
-      message.error('Failed to resolve')
+      await runWithStepUp(async (stepUpToken) => {
+        await resolveIncident(id, notes || '', false, { stepUpToken })
+        message.success('Incident resolved')
+        load()
+      })
+    } catch (e) {
+      if (e?.message !== 'Step-up cancelled') message.error('Failed to resolve')
     }
   }
 
@@ -139,8 +148,9 @@ export default function TamperIncidentsPanel() {
   )
 
   return (
+    <>
     <Card
-      title="Audit Tamper Incidents"
+      title="Tamper Incidents"
       size="small"
       extra={
         <Space>
@@ -165,5 +175,7 @@ export default function TamperIncidentsPanel() {
         scroll={{ x: 'max-content' }}
       />
     </Card>
+    {stepUpModal}
+    </>
   )
 }

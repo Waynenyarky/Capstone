@@ -367,12 +367,10 @@ export default function AdminLayout({
                       onOpenChange={setNotificationsOpen}
                       trigger={['click']}
                       placement="bottomRight"
-                      dropdownRender={() => notificationPanelContent}
+                      popupRender={() => notificationPanelContent}
                     >
                       <Badge count={unreadCount} size="small" offset={[-2, 2]}>
                         <Button
-                          type="text"
-                          shape="circle"
                           icon={<BellOutlined style={{ fontSize: 18 }} />}
                           aria-label="Notifications"
                         />

@@ -18,7 +18,8 @@ export function useForgotPasswordForm({ onSubmit } = {}) {
       if (typeof onSubmit === 'function') onSubmit({ email: payload.email })
     } catch (err) {
       console.error('Forgot password error:', err)
-      error(err, 'Failed to send reset code')
+      const message = err?.message || 'Failed to send reset code'
+      error(err, message)
     } finally {
       setSubmitting(false)
     }

@@ -1,4 +1,11 @@
 import { fetchJsonWithFallback } from '@/lib/http.js'
+import { authHeaders } from '@/lib/authHeaders.js'
+import { getCurrentUser } from '@/features/authentication/lib/authEvents.js'
+
+function adminHeaders(extra) {
+  const current = getCurrentUser()
+  return authHeaders(current, 'admin', { 'Content-Type': 'application/json', ...(extra || {}) })
+}
 
 // Admin endpoints (require authentication)
 
@@ -32,10 +39,10 @@ export async function getFormGroup(groupId) {
   return await fetchJsonWithFallback(`/api/admin/forms/groups/${groupId}`, { method: 'GET' })
 }
 
-export async function createFormGroup(data) {
+export async function createFormGroup(data, options = {}) {
   return await fetchJsonWithFallback('/api/admin/forms/groups', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: adminHeaders(options?.stepUpToken ? { stepUpToken: options.stepUpToken } : null),
     body: JSON.stringify(data),
   })
 }
@@ -44,42 +51,42 @@ export async function getFormGroupVersions(groupId) {
   return await fetchJsonWithFallback(`/api/admin/forms/groups/${groupId}/versions`, { method: 'GET' })
 }
 
-export async function createFormGroupVersion(groupId) {
+export async function createFormGroupVersion(groupId, options = {}) {
   return await fetchJsonWithFallback(`/api/admin/forms/groups/${groupId}/versions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: adminHeaders(options?.stepUpToken ? { stepUpToken: options.stepUpToken } : null),
     body: JSON.stringify({}),
   })
 }
 
-export async function setFormVersionActive(definitionId) {
+export async function setFormVersionActive(definitionId, options = {}) {
   return await fetchJsonWithFallback(`/api/admin/forms/${definitionId}/set-active`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: adminHeaders(options?.stepUpToken ? { stepUpToken: options.stepUpToken } : null),
     body: JSON.stringify({}),
   })
 }
 
-export async function retireFormGroup(groupId) {
+export async function retireFormGroup(groupId, options = {}) {
   return await fetchJsonWithFallback(`/api/admin/forms/groups/${groupId}/retire`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: adminHeaders(options?.stepUpToken ? { stepUpToken: options.stepUpToken } : null),
     body: JSON.stringify({}),
   })
 }
 
-export async function deactivateFormGroup(groupId, { deactivatedUntil, reason = '' }) {
+export async function deactivateFormGroup(groupId, { deactivatedUntil, reason = '' }, options = {}) {
   return await fetchJsonWithFallback(`/api/admin/forms/groups/${groupId}/deactivate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: adminHeaders(options?.stepUpToken ? { stepUpToken: options.stepUpToken } : null),
     body: JSON.stringify({ deactivatedUntil, reason }),
   })
 }
 
-export async function reactivateFormGroup(groupId) {
+export async function reactivateFormGroup(groupId, options = {}) {
   return await fetchJsonWithFallback(`/api/admin/forms/groups/${groupId}/reactivate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: adminHeaders(options?.stepUpToken ? { stepUpToken: options.stepUpToken } : null),
     body: JSON.stringify({}),
   })
 }
@@ -101,66 +108,71 @@ export async function getFormDefinition(id) {
   return await fetchJsonWithFallback(`/api/admin/forms/${id}`, { method: 'GET' })
 }
 
-export async function createFormDefinition(data) {
+export async function createFormDefinition(data, options = {}) {
   return await fetchJsonWithFallback('/api/admin/forms', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: adminHeaders(options?.stepUpToken ? { stepUpToken: options.stepUpToken } : null),
     body: JSON.stringify(data),
   })
 }
 
-export async function updateFormDefinition(id, data) {
+export async function updateFormDefinition(id, data, options = {}) {
   return await fetchJsonWithFallback(`/api/admin/forms/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: adminHeaders(options?.stepUpToken ? { stepUpToken: options.stepUpToken } : null),
     body: JSON.stringify(data),
   })
 }
 
-export async function deleteFormDefinition(id) {
-  return await fetchJsonWithFallback(`/api/admin/forms/${id}`, {
-    method: 'DELETE',
-  })
+export async function deleteFormDefinition(id, options = {}) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, 'admin', options?.stepUpToken ? { stepUpToken: options.stepUpToken } : {})
+  return await fetchJsonWithFallback(`/api/admin/forms/${id}`, { method: 'DELETE', headers })
 }
 
-export async function archiveFormDefinition(id) {
-  return await fetchJsonWithFallback(`/api/admin/forms/${id}/archive`, {
-    method: 'POST',
-  })
+export async function archiveFormDefinition(id, options = {}) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, 'admin', options?.stepUpToken ? { stepUpToken: options.stepUpToken } : {})
+  return await fetchJsonWithFallback(`/api/admin/forms/${id}/archive`, { method: 'POST', headers })
 }
 
-export async function duplicateFormDefinition(id) {
-  return await fetchJsonWithFallback(`/api/admin/forms/${id}/duplicate`, {
-    method: 'POST',
-  })
+export async function duplicateFormDefinition(id, options = {}) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, 'admin', options?.stepUpToken ? { stepUpToken: options.stepUpToken } : {})
+  return await fetchJsonWithFallback(`/api/admin/forms/${id}/duplicate`, { method: 'POST', headers })
 }
 
-export async function submitForApproval(id) {
-  return await fetchJsonWithFallback(`/api/admin/forms/${id}/submit-for-approval`, {
-    method: 'POST',
-  })
+export async function submitForApproval(id, options = {}) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, 'admin', options?.stepUpToken ? { stepUpToken: options.stepUpToken } : {})
+  return await fetchJsonWithFallback(`/api/admin/forms/${id}/submit-for-approval`, { method: 'POST', headers })
 }
 
-export async function cancelApproval(id) {
-  return await fetchJsonWithFallback(`/api/admin/forms/${id}/cancel-approval`, {
-    method: 'POST',
-  })
+export async function cancelApproval(id, options = {}) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, 'admin', options?.stepUpToken ? { stepUpToken: options.stepUpToken } : {})
+  return await fetchJsonWithFallback(`/api/admin/forms/${id}/cancel-approval`, { method: 'POST', headers })
 }
 
-export async function uploadFormTemplate(id, file, label = '') {
+export async function uploadFormTemplate(id, file, label = '', options = {}) {
   const formData = new FormData()
   formData.append('file', file)
   if (label) formData.append('label', label)
-
+  const current = getCurrentUser()
+  const headers = authHeaders(current, 'admin', options?.stepUpToken ? { stepUpToken: options.stepUpToken } : {})
   return await fetchJsonWithFallback(`/api/admin/forms/${id}/upload`, {
     method: 'POST',
+    headers,
     body: formData,
   })
 }
 
-export async function removeFormDownload(id, downloadIndex) {
+export async function removeFormDownload(id, downloadIndex, options = {}) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, 'admin', options?.stepUpToken ? { stepUpToken: options.stepUpToken } : {})
   return await fetchJsonWithFallback(`/api/admin/forms/${id}/downloads/${downloadIndex}`, {
     method: 'DELETE',
+    headers,
   })
 }
 

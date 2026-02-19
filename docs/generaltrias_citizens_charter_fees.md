@@ -13,12 +13,16 @@ This doc summarizes how the [Citizen's Charter PDF](https://www.generaltrias.gov
 |----------|-----------------|----------------|
 | **Mayor's Permit Fee on Business** | Section 4A.01 (table by line of business) | `FeeConfiguration.mayorsPermitFee` — seeder has all charter LOBs |
 | **Business Tax** (manufacturers, wholesalers, retailers, contractors, banks, etc.) | Annex 1 (schedules) | `FeeConfiguration.brackets` — percentage approximation |
-| **Sanitary Inspection Fee** | Section 5E.01 (by area sq.m.) | `feeCalculator.computeSanitaryFee(areaSqm)` — brackets in code |
-| **Environmental Protection Fee** | Section 4W.01 (by industry) | `FeeConfiguration.environmentalProtectionFee` + `computeEnvironmentalFee(lob)` |
-| **Fire Safety Inspection Fee** | 15% of BPLO regulatory fees, min P500 | `feeCalculator.computeFireSafetyFee(bploRegulatory)` |
-| Barangay Business Clearance | Artikulo A (by line of business) | Not in FeeConfiguration |
-| Community Tax | Section 3.x | Not in FeeConfiguration |
-| Weights and Measures | Section 4J.01 | Not in FeeConfiguration |
+| **Sanitary Inspection Fee** | Section 5E.01 (by area sq.m.) | `RegulatoryFeeConfig.sanitaryBrackets` + `sanitaryHouseForRentFee` — **Admin → Fee Configuration → Special fees → Sanitary Inspection Fee** |
+| **Business Plate/Sticker** | Section 4A.01 | `RegulatoryFeeConfig.businessPlate` — **Special fees → Business Plate / Sticker** |
+| **Environmental Protection Fee** | Section 4W.01 (by industry) | `FeeConfiguration.environmentalProtectionFee` — **Fee by Line of Business** (or view in Special fees → Environmental) |
+| **Fire Safety Inspection Fee** | 15% of BPLO regulatory fees, min P500 | `RegulatoryFeeConfig.fireSafetyRate` + `fireSafetyMin` — **Special fees → Fire Safety Inspection Fee** |
+| **Fee for Sealing and Licensing of Weights and Measures** | Section 4J.01 | `RegulatoryFeeConfig.weightsAndMeasures` — **Special fees → Weights and Measures** |
+| **Community Tax** | Section 3.01–3.07 | `RegulatoryFeeConfig.communityTax` — **Special fees → Community Tax** |
+| **Barangay Business Clearance** | Artikulo A (by line of business) | `FeeConfiguration.barangayClearanceFee` — **Fee by Line of Business** (or view in Special fees → Barangay Business Clearance) |
+| **Special Permit** (Streamer, Motorcade) | Charter table | `RegulatoryFeeConfig.specialPermit` — **Special fees → Special Permit** |
+| **Certification of Business Record** | Charter | `RegulatoryFeeConfig.certificationOfBusinessRecord` — **Special fees → Certification & Certified Copy** |
+| **Certified True Copy of Business Permit** | Charter | `RegulatoryFeeConfig.certifiedTrueCopyPerDocument` — **Special fees → Certification & Certified Copy** |
 
 ## Seeder alignment
 
@@ -31,16 +35,22 @@ This doc summarizes how the [Citizen's Charter PDF](https://www.generaltrias.gov
 
 | Fee type | Where to change values |
 |----------|------------------------|
-| **Mayor's Permit** | `backend/services/business-service/src/seed/seedFeeConfiguration.js` — each LOB entry has `mayorsPermitFee` (and optional `environmentalProtectionFee`). Re-run the seeder or use **Admin → Fee Configuration → Fee by Line of Business** to update. |
-| **Business Tax** | Same seeder / **Admin → Fee Configuration → Fee by Line of Business** — `BRACKETS` and per-entry `brackets` / `bracketKind`. |
-| **Environmental (special)** | Seeder or **Fee by Line of Business** (per-LOB `environmentalProtectionFee`). Schema: `FeeConfiguration.environmentalProtectionFee`. |
-| **Sanitary (special)** | **Admin → Fee Configuration → Special fees** — edit Sanitary brackets (area sq.m. → fee) and house-for-rent fee. Stored in `RegulatoryFeeConfig` (DB). Defaults in `feeCalculator.js` if no config exists. |
-| **Fire Safety (special)** | **Admin → Fee Configuration → Special fees** — edit rate (e.g. 0.15 = 15%) and minimum (₱). Stored in `RegulatoryFeeConfig` (DB). Defaults in `feeCalculator.js` if no config exists. |
+| **Mayor's Permit** | Seeder or **Admin → Fee Configuration → Fee by Line of Business** — `mayorsPermitFee` per LOB. |
+| **Business Tax** | Same seeder / **Fee by Line of Business** — `brackets` and `bracketKind`. |
+| **Sanitary** | **Admin → Fee Configuration → Special fees** (left nav: Sanitary Inspection Fee) — brackets and house-for-rent fee. Stored in `RegulatoryFeeConfig`. |
+| **Business Plate** | **Special fees → Business Plate / Sticker**. Stored in `RegulatoryFeeConfig.businessPlate`. |
+| **Environmental** | **Fee by Line of Business** — per-LOB `environmentalProtectionFee`. View-only table in **Special fees → Environmental Protection Fee**. |
+| **Fire Safety** | **Special fees → Fire Safety Inspection Fee** — rate and minimum. Stored in `RegulatoryFeeConfig`. |
+| **Weights and Measures** | **Special fees → Weights and Measures** — linear, capacity, weights brackets and retesting/gasoline. Stored in `RegulatoryFeeConfig.weightsAndMeasures`. |
+| **Community Tax** | **Special fees → Community Tax** — individual and juridical base, rate, cap. Stored in `RegulatoryFeeConfig.communityTax`. |
+| **Barangay Clearance** | **Fee by Line of Business** — per-LOB `barangayClearanceFee`. View-only table in **Special fees → Barangay Business Clearance**. |
+| **Special Permit** | **Special fees → Special Permit** — streamer (per sq yard, days) and motorcade per day. Stored in `RegulatoryFeeConfig.specialPermit`. |
+| **Certification / Certified Copy** | **Special fees → Certification & Certified Copy** — fee and documentary stamp for each. Stored in `RegulatoryFeeConfig`. |
 
-So: **Mayor's Permit, Business Tax, Environmental** are edited per LOB in Fee Configuration. **Sanitary** and **Fire Safety** are edited in the **Special fees** tab; values are stored in the database and used by the fee calculator.
+The **Special fees** tab uses a two-panel layout: left sidebar lists all Charter special fee types; right panel shows the selected type's form. **Environmental** and **Barangay** are edited in **Fee by Line of Business**; their panels in Special fees show a read-only table with a link to that tab.
 
 ## Where to change things
 
-- **Add/change Mayor's Permit or tax brackets:** Edit `backend/services/business-service/src/seed/seedFeeConfiguration.js` and keep charter section references in comments.
-- **Change Sanitary brackets or Fire Safety rate/min:** Use **Admin → Fee Configuration → Special fees** in the app. To change defaults when no DB config exists, edit `backend/services/business-service/src/lib/feeCalculator.js` (DEFAULT_* constants).
+- **Add/change Mayor's Permit, Environmental, Barangay, or tax brackets:** Use **Admin → Fee Configuration → Fee by Line of Business** (or edit `seedFeeConfiguration.js` and re-run the seeder).
+- **Change any other special fees (Sanitary, Fire Safety, Business Plate, Weights and Measures, Community Tax, Special Permit, Certification):** Use **Admin → Fee Configuration → Special fees** and select the fee type in the left sidebar. Values are stored in `RegulatoryFeeConfig` (singleton). To change defaults when no DB config exists, edit `backend/services/business-service/src/lib/feeCalculator.js` (DEFAULT_* for Sanitary/Fire Safety) or the `RegulatoryFeeConfig` model defaults.
 - **Support tiered or fixed-amount tax:** Would require schema and `feeCalculator.js` changes (e.g. bracket type `fixedAmount` vs `rate`).

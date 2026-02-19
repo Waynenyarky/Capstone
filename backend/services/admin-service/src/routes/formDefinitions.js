@@ -2,13 +2,14 @@ const express = require('express')
 const path = require('path')
 const fs = require('fs')
 const multer = require('multer')
-const { requireJwt, requireRole } = require('../middleware/auth')
+const { requireJwt, requireRole, requireAdminStepUp } = require('../middleware/auth')
 const { validateBody, Joi } = require('../middleware/validation')
 const respond = require('../middleware/respond')
 const FormDefinition = require('../models/FormDefinition')
 const FormGroup = require('../models/FormGroup')
 const AdminApproval = require('../models/AdminApproval')
 const logger = require('../lib/logger')
+const { createAuditLog } = require('../lib/auditLogger')
 const { createInAppNotificationsForAdmins } = require('../lib/notificationService')
 const { INDUSTRY_SCOPE_VALUES, BUSINESS_TYPE_VALUES, INDUSTRY_SCOPE_LABELS } = require('../../../../shared/constants')
 
@@ -320,7 +321,7 @@ router.get('/groups/:groupId', requireJwt, requireRole(['admin']), async (req, r
 })
 
 // POST /api/admin/forms/groups - Create form group + first draft version
-router.post('/groups', requireJwt, requireRole(['admin']), validateBody(createFormGroupSchema), async (req, res) => {
+router.post('/groups', requireJwt, requireRole(['admin']), requireAdminStepUp, validateBody(createFormGroupSchema), async (req, res) => {
   try {
     const userId = req._userId
     const { formType, industryScope = 'all' } = req.body
@@ -404,7 +405,7 @@ router.get('/groups/:groupId/versions', requireJwt, requireRole(['admin']), asyn
 })
 
 // POST /api/admin/forms/groups/:groupId/versions - Create new version (draft)
-router.post('/groups/:groupId/versions', requireJwt, requireRole(['admin']), async (req, res) => {
+router.post('/groups/:groupId/versions', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const userId = req._userId
     const group = await FormGroup.findById(req.params.groupId).lean()
@@ -453,7 +454,7 @@ router.post('/groups/:groupId/versions', requireJwt, requireRole(['admin']), asy
 })
 
 // POST /api/admin/forms/groups/:groupId/retire - Retire form group (soft)
-router.post('/groups/:groupId/retire', requireJwt, requireRole(['admin']), async (req, res) => {
+router.post('/groups/:groupId/retire', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const group = await FormGroup.findById(req.params.groupId)
     if (!group) {
@@ -464,6 +465,17 @@ router.post('/groups/:groupId/retire', requireJwt, requireRole(['admin']), async
     }
     group.retiredAt = new Date()
     await group.save()
+    const userId = req._userId
+    const role = req._userRole || 'admin'
+    createAuditLog(
+      userId,
+      'form_group_retired',
+      'form_group',
+      String(group._id),
+      'retired',
+      role,
+      { groupId: String(group._id), formType: group.formType, industryScope: group.industryScope, ip: req.ip, userAgent: req.get('user-agent') }
+    ).catch((err) => logger.warn('Failed to create audit log for form group retire', { err }))
     return res.json({ success: true, group })
   } catch (err) {
     console.error('POST /api/admin/forms/groups/:groupId/retire error:', err)
@@ -476,7 +488,7 @@ const deactivateSchema = Joi.object({
   deactivatedUntil: Joi.date().iso().required(),
   reason: Joi.string().allow('').optional(),
 })
-router.post('/groups/:groupId/deactivate', requireJwt, requireRole(['admin']), validateBody(deactivateSchema), async (req, res) => {
+router.post('/groups/:groupId/deactivate', requireJwt, requireRole(['admin']), requireAdminStepUp, validateBody(deactivateSchema), async (req, res) => {
   try {
     const group = await FormGroup.findById(req.params.groupId)
     if (!group) {
@@ -494,6 +506,17 @@ router.post('/groups/:groupId/deactivate', requireJwt, requireRole(['admin']), v
     group.deactivatedUntil = until
     group.deactivateReason = reason
     await group.save()
+    const userId = req._userId
+    const role = req._userRole || 'admin'
+    createAuditLog(
+      userId,
+      'form_group_deactivated',
+      'form_group',
+      String(group._id),
+      'deactivated',
+      role,
+      { groupId: String(group._id), formType: group.formType, industryScope: group.industryScope, deactivatedUntil: until.toISOString(), reason, ip: req.ip, userAgent: req.get('user-agent') }
+    ).catch((err) => logger.warn('Failed to create audit log for form group deactivate', { err }))
     return res.json({ success: true, group })
   } catch (err) {
     console.error('POST /api/admin/forms/groups/:groupId/deactivate error:', err)
@@ -502,7 +525,7 @@ router.post('/groups/:groupId/deactivate', requireJwt, requireRole(['admin']), v
 })
 
 // POST /api/admin/forms/groups/:groupId/reactivate - Reactivate form group
-router.post('/groups/:groupId/reactivate', requireJwt, requireRole(['admin']), async (req, res) => {
+router.post('/groups/:groupId/reactivate', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const group = await FormGroup.findById(req.params.groupId)
     if (!group) {
@@ -512,6 +535,17 @@ router.post('/groups/:groupId/reactivate', requireJwt, requireRole(['admin']), a
     group.deactivatedUntil = null
     group.deactivateReason = ''
     await group.save()
+    const userId = req._userId
+    const role = req._userRole || 'admin'
+    createAuditLog(
+      userId,
+      'form_group_reactivated',
+      'form_group',
+      String(group._id),
+      'reactivated',
+      role,
+      { groupId: String(group._id), formType: group.formType, industryScope: group.industryScope, ip: req.ip, userAgent: req.get('user-agent') }
+    ).catch((err) => logger.warn('Failed to create audit log for form group reactivate', { err }))
     return res.json({ success: true, group })
   } catch (err) {
     console.error('POST /api/admin/forms/groups/:groupId/reactivate error:', err)
@@ -520,7 +554,7 @@ router.post('/groups/:groupId/reactivate', requireJwt, requireRole(['admin']), a
 })
 
 // PUT /api/admin/forms/:id/set-active - Set version as active (publish it, archive previous)
-router.put('/:id/set-active', requireJwt, requireRole(['admin']), async (req, res) => {
+router.put('/:id/set-active', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const userId = req._userId
     const definition = await FormDefinition.findById(req.params.id)
@@ -584,7 +618,7 @@ router.get('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
 })
 
 // POST /api/admin/forms - Create new form definition (draft)
-router.post('/', requireJwt, requireRole(['admin']), validateBody(createFormDefinitionSchema), async (req, res) => {
+router.post('/', requireJwt, requireRole(['admin']), requireAdminStepUp, validateBody(createFormDefinitionSchema), async (req, res) => {
   try {
     const userId = req._userId
     const {
@@ -632,7 +666,7 @@ router.post('/', requireJwt, requireRole(['admin']), validateBody(createFormDefi
 })
 
 // PUT /api/admin/forms/:id - Update form definition (draft only)
-router.put('/:id', requireJwt, requireRole(['admin']), validateBody(updateFormDefinitionSchema), async (req, res) => {
+router.put('/:id', requireJwt, requireRole(['admin']), requireAdminStepUp, validateBody(updateFormDefinitionSchema), async (req, res) => {
   try {
     const userId = req._userId
     const definition = await FormDefinition.findById(req.params.id)
@@ -688,7 +722,7 @@ router.put('/:id', requireJwt, requireRole(['admin']), validateBody(updateFormDe
 })
 
 // POST /api/admin/forms/:id/submit-for-approval - Submit form definition for 2-admin approval
-router.post('/:id/submit-for-approval', requireJwt, requireRole(['admin']), async (req, res) => {
+router.post('/:id/submit-for-approval', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const userId = req._userId
     const definition = await FormDefinition.findById(req.params.id)
@@ -761,7 +795,7 @@ router.post('/:id/submit-for-approval', requireJwt, requireRole(['admin']), asyn
 })
 
 // POST /api/admin/forms/:id/cancel-approval - Cancel pending approval and return to draft
-router.post('/:id/cancel-approval', requireJwt, requireRole(['admin']), async (req, res) => {
+router.post('/:id/cancel-approval', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const userId = req._userId
     const definition = await FormDefinition.findById(req.params.id)
@@ -798,7 +832,7 @@ router.post('/:id/cancel-approval', requireJwt, requireRole(['admin']), async (r
 })
 
 // POST /api/admin/forms/:id/archive - Archive a form definition
-router.post('/:id/archive', requireJwt, requireRole(['admin']), async (req, res) => {
+router.post('/:id/archive', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const userId = req._userId
     const definition = await FormDefinition.findById(req.params.id)
@@ -811,9 +845,10 @@ router.post('/:id/archive', requireJwt, requireRole(['admin']), async (req, res)
       return respond.error(res, 400, 'form_cannot_archive', 'This form definition cannot be archived')
     }
 
+    const previousStatus = definition.status
     definition.status = 'archived'
     definition.updatedBy = userId
-    definition.addChangeLog('archived', userId, { previousStatus: definition.status })
+    definition.addChangeLog('archived', userId, { previousStatus })
 
     await definition.save()
 
@@ -825,7 +860,7 @@ router.post('/:id/archive', requireJwt, requireRole(['admin']), async (req, res)
 })
 
 // POST /api/admin/forms/:id/duplicate - Duplicate a form definition as a new draft
-router.post('/:id/duplicate', requireJwt, requireRole(['admin']), async (req, res) => {
+router.post('/:id/duplicate', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const userId = req._userId
     const source = await FormDefinition.findById(req.params.id).lean()
@@ -872,7 +907,7 @@ router.post('/:id/duplicate', requireJwt, requireRole(['admin']), async (req, re
 })
 
 // POST /api/admin/forms/:id/upload - Upload template file
-router.post('/:id/upload', requireJwt, requireRole(['admin']), upload.single('file'), async (req, res) => {
+router.post('/:id/upload', requireJwt, requireRole(['admin']), requireAdminStepUp, upload.single('file'), async (req, res) => {
   try {
     const { id } = req.params
     const definition = await FormDefinition.findById(id)
@@ -963,7 +998,7 @@ router.post('/:id/upload', requireJwt, requireRole(['admin']), upload.single('fi
 })
 
 // DELETE /api/admin/forms/:id - Delete draft form definition
-router.delete('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
+router.delete('/:id', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const definition = await FormDefinition.findById(req.params.id)
     if (!definition) {
@@ -972,6 +1007,21 @@ router.delete('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
     if (!definition.canEdit()) {
       return respond.error(res, 400, 'form_not_editable', 'Only draft form definitions can be deleted')
     }
+    const userId = req._userId
+    const role = req._userRole || 'admin'
+    const formDefinitionId = String(definition._id)
+    const formType = definition.formType || ''
+    const version = definition.version || ''
+    const name = definition.name || ''
+    createAuditLog(
+      userId,
+      'form_definition_deleted',
+      'form_definition',
+      formDefinitionId,
+      '',
+      role,
+      { formDefinitionId, formType, version, name, ip: req.ip, userAgent: req.get('user-agent') }
+    ).catch((err) => logger.warn('Failed to create audit log for form definition delete', { err }))
     await FormDefinition.deleteOne({ _id: definition._id })
     return res.json({ success: true })
   } catch (err) {
@@ -981,7 +1031,7 @@ router.delete('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
 })
 
 // DELETE /api/admin/forms/:id/downloads/:index - Remove a download from form definition
-router.delete('/:id/downloads/:index', requireJwt, requireRole(['admin']), async (req, res) => {
+router.delete('/:id/downloads/:index', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const { id, index } = req.params
     const definition = await FormDefinition.findById(id)

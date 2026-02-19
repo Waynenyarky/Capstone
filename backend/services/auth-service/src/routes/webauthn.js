@@ -13,7 +13,7 @@ const User = require('../models/User')
 const Role = require('../models/Role')
 const respond = require('../middleware/respond')
 const { validateBody, Joi } = require('../middleware/validation')
-const { requireJwt } = require('../middleware/auth')
+const { requireJwt, requireRole, signStepUpToken } = require('../middleware/auth')
 
 const router = express.Router()
 
@@ -109,21 +109,19 @@ router.post('/webauthn/register/start', validateBody(emailSchema), async (req, r
          existingCredentialsCount: (user.webauthnCredentials || []).length
       })
 
-      // Prepare excludeCredentials - convert credId from base64url to Buffer
-      const excludeCredentials = (user.webauthnCredentials || []).map(c => {
-        try {
-          if (!c.credId) return null
-          const credIdBuffer = Buffer.from(c.credId, 'base64url')
-          return { 
-            id: credIdBuffer, 
-            type: 'public-key',
-            transports: c.transports || []
-          }
-        } catch (err) {
-          console.error('Error converting credId:', c.credId, err)
-          return null
+      // Prepare excludeCredentials - simplewebauthn v13 expects id as base64url string, not Buffer
+      const rawCreds = user.webauthnCredentials || []
+      const excludeCredentials = rawCreds.map(c => {
+        if (!c || typeof c.credId !== 'string' || !c.credId.trim()) return null
+        const id = String(c.credId).trim()
+        // Library validates base64url; skip entries that look invalid to avoid 500
+        if (!/^[A-Za-z0-9_-]+$/.test(id)) return null
+        return {
+          id,
+          type: 'public-key',
+          transports: Array.isArray(c.transports) ? c.transports : []
         }
-      }).filter(Boolean) // Remove any null entries
+      }).filter(Boolean)
 
       // Generate registration options
       // Note: In simplewebauthn v13, generateRegistrationOptions is ASYNC and returns a Promise
@@ -467,16 +465,7 @@ router.post('/webauthn/register/complete', validateBody(registrationCompleteSche
       user.webauthnCredentials.push(newCredential)
       user.mfaEnabled = true
       
-      // Update mfaMethod to include passkey, preserving existing methods
-      const currentMethod = String(user.mfaMethod || '').toLowerCase()
-      const methods = new Set()
-      if (currentMethod.includes('authenticator')) methods.add('authenticator')
-      if (currentMethod.includes('fingerprint')) methods.add('fingerprint')
-      methods.add('passkey')
-      user.mfaMethod = Array.from(methods).join(',')
-
-      // If this user is staff/admin and was pending MFA, clear the flag and
-      // activate the account unless credentials still need to be changed.
+      // Resolve role for admin check and MFA activation
       let roleSlug = ''
       try {
         if (user.role && user.role.slug) {
@@ -488,6 +477,26 @@ router.post('/webauthn/register/complete', validateBody(registrationCompleteSche
       } catch (roleErr) {
         console.warn('[WebAuthn] Failed to load role for MFA activation:', roleErr.message)
       }
+
+      // Admin: only one super-auth method allowed. Enabling passkey disables TOTP.
+      if (roleSlug === 'admin') {
+        user.mfaSecret = ''
+        user.mfaDisablePending = false
+        user.mfaDisableRequestedAt = null
+        user.mfaDisableScheduledFor = null
+        user.mfaMethod = 'passkey'
+      } else {
+        // Update mfaMethod to include passkey, preserving existing methods
+        const currentMethod = String(user.mfaMethod || '').toLowerCase()
+        const methods = new Set()
+        if (currentMethod.includes('authenticator')) methods.add('authenticator')
+        if (currentMethod.includes('fingerprint')) methods.add('fingerprint')
+        methods.add('passkey')
+        user.mfaMethod = Array.from(methods).join(',')
+      }
+
+      // If this user is staff/admin and was pending MFA, clear the flag and
+      // activate the account unless credentials still need to be changed.
       const requiresMfa = user.isStaff === true || roleSlug === 'admin'
       if (user.mustSetupMfa || requiresMfa) {
         user.mustSetupMfa = false
@@ -627,10 +636,49 @@ router.post('/webauthn/authenticate/start', validateBody(authStartSchema), async
 const authCompleteSchema = Joi.object({
    email: Joi.string().email().optional(),
    credential: Joi.object().required(),
+   purpose: Joi.string().valid('admin_step_up').optional(),
 })
+
+// Helper: run step-up auth (JWT + admin role) and set req._stepUp when purpose is admin_step_up
+function withStepUpIfNeeded(req, res, rest) {
+  if (req.body.purpose !== 'admin_step_up') return rest()
+  requireJwt(req, res, () => {
+    requireRole(['admin'])(req, res, async () => {
+      try {
+        const stepUpKey = 'step_up_' + req._userId
+        let expectedChallenge = authenticationChallenges.get(stepUpKey)
+        if (!expectedChallenge) {
+          return respond.error(res, 428, 'challenge_missing', 'Step-up challenge expired. Start step-up again.')
+        }
+        if (Buffer.isBuffer(expectedChallenge)) expectedChallenge = expectedChallenge.toString('base64url')
+        else if (expectedChallenge instanceof Uint8Array) expectedChallenge = Buffer.from(expectedChallenge).toString('base64url')
+        else if (typeof expectedChallenge !== 'string') expectedChallenge = Buffer.from(expectedChallenge).toString('base64url')
+        const user = await User.findById(req._userId).populate('role')
+        if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
+        const cred = req.body.credential || {}
+        const receivedCredId = String(cred.id || cred.rawId || '').trim()
+        const receivedRawId = String(cred.rawId || cred.id || '').trim()
+        const credRecord = (user.webauthnCredentials || []).find((c) => {
+          if (!c || !c.credId) return false
+          const storedCredId = String(c.credId).trim()
+          if (storedCredId === receivedCredId || storedCredId === receivedRawId) return true
+          const n = storedCredId.replace(/=+$/, '')
+          return n === receivedCredId.replace(/=+$/, '') || n === receivedRawId.replace(/=+$/, '')
+        })
+        if (!credRecord) return respond.error(res, 404, 'credential_not_found', 'Credential not recognized.')
+        req._stepUp = { expectedChallenge, user, credRecord }
+        rest()
+      } catch (e) {
+        console.error('[WebAuthn] admin step-up prepare error:', e)
+        return respond.error(res, 500, 'step_up_failed', 'Step-up verification failed')
+      }
+    })
+  })
+}
 
 // POST /api/auth/webauthn/authenticate/complete
 router.post('/webauthn/authenticate/complete', validateBody(authCompleteSchema), async (req, res) => {
+  withStepUpIfNeeded(req, res, async () => {
    try {
       const { email, credential } = req.body || {}
       
@@ -649,13 +697,24 @@ router.post('/webauthn/authenticate/complete', validateBody(authCompleteSchema),
         console.error('[WebAuthn] Credential missing response')
         return respond.error(res, 400, 'invalid_credential', 'Credential response is missing')
       }
-      
+
+      // When purpose is admin_step_up, req._stepUp was set by withStepUpIfNeeded's async continuation below
+      let expectedChallenge
+      let user = null
+      let credRecord = null
+
+      if (req.body.purpose === 'admin_step_up' && req._stepUp) {
+        expectedChallenge = req._stepUp.expectedChallenge
+        user = req._stepUp.user
+        credRecord = req._stepUp.credRecord
+      } else {
       // Get challenge - use email if provided, otherwise use 'userless' key
       const challengeKey = email ? String(email).toLowerCase() : 'userless'
-      let expectedChallenge = authenticationChallenges.get(challengeKey)
+      expectedChallenge = authenticationChallenges.get(challengeKey)
       if (!expectedChallenge) {
         console.error('[WebAuthn] No challenge found for:', challengeKey)
         return respond.error(res, 400, 'challenge_missing', 'No authentication in progress')
+      }
       }
 
       // Ensure challenge is in base64url string format for verification
@@ -676,10 +735,8 @@ router.post('/webauthn/authenticate/complete', validateBody(authCompleteSchema),
       const receivedCredId = String(credential.id || credential.rawId || '').trim()
       const receivedRawId = String(credential.rawId || credential.id || '').trim()
       
-      // Find user and credential record
-      let user = null
-      let credRecord = null
-      
+      // Find user and credential record (skip when step-up already set them)
+      if (!req._stepUp) {
       if (email) {
          // If email is provided, find user by email
          user = await User.findOne({ email }).populate('role')
@@ -733,6 +790,7 @@ router.post('/webauthn/authenticate/complete', validateBody(authCompleteSchema),
                break
             }
          }
+      }
       }
       
       if (!user || !credRecord) {
@@ -1128,6 +1186,12 @@ router.post('/webauthn/authenticate/complete', validateBody(authCompleteSchema),
            createdAt: userForResponse.createdAt,
         }
         
+        if (req.body.purpose === 'admin_step_up') {
+          authenticationChallenges.delete('step_up_' + req._userId)
+          const { token: stepUpToken, expiresAtMs } = signStepUpToken(req._userId)
+          return res.json({ stepUpToken, expiresAtMs })
+        }
+
         try {
            // Use the user document with populated role for token signing
            const userDocForToken = await User.findById(user._id).populate('role')
@@ -1176,6 +1240,7 @@ router.post('/webauthn/authenticate/complete', validateBody(authCompleteSchema),
       
       return respond.error(res, 500, 'webauthn_auth_complete_failed', errorMessage)
    }
+  })
 })
 
 // Cross-device authentication endpoints
@@ -2369,5 +2434,8 @@ router.delete('/webauthn/credentials', requireJwt, async (req, res) => {
     return respond.error(res, 500, 'credentials_disable_failed', 'Failed to disable passkey authentication')
   }
 })
+
+// Expose for admin step-up passkey flow (start stores challenge with key 'step_up_' + userId)
+router.authenticationChallenges = authenticationChallenges
 
 module.exports = router

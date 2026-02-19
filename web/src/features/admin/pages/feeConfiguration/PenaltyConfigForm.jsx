@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { Form, InputNumber, DatePicker, Button, Spin, Alert, Space, Popconfirm, message, Card, Typography, Divider } from 'antd'
+import { Form, InputNumber, DatePicker, Button, Spin, Alert, Space, Popconfirm, message, Card, Typography, Divider, Splitter, theme } from 'antd'
 import { CalculatorOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { get, post, put } from '@/lib/http.js'
 import { useNotifier } from '@/shared/notifications.js'
+import { useAdminStepUp } from '@/features/admin/hooks/useAdminStepUp'
 
 const { Text } = Typography
 
@@ -35,6 +36,7 @@ function computePenaltyExample(baseFees, submissionDate, config) {
 }
 
 export default function PenaltyConfigForm() {
+  const { token } = theme.useToken()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -47,6 +49,7 @@ export default function PenaltyConfigForm() {
     return dayjs(new Date(y, 2, 15))
   })
   const { success, error: notifyError } = useNotifier()
+  const { runWithStepUp, stepUpModal } = useAdminStepUp()
 
   const surchargePct = Form.useWatch('surchargePercentage', form) ?? 25
   const interestRate = Form.useWatch('monthlyInterestRate', form) ?? 2
@@ -91,50 +94,55 @@ export default function PenaltyConfigForm() {
   const handleSave = useCallback(async (values) => {
     try {
       setSaving(true)
-      const payload = {
-        surchargePercentage: values.surchargePercentage,
-        monthlyInterestRate: values.monthlyInterestRate,
-        penaltyStartDay: values.penaltyStartDay,
-        effectiveDate: values.effectiveDate?.toISOString?.() || new Date().toISOString(),
-      }
-      let res
-      if (configId) {
-        res = await put(`/api/admin/penalty-configuration/${configId}`, payload)
-      } else {
-        res = await post('/api/admin/penalty-configuration', payload)
-        if (res?.data?._id) setConfigId(res.data._id)
-      }
-      if (res?.warnings?.length) {
-        res.warnings.forEach((w) => message.warning(w))
-      }
-      success('Penalty configuration saved')
+      await runWithStepUp(async (stepUpToken) => {
+        const headers = { 'X-Step-Up-Token': stepUpToken }
+        const payload = {
+          surchargePercentage: values.surchargePercentage,
+          monthlyInterestRate: values.monthlyInterestRate,
+          penaltyStartDay: values.penaltyStartDay,
+          effectiveDate: values.effectiveDate?.toISOString?.() || new Date().toISOString(),
+        }
+        let res
+        if (configId) {
+          res = await put(`/api/admin/penalty-configuration/${configId}`, payload, { headers })
+        } else {
+          res = await post('/api/admin/penalty-configuration', payload, { headers })
+          if (res?.data?._id) setConfigId(res.data._id)
+        }
+        if (res?.warnings?.length) {
+          res.warnings.forEach((w) => message.warning(w))
+        }
+        success('Penalty configuration saved')
+      })
     } catch (err) {
-      notifyError(err, 'Failed to save penalty configuration')
+      if (err?.message !== 'Step-up cancelled') notifyError(err, 'Failed to save penalty configuration')
     } finally {
       setSaving(false)
     }
-  }, [configId, success, notifyError])
+  }, [configId, success, notifyError, runWithStepUp])
 
   const handleReset = useCallback(async () => {
     try {
       setResetting(true)
-      const res = await post('/api/admin/penalty-configuration/reset')
-      if (res?.data) {
-        setConfigId(res.data._id)
-        form.setFieldsValue({
-          surchargePercentage: res.data.surchargePercentage,
-          monthlyInterestRate: res.data.monthlyInterestRate,
-          penaltyStartDay: res.data.penaltyStartDay,
-          effectiveDate: dayjs(res.data.effectiveDate),
-        })
-      }
-      success('Reset to defaults')
+      await runWithStepUp(async (stepUpToken) => {
+        const res = await post('/api/admin/penalty-configuration/reset', {}, { headers: { 'X-Step-Up-Token': stepUpToken } })
+        if (res?.data) {
+          setConfigId(res.data._id)
+          form.setFieldsValue({
+            surchargePercentage: res.data.surchargePercentage,
+            monthlyInterestRate: res.data.monthlyInterestRate,
+            penaltyStartDay: res.data.penaltyStartDay,
+            effectiveDate: dayjs(res.data.effectiveDate),
+          })
+        }
+        success('Reset to defaults')
+      })
     } catch (err) {
-      notifyError(err, 'Failed to reset')
+      if (err?.message !== 'Step-up cancelled') notifyError(err, 'Failed to reset')
     } finally {
       setResetting(false)
     }
-  }, [form, success, notifyError])
+  }, [form, success, notifyError, runWithStepUp])
 
   if (loading) {
     return (
@@ -159,8 +167,8 @@ export default function PenaltyConfigForm() {
     )
   }
 
-  return (
-    <div style={{ padding: 24, maxWidth: 720 }}>
+  const formPanel = (
+    <div style={{ padding: 24, height: '100%', overflow: 'auto' }}>
       <Alert
         type="info"
         message="Changes apply from the effective date forward. They are not retroactive."
@@ -226,7 +234,11 @@ export default function PenaltyConfigForm() {
           </Popconfirm>
         </Space>
       </Form>
+    </div>
+  )
 
+  const scenarioPanel = (
+    <div style={{ height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
       <Card
         title={
           <span>
@@ -234,11 +246,11 @@ export default function PenaltyConfigForm() {
             Example calculation
           </span>
         }
-        style={{ marginTop: 32 }}
+        style={{ flex: 1, margin: 24, marginLeft: 16 }}
         size="small"
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-          See how penalty is applied with the current settings. Change the scenario or the values above to update the result.
+          See how penalty is applied with the current settings. Change the scenario or the values on the left to update the result.
         </Text>
         <Space wrap size="middle" style={{ marginBottom: 16 }}>
           <div>
@@ -279,7 +291,7 @@ export default function PenaltyConfigForm() {
                 </Text>
                 <Text>₱{exampleResult.interest.toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTop: '1px solid #f0f0f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTop: `1px solid ${token.colorBorderSecondary}` }}>
                 <Text strong>Total penalty</Text>
                 <Text strong>₱{exampleResult.totalPenalty.toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
               </div>
@@ -296,5 +308,19 @@ export default function PenaltyConfigForm() {
         )}
       </Card>
     </div>
+  )
+
+  return (
+    <>
+    <Splitter style={{ height: '100%', minHeight: 400 }}>
+      <Splitter.Panel min="30%" defaultSize="30%" style={{ overflow: 'hidden' }}>
+        {formPanel}
+      </Splitter.Panel>
+      <Splitter.Panel min="40%" defaultSize="70%" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {scenarioPanel}
+      </Splitter.Panel>
+    </Splitter>
+    {stepUpModal}
+    </>
   )
 }

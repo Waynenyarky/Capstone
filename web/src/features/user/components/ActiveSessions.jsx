@@ -36,10 +36,7 @@ export default function ActiveSessions() {
   const shouldScroll = sessions.length > 2
 
   return (
-    <Card
-      title="Active Sessions"
-      extra={<Button size="small" onClick={load} loading={loading}>Refresh</Button>}
-    >
+    <div>
       <InvalidateSessionsButton onDone={load} />
       <div
         style={{
@@ -62,12 +59,6 @@ export default function ActiveSessions() {
           )}
         />
       </div>
-      {sessions.length > 0 && (
-        <Text type="secondary" style={{ display: 'block', marginTop: 16 }}>
-          Current session is marked with a blue badge.
-          {shouldScroll && ` (Showing 2 of ${sessions.length} sessions - scroll to see more)`}
-        </Text>
-      )}
-    </Card>
+    </div>
   )
 }

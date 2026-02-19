@@ -46,7 +46,7 @@ export default function ChangeEmailForm({ currentEmail, resetToken, onSubmit } =
         </Form.Item>
 
         <Form.Item style={{ marginBottom: 16 }}>
-          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block size="large" style={{ height: 48, fontSize: 16 }}>
+          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block>
             Continue
           </Button>
         </Form.Item>

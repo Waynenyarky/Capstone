@@ -1,4 +1,6 @@
 const express = require('express');
+const axios = require('axios');
+const mongoose = require('mongoose');
 const { requireJwt, requireRole } = require('../middleware/auth');
 const logger = require('../lib/logger');
 const errorTracking = require('../lib/errorTracking');
@@ -9,6 +11,78 @@ const AuditLog = require('../models/AuditLog');
 const User = require('../models/User');
 
 const router = express.Router();
+
+const SERVICE_URLS = [
+  { key: 'auth', name: 'Auth Service', url: process.env.AUTH_SERVICE_URL || 'http://localhost:3001' },
+  { key: 'business', name: 'Business Service', url: process.env.BUSINESS_SERVICE_URL || 'http://localhost:3002' },
+  { key: 'admin', name: 'Admin Service', url: process.env.ADMIN_SERVICE_URL || 'http://localhost:3003' },
+  { key: 'audit', name: 'Audit Service', url: process.env.AUDIT_SERVICE_URL || 'http://localhost:3004' },
+  { key: 'ai', name: 'AI Service', url: process.env.AI_SERVICE_URL || 'http://localhost:3005' },
+];
+
+async function checkServiceHealth({ key, name, url }) {
+  const healthUrl = `${url.replace(/\/$/, '')}/api/health`;
+  try {
+    const res = await axios.get(healthUrl, { timeout: 5000 });
+    const ok = res.status === 200 && (res.data && (res.data.ok === true || res.data.ok === undefined));
+    return {
+      key,
+      name,
+      status: ok ? 'up' : 'degraded',
+      ok: !!ok,
+      database: res.data && res.data.database,
+      timestamp: res.data && res.data.timestamp,
+    };
+  } catch (err) {
+    logger.warn('Service health check failed', { service: name, url: healthUrl, error: err.message });
+    return { key, name, status: 'down', ok: false, error: err.message || 'Unreachable' };
+  }
+}
+
+/**
+ * Get IPFS availability (admin service uses IPFS for uploads).
+ */
+function getIpfsStatus() {
+  try {
+    const ipfsService = require('../lib/ipfsService');
+    return typeof ipfsService.isAvailable === 'function' && ipfsService.isAvailable();
+  } catch (e) {
+    logger.warn('Could not get IPFS status', { error: e.message });
+    return false;
+  }
+}
+
+/**
+ * GET /api/admin/monitoring/services-health
+ * Aggregate health of auth, business, admin, audit, AI services + infrastructure (admin only).
+ * Returns: { services, dependencies: { mongodb, ipfs }, timestamp }
+ */
+router.get('/services-health', requireJwt, requireRole(['admin']), async (req, res) => {
+  try {
+    const results = await Promise.all(SERVICE_URLS.map(checkServiceHealth));
+    const adminIndex = results.findIndex((r) => r.key === 'admin');
+    if (adminIndex >= 0) {
+      results[adminIndex].ok = true;
+      results[adminIndex].status = mongoose.connection.readyState === 1 ? 'up' : 'degraded';
+      results[adminIndex].database = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    }
+
+    const mongodbConnected = mongoose.connection.readyState === 1;
+    const dependencies = {
+      mongodb: mongodbConnected ? 'connected' : 'disconnected',
+      ipfs: getIpfsStatus(),
+    };
+
+    return respond.ok(res, 200, {
+      services: results,
+      dependencies,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    logger.error('Services health aggregation failed', { error: err, correlationId: req.correlationId });
+    return respond.error(res, 500, 'services_health_failed', 'Failed to retrieve services health');
+  }
+});
 
 /**
  * GET /api/admin/monitoring/stats

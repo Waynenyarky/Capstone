@@ -64,7 +64,7 @@ export default function LinkExistingAccountModal({ open, onClose }) {
       open={open}
       onCancel={handleClose}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
     >
       <Steps
         current={step}

@@ -419,7 +419,7 @@ export default function ApplicationReviewStep({
         onCancel={() => setEditDocumentsModalOpen(false)}
         footer={null}
         width={modalWidth}
-        destroyOnClose
+        destroyOnHidden
       >
         <LGUDocumentsUploadStep
           businessId={businessId}
@@ -438,7 +438,7 @@ export default function ApplicationReviewStep({
         onCancel={() => setEditBIRModalOpen(false)}
         footer={null}
         width={modalWidth}
-        destroyOnClose
+        destroyOnHidden
       >
         <BIRRegistrationStep
           businessId={businessId}
@@ -455,7 +455,7 @@ export default function ApplicationReviewStep({
         onCancel={() => setEditAgenciesModalOpen(false)}
         footer={null}
         width={modalWidth}
-        destroyOnClose
+        destroyOnHidden
       >
         <OtherAgenciesStep
           businessId={businessId}
@@ -471,7 +471,7 @@ export default function ApplicationReviewStep({
         onCancel={() => setEditBusinessModalOpen(false)}
         onOk={handleBusinessSave}
         width={modalWidth}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={businessForm} layout="vertical">
           <BusinessRegistrationForm form={businessForm} initialValues={businessData || {}} onValuesChange={() => {}} />

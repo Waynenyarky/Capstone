@@ -1,9 +1,12 @@
 import { authHeaders, fetchJsonWithFallback } from '@/lib/http.js'
 import { getCurrentUser } from '@/features/authentication/lib/authEvents.js'
 
-export async function requestMaintenance(payload) {
+export async function requestMaintenance(payload, options = {}) {
   const current = getCurrentUser()
-  const headers = authHeaders(current, 'admin', { 'Content-Type': 'application/json' })
+  const headers = authHeaders(current, 'admin', {
+    'Content-Type': 'application/json',
+    ...(options.stepUpToken && { stepUpToken: options.stepUpToken }),
+  })
   return fetchJsonWithFallback('/api/admin/maintenance/request', {
     method: 'POST',
     headers,
@@ -33,9 +36,12 @@ export async function getMaintenanceApprovals() {
   })
 }
 
-export async function approveMaintenance(approvalId, approved = true, comment = '') {
+export async function approveMaintenance(approvalId, approved = true, comment = '', options = {}) {
   const current = getCurrentUser()
-  const headers = authHeaders(current, 'admin', { 'Content-Type': 'application/json' })
+  const headers = authHeaders(current, 'admin', {
+    'Content-Type': 'application/json',
+    ...(options.stepUpToken && { stepUpToken: options.stepUpToken }),
+  })
   return fetchJsonWithFallback(`/api/admin/approvals/${approvalId}/approve`, {
     method: 'POST',
     headers,

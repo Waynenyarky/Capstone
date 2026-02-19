@@ -66,11 +66,11 @@ export function usePasskeyManager() {
     fetchCredentials()
   }, [fetchCredentials])
 
-  // Register passkey using use case
+  // Register passkey using use case. Returns true if registration succeeded, false if cancelled/failed.
   const handleRegister = useCallback(async () => {
     if (!email) {
       notifyError('Email is required to register a passkey')
-      return
+      return false
     }
 
     try {
@@ -80,14 +80,18 @@ export function usePasskeyManager() {
       if (result.success) {
         success('Passkey registered successfully!')
         await fetchCredentials()
-      } else if (result.cancelled) {
+        return true
+      }
+      if (result.cancelled) {
         info('Registration was cancelled. No worries! You can try again whenever you\'re ready.')
       } else {
         notifyError(result.error || 'Failed to register passkey')
       }
+      return false
     } catch (e) {
       console.error('Passkey registration failed', e)
       notifyError(e.message || 'Failed to register passkey. Please try again.')
+      return false
     } finally {
       setRegistering(false)
     }
@@ -135,12 +139,16 @@ export function usePasskeyManager() {
     }
   }, [deleteAllUseCase, fetchCredentials, success, notifyError])
 
+  const roleSlug = (currentUser?.role?.slug ?? currentUser?.role ?? '').toString()
+  const isAdmin = roleSlug === 'admin'
+
   return {
     credentials,
     loading,
     registering,
     deleting,
     hasPasskeys: credentials.length > 0,
+    isAdmin,
     handleRegister,
     handleDelete,
     handleDeleteAll,

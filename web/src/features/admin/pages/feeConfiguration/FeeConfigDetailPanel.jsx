@@ -11,7 +11,7 @@ import {
   Empty,
 } from 'antd'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
-import { LINE_OF_BUSINESS } from '@/constants/lineOfBusiness.js'
+import { CHARTER_TAX_CODE_OPTIONS } from '@/constants/charterTaxCodes.js'
 
 const { Text } = Typography
 
@@ -34,21 +34,13 @@ const BUSINESS_TAX_CATEGORY_OPTIONS = [
   { value: 'Annex 1 (i) — Public utility vehicles', label: 'Annex 1 (i) — Public utility vehicles' },
 ]
 
-/** Format snake_case LOB key as readable label (e.g. electronic_electrical_store → Electronic electrical store). */
-function formatLineOfBusinessLabel(lob) {
-  if (lob == null || typeof lob !== 'string') return lob ?? '—'
-  return lob
-    .split('_')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(' ')
-}
-
 export default function FeeConfigDetailPanel({
   config,
   configs = [],
   saving,
   onSave,
   onDelete,
+  onCancel,
 }) {
   const { token } = theme.useToken()
   const [form] = Form.useForm()
@@ -59,8 +51,11 @@ export default function FeeConfigDetailPanel({
   useEffect(() => {
     if (config && (config._id != null || config.lineOfBusiness)) {
       form.setFieldsValue({
+        taxCode: config.taxCode != null && config.taxCode !== '' ? config.taxCode : undefined,
         lineOfBusiness: config.lineOfBusiness,
         mayorsPermitFee: config.mayorsPermitFee,
+        environmentalProtectionFee: config.environmentalProtectionFee ?? undefined,
+        barangayClearanceFee: config.barangayClearanceFee ?? undefined,
         businessTaxCategory: config.businessTaxCategory || '',
         bracketKind: config.bracketKind || 'rate',
         brackets: (config.brackets || []).map((b) => ({
@@ -90,20 +85,6 @@ export default function FeeConfigDetailPanel({
     return BUSINESS_TAX_CATEGORY_OPTIONS
   }, [businessTaxCategory])
 
-  const lineOfBusinessOptions = React.useMemo(() => {
-    const byValue = new Map()
-    LINE_OF_BUSINESS.forEach((lob) => {
-      byValue.set(lob.lineOfBusiness, { value: lob.lineOfBusiness, label: `${lob.taxCode} — ${lob.label}` })
-    })
-    ;(configs || []).forEach((c) => {
-      const lob = c?.lineOfBusiness
-      if (lob && !byValue.has(lob)) {
-        byValue.set(lob, { value: lob, label: formatLineOfBusinessLabel(lob) })
-      }
-    })
-    return [...byValue.values(), { value: '__custom__', label: 'Custom (enter new)' }]
-  }, [configs])
-
   if (isEmpty) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 24 }}>
@@ -123,9 +104,11 @@ export default function FeeConfigDetailPanel({
           layout="vertical"
           onFinish={(values) => {
             const payload = {
-              taxCode: LINE_OF_BUSINESS.find((l) => l.lineOfBusiness === values.lineOfBusiness)?.taxCode || '',
-              lineOfBusiness: values.lineOfBusiness,
+              taxCode: values.taxCode != null && values.taxCode !== '' ? String(values.taxCode).trim() : '',
+              lineOfBusiness: (values.lineOfBusiness || '').trim(),
               mayorsPermitFee: values.mayorsPermitFee,
+              environmentalProtectionFee: values.environmentalProtectionFee ?? null,
+              barangayClearanceFee: values.barangayClearanceFee ?? null,
               businessTaxCategory: values.businessTaxCategory || '',
               bracketKind: values.bracketKind || 'rate',
               brackets: (values.brackets || []).map((b) => ({
@@ -138,16 +121,44 @@ export default function FeeConfigDetailPanel({
             onSave(config._id ?? null, payload)
           }}
         >
-          <Form.Item name="lineOfBusiness" label="Line of Business" rules={[{ required: true }]}>
+          <Form.Item
+            name="taxCode"
+            label="Tax code (industry category)"
+            rules={[{ required: true, message: 'Select the Charter tax code (industry category).' }]}
+            extra="Charter category 1–12; each number represents an industry (e.g. 6 = Food Industries)."
+          >
             <Select
               showSearch
-              placeholder="Select line of business"
+              placeholder="Select tax code (e.g. 6 — Food Industries)"
               optionFilterProp="label"
-              options={lineOfBusinessOptions}
+              options={CHARTER_TAX_CODE_OPTIONS}
+              allowClear={false}
             />
           </Form.Item>
-          <Form.Item name="mayorsPermitFee" label="Fee (₱)" rules={[{ required: true }]}>
+          <Form.Item
+            name="lineOfBusiness"
+            label="Line of business"
+            rules={[{ required: true, message: 'Enter the line of business description.' }]}
+            extra="Enter the line of business in plain text (sentence only, no tax code). e.g. Canteens, Eateries, Food Stands - Less than 8 sq.m."
+          >
+            <Input placeholder="e.g. Restaurants - Above 50 sq.m." />
+          </Form.Item>
+          <Form.Item name="mayorsPermitFee" label="Mayor's Permit Fee (₱)" rules={[{ required: true }]}>
             <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item
+            name="environmentalProtectionFee"
+            label="Environmental Protection Fee (₱)"
+            extra="Charter 4W.01 — per annum, optional."
+          >
+            <InputNumber min={0} placeholder="Optional" style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item
+            name="barangayClearanceFee"
+            label="Barangay Business Clearance Fee (₱)"
+            extra="Charter Artikulo A — per annum, optional."
+          >
+            <InputNumber min={0} placeholder="Optional" style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="businessTaxCategory" label="Business Tax Category">
             <Select
@@ -197,6 +208,9 @@ export default function FeeConfigDetailPanel({
             <Button type="primary" htmlType="submit" loading={saving}>
               {isCreate ? 'Create' : 'Save'}
             </Button>
+            {isCreate && onCancel && (
+              <Button onClick={onCancel}>Cancel</Button>
+            )}
             {onDelete && config._id != null && (
               <Button danger onClick={() => onDelete(config._id)}>
                 Delete

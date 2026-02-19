@@ -12,7 +12,6 @@ const { Text } = Typography
 export const FINANCE_NAV_ITEMS = [
   { key: 'overview', label: 'Overview', icon: DashboardOutlined },
   { key: 'transactions', label: 'Transactions', icon: UnorderedListOutlined },
-  { key: 'fee-config', label: 'Fee configuration', icon: SettingOutlined },
   { key: 'reports', label: 'Reports', icon: BarChartOutlined },
 ]
 

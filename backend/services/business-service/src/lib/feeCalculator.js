@@ -41,13 +41,17 @@ async function getRegulatoryFeeConfig() {
 
 /**
  * Look up the active FeeConfiguration for a line of business.
+ * Match is case-insensitive so stored sentence-case (e.g. "Restaurants - Above 50 sq.m.") matches form input.
  * @param {string} lineOfBusiness
  * @returns {Object|null} FeeConfiguration document or null
  */
 async function getFeeConfig(lineOfBusiness) {
-  if (!lineOfBusiness) return null
+  if (!lineOfBusiness || typeof lineOfBusiness !== 'string') return null
+  const trimmed = lineOfBusiness.trim()
+  if (!trimmed) return null
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   return FeeConfiguration.findOne({
-    lineOfBusiness: lineOfBusiness.toLowerCase().trim(),
+    lineOfBusiness: { $regex: new RegExp(`^${escaped}$`, 'i') },
     isActive: true,
   }).lean()
 }

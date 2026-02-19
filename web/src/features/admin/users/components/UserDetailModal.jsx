@@ -117,7 +117,7 @@ export default function UserDetailModal({ user, open, onClose }) {
       onCancel={onClose}
       footer={null}
       width={640}
-      destroyOnClose
+      destroyOnHidden
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         {/* Profile */}
@@ -204,7 +204,7 @@ export default function UserDetailModal({ user, open, onClose }) {
                     padding: '16px 20px',
                     background: '#fff',
                     borderRadius: 10,
-                    border: '1px solid #e8e8e8',
+                    border: `1px solid ${token.colorBorderSecondary}`,
                     boxShadow: '0 6px 20px rgba(0, 0, 0, 0.12)',
                     zIndex: 50,
                     minWidth: 240,
@@ -270,7 +270,7 @@ export default function UserDetailModal({ user, open, onClose }) {
         open={!!selectedLog}
         onCancel={() => setSelectedLog(null)}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
       >
         {selectedLog && (
           <Descriptions

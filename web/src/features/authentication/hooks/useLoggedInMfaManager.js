@@ -21,6 +21,18 @@ export function useLoggedInMfaManager() {
   const [undoModalVisible, setUndoModalVisible] = useState(false)
   const [undoCode, setUndoCode] = useState('')
 
+  const refetchMfaStatus = React.useCallback(async () => {
+    if (!email) return
+    try {
+      const res = await mfaStatus(email)
+      setEnabled(!!res?.enabled)
+      setDisablePending(!!res?.disablePending)
+      setScheduledFor(res?.scheduledFor || null)
+    } catch {
+      setStatusFetchFailed(true)
+    }
+  }, [email])
+
   useEffect(() => {
     let mounted = true
     if (!email) return
@@ -154,6 +166,7 @@ export function useLoggedInMfaManager() {
     handleOpenSetup,
     handleDisable,
     confirmDisable,
-    confirmUndo
+    confirmUndo,
+    refetchMfaStatus
   }
 }

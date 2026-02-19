@@ -27,9 +27,12 @@ export async function fetchTamperStats() {
   })
 }
 
-export async function acknowledgeIncident(id, containmentActive) {
+export async function acknowledgeIncident(id, containmentActive, options = {}) {
   const current = getCurrentUser()
-  const headers = authHeaders(current, 'admin', { 'Content-Type': 'application/json' })
+  const headers = authHeaders(current, 'admin', {
+    'Content-Type': 'application/json',
+    ...(options.stepUpToken && { stepUpToken: options.stepUpToken }),
+  })
   return fetchJsonWithFallback(`/api/admin/tamper/incidents/${id}/ack`, {
     method: 'POST',
     headers,
@@ -37,9 +40,12 @@ export async function acknowledgeIncident(id, containmentActive) {
   })
 }
 
-export async function updateContainment(id, containmentActive = true) {
+export async function updateContainment(id, containmentActive = true, options = {}) {
   const current = getCurrentUser()
-  const headers = authHeaders(current, 'admin', { 'Content-Type': 'application/json' })
+  const headers = authHeaders(current, 'admin', {
+    'Content-Type': 'application/json',
+    ...(options.stepUpToken && { stepUpToken: options.stepUpToken }),
+  })
   return fetchJsonWithFallback(`/api/admin/tamper/incidents/${id}/contain`, {
     method: 'POST',
     headers,
@@ -47,9 +53,12 @@ export async function updateContainment(id, containmentActive = true) {
   })
 }
 
-export async function resolveIncident(id, resolutionNotes = '', containmentActive = false) {
+export async function resolveIncident(id, resolutionNotes = '', containmentActive = false, options = {}) {
   const current = getCurrentUser()
-  const headers = authHeaders(current, 'admin', { 'Content-Type': 'application/json' })
+  const headers = authHeaders(current, 'admin', {
+    'Content-Type': 'application/json',
+    ...(options.stepUpToken && { stepUpToken: options.stepUpToken }),
+  })
   return fetchJsonWithFallback(`/api/admin/tamper/incidents/${id}/resolve`, {
     method: 'POST',
     headers,

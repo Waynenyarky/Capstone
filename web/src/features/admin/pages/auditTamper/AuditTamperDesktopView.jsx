@@ -3,7 +3,7 @@ import { Typography, theme } from 'antd'
 import {
   DashboardOutlined,
   UnorderedListOutlined,
-  BookOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons'
 
 const { Text } = Typography
@@ -11,7 +11,7 @@ const { Text } = Typography
 export const AUDIT_TAMPER_NAV_ITEMS = [
   { key: 'overview', label: 'Overview', icon: DashboardOutlined },
   { key: 'incidents', label: 'Incidents', icon: UnorderedListOutlined },
-  { key: 'guidance', label: 'Guidance', icon: BookOutlined },
+  { key: 'history', label: 'History', icon: HistoryOutlined },
 ]
 
 export default function AuditTamperDesktopView({

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Select, Button, Typography, theme, Space, Badge, Empty, Modal, Spin, message, Form, Alert, Tag, Row, Col, Card } from 'antd' // Select still used for version dropdown
+import { Select, Button, Typography, theme, Space, Badge, Empty, Modal, Spin, message, Form, Alert, Tag, Row, Col, Card, Table } from 'antd' // Select still used for version dropdown
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'
+import dayjs from 'dayjs'
 import {
   ArrowLeftOutlined,
   SaveOutlined,
@@ -14,15 +16,18 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   StopOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons'
 
-import { FORM_TYPES, STATUS_COLORS, GENERAL_PERMIT_PREVIEW_CATEGORIES } from '../constants'
+import { FORM_TYPES, STATUS_COLORS, GENERAL_PERMIT_PREVIEW_CATEGORIES, ACTION_LABELS, FORM_TYPE_LABELS, INDUSTRY_LABELS } from '../constants'
+import ExportLogsModal from '@/features/admin/components/ExportLogsModal'
 import DraftsModal from './DraftsModal'
 import AddVersionModal from './AddVersionModal'
 import FormContentEditor from './FormContentEditor'
 import FormPreview from './FormPreview'
 import DeactivateFormModal from './DeactivateFormModal'
 import FormDefinitionsLogsTab from './FormDefinitionsLogsTab'
+import { useAdminStepUp } from '@/features/admin/hooks/useAdminStepUp'
 
 import {
   getFormGroups,
@@ -36,6 +41,7 @@ import {
   submitForApproval,
   deactivateFormGroup,
   reactivateFormGroup,
+  getFormDefinitionsAuditLog,
 } from '@/features/admin/services/formDefinitionService'
 
 const { Text } = Typography
@@ -71,11 +77,37 @@ function formDisplayTitle(name) {
 
 export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdated } = {}) {
   const { token } = theme.useToken()
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const editorRef = useRef(null)
   const [deactivateForm] = Form.useForm()
+  const { runWithStepUp, stepUpModal } = useAdminStepUp()
 
   // Navigation: now form-type-centric (Overview | Logs | form type list)
   const [selectedNav, setSelectedNav] = useState(OVERVIEW_KEY)
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab === 'logs') setSelectedNav(LOGS_KEY)
+  }, [searchParams])
+
+  useEffect(() => {
+    if (import.meta.env.MODE === 'production') return undefined
+    const handler = (event) => {
+      const { action: evAction, nav } = event?.detail || {}
+      if (evAction === 'setNav' && nav) {
+        setSelectedNav(nav)
+      } else if (evAction === 'openAddVersion') {
+        setAddVersionModalOpen(true)
+      } else if (evAction === 'openDeactivate') {
+        setDeactivateModalOpen(true)
+      } else if (evAction === 'openDrafts') {
+        setDraftsModalOpen(true)
+      }
+    }
+    window.addEventListener('devtools:formdef', handler)
+    return () => window.removeEventListener('devtools:formdef', handler)
+  }, [])
 
   // The selected form type is derived from selectedNav when it's a form type key
   const selectedFormType = (!selectedNav || selectedNav === OVERVIEW_KEY || selectedNav === LOGS_KEY)
@@ -103,6 +135,9 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
   // Modals
   const [draftsModalOpen, setDraftsModalOpen] = useState(false)
   const [addVersionModalOpen, setAddVersionModalOpen] = useState(false)
+  const [exportLogsOpen, setExportLogsOpen] = useState(false)
+  const [recentFormLogs, setRecentFormLogs] = useState([])
+  const [recentFormLogsLoading, setRecentFormLogsLoading] = useState(false)
   const [deactivateModalOpen, setDeactivateModalOpen] = useState(false)
   const [deactivateLoading, setDeactivateLoading] = useState(false)
   const [reasonTemplate, setReasonTemplate] = useState('maintenance')
@@ -242,22 +277,44 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
     }
   }, [selectedVersion, versions])
 
+  // Load recent form activity when on overview
+  useEffect(() => {
+    if (selectedNav !== OVERVIEW_KEY) return
+    let cancelled = false
+    setRecentFormLogsLoading(true)
+    getFormDefinitionsAuditLog({ limit: 10 })
+      .then((res) => {
+        const entries = res?.entries || []
+        // Ensure each row has a unique key (API may return duplicate _id/definitionId)
+        if (!cancelled) setRecentFormLogs(entries.map((e, i) => ({ ...e, __rowKey: `${e._id ?? e.definitionId ?? 'log'}-${i}` })))
+      })
+      .catch(() => {
+        if (!cancelled) setRecentFormLogs([])
+      })
+      .finally(() => {
+        if (!cancelled) setRecentFormLogsLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [selectedNav])
+
   // ─── Actions ────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!currentDefinition || !editorRef.current) return
     setSaving(true)
     try {
       const sections = editorRef.current.getSections()
-      const res = await updateFormDefinition(currentDefinition._id, { sections })
-      if (res?.success) {
-        message.success('Draft saved')
-        setHasUnsavedChanges(false)
-        setCurrentDefinition(res.definition)
-      } else {
-        message.error('Failed to save draft')
-      }
+      await runWithStepUp(async (stepUpToken) => {
+        const res = await updateFormDefinition(currentDefinition._id, { sections }, { stepUpToken })
+        if (res?.success) {
+          message.success('Draft saved')
+          setHasUnsavedChanges(false)
+          setCurrentDefinition(res.definition)
+        } else {
+          message.error('Failed to save draft')
+        }
+      })
     } catch (err) {
-      message.error(err?.message || 'Failed to save draft')
+      if (err?.message !== 'Step-up cancelled') message.error(err?.message || 'Failed to save draft')
     } finally {
       setSaving(false)
     }
@@ -273,13 +330,15 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
-          await deleteFormDefinition(currentDefinition._id)
-          message.success('Draft deleted')
-          setIsEditingDraft(false)
-          setHasUnsavedChanges(false)
-          loadFormGroupForSelection()
+          await runWithStepUp(async (stepUpToken) => {
+            await deleteFormDefinition(currentDefinition._id, { stepUpToken })
+            message.success('Draft deleted')
+            setIsEditingDraft(false)
+            setHasUnsavedChanges(false)
+            loadFormGroupForSelection()
+          })
         } catch (err) {
-          message.error(err?.message || 'Failed to delete draft')
+          if (err?.message !== 'Step-up cancelled') message.error(err?.message || 'Failed to delete draft')
         }
       },
     })
@@ -294,23 +353,25 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
       cancelText: 'Cancel',
       onOk: async () => {
         try {
-          // Save first
-          if (editorRef.current) {
-            const sections = editorRef.current.getSections()
-            await updateFormDefinition(currentDefinition._id, { sections })
-          }
-          const res = await submitForApproval(currentDefinition._id)
-          if (res?.success) {
-            message.success('Form submitted for approval')
-            setIsEditingDraft(false)
-            setHasUnsavedChanges(false)
-            loadFormGroupForSelection()
-            loadStats()
-          } else {
-            message.error(res?.error?.message || 'Failed to submit for approval')
-          }
+          await runWithStepUp(async (stepUpToken) => {
+            const opts = { stepUpToken }
+            if (editorRef.current) {
+              const sections = editorRef.current.getSections()
+              await updateFormDefinition(currentDefinition._id, { sections }, opts)
+            }
+            const res = await submitForApproval(currentDefinition._id, opts)
+            if (res?.success) {
+              message.success('Form submitted for approval')
+              setIsEditingDraft(false)
+              setHasUnsavedChanges(false)
+              loadFormGroupForSelection()
+              loadStats()
+            } else {
+              message.error(res?.error?.message || 'Failed to submit for approval')
+            }
+          })
         } catch (err) {
-          message.error(err?.message || 'Failed to submit for approval')
+          if (err?.message !== 'Step-up cancelled') message.error(err?.message || 'Failed to submit for approval')
         }
       },
     })
@@ -337,54 +398,50 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
 
   const handleAddVersion = async (source) => {
     try {
-      let group = formGroup
+      await runWithStepUp(async (stepUpToken) => {
+        const opts = { stepUpToken }
+        let group = formGroup
 
-      // Create form group if none exists
-      if (!group) {
-        const createRes = await createFormGroup({
-          formType: selectedFormType,
-          industryScope,
-        })
-        if (!createRes?.success) {
-          message.error('Failed to create form group')
+        if (!group) {
+          const createRes = await createFormGroup({
+            formType: selectedFormType,
+            industryScope,
+          }, opts)
+          if (!createRes?.success) {
+            message.error('Failed to create form group')
+            return
+          }
+          group = createRes.group
+          setFormGroup(group)
+          setCurrentDefinition(createRes.definition)
+          setVersions([createRes.definition])
+          setSelectedVersion(createRes.definition._id)
+          setDraftCreatedAt(new Date())
+          setIsEditingDraft(true)
           return
         }
-        group = createRes.group
-        setFormGroup(group)
-        setCurrentDefinition(createRes.definition)
-        setVersions([createRes.definition])
-        setSelectedVersion(createRes.definition._id)
-        setDraftCreatedAt(new Date())
-        setIsEditingDraft(true)
-        return
-      }
 
-      // Create new version in existing group
-      const res = await createFormGroupVersion(group._id)
-      if (res?.success) {
-        const newDef = res.definition
-
-        // If source is 'previous', copy sections from latest version
-        if (source === 'previous' && versions.length > 0) {
-          const latestPublished = versions.find((v) => v.status === 'published') || versions[0]
-          if (latestPublished?.sections?.length > 0) {
-            await updateFormDefinition(newDef._id, { sections: latestPublished.sections })
+        const res = await createFormGroupVersion(group._id, opts)
+        if (res?.success) {
+          const newDef = res.definition
+          if (source === 'previous' && versions.length > 0) {
+            const latestPublished = versions.find((v) => v.status === 'published') || versions[0]
+            if (latestPublished?.sections?.length > 0) {
+              await updateFormDefinition(newDef._id, { sections: latestPublished.sections }, opts)
+            }
           }
+          await loadFormGroupForSelection()
+          setSelectedVersion(newDef._id)
+          setCurrentDefinition(newDef)
+          setDraftCreatedAt(new Date())
+          setIsEditingDraft(true)
+          message.success('New version created')
+        } else {
+          message.error('Failed to create new version')
         }
-
-        // Reload
-        await loadFormGroupForSelection()
-        // Find and select the new draft
-        setSelectedVersion(newDef._id)
-        setCurrentDefinition(newDef)
-        setDraftCreatedAt(new Date())
-        setIsEditingDraft(true)
-        message.success('New version created')
-      } else {
-        message.error('Failed to create new version')
-      }
+      })
     } catch (err) {
-      message.error(err?.message || 'Failed to create version')
+      if (err?.message !== 'Step-up cancelled') message.error(err?.message || 'Failed to create version')
     }
   }
 
@@ -405,11 +462,13 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
 
   const handleDeleteDraft = async (draft) => {
     try {
-      await deleteFormDefinition(draft._id || draft.id)
-      message.success('Draft deleted')
-      loadFormGroupForSelection()
+      await runWithStepUp(async (stepUpToken) => {
+        await deleteFormDefinition(draft._id || draft.id, { stepUpToken })
+        message.success('Draft deleted')
+        loadFormGroupForSelection()
+      })
     } catch (err) {
-      message.error(err?.message || 'Failed to delete draft')
+      if (err?.message !== 'Step-up cancelled') message.error(err?.message || 'Failed to delete draft')
     }
   }
 
@@ -419,17 +478,19 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
       const values = await deactivateForm.validateFields()
       setDeactivateLoading(true)
       const reason = values.reasonTemplate === 'custom' ? values.reason : values.reasonTemplate
-      await deactivateFormGroup(formGroup._id, {
-        deactivatedUntil: values.deactivatedUntil.toISOString(),
-        reason,
+      await runWithStepUp(async (stepUpToken) => {
+        await deactivateFormGroup(formGroup._id, {
+          deactivatedUntil: values.deactivatedUntil.toISOString(),
+          reason,
+        }, { stepUpToken })
+        message.success('Form group deactivated')
+        setDeactivateModalOpen(false)
+        deactivateForm.resetFields()
+        loadFormGroupForSelection()
+        loadStats()
       })
-      message.success('Form group deactivated')
-      setDeactivateModalOpen(false)
-      deactivateForm.resetFields()
-      loadFormGroupForSelection()
-      loadStats()
     } catch (err) {
-      if (err?.errorFields) return // Validation error
+      if (err?.message === 'Step-up cancelled' || err?.errorFields) return
       message.error(err?.message || 'Failed to deactivate')
     } finally {
       setDeactivateLoading(false)
@@ -505,6 +566,7 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
   const groupDeactivated = isGroupDeactivated(formGroup)
 
   return (
+    <>
     <div
       style={{
         display: 'flex',
@@ -560,27 +622,34 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
             zIndex: 1,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: isFormPage ? 12 : 0 }}>
-            {TitleIcon && (
-              <span
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: token.borderRadius,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: token.colorFillTertiary,
-                  color: token.colorPrimary,
-                }}
-              >
-                <TitleIcon style={{ fontSize: 18 }} />
-              </span>
-            )}
-            <Text strong style={{ fontSize: 16 }}>{selectedPageLabel}</Text>
-            {/* Status badge for the form group */}
-            {isFormPage && !isEditingDraft && groupStatusLabel && (
-              <Tag color={groupStatusColor} style={{ marginLeft: 4 }}>{groupStatusLabel}</Tag>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: isFormPage ? 12 : 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {TitleIcon && (
+                <span
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: token.borderRadius,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: token.colorFillTertiary,
+                    color: token.colorPrimary,
+                  }}
+                >
+                  <TitleIcon style={{ fontSize: 18 }} />
+                </span>
+              )}
+              <Text strong style={{ fontSize: 16 }}>{selectedPageLabel}</Text>
+              {/* Status badge for the form group */}
+              {isFormPage && !isEditingDraft && groupStatusLabel && (
+                <Tag color={groupStatusColor} style={{ marginLeft: 4 }}>{groupStatusLabel}</Tag>
+              )}
+            </div>
+            {isLogs && (
+              <Button type="primary" icon={<DownloadOutlined />} onClick={() => setExportLogsOpen(true)}>
+                Export
+              </Button>
             )}
           </div>
 
@@ -640,7 +709,7 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
         {/* Scrollable content */}
         <div style={{ flex: 1, overflow: 'auto' }}>
           {isOverview ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 32, maxWidth: 1000, margin: '0 auto', padding: 16 }}>
+            <div style={{display: 'flex', flexDirection: 'column', gap: 32, width: '100%', padding: 16 }}>
               <div>
                 <Text strong style={{ display: 'block', marginBottom: 12, fontSize: 15, color: token.colorText }}>
                   Form summary
@@ -680,10 +749,66 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
                   ))}
                 </Row>
               </div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <Text strong style={{ fontSize: 15, color: token.colorText }}>
+                    Recent activity
+                  </Text>
+                  <Link to="/admin/form-definitions?tab=logs">View all</Link>
+                </div>
+                <Card size="small">
+                  <Table
+                    size="small"
+                    dataSource={recentFormLogs}
+                    rowKey={(r) => r.__rowKey ?? r._id ?? r.definitionId ?? ''}
+                    loading={recentFormLogsLoading}
+                    pagination={false}
+                    onRow={(record) => ({
+                      onClick: () => {
+                        const id = record._id || record.id
+                        if (id) navigate(`/admin/form-definitions?tab=logs&logId=${encodeURIComponent(id)}`)
+                      },
+                      style: { cursor: 'pointer' },
+                    })}
+                    columns={[
+                      {
+                        title: 'Action',
+                        dataIndex: 'action',
+                        key: 'action',
+                        width: 140,
+                        render: (v) => <Tag>{ACTION_LABELS[v] || v || '—'}</Tag>,
+                      },
+                      {
+                        title: 'Form',
+                        key: 'form',
+                        render: (_, r) => `${FORM_TYPE_LABELS[r.formType] || r.formType || '—'} – ${INDUSTRY_LABELS[r.industryScope] || r.industryScope || 'All'}${r.version != null ? ` v${r.version}` : ''}`,
+                      },
+                      {
+                        title: 'Performed by',
+                        key: 'performedBy',
+                        width: 140,
+                        render: (_, r) => {
+                          if (r?.user) return [r.user.firstName, r.user.lastName].filter(Boolean).join(' ') || r.user.email || '—'
+                          if (r?.system) return r.system
+                          return '—'
+                        },
+                      },
+                      {
+                        title: 'Date',
+                        dataIndex: 'at',
+                        key: 'date',
+                        width: 160,
+                        render: (v) => (v ? dayjs(v).format('MMM D, YYYY HH:mm') : '—'),
+                      },
+                    ]}
+                    locale={{ emptyText: 'No recent activity' }}
+                  />
+                </Card>
+              </div>
             </div>
           ) : isLogs ? (
             <div style={{ height: '100%', minHeight: 400, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <FormDefinitionsLogsTab />
+              <FormDefinitionsLogsTab initialLogId={searchParams.get('logId') || null} />
             </div>
           ) : (
             <>
@@ -844,6 +969,14 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
         </div>
       </div>
     </div>
+    <ExportLogsModal
+      open={exportLogsOpen}
+      onClose={() => setExportLogsOpen(false)}
+      exportType="forms"
+      title="Form definitions logs"
+    />
+    {stepUpModal}
+    </>
   )
 }
 

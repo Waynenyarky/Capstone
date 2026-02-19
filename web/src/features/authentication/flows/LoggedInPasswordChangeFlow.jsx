@@ -1,44 +1,24 @@
 import { Steps, theme, Result, Button } from 'antd'
 import { SendCodeForCurrentUser, VerificationForm, ChangePasswordForm } from "@/features/authentication"
-import { useLoggedInPasswordChangeFlow } from "@/features/authentication/hooks"
+import { useLoggedInPasswordChangeFlow, useResendForgotPasswordCode } from "@/features/authentication/hooks"
 import { MailOutlined, SafetyCertificateOutlined, LockOutlined } from '@ant-design/icons'
 
 export default function LoggedInPasswordChangeFlow() {
-  const { step, sendProps, verifyProps, changeProps, reset } = useLoggedInPasswordChangeFlow()
+  const { step, sendProps, verifyProps, changeProps, reset, goBack } = useLoggedInPasswordChangeFlow()
   const { token } = theme.useToken()
+  const resend = useResendForgotPasswordCode({ email: verifyProps.email, cooldownSec: 60 })
 
   const currentStep = step === 'send' ? 0 : step === 'verify' ? 1 : step === 'change' ? 2 : 3
-
   const items = [
-    {
-      title: 'Request Code',
-      icon: <MailOutlined />,
-    },
-    {
-      title: 'Verify',
-      icon: <SafetyCertificateOutlined />,
-    },
-    {
-      title: 'New Password',
-      icon: <LockOutlined />,
-    },
+    { title: 'Request Code', icon: <MailOutlined /> },
+    { title: 'Verify', icon: <SafetyCertificateOutlined /> },
+    { title: 'New Password', icon: <LockOutlined /> },
   ]
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto' }}>
-      <Steps 
-        current={currentStep} 
-        items={items} 
-        style={{ marginBottom: 40 }} 
-        size="small"
-      />
+      <div>
       
-      <div style={{ 
-        padding: 24, 
-        background: token.colorFillAlter, 
-        borderRadius: token.borderRadiusLG,
-        border: `1px solid ${token.colorBorderSecondary}`
-      }}>
         {step === 'send' && (
           <SendCodeForCurrentUser
             email={sendProps.email}
@@ -53,6 +33,11 @@ export default function LoggedInPasswordChangeFlow() {
             onSubmit={verifyProps.onSubmit}
             title="Verify Identity"
             isLoggedInFlow={true}
+            onResend={resend.handleResend}
+            isResending={resend.isSending}
+            isCooling={resend.isCooling}
+            remaining={resend.remaining}
+            onBack={goBack}
           />
         )}
         {step === 'change' && (
@@ -61,6 +46,7 @@ export default function LoggedInPasswordChangeFlow() {
             resetToken={changeProps.resetToken}
             onSubmit={changeProps.onSubmit}
             isLoggedInFlow={true}
+            onBack={goBack}
           />
         )}
         {step === 'done' && (
@@ -69,7 +55,7 @@ export default function LoggedInPasswordChangeFlow() {
             title="Password Changed Successfully"
             subTitle="Your password has been updated. You can now use your new password to log in."
             extra={[
-              <Button type="primary" key="console" onClick={reset}>
+              <Button type="primary" key="again" onClick={reset}>
                 Change Again
               </Button>,
             ]}

@@ -14,6 +14,7 @@ import {
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { getRequestTypeLabel, approveRequest } from '@/features/admin/services/approvalService'
 import { useAuthSession } from '@/features/authentication'
+import { useAdminStepUp } from '@/features/admin/hooks/useAdminStepUp'
 
 const { Text } = Typography
 const { TextArea } = Input
@@ -42,6 +43,7 @@ function userEmail(user) {
 export default function RequestDetailPanel({ approval, loading, onRefresh }) {
   const { token } = theme.useToken()
   const { currentUser } = useAuthSession()
+  const { runWithStepUp, stepUpModal } = useAdminStepUp()
   const [actionModalOpen, setActionModalOpen] = useState(false)
   const [actionApproved, setActionApproved] = useState(true)
   const [comment, setComment] = useState('')
@@ -73,12 +75,16 @@ export default function RequestDetailPanel({ approval, loading, onRefresh }) {
     if (!approval?.approvalId) return
     setSubmitting(true)
     try {
-      await approveRequest(approval.approvalId, { approved: actionApproved, comment })
+      await runWithStepUp(async (stepUpToken) => {
+        await approveRequest(approval.approvalId, { approved: actionApproved, comment }, { stepUpToken })
+      })
       message.success(actionApproved ? 'Request approved.' : 'Request denied.')
       setActionModalOpen(false)
       onRefresh?.()
     } catch (e) {
-      message.error(e?.message || (actionApproved ? 'Failed to approve.' : 'Failed to deny.'))
+      if (e?.message !== 'Step-up cancelled') {
+        message.error(e?.message || (actionApproved ? 'Failed to approve.' : 'Failed to deny.'))
+      }
     } finally {
       setSubmitting(false)
     }
@@ -232,6 +238,7 @@ export default function RequestDetailPanel({ approval, loading, onRefresh }) {
           placeholder="Add a comment..."
         />
       </Modal>
+      {stepUpModal}
     </div>
   )
 }

@@ -5,6 +5,7 @@ import dayjs from 'dayjs'
 import AdminLayout from '../components/AdminLayout.jsx'
 import { get, post, put } from '@/lib/http.js'
 import { useNotifier } from '@/shared/notifications.js'
+import { useAdminStepUp } from '../hooks/useAdminStepUp'
 
 const { Title, Text } = Typography
 
@@ -16,6 +17,7 @@ export default function AdminPenaltyConfig() {
   const [configId, setConfigId] = useState(null)
   const [error, setError] = useState(null)
   const { success, error: notifyError } = useNotifier()
+  const { runWithStepUp, stepUpModal } = useAdminStepUp()
 
   const fetchConfig = useCallback(async () => {
     try {
@@ -46,59 +48,63 @@ export default function AdminPenaltyConfig() {
   const handleSave = useCallback(async (values) => {
     try {
       setSaving(true)
-      const payload = {
-        surchargePercentage: values.surchargePercentage,
-        monthlyInterestRate: values.monthlyInterestRate,
-        penaltyStartDay: values.penaltyStartDay,
-        effectiveDate: values.effectiveDate?.toISOString?.() || new Date().toISOString(),
-      }
-
-      let res
-      if (configId) {
-        res = await put(`/api/admin/penalty-configuration/${configId}`, payload)
-      } else {
-        res = await post('/api/admin/penalty-configuration', payload)
-        if (res?.data?._id) setConfigId(res.data._id)
-      }
-
-      if (res?.warnings?.length) {
-        res.warnings.forEach((w) => message.warning(w))
-      }
-
-      success('Penalty configuration saved')
+      await runWithStepUp(async (stepUpToken) => {
+        const headers = { 'X-Step-Up-Token': stepUpToken }
+        const payload = {
+          surchargePercentage: values.surchargePercentage,
+          monthlyInterestRate: values.monthlyInterestRate,
+          penaltyStartDay: values.penaltyStartDay,
+          effectiveDate: values.effectiveDate?.toISOString?.() || new Date().toISOString(),
+        }
+        let res
+        if (configId) {
+          res = await put(`/api/admin/penalty-configuration/${configId}`, payload, { headers })
+        } else {
+          res = await post('/api/admin/penalty-configuration', payload, { headers })
+          if (res?.data?._id) setConfigId(res.data._id)
+        }
+        if (res?.warnings?.length) {
+          res.warnings.forEach((w) => message.warning(w))
+        }
+        success('Penalty configuration saved')
+      })
     } catch (err) {
-      notifyError(err, 'Failed to save penalty configuration')
+      if (err?.message !== 'Step-up cancelled') notifyError(err, 'Failed to save penalty configuration')
     } finally {
       setSaving(false)
     }
-  }, [configId, success, notifyError])
+  }, [configId, success, notifyError, runWithStepUp])
 
   const handleReset = useCallback(async () => {
     try {
       setResetting(true)
-      const res = await post('/api/admin/penalty-configuration/reset')
-      if (res?.data) {
-        setConfigId(res.data._id)
-        form.setFieldsValue({
-          surchargePercentage: res.data.surchargePercentage,
-          monthlyInterestRate: res.data.monthlyInterestRate,
-          penaltyStartDay: res.data.penaltyStartDay,
-          effectiveDate: dayjs(res.data.effectiveDate),
-        })
-      }
-      success('Reset to defaults')
+      await runWithStepUp(async (stepUpToken) => {
+        const res = await post('/api/admin/penalty-configuration/reset', {}, { headers: { 'X-Step-Up-Token': stepUpToken } })
+        if (res?.data) {
+          setConfigId(res.data._id)
+          form.setFieldsValue({
+            surchargePercentage: res.data.surchargePercentage,
+            monthlyInterestRate: res.data.monthlyInterestRate,
+            penaltyStartDay: res.data.penaltyStartDay,
+            effectiveDate: dayjs(res.data.effectiveDate),
+          })
+        }
+        success('Reset to defaults')
+      })
     } catch (err) {
-      notifyError(err, 'Failed to reset')
+      if (err?.message !== 'Step-up cancelled') notifyError(err, 'Failed to reset')
     } finally {
       setResetting(false)
     }
-  }, [form, success, notifyError])
+  }, [form, success, notifyError, runWithStepUp])
 
   if (loading) {
     return (
       <AdminLayout pageTitle="Penalty Configuration" pageIcon={<SafetyCertificateOutlined />}>
         <div style={{ display: 'flex', justifyContent: 'center', padding: 64 }}>
-          <Spin tip="Loading penalty configuration..." />
+          <Spin tip="Loading penalty configuration...">
+            <div style={{ minHeight: 48 }} />
+          </Spin>
         </div>
       </AdminLayout>
     )
@@ -121,6 +127,7 @@ export default function AdminPenaltyConfig() {
 
   return (
     <AdminLayout pageTitle="Penalty Configuration" pageIcon={<SafetyCertificateOutlined />}>
+      {stepUpModal}
       <div style={{ padding: 24, maxWidth: 600 }}>
         <Alert
           type="info"

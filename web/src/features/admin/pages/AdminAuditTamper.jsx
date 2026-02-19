@@ -1,13 +1,15 @@
 import React, { useState, useCallback, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Button, Grid, Tabs, Typography, Alert } from 'antd'
-import { SafetyCertificateOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { SafetyCertificateOutlined, ReloadOutlined, InfoCircleOutlined, DownloadOutlined } from '@ant-design/icons'
 import AdminLayout from '../components/AdminLayout'
+import ExportLogsModal from '../components/ExportLogsModal'
 import { fetchTamperStats } from '@/features/admin/services/tamperService'
 import AuditTamperDesktopView from './auditTamper/AuditTamperDesktopView'
 import { AUDIT_TAMPER_NAV_ITEMS } from './auditTamper/AuditTamperDesktopView'
 import AuditTamperOverviewTab from './auditTamper/AuditTamperOverviewTab'
 import AuditTamperIncidentsTab from './auditTamper/AuditTamperIncidentsTab'
-import AuditTamperGuidanceTab from './auditTamper/AuditTamperGuidanceTab'
+import SecurityHistoryTab from './auditTamper/SecurityHistoryTab'
 import AuditTamperInfoModal from './auditTamper/AuditTamperInfoModal'
 
 const { Text } = Typography
@@ -15,14 +17,21 @@ const { Text } = Typography
 const TAB_ITEMS = AUDIT_TAMPER_NAV_ITEMS.map(({ key, label }) => ({ key, label }))
 
 export default function AdminAuditTamper() {
+  const [searchParams] = useSearchParams()
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md
   const [tabKey, setTabKey] = useState('overview')
   const [infoOpen, setInfoOpen] = useState(false)
+  const [exportLogsOpen, setExportLogsOpen] = useState(false)
   const [lastUpdated, setLastUpdated] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [stats, setStats] = useState(null)
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab === 'incidents' || tab === 'history') setTabKey(tab)
+  }, [searchParams])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -42,6 +51,22 @@ export default function AdminAuditTamper() {
     load()
   }, [load])
 
+  useEffect(() => {
+    if (import.meta.env.MODE === 'production') return undefined
+    const handler = (event) => {
+      const { action: evAction, tab } = event?.detail || {}
+      if (evAction === 'setTab' && (tab === 'overview' || tab === 'incidents' || tab === 'history')) {
+        setTabKey(tab)
+      } else if (evAction === 'refresh') {
+        load()
+      } else if (evAction === 'openExportLogs') {
+        setExportLogsOpen(true)
+      }
+    }
+    window.addEventListener('devtools:audittamper', handler)
+    return () => window.removeEventListener('devtools:audittamper', handler)
+  }, [load])
+
   const handleGoToIncidents = useCallback(() => setTabKey('incidents'), [])
 
   const tabChildren = {
@@ -49,9 +74,10 @@ export default function AdminAuditTamper() {
     incidents: (
       <AuditTamperIncidentsTab
         onRefresh={load}
+        initialIncidentId={searchParams.get('incidentId') || null}
       />
     ),
-    guidance: <AuditTamperGuidanceTab />,
+    history: <SecurityHistoryTab />,
   }
 
   const mainHeaderActions = (
@@ -72,7 +98,7 @@ export default function AdminAuditTamper() {
   if (loading && !stats) {
     return (
       <AdminLayout
-        pageTitle="Audit Tamper"
+        pageTitle="Security"
         pageIcon={<SafetyCertificateOutlined />}
         headerActions={mainHeaderActions}
       >
@@ -117,16 +143,27 @@ export default function AdminAuditTamper() {
           tabKey={tabKey}
           setTabKey={setTabKey}
           tabChildren={tabChildren}
-          headerActions={tabKey === 'incidents' ? null : null}
+          headerActions={
+            tabKey === 'history' ? (
+              <Button type="primary" icon={<DownloadOutlined />} onClick={() => setExportLogsOpen(true)}>
+                Export
+              </Button>
+            ) : null
+          }
         />
       )}
       <AuditTamperInfoModal open={infoOpen} onClose={() => setInfoOpen(false)} />
+      <ExportLogsModal
+        open={exportLogsOpen}
+        onClose={() => setExportLogsOpen(false)}
+        exportType="security"
+      />
     </>
   )
 
   return (
     <AdminLayout
-      pageTitle="Audit Tamper"
+      pageTitle="Security"
       pageIcon={<SafetyCertificateOutlined />}
       headerActions={mainHeaderActions}
     >

@@ -192,7 +192,7 @@ export default function InspectionManagementPage() {
           onCancel={() => { setAssignModal(false); form.resetFields() }}
           footer={null}
           width={isMobile ? '95%' : 500}
-          destroyOnClose
+          destroyOnHidden
         >
           <Form form={form} layout="vertical" onFinish={handleAssign}>
             <Form.Item name="businessId" label="Business ID" rules={[{ required: true }]}>

@@ -112,14 +112,21 @@ router.post('/mfa/verify', requireJwt, validateBody(verifySchema), async (req, r
     if (!resVerify.ok) return respond.error(res, 401, 'invalid_mfa_code', 'Invalid verification code')
 
     doc.mfaEnabled = true
-    
-    // Update mfaMethod to include authenticator, preserving existing methods (including passkey)
-    const currentMethod = String(doc.mfaMethod || '').toLowerCase()
-    const methods = new Set()
-    methods.add('authenticator')
-    if (doc.fprintEnabled) methods.add('fingerprint')
-    if (currentMethod.includes('passkey')) methods.add('passkey')
-    doc.mfaMethod = Array.from(methods).join(',')
+
+    const roleSlug = doc.role && doc.role.slug ? doc.role.slug : (doc.role && doc.role.toString ? doc.role.toString() : '')
+    // Admin: only one super-auth method allowed. Enabling TOTP disables passkeys.
+    if (roleSlug === 'admin') {
+      doc.webauthnCredentials = []
+      doc.mfaMethod = 'authenticator'
+    } else {
+      // Update mfaMethod to include authenticator, preserving existing methods (including passkey)
+      const currentMethod = String(doc.mfaMethod || '').toLowerCase()
+      const methods = new Set()
+      methods.add('authenticator')
+      if (doc.fprintEnabled) methods.add('fingerprint')
+      if (currentMethod.includes('passkey')) methods.add('passkey')
+      doc.mfaMethod = Array.from(methods).join(',')
+    }
     doc.mfaLastUsedTotpCounter = resVerify.counter
     doc.mfaLastUsedTotpAt = new Date()
     if (doc.mustSetupMfa) doc.mustSetupMfa = false

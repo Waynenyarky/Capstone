@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Button, Grid, Typography } from 'antd'
 import { InfoCircleOutlined, ReloadOutlined, TeamOutlined } from '@ant-design/icons'
 import AdminLayout from '../components/AdminLayout'
@@ -10,6 +11,7 @@ import AdminUsersModals from './users/AdminUsersModals'
 const { Text } = Typography
 
 export default function AdminUsers() {
+  const [searchParams] = useSearchParams()
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md
   const [infoOpen, setInfoOpen] = useState(false)
@@ -34,6 +36,7 @@ export default function AdminUsers() {
     activateLoading,
     form,
     editForm,
+    disableForm,
   } = api
 
   const MOCK_STAFF = {
@@ -79,7 +82,15 @@ export default function AdminUsers() {
       } else if (action === 'openResetModal' && useFirstStaff) {
         openResetModal(staff?.[0] || MOCK_STAFF)
       } else if (action === 'openDisableModal' && useFirstStaff) {
-        openDisableModal(staff?.[0] || MOCK_STAFF)
+        const record = staff?.[0] || MOCK_STAFF
+        openDisableModal(record)
+        if (prefillInvalid && disableForm) {
+          setTimeout(() => {
+            disableForm.setFieldsValue({ reasonType: 'others', reasonOther: 'ab' })
+          }, 150)
+        }
+      } else if (action === 'openActivateModal' && useFirstStaff) {
+        openActivateModal(staff?.[0] || MOCK_STAFF)
       } else if (action === 'openUserDetail' && useFirstUser) {
         setTabKey('business')
         setTimeout(() => {
@@ -94,7 +105,14 @@ export default function AdminUsers() {
     }
     window.addEventListener('devtools:usermgmt', handler)
     return () => window.removeEventListener('devtools:usermgmt', handler)
-  }, [setTabKey, openCreateModal, openEditModal, openResetModal, openDisableModal, form, editForm, staff])
+  }, [setTabKey, openCreateModal, openEditModal, openResetModal, openDisableModal, openActivateModal, form, editForm, disableForm, staff])
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab === 'logs') setTabKey('logs')
+  }, [searchParams, setTabKey])
+
+  const initialLogId = searchParams.get('logId') || null
 
   return (
     <AdminLayout
@@ -128,6 +146,7 @@ export default function AdminUsers() {
           openCreateModal={openCreateModal}
           loadStaff={loadStaff}
           currentUserId={currentUser?.id}
+          initialLogId={initialLogId}
         />
         <AdminUsersModals
           {...api}
@@ -135,6 +154,7 @@ export default function AdminUsers() {
           closeInfo={closeInfo}
           isMobile={isMobile}
         />
+        {api.stepUpModal}
       </div>
     </AdminLayout>
   )

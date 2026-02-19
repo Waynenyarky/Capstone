@@ -16,6 +16,8 @@ const securityMonitor = require('../middleware/securityMonitor')
 const { checkPasswordHistory, addToPasswordHistory } = require('../lib/passwordHistory')
 const { validatePasswordStrength } = require('../lib/passwordValidator')
 const { createAuditLog } = require('../lib/auditLogger')
+const { isBusinessOwnerRole, isAdminRole } = require('../lib/roleHelpers')
+const { sendAdminAlert } = require('../lib/notificationService')
 
 const router = express.Router()
 
@@ -65,6 +67,28 @@ router.post('/forgot-password', sendCodeLimiter, validateBody(emailOnlySchema), 
     // Check existence
     const user = await User.findOne({ email: emailKey }).populate('role').lean()
     if (!user) return respond.error(res, 404, 'email_not_found', 'Email not found')
+
+    const roleSlug = user.role?.slug || 'user'
+    if (!isBusinessOwnerRole(roleSlug)) {
+      await createAuditLog(
+        user._id,
+        'security_event',
+        'recovery',
+        '',
+        '',
+        roleSlug,
+        { ip: ipAddress, userAgent, reason: 'recovery_not_available_for_role' }
+      ).catch((err) => console.error('Audit log failed:', err))
+      if (isAdminRole(roleSlug)) {
+        sendAdminAlert('admin_forgot_password_attempted', {
+          userId: String(user._id),
+          userEmail: user.email,
+          ipAddress,
+          userAgent,
+        }).catch((err) => console.error('Admin alert failed:', err))
+      }
+      return respond.error(res, 403, 'forgot_password_not_available', 'Password reset is not available for this account.')
+    }
 
     // Check account lockout
     const lockoutCheck = await checkLockout(user._id)
@@ -144,7 +168,6 @@ router.post('/forgot-password', sendCodeLimiter, validateBody(emailOnlySchema), 
     }
     
     // Log recovery initiation to blockchain
-    const roleSlug = user.role?.slug || 'user'
     await createAuditLog(
       user._id,
       'account_recovery_initiated',
@@ -234,6 +257,11 @@ router.post('/change-password', validateBody(changePasswordSchema), async (req, 
 
     const doc = await User.findOne({ email }).populate('role')
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+
+    const docRoleSlug = doc.role?.slug || 'user'
+    if (!isBusinessOwnerRole(docRoleSlug)) {
+      return respond.error(res, 403, 'forgot_password_not_available', 'Password reset is not available for this account.')
+    }
 
     // Check account lockout
     const lockoutCheck = await checkLockout(doc._id)

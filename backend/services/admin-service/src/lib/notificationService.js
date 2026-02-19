@@ -390,7 +390,7 @@ async function notifyAdminsOfTamperIncident(incident) {
       `Message: ${incident.message || 'N/A'}`,
       `Detected: ${incident.detectedAt ? new Date(incident.detectedAt).toLocaleString() : 'N/A'}`,
       '',
-      `View and triage: ${appUrl}/admin/audit-tamper`,
+      `View and triage: ${appUrl}/admin/security`,
       '',
       brandName,
     ].join('\n')
@@ -398,7 +398,7 @@ async function notifyAdminsOfTamperIncident(incident) {
     <p>An audit tamper or integrity issue was detected.</p>
     <p><strong>Severity:</strong> ${incident.severity}<br><strong>Status:</strong> ${incident.verificationStatus}</p>
     <p>${(incident.message || 'N/A').replace(/</g, '&lt;')}</p>
-    <p><a href="${appUrl}/admin/audit-tamper">View and triage</a></p>
+    <p><a href="${appUrl}/admin/security">View and triage</a></p>
     `
 
     for (const admin of admins) {

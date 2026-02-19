@@ -1,7 +1,7 @@
 /**
  * Seed tamper incidents for development/testing.
  * Creates open (new), acknowledged, and resolved TamperIncident records
- * so the Audit Tamper admin page can be tested with realistic data.
+ * so the Security admin page can be tested with realistic data.
  *
  * Idempotent: only inserts when the collection is empty.
  * Run when SEED_TAMPER_INCIDENTS=true or SEED_DEV=true (after DB connection).
@@ -12,11 +12,15 @@ const User = require('../models/User')
 const logger = require('../lib/logger')
 const mongoose = require('mongoose')
 
-/** Base timestamp for "past" resolved incidents (e.g. 7–14 days ago) */
+/** Past timestamp for resolved/acknowledged incidents */
 function daysAgo(days) {
   const d = new Date()
   d.setDate(d.getDate() - days)
   return d
+}
+
+function minutesAgo(mins) {
+  return new Date(Date.now() - mins * 60 * 1000)
 }
 
 async function seedTamperIncidentsIfEmpty() {
@@ -43,7 +47,7 @@ async function seedTamperIncidentsIfEmpty() {
     const now = new Date()
     const created = []
 
-    // —— Open (new) incidents ——
+    // —— Open (new) incidents: very recent so admin is clearly alerted ——
     await TamperIncident.create({
       status: 'new',
       severity: 'high',
@@ -52,7 +56,7 @@ async function seedTamperIncidentsIfEmpty() {
       affectedUserIds: adminId ? [adminId] : [],
       auditLogIds: [new mongoose.Types.ObjectId(), new mongoose.Types.ObjectId()],
       containmentActive: false,
-      detectedAt: new Date(now.getTime() - 2 * 60 * 60 * 1000), // 2 hours ago
+      detectedAt: minutesAgo(10),
       lastSeenAt: now,
     })
     created.push('new-high')
@@ -65,10 +69,23 @@ async function seedTamperIncidentsIfEmpty() {
       affectedUserIds: [],
       auditLogIds: [new mongoose.Types.ObjectId()],
       containmentActive: false,
-      detectedAt: new Date(now.getTime() - 30 * 60 * 1000), // 30 min ago
+      detectedAt: minutesAgo(45),
       lastSeenAt: now,
     })
     created.push('new-medium')
+
+    await TamperIncident.create({
+      status: 'new',
+      severity: 'low',
+      verificationStatus: 'verification_error',
+      message: 'Seed: Temporary chain latency; verification retry pending.',
+      affectedUserIds: [],
+      auditLogIds: [],
+      containmentActive: false,
+      detectedAt: minutesAgo(5),
+      lastSeenAt: now,
+    })
+    created.push('new-low')
 
     // —— Acknowledged incident ——
     await TamperIncident.create({

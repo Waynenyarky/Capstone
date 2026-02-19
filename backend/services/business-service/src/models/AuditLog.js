@@ -29,6 +29,9 @@ const AuditLogSchema = new mongoose.Schema(
         'email_change',
         'phone_change',
         'business_application_submitted',
+        'fee_config_created',
+        'fee_config_updated',
+        'fee_config_deleted',
         'other',
       ],
       index: true,
@@ -64,6 +67,7 @@ const AuditLogSchema = new mongoose.Schema(
         'businessInfo',
         'contactInfo',
         'applicationStatus',
+        'fee_config',
       ],
     },
     oldValue: {

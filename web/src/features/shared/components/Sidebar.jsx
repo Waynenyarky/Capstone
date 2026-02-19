@@ -104,9 +104,6 @@ const SidebarContent = ({
   const menuBg = backgroundColor;
 
   const textColor = isLightSidebar ? token.colorText : '#fff';
-  const logoBg = isLightSidebar 
-    ? token.colorPrimary 
-    : isDarkTheme ? token.colorPrimary : 'linear-gradient(135deg, #003a70 0%, #001529 100%)';
 
   // Calculate submenu background color based on theme
   const getSubmenuBg = () => {
@@ -215,38 +212,37 @@ const SidebarContent = ({
         }
       `}</style>
       {/* Brand / Logo */}
-      <div style={{ 
-        height: 64, 
-        display: 'flex', 
-        alignItems: 'center', 
+      <div style={{
+        height: 64,
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: collapsed ? 'center' : 'flex-start',
         padding: collapsed ? '0' : '0 24px',
         borderBottom: `1px solid ${isLightSidebar ? token.colorBorderSecondary : 'rgba(255,255,255,0.1)'}`,
         transition: 'all 0.2s',
         background: menuBg
       }}>
-        <div style={{ 
-          width: 32, 
-          height: 32, 
-          background: logoBg, 
-          borderRadius: 8, 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          color: '#fff',
-          fontWeight: 'bold',
-          fontSize: 18,
+        <div style={{
+          width: collapsed ? 32 : 40,
+          height: 32,
           flexShrink: 0,
-          cursor: 'default',
-          boxShadow: isLightSidebar ? 'none' : '0 2px 6px rgba(0, 58, 112, 0.3)'
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+          borderRadius: 8
         }}>
-          {import.meta.env.VITE_APP_BRAND_NAME?.[0] || 'B'}
+          <img
+            src="/BizClear.png"
+            alt={import.meta.env.VITE_APP_BRAND_NAME || 'BizClear'}
+            style={{ width: '200%', height: '200%', objectFit: 'contain' }}
+          />
         </div>
         {!collapsed && (
-          <span style={{ 
-            marginLeft: 12, 
-            fontWeight: 700, 
-            fontSize: 16, 
+          <span style={{
+            marginLeft: 12,
+            fontWeight: 700,
+            fontSize: 16,
             color: textColor,
             whiteSpace: 'nowrap',
             overflow: 'hidden',

@@ -8,7 +8,7 @@ const Office = require('../models/Office')
 const AdminApproval = require('../models/AdminApproval')
 const MaintenanceWindow = require('../models/MaintenanceWindow')
 const respond = require('../middleware/respond')
-const { requireJwt, requireRole } = require('../middleware/auth')
+const { requireJwt, requireRole, requireAdminStepUp } = require('../middleware/auth')
 const { validateBody, Joi } = require('../middleware/validation')
 const { generateCode, generateToken } = require('../lib/codes')
 const { sendStaffCredentialsEmail } = require('../lib/mailer')
@@ -223,7 +223,7 @@ router.get('/staff', requireJwt, requireRole(['admin']), async (req, res) => {
 })
 
 // POST /api/auth/staff
-router.post('/staff', requireJwt, requireRole(['admin']), validateBody(staffCreateSchema), async (req, res) => {
+router.post('/staff', requireJwt, requireRole(['admin']), requireAdminStepUp, validateBody(staffCreateSchema), async (req, res) => {
   try {
     const { email, firstName, lastName, phoneNumber, office, role } = req.body || {}
     const emailKey = String(email).toLowerCase().trim()
@@ -368,6 +368,8 @@ router.patch(
 router.patch(
   '/profile/personal-info',
   requireJwt,
+  requireRole(['admin']),
+  requireAdminStepUp,
   adminApprovalRateLimit(),
   validateBody(updateAdminPersonalInfoSchema),
   async (req, res) => {
@@ -475,6 +477,8 @@ router.patch(
 router.patch(
   '/profile/email',
   requireJwt,
+  requireRole(['admin']),
+  requireAdminStepUp,
   adminApprovalRateLimit(),
   validateBody(updateAdminEmailSchema),
   async (req, res) => {
@@ -591,6 +595,8 @@ router.patch(
 router.patch(
   '/profile/password',
   requireJwt,
+  requireRole(['admin']),
+  requireAdminStepUp,
   passwordChangeRateLimit(),
   validateBody(updateAdminPasswordSchema),
   requireFieldPermission('password'),

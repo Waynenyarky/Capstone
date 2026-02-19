@@ -32,13 +32,13 @@ export default function SendCodeForCurrentUserConfirm({ email, onSent, title, su
         style={{ maxWidth: 350, margin: '0 auto 24px', textAlign: 'left' }} 
       />
 
-      <Button 
-        type="primary" 
-        onClick={handleSend} 
-        loading={isSending} 
+      <Button
+        type="primary"
+        onClick={handleSend}
+        loading={isSending}
         disabled={isSending || !email}
-        size="large"
-        style={{ minWidth: 200 }}
+        block
+        style={{ marginBottom: 16 }}
       >
         Send Verification Code
       </Button>

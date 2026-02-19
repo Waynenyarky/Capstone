@@ -1,8 +1,10 @@
-import { Layout, Card, Typography, Space, Tag, Divider, Grid } from 'antd'
+import { Layout, Card, Typography, Space, Tag, Divider, Grid, Button } from 'antd'
+import { LogoutOutlined } from '@ant-design/icons'
 import HomeHeader from '../components/HomeHeader.jsx'
 import HomeFooter from '../components/HomeFooter.jsx'
 import { useEffect, useState } from 'react'
 import { getMaintenanceStatus } from '../services/maintenanceService.js'
+import { useAuthSession } from '@/features/authentication'
 
 const { Title, Text } = Typography
 const { useBreakpoint } = Grid
@@ -11,6 +13,8 @@ export default function Maintenance() {
   const [status, setStatus] = useState({ active: true })
   const screens = useBreakpoint()
   const isMobile = !screens.md
+  const { currentUser, logout } = useAuthSession()
+  const isLoggedIn = !!currentUser
 
   useEffect(() => {
     getMaintenanceStatus()
@@ -66,6 +70,17 @@ export default function Maintenance() {
                     For urgent concerns, please contact your local LGU office or check the portal again later for updates.
                   </Text>
                 </Space>
+                {isLoggedIn && (
+                  <>
+                    <Divider style={{ margin: '8px 0' }} />
+                    <Space>
+                      <Text type="secondary">You are currently signed in.</Text>
+                      <Button icon={<LogoutOutlined />} onClick={() => logout()}>
+                        Log out
+                      </Button>
+                    </Space>
+                  </>
+                )}
               </Space>
             </div>
           </Card>

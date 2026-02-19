@@ -164,6 +164,54 @@ describe('Account Recovery, Deletion & Session Management', () => {
     await mongo.stop()
   })
 
+  describe('Forgot password role restriction', () => {
+    test('should return 403 for staff email on forgot-password', async () => {
+      const res = await request(app)
+        .post('/api/auth/forgot-password')
+        .send({ email: staffUser.email })
+
+      expect(res.status).toBe(403)
+      expect(res.body.error?.code).toBe('forgot_password_not_available')
+      expect(res.body.error?.message).toContain('not available')
+
+      // No ResetRequest should be created
+      const resetReq = await ResetRequest.findOne({ email: staffUser.email.toLowerCase() })
+      expect(resetReq).toBeFalsy()
+    })
+
+    test('should return 403 for admin email on forgot-password', async () => {
+      const res = await request(app)
+        .post('/api/auth/forgot-password')
+        .send({ email: adminUser.email })
+
+      expect(res.status).toBe(403)
+      expect(res.body.error?.code).toBe('forgot_password_not_available')
+
+      const resetReq = await ResetRequest.findOne({ email: adminUser.email.toLowerCase() })
+      expect(resetReq).toBeFalsy()
+    })
+
+    test('should return 403 for staff on change-password even with valid reset token', async () => {
+      const resetToken = 'test-reset-token-staff-blocked'
+      await createVerifiedResetRequest(staffUser.email, resetToken)
+
+      const res = await request(app)
+        .post('/api/auth/change-password')
+        .send({
+          email: staffUser.email,
+          resetToken,
+          password: 'NewPassword123!@#',
+        })
+
+      expect(res.status).toBe(403)
+      expect(res.body.error?.code).toBe('forgot_password_not_available')
+
+      const updatedUser = await User.findById(staffUser._id)
+      const passwordMatch = await bcrypt.compare('NewPassword123!@#', updatedUser.passwordHash)
+      expect(passwordMatch).toBe(false)
+    })
+  })
+
   describe('1. Business Owner Password Recovery', () => {
     test('should initiate password recovery with suspicious activity detection', async () => {
       const res = await request(app)

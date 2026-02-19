@@ -1,9 +1,10 @@
 const express = require('express')
-const { requireJwt, requireRole } = require('../middleware/auth')
+const { requireJwt, requireRole, requireAdminStepUp } = require('../middleware/auth')
 const { validateBody, Joi } = require('../middleware/validation')
 const respond = require('../middleware/respond')
 const AdminApproval = require('../models/AdminApproval')
 const MaintenanceWindow = require('../models/MaintenanceWindow')
+const { createAuditLog } = require('../lib/auditLogger')
 
 const router = express.Router()
 
@@ -53,13 +54,14 @@ async function ensureActiveMaintenanceFromApprovals() {
 const requestSchema = Joi.object({
   action: Joi.string().valid('enable', 'disable').required(),
   message: Joi.string().max(500).allow('', null).optional(),
-  expectedResumeAt: Joi.date().optional(),
+  expectedResumeAt: Joi.date().allow(null).optional(),
+  scheduledStartAt: Joi.date().allow(null).optional(),
 })
 
 // POST /api/admin/maintenance/request - create a maintenance request (requires approval)
-router.post('/request', requireJwt, requireRole(['admin']), validateBody(requestSchema), async (req, res) => {
+router.post('/request', requireJwt, requireRole(['admin']), requireAdminStepUp, validateBody(requestSchema), async (req, res) => {
   try {
-    const { action, message, expectedResumeAt } = req.body || {}
+    const { action, message, expectedResumeAt, scheduledStartAt } = req.body || {}
     const requestedBy = req._userId
 
     const approvalId = AdminApproval.generateApprovalId()
@@ -72,10 +74,29 @@ router.post('/request', requireJwt, requireRole(['admin']), validateBody(request
         action,
         message: message || '',
         expectedResumeAt: expectedResumeAt ? new Date(expectedResumeAt) : null,
+        scheduledStartAt: scheduledStartAt ? new Date(scheduledStartAt) : null,
       },
       status: 'pending',
       requiredApprovals: 2,
     })
+
+    createAuditLog(
+      requestedBy,
+      'maintenance_mode',
+      'maintenance_request',
+      '',
+      action,
+      'admin',
+      {
+        approvalId: approval.approvalId,
+        action,
+        message: message || '',
+        expectedResumeAt: expectedResumeAt ? new Date(expectedResumeAt).toISOString() : null,
+        scheduledStartAt: scheduledStartAt ? new Date(scheduledStartAt).toISOString() : null,
+        ip: req.ip,
+        userAgent: req.get('user-agent'),
+      }
+    ).catch((err) => console.error('Failed to create audit log for maintenance request', err))
 
     return res.status(201).json({
       success: true,

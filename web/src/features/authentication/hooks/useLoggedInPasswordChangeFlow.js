@@ -30,9 +30,14 @@ export function useLoggedInPasswordChangeFlow() {
     setResetToken('')
   }, [])
 
+  const goBack = useCallback(() => {
+    if (step === 'verify') setStep('send')
+    else if (step === 'change') setStep('verify')
+  }, [step])
+
   const sendProps = { email, onSent: handleSent }
   const verifyProps = { email, onSubmit: handleVerifySubmit }
   const changeProps = { email, resetToken, onSubmit: handleChangeSubmit }
 
-  return { step, sendProps, verifyProps, changeProps, email, resetToken, reset }
+  return { step, sendProps, verifyProps, changeProps, email, resetToken, reset, goBack }
 }

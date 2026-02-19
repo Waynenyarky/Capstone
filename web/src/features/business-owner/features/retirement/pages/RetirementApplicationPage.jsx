@@ -68,7 +68,9 @@ export default function RetirementApplicationPage() {
     return (
       <BusinessOwnerLayout pageTitle="Retirement Application" pageIcon={<StopOutlined />}>
         <div style={{ display: 'flex', justifyContent: 'center', padding: 64 }}>
-          <Spin tip="Loading businesses..." />
+          <Spin tip="Loading businesses...">
+            <div style={{ minHeight: 48 }} />
+          </Spin>
         </div>
       </BusinessOwnerLayout>
     )

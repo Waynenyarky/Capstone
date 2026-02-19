@@ -142,8 +142,8 @@ export default function StaffByOfficeRoleTab({
         </div>
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ borderBottom: '1px solid #f0f0f0', borderTop: '1px solid #f0f0f0', overflow: 'auto', flex: 1, minHeight: 0 }}>
+      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column', ['--row-selected-bg']: token.colorPrimaryBg }}>
+        <div style={{ borderBottom: `1px solid ${token.colorBorderSecondary}`, borderTop: `1px solid ${token.colorBorderSecondary}`, overflow: 'auto', flex: 1, minHeight: 0 }}>
           <Table
             size="small"
             rowKey="office"
@@ -172,7 +172,7 @@ export default function StaffByOfficeRoleTab({
       </div>
       <style>{`
         .ant-table-tbody > tr.office-row-selected > td {
-          background: #e6f4ff !important;
+          background: var(--row-selected-bg) !important;
         }
         .ant-table-tbody > tr:hover > td {
           cursor: pointer;
@@ -312,7 +312,7 @@ export default function StaffByOfficeRoleTab({
       </div>
 
       <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ borderBottom: '1px solid #f0f0f0', borderTop: '1px solid #f0f0f0', overflow: 'auto', flex: 1, minHeight: 0 }}>
+        <div style={{ borderBottom: `1px solid ${token.colorBorderSecondary}`, borderTop: `1px solid ${token.colorBorderSecondary}`, overflow: 'auto', flex: 1, minHeight: 0 }}>
           <Table
             size="small"
             rowKey="id"

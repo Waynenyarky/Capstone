@@ -35,8 +35,32 @@ async function createNotification(userId, type, title, message, relatedEntityTyp
   }
 }
 
+const NOTIFICATION_MAX_AGE_DAYS = 7
+
 /**
- * Get user notifications with pagination
+ * Delete notifications older than the given number of days for a user
+ * @param {string|ObjectId} userId - User ID
+ * @param {number} days - Delete notifications older than this many days (default: 7)
+ * @returns {Promise<object>} Deletion result
+ */
+async function deleteNotificationsOlderThan(userId, days = NOTIFICATION_MAX_AGE_DAYS) {
+  try {
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - days)
+    const result = await Notification.deleteMany({
+      userId,
+      createdAt: { $lt: cutoff }
+    })
+    return result
+  } catch (error) {
+    console.error('Error deleting old notifications:', error)
+    throw new Error(`Failed to delete old notifications: ${error.message}`)
+  }
+}
+
+/**
+ * Get user notifications with pagination (only returns notifications from the last 7 days)
+ * Automatically deletes notifications older than 7 days when fetching
  * @param {string|ObjectId} userId - User ID
  * @param {object} options - Query options
  * @param {number} options.page - Page number (default: 1)
@@ -52,14 +76,19 @@ async function getUserNotifications(userId, options = {}) {
       unreadOnly = false
     } = options
 
-    const query = { userId }
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - NOTIFICATION_MAX_AGE_DAYS)
+
+    const query = { userId, createdAt: { $gte: cutoff } }
     if (unreadOnly) {
       query.read = false
     }
 
+    await deleteNotificationsOlderThan(userId, NOTIFICATION_MAX_AGE_DAYS)
+
     const skip = (page - 1) * limit
     const total = await Notification.countDocuments(query)
-    
+
     const notifications = await Notification.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -82,15 +111,18 @@ async function getUserNotifications(userId, options = {}) {
 }
 
 /**
- * Get count of unread notifications for a user
+ * Get count of unread notifications for a user (only last 7 days)
  * @param {string|ObjectId} userId - User ID
  * @returns {Promise<number>} Count of unread notifications
  */
 async function getUnreadCount(userId) {
   try {
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - NOTIFICATION_MAX_AGE_DAYS)
     const count = await Notification.countDocuments({
       userId,
-      read: false
+      read: false,
+      createdAt: { $gte: cutoff }
     })
     return count
   } catch (error) {
@@ -178,5 +210,6 @@ module.exports = {
   getUnreadCount,
   markAsRead,
   markAllAsRead,
-  deleteNotification
+  deleteNotification,
+  deleteNotificationsOlderThan
 }

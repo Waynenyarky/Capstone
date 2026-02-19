@@ -29,6 +29,11 @@ const FeeConfigurationSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
+    /** Barangay Business Clearance fee per annum (Charter Artikulo A, optional, by LOB). */
+    barangayClearanceFee: {
+      type: Number,
+      default: null,
+    },
     businessTaxCategory: {
       type: String,
       default: '',
@@ -54,9 +59,9 @@ const FeeConfigurationSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
-// Unique constraint: only one active config per line of business
+// Unique constraint: one active config per (tax code, line of business) — Charter categories 1–12, LOB is sentence text
 FeeConfigurationSchema.index(
-  { lineOfBusiness: 1 },
+  { taxCode: 1, lineOfBusiness: 1 },
   { unique: true, partialFilterExpression: { isActive: true } }
 )
 

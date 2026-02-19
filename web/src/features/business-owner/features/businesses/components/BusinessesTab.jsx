@@ -267,7 +267,7 @@ export default function BusinessesTab({ onSwitchTab }) {
         onOk={addStep === 'form' ? handleAddBusiness : undefined}
         okButtonProps={addStep === 'form' ? { loading: submitting } : undefined}
         footer={addStep === 'success' ? null : undefined}
-        destroyOnClose
+        destroyOnHidden
       >
         {addStep === 'success' ? (
           <>

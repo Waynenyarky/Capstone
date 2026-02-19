@@ -1,11 +1,12 @@
 const express = require('express');
-const { requireJwt, requireRole } = require('../middleware/auth');
+const { requireJwt, requireRole, requireAdminStepUp } = require('../middleware/auth');
 const { validateBody, Joi } = require('../middleware/validation');
 const respond = require('../middleware/respond');
 const AdminApproval = require('../models/AdminApproval');
 const User = require('../models/User'); // Shared model - all services access same DB
 const { applyApprovedChange, logToBlockchain } = require('../lib/interServiceClient');
 const { sendApprovalNotification, createInAppNotificationsForAdmins, createInAppNotification } = require('../lib/notificationService');
+const { createAuditLog } = require('../lib/auditLogger');
 const logger = require('../lib/logger');
 
 const router = express.Router();
@@ -34,7 +35,7 @@ const approveRequestSchema = Joi.object({
 });
 
 // POST /api/admin/approvals - Create an approval request
-router.post('/approvals', requireJwt, requireRole(['admin']), async (req, res) => {
+router.post('/approvals', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     // Manual validation to support both requestDetails and requestedChanges
     const { requestType, userId, requestDetails, requestedChanges } = req.body || {};
@@ -95,6 +96,17 @@ router.post('/approvals', requireJwt, requireRole(['admin']), async (req, res) =
       requestedBy
     ).catch((err) => console.error('Failed to create approval-pending notifications:', err));
 
+    const requesterRole = req._userRole || 'admin';
+    createAuditLog(
+      requestedBy,
+      'admin_approval_request',
+      'approval_request',
+      '',
+      approvalId,
+      requesterRole,
+      { approvalId, requestType, targetUserId: String(userId), ip: req.ip, userAgent: req.get('user-agent') }
+    ).catch((err) => logger.warn('Failed to create audit log for approval request', { err }));
+
     return res.status(201).json({
       success: true,
       approval: {
@@ -113,7 +125,7 @@ router.post('/approvals', requireJwt, requireRole(['admin']), async (req, res) =
 });
 
 // POST /api/admin/approvals/:approvalId/approve - Approve or reject a request
-router.post('/approvals/:approvalId/approve', requireJwt, requireRole(['admin']), validateBody(approveRequestSchema), async (req, res) => {
+router.post('/approvals/:approvalId/approve', requireJwt, requireRole(['admin']), requireAdminStepUp, validateBody(approveRequestSchema), async (req, res) => {
   try {
     const { approvalId } = req.params;
     const { approved, comment } = req.body;
@@ -163,6 +175,24 @@ router.post('/approvals/:approvalId/approve', requireJwt, requireRole(['admin'])
     }
 
     await approval.save();
+
+    createAuditLog(
+      approverId,
+      'admin_approval',
+      'approval_vote',
+      'pending',
+      approved ? 'approved' : 'rejected',
+      approverRole,
+      {
+        approvalId: approval.approvalId,
+        approved,
+        requestType: approval.requestType,
+        targetUserId: String(approval.userId),
+        comment: comment || '',
+        ip: req.ip,
+        userAgent: req.get('user-agent'),
+      }
+    ).catch((err) => logger.warn('Failed to create audit log for approval vote', { err }));
 
     // Apply changes if just approved
     if (wasJustApproved) {

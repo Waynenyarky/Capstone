@@ -82,7 +82,7 @@ export default function PasskeyRegistrationGuide({
               title: <Text strong style={{ fontSize: 13 }}>Select Save Location</Text>,
               description: (
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  Choose <strong>This device</strong> (personal) or <strong>Security key</strong> (shared). You can register multiple passkeys later.
+                  Choose <strong>This device</strong> (personal) or <strong>Security key</strong> (shared).
                 </Text>
               ),
               icon: <CheckCircleOutlined style={{ color: token.colorPrimary, fontSize: 16 }} />
@@ -100,7 +100,7 @@ export default function PasskeyRegistrationGuide({
               title: <Text strong style={{ fontSize: 13 }}>Done!</Text>,
               description: (
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  Your passkey will be registered successfully. You can register multiple passkeys for different devices.
+                  Your passkey will be registered successfully.
                 </Text>
               ),
               icon: <CheckCircleFilled style={{ color: '#52c41a', fontSize: 16 }} />
@@ -110,13 +110,7 @@ export default function PasskeyRegistrationGuide({
 
         <Divider style={{ margin: '12px 0' }} />
 
-        <Alert
-          type="success"
-          showIcon={false}
-          message={<Text strong style={{ fontSize: 13 }}>Benefits: No passwords • More secure • Works across devices • Fast authentication</Text>}
-          style={{ background: '#f6ffed', border: '1px solid #b7eb8f', padding: '8px 12px', margin: 0 }}
-          size="small"
-        />
+        
       </div>
     </Modal>
   )

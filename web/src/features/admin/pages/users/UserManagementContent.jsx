@@ -1,7 +1,8 @@
 import React, { useState, useCallback } from 'react'
 import { Row, Col, Card, Tabs, Button } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { PlusOutlined, DownloadOutlined } from '@ant-design/icons'
 import UserManagementDesktopView from './UserManagementDesktopView'
+import ExportLogsModal from '../../components/ExportLogsModal'
 import StaffAccountsTab from './StaffAccountsTab'
 import StaffByOfficeRoleTab from './StaffByOfficeRoleTab'
 import AdminAccountsTab from './AdminAccountsTab'
@@ -34,8 +35,10 @@ export default function UserManagementContent({
   openCreateModal,
   loadStaff,
   currentUserId,
+  initialLogId,
 }) {
   const [selectedStaffId, setSelectedStaffId] = useState(null)
+  const [exportLogsOpen, setExportLogsOpen] = useState(false)
 
   const onNavigateToStaff = useCallback((staffId) => {
     setSelectedStaffId(staffId)
@@ -75,7 +78,7 @@ export default function UserManagementContent({
       <AdminAccountsTab currentUserId={currentUserId} />
     ),
     business: <UsersTable />,
-    logs: <AdminLogsTab />,
+    logs: <AdminLogsTab initialLogId={initialLogId} />,
   }
 
   if (isMobile) {
@@ -95,18 +98,30 @@ export default function UserManagementContent({
   }
 
   return (
-    <UserManagementDesktopView
-      tabKey={tabKey}
-      setTabKey={setTabKey}
-      tabItems={TAB_ITEMS}
-      tabChildren={tabChildren}
-      headerActions={
-        tabKey === 'staff' ? (
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-            Add Employee
-          </Button>
-        ) : null
-      }
-    />
+    <>
+      <UserManagementDesktopView
+        tabKey={tabKey}
+        setTabKey={setTabKey}
+        tabItems={TAB_ITEMS}
+        tabChildren={tabChildren}
+        headerActions={
+          tabKey === 'staff' ? (
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+              Add Employee
+            </Button>
+          ) : tabKey === 'logs' ? (
+            <Button type="primary" icon={<DownloadOutlined />} onClick={() => setExportLogsOpen(true)}>
+              Export
+            </Button>
+          ) : null
+        }
+      />
+      <ExportLogsModal
+        open={exportLogsOpen}
+        onClose={() => setExportLogsOpen(false)}
+        exportType="users"
+        title="User management logs"
+      />
+    </>
   )
 }

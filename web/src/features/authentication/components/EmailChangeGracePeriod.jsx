@@ -10,17 +10,25 @@ const { Title, Text, Paragraph } = Typography
 export default function EmailChangeGracePeriod({ onReverted } = {}) {
   const { token } = theme.useToken()
   const { success, error } = useNotifier()
-  const { login } = useAuthSession()
+  const { login, currentUser } = useAuthSession()
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [reverting, setReverting] = useState(false)
   const [timeRemaining, setTimeRemaining] = useState(null)
 
+  const roleSlug = (currentUser?.role?.slug ?? currentUser?.role ?? '').toString()
+  const isBusinessOwner = roleSlug === 'business_owner'
+
   useEffect(() => {
+    if (!isBusinessOwner) {
+      setLoading(false)
+      setStatus(null)
+      return
+    }
     loadStatus()
     const interval = setInterval(loadStatus, 60000) // Check every minute
     return () => clearInterval(interval)
-  }, [])
+  }, [isBusinessOwner])
 
   useEffect(() => {
     if (status?.expiresAt) {
@@ -58,7 +66,14 @@ export default function EmailChangeGracePeriod({ onReverted } = {}) {
         setStatus(null)
       }
     } catch (err) {
-      console.error('Failed to load email change status:', err)
+      // Treat network/unavailable as "no pending change" — avoid console noise when backend is down or proxy returns 403
+      const isNetworkOrUnavailable =
+        (err?.message && /request failed:\s*network/i.test(String(err.message))) ||
+        err?.message?.includes('Connection refused') ||
+        err?.status === 403
+      if (!isNetworkOrUnavailable) {
+        console.error('Failed to load email change status:', err)
+      }
       setStatus(null)
     } finally {
       setLoading(false)

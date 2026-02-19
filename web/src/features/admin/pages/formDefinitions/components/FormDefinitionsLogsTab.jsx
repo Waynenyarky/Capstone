@@ -145,7 +145,7 @@ function FormLogDetailPanel({ log, token }) {
   )
 }
 
-export default function FormDefinitionsLogsTab() {
+export default function FormDefinitionsLogsTab({ initialLogId }) {
   const { token } = theme.useToken()
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md
@@ -185,7 +185,8 @@ export default function FormDefinitionsLogsTab() {
       setLoading(true)
       setLoadError(null)
       const res = await getFormDefinitionsAuditLog({ limit: FETCH_LIMIT })
-      const list = res?.entries || []
+      const raw = res?.entries || []
+      const list = raw.map((e, i) => ({ ...e, __rowKey: `${e._id ?? e.definitionId ?? 'log'}-${i}` }))
       setEntries(list)
     } catch (err) {
       const msg = err?.message || ''
@@ -199,6 +200,14 @@ export default function FormDefinitionsLogsTab() {
   useEffect(() => {
     loadLogs()
   }, [loadLogs])
+
+  useEffect(() => {
+    if (!initialLogId || !entries.length) return
+    const found = entries.find(
+      (e) => (e._id || e.id) === initialLogId || String(e._id || e.id) === String(initialLogId)
+    )
+    if (found) setSelectedLog(found)
+  }, [initialLogId, entries])
 
   const filteredEntries = useMemo(() => {
     let list = [...entries]
@@ -345,11 +354,11 @@ export default function FormDefinitionsLogsTab() {
         </div>
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ borderBottom: '1px solid #f0f0f0', borderTop: '1px solid #f0f0f0', overflow: 'auto', flex: 1, minHeight: 0 }}>
+      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column', ['--row-selected-bg']: token.colorPrimaryBg }}>
+        <div style={{ borderBottom: `1px solid ${token.colorBorderSecondary}`, borderTop: `1px solid ${token.colorBorderSecondary}`, overflow: 'auto', flex: 1, minHeight: 0 }}>
           <Table
             size="small"
-            rowKey={(rec) => rec._id ?? `${rec.definitionId}-${rec.at}`}
+            rowKey={(rec) => rec.__rowKey ?? rec._id ?? `${rec.definitionId}-${rec.at}` ?? ''}
             columns={columns}
             dataSource={paginatedEntries}
             loading={loading}
@@ -390,7 +399,7 @@ export default function FormDefinitionsLogsTab() {
       </div>
       <style>{`
         .ant-table-tbody > tr.log-row-selected > td {
-          background: #e6f4ff !important;
+          background: var(--row-selected-bg) !important;
         }
         .ant-table-tbody > tr:hover > td {
           cursor: pointer;

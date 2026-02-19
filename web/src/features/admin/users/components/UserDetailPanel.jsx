@@ -226,7 +226,7 @@ export default function UserDetailPanel({ user }) {
                     padding: '16px 20px',
                     background: '#fff',
                     borderRadius: 10,
-                    border: '1px solid #e8e8e8',
+                    border: `1px solid ${token.colorBorderSecondary}`,
                     boxShadow: '0 6px 20px rgba(0, 0, 0, 0.12)',
                     zIndex: 50,
                     minWidth: 240,
@@ -293,7 +293,7 @@ export default function UserDetailPanel({ user }) {
         open={!!selectedLog}
         onCancel={() => setSelectedLog(null)}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
       >
         {selectedLog && (
           <Descriptions

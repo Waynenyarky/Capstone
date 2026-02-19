@@ -4,7 +4,8 @@
  * PUT /api/admin/general-permit-config - Save requirements per category
  */
 const express = require('express');
-const { requireJwt, requireRole } = require('../middleware/auth');
+const { requireJwt, requireRole, requireAdminStepUp } = require('../middleware/auth');
+const { createAuditLog } = require('../lib/auditLogger');
 const router = express.Router();
 
 // In-memory store (replace with MongoDB/Redis for production persistence across restarts)
@@ -35,13 +36,26 @@ router.get('/', requireJwt, (req, res) => {
 });
 
 // PUT /api/admin/general-permit-config (admin only)
-router.put('/', requireJwt, requireRole(['admin']), (req, res) => {
+router.put('/', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const body = req.body;
     if (!body || typeof body !== 'object') {
       return res.status(400).json({ error: 'Invalid request body' });
     }
+    const previous = store || DEFAULT_REQUIREMENTS;
+    const changedCategories = Object.keys(body).filter((k) => JSON.stringify(previous[k]) !== JSON.stringify(body[k]));
     store = { ...(store || DEFAULT_REQUIREMENTS), ...body };
+    if (changedCategories.length > 0) {
+      createAuditLog(
+        req._userId,
+        'general_permit_config_updated',
+        'general_permit_config',
+        changedCategories.length ? JSON.stringify(changedCategories) : '',
+        JSON.stringify(changedCategories),
+        'admin',
+        { changedCategories, ip: req.ip, userAgent: req.get('user-agent') }
+      ).catch((err) => console.error('Failed to create audit log for general permit config update', err));
+    }
     res.json(store);
   } catch (err) {
     console.error('PUT /api/admin/general-permit-config error:', err);

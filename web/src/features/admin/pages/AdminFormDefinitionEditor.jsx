@@ -29,6 +29,7 @@ import {
   submitForApproval,
   cancelApproval,
 } from '../services'
+import { useAdminStepUp } from '../hooks/useAdminStepUp'
 import { getActiveLGUs } from '../services/lguService'
 import { BUSINESS_TYPE_OPTIONS } from '@/constants/businessTypes'
 import SectionEditor from '../components/SectionEditor'
@@ -59,6 +60,7 @@ export default function AdminFormDefinitionEditor() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { message } = App.useApp()
+  const { runWithStepUp, stepUpModal } = useAdminStepUp()
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -113,7 +115,6 @@ export default function AdminFormDefinitionEditor() {
     try {
       setSaving(true)
       const values = await form.validateFields()
-      
       const updateData = {
         version: values.version,
         description: values.description,
@@ -128,11 +129,13 @@ export default function AdminFormDefinitionEditor() {
         updateData.name = values.name
       }
 
-      const res = await updateFormDefinition(id, updateData)
-      setDefinition(res.definition)
-      message.success('Form definition saved')
+      await runWithStepUp(async (stepUpToken) => {
+        const res = await updateFormDefinition(id, updateData, { stepUpToken })
+        setDefinition(res.definition)
+        message.success('Form definition saved')
+      })
     } catch (err) {
-      if (err.errorFields) return
+      if (err?.message === 'Step-up cancelled' || err?.errorFields) return
       console.error('Failed to save form definition:', err)
       message.error(err.message || 'Failed to save form definition')
     } finally {
@@ -150,12 +153,29 @@ export default function AdminFormDefinitionEditor() {
 
   const handleSubmitForApproval = async () => {
     try {
-      // Save first
-      await handleSave()
-      await submitForApproval(id)
-      message.success('Form definition submitted for approval')
-      loadDefinition()
+      const values = await form.validateFields().catch(() => null)
+      if (!values) return
+      const updateData = {
+        version: values.version,
+        description: values.description,
+        businessTypes: values.businessTypes || [],
+        lguCodes: values.lguCodes || [],
+        sections: definition.sections,
+        downloads: definition.downloads,
+        effectiveFrom: values.effectiveFrom?.toISOString() || null,
+        effectiveTo: values.effectiveTo?.toISOString() || null,
+      }
+      if (!definition.formGroupId) updateData.name = values.name
+
+      await runWithStepUp(async (stepUpToken) => {
+        const opts = { stepUpToken }
+        await updateFormDefinition(id, updateData, opts)
+        await submitForApproval(id, opts)
+        message.success('Form definition submitted for approval')
+        loadDefinition()
+      })
     } catch (err) {
+      if (err?.message === 'Step-up cancelled') return
       console.error('Failed to submit for approval:', err)
       message.error(err.message || 'Failed to submit for approval')
     }
@@ -411,6 +431,7 @@ export default function AdminFormDefinitionEditor() {
             />
           </Card>
       </Space>
+      {stepUpModal}
     </AdminLayout>
   )
 }

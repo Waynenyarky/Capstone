@@ -1,22 +1,24 @@
-import React from 'react'
-import { Button, Space, Typography, Modal, Input, Alert, Flex, theme } from 'antd'
+import React, { useState } from 'react'
+import { Button, Space, Typography, Modal, Input, Alert, theme } from 'antd'
 import { 
   ClockCircleOutlined, 
   UndoOutlined,
   WarningOutlined,
   SafetyCertificateOutlined,
   SecurityScanOutlined,
-  LockOutlined
+  LockOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons'
 import { useLoggedInMfaManager } from '@/features/authentication/hooks'
 import { useAppTheme, THEMES } from '@/shared/theme/ThemeProvider'
 
 const { Text, Paragraph, Title } = Typography
 
-export default function LoggedInMfaManager() {
+export default function LoggedInMfaManager({ isAdmin = false, hasPasskeys = false }) {
   const { token } = theme.useToken()
   const { currentTheme } = useAppTheme()
   const isDarkTheme = currentTheme === THEMES.DARK
+  const [switchConfirmVisible, setSwitchConfirmVisible] = useState(false)
 
   const {
     currentUser,
@@ -39,6 +41,19 @@ export default function LoggedInMfaManager() {
     confirmDisable,
     confirmUndo
   } = useLoggedInMfaManager()
+
+  const handleSetupClick = () => {
+    if (isAdmin && hasPasskeys) {
+      setSwitchConfirmVisible(true)
+    } else {
+      handleOpenSetup()
+    }
+  }
+
+  const confirmSwitchToMfa = () => {
+    setSwitchConfirmVisible(false)
+    handleOpenSetup()
+  }
 
   if (!currentUser) return null
 
@@ -133,7 +148,7 @@ export default function LoggedInMfaManager() {
           ) : (
             <Button 
               type="primary" 
-              onClick={handleOpenSetup} 
+              onClick={handleSetupClick} 
               disabled={loading}
               icon={<SafetyCertificateOutlined />}
             >
@@ -208,6 +223,29 @@ export default function LoggedInMfaManager() {
             </div>
           </div>
         </div>
+      </Modal>
+
+      {/* Admin: switch from passkey to MFA confirmation */}
+      <Modal
+        title={
+          <Space>
+            <ExclamationCircleOutlined style={{ color: token.colorWarning, fontSize: 22 }} />
+            <span>Switch to Two-Factor Authentication</span>
+          </Space>
+        }
+        open={switchConfirmVisible}
+        onOk={confirmSwitchToMfa}
+        onCancel={() => setSwitchConfirmVisible(false)}
+        okText="Continue"
+        cancelText="Cancel"
+        okButtonProps={{ size: 'large' }}
+        cancelButtonProps={{ size: 'large' }}
+        width={480}
+        centered
+      >
+        <Paragraph style={{ marginTop: 16, marginBottom: 0 }}>
+          Enabling Two-Factor Authentication will <strong>disable passkey authentication</strong>. You will need to use an authenticator app to sign in. Continue?
+        </Paragraph>
       </Modal>
 
       {/* Undo Disable Modal */}

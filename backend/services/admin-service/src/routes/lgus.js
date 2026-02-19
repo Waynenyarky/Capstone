@@ -1,8 +1,9 @@
 const express = require('express')
-const { requireJwt, requireRole } = require('../middleware/auth')
+const { requireJwt, requireRole, requireAdminStepUp } = require('../middleware/auth')
 const { validateBody, Joi } = require('../middleware/validation')
 const respond = require('../middleware/respond')
 const LGU = require('../models/LGU')
+const { createAuditLog } = require('../lib/auditLogger')
 
 const router = express.Router()
 
@@ -117,7 +118,7 @@ router.get('/:code', requireJwt, requireRole(['admin']), async (req, res) => {
 })
 
 // POST /api/admin/lgus - Create new LGU (admin only)
-router.post('/', requireJwt, requireRole(['admin']), validateBody(createLguSchema), async (req, res) => {
+router.post('/', requireJwt, requireRole(['admin']), requireAdminStepUp, validateBody(createLguSchema), async (req, res) => {
   try {
     const { code, name, region, province, type, isActive } = req.body
 
@@ -136,6 +137,16 @@ router.post('/', requireJwt, requireRole(['admin']), validateBody(createLguSchem
       isActive: isActive !== false,
     })
 
+    createAuditLog(
+      req._userId,
+      'lgu_created',
+      'lgu',
+      '',
+      lgu.code,
+      'admin',
+      { code: lgu.code, name: lgu.name, type: lgu.type, region: lgu.region, ip: req.ip, userAgent: req.get('user-agent') }
+    ).catch((err) => console.error('Failed to create audit log for LGU create', err))
+
     return res.status(201).json({ success: true, lgu })
   } catch (err) {
     console.error('POST /api/admin/lgus error:', err)
@@ -147,7 +158,7 @@ router.post('/', requireJwt, requireRole(['admin']), validateBody(createLguSchem
 })
 
 // PUT /api/admin/lgus/:code - Update LGU (admin only)
-router.put('/:code', requireJwt, requireRole(['admin']), validateBody(updateLguSchema), async (req, res) => {
+router.put('/:code', requireJwt, requireRole(['admin']), requireAdminStepUp, validateBody(updateLguSchema), async (req, res) => {
   try {
     const lgu = await LGU.findOne({ code: req.params.code.toUpperCase() })
     if (!lgu) {
@@ -155,6 +166,7 @@ router.put('/:code', requireJwt, requireRole(['admin']), validateBody(updateLguS
     }
 
     const { name, region, province, type, isActive } = req.body
+    const oldValues = { name: lgu.name, region: lgu.region, province: lgu.province, type: lgu.type, isActive: lgu.isActive }
 
     if (name !== undefined) lgu.name = name
     if (region !== undefined) lgu.region = region
@@ -164,6 +176,16 @@ router.put('/:code', requireJwt, requireRole(['admin']), validateBody(updateLguS
 
     await lgu.save()
 
+    createAuditLog(
+      req._userId,
+      'lgu_updated',
+      'lgu',
+      JSON.stringify(oldValues),
+      JSON.stringify({ name: lgu.name, region: lgu.region, province: lgu.province, type: lgu.type, isActive: lgu.isActive }),
+      'admin',
+      { code: lgu.code, ip: req.ip, userAgent: req.get('user-agent') }
+    ).catch((err) => console.error('Failed to create audit log for LGU update', err))
+
     return res.json({ success: true, lgu })
   } catch (err) {
     console.error('PUT /api/admin/lgus/:code error:', err)
@@ -172,12 +194,23 @@ router.put('/:code', requireJwt, requireRole(['admin']), validateBody(updateLguS
 })
 
 // DELETE /api/admin/lgus/:code - Delete LGU (admin only)
-router.delete('/:code', requireJwt, requireRole(['admin']), async (req, res) => {
+router.delete('/:code', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
-    const result = await LGU.deleteOne({ code: req.params.code.toUpperCase() })
-    if (result.deletedCount === 0) {
+    const code = req.params.code.toUpperCase()
+    const lgu = await LGU.findOne({ code }).lean()
+    if (!lgu) {
       return respond.error(res, 404, 'lgu_not_found', 'LGU not found')
     }
+    await LGU.deleteOne({ code })
+    createAuditLog(
+      req._userId,
+      'lgu_deleted',
+      'lgu',
+      code,
+      '',
+      'admin',
+      { code, name: lgu.name, type: lgu.type, region: lgu.region, ip: req.ip, userAgent: req.get('user-agent') }
+    ).catch((err) => console.error('Failed to create audit log for LGU delete', err))
     return res.json({ success: true, message: 'LGU deleted' })
   } catch (err) {
     console.error('DELETE /api/admin/lgus/:code error:', err)

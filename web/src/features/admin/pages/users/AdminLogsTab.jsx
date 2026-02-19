@@ -46,6 +46,21 @@ const ACTION_LABELS = {
   restricted_field_attempt: 'Restricted field attempt',
   error_critical: 'Critical error',
   maintenance_mode: 'Maintenance mode',
+  form_definition_published: 'Form definition published',
+  form_definition_deleted: 'Form definition deleted',
+  form_group_retired: 'Form group retired',
+  form_group_deactivated: 'Form group deactivated',
+  form_group_reactivated: 'Form group reactivated',
+  penalty_config_created: 'Penalty config created',
+  penalty_config_updated: 'Penalty config updated',
+  penalty_config_reset: 'Penalty config reset',
+  general_permit_config_updated: 'General permit config updated',
+  lgu_created: 'LGU created',
+  lgu_updated: 'LGU updated',
+  lgu_deleted: 'LGU deleted',
+  fee_config_created: 'Fee config created',
+  fee_config_updated: 'Fee config updated',
+  fee_config_deleted: 'Fee config deleted',
 }
 
 const actionLabel = (eventType) => ACTION_LABELS[eventType] || eventType || '—'
@@ -180,7 +195,7 @@ function LogDetailPanel({ log, token }) {
   )
 }
 
-export default function AdminLogsTab() {
+export default function AdminLogsTab({ initialLogId }) {
   const { token } = theme.useToken()
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md
@@ -254,6 +269,12 @@ export default function AdminLogsTab() {
   useEffect(() => {
     loadLogs()
   }, [loadLogs])
+
+  useEffect(() => {
+    if (!initialLogId || !logs.length) return
+    const found = logs.find((l) => (l.id || l._id) === initialLogId || String(l.id || l._id) === String(initialLogId))
+    if (found) setSelectedLog(found)
+  }, [initialLogId, logs])
 
   // Reset page on filter change
   useEffect(() => {
@@ -375,8 +396,8 @@ export default function AdminLogsTab() {
       </div>
 
       {/* Table */}
-      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ borderBottom: '1px solid #f0f0f0', borderTop: '1px solid #f0f0f0', overflow: 'auto', flex: 1, minHeight: 0 }}>
+      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column', ['--row-selected-bg']: token.colorPrimaryBg }}>
+        <div style={{ borderBottom: `1px solid ${token.colorBorderSecondary}`, borderTop: `1px solid ${token.colorBorderSecondary}`, overflow: 'auto', flex: 1, minHeight: 0 }}>
           <Table
             size="small"
             rowKey="id"
@@ -420,7 +441,7 @@ export default function AdminLogsTab() {
       </div>
       <style>{`
         .ant-table-tbody > tr.log-row-selected > td {
-          background: #e6f4ff !important;
+          background: var(--row-selected-bg) !important;
         }
         .ant-table-tbody > tr:hover > td {
           cursor: pointer;

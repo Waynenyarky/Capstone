@@ -1,5 +1,5 @@
 import React from 'react'
-import { Form, Input, Card, Button, Row, Col, Space, Alert, Skeleton } from 'antd'
+import { Form, Input, Card, Button, Row, Col, Space, Alert, Skeleton, theme } from 'antd'
 import { UserOutlined, PhoneOutlined, MailOutlined, SaveOutlined, UndoOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { useEditUserProfileForm } from "@/features/user/hooks/useEditUserProfileForm.jsx"
 import { firstNameRules, lastNameRules, phoneNumberRules } from "@/features/authentication/validations"
@@ -8,8 +8,10 @@ import { preventNonNumericKeyDown, sanitizePhonePaste, sanitizePhoneInput } from
 import { formatPhoneNumber } from "@/shared/utils/phoneFormatter.js"
 
 export default function EditUserProfileForm({ embedded = false }) {
+  const { token } = theme.useToken()
   const { form, isLoading, isSubmitting, handleFinish, handleValuesChange, isDirty, reload } = useEditUserProfileForm()
   const { role } = useAuthSession()
+  const prefixIconColor = token.colorTextPlaceholder
   
   // Check if user is staff role (restricted fields)
   const roleKey = String(role?.slug || role || '').toLowerCase()
@@ -53,8 +55,7 @@ export default function EditUserProfileForm({ embedded = false }) {
             help="Enter your legal first name"
           >
             <Input 
-              size="large" 
-              prefix={<UserOutlined style={{ color: 'rgba(0,0,0,.25)' }} />} 
+              prefix={<UserOutlined style={{ color: prefixIconColor }} />} 
               placeholder="First Name"
               showCount
               maxLength={50}
@@ -69,8 +70,7 @@ export default function EditUserProfileForm({ embedded = false }) {
             help="Enter your legal last name"
           >
             <Input 
-              size="large" 
-              prefix={<UserOutlined style={{ color: 'rgba(0,0,0,.25)' }} />} 
+              prefix={<UserOutlined style={{ color: prefixIconColor }} />} 
               placeholder="Last Name"
               showCount
               maxLength={50}
@@ -85,8 +85,7 @@ export default function EditUserProfileForm({ embedded = false }) {
             help="Format: 09XXXXXXXXX (11 digits, starting with 09)"
           >
             <Input
-              size="large"
-              prefix={<PhoneOutlined style={{ color: 'rgba(0,0,0,.25)' }} />}
+              prefix={<PhoneOutlined style={{ color: prefixIconColor }} />}
               inputMode="numeric"
               pattern="[0-9]*"
               maxLength={11}

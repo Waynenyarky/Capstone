@@ -68,6 +68,7 @@ export const FORM_DEFINITIONS_INDUSTRIES_ONLY = _INDUSTRIES_RAW.sort(
 export const FORM_TYPES = [
   { value: 'permit', label: 'Unified Business Permit' },
   { value: 'general_permit', label: 'General Permit' },
+  { value: 'occupation', label: "Mayor's Permit for Occupation" },
   { value: 'renewal', label: 'Business Renewal' },
   { value: 'cessation', label: 'Cessation' },
   { value: 'violation', label: 'Violation' },
@@ -76,7 +77,7 @@ export const FORM_TYPES = [
 
 /** Group form types for UI (e.g., tabs, filters) */
 export const FORM_TYPE_CATEGORIES = {
-  business: ['permit', 'general_permit', 'renewal', 'cessation'],
+  business: ['permit', 'general_permit', 'occupation', 'renewal', 'cessation'],
   compliance: ['violation'],
   disputes: ['appeal'],
 }
@@ -89,6 +90,7 @@ export const STATUS_OPTIONS = [
 export const FORM_TYPE_LABELS = {
   permit: 'Unified Business Permit',
   general_permit: 'General Permit',
+  occupation: "Mayor's Permit for Occupation",
   renewal: 'Renewal',
   cessation: 'Cessation',
   violation: 'Violation',

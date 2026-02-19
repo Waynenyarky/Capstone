@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react'
-import { Modal, Table, Input, Select, Button, Tag, Typography } from 'antd'
+import { Modal, Table, Input, Select, Button, Tag, Typography, theme } from 'antd'
 import { SearchOutlined, FilterOutlined, CloseOutlined } from '@ant-design/icons'
 import { getStaffStatus, getStaffStatusTag } from './useAdminUsersPage'
 
@@ -16,6 +16,7 @@ export default function OfficeEmployeesModal({
   roleOptionsState,
   onSelectStaff,
 }) {
+  const { token } = theme.useToken()
   const [search, setSearch] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState(null)
@@ -128,7 +129,7 @@ export default function OfficeEmployeesModal({
                   padding: 16,
                   background: '#fff',
                   borderRadius: 10,
-                  border: '1px solid #e8e8e8',
+                  border: `1px solid ${token.colorBorderSecondary}`,
                   boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
                   zIndex: 50,
                   minWidth: 220,

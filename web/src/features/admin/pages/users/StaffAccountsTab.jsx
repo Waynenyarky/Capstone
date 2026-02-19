@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react'
-import { Table, Button, Tag, Typography, Input, Select, Tooltip, Splitter, Grid, Pagination } from 'antd'
+import { Table, Button, Tag, Typography, Input, Select, Tooltip, Splitter, Grid, Pagination, theme } from 'antd'
 import { PlusOutlined, FilterOutlined, SearchOutlined, CloseOutlined } from '@ant-design/icons'
 import { roleLabel, officeLabel, getStaffStatus, getStaffStatusTag } from './useAdminUsersPage'
 import StaffDetailPanel from './StaffDetailPanel'
@@ -20,6 +20,7 @@ export default function StaffAccountsTab({
   selectedStaffId,
   clearSelectedStaffId,
 }) {
+  const { token } = theme.useToken()
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md
   const [selectedStaff, setSelectedStaff] = useState(null)
@@ -155,7 +156,7 @@ export default function StaffAccountsTab({
                   padding: '16px 20px',
                   background: '#fff',
                   borderRadius: 10,
-                  border: '1px solid #e8e8e8',
+                  border: `1px solid ${token.colorBorderSecondary}`,
                   boxShadow: '0 6px 20px rgba(0, 0, 0, 0.12)',
                   zIndex: 50,
                   minWidth: 280,
@@ -227,8 +228,8 @@ export default function StaffAccountsTab({
         )}
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ borderBottom: '1px solid #f0f0f0',borderTop: '1px solid #f0f0f0', overflow: 'auto', flex: 1, minHeight: 0 }}>
+      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column', ['--row-selected-bg']: token.colorPrimaryBg }}>
+        <div style={{ borderBottom: `1px solid ${token.colorBorderSecondary}`, borderTop: `1px solid ${token.colorBorderSecondary}`, overflow: 'auto', flex: 1, minHeight: 0 }}>
           <Table
             size="small"
             rowKey="id"
@@ -257,7 +258,7 @@ export default function StaffAccountsTab({
       </div>
       <style>{`
         .ant-table-tbody > tr.staff-row-selected > td {
-          background: #e6f4ff !important;
+          background: var(--row-selected-bg) !important;
         }
         .ant-table-tbody > tr:hover > td {
           cursor: pointer;

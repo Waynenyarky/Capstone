@@ -1,6 +1,7 @@
 const express = require('express')
 const PenaltyConfiguration = require('../models/PenaltyConfiguration')
-const { requireJwt, requireRole } = require('../middleware/auth')
+const { requireJwt, requireRole, requireAdminStepUp } = require('../middleware/auth')
+const { createAuditLog } = require('../lib/auditLogger')
 
 const router = express.Router()
 
@@ -33,7 +34,7 @@ router.get('/', requireJwt, async (req, res) => {
 })
 
 // POST /api/admin/penalty-configuration — create new config
-router.post('/', requireJwt, requireRole(['admin']), async (req, res) => {
+router.post('/', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const { surchargePercentage, monthlyInterestRate, penaltyStartDay, compliancePeriods, effectiveDate } = req.body
 
@@ -59,6 +60,24 @@ router.post('/', requireJwt, requireRole(['admin']), async (req, res) => {
       updatedBy: req._userId,
     })
 
+    createAuditLog(
+      req._userId,
+      'penalty_config_created',
+      'penalty_config',
+      '',
+      String(config._id),
+      'admin',
+      {
+        configId: String(config._id),
+        surchargePercentage: config.surchargePercentage,
+        monthlyInterestRate: config.monthlyInterestRate,
+        penaltyStartDay: config.penaltyStartDay,
+        effectiveDate: config.effectiveDate?.toISOString?.(),
+        ip: req.ip,
+        userAgent: req.get('user-agent'),
+      }
+    ).catch((err) => console.error('Failed to create audit log for penalty config create', err))
+
     return res.status(201).json({ data: config, warnings })
   } catch (err) {
     console.error('POST /penalty-configuration error:', err)
@@ -67,7 +86,7 @@ router.post('/', requireJwt, requireRole(['admin']), async (req, res) => {
 })
 
 // PUT /api/admin/penalty-configuration/:id — update config
-router.put('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
+router.put('/:id', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const { id } = req.params
     const { surchargePercentage, monthlyInterestRate, penaltyStartDay, compliancePeriods, effectiveDate, isActive } = req.body
@@ -89,6 +108,13 @@ router.put('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
       }
     }
 
+    const oldValues = {
+      surchargePercentage: config.surchargePercentage,
+      monthlyInterestRate: config.monthlyInterestRate,
+      penaltyStartDay: config.penaltyStartDay,
+      isActive: config.isActive,
+    }
+
     if (surchargePercentage !== undefined) config.surchargePercentage = surchargePercentage
     if (monthlyInterestRate !== undefined) config.monthlyInterestRate = monthlyInterestRate
     if (penaltyStartDay !== undefined) config.penaltyStartDay = penaltyStartDay
@@ -98,6 +124,16 @@ router.put('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
     config.updatedBy = req._userId
 
     await config.save()
+
+    createAuditLog(
+      req._userId,
+      'penalty_config_updated',
+      'penalty_config',
+      JSON.stringify(oldValues),
+      JSON.stringify({ surchargePercentage: config.surchargePercentage, monthlyInterestRate: config.monthlyInterestRate, penaltyStartDay: config.penaltyStartDay, isActive: config.isActive }),
+      'admin',
+      { configId: String(config._id), ip: req.ip, userAgent: req.get('user-agent') }
+    ).catch((err) => console.error('Failed to create audit log for penalty config update', err))
 
     const warnings = []
     if (config.penaltyStartDay === 31) {
@@ -112,8 +148,10 @@ router.put('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
 })
 
 // POST /api/admin/penalty-configuration/reset — reset to defaults
-router.post('/reset', requireJwt, requireRole(['admin']), async (req, res) => {
+router.post('/reset', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
+    const previousConfigs = await PenaltyConfiguration.find({ isActive: true }).select('_id surchargePercentage monthlyInterestRate penaltyStartDay').lean()
+
     // Deactivate all existing
     await PenaltyConfiguration.updateMany({}, { $set: { isActive: false } })
 
@@ -127,6 +165,16 @@ router.post('/reset', requireJwt, requireRole(['admin']), async (req, res) => {
       createdBy: req._userId,
       updatedBy: req._userId,
     })
+
+    createAuditLog(
+      req._userId,
+      'penalty_config_reset',
+      'penalty_config',
+      previousConfigs.length ? JSON.stringify(previousConfigs.map((c) => ({ id: String(c._id), surchargePercentage: c.surchargePercentage, monthlyInterestRate: c.monthlyInterestRate, penaltyStartDay: c.penaltyStartDay }))) : '',
+      JSON.stringify({ configId: String(config._id), surchargePercentage: 25, monthlyInterestRate: 2, penaltyStartDay: 20 }),
+      'admin',
+      { previousActiveCount: previousConfigs.length, newConfigId: String(config._id), ip: req.ip, userAgent: req.get('user-agent') }
+    ).catch((err) => console.error('Failed to create audit log for penalty config reset', err))
 
     return res.json({ data: config, message: 'Reset to defaults' })
   } catch (err) {

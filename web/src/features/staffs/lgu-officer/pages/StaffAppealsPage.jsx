@@ -166,7 +166,7 @@ export default function StaffAppealsPage() {
           onCancel={() => { setReviewModal(null); form.resetFields() }}
           footer={null}
           width={isMobile ? '95%' : 600}
-          destroyOnClose
+          destroyOnHidden
         >
           {reviewModal && (
             <Space direction="vertical" style={{ width: '100%' }} size="large">

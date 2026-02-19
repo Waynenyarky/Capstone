@@ -1,19 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Row, Col, Card, Typography, Spin, Space, Tag, List, message } from 'antd'
+import { Row, Col, Card, Typography, Space, Tag, List, message, theme, Button } from 'antd'
 import { Link } from 'react-router-dom'
 import {
   DashboardOutlined,
-  TeamOutlined,
   CheckCircleOutlined,
-  FormOutlined,
-  DollarOutlined,
-  AccountBookOutlined,
   SafetyCertificateOutlined,
-  HistoryOutlined,
   ToolOutlined,
-  ArrowRightOutlined,
   FileTextOutlined,
+  ReloadOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons'
+import DashboardInfoModal from './DashboardInfoModal'
 import dayjs from 'dayjs'
 import AdminLayout from '../components/AdminLayout'
 import { TamperIncidentsPanel } from '@/features/admin'
@@ -25,16 +22,12 @@ import { get } from '@/lib/http.js'
 
 const { Text } = Typography
 
-const SHORTCUTS = [
-  { key: 'users', label: 'User Management', to: '/admin/users', icon: <TeamOutlined /> },
-  { key: 'requests', label: 'Requests', to: '/admin/requests', icon: <CheckCircleOutlined /> },
-  { key: 'form-definitions', label: 'Form Definitions', to: '/admin/form-definitions', icon: <FormOutlined /> },
-  { key: 'fee-configuration', label: 'Fee Configuration', to: '/admin/fee-configuration', icon: <DollarOutlined /> },
-  { key: 'finance', label: 'Finance', to: '/admin/finance', icon: <AccountBookOutlined /> },
-  { key: 'audit-tamper', label: 'Audit Tamper', to: '/admin/audit-tamper', icon: <SafetyCertificateOutlined /> },
-  { key: 'activity', label: 'Admin Activity', to: '/admin/activity', icon: <HistoryOutlined /> },
-  { key: 'maintenance', label: 'Maintenance', to: '/admin/maintenance', icon: <ToolOutlined /> },
-]
+const STAT_CARD_COLORS = {
+  pending: '#1890ff',
+  tamper: '#52c41a',
+  tamperAlert: '#ff4d4f',
+  forms: '#722ed1',
+}
 
 const ACTION_COLORS = {
   create: 'green',
@@ -56,6 +49,8 @@ export default function AdminDashboard() {
   const [formStats, setFormStats] = useState(null)
   const [maintenanceStatus, setMaintenanceStatus] = useState(null)
   const [recentLogs, setRecentLogs] = useState([])
+  const [lastUpdated, setLastUpdated] = useState(null)
+  const [infoOpen, setInfoOpen] = useState(false)
 
   const loadKpis = useCallback(async () => {
     setKpiLoading(true)
@@ -85,6 +80,7 @@ export default function AdminDashboard() {
       message.error('Failed to load dashboard stats')
     } finally {
       setKpiLoading(false)
+      setLastUpdated(new Date())
     }
   }, [])
 
@@ -98,6 +94,7 @@ export default function AdminDashboard() {
       setRecentLogs([])
     } finally {
       setRecentActivityLoading(false)
+      setLastUpdated(new Date())
     }
   }, [])
 
@@ -109,84 +106,112 @@ export default function AdminDashboard() {
     loadRecentActivity()
   }, [loadRecentActivity])
 
+  useEffect(() => {
+    const onRefresh = () => {
+      loadKpis()
+      loadRecentActivity()
+      setLastUpdated(new Date())
+    }
+    window.addEventListener('admin-dashboard-refresh', onRefresh)
+    return () => window.removeEventListener('admin-dashboard-refresh', onRefresh)
+  }, [loadKpis, loadRecentActivity])
+
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([loadKpis(), loadRecentActivity()])
+    setLastUpdated(new Date())
+  }, [loadKpis, loadRecentActivity])
+
   const formCount = formStats?.activated != null ? Number(formStats.activated) + Number(formStats.deactivated || 0) + Number(formStats.retired || 0) : null
   const hasMaintenance = maintenanceStatus?.active === true || maintenanceStatus?.status === 'active'
+  const { token } = theme.useToken()
+
+  const statCards = [
+    {
+      key: 'pending',
+      label: 'Pending requests',
+      value: pendingRequests,
+      icon: CheckCircleOutlined,
+      to: '/admin/requests',
+      linkable: true,
+    },
+    {
+      key: 'tamper',
+      label: 'Open tamper incidents',
+      value: openTamper,
+      icon: SafetyCertificateOutlined,
+      to: '/admin/security',
+      colorKey: openTamper > 0 ? 'tamperAlert' : 'tamper',
+      linkable: true,
+    },
+    {
+      key: 'forms',
+      label: 'Form groups',
+      value: formCount != null ? formCount : '—',
+      icon: FileTextOutlined,
+      to: '/admin/form-definitions',
+      linkable: formCount != null,
+    },
+  ]
+
+  const mainHeaderActions = (
+    <>
+      {lastUpdated && (
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          Last updated: {lastUpdated.toLocaleTimeString()}
+        </Text>
+      )}
+      <Button
+        icon={<ReloadOutlined />}
+        onClick={handleRefresh}
+        loading={kpiLoading || recentActivityLoading}
+        aria-label="Refresh"
+      />
+      <Button icon={<InfoCircleOutlined />} onClick={() => setInfoOpen(true)} aria-label="About" />
+    </>
+  )
 
   return (
-    <AdminLayout pageTitle="Admin Dashboard" pageIcon={<DashboardOutlined />}>
+    <AdminLayout
+      pageTitle="Admin Dashboard"
+      pageIcon={<DashboardOutlined />}
+      headerActions={mainHeaderActions}
+    >
       <div style={{ padding: 16 }}>
         <Row gutter={[16, 16]}>
-          {/* KPI cards */}
-          <Col xs={24} sm={12} lg={8}>
-            <Card size="small" loading={kpiLoading}>
-              <Space align="center">
-                <CheckCircleOutlined style={{ fontSize: 24, color: '#1890ff' }} />
-                <div>
-                  <Text type="secondary">Pending requests</Text>
-                  <div>
-                    <Link to="/admin/requests">
-                      <Text strong style={{ fontSize: 20 }}>{pendingRequests}</Text>
-                    </Link>
-                  </div>
-                </div>
-              </Space>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={8}>
-            <Card size="small" loading={kpiLoading}>
-              <Space align="center">
-                <SafetyCertificateOutlined style={{ fontSize: 24, color: openTamper > 0 ? '#ff4d4f' : '#52c41a' }} />
-                <div>
-                  <Text type="secondary">Open tamper incidents</Text>
-                  <div>
-                    <Link to="/admin/audit-tamper">
-                      <Text strong style={{ fontSize: 20 }}>{openTamper}</Text>
-                    </Link>
-                  </div>
-                </div>
-              </Space>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={8}>
-            <Card size="small" loading={kpiLoading}>
-              <Space align="center">
-                <FileTextOutlined style={{ fontSize: 24, color: '#722ed1' }} />
-                <div>
-                  <Text type="secondary">Form groups</Text>
-                  <div>
-                    {formCount != null ? (
-                      <Link to="/admin/form-definitions">
-                        <Text strong style={{ fontSize: 20 }}>{formCount}</Text>
+          {/* KPI cards - same style as user management Overview tab */}
+          {statCards.map(({ key, label, value, icon: Icon, to, colorKey, linkable }) => (
+            <Col xs={24} sm={12} md={8} key={key}>
+              <Card size="small" loading={kpiLoading} style={{ height: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 13, color: token.colorTextSecondary }}>{label}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: token.borderRadius,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        background: STAT_CARD_COLORS[colorKey || key] || token.colorPrimary,
+                        color: '#fff',
+                      }}
+                    >
+                      <Icon style={{ fontSize: 18 }} />
+                    </span>
+                    {to && linkable ? (
+                      <Link to={to}>
+                        <span style={{ fontSize: 16, fontWeight: 600 }}>{value}</span>
                       </Link>
                     ) : (
-                      <Text strong style={{ fontSize: 20 }}>—</Text>
+                      <span style={{ fontSize: 16, fontWeight: 600 }}>{value}</span>
                     )}
                   </div>
                 </div>
-              </Space>
-            </Card>
-          </Col>
-
-          {/* Shortcuts */}
-          <Col xs={24}>
-            <Card size="small" title="Quick links">
-              <Row gutter={[12, 12]}>
-                {SHORTCUTS.map(({ key, label, to, icon }) => (
-                  <Col xs={12} sm={8} md={6} key={key}>
-                    <Link to={to} style={{ display: 'block' }}>
-                      <Card size="small" hoverable style={{ textAlign: 'center' }}>
-                        <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                          <span style={{ fontSize: 20 }}>{icon}</span>
-                          <Text ellipsis style={{ fontSize: 13 }}>{label}</Text>
-                          <ArrowRightOutlined style={{ fontSize: 12, color: '#999' }} />
-                        </Space>
-                      </Card>
-                    </Link>
-                  </Col>
-                ))}
-              </Row>
-            </Card>
-          </Col>
+              </Card>
+            </Col>
+          ))}
 
           {/* Optional maintenance status */}
           {hasMaintenance && (
@@ -206,7 +231,6 @@ export default function AdminDashboard() {
             <Card
               size="small"
               title="Recent admin activity"
-              extra={<Link to="/admin/activity">View all</Link>}
               loading={recentActivityLoading}
             >
               {!recentActivityLoading && recentLogs.length === 0 ? (
@@ -243,6 +267,7 @@ export default function AdminDashboard() {
           </Col>
         </Row>
       </div>
+      <DashboardInfoModal open={infoOpen} onClose={() => setInfoOpen(false)} />
     </AdminLayout>
   )
 }

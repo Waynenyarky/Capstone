@@ -1,5 +1,5 @@
 import React from 'react'
-import { Table, Tag, Typography, Select, Pagination } from 'antd'
+import { Table, Tag, Typography, Select, Pagination, theme } from 'antd'
 import { getRequestTypeLabel } from '@/features/admin/services/approvalService'
 
 const { Text } = Typography
@@ -29,6 +29,7 @@ export default function RequestsTable({
   onStatusFilterChange,
   pagination,
 }) {
+  const { token } = theme.useToken()
   const columns = [
     {
       title: 'Type',
@@ -79,7 +80,7 @@ export default function RequestsTable({
   const rowKey = (rec) => rec.approvalId || rec._id
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', ['--row-selected-bg']: token.colorPrimaryBg }}>
       <div style={{ flexShrink: 0, padding: 12, paddingBottom: 8 }}>
         <Select
           value={statusFilter}
@@ -88,11 +89,10 @@ export default function RequestsTable({
             { value: 'pending', label: 'Active only' },
             { value: 'all', label: 'Include old' },
           ]}
-          style={{ width: 160 }}
-          size="small"
+          style={{ width: '100%' }}
         />
       </div>
-      <div style={{ flex: 1, minHeight: 0, overflow: 'auto', borderTop: '1px solid #f0f0f0' }}>
+      <div style={{ flex: 1, minHeight: 0, overflow: 'auto', borderTop: `1px solid ${token.colorBorderSecondary}` }}>
         <Table
           size="small"
           rowKey={rowKey}
@@ -126,7 +126,7 @@ export default function RequestsTable({
       )}
       <style>{`
         .ant-table-tbody > tr.request-row-selected > td {
-          background: #e6f4ff !important;
+          background: var(--row-selected-bg) !important;
         }
       `}</style>
     </div>

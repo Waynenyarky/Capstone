@@ -89,15 +89,15 @@ describe('Fee Configuration (2C)', () => {
   // ── Happy Paths ──
 
   describe('UC-2C-1: Admin creates fee config', () => {
-    it('should create fee configuration with brackets and taxCode', async () => {
+    it('should create fee configuration with brackets and taxCode (Charter 1-12)', async () => {
       const res = await request(app)
         .post('/api/business/admin/fee-configuration')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
-          taxCode: 'ret',
-          lineOfBusiness: 'Retail',
-          mayorsPermitFee: 500,
-          businessTaxCategory: 'A',
+          taxCode: '12',
+          lineOfBusiness: 'General Merchandise, Grocery, Sari-Sari Store - 5-9 sq.m.',
+          mayorsPermitFee: 600,
+          businessTaxCategory: 'Annex 1 (d) — Retailers',
           brackets: [
             { min: 0, max: 100000, rate: 0.5 },
             { min: 100001, max: 400000, rate: 1 },
@@ -106,8 +106,8 @@ describe('Fee Configuration (2C)', () => {
         })
 
       expect(res.status).toBe(201)
-      expect(res.body.data.taxCode).toBe('RET') // uppercased
-      expect(res.body.data.lineOfBusiness).toBe('retail') // lowercased
+      expect(res.body.data.taxCode).toBe('12')
+      expect(res.body.data.lineOfBusiness).toBe('General Merchandise, Grocery, Sari-Sari Store - 5-9 sq.m.')
       expect(res.body.data.brackets).toHaveLength(3)
       expect(res.body.data.isActive).toBe(true)
     })
@@ -123,7 +123,7 @@ describe('Fee Configuration (2C)', () => {
 
       expect(res.status).toBe(201)
       expect(res.body.data.taxCode).toBe('')
-      expect(res.body.data.lineOfBusiness).toBe('wholesale')
+      expect(res.body.data.lineOfBusiness).toBe('Wholesale')
     })
 
     it('should create fee configuration with bracketKind tiered', async () => {
@@ -131,9 +131,9 @@ describe('Fee Configuration (2C)', () => {
         .post('/api/business/admin/fee-configuration')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
-          taxCode: 'RET',
-          lineOfBusiness: 'retail_tiered',
-          mayorsPermitFee: 500,
+          taxCode: '6',
+          lineOfBusiness: 'Restaurants - Less than 50 sq.m.',
+          mayorsPermitFee: 1800,
           bracketKind: 'tiered',
           brackets: [
             { min: 0, max: 400000, rate: 2.2 },
@@ -151,8 +151,8 @@ describe('Fee Configuration (2C)', () => {
         .post('/api/business/admin/fee-configuration')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
-          taxCode: 'MFG',
-          lineOfBusiness: 'manufacturing_fixed',
+          taxCode: '1',
+          lineOfBusiness: 'Food Manufacturing',
           mayorsPermitFee: 1000,
           bracketKind: 'fixed',
           brackets: [
@@ -189,7 +189,8 @@ describe('Fee Configuration (2C)', () => {
 
     it('should update taxCode', async () => {
       const config = await FeeConfiguration.create({
-        lineOfBusiness: 'services',
+        taxCode: '',
+        lineOfBusiness: 'Services',
         mayorsPermitFee: 1200,
         brackets: [],
         effectiveDate: new Date(),
@@ -199,10 +200,10 @@ describe('Fee Configuration (2C)', () => {
       const res = await request(app)
         .put(`/api/business/admin/fee-configuration/${config._id}`)
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ taxCode: 'svc' })
+        .send({ taxCode: '11' })
 
       expect(res.status).toBe(200)
-      expect(res.body.data.taxCode).toBe('SVC')
+      expect(res.body.data.taxCode).toBe('11')
     })
   })
 
@@ -237,10 +238,11 @@ describe('Fee Configuration (2C)', () => {
 
   // ── Edge Cases ──
 
-  describe('UC-2C-6: Duplicate lineOfBusiness', () => {
-    it('should reject duplicate active config for same LOB', async () => {
+  describe('UC-2C-6: Duplicate (taxCode, lineOfBusiness)', () => {
+    it('should reject duplicate active config for same tax code and LOB', async () => {
       await FeeConfiguration.create({
-        lineOfBusiness: 'retail',
+        taxCode: '12',
+        lineOfBusiness: 'General Merchandise - below 5 sq.m.',
         mayorsPermitFee: 500,
         brackets: [],
         effectiveDate: new Date(),
@@ -251,7 +253,8 @@ describe('Fee Configuration (2C)', () => {
         .post('/api/business/admin/fee-configuration')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
-          lineOfBusiness: 'retail',
+          taxCode: '12',
+          lineOfBusiness: 'General Merchandise - below 5 sq.m.',
           mayorsPermitFee: 600,
         })
 
@@ -263,7 +266,8 @@ describe('Fee Configuration (2C)', () => {
   describe('UC-2C-5: Cannot delete last active config', () => {
     it('should soft-deactivate instead of hard delete', async () => {
       const config = await FeeConfiguration.create({
-        lineOfBusiness: 'retail',
+        taxCode: '12',
+        lineOfBusiness: 'Retail',
         mayorsPermitFee: 500,
         brackets: [],
         effectiveDate: new Date(),

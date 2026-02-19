@@ -29,20 +29,8 @@ export default function LoggedInEmailChangeFlow() {
   ]
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto' }}>
-      <Steps 
-        current={currentStep} 
-        items={items} 
-        style={{ marginBottom: 40 }} 
-        size="small"
-      />
-      
-      <div style={{ 
-        padding: 24, 
-        background: token.colorFillAlter, 
-        borderRadius: token.borderRadiusLG,
-        border: `1px solid ${token.colorBorderSecondary}`
-      }}>
+    <div style={{ maxWidth: 400, margin: '0 auto', marginTop: 48 }}>
+      <div>
         {step === 'send' && (
           <SendCodeForCurrentUserConfirm
             email={sendProps.email}

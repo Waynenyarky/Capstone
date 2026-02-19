@@ -722,6 +722,374 @@ const generalPermitSections = [
   },
 ]
 
+// ─── Mayor's Permit For Occupation Application Form (CBPLO-OPR-F013 Rev. 01) ───
+// City Business Permit and Licensing Office – occupational permit (e.g. food handlers, non-food handlers).
+// Personal info, occupational permit data, educational background, and required documents.
+const occupationalPermitSections = [
+  {
+    category: 'Personal Information',
+    source: 'BPLO',
+    notes: 'Applicant personal data for the Mayor\'s Permit for Occupation application',
+    items: [
+      item('PIN (Personal Identification Number)', 'text', {
+        key: 'pin',
+        placeholder: 'e.g. 123456789',
+        helpText: 'Personal identification number',
+        validation: { maxLength: 30 },
+        span: 12,
+      }),
+      item('Last Name', 'text', {
+        key: 'lastName',
+        placeholder: 'Last name',
+        validation: { minLength: 1, maxLength: 100 },
+        span: 8,
+      }),
+      item('First Name', 'text', {
+        key: 'firstName',
+        placeholder: 'First name',
+        validation: { minLength: 1, maxLength: 100 },
+        span: 8,
+      }),
+      item('Middle Name', 'text', {
+        key: 'middleName',
+        required: false,
+        placeholder: 'Middle name',
+        validation: { maxLength: 100 },
+        span: 8,
+      }),
+      item('Address', 'text', {
+        key: 'address',
+        placeholder: 'Full address',
+        validation: { minLength: 1, maxLength: 300 },
+      }),
+      item('Place of Birth', 'text', {
+        key: 'placeOfBirth',
+        placeholder: 'City/Municipality, Province',
+        validation: { maxLength: 200 },
+        span: 12,
+      }),
+      item('Highest Educational Attainment', 'text', {
+        key: 'highestEducationalAttainment',
+        placeholder: 'e.g. College Graduate, High School',
+        validation: { maxLength: 100 },
+        span: 12,
+      }),
+      item('Distinctive Mark', 'text', {
+        key: 'distinctiveMark',
+        required: false,
+        placeholder: 'Visible identifying mark if any',
+        validation: { maxLength: 200 },
+        span: 12,
+      }),
+      item('Spouse Name', 'text', {
+        key: 'spouseName',
+        required: false,
+        placeholder: 'Full name of spouse',
+        validation: { maxLength: 200 },
+        span: 12,
+      }),
+      item('Father Name', 'text', {
+        key: 'fatherName',
+        required: false,
+        placeholder: 'Full name of father',
+        validation: { maxLength: 200 },
+        span: 12,
+      }),
+      item('Mother Name', 'text', {
+        key: 'motherName',
+        required: false,
+        placeholder: 'Full name of mother',
+        validation: { maxLength: 200 },
+        span: 12,
+      }),
+      item('Gender', 'select', {
+        key: 'gender',
+        placeholder: 'Select gender',
+        dropdownOptions: ['Male', 'Female'],
+        span: 12,
+      }),
+      item('Civil Status', 'select', {
+        key: 'civilStatus',
+        placeholder: 'Select civil status',
+        dropdownOptions: ['Single', 'Widower/Widow', 'Married', 'Separated'],
+        span: 12,
+      }),
+      item('Date of Birth', 'date', {
+        key: 'dateOfBirth',
+        helpText: 'Format: mm/dd/yyyy',
+        span: 12,
+      }),
+    ],
+  },
+  {
+    category: 'Occupational Permit Data',
+    source: 'BPLO',
+    notes: 'Permanent and present address, employer, and employment details',
+    items: [
+      item('Permanent Address – Street', 'text', {
+        key: 'permanentAddressStreet',
+        placeholder: 'Street',
+        validation: { maxLength: 200 },
+        span: 12,
+      }),
+      item('Permanent Address – Barangay', 'text', {
+        key: 'permanentAddressBrgy',
+        placeholder: 'Barangay',
+        validation: { maxLength: 100 },
+        span: 8,
+      }),
+      item('Permanent Address – Municipality/City', 'text', {
+        key: 'permanentAddressCity',
+        placeholder: 'Municipality/City',
+        validation: { maxLength: 100 },
+        span: 8,
+      }),
+      item('Permanent Address – Province', 'text', {
+        key: 'permanentAddressProvince',
+        placeholder: 'Province',
+        validation: { maxLength: 100 },
+        span: 8,
+      }),
+      item('Present Address – Street', 'text', {
+        key: 'presentAddressStreet',
+        placeholder: 'Street',
+        validation: { maxLength: 200 },
+        span: 12,
+      }),
+      item('Present Address – Barangay', 'text', {
+        key: 'presentAddressBrgy',
+        placeholder: 'Barangay',
+        validation: { maxLength: 100 },
+        span: 8,
+      }),
+      item('Present Address – Municipality/City', 'text', {
+        key: 'presentAddressCity',
+        placeholder: 'Municipality/City',
+        validation: { maxLength: 100 },
+        span: 8,
+      }),
+      item('Present Address – Province', 'text', {
+        key: 'presentAddressProvince',
+        placeholder: 'Province',
+        validation: { maxLength: 100 },
+        span: 8,
+      }),
+      item('Business Plate No.', 'text', {
+        key: 'businessPlateNo',
+        required: false,
+        placeholder: 'If applicable',
+        validation: { maxLength: 50 },
+        span: 12,
+      }),
+      item('Name of Employer', 'text', {
+        key: 'nameOfEmployer',
+        required: false,
+        placeholder: 'Full name of employer',
+        validation: { maxLength: 200 },
+        span: 12,
+      }),
+      item('Company', 'text', {
+        key: 'company',
+        placeholder: 'Name of company or establishment',
+        validation: { maxLength: 200 },
+        span: 12,
+      }),
+      item('Company Address', 'text', {
+        key: 'companyAddress',
+        placeholder: 'Full address of company',
+        validation: { maxLength: 300 },
+        span: 12,
+      }),
+      item('Position', 'text', {
+        key: 'position',
+        placeholder: 'Job title or position',
+        validation: { maxLength: 100 },
+        span: 12,
+      }),
+      item('Type of Employment', 'select', {
+        key: 'typeOfEmployment',
+        placeholder: 'Select type',
+        dropdownOptions: ['Self Employed', 'Employed'],
+        span: 12,
+      }),
+      item('Contact No.', 'text', {
+        key: 'contactNo',
+        placeholder: 'e.g. 09171234567',
+        validation: { maxLength: 20 },
+        span: 12,
+      }),
+    ],
+  },
+  {
+    category: 'Educational Background',
+    source: 'BPLO',
+    notes: 'Name of school, inclusive dates, and degree/course/strand per level',
+    items: [
+      item('Educational background', 'repeatable_group', {
+        key: 'educationalBackground',
+        helpText: 'Add one row per level: Elementary, Secondary, Vocational, College, Post Graduate',
+        groupFields: [
+          {
+            label: 'Level',
+            type: 'select',
+            key: 'level',
+            required: true,
+            placeholder: 'Select level',
+            span: 6,
+            validation: {},
+            dropdownSource: 'static',
+            dropdownOptions: ['Elementary', 'Secondary', 'Vocational', 'College', 'Post Graduate'],
+          },
+          {
+            label: 'Name of School',
+            type: 'text',
+            key: 'nameOfSchool',
+            required: false,
+            placeholder: 'Name of school',
+            span: 6,
+            validation: { maxLength: 200 },
+            dropdownSource: 'static',
+            dropdownOptions: [],
+          },
+          {
+            label: 'Inclusive Dates – From',
+            type: 'date',
+            key: 'dateFrom',
+            required: false,
+            placeholder: 'From',
+            span: 6,
+            validation: {},
+            dropdownSource: 'static',
+            dropdownOptions: [],
+          },
+          {
+            label: 'Inclusive Dates – To',
+            type: 'date',
+            key: 'dateTo',
+            required: false,
+            placeholder: 'To',
+            span: 6,
+            validation: {},
+            dropdownSource: 'static',
+            dropdownOptions: [],
+          },
+          {
+            label: 'Degree / Course / Strand',
+            type: 'text',
+            key: 'degreeCourseStrand',
+            required: false,
+            placeholder: 'For Vocational, College, Post Graduate',
+            span: 12,
+            validation: { maxLength: 200 },
+            dropdownSource: 'static',
+            dropdownOptions: [],
+          },
+        ],
+        minRows: 0,
+        maxRows: 10,
+      }),
+    ],
+  },
+  {
+    category: 'Application Details',
+    source: 'BPLO',
+    notes: 'Date of application and applicant signature',
+    items: [
+      item('Date of Application', 'date', {
+        key: 'dateOfApplication',
+        span: 12,
+      }),
+      item('Applicant\'s Signature', 'file', {
+        key: 'applicantSignature',
+        helpText: 'Upload signed form or signature image',
+        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
+        span: 12,
+      }),
+    ],
+  },
+  {
+    category: 'Occupation Type',
+    source: 'BPLO',
+    notes: 'Select whether applicant is a food handler or non-food handler; this determines which laboratory exams are required.',
+    items: [
+      item('Occupation type', 'select', {
+        key: 'occupationType',
+        helpText: 'Food handler: lab exams include Urinalysis, Fecalysis, Hepa B, Chest X-Ray. Non-food handler: Drug Test, Chest X-Ray.',
+        placeholder: 'Select type',
+        dropdownOptions: ['Food Handler', 'Non-Food Handler'],
+      }),
+    ],
+  },
+  {
+    category: 'Required Documents',
+    source: 'BPLO',
+    notes: 'Barangay Clearance, Community Tax Certificate, PIS Registration at MIS Office',
+    items: [
+      item('Barangay Clearance', 'file', {
+        key: 'barangayClearance',
+        helpText: 'From barangay where applicant resides',
+        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
+      }),
+      item('Community Tax Certificate (CTC / Cedula)', 'file', {
+        key: 'communityTaxCertificate',
+        helpText: 'Current year CTC from City/Municipal Treasurer',
+        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
+      }),
+      item('PIS Registration at MIS Office', 'file', {
+        key: 'pisRegistration',
+        helpText: 'Proof of PIS registration at MIS Office',
+        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
+      }),
+    ],
+  },
+  {
+    category: 'Laboratory Examinations – Food Handler',
+    source: 'BPLO',
+    notes: 'Required for food handlers: Urinalysis, Fecalysis, Hepa B Screening Test, Chest X-Ray',
+    showWhen: { field: 'occupationType', value: 'Food Handler' },
+    items: [
+      item('Urinalysis', 'file', {
+        key: 'labUrinalysis',
+        helpText: 'Laboratory result for urinalysis',
+        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
+      }),
+      item('Fecalysis', 'file', {
+        key: 'labFecalysis',
+        helpText: 'Laboratory result for fecalysis',
+        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
+      }),
+      item('Hepa B Screening Test', 'file', {
+        key: 'labHepaB',
+        helpText: 'Hepatitis B screening result',
+        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
+      }),
+      item('Chest X-Ray', 'file', {
+        key: 'labChestXRay',
+        helpText: 'Chest X-Ray result',
+        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
+      }),
+    ],
+  },
+  {
+    category: 'Laboratory Examinations – Non Food Handler',
+    source: 'BPLO',
+    notes: 'Required for non-food handlers: Drug Test, Chest X-Ray',
+    showWhen: { field: 'occupationType', value: 'Non-Food Handler' },
+    items: [
+      item('Drug Test', 'file', {
+        key: 'labDrugTest',
+        helpText: 'Drug test result from accredited laboratory',
+        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
+      }),
+      item('Chest X-Ray', 'file', {
+        key: 'labChestXRayNonFood',
+        helpText: 'Chest X-Ray result',
+        validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 },
+      }),
+    ],
+  },
+]
+
 // ─── Industry-specific sections (PSIC 2019 letters a–u) ──────────
 const industrySections = {
   a: [ // Agriculture, forestry and fishing
@@ -1224,11 +1592,12 @@ const industrySections = {
 }
 
 // ─── Seed function ────────────────────────────────────────────────
-async function createFormGroupAndDefinition({ formType, industryScope, sections, version = '2026.1', now }) {
+async function createFormGroupAndDefinition({ formType, industryScope, sections, version = '2026.1', now, addArchivedVersion = false }) {
   const scopeLabel = industryScope === 'all' ? 'All Industries' : (INDUSTRY_SCOPE_LABELS[industryScope] || industryScope)
   const typeLabels = {
     permit: 'Unified Business Permit',
     general_permit: 'General Permit',
+    occupation: "Mayor's Permit for Occupation",
     renewal: 'Business Renewal',
     cessation: 'Cessation',
     violation: 'Violation',
@@ -1267,6 +1636,36 @@ async function createFormGroupAndDefinition({ formType, industryScope, sections,
     ],
   })
 
+  if (addArchivedVersion) {
+    const archivedFrom = new Date(now)
+    archivedFrom.setFullYear(archivedFrom.getFullYear() - 2)
+    const archivedTo = new Date(now)
+    archivedTo.setMonth(archivedTo.getMonth() - 6)
+    await FormDefinition.create({
+      formGroupId: group._id,
+      formType,
+      version: '2025.1',
+      industryScope,
+      name: displayName,
+      description: `Philippine government ${typeLabels[formType] || formType} requirements for ${scopeLabel} (archived).`,
+      status: 'archived',
+      businessTypes,
+      lguCodes: [],
+      sections,
+      downloads: [],
+      effectiveFrom: archivedFrom,
+      effectiveTo: archivedTo,
+      publishedAt: archivedTo,
+      publishedBy: SYSTEM_USER_ID,
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
+      changeLog: [
+        { action: 'created', by: SYSTEM_USER_ID, system: 'Seeder', at: archivedFrom, changes: { note: 'Seeded legacy version' } },
+        { action: 'archived', by: SYSTEM_USER_ID, system: 'Seeder', at: archivedTo, changes: { note: 'Superseded by current version' } },
+      ],
+    })
+  }
+
   return { group, definition }
 }
 
@@ -1299,6 +1698,7 @@ async function seed() {
       industryScope: 'all',
       sections: unifiedBusinessPermitSections,
       now,
+      addArchivedVersion: true,
     })
     console.log('  Created: Unified Business Permit - All Industries')
     count++
@@ -1313,12 +1713,23 @@ async function seed() {
     console.log('  Created: General Permit - All Industries')
     count++
 
+    // === Mayor's Permit for Occupation (CBPLO-OPR-F013 Rev. 01) ===
+    await createFormGroupAndDefinition({
+      formType: 'occupation',
+      industryScope: 'all',
+      sections: occupationalPermitSections,
+      now,
+    })
+    console.log("  Created: Mayor's Permit for Occupation - All Industries")
+    count++
+
     // === Global Renewal ===
     await createFormGroupAndDefinition({
       formType: 'renewal',
       industryScope: 'all',
       sections: globalRenewalSections,
       now,
+      addArchivedVersion: true,
     })
     console.log('  Created: Renewal - All Industries (global)')
     count++
@@ -1380,16 +1791,20 @@ async function seedIfEmpty() {
     const now = new Date()
     let count = 0
 
-    // Unified Business Permit
-    await createFormGroupAndDefinition({ formType: 'permit', industryScope: 'all', sections: unifiedBusinessPermitSections, now })
+    // Unified Business Permit (with archived old version)
+    await createFormGroupAndDefinition({ formType: 'permit', industryScope: 'all', sections: unifiedBusinessPermitSections, now, addArchivedVersion: true })
     count++
 
     // General Permit (CBPLO-GPI-F06)
     await createFormGroupAndDefinition({ formType: 'general_permit', industryScope: 'all', sections: generalPermitSections, now })
     count++
 
-    // Global renewal
-    await createFormGroupAndDefinition({ formType: 'renewal', industryScope: 'all', sections: globalRenewalSections, now })
+    // Mayor's Permit for Occupation (CBPLO-OPR-F013 Rev. 01)
+    await createFormGroupAndDefinition({ formType: 'occupation', industryScope: 'all', sections: occupationalPermitSections, now })
+    count++
+
+    // Global renewal (with archived old version)
+    await createFormGroupAndDefinition({ formType: 'renewal', industryScope: 'all', sections: globalRenewalSections, now, addArchivedVersion: true })
     count++
 
     // Global cessation
@@ -1420,6 +1835,7 @@ module.exports = {
   SYSTEM_USER_ID,
   unifiedBusinessPermitSections,
   generalPermitSections,
+  occupationalPermitSections,
   globalRenewalSections,
   globalCessationSections,
   globalAppealSections,

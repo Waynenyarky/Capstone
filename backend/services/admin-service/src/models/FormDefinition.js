@@ -121,7 +121,7 @@ const FormDefinitionSchema = new mongoose.Schema(
     // Form type
     formType: {
       type: String,
-      enum: ['permit', 'general_permit', 'renewal', 'cessation', 'violation', 'appeal', 'inspections'],
+      enum: ['permit', 'general_permit', 'occupation', 'renewal', 'cessation', 'violation', 'appeal', 'inspections'],
       required: true,
       index: true,
     },

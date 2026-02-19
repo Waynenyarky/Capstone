@@ -141,7 +141,7 @@ export default function OccupationalPermitPage() {
           onCancel={() => { setModalOpen(false); form.resetFields() }}
           footer={null}
           width={isMobile ? '95%' : 700}
-          destroyOnClose
+          destroyOnHidden
         >
           <Form form={form} layout="vertical" onFinish={handleSubmit}>
             <Collapse

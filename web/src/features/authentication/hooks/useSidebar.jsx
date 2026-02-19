@@ -18,10 +18,10 @@ import {
   DollarOutlined,
   IdcardOutlined,
   EditOutlined,
-  HistoryOutlined,
   FileProtectOutlined,
   CheckCircleOutlined,
   AccountBookOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
 
 // Role keys used across the app: 'business_owner', 'admin', 'inspector', 'lgu_officer', 'lgu_manager', 'cso', 'user'
@@ -59,11 +59,8 @@ export default function useSidebar() {
         { key: 'form-definitions', label: 'Form Definitions', to: '/admin/form-definitions', icon: <FormOutlined /> },
         { key: 'fee-configuration', label: 'Fee Configuration', to: '/admin/fee-configuration', icon: <DollarOutlined /> },
         { key: 'finance', label: 'Finance', to: '/admin/finance', icon: <AccountBookOutlined /> },
-        { key: 'audit-tamper', label: 'Audit Tamper', to: '/admin/audit-tamper', icon: <SafetyCertificateOutlined /> },
-        { key: 'activity', label: 'Admin Activity', to: '/admin/activity', icon: <HistoryOutlined /> },
-        { key: 'maintenance', label: 'Maintenance', to: '/admin/maintenance', icon: <SafetyCertificateOutlined /> },
-        { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
-        { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
+        { key: 'security', label: 'Security', to: '/admin/security', icon: <SafetyCertificateOutlined /> },
+        { key: 'maintenance', label: 'Maintenance', to: '/admin/maintenance', icon: <SettingOutlined /> },
       ],
       staff: [
         { key: 'dashboard', label: 'Dashboard', to: '/staff', icon: <DashboardOutlined /> },

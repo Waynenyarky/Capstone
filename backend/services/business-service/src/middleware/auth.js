@@ -66,4 +66,29 @@ function requireRole(allowedRoles) {
   }
 }
 
-module.exports = { signAccessToken, requireJwt, requireRole }
+/** Require valid admin step-up token (X-Step-Up-Token). Use after requireJwt + requireRole(['admin']). */
+function requireAdminStepUp(req, res, next) {
+  const raw = req.headers['x-step-up-token'] || ''
+  const bearer = String(req.headers['authorization'] || '')
+  const stepUpToken = raw.trim() || (bearer.match(/^StepUp\s+(.+)$/i) ? bearer.replace(/^StepUp\s+/i, '').trim() : '')
+  if (!stepUpToken) {
+    return res.status(403).json({
+      error: { code: 'step_up_required', message: 'This action requires re-authentication. Please complete step-up and retry.' },
+    })
+  }
+  try {
+    const secret = process.env.JWT_SECRET || 'dev_secret_change_me'
+    const decoded = jwt.verify(stepUpToken, secret)
+    if (!decoded || decoded.stepUp !== true) {
+      return res.status(403).json({ error: { code: 'invalid_step_up', message: 'Invalid or expired step-up. Please complete step-up again.' } })
+    }
+    if (String(decoded.sub) !== String(req._userId)) {
+      return res.status(403).json({ error: { code: 'step_up_user_mismatch', message: 'Step-up token does not match current user.' } })
+    }
+    next()
+  } catch (err) {
+    return res.status(403).json({ error: { code: 'invalid_step_up', message: 'Step-up expired or invalid. Please complete step-up again.' } })
+  }
+}
+
+module.exports = { signAccessToken, requireJwt, requireRole, requireAdminStepUp }

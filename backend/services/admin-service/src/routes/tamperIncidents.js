@@ -1,5 +1,5 @@
 const express = require('express')
-const { requireJwt, requireRole } = require('../middleware/auth')
+const { requireJwt, requireRole, requireAdminStepUp } = require('../middleware/auth')
 const respond = require('../middleware/respond')
 const TamperIncident = require('../models/TamperIncident')
 const logger = require('../lib/logger')
@@ -120,7 +120,7 @@ async function logAdminAction(adminId, role, incidentId, action, notes = '') {
       '',
       `${action}:${incidentId}`,
       role,
-      { notes }
+      { incidentId: String(incidentId), action, notes }
     )
   } catch (err) {
     logger.warn('Failed to audit admin tamper action', { err })
@@ -128,7 +128,7 @@ async function logAdminAction(adminId, role, incidentId, action, notes = '') {
 }
 
 // POST /api/admin/tamper/incidents/:id/ack
-router.post('/incidents/:id/ack', requireJwt, requireRole(['admin']), async (req, res) => {
+router.post('/incidents/:id/ack', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const { id } = req.params
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -159,7 +159,7 @@ router.post('/incidents/:id/ack', requireJwt, requireRole(['admin']), async (req
 })
 
 // POST /api/admin/tamper/incidents/:id/contain
-router.post('/incidents/:id/contain', requireJwt, requireRole(['admin']), async (req, res) => {
+router.post('/incidents/:id/contain', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const { id } = req.params
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -190,7 +190,7 @@ router.post('/incidents/:id/contain', requireJwt, requireRole(['admin']), async 
 })
 
 // POST /api/admin/tamper/incidents/:id/resolve
-router.post('/incidents/:id/resolve', requireJwt, requireRole(['admin']), async (req, res) => {
+router.post('/incidents/:id/resolve', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const { id } = req.params
     if (!mongoose.Types.ObjectId.isValid(id)) {

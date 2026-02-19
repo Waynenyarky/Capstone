@@ -9,13 +9,20 @@ import PasswordStrengthIndicator from './PasswordStrengthIndicator.jsx'
 const { Title, Text } = Typography
 const { useBreakpoint } = Grid
 
-export default function ChangePasswordForm({ email, resetToken, onSubmit, isLoggedInFlow = false } = {}) {
+export default function ChangePasswordForm({
+  email,
+  resetToken,
+  onSubmit,
+  isLoggedInFlow = false,
+  onBack,
+} = {}) {
   const { form, handleFinish, isSubmitting, step, otpSent, handleResendCode } = useChangePasswordForm({ email, resetToken, onSubmit, isLoggedInFlow })
   const navigate = useNavigate()
   const [passwordValue, setPasswordValue] = useState('')
   const screens = useBreakpoint()
   const isMobile = !screens.md
-  
+  const showBack = typeof onBack === 'function'
+
   const isResetFlow = !!resetToken && !isLoggedInFlow
   const isOtpFlow = !isResetFlow && (isLoggedInFlow || !resetToken) // Use OTP for logged-in users
   
@@ -26,13 +33,13 @@ export default function ChangePasswordForm({ email, resetToken, onSubmit, isLogg
 
   return (
     <div style={{ maxWidth: 300, margin: '0 auto', width: '100%' }}>
-      <div style={{ textAlign: 'center', marginBottom: isMobile ? 24 : 32 }}>
-        <Title level={isMobile ? 4 : 3} style={{ marginBottom: isMobile ? 6 : 8 }}>
+      <div style={{ textAlign: 'center', marginBottom: isMobile ? 32 : 48 }}>
+        <Title level={isMobile ? 4 : 3} style={{ marginBottom: isMobile ? 12 : 16 }}>
           {isLoggedInFlow ? 'Set New Password' : (isResetFlow ? 'Reset Password' : 'Change Password')}
         </Title>
-        <Text type="secondary" >
-          {isLoggedInFlow 
-            ? 'Create a strong password for your account.' 
+        <Text type="secondary">
+          {isLoggedInFlow
+            ? 'Create a strong password for your account.'
             : (isResetFlow ? 'Please enter a new password for your account.' : 'Update your password to keep your account secure.')}
         </Text>
       </div>
@@ -118,12 +125,16 @@ export default function ChangePasswordForm({ email, resetToken, onSubmit, isLogg
           </Button>
         </Form.Item>
         
-        {isResetFlow && (
-           <div style={{ textAlign: 'center', marginTop: 24 }}>
-             <Button type="text" onClick={() => navigate('/login')} style={{ padding: 0 }}>
-               Back to Login
-             </Button>
-           </div>
+        {(isResetFlow || showBack) && (
+          <div style={{ textAlign: 'center', marginTop: 24 }}>
+            <Button
+              type="text"
+              onClick={isResetFlow ? () => navigate('/login') : onBack}
+              style={{ padding: 0 }}
+            >
+              {isResetFlow ? 'Back to Login' : 'Back'}
+            </Button>
+          </div>
         )}
       </Form>
     </div>

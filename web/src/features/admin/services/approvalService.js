@@ -38,11 +38,15 @@ export async function getApproval(approvalId) {
  * Approve or reject an approval request.
  * @param {string} approvalId
  * @param {{ approved: boolean, comment?: string }} payload
+ * @param {{ stepUpToken?: string }} options - optional step-up token for sensitive action
  * @returns {Promise<object>}
  */
-export async function approveRequest(approvalId, { approved, comment = '' }) {
+export async function approveRequest(approvalId, { approved, comment = '' }, options = {}) {
   const current = getCurrentUser()
-  const headers = authHeaders(current, 'admin', { 'Content-Type': 'application/json' })
+  const headers = authHeaders(current, 'admin', {
+    'Content-Type': 'application/json',
+    ...(options.stepUpToken && { stepUpToken: options.stepUpToken }),
+  })
   return fetchJsonWithFallback(`/api/admin/approvals/${approvalId}/approve`, {
     method: 'POST',
     headers,

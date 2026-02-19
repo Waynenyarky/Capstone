@@ -5,7 +5,7 @@ const FormGroupSchema = new mongoose.Schema(
   {
     formType: {
       type: String,
-      enum: ['permit', 'general_permit', 'renewal', 'cessation', 'violation', 'appeal', 'inspections'],
+      enum: ['permit', 'general_permit', 'occupation', 'renewal', 'cessation', 'violation', 'appeal', 'inspections'],
       required: true,
       index: true,
     },
@@ -52,6 +52,7 @@ FormGroupSchema.statics.getFormTypeLabel = function (formType) {
   const labels = {
     permit: 'Unified Business Permit',
     general_permit: 'General Permit',
+    occupation: "Mayor's Permit for Occupation",
     renewal: 'Business Renewal',
     cessation: 'Cessation',
     violation: 'Violation',

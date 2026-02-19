@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
-import { Table, Pagination, Input, Button, Select, Tooltip, Typography, Tag, Splitter, Grid } from 'antd'
+import { Table, Pagination, Input, Button, Select, Tooltip, Typography, Tag, Splitter, Grid, theme } from 'antd'
 import { SearchOutlined, FilterOutlined, CloseOutlined } from '@ant-design/icons'
 import { useUsersTable } from "@/features/admin/users/hooks/useUsersTable.js"
 import UserDetailPanel from './UserDetailPanel.jsx'
@@ -17,6 +17,7 @@ const ROLE_OPTIONS = [
 const { Text } = Typography
 
 export default function UsersTable() {
+  const { token } = theme.useToken()
   const { users, isLoading } = useUsersTable()
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md
@@ -176,7 +177,7 @@ export default function UsersTable() {
                 padding: '16px 20px',
                 background: '#fff',
                 borderRadius: 10,
-                border: '1px solid #e8e8e8',
+                border: `1px solid ${token.colorBorderSecondary}`,
                 boxShadow: '0 6px 20px rgba(0, 0, 0, 0.12)',
                 zIndex: 50,
                 minWidth: 200,
@@ -212,8 +213,8 @@ export default function UsersTable() {
           )}
         </div>
       </div>
-      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ borderBottom: '1px solid #f0f0f0', borderTop: '1px solid #f0f0f0', overflow: 'auto', flex: 1, minHeight: 0 }}>
+      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column', ['--row-selected-bg']: token.colorPrimaryBg }}>
+        <div style={{ borderBottom: `1px solid ${token.colorBorderSecondary}`, borderTop: `1px solid ${token.colorBorderSecondary}`, overflow: 'auto', flex: 1, minHeight: 0 }}>
           <Table
             rowKey="id"
             size="small"
@@ -242,7 +243,7 @@ export default function UsersTable() {
       </div>
       <style>{`
         .ant-table-tbody > tr.user-row-selected > td {
-          background: #e6f4ff !important;
+          background: var(--row-selected-bg) !important;
         }
         .ant-table-tbody > tr:hover > td {
           cursor: pointer;

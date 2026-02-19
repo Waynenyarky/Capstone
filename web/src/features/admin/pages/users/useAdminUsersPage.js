@@ -3,6 +3,7 @@ import { Form } from 'antd'
 import { useStaffManagement, roleLabel, officeLabel } from '../../hooks'
 import { updateStaff, resetStaffPassword } from '../../services'
 import { useNotifier } from '@/shared/notifications'
+import { useAdminStepUp } from '../../hooks/useAdminStepUp'
 
 export { roleLabel, officeLabel }
 
@@ -25,7 +26,8 @@ export function getStaffStatusTag(rec) {
 }
 
 export function useAdminUsersPage() {
-  const staffMgmt = useStaffManagement()
+  const { runWithStepUp, stepUpModal } = useAdminStepUp()
+  const staffMgmt = useStaffManagement({ runWithStepUp })
   const { success, error } = useNotifier()
   const [lastUpdated, setLastUpdated] = useState(null)
   const prevLoadingRef = useRef(true)
@@ -74,18 +76,20 @@ export function useAdminUsersPage() {
       if (!editTarget?.id) return
       setEditLoading(true)
       const { reasonType, reasonOther, ...payload } = values
-      await updateStaff(editTarget.id, payload)
+      await runWithStepUp(async (stepUpToken) => {
+        await updateStaff(editTarget.id, payload, { stepUpToken })
+      })
       success('Staff updated')
       setEditOpen(false)
       setEditTarget(null)
       await staffMgmt.loadStaff()
     } catch (e) {
-      if (e?.errorFields) return
+      if (e?.message === 'Step-up cancelled' || e?.errorFields) return
       error(e, 'Failed to update staff')
     } finally {
       setEditLoading(false)
     }
-  }, [editForm, editTarget, staffMgmt.loadStaff, success, error])
+  }, [editForm, editTarget, staffMgmt.loadStaff, success, error, runWithStepUp])
 
   const openResetModal = useCallback((record) => {
     setResetTarget(record)
@@ -98,18 +102,20 @@ export function useAdminUsersPage() {
       const values = await resetForm.validateFields()
       if (!resetTarget?.id) return
       setResetLoading(true)
-      await resetStaffPassword(resetTarget.id, values)
+      await runWithStepUp(async (stepUpToken) => {
+        await resetStaffPassword(resetTarget.id, values, { stepUpToken })
+      })
       success('Temporary password issued')
       setResetOpen(false)
       setResetTarget(null)
       await staffMgmt.loadStaff()
     } catch (e) {
-      if (e?.errorFields) return
+      if (e?.message === 'Step-up cancelled' || e?.errorFields) return
       error(e, 'Failed to reset password')
     } finally {
       setResetLoading(false)
     }
-  }, [resetForm, resetTarget, staffMgmt.loadStaff, success, error])
+  }, [resetForm, resetTarget, staffMgmt.loadStaff, success, error, runWithStepUp])
 
   const openDisableModal = useCallback((record) => {
     setDisableTarget(record)
@@ -122,18 +128,20 @@ export function useAdminUsersPage() {
       const values = await disableForm.validateFields()
       if (!disableTarget?.id) return
       setDisableLoading(true)
-      await updateStaff(disableTarget.id, { isActive: false, reason: values.reason })
+      await runWithStepUp(async (stepUpToken) => {
+        await updateStaff(disableTarget.id, { isActive: false, reason: values.reason }, { stepUpToken })
+      })
       success('Account disabled')
       setDisableOpen(false)
       setDisableTarget(null)
       await staffMgmt.loadStaff()
     } catch (e) {
-      if (e?.errorFields) return
+      if (e?.message === 'Step-up cancelled' || e?.errorFields) return
       error(e, 'Failed to disable account')
     } finally {
       setDisableLoading(false)
     }
-  }, [disableForm, disableTarget, staffMgmt.loadStaff, success, error])
+  }, [disableForm, disableTarget, staffMgmt.loadStaff, success, error, runWithStepUp])
 
   const [activateOpen, setActivateOpen] = useState(false)
   const [activateForm] = Form.useForm()
@@ -151,21 +159,24 @@ export function useAdminUsersPage() {
       const values = await activateForm.validateFields()
       if (!activateTarget?.id) return
       setActivateLoading(true)
-      await updateStaff(activateTarget.id, { isActive: true, reason: values.reason })
+      await runWithStepUp(async (stepUpToken) => {
+        await updateStaff(activateTarget.id, { isActive: true, reason: values.reason }, { stepUpToken })
+      })
       success('Account activated')
       setActivateOpen(false)
       setActivateTarget(null)
       await staffMgmt.loadStaff()
     } catch (e) {
-      if (e?.errorFields) return
+      if (e?.message === 'Step-up cancelled' || e?.errorFields) return
       error(e, 'Failed to activate account')
     } finally {
       setActivateLoading(false)
     }
-  }, [activateForm, activateTarget, staffMgmt.loadStaff, success, error])
+  }, [activateForm, activateTarget, staffMgmt.loadStaff, success, error, runWithStepUp])
 
   return {
     ...staffMgmt,
+    stepUpModal,
     lastUpdated,
     editOpen,
     setEditOpen,

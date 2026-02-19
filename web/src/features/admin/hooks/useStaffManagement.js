@@ -96,7 +96,8 @@ export function officeLabel(value, groups = officeGroups) {
   return v
 }
 
-export function useStaffManagement() {
+export function useStaffManagement(opts = {}) {
+  const { runWithStepUp } = opts
   const { success, error } = useNotifier()
   const [staff, setStaff] = useState([])
   const [loadingStaff, setLoadingStaff] = useState(false)
@@ -171,6 +172,7 @@ export function useStaffManagement() {
 
   const handleConfirmCreate = async () => {
     const values = pendingValues || {}
+    if (!runWithStepUp) return
     try {
       setConfirming(true)
       const startedAt = Date.now()
@@ -182,31 +184,35 @@ export function useStaffManagement() {
       if (values.phoneNumber?.trim()) {
         payload.phoneNumber = values.phoneNumber.trim()
       }
-      const created = await createStaff(payload)
-      const elapsed = Date.now() - startedAt
-      if (elapsed < 1200) {
-        await new Promise((r) => setTimeout(r, 1200 - elapsed))
-      }
-      success('Staff account created')
-      form.resetFields()
-      setCreateOpen(false)
-      setConfirmOpen(false)
-      setPendingValues(null)
-      await loadStaff()
-      setTabKey('staff')
-      setSuccessData({
-        id: created?.id,
-        email: created?.email || values.email,
-        phoneNumber: created?.phoneNumber || values.phoneNumber,
-        office: created?.office || values.office,
-        role: created?.role || values.role,
-        status: 'Pending First Login & MFA Setup',
-        devTempPassword: created?.devTempPassword,
+      await runWithStepUp(async (stepUpToken) => {
+        const created = await createStaff(payload, { stepUpToken })
+        const elapsed = Date.now() - startedAt
+        if (elapsed < 1200) {
+          await new Promise((r) => setTimeout(r, 1200 - elapsed))
+        }
+        success('Staff account created')
+        form.resetFields()
+        setCreateOpen(false)
+        setConfirmOpen(false)
+        setPendingValues(null)
+        await loadStaff()
+        setTabKey('staff')
+        setSuccessData({
+          id: created?.id,
+          email: created?.email || values.email,
+          phoneNumber: created?.phoneNumber || values.phoneNumber,
+          office: created?.office || values.office,
+          role: created?.role || values.role,
+          status: 'Pending First Login & MFA Setup',
+          devTempPassword: created?.devTempPassword,
+        })
+        setSuccessOpen(true)
       })
-      setSuccessOpen(true)
     } catch (e) {
-      console.error('Create staff error:', e)
-      error(e, 'Failed to create staff account')
+      if (e?.message !== 'Step-up cancelled') {
+        console.error('Create staff error:', e)
+        error(e, 'Failed to create staff account')
+      }
     } finally {
       setConfirming(false)
     }

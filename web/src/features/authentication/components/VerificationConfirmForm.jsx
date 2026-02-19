@@ -22,7 +22,7 @@ export default function VerificationConfirmForm({ email, onSubmit, title } = {})
           rules={[
             { required: true, message: 'Please enter the verification code' }
           ]}
-          style={{ marginBottom: 32 }}
+          style={{ marginBottom: 32, display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%' }}
         >
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <Input.OTP 

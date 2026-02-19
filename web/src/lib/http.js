@@ -49,11 +49,13 @@ export async function fetchWithFallback(path, options = {}) {
   // Fallback when request fails or dev server blocks (e.g., 403)
   // Do NOT fallback when we got a 4xx response - the server responded, use it (fallback to localhost:3001 often fails in Codespaces)
   // Don't retry on 500 errors for auth endpoints to avoid double-counting rate limits
+  // Don't fallback for admin or maintenance: they are served by the admin service (e.g. 3003), not BACKEND_ORIGIN (e.g. 3001 auth). Fallback would only add a second failed request and ERR_CONNECTION_REFUSED in the console.
   const isAuthEndpoint = path.includes('/login') || path.includes('/signup') || path.includes('/sign-up') || path.includes('/forgot-password')
+  const isAdminOrMaintenanceApi = path.includes('/api/admin') || path.includes('/api/maintenance')
   const has4xxResponse = res && res.status >= 400 && res.status < 500
-  const shouldFallback = (!res || !res.ok) && !has4xxResponse && !(isAuthEndpoint && res?.status === 500)
-  const shouldFallbackFor403 = (res && res.status === 403)
-  
+  const shouldFallback = (!res || !res.ok) && !has4xxResponse && !(isAuthEndpoint && res?.status === 500) && !isAdminOrMaintenanceApi
+  const shouldFallbackFor403 = (res && res.status === 403) && !isAdminOrMaintenanceApi
+
   if ((shouldFallback || shouldFallbackFor403) && BACKEND_ORIGIN) {
     try {
       res = await fetch(`${BACKEND_ORIGIN}${path}`, opts)
@@ -142,6 +144,7 @@ export async function fetchJsonWithFallback(path, options = {}) {
       
       // Map error codes to user-friendly messages
       const codeMap = {
+        'forgot_password_not_available': 'Password reset is not available for your account type. If you are staff, use Request Recovery from the staff portal. If you are an administrator, contact another administrator.',
         'invalid_code': 'Incorrect verification code. Please check the code and try again.',
         'invalid_credentials': 'The email address or password you entered is incorrect. Please check your credentials and try again.',
         'webauthn_verification_failed': 'Passkey verification failed. Please try again.',

@@ -27,7 +27,6 @@ const AdminRequests = lazy(() => import("@/features/admin").then(m => ({ default
 const AdminFinance = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminFinance })))
 // Phase 2 admin pages
 const AdminFeeConfiguration = lazy(() => import("@/features/admin/pages/AdminFeeConfiguration.jsx"))
-const AdminActivityDashboard = lazy(() => import("@/features/admin/pages/AdminActivityDashboard.jsx"))
 const BusinessOwnerDashboard = lazy(() => import("@/features/business-owner").then(m => ({ default: m.BusinessOwnerDashboard })))
 const PermitApplicationPage = lazy(() => import("@/features/business-owner/features/permits/pages/PermitApplicationPage.jsx"))
 const CessationPage = lazy(() => import("@/features/business-owner/features/cessation/pages/CessationPage.jsx"))
@@ -100,8 +99,8 @@ function App() {
         <Route path="penalty-configuration" element={<Navigate to="/admin/fee-configuration?tab=penalty" replace />} />
         <Route path="fee-configuration" element={<AdminFeeConfiguration />} />
         <Route path="finance" element={<AdminFinance />} />
-        <Route path="audit-tamper" element={<AdminAuditTamper />} />
-        <Route path="activity" element={<AdminActivityDashboard />} />
+        <Route path="security" element={<AdminAuditTamper />} />
+        <Route path="audit-tamper" element={<Navigate to="/admin/security" replace />} />
       </Route>
 
       {/* Business Owner Routes */}

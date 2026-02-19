@@ -27,9 +27,14 @@ export function usePasswordResetFlow() {
     
   }, [])
 
+  const goBack = useCallback(() => {
+    if (step === 'verify') setStep('forgot')
+    else if (step === 'change') setStep('verify')
+  }, [step])
+
   const forgotProps = { onSubmit: handleForgotSubmit }
   const verifyProps = { onSubmit: handleVerifySubmit, email }
   const changeProps = { onSubmit: handleChangeSubmit, email, resetToken }
 
-  return { step, forgotProps, verifyProps, changeProps, email, resetToken, reset }
+  return { step, forgotProps, verifyProps, changeProps, email, resetToken, reset, goBack }
 }

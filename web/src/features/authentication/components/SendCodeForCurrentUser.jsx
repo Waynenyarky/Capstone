@@ -1,48 +1,64 @@
-import { Button, Flex, Typography, Alert, theme } from 'antd'
+import { Button, Typography, Grid } from 'antd'
 import { useSendVerificationCode } from "@/features/authentication/hooks"
-import { SafetyOutlined } from '@ant-design/icons'
-
 import { useEffect } from 'react'
 
-export default function SendCodeForCurrentUser({ email, onSent, title, subtitle, autoSend = false } = {}) {
+const { Title, Text } = Typography
+const { useBreakpoint } = Grid
+
+export default function SendCodeForCurrentUser({
+  email,
+  onSent,
+  title,
+  subtitle,
+  autoSend = false,
+  onBack,
+} = {}) {
   const { isSending, handleSend } = useSendVerificationCode({ email, onSent })
-  const { token } = theme.useToken()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
+  const showBack = typeof onBack === 'function'
 
   useEffect(() => {
     if (autoSend && email && !isSending) {
       handleSend()
     }
   }, [autoSend, email, isSending, handleSend])
-  
+
   return (
-    <div style={{ textAlign: 'center' }}>
-      <div style={{ marginBottom: 24 }}>
-        <SafetyOutlined style={{ fontSize: 48, color: token.colorPrimary, marginBottom: 16 }} />
-        <Typography.Title level={3} style={{ margin: '0 0 8px' }}>
+    <div style={{ maxWidth: 300, margin: '0 auto', width: '100%' }}>
+      <div style={{ textAlign: 'center', marginBottom: isMobile ? 32 : 48 }}>
+        <Title level={isMobile ? 4 : 3} style={{ marginBottom: isMobile ? 12 : 16 }}>
           {title || 'Send Verification Code'}
-        </Typography.Title>
-        <Typography.Paragraph type="secondary" style={{ maxWidth: 400, margin: '0 auto' }}>
-          {subtitle || 'We will send a verification code to your email.'}
-        </Typography.Paragraph>
+        </Title>
+        <Text type="secondary">
+          {subtitle || "We'll send a verification code to your email."}
+        </Text>
+        {email && (
+          <div style={{ marginTop: 12 }}>
+            <Text type="secondary">Code will be sent to </Text>
+            <Text strong>{email}</Text>
+          </div>
+        )}
       </div>
 
-      <Alert 
-        message={email || 'Unknown email'} 
-        type="info" 
-        showIcon 
-        style={{ maxWidth: 350, margin: '0 auto 24px', textAlign: 'left' }} 
-      />
-
-      <Button 
-        type="primary" 
-        onClick={handleSend} 
-        loading={isSending} 
+      <Button
+        type="primary"
+        onClick={handleSend}
+        loading={isSending}
         disabled={isSending || !email}
-        size="large"
-        style={{ minWidth: 200 }}
+        block
+        style={{ marginBottom: 16 }}
       >
         Send Verification Code
       </Button>
+
+      {showBack && (
+        <div style={{ textAlign: 'center', marginTop: 24 }}>
+          <Button type="text" onClick={onBack} style={{ padding: 0 }}>
+            Back
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

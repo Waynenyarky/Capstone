@@ -1,5 +1,5 @@
-import React from 'react'
-import { Row, Col, Card, Typography, theme, Button } from 'antd'
+import React, { useState, useEffect } from 'react'
+import { Row, Col, Card, Typography, theme, Button, Table, Tag } from 'antd'
 import {
   SafetyCertificateOutlined,
   WarningOutlined,
@@ -7,19 +7,43 @@ import {
   FileDoneOutlined,
   UnorderedListOutlined,
 } from '@ant-design/icons'
+import { Link, useNavigate } from 'react-router-dom'
+import dayjs from 'dayjs'
+import { fetchTamperIncidents } from '../../services/tamperService'
 
 const { Text } = Typography
 
 export default function AuditTamperOverviewTab({ stats, onGoToIncidents }) {
   const { token } = theme.useToken()
+  const navigate = useNavigate()
   const open = stats?.open ?? 0
   const total = stats?.total ?? 0
   const acknowledged = stats?.acknowledged ?? 0
   const resolved = stats?.resolved ?? 0
   const hasOpen = open > 0
+  const [recentIncidents, setRecentIncidents] = useState([])
+  const [recentLoading, setRecentLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    fetchTamperIncidents({ limit: 10 })
+      .then((res) => {
+        if (!cancelled) {
+          const list = res?.incidents ?? res?.data ?? []
+          setRecentIncidents(Array.isArray(list) ? list : [])
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setRecentIncidents([])
+      })
+      .finally(() => {
+        if (!cancelled) setRecentLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [])
 
   return (
-    <div style={{ padding: 24, maxWidth: 1000, margin: '0 auto' }}>
+    <div style={{ padding: 24, width: '100%', margin: '0 auto' }}>
       <Text strong style={{ display: 'block', marginBottom: 12, fontSize: 15 }}>
         Summary
       </Text>
@@ -38,7 +62,7 @@ export default function AuditTamperOverviewTab({ stats, onGoToIncidents }) {
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
-                    background: token.colorPrimaryBg,
+                    background: token.colorInfoBg,
                     color: token.colorPrimary,
                   }}
                 >
@@ -125,6 +149,66 @@ export default function AuditTamperOverviewTab({ stats, onGoToIncidents }) {
           </Card>
         </Col>
       </Row>
+
+      <div style={{ marginTop: 32 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <Text strong style={{ fontSize: 15 }}>
+            Recent activity
+          </Text>
+          <Link to="/admin/security?tab=incidents">View all</Link>
+        </div>
+        <Card size="small">
+          <Table
+            size="small"
+            dataSource={recentIncidents}
+            rowKey={(r) => r._id || r.id || Math.random()}
+            loading={recentLoading}
+            pagination={false}
+            onRow={(record) => ({
+              onClick: () => {
+                const id = record.id || record._id
+                if (id) navigate(`/admin/security?tab=incidents&incidentId=${encodeURIComponent(id)}`)
+              },
+              style: { cursor: 'pointer' },
+            })}
+            columns={[
+              {
+                title: 'Status',
+                dataIndex: 'status',
+                key: 'status',
+                width: 120,
+                render: (v) => (
+                  <Tag color={v === 'open' ? 'error' : v === 'acknowledged' ? 'warning' : 'default'}>
+                    {v || '—'}
+                  </Tag>
+                ),
+              },
+              {
+                title: 'Classification',
+                dataIndex: 'classification',
+                key: 'classification',
+                width: 140,
+                render: (v) => v || '—',
+              },
+              {
+                title: 'Detected',
+                dataIndex: 'detectedAt',
+                key: 'detectedAt',
+                width: 160,
+                render: (v) => (v ? dayjs(v).format('MMM D, YYYY HH:mm') : '—'),
+              },
+              {
+                title: 'Resolved',
+                dataIndex: 'resolvedAt',
+                key: 'resolvedAt',
+                width: 160,
+                render: (v) => (v ? dayjs(v).format('MMM D, YYYY HH:mm') : '—'),
+              },
+            ]}
+            locale={{ emptyText: 'No recent incidents' }}
+          />
+        </Card>
+      </div>
 
       <div style={{ marginTop: 24 }}>
         {hasOpen ? (

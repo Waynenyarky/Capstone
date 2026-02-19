@@ -1,6 +1,7 @@
 const express = require('express')
 const FeeConfiguration = require('../models/FeeConfiguration')
-const { requireJwt, requireRole } = require('../middleware/auth')
+const { requireJwt, requireRole, requireAdminStepUp } = require('../middleware/auth')
+const { createAuditLog } = require('../lib/auditLogger')
 
 const router = express.Router()
 
@@ -69,12 +70,19 @@ router.get('/', requireJwt, async (req, res) => {
 })
 
 // POST /api/business/admin/fee-configuration — create
-router.post('/', requireJwt, requireRole(['admin']), async (req, res) => {
+router.post('/', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
-    const { taxCode, lineOfBusiness, mayorsPermitFee, businessTaxCategory, bracketKind, brackets } = req.body
+    const { taxCode, lineOfBusiness, mayorsPermitFee, environmentalProtectionFee, barangayClearanceFee, businessTaxCategory, bracketKind, brackets } = req.body
     if (!lineOfBusiness || mayorsPermitFee == null) {
       return res.status(400).json({
         error: { code: 'VALIDATION_ERROR', message: 'lineOfBusiness and mayorsPermitFee are required' },
+      })
+    }
+    const taxCodeStr = taxCode != null && String(taxCode).trim() !== '' ? String(taxCode).trim() : ''
+    const lineOfBusinessTrimmed = String(lineOfBusiness).trim()
+    if (!lineOfBusinessTrimmed) {
+      return res.status(400).json({
+        error: { code: 'VALIDATION_ERROR', message: 'lineOfBusiness is required' },
       })
     }
 
@@ -91,21 +99,41 @@ router.post('/', requireJwt, requireRole(['admin']), async (req, res) => {
     }
 
     const config = await FeeConfiguration.create({
-      taxCode: taxCode ? taxCode.toUpperCase().trim() : '',
-      lineOfBusiness: lineOfBusiness.toLowerCase().trim(),
+      taxCode: taxCodeStr,
+      lineOfBusiness: lineOfBusinessTrimmed,
       mayorsPermitFee,
+      environmentalProtectionFee: environmentalProtectionFee ?? null,
+      barangayClearanceFee: barangayClearanceFee ?? null,
       businessTaxCategory: businessTaxCategory || '',
       bracketKind: kind,
       brackets: brackets || [],
       effectiveDate: new Date(),
       isActive: true,
     })
+
+    createAuditLog(
+      req._userId,
+      'fee_config_created',
+      'fee_config',
+      '',
+      String(config._id),
+      'admin',
+      {
+        configId: String(config._id),
+        taxCode: config.taxCode,
+        lineOfBusiness: config.lineOfBusiness,
+        mayorsPermitFee: config.mayorsPermitFee,
+        bracketKind: config.bracketKind,
+        ip: req.ip,
+        userAgent: req.get('user-agent'),
+      }
+    ).catch((err) => console.error('Failed to create audit log for fee config create', err))
+
     return res.status(201).json({ data: config })
   } catch (err) {
-    // Edge case UC-2C-6: Duplicate lineOfBusiness (unique index violation)
     if (err.code === 11000) {
       return res.status(409).json({
-        error: { code: 'CONFLICT', message: 'Fee configuration already exists for this line of business' },
+        error: { code: 'CONFLICT', message: 'A fee configuration already exists for this tax code and line of business' },
       })
     }
     console.error('POST /fee-configuration error:', err)
@@ -114,10 +142,10 @@ router.post('/', requireJwt, requireRole(['admin']), async (req, res) => {
 })
 
 // PUT /api/business/admin/fee-configuration/:id — update
-router.put('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
+router.put('/:id', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const { id } = req.params
-    const { taxCode, lineOfBusiness, mayorsPermitFee, businessTaxCategory, bracketKind, brackets, isActive } = req.body
+    const { taxCode, lineOfBusiness, mayorsPermitFee, environmentalProtectionFee, barangayClearanceFee, businessTaxCategory, bracketKind, brackets, isActive } = req.body
     const config = await FeeConfiguration.findById(id)
     if (!config) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Fee configuration not found' } })
@@ -137,15 +165,41 @@ router.put('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
       }
     }
 
-    if (taxCode !== undefined) config.taxCode = taxCode ? taxCode.toUpperCase().trim() : ''
-    if (lineOfBusiness) config.lineOfBusiness = lineOfBusiness.toLowerCase().trim()
+    const oldValues = {
+      taxCode: config.taxCode,
+      lineOfBusiness: config.lineOfBusiness,
+      mayorsPermitFee: config.mayorsPermitFee,
+      isActive: config.isActive,
+    }
+
+    if (taxCode !== undefined) config.taxCode = taxCode != null && String(taxCode).trim() !== '' ? String(taxCode).trim() : ''
+    if (lineOfBusiness !== undefined) config.lineOfBusiness = String(lineOfBusiness).trim()
     if (mayorsPermitFee != null) config.mayorsPermitFee = mayorsPermitFee
+    if (environmentalProtectionFee !== undefined) config.environmentalProtectionFee = environmentalProtectionFee
+    if (barangayClearanceFee !== undefined) config.barangayClearanceFee = barangayClearanceFee
     if (businessTaxCategory !== undefined) config.businessTaxCategory = businessTaxCategory
     if (bracketKind !== undefined) config.bracketKind = kind
     if (brackets !== undefined) config.brackets = brackets
     if (isActive !== undefined) config.isActive = isActive
 
     await config.save()
+
+    createAuditLog(
+      req._userId,
+      'fee_config_updated',
+      'fee_config',
+      JSON.stringify(oldValues),
+      JSON.stringify({ taxCode: config.taxCode, lineOfBusiness: config.lineOfBusiness, mayorsPermitFee: config.mayorsPermitFee, isActive: config.isActive }),
+      'admin',
+      {
+        configId: String(config._id),
+        taxCode: config.taxCode,
+        lineOfBusiness: config.lineOfBusiness,
+        ip: req.ip,
+        userAgent: req.get('user-agent'),
+      }
+    ).catch((err) => console.error('Failed to create audit log for fee config update', err))
+
     return res.json({ data: config })
   } catch (err) {
     console.error('PUT /fee-configuration error:', err)
@@ -154,17 +208,22 @@ router.put('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
 })
 
 // DELETE /api/business/admin/fee-configuration/:id
-router.delete('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
+router.delete('/:id', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const config = await FeeConfiguration.findById(req.params.id)
     if (!config) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } })
     }
 
-    // Edge case UC-2C-5: Cannot delete if it's the only active config for this LOB
+    const configId = String(config._id)
+    const taxCode = config.taxCode
+    const lineOfBusiness = config.lineOfBusiness
+
+    // Edge case UC-2C-5: Cannot delete if it's the only active config for this (taxCode, LOB)
     // (soft-deactivate instead)
     if (config.isActive) {
       const otherActive = await FeeConfiguration.countDocuments({
+        taxCode: config.taxCode,
         lineOfBusiness: config.lineOfBusiness,
         isActive: true,
         _id: { $ne: config._id },
@@ -173,6 +232,15 @@ router.delete('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
         // Soft-deactivate instead of hard delete
         config.isActive = false
         await config.save()
+        createAuditLog(
+          req._userId,
+          'fee_config_deleted',
+          'fee_config',
+          configId,
+          'deactivated',
+          'admin',
+          { configId, taxCode, lineOfBusiness, deactivated: true, ip: req.ip, userAgent: req.get('user-agent') }
+        ).catch((err) => console.error('Failed to create audit log for fee config deactivate', err))
         return res.json({
           data: { deactivated: true, message: 'Last active config for this line of business — deactivated instead of deleted' },
         })
@@ -180,6 +248,15 @@ router.delete('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
     }
 
     await config.deleteOne()
+    createAuditLog(
+      req._userId,
+      'fee_config_deleted',
+      'fee_config',
+      configId,
+      '',
+      'admin',
+      { configId, taxCode, lineOfBusiness, ip: req.ip, userAgent: req.get('user-agent') }
+    ).catch((err) => console.error('Failed to create audit log for fee config delete', err))
     return res.json({ data: { deleted: true } })
   } catch (err) {
     console.error('DELETE /fee-configuration error:', err)

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { Button, Grid, Typography } from 'antd'
 import {
   FormOutlined,
@@ -22,6 +22,15 @@ export default function AdminFormDefinitions() {
   const handleRefresh = useCallback(() => setRefreshKey((k) => k + 1), [])
   const openInfo = useCallback(() => setInfoOpen(true), [])
   const closeInfo = useCallback(() => setInfoOpen(false), [])
+
+  useEffect(() => {
+    if (import.meta.env.MODE === 'production') return undefined
+    const handler = (event) => {
+      if (event?.detail?.action === 'refresh') handleRefresh()
+    }
+    window.addEventListener('devtools:formdef', handler)
+    return () => window.removeEventListener('devtools:formdef', handler)
+  }, [handleRefresh])
 
   return (
     <AdminLayout

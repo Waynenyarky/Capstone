@@ -28,7 +28,7 @@ function redirectByRole(navigate, user) {
 }
 
 export default function PasswordResetFlow() {
-  const { step, forgotProps, verifyProps, changeProps } = usePasswordResetFlow()
+  const { step, forgotProps, verifyProps, changeProps, goBack } = usePasswordResetFlow()
   const navigate = useNavigate()
   const { success } = useNotifier()
   const resend = useResendForgotPasswordCode({ email: verifyProps.email, cooldownSec: 60 })
@@ -53,13 +53,22 @@ export default function PasswordResetFlow() {
         <VerificationForm
           email={verifyProps.email}
           onSubmit={verifyProps.onSubmit}
+          title="Verify Code"
           onResend={resend.handleResend}
           isResending={resend.isSending}
           isCooling={resend.isCooling}
           remaining={resend.remaining}
+          onBack={goBack}
         />
       )}
-      {step === 'change' && <ChangePasswordForm email={changeProps.email} resetToken={changeProps.resetToken} onSubmit={changeProps.onSubmit} />}
+      {step === 'change' && (
+        <ChangePasswordForm
+          email={changeProps.email}
+          resetToken={changeProps.resetToken}
+          onSubmit={changeProps.onSubmit}
+          onBack={goBack}
+        />
+      )}
     </>
   )
 }

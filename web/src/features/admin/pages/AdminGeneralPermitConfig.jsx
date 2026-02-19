@@ -6,6 +6,7 @@ import { SettingOutlined, PlusOutlined, DeleteOutlined, SaveOutlined, ReloadOutl
 import AdminLayout from '../components/AdminLayout.jsx'
 import { useNotifier } from '@/shared/notifications.js'
 import { get, put } from '@/lib/http.js'
+import { useAdminStepUp } from '../hooks/useAdminStepUp'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -42,6 +43,7 @@ export default function AdminGeneralPermitConfig() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const { success, error: notifyError } = useNotifier()
+  const { runWithStepUp, stepUpModal } = useAdminStepUp()
 
   // Fetch persisted requirements from API on mount
   const fetchRequirements = useCallback(async () => {
@@ -86,17 +88,20 @@ export default function AdminGeneralPermitConfig() {
   const handleSave = useCallback(async () => {
     try {
       setSaving(true)
-      await put('/api/admin/general-permit-config', requirements)
-      success('General permit requirements saved')
+      await runWithStepUp(async (stepUpToken) => {
+        await put('/api/admin/general-permit-config', requirements, { headers: { 'X-Step-Up-Token': stepUpToken } })
+        success('General permit requirements saved')
+      })
     } catch (err) {
-      notifyError(err, 'Failed to save general permit requirements')
+      if (err?.message !== 'Step-up cancelled') notifyError(err, 'Failed to save general permit requirements')
     } finally {
       setSaving(false)
     }
-  }, [requirements, success, notifyError])
+  }, [requirements, success, notifyError, runWithStepUp])
 
   return (
     <AdminLayout pageTitle="General Permit Configuration" pageIcon={<SettingOutlined />}>
+      {stepUpModal}
       <Spin spinning={loading} size="large">
       <div style={{ padding: 16 }}>
         <Paragraph type="secondary">

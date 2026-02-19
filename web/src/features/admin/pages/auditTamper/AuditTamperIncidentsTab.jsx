@@ -1,49 +1,54 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Table,
   Tag,
-  Button,
-  Space,
   Select,
   message,
-  Tooltip,
-  Modal,
-  Input,
-  Checkbox,
+  Splitter,
+  Grid,
+  Pagination,
+  Empty,
   Typography,
+  Modal,
+  theme,
 } from 'antd'
-import {
-  fetchTamperIncidents,
-  acknowledgeIncident,
-  resolveIncident,
-  updateContainment,
-} from '@/features/admin/services/tamperService'
+import { ExclamationCircleOutlined } from '@ant-design/icons'
+import { fetchTamperIncidents } from '@/features/admin/services/tamperService'
+import IncidentDetailPanel from './IncidentDetailPanel'
 
-const { TextArea } = Input
 const { Text } = Typography
 
 const statusColors = { new: 'red', acknowledged: 'gold', resolved: 'green' }
 const severityColors = { high: 'red', medium: 'orange', low: 'blue' }
-const LIMIT = 50
 
-export default function AuditTamperIncidentsTab({ onRefresh }) {
+const STATUS_ORDER = { new: 0, acknowledged: 1, resolved: 2 }
+const PAGE_SIZE = 20
+const FETCH_LIMIT = 500
+
+export default function AuditTamperIncidentsTab({ onRefresh, initialIncidentId }) {
+  const { token } = theme.useToken()
+  const screens = Grid.useBreakpoint()
+  const isMobile = !screens.md
+
   const [loading, setLoading] = useState(true)
   const [incidents, setIncidents] = useState([])
   const [statusFilter, setStatusFilter] = useState(undefined)
   const [severityFilter, setSeverityFilter] = useState(undefined)
-  const [resolveModal, setResolveModal] = useState({ open: false, id: null, notes: '', liftContainment: false })
-  const [resolving, setResolving] = useState(false)
+  const [selectedIncident, setSelectedIncident] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const params = { limit: LIMIT }
+      const params = { limit: FETCH_LIMIT }
       if (statusFilter) params.status = statusFilter
       if (severityFilter) params.severity = severityFilter
       const res = await fetchTamperIncidents(params)
-      if (res?.incidents) setIncidents(res.incidents)
+      const list = res?.incidents ?? []
+      setIncidents(list)
     } catch {
       message.error('Failed to load tamper incidents')
+      setIncidents([])
     } finally {
       setLoading(false)
     }
@@ -53,57 +58,62 @@ export default function AuditTamperIncidentsTab({ onRefresh }) {
     load()
   }, [load])
 
-  const handleAck = async (id) => {
-    try {
-      await acknowledgeIncident(id)
-      message.success('Incident acknowledged')
-      load()
-      onRefresh?.()
-    } catch {
-      message.error('Failed to acknowledge')
-    }
-  }
-
-  const handleContainment = async (id, next) => {
-    try {
-      await updateContainment(id, next)
-      message.success(next ? 'Containment enabled' : 'Containment lifted')
-      load()
-      onRefresh?.()
-    } catch {
-      message.error('Failed to update containment')
-    }
-  }
-
-  const openResolveModal = (id) => {
-    const record = incidents.find((r) => r.id === id)
-    setResolveModal({
-      open: true,
-      id,
-      notes: '',
-      liftContainment: record?.containmentActive ?? false,
+  const sortedIncidents = useMemo(() => {
+    const list = [...(incidents || [])]
+    list.sort((a, b) => {
+      const orderA = STATUS_ORDER[a.status] ?? 3
+      const orderB = STATUS_ORDER[b.status] ?? 3
+      if (orderA !== orderB) return orderA - orderB
+      const dateA = a.detectedAt ? new Date(a.detectedAt).getTime() : 0
+      const dateB = b.detectedAt ? new Date(b.detectedAt).getTime() : 0
+      return dateB - dateA
     })
-  }
+    return list
+  }, [incidents])
 
-  const closeResolveModal = () => {
-    setResolveModal({ open: false, id: null, notes: '', liftContainment: false })
-  }
-
-  const handleResolveSubmit = async () => {
-    if (!resolveModal.id) return
-    setResolving(true)
-    try {
-      await resolveIncident(resolveModal.id, resolveModal.notes || '', resolveModal.liftContainment)
-      message.success('Incident resolved')
-      closeResolveModal()
-      load()
-      onRefresh?.()
-    } catch {
-      message.error('Failed to resolve')
-    } finally {
-      setResolving(false)
+  useEffect(() => {
+    if (import.meta.env.MODE === 'production') return undefined
+    const handler = (event) => {
+      const { action: evAction, status, severity } = event?.detail || {}
+      if (evAction === 'setIncidentFilter') {
+        if (status !== undefined) setStatusFilter(status)
+        if (severity !== undefined) setSeverityFilter(severity)
+      } else if (evAction === 'selectFirstIncident') {
+        const first = sortedIncidents[0]
+        if (first) setSelectedIncident(first)
+      }
     }
-  }
+    window.addEventListener('devtools:audittamper', handler)
+    return () => window.removeEventListener('devtools:audittamper', handler)
+  }, [sortedIncidents])
+
+  useEffect(() => {
+    if (selectedIncident && incidents.length) {
+      const updated = incidents.find((r) => r.id === selectedIncident.id)
+      if (updated) setSelectedIncident(updated)
+      else setSelectedIncident(null)
+    }
+  }, [incidents])
+
+  useEffect(() => {
+    if (!initialIncidentId || !incidents.length) return
+    const rec = incidents.find(
+      (r) =>
+        r.id === initialIncidentId ||
+        r._id === initialIncidentId ||
+        String(r.id || r._id) === String(initialIncidentId)
+    )
+    if (rec) setSelectedIncident(rec)
+  }, [initialIncidentId, incidents])
+
+  const paginatedIncidents = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return sortedIncidents.slice(start, start + PAGE_SIZE)
+  }, [sortedIncidents, currentPage])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [statusFilter, severityFilter])
 
   const columns = [
     { title: 'Message', dataIndex: 'message', key: 'message', ellipsis: true, width: 180 },
@@ -142,54 +152,24 @@ export default function AuditTamperIncidentsTab({ onRefresh }) {
       width: 150,
       render: (v) => (v ? new Date(v).toLocaleString() : '-'),
     },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 200,
-      fixed: 'right',
-      render: (_, record) => (
-        <Space size="small" wrap>
-          <Tooltip title="Mark as acknowledged">
-            <Button
-              size="small"
-              onClick={() => handleAck(record.id)}
-              disabled={record.status === 'resolved'}
-            >
-              Ack
-            </Button>
-          </Tooltip>
-          <Tooltip title="Toggle containment for affected accounts">
-            <Button
-              size="small"
-              onClick={() => handleContainment(record.id, !record.containmentActive)}
-              danger={record.containmentActive}
-              disabled={record.status === 'resolved'}
-            >
-              {record.containmentActive ? 'Lift' : 'Contain'}
-            </Button>
-          </Tooltip>
-          <Tooltip title="Resolve and close">
-            <Button
-              size="small"
-              type="primary"
-              onClick={() => openResolveModal(record.id)}
-              disabled={record.status === 'resolved'}
-            >
-              Resolve
-            </Button>
-          </Tooltip>
-        </Space>
-      ),
-    },
   ]
 
-  return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+  const tableContent = (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div
+        style={{
+          flexShrink: 0,
+          display: 'flex',
+          gap: 12,
+          alignItems: 'center',
+          padding: 12,
+          paddingBottom: 0,
+        }}
+      >
         <Select
           placeholder="Status"
           allowClear
-          style={{ width: 140 }}
+          style={{ width: '100%' }}
           value={statusFilter}
           onChange={setStatusFilter}
           options={[
@@ -212,65 +192,94 @@ export default function AuditTamperIncidentsTab({ onRefresh }) {
         />
       </div>
 
-      <Table
-        rowKey={(rec) => rec.id}
-        dataSource={incidents}
-        columns={columns}
-        loading={loading}
-        pagination={{ pageSize: 20, showSizeChanger: false }}
-        size="small"
-        scroll={{ x: 'max-content' }}
-        expandable={{
-          expandedRowRender: (record) => (
-            <div style={{ padding: '8px 0' }}>
-              {record.affectedUserIds?.length > 0 && (
-                <div style={{ marginBottom: 8 }}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Affected user IDs: </Text>
-                  <Text style={{ fontSize: 12 }}>{record.affectedUserIds.join(', ')}</Text>
-                </div>
-              )}
-              {record.auditLogIds?.length > 0 && (
-                <div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Audit log IDs: </Text>
-                  <Text style={{ fontSize: 12 }}>{record.auditLogIds.join(', ')}</Text>
-                </div>
-              )}
-              {(!record.affectedUserIds?.length && !record.auditLogIds?.length) && (
-                <Text type="secondary" style={{ fontSize: 12 }}>No additional details.</Text>
-              )}
-            </div>
-          ),
-        }}
-        locale={{ emptyText: 'No tamper incidents' }}
-      />
-
-      <Modal
-        title="Resolve incident"
-        open={resolveModal.open}
-        onCancel={closeResolveModal}
-        onOk={handleResolveSubmit}
-        confirmLoading={resolving}
-        okText="Resolve"
-        destroyOnClose
-        okButtonProps={{ disabled: !resolveModal.notes?.trim() }}
-      >
-        <div style={{ marginBottom: 12 }}>
-          <Text strong>Resolution notes (required)</Text>
-          <TextArea
-            rows={3}
-            placeholder="Describe what was done to resolve this incident..."
-            value={resolveModal.notes}
-            onChange={(e) => setResolveModal((p) => ({ ...p, notes: e.target.value }))}
-            style={{ marginTop: 8 }}
+      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column', ['--row-selected-bg']: token.colorPrimaryBg }}>
+        <div
+          style={{
+            borderBottom: `1px solid ${token.colorBorderSecondary}`,
+            borderTop: `1px solid ${token.colorBorderSecondary}`,
+            overflow: 'auto',
+            flex: 1,
+            minHeight: 0,
+          }}
+        >
+          <Table
+            rowKey={(rec) => rec.id}
+            dataSource={paginatedIncidents}
+            columns={columns}
+            loading={loading}
+            pagination={false}
+            size="small"
+            scroll={{ x: 'max-content' }}
+            rowClassName={(rec) => (rec?.id === selectedIncident?.id ? 'incident-row-selected' : '')}
+            onRow={(rec) => ({
+              onClick: () => setSelectedIncident(rec),
+              style: { cursor: 'pointer' },
+            })}
+            locale={{
+              emptyText: (
+                <Empty
+                  image={<ExclamationCircleOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />}
+                  styles={{ image: { height: 60 } }}
+                  description={<Text type="secondary">No incidents</Text>}
+                />
+              ),
+            }}
           />
         </div>
-        <Checkbox
-          checked={resolveModal.liftContainment}
-          onChange={(e) => setResolveModal((p) => ({ ...p, liftContainment: e.target.checked }))}
-        >
-          Lift containment for affected accounts after resolving
-        </Checkbox>
-      </Modal>
+        <div style={{ padding: '12px 0', display: 'flex', justifyContent: 'flex-end' }}>
+          <Pagination
+            current={currentPage}
+            total={sortedIncidents.length}
+            pageSize={PAGE_SIZE}
+            showSizeChanger={false}
+            onChange={setCurrentPage}
+            size="small"
+          />
+        </div>
+      </div>
+      <style>{`
+        .ant-table-tbody > tr.incident-row-selected > td {
+          background: var(--row-selected-bg) !important;
+        }
+        .ant-table-tbody > tr:hover > td {
+          cursor: pointer;
+        }
+      `}</style>
     </div>
+  )
+
+  const detailPanel = (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      <IncidentDetailPanel incident={selectedIncident} onRefresh={load} />
+    </div>
+  )
+
+  if (isMobile) {
+    return (
+      <>
+        {tableContent}
+        <Modal
+          title={selectedIncident?.message ? (selectedIncident.message.slice(0, 50) + (selectedIncident.message.length > 50 ? '…' : '')) : 'Incident detail'}
+          open={!!selectedIncident}
+          onCancel={() => setSelectedIncident(null)}
+          footer={null}
+          destroyOnHidden
+          width="90%"
+        >
+          {selectedIncident && <IncidentDetailPanel incident={selectedIncident} onRefresh={load} />}
+        </Modal>
+      </>
+    )
+  }
+
+  return (
+    <Splitter style={{ height: '100%' }}>
+      <Splitter.Panel min="30%" defaultSize="30%" style={{ overflow: 'hidden' }}>
+        {tableContent}
+      </Splitter.Panel>
+      <Splitter.Panel min="50%" defaultSize="70%" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {detailPanel}
+      </Splitter.Panel>
+    </Splitter>
   )
 }

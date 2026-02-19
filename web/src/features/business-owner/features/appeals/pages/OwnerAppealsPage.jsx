@@ -148,7 +148,7 @@ export default function OwnerAppealsPage() {
           open={modalOpen}
           onCancel={() => { setModalOpen(false); form.resetFields() }}
           footer={null}
-          destroyOnClose
+          destroyOnHidden
         >
           <Form form={form} layout="vertical" onFinish={handleSubmit}>
             <Form.Item name="businessId" label="Business" rules={[{ required: true, message: 'Select a business' }]}>

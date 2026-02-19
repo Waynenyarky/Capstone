@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { theme } from 'antd'
 import { getApprovals, getApproval } from '@/features/admin/services/approvalService'
 import { useNotifier } from '@/shared/notifications'
 import RequestsTable from './RequestsTable'
@@ -6,7 +7,8 @@ import RequestDetailPanel from './RequestDetailPanel'
 
 const PAGE_SIZE = 20
 
-export default function RequestsMobileView() {
+export default function RequestsMobileView({ onLastUpdated } = {}) {
+  const { token } = theme.useToken()
   const { error: notifyError } = useNotifier()
   const [approvals, setApprovals] = useState([])
   const [loading, setLoading] = useState(false)
@@ -27,8 +29,9 @@ export default function RequestsMobileView() {
       notifyError(e, 'Failed to load requests')
     } finally {
       setLoading(false)
+      onLastUpdated?.(new Date())
     }
-  }, [statusFilter, notifyError])
+  }, [statusFilter, notifyError, onLastUpdated])
 
   useEffect(() => {
     loadList()
@@ -39,10 +42,6 @@ export default function RequestsMobileView() {
     window.addEventListener('admin-requests-refresh', onRefresh)
     return () => window.removeEventListener('admin-requests-refresh', onRefresh)
   }, [loadList])
-
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [statusFilter])
 
   const loadDetail = useCallback(
     async (approvalId) => {
@@ -71,6 +70,25 @@ export default function RequestsMobileView() {
     },
     [loadDetail]
   )
+
+  useEffect(() => {
+    if (import.meta.env.MODE === 'production') return undefined
+    const handler = (event) => {
+      const { action, status } = event?.detail || {}
+      if (action === 'setStatusFilter' && (status === 'pending' || status === 'all')) {
+        setStatusFilter(status)
+      } else if (action === 'selectFirst') {
+        const first = approvals[0]
+        if (first) handleSelect(first)
+      }
+    }
+    window.addEventListener('devtools:requests', handler)
+    return () => window.removeEventListener('devtools:requests', handler)
+  }, [approvals, handleSelect])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [statusFilter])
 
   const handleRefresh = useCallback(() => {
     loadList()
@@ -106,7 +124,7 @@ export default function RequestsMobileView() {
           pagination={pagination}
         />
       </div>
-      <div style={{ flex: 1, minHeight: 200, borderTop: '1px solid #f0f0f0' }}>
+      <div style={{ flex: 1, minHeight: 200, borderTop: `1px solid ${token.colorBorderSecondary}` }}>
         <RequestDetailPanel
           approval={detailApproval}
           loading={detailLoading}

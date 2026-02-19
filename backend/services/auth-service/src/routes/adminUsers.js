@@ -5,7 +5,7 @@ const mongoose = require('mongoose')
 const User = require('../models/User')
 const Role = require('../models/Role')
 const Office = require('../models/Office')
-const { requireJwt, requireRole } = require('../middleware/auth')
+const { requireJwt, requireRole, requireAdminStepUp } = require('../middleware/auth')
 const respond = require('../middleware/respond')
 const { validateBody, Joi } = require('../middleware/validation')
 const { sanitizeString, sanitizeEmail, sanitizePhoneNumber, sanitizeName } = require('../lib/sanitizer')
@@ -101,6 +101,7 @@ router.patch(
   '/admin/staff/:staffId',
   requireJwt,
   requireRole(['admin']),
+  requireAdminStepUp,
   validateBody(updateStaffSchema),
   async (req, res) => {
     try {
@@ -278,6 +279,7 @@ router.post(
   '/admin/staff/:staffId/reset-password',
   requireJwt,
   requireRole(['admin']),
+  requireAdminStepUp,
   validateBody(resetPasswordSchema),
   async (req, res) => {
     try {
@@ -409,7 +411,7 @@ router.get('/offices', requireJwt, requireRole(['lgu_officer', 'lgu_manager', 's
   }
 })
 
-router.post('/admin/offices', requireJwt, requireRole(['admin']), validateBody(officeCreateSchema), async (req, res) => {
+router.post('/admin/offices', requireJwt, requireRole(['admin']), requireAdminStepUp, validateBody(officeCreateSchema), async (req, res) => {
   try {
     const { code, name, group, isActive } = req.body || {}
     const normalizedCode = normalizeOfficeCode(code)
@@ -436,7 +438,7 @@ router.post('/admin/offices', requireJwt, requireRole(['admin']), validateBody(o
   }
 })
 
-router.patch('/admin/offices/:officeId', requireJwt, requireRole(['admin']), validateBody(officeUpdateSchema), async (req, res) => {
+router.patch('/admin/offices/:officeId', requireJwt, requireRole(['admin']), requireAdminStepUp, validateBody(officeUpdateSchema), async (req, res) => {
   try {
     const { officeId } = req.params
     const { code, name, group, isActive } = req.body || {}
@@ -481,7 +483,7 @@ router.patch('/admin/offices/:officeId', requireJwt, requireRole(['admin']), val
   }
 })
 
-router.delete('/admin/offices/:officeId', requireJwt, requireRole(['admin']), async (req, res) => {
+router.delete('/admin/offices/:officeId', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const { officeId } = req.params
     if (!mongoose.Types.ObjectId.isValid(officeId)) {
@@ -518,7 +520,7 @@ router.get('/admin/staff-roles', requireJwt, requireRole(['admin']), async (req,
   }
 })
 
-router.post('/admin/staff-roles', requireJwt, requireRole(['admin']), validateBody(staffRoleCreateSchema), async (req, res) => {
+router.post('/admin/staff-roles', requireJwt, requireRole(['admin']), requireAdminStepUp, validateBody(staffRoleCreateSchema), async (req, res) => {
   try {
     const { name, slug, description, displayName } = req.body || {}
     const normalizedSlug = String(slug || '').toLowerCase().trim()
@@ -547,7 +549,7 @@ router.post('/admin/staff-roles', requireJwt, requireRole(['admin']), validateBo
   }
 })
 
-router.patch('/admin/staff-roles/:roleId', requireJwt, requireRole(['admin']), validateBody(staffRoleUpdateSchema), async (req, res) => {
+router.patch('/admin/staff-roles/:roleId', requireJwt, requireRole(['admin']), requireAdminStepUp, validateBody(staffRoleUpdateSchema), async (req, res) => {
   try {
     const { roleId } = req.params
     if (!mongoose.Types.ObjectId.isValid(roleId)) {
@@ -593,7 +595,7 @@ router.patch('/admin/staff-roles/:roleId', requireJwt, requireRole(['admin']), v
   }
 })
 
-router.delete('/admin/staff-roles/:roleId', requireJwt, requireRole(['admin']), async (req, res) => {
+router.delete('/admin/staff-roles/:roleId', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
     const { roleId } = req.params
     if (!mongoose.Types.ObjectId.isValid(roleId)) {
@@ -690,6 +692,7 @@ router.post(
   '/admin/admins/:adminId/request-change',
   requireJwt,
   requireRole(['admin']),
+  requireAdminStepUp,
   validateBody(adminChangeRequestSchema),
   async (req, res) => {
     try {

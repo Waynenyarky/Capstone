@@ -39,6 +39,7 @@ export default function FormDefinitionEditorPanel({
     handleDownloadsChange,
     handleSubmitForApproval,
     handleCancelApproval,
+    stepUpModal,
   } = useFormDefinitionEditorPanel({
     definitionId,
     viewOnlyProp,
@@ -104,6 +105,7 @@ export default function FormDefinitionEditorPanel({
   ]
 
   return (
+    <>
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 16 }}>
         <Form form={form} style={{ display: 'none' }}>
@@ -163,5 +165,7 @@ export default function FormDefinitionEditorPanel({
         </Space>
       </div>
     </div>
+    {stepUpModal}
+  </>
   )
 }

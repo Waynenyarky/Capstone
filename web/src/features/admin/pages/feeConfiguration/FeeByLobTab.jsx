@@ -1,25 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { Table, Button, Tag, Typography, Splitter, Modal, Pagination, Input, Select, Tooltip, Dropdown, theme } from 'antd'
 import { SearchOutlined, FilterOutlined, CloseOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
-import { LINE_OF_BUSINESS_BY_CATEGORY } from '@/constants/lineOfBusiness.js'
+import { getCharterTaxCodeLabel } from '@/constants/charterTaxCodes.js'
 import FeeConfigDetailPanel from './FeeConfigDetailPanel'
 
 const { Text } = Typography
 const PAGE_SIZE = 20
-
-/** Turn snake_case LOB key into a readable label (e.g. electronic_electrical_store → Electronic electrical store). */
-function formatLineOfBusinessLabel(lob) {
-  if (lob == null || typeof lob !== 'string') return lob ?? '—'
-  return lob
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ')
-}
-
-function resolveTaxCode(record) {
-  if (record.taxCode) return record.taxCode
-  return LINE_OF_BUSINESS_BY_CATEGORY[record.lineOfBusiness]?.taxCode || '—'
-}
 
 export default function FeeByLobTab({
   configs = [],
@@ -43,8 +29,11 @@ export default function FeeByLobTab({
       : configs.find((c) => (c._id || c.id) === selectedConfigId) || null
 
   const taxCodeOptions = useMemo(() => {
-    const codes = [...new Set((configs || []).map(resolveTaxCode).filter((c) => c && c !== '—'))]
-    return codes.sort().map((tc) => ({ value: tc, label: tc }))
+    const codes = [...new Set((configs || []).map((r) => r.taxCode).filter(Boolean))]
+    return codes.sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })).map((tc) => ({
+      value: tc,
+      label: getCharterTaxCodeLabel(tc),
+    }))
   }, [configs])
 
   const filteredConfigs = useMemo(() => {
@@ -52,14 +41,13 @@ export default function FeeByLobTab({
     if (search.trim()) {
       const q = search.trim().toLowerCase()
       list = list.filter((rec) => {
-        const tc = (resolveTaxCode(rec) || '').toLowerCase()
-        const lobLabel = LINE_OF_BUSINESS_BY_CATEGORY[rec.lineOfBusiness]?.label || formatLineOfBusinessLabel(rec.lineOfBusiness) || ''
-        const lob = lobLabel.toLowerCase()
-        return tc.includes(q) || lob.includes(q)
+        const tcLabel = getCharterTaxCodeLabel(rec.taxCode).toLowerCase()
+        const lob = (rec.lineOfBusiness || '').toLowerCase()
+        return tcLabel.includes(q) || lob.includes(q)
       })
     }
     if (taxCodeFilter) {
-      list = list.filter((rec) => resolveTaxCode(rec) === taxCodeFilter)
+      list = list.filter((rec) => rec.taxCode === taxCodeFilter)
     }
     return list
   }, [configs, search, taxCodeFilter])
@@ -77,21 +65,16 @@ export default function FeeByLobTab({
 
   const columns = [
     {
-      title: 'Tax Code',
-      key: 'taxCode',
-      width: 80,
-      render: (_, record) => <Tag>{resolveTaxCode(record)}</Tag>,
-    },
-    {
       title: 'Line of Business',
       dataIndex: 'lineOfBusiness',
       key: 'lineOfBusiness',
-      render: (v) => {
-        const entry = LINE_OF_BUSINESS_BY_CATEGORY[v]
-        if (entry) return entry.label
-        // Format snake_case to readable label when not in LINE_OF_BUSINESS constant
-        return formatLineOfBusinessLabel(v)
-      },
+      render: (v) => v ?? '—',
+    },
+    {
+      title: 'Tax Code',
+      key: 'taxCode',
+      width: 180,
+      render: (_, record) => <Tag>{getCharterTaxCodeLabel(record.taxCode)}</Tag>,
     },
     {
       title: 'Fee',
@@ -214,8 +197,8 @@ export default function FeeByLobTab({
           </Dropdown>
         </div>
       </div>
-      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ borderBottom: '1px solid #f0f0f0', borderTop: '1px solid #f0f0f0', overflow: 'auto', flex: 1, minHeight: 0 }}>
+      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column', ['--row-selected-bg']: token.colorPrimaryBg }}>
+        <div style={{ borderBottom: `1px solid ${token.colorBorderSecondary}`, borderTop: `1px solid ${token.colorBorderSecondary}`, overflow: 'auto', flex: 1, minHeight: 0 }}>
           <Table
             size="small"
             rowKey={(r) => r._id || r.id}
@@ -247,7 +230,7 @@ export default function FeeByLobTab({
       </div>
       <style>{`
         .ant-table-tbody > tr.fee-config-row-selected > td {
-          background: #e6f4ff !important;
+          background: var(--row-selected-bg) !important;
         }
         .ant-table-tbody > tr:hover > td {
           cursor: pointer;

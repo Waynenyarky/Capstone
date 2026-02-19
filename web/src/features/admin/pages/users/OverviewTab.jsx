@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react'
-import { Row, Col, Card, Typography, theme } from 'antd'
+import React, { useMemo, useState, useEffect } from 'react'
+import { Row, Col, Card, Typography, theme, Table, Tag, Spin } from 'antd'
 import { Pie } from '@ant-design/charts'
 import {
   UserAddOutlined,
@@ -12,12 +12,25 @@ import {
   CrownOutlined,
   SafetyOutlined,
 } from '@ant-design/icons'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { getStaffStatus } from './useAdminUsersPage'
 import { useUsersTable } from '@/features/admin/users/hooks/useUsersTable'
+import { getAllAuditLogsAdmin } from '../../services'
 import dayjs from 'dayjs'
 
 const { Text } = Typography
+
+const ACTION_LABELS = {
+  profile_update: 'Profile updated',
+  password_change: 'Password changed',
+  admin_approval_approved: 'Approval granted',
+  admin_approval_rejected: 'Rejected',
+  name_update: 'Name updated',
+  contact_update: 'Contact updated',
+  security_event: 'Security event',
+}
+const actionLabel = (eventType) => ACTION_LABELS[eventType] || eventType || '—'
 
 const CARD_COLORS = {
   pending: '#fa8c16',
@@ -34,7 +47,25 @@ const CARD_COLORS = {
 
 export default function OverviewTab({ staff = [] }) {
   const { token } = theme.useToken()
+  const navigate = useNavigate()
   const { users = [] } = useUsersTable()
+  const [recentLogs, setRecentLogs] = useState([])
+  const [recentLoading, setRecentLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    getAllAuditLogsAdmin({ limit: 10 })
+      .then((res) => {
+        if (!cancelled) setRecentLogs(res?.logs || [])
+      })
+      .catch(() => {
+        if (!cancelled) setRecentLogs([])
+      })
+      .finally(() => {
+        if (!cancelled) setRecentLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [])
 
   const businessOwners = useMemo(() => {
     return (users || []).filter((u) => u?.role === 'business_owner')
@@ -137,7 +168,7 @@ export default function OverviewTab({ staff = [] }) {
         padding: 24,
       }}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 32, maxWidth: 1000, margin: '0 auto' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 32, width: '100%'}}>
         {cardGroups.map((group) => (
           <div key={group.title}>
             <Text strong style={{ display: 'block', marginBottom: 12, fontSize: 15, color: token.colorText }}>
@@ -174,6 +205,59 @@ export default function OverviewTab({ staff = [] }) {
             </Row>
           </div>
         ))}
+
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text strong style={{ fontSize: 15, color: token.colorText }}>
+              Recent activity
+            </Text>
+            <Link to="/admin/users?tab=logs">View all</Link>
+          </div>
+          <Card size="small">
+            <Table
+              size="small"
+              dataSource={recentLogs}
+              rowKey={(r) => r.id || r._id || Math.random()}
+              loading={recentLoading}
+              pagination={false}
+              onRow={(record) => ({
+                onClick: () => {
+                  const id = record.id || record._id
+                  if (id) navigate(`/admin/users?tab=logs&logId=${encodeURIComponent(id)}`)
+                },
+                style: { cursor: 'pointer' },
+              })}
+              columns={[
+                {
+                  title: 'Action',
+                  dataIndex: 'eventType',
+                  key: 'action',
+                  width: 180,
+                  render: (v) => <Tag>{actionLabel(v)}</Tag>,
+                },
+                {
+                  title: 'User',
+                  key: 'user',
+                  render: (_, r) => r.user || r.userEmail || '—',
+                },
+                {
+                  title: 'Performed by',
+                  dataIndex: 'performedBy',
+                  key: 'performedBy',
+                  render: (v) => v || '—',
+                },
+                {
+                  title: 'Date',
+                  dataIndex: 'createdAt',
+                  key: 'date',
+                  width: 160,
+                  render: (v) => (v ? dayjs(v).format('MMM D, YYYY HH:mm') : '—'),
+                },
+              ]}
+              locale={{ emptyText: 'No recent activity' }}
+            />
+          </Card>
+        </div>
       </div>
     </div>
   )

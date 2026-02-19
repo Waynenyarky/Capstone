@@ -1,30 +1,37 @@
 import { fetchJsonWithFallback } from '@/lib/http.js'
+import { authHeaders } from '@/lib/authHeaders.js'
+import { getCurrentUser } from '@/features/authentication/lib/authEvents.js'
+
+function authOpts(extra) {
+  const current = getCurrentUser()
+  return authHeaders(current, 'admin', { 'Content-Type': 'application/json', ...(extra || {}) })
+}
 
 export async function getStaffList() {
   const data = await fetchJsonWithFallback('/api/auth/staff', { method: 'GET' })
   return Array.isArray(data) ? data : (data?.staff || [])
 }
 
-export async function createStaff(payload) {
+export async function createStaff(payload, options = {}) {
   return await fetchJsonWithFallback('/api/auth/staff', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authOpts(options?.stepUpToken ? { stepUpToken: options.stepUpToken } : null),
     body: JSON.stringify(payload),
   })
 }
 
-export async function updateStaff(staffId, payload) {
+export async function updateStaff(staffId, payload, options = {}) {
   return await fetchJsonWithFallback(`/api/auth/admin/staff/${staffId}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authOpts(options?.stepUpToken ? { stepUpToken: options.stepUpToken } : null),
     body: JSON.stringify(payload),
   })
 }
 
-export async function resetStaffPassword(staffId, payload) {
+export async function resetStaffPassword(staffId, payload, options = {}) {
   return await fetchJsonWithFallback(`/api/auth/admin/staff/${staffId}/reset-password`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authOpts(options?.stepUpToken ? { stepUpToken: options.stepUpToken } : null),
     body: JSON.stringify(payload),
   })
 }
@@ -34,25 +41,28 @@ export async function getOffices() {
   return Array.isArray(data) ? data : (data?.offices || [])
 }
 
-export async function createOffice(payload) {
+export async function createOffice(payload, options = {}) {
   return await fetchJsonWithFallback('/api/auth/admin/offices', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authOpts(options?.stepUpToken ? { stepUpToken: options.stepUpToken } : null),
     body: JSON.stringify(payload),
   })
 }
 
-export async function updateOffice(officeId, payload) {
+export async function updateOffice(officeId, payload, options = {}) {
   return await fetchJsonWithFallback(`/api/auth/admin/offices/${officeId}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authOpts(options?.stepUpToken ? { stepUpToken: options.stepUpToken } : null),
     body: JSON.stringify(payload),
   })
 }
 
-export async function deleteOffice(officeId) {
+export async function deleteOffice(officeId, options = {}) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, 'admin', options.stepUpToken && { stepUpToken: options.stepUpToken })
   return await fetchJsonWithFallback(`/api/auth/admin/offices/${officeId}`, {
     method: 'DELETE',
+    headers,
   })
 }
 
@@ -61,25 +71,28 @@ export async function getStaffRoles() {
   return Array.isArray(data) ? data : (data?.roles || [])
 }
 
-export async function createStaffRole(payload) {
+export async function createStaffRole(payload, options = {}) {
   return await fetchJsonWithFallback('/api/auth/admin/staff-roles', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authOpts(options?.stepUpToken ? { stepUpToken: options.stepUpToken } : null),
     body: JSON.stringify(payload),
   })
 }
 
-export async function updateStaffRole(roleId, payload) {
+export async function updateStaffRole(roleId, payload, options = {}) {
   return await fetchJsonWithFallback(`/api/auth/admin/staff-roles/${roleId}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authOpts(options?.stepUpToken ? { stepUpToken: options.stepUpToken } : null),
     body: JSON.stringify(payload),
   })
 }
 
-export async function deleteStaffRole(roleId) {
+export async function deleteStaffRole(roleId, options = {}) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, 'admin', options.stepUpToken && { stepUpToken: options.stepUpToken })
   return await fetchJsonWithFallback(`/api/auth/admin/staff-roles/${roleId}`, {
     method: 'DELETE',
+    headers,
   })
 }
 
@@ -90,10 +103,10 @@ export async function getAdminList() {
   return Array.isArray(data) ? data : (data?.admins || [])
 }
 
-export async function requestAdminChange(adminId, payload) {
+export async function requestAdminChange(adminId, payload, options = {}) {
   return await fetchJsonWithFallback(`/api/auth/admin/admins/${adminId}/request-change`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authOpts(options?.stepUpToken ? { stepUpToken: options.stepUpToken } : null),
     body: JSON.stringify(payload),
   })
 }

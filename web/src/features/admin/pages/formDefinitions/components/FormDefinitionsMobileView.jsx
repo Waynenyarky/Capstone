@@ -23,6 +23,7 @@ import FormContentEditor from './FormContentEditor'
 import FormPreview from './FormPreview'
 import DeactivateFormModal from './DeactivateFormModal'
 import FormDefinitionsLogsTab from './FormDefinitionsLogsTab'
+import { useAdminStepUp } from '@/features/admin/hooks/useAdminStepUp'
 
 import {
   getFormGroups,
@@ -76,6 +77,7 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
   const { token } = theme.useToken()
   const editorRef = useRef(null)
   const [deactivateForm] = Form.useForm()
+  const { runWithStepUp, stepUpModal } = useAdminStepUp()
 
   // Navigation
   const [selectedNav, setSelectedNav] = useState(OVERVIEW_KEY)
@@ -216,16 +218,18 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
     setSaving(true)
     try {
       const sections = editorRef.current.getSections()
-      const res = await updateFormDefinition(currentDefinition._id, { sections })
-      if (res?.success) {
-        message.success('Draft saved')
-        setHasUnsavedChanges(false)
-        setCurrentDefinition(res.definition)
-      } else {
-        message.error('Failed to save draft')
-      }
+      await runWithStepUp(async (stepUpToken) => {
+        const res = await updateFormDefinition(currentDefinition._id, { sections }, { stepUpToken })
+        if (res?.success) {
+          message.success('Draft saved')
+          setHasUnsavedChanges(false)
+          setCurrentDefinition(res.definition)
+        } else {
+          message.error('Failed to save draft')
+        }
+      })
     } catch (err) {
-      message.error(err?.message || 'Failed to save draft')
+      if (err?.message !== 'Step-up cancelled') message.error(err?.message || 'Failed to save draft')
     } finally {
       setSaving(false)
     }
@@ -241,13 +245,15 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
-          await deleteFormDefinition(currentDefinition._id)
-          message.success('Draft deleted')
-          setIsEditingDraft(false)
-          setHasUnsavedChanges(false)
-          loadFormGroupForSelection()
+          await runWithStepUp(async (stepUpToken) => {
+            await deleteFormDefinition(currentDefinition._id, { stepUpToken })
+            message.success('Draft deleted')
+            setIsEditingDraft(false)
+            setHasUnsavedChanges(false)
+            loadFormGroupForSelection()
+          })
         } catch (err) {
-          message.error(err?.message || 'Failed to delete draft')
+          if (err?.message !== 'Step-up cancelled') message.error(err?.message || 'Failed to delete draft')
         }
       },
     })
@@ -262,22 +268,25 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
       cancelText: 'Cancel',
       onOk: async () => {
         try {
-          if (editorRef.current) {
-            const sections = editorRef.current.getSections()
-            await updateFormDefinition(currentDefinition._id, { sections })
-          }
-          const res = await submitForApproval(currentDefinition._id)
-          if (res?.success) {
-            message.success('Form submitted for approval')
-            setIsEditingDraft(false)
-            setHasUnsavedChanges(false)
-            loadFormGroupForSelection()
-            loadStats()
-          } else {
-            message.error(res?.error?.message || 'Failed to submit for approval')
-          }
+          await runWithStepUp(async (stepUpToken) => {
+            const opts = { stepUpToken }
+            if (editorRef.current) {
+              const sections = editorRef.current.getSections()
+              await updateFormDefinition(currentDefinition._id, { sections }, opts)
+            }
+            const res = await submitForApproval(currentDefinition._id, opts)
+            if (res?.success) {
+              message.success('Form submitted for approval')
+              setIsEditingDraft(false)
+              setHasUnsavedChanges(false)
+              loadFormGroupForSelection()
+              loadStats()
+            } else {
+              message.error(res?.error?.message || 'Failed to submit for approval')
+            }
+          })
         } catch (err) {
-          message.error(err?.message || 'Failed to submit for approval')
+          if (err?.message !== 'Step-up cancelled') message.error(err?.message || 'Failed to submit for approval')
         }
       },
     })
@@ -301,39 +310,42 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
 
   const handleAddVersion = async (source) => {
     try {
-      let group = formGroup
-      if (!group) {
-        const createRes = await createFormGroup({ formType: selectedFormType, industryScope })
-        if (!createRes?.success) { message.error('Failed to create form group'); return }
-        group = createRes.group
-        setFormGroup(group)
-        setCurrentDefinition(createRes.definition)
-        setVersions([createRes.definition])
-        setSelectedVersion(createRes.definition._id)
-        setDraftCreatedAt(new Date())
-        setIsEditingDraft(true)
-        return
-      }
-      const res = await createFormGroupVersion(group._id)
-      if (res?.success) {
-        const newDef = res.definition
-        if (source === 'previous' && versions.length > 0) {
-          const latestPublished = versions.find((v) => v.status === 'published') || versions[0]
-          if (latestPublished?.sections?.length > 0) {
-            await updateFormDefinition(newDef._id, { sections: latestPublished.sections })
-          }
+      await runWithStepUp(async (stepUpToken) => {
+        const opts = { stepUpToken }
+        let group = formGroup
+        if (!group) {
+          const createRes = await createFormGroup({ formType: selectedFormType, industryScope }, opts)
+          if (!createRes?.success) { message.error('Failed to create form group'); return }
+          group = createRes.group
+          setFormGroup(group)
+          setCurrentDefinition(createRes.definition)
+          setVersions([createRes.definition])
+          setSelectedVersion(createRes.definition._id)
+          setDraftCreatedAt(new Date())
+          setIsEditingDraft(true)
+          return
         }
-        await loadFormGroupForSelection()
-        setSelectedVersion(newDef._id)
-        setCurrentDefinition(newDef)
-        setDraftCreatedAt(new Date())
-        setIsEditingDraft(true)
-        message.success('New version created')
-      } else {
-        message.error('Failed to create new version')
-      }
+        const res = await createFormGroupVersion(group._id, opts)
+        if (res?.success) {
+          const newDef = res.definition
+          if (source === 'previous' && versions.length > 0) {
+            const latestPublished = versions.find((v) => v.status === 'published') || versions[0]
+            if (latestPublished?.sections?.length > 0) {
+              await updateFormDefinition(newDef._id, { sections: latestPublished.sections }, opts)
+            }
+          }
+          await loadFormGroupForSelection()
+          setSelectedVersion(newDef._id)
+          setCurrentDefinition(newDef)
+          setDraftCreatedAt(new Date())
+          setIsEditingDraft(true)
+          message.success('New version created')
+        } else {
+          message.error('Failed to create new version')
+        }
+      })
     } catch (err) {
-      message.error(err?.message || 'Failed to create version')
+      if (err?.message !== 'Step-up cancelled') message.error(err?.message || 'Failed to create version')
     }
   }
 
@@ -354,11 +366,13 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
 
   const handleDeleteDraft = async (draft) => {
     try {
-      await deleteFormDefinition(draft._id || draft.id)
-      message.success('Draft deleted')
-      loadFormGroupForSelection()
+      await runWithStepUp(async (stepUpToken) => {
+        await deleteFormDefinition(draft._id || draft.id, { stepUpToken })
+        message.success('Draft deleted')
+        loadFormGroupForSelection()
+      })
     } catch (err) {
-      message.error(err?.message || 'Failed to delete draft')
+      if (err?.message !== 'Step-up cancelled') message.error(err?.message || 'Failed to delete draft')
     }
   }
 
@@ -368,14 +382,16 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
       const values = await deactivateForm.validateFields()
       setDeactivateLoading(true)
       const reason = values.reasonTemplate === 'custom' ? values.reason : values.reasonTemplate
-      await deactivateFormGroup(formGroup._id, { deactivatedUntil: values.deactivatedUntil.toISOString(), reason })
-      message.success('Form group deactivated')
-      setDeactivateModalOpen(false)
-      deactivateForm.resetFields()
-      loadFormGroupForSelection()
-      loadStats()
+      await runWithStepUp(async (stepUpToken) => {
+        await deactivateFormGroup(formGroup._id, { deactivatedUntil: values.deactivatedUntil.toISOString(), reason }, { stepUpToken })
+        message.success('Form group deactivated')
+        setDeactivateModalOpen(false)
+        deactivateForm.resetFields()
+        loadFormGroupForSelection()
+        loadStats()
+      })
     } catch (err) {
-      if (err?.errorFields) return
+      if (err?.message === 'Step-up cancelled' || err?.errorFields) return
       message.error(err?.message || 'Failed to deactivate')
     } finally {
       setDeactivateLoading(false)
@@ -397,6 +413,7 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
   const groupDeactivated = isGroupDeactivated(formGroup)
 
   return (
+    <>
     <div
       style={{
         display: 'flex',
@@ -736,6 +753,8 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
         )}
       </div>
     </div>
+    {stepUpModal}
+  </>
   )
 }
 

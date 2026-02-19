@@ -7,7 +7,7 @@ import RequestDetailPanel from './RequestDetailPanel'
 
 const PAGE_SIZE = 20
 
-export default function RequestsDesktopView() {
+export default function RequestsDesktopView({ onLastUpdated } = {}) {
   const { error: notifyError } = useNotifier()
   const [approvals, setApprovals] = useState([])
   const [loading, setLoading] = useState(false)
@@ -29,8 +29,9 @@ export default function RequestsDesktopView() {
       notifyError(e, 'Failed to load requests')
     } finally {
       setLoading(false)
+      onLastUpdated?.(new Date())
     }
-  }, [statusFilter, notifyError])
+  }, [statusFilter, notifyError, onLastUpdated])
 
   useEffect(() => {
     loadList()
@@ -41,10 +42,6 @@ export default function RequestsDesktopView() {
     window.addEventListener('admin-requests-refresh', onRefresh)
     return () => window.removeEventListener('admin-requests-refresh', onRefresh)
   }, [loadList])
-
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [statusFilter])
 
   const loadDetail = useCallback(async (approvalId) => {
     if (!approvalId) {
@@ -70,6 +67,25 @@ export default function RequestsDesktopView() {
     },
     [loadDetail]
   )
+
+  useEffect(() => {
+    if (import.meta.env.MODE === 'production') return undefined
+    const handler = (event) => {
+      const { action, status } = event?.detail || {}
+      if (action === 'setStatusFilter' && (status === 'pending' || status === 'all')) {
+        setStatusFilter(status)
+      } else if (action === 'selectFirst') {
+        const first = approvals[0]
+        if (first) handleSelect(first)
+      }
+    }
+    window.addEventListener('devtools:requests', handler)
+    return () => window.removeEventListener('devtools:requests', handler)
+  }, [approvals, handleSelect])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [statusFilter])
 
   const handleRefresh = useCallback(() => {
     loadList()

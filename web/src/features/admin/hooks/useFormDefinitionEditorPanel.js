@@ -11,6 +11,7 @@ import {
   reactivateFormGroup,
   createFormGroupVersion,
 } from '../services/formDefinitionService'
+import { useAdminStepUp } from './useAdminStepUp'
 import { getActiveLGUs } from '../services/lguService'
 import { DEACTIVATE_REASON_TEMPLATES } from '../pages/formDefinitions/constants'
 import dayjs from 'dayjs'
@@ -25,6 +26,7 @@ export function useFormDefinitionEditorPanel({
   const { message, modal } = App.useApp()
   const [form] = Form.useForm()
   const [deactivateForm] = Form.useForm()
+  const { runWithStepUp, stepUpModal } = useAdminStepUp()
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -114,17 +116,19 @@ export function useFormDefinitionEditorPanel({
       if (!definition.formGroupId) {
         updateData.name = values.name
       }
-      const res = await updateFormDefinition(definitionId, updateData)
-      setDefinition(res.definition)
-      message.success('Form definition saved')
+      await runWithStepUp(async (stepUpToken) => {
+        const res = await updateFormDefinition(definitionId, updateData, { stepUpToken })
+        setDefinition(res.definition)
+        message.success('Form definition saved')
+      })
     } catch (err) {
-      if (err.errorFields) return
+      if (err?.message === 'Step-up cancelled' || err?.errorFields) return
       console.error('Failed to save form definition:', err)
       message.error(err.message || 'Failed to save form definition')
     } finally {
       setSaving(false)
     }
-  }, [viewOnly, form, definition, definitionId, message])
+  }, [viewOnly, form, definition, definitionId, message, runWithStepUp])
 
   const handleSectionsChange = useCallback((newSections) => {
     setDefinition((prev) => ({ ...prev, sections: newSections }))
@@ -136,15 +140,32 @@ export function useFormDefinitionEditorPanel({
 
   const handleSubmitForApproval = useCallback(async () => {
     try {
-      await handleSave()
-      await submitForApproval(definitionId)
-      message.success('Form definition submitted for approval')
-      loadDefinition()
+      const values = await form.validateFields().catch(() => null)
+      if (!values) return
+      const updateData = {
+        version: values.version,
+        description: values.description,
+        businessTypes: values.businessTypes || [],
+        lguCodes: values.lguCodes || [],
+        sections: definition.sections,
+        downloads: definition.downloads,
+        effectiveFrom: values.effectiveFrom?.toISOString() || null,
+        effectiveTo: values.effectiveTo?.toISOString() || null,
+      }
+      if (!definition.formGroupId) updateData.name = values.name
+      await runWithStepUp(async (stepUpToken) => {
+        const opts = { stepUpToken }
+        await updateFormDefinition(definitionId, updateData, opts)
+        await submitForApproval(definitionId, opts)
+        message.success('Form definition submitted for approval')
+        loadDefinition()
+      })
     } catch (err) {
+      if (err?.message === 'Step-up cancelled') return
       console.error('Failed to submit for approval:', err)
       message.error(err.message || 'Failed to submit for approval')
     }
-  }, [handleSave, definitionId, message, loadDefinition])
+  }, [form, definition, definitionId, message, loadDefinition, runWithStepUp])
 
   const handleRetire = useCallback(() => {
     if (!groupIdForActions) return
@@ -156,34 +177,40 @@ export function useFormDefinitionEditorPanel({
       onOk: async () => {
         try {
           setRetiring(true)
-          await retireFormGroup(groupIdForActions)
-          message.success('Form group retired')
-          onRetired?.()
+          await runWithStepUp(async (stepUpToken) => {
+            await retireFormGroup(groupIdForActions, { stepUpToken })
+            message.success('Form group retired')
+            onRetired?.()
+          })
         } catch (err) {
-          message.error(err.message || 'Failed to retire form group')
+          if (err?.message !== 'Step-up cancelled') message.error(err?.message || 'Failed to retire form group')
         } finally {
           setRetiring(false)
         }
       },
     })
-  }, [groupIdForActions, message, modal, onRetired])
+  }, [groupIdForActions, message, modal, onRetired, runWithStepUp])
 
   const handleCreateVersion = useCallback(async () => {
     if (!groupIdForActions) return
     try {
       setCreatingVersion(true)
-      const res = await createFormGroupVersion(groupIdForActions)
-      message.success(`Version ${res.definition?.version || ''} created`)
-      if (res?.definition && onSelectVersion) {
-        onSelectVersion(res.definition)
-      }
+      await runWithStepUp(async (stepUpToken) => {
+        const res = await createFormGroupVersion(groupIdForActions, { stepUpToken })
+        message.success(`Version ${res.definition?.version || ''} created`)
+        if (res?.definition && onSelectVersion) {
+          onSelectVersion(res.definition)
+        }
+      })
     } catch (err) {
-      console.error('Failed to create version:', err)
-      message.error(err.message || 'Failed to create version')
+      if (err?.message !== 'Step-up cancelled') {
+        console.error('Failed to create version:', err)
+        message.error(err.message || 'Failed to create version')
+      }
     } finally {
       setCreatingVersion(false)
     }
-  }, [groupIdForActions, message, onSelectVersion])
+  }, [groupIdForActions, message, onSelectVersion, runWithStepUp])
 
   const openDeactivateModal = useCallback(() => {
     setDeactivateModalOpen(true)
@@ -209,51 +236,59 @@ export function useFormDefinitionEditorPanel({
         reason = template?.message || ''
       }
       setDeactivating(true)
-      await deactivateFormGroup(groupIdForActions, {
-        deactivatedUntil: values.deactivatedUntil.toISOString(),
-        reason,
+      await runWithStepUp(async (stepUpToken) => {
+        await deactivateFormGroup(groupIdForActions, {
+          deactivatedUntil: values.deactivatedUntil.toISOString(),
+          reason,
+        }, { stepUpToken })
+        message.success('Form group deactivated')
+        setDeactivateModalOpen(false)
+        setDeactivateReasonTemplate('maintenance')
+        deactivateForm.resetFields()
+        const res = await getFormGroup(groupIdForActions)
+        setGroup(res.group || null)
       })
-      message.success('Form group deactivated')
-      setDeactivateModalOpen(false)
-      setDeactivateReasonTemplate('maintenance')
-      deactivateForm.resetFields()
-      const res = await getFormGroup(groupIdForActions)
-      setGroup(res.group || null)
     } catch (err) {
-      if (err.errorFields) return
+      if (err?.message === 'Step-up cancelled' || err?.errorFields) return
       message.error(err.message || 'Failed to deactivate form group')
     } finally {
       setDeactivating(false)
     }
-  }, [groupIdForActions, deactivateForm, message])
+  }, [groupIdForActions, deactivateForm, message, runWithStepUp])
 
   const handleReactivate = useCallback(async () => {
     if (!groupIdForActions) return
     try {
       setReactivating(true)
-      await reactivateFormGroup(groupIdForActions)
-      message.success('Form group reactivated')
-      const res = await getFormGroup(groupIdForActions)
-      setGroup(res.group || null)
+      await runWithStepUp(async (stepUpToken) => {
+        await reactivateFormGroup(groupIdForActions, { stepUpToken })
+        message.success('Form group reactivated')
+        const res = await getFormGroup(groupIdForActions)
+        setGroup(res.group || null)
+      })
     } catch (err) {
-      message.error(err.message || 'Failed to reactivate form group')
+      if (err?.message !== 'Step-up cancelled') message.error(err.message || 'Failed to reactivate form group')
     } finally {
       setReactivating(false)
     }
-  }, [groupIdForActions, message])
+  }, [groupIdForActions, message, runWithStepUp])
 
   const handleCancelApproval = useCallback(async () => {
     try {
-      await cancelApproval(definitionId)
-      message.success('Approval cancelled, returned to draft')
-      loadDefinition()
+      await runWithStepUp(async (stepUpToken) => {
+        await cancelApproval(definitionId, { stepUpToken })
+        message.success('Approval cancelled, returned to draft')
+        loadDefinition()
+      })
     } catch (err) {
+      if (err?.message === 'Step-up cancelled') return
       console.error('Failed to cancel approval:', err)
       message.error(err.message || 'Failed to cancel approval')
     }
-  }, [definitionId, message, loadDefinition])
+  }, [definitionId, message, loadDefinition, runWithStepUp])
 
   return {
+    stepUpModal,
     // state
     loading,
     saving,

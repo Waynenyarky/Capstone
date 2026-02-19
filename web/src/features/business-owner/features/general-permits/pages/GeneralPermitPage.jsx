@@ -219,7 +219,7 @@ export default function GeneralPermitPage() {
           open={modalOpen}
           onCancel={() => { setModalOpen(false); form.resetFields() }}
           footer={null}
-          destroyOnClose
+          destroyOnHidden
         >
           <Form form={form} layout="vertical" onFinish={handleSubmit}>
             <Form.Item name="permitCategory" label="Permit Category" rules={[{ required: true, message: 'Select a category' }]}>

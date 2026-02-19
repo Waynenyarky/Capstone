@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
-import { Table, Button, Tag, Typography, Input, Select, Tooltip, Splitter, Grid, Pagination, Modal, Form, Space, Alert } from 'antd'
+import { Table, Button, Tag, Typography, Input, Select, Tooltip, Splitter, Grid, Pagination, Modal, Form, Space, Alert, theme } from 'antd'
 import { FilterOutlined, SearchOutlined, CloseOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import AdminDetailPanel from './AdminDetailPanel'
 import { getAdminList, requestAdminChange } from '../../services/staffService'
 import { useNotifier } from '@/shared/notifications'
+import { useAdminStepUp } from '../../hooks/useAdminStepUp'
 
 const { Text } = Typography
 
@@ -23,9 +24,11 @@ function getAdminStatusTag(rec) {
 }
 
 export default function AdminAccountsTab({ currentUserId }) {
+  const { token } = theme.useToken()
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md
   const { success, error: notifyError } = useNotifier()
+  const { runWithStepUp, stepUpModal } = useAdminStepUp()
 
   const [admins, setAdmins] = useState([])
   const [loading, setLoading] = useState(false)
@@ -158,10 +161,12 @@ export default function AdminAccountsTab({ currentUserId }) {
         return
       }
 
-      const result = await requestAdminChange(editTarget.id, {
-        requestType: 'personal_info_change',
-        changes,
-        reason: values.reason,
+      await runWithStepUp(async (stepUpToken) => {
+        await requestAdminChange(editTarget.id, {
+          requestType: 'personal_info_change',
+          changes,
+          reason: values.reason,
+        }, { stepUpToken })
       })
 
       success('Approval request submitted. The change requires confirmation from other admins before it takes effect.')
@@ -169,12 +174,12 @@ export default function AdminAccountsTab({ currentUserId }) {
       setEditTarget(null)
       await loadAdmins()
     } catch (e) {
-      if (e?.errorFields) return
+      if (e?.message === 'Step-up cancelled' || e?.errorFields) return
       notifyError(e, 'Failed to submit change request')
     } finally {
       setEditSubmitting(false)
     }
-  }, [editForm, editTarget, loadAdmins, success, notifyError])
+  }, [editForm, editTarget, loadAdmins, success, notifyError, runWithStepUp])
 
   const openResetModal = useCallback((record) => {
     setResetTarget(record)
@@ -188,10 +193,12 @@ export default function AdminAccountsTab({ currentUserId }) {
       if (!resetTarget?.id) return
       setResetSubmitting(true)
 
-      await requestAdminChange(resetTarget.id, {
-        requestType: 'password_reset',
-        changes: { passwordReset: true },
-        reason: values.reason,
+      await runWithStepUp(async (stepUpToken) => {
+        await requestAdminChange(resetTarget.id, {
+          requestType: 'password_reset',
+          changes: { passwordReset: true },
+          reason: values.reason,
+        }, { stepUpToken })
       })
 
       success('Password reset request submitted. Requires confirmation from other admins.')
@@ -199,12 +206,12 @@ export default function AdminAccountsTab({ currentUserId }) {
       setResetTarget(null)
       await loadAdmins()
     } catch (e) {
-      if (e?.errorFields) return
+      if (e?.message === 'Step-up cancelled' || e?.errorFields) return
       notifyError(e, 'Failed to submit reset request')
     } finally {
       setResetSubmitting(false)
     }
-  }, [resetForm, resetTarget, loadAdmins, success, notifyError])
+  }, [resetForm, resetTarget, loadAdmins, success, notifyError, runWithStepUp])
 
   const openDisableModal = useCallback((record) => {
     setDisableTarget(record)
@@ -218,10 +225,12 @@ export default function AdminAccountsTab({ currentUserId }) {
       if (!disableTarget?.id) return
       setDisableSubmitting(true)
 
-      await requestAdminChange(disableTarget.id, {
-        requestType: 'account_status_change',
-        changes: { isActive: false },
-        reason: values.reason,
+      await runWithStepUp(async (stepUpToken) => {
+        await requestAdminChange(disableTarget.id, {
+          requestType: 'account_status_change',
+          changes: { isActive: false },
+          reason: values.reason,
+        }, { stepUpToken })
       })
 
       success('Disable request submitted. Requires confirmation from other admins.')
@@ -229,12 +238,12 @@ export default function AdminAccountsTab({ currentUserId }) {
       setDisableTarget(null)
       await loadAdmins()
     } catch (e) {
-      if (e?.errorFields) return
+      if (e?.message === 'Step-up cancelled' || e?.errorFields) return
       notifyError(e, 'Failed to submit disable request')
     } finally {
       setDisableSubmitting(false)
     }
-  }, [disableForm, disableTarget, loadAdmins, success, notifyError])
+  }, [disableForm, disableTarget, loadAdmins, success, notifyError, runWithStepUp])
 
   useEffect(() => {
     if (import.meta.env.MODE === 'production') return undefined
@@ -310,7 +319,7 @@ export default function AdminAccountsTab({ currentUserId }) {
                   padding: '16px 20px',
                   background: '#fff',
                   borderRadius: 10,
-                  border: '1px solid #e8e8e8',
+                  border: `1px solid ${token.colorBorderSecondary}`,
                   boxShadow: '0 6px 20px rgba(0, 0, 0, 0.12)',
                   zIndex: 50,
                   minWidth: 280,
@@ -355,8 +364,8 @@ export default function AdminAccountsTab({ currentUserId }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ borderBottom: '1px solid #f0f0f0', borderTop: '1px solid #f0f0f0', overflow: 'auto', flex: 1, minHeight: 0 }}>
+      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column', ['--row-selected-bg']: token.colorPrimaryBg }}>
+        <div style={{ borderBottom: `1px solid ${token.colorBorderSecondary}`, borderTop: `1px solid ${token.colorBorderSecondary}`, overflow: 'auto', flex: 1, minHeight: 0 }}>
           <Table
             size="small"
             rowKey="id"
@@ -385,7 +394,7 @@ export default function AdminAccountsTab({ currentUserId }) {
       </div>
       <style>{`
         .ant-table-tbody > tr.admin-row-selected > td {
-          background: #fff7e6 !important;
+          background: var(--row-selected-bg) !important;
         }
         .ant-table-tbody > tr:hover > td {
           cursor: pointer;
@@ -516,6 +525,7 @@ export default function AdminAccountsTab({ currentUserId }) {
       <>
         {tableContent}
         {modals}
+        {stepUpModal}
       </>
     )
   }
@@ -537,6 +547,7 @@ export default function AdminAccountsTab({ currentUserId }) {
         </Splitter.Panel>
       </Splitter>
       {modals}
+      {stepUpModal}
     </>
   )
 }

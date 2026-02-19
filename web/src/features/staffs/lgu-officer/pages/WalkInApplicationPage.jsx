@@ -286,7 +286,11 @@ export default function WalkInApplicationPage() {
         return (
           <Card title="Computed Fees">
             {computingFees ? (
-              <div style={{ textAlign: 'center', padding: 48 }}><Spin tip="Computing fees..." /></div>
+              <div style={{ textAlign: 'center', padding: 48 }}>
+              <Spin tip="Computing fees...">
+                <div style={{ minHeight: 48 }} />
+              </Spin>
+            </div>
             ) : computedFees ? (
               <Space direction="vertical" style={{ width: '100%' }} size="large">
                 <Descriptions bordered column={1}>

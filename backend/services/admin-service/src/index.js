@@ -66,6 +66,7 @@ const formDefinitionsRouter = require('./routes/formDefinitions');
 const publicFormsRouter = require('./routes/publicForms');
 const penaltyConfigRouter = require('./routes/penaltyConfiguration');
 const generalPermitConfigRouter = require('./routes/generalPermitConfig');
+const feeConfigurationLogsRouter = require('./routes/feeConfigurationLogs');
 
 app.use('/api/admin', adminRouter);
 app.use('/api/admin/monitoring', monitoringRouter);
@@ -75,6 +76,7 @@ app.use('/api/admin/lgus', lgusRouter);
 app.use('/api/admin/forms', formDefinitionsRouter);
 app.use('/api/admin/penalty-configuration', penaltyConfigRouter);
 app.use('/api/admin/general-permit-config', generalPermitConfigRouter);
+app.use('/api/admin/fee-configuration-logs', feeConfigurationLogsRouter);
 // Public maintenance status endpoint (for frontend to check)
 app.use('/api/maintenance', maintenanceRouter);
 // Public LGU endpoints
@@ -155,6 +157,19 @@ async function start() {
         }
       } catch (error) {
         logger.warn('Tamper incidents seed failed', { error: error.message })
+      }
+    }
+
+    // Seed audit logs for dashboard "Recent admin activity" when SEED_DEV is set (idempotent)
+    if (process.env.NODE_ENV !== 'test' && process.env.SEED_DEV === 'true') {
+      try {
+        const { seedAuditLogsIfEmpty } = require('./seed/seedAuditLogs')
+        const result = await seedAuditLogsIfEmpty()
+        if (result.seeded) {
+          logger.info('Audit logs seeded', { created: result.created })
+        }
+      } catch (error) {
+        logger.warn('Audit logs seed failed', { error: error.message })
       }
     }
 

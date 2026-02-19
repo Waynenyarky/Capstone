@@ -18,6 +18,7 @@ import {
 } from 'antd'
 import { SearchOutlined, FilterOutlined, CloseOutlined, FileTextOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { get } from '@/lib/http.js'
 
 const { Text, Title } = Typography
 const { RangePicker } = DatePicker
@@ -154,7 +155,9 @@ function FeeLogDetailPanel({ log, token }) {
   )
 }
 
-export default function FeeConfigLogsTab() {
+const FETCH_LIMIT = 500
+
+export default function FeeConfigLogsTab({ initialLogId }) {
   const { token } = theme.useToken()
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md
@@ -193,8 +196,9 @@ export default function FeeConfigLogsTab() {
     try {
       setLoading(true)
       setLoadError(null)
-      // Placeholder: when backend adds GET /api/admin/fee-configuration-logs or similar, call it here
-      setEntries([])
+      const res = await get(`/api/admin/fee-configuration-logs?limit=${FETCH_LIMIT}`)
+      const list = res?.data?.logs ?? res?.logs ?? []
+      setEntries(Array.isArray(list) ? list : [])
     } catch (err) {
       setLoadError(err?.message || 'Failed to load logs')
       setEntries([])
@@ -206,6 +210,14 @@ export default function FeeConfigLogsTab() {
   useEffect(() => {
     loadLogs()
   }, [loadLogs])
+
+  useEffect(() => {
+    if (!initialLogId || !entries.length) return
+    const found = entries.find(
+      (e) => (e._id || e.id) === initialLogId || String(e._id || e.id) === String(initialLogId)
+    )
+    if (found) setSelectedLog(found)
+  }, [initialLogId, entries])
 
   const filteredEntries = useMemo(() => {
     let list = [...entries]
@@ -387,11 +399,11 @@ export default function FeeConfigLogsTab() {
         </div>
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column', ['--row-selected-bg']: token.colorPrimaryBg }}>
         <div
           style={{
-            borderBottom: '1px solid #f0f0f0',
-            borderTop: '1px solid #f0f0f0',
+            borderBottom: `1px solid ${token.colorBorderSecondary}`,
+            borderTop: `1px solid ${token.colorBorderSecondary}`,
             overflow: 'auto',
             flex: 1,
             minHeight: 0,
@@ -440,7 +452,7 @@ export default function FeeConfigLogsTab() {
       </div>
       <style>{`
         .ant-table-tbody > tr.log-row-selected > td {
-          background: #e6f4ff !important;
+          background: var(--row-selected-bg) !important;
         }
         .ant-table-tbody > tr:hover > td {
           cursor: pointer;
@@ -475,10 +487,10 @@ export default function FeeConfigLogsTab() {
 
   return (
     <Splitter style={{ height: '100%' }}>
-      <Splitter.Panel min="30%" defaultSize="30%" style={{ overflow: 'hidden' }}>
-        {tableContent}
-      </Splitter.Panel>
-      <Splitter.Panel min="40%" defaultSize="70%" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <Splitter.Panel min="30%" defaultSize="30%" style={{ overflow: 'hidden' }}>
+          {tableContent}
+        </Splitter.Panel>
+        <Splitter.Panel min="40%" defaultSize="70%" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {detailPanel}
       </Splitter.Panel>
     </Splitter>
