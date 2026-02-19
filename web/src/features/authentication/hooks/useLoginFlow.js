@@ -3,6 +3,7 @@ import { useLogin } from './useLogin.js'
 import { useAuthSession } from './useAuthSession.js'
 import { useRememberedEmail } from './useRememberedEmail.js'
 import { useNotifier } from '@/shared/notifications.js'
+import { loginPost } from '@/features/authentication/services'
 
 // Orchestrates the login UI flow (login -> verify) and keeps
 // business logic out of the component.
@@ -110,7 +111,7 @@ export function useLoginFlow({ onSubmit } = {}) {
       if (opts && opts.serverLoginPayload) {
         try {
           const payload = opts.serverLoginPayload
-          const serverUser = await import('@/features/authentication/services').then(mod => mod.loginPost(payload))
+          const serverUser = await loginPost(payload)
 
           // Strict validation: ensure the server returned an actual user-like
           // object (not an error wrapper). We accept if it contains at least
@@ -176,18 +177,19 @@ export function useLoginFlow({ onSubmit } = {}) {
 
   const initialValues = React.useMemo(() => ({ rememberMe: !!initialEmail, email: initialEmail }), [initialEmail])
 
-  // Dev helpers to prefill login form
+  // Dev helpers to prefill login form (uses VITE_DEV_EMAIL_* or falls back to @example.com)
   const prefill = (email, password) => {
     form.setFieldsValue({ email, password })
   }
-  const prefillAdmin = () => prefill('admin@example.com', devPassword)
-  const prefillAdmin2 = () => prefill('admin2@example.com', devPassword)
-  const prefillAdmin3 = () => prefill('admin3@example.com', devPassword)
-  const prefillUser = () => prefill('business@example.com', devPassword)
-  const prefillLguOfficer = () => prefill('officer@example.com', devPassword)
-  const prefillLguManager = () => prefill('manager@example.com', devPassword)
-  const prefillInspector = () => prefill('inspector@example.com', devPassword)
-  const prefillCso = () => prefill('cso@example.com', devPassword)
+  const env = (typeof import.meta !== 'undefined' && import.meta.env) || {}
+  const prefillAdmin = () => prefill(env.VITE_DEV_EMAIL_ADMIN || 'admin@example.com', devPassword)
+  const prefillAdmin2 = () => prefill(env.VITE_DEV_EMAIL_ADMIN2 || 'admin2@example.com', devPassword)
+  const prefillAdmin3 = () => prefill(env.VITE_DEV_EMAIL_ADMIN3 || 'admin3@example.com', devPassword)
+  const prefillUser = () => prefill(env.VITE_DEV_EMAIL_BUSINESS || 'business@example.com', devPassword)
+  const prefillLguOfficer = () => prefill(env.VITE_DEV_EMAIL_OFFICER || 'officer@example.com', devPassword)
+  const prefillLguManager = () => prefill(env.VITE_DEV_EMAIL_MANAGER || 'manager@example.com', devPassword)
+  const prefillInspector = () => prefill(env.VITE_DEV_EMAIL_INSPECTOR || 'inspector@example.com', devPassword)
+  const prefillCso = () => prefill(env.VITE_DEV_EMAIL_CSO || 'cso@example.com', devPassword)
 
   const verificationProps = {
     email: emailForVerify,

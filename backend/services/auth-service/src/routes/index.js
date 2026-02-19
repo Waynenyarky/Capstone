@@ -1,4 +1,5 @@
 const express = require('express')
+const { createCsrfMiddleware, getCsrfTokenHandler } = require('../lib/csrf')
 
 const signupRouter = require('./signup')
 const loginRouter = require('./login')
@@ -24,6 +25,11 @@ const sessionRouter = require('./session')
 const adminUsersRouter = require('./adminUsers')
 
 const router = express.Router()
+
+// REQUIREMENT IAS-2.7: CSRF token endpoint (double-submit cookie); SPA sends token in X-CSRF-Token header on mutating requests
+const csrfDisabled = process.env.DISABLE_CSRF === 'true' || process.env.NODE_ENV === 'test'
+router.get('/csrf-token', getCsrfTokenHandler({ sameSite: 'lax' }))
+router.use(createCsrfMiddleware({ skipPaths: ['/api/auth/csrf-token'], disabled: csrfDisabled }))
 
 // Compose feature routers under /api/auth
 router.use('/', signupRouter)

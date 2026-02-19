@@ -47,7 +47,29 @@ This will:
 ./scripts/open-services.sh
 ```
 
-See [QUICK_START.md](QUICK_START.md) for more details.
+### `./start.sh` flags
+
+`./start.sh` supports these flags (you can combine some; **`--production` cannot be used with `--dev` or `--clean`**):
+
+| Flag | Short | Description |
+|------|--------|-------------|
+| `--demo` | `-D` | **Security demo (4173)**: production build, no FAB/prefill, Mailinator seeds. **Uses same backend APIs** (auth 3001, etc.) — frontend is pre-built only. |
+| `--demo-ui` | — | **Demo UI (5173)**: dev server with hot reload but no FAB/prefill. Same backend APIs; clean demo look. |
+| `--production` | `-p` | **Full reset**: remove all containers and volumes, then start. DB is **empty**. Does not enable demo mode (still uses dev server and default seeds). |
+| `--dev` | `-d` | Development mode (auto-reload, FAB and prefill on login). |
+| `--clean` | — | Clean unused Docker resources (and optionally rebuild) before starting. |
+| `--status` | — | Show what’s running and disk usage; do not start anything. |
+| `--test` | `-t` | Run all tests (backend, web, blockchain). |
+| `--skip-ipfs` | — | Skip IPFS (use when the IPFS container fails). |
+
+**Ports:** **5173** = Vite dev server (proxy to APIs). **4173** = Vite preview (static build; API calls go to 3001–3004). **Both are connected to the same backend.**
+
+**Examples:**
+- `./start.sh --demo` — security demo on **4173** (production build, no dev UI). **Use for presentations.**
+- `./start.sh --demo-ui` — demo UI on **5173** (hot reload, no FAB/prefill).
+- `./start.sh --dev` — full dev on 5173 (FAB, prefill, auto-reload).
+- `./start.sh --production` — tear down everything (including DB), then start fresh (still dev server; for a demo after reset, run `./start.sh --demo` next).
+- `./start.sh --clean --dev` — clean Docker, then start in dev mode (cannot use `--clean` with `--production`).
 
 ---
 
@@ -63,8 +85,6 @@ This will automatically:
 - Start MongoDB, Ganache (blockchain), and IPFS
 - Deploy smart contracts
 - Start all microservices (Auth, Business, Admin, Audit)
-
-See [DOCKER_DEPLOY.md](DOCKER_DEPLOY.md) for detailed deployment instructions.
 
 ## Manual Setup
 
@@ -114,12 +134,29 @@ See [DOCKER_DEPLOY.md](DOCKER_DEPLOY.md) for detailed deployment instructions.
     - `VITE_BACKEND_ORIGIN=http://localhost:3001` (or use the hosted backend URL, get details from Pen)
   - `npm run dev`
 
-## Documentation
+## Testing and temporary emails
 
-- **Deployment**: [DOCKER_DEPLOY.md](DOCKER_DEPLOY.md) - Docker deployment guide
-- **Backend**: [BACKEND_README.md](BACKEND_README.md) - Backend architecture and API documentation
-- **Blockchain**: [blockchain_prototype_plan.md](blockchain_prototype_plan.md) - Blockchain prototype plan; [docs/blockchain-logging-flows.md](docs/blockchain-logging-flows.md) - Blockchain integration flows
-- **Features**:
-  - [2FA_SETUP.md](2FA_SETUP.md) - Two-factor authentication setup
-  - [BIOMETRICS.md](BIOMETRICS.md) - Biometric authentication
-  - [SSO.md](SSO.md) - Single Sign-On (Google OAuth)
+- **Temporary emails**: Use [Mailinator](https://www.mailinator.com) addresses (e.g. `anything@mailinator.com`) to receive OTPs when testing signup, login, or password reset. Read mail at mailinator.com by entering the part before `@`.
+- **Five role accounts (LGU Officer, Manager, Admin, Admin 2, Admin 3)**  
+  - **Production / demo mode** (`./start.sh --demo`): The seed **always** uses Mailinator addresses for these roles (no `admin@example.com`). Defaults are `bizclear-officer@mailinator.com`, `bizclear-admin@mailinator.com`, etc. You can override them in `.env` (see below). Log in with those emails and `SEED_TEMP_PASSWORD` (default `TempPass123!`); read OTPs at [mailinator.com](https://www.mailinator.com).
+  - **Development**: To use Mailinator in dev too, add these to the **project root** `.env` (same folder as `docker-compose.yml`):
+  ```bash
+  DEV_EMAIL_OFFICER=bizclear-officer@mailinator.com
+  DEV_EMAIL_MANAGER=bizclear-manager@mailinator.com
+  DEV_EMAIL_ADMIN=bizclear-admin@mailinator.com
+  DEV_EMAIL_ADMIN2=bizclear-admin2@mailinator.com
+  DEV_EMAIL_ADMIN3=bizclear-admin3@mailinator.com
+  ```
+  Then **restart the stack** so the seed runs: `./stop.sh` then `./start.sh` (or `./start.sh --dev`), or `docker-compose up -d --force-recreate auth-service`.
+  - Log in at **http://localhost:5173** (dev) or **http://localhost:4173** (demo) with the seeded email and `SEED_TEMP_PASSWORD`. Read OTPs at [mailinator.com](https://www.mailinator.com) (inbox: e.g. `bizclear-admin`).
+- **Generate test addresses**: `node backend/scripts/generate-test-email.js` (one-off address) or `node backend/scripts/generate-test-email.js roles` (print the five role emails and `.env` snippet).
+
+**Getting 401 Unauthorized or “Invalid email or password” with Mailinator emails?**
+
+1. **Confirm default accounts work** – Try **admin@example.com** with password **TempPass123!** (include the `!`). If that works, the backend is fine and the Mailinator users were not seeded.
+2. **Recreate the auth container** so it picks up your `.env` and re-runs the seed:
+   ```bash
+   docker-compose up -d --force-recreate auth-service
+   ```
+   Wait ~10 seconds, then try **bizclear-admin@mailinator.com** again with **TempPass123!**.
+3. **Check password** – Use exactly **TempPass123!** (capital T, P, and the exclamation mark). Or set `SEED_TEMP_PASSWORD` in `.env` and use that value after recreating the auth-service.

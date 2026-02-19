@@ -17,8 +17,13 @@ export function DevToolsProvider({ children }) {
   const navigate = useNavigate()
   const { notification, message } = App.useApp()
 
+  // Only enable in development. In production build (--demo) or demo-ui mode (--demo-ui), never show FAB/panel.
+  const isProductionBuild = import.meta.env.MODE === 'production' && import.meta.env.DEV === false
+  const isDemoUi = import.meta.env.VITE_DEMO_UI === 'true'
   const enabled =
     typeof window !== 'undefined' &&
+    !isProductionBuild &&
+    !isDemoUi &&
     (import.meta.env.DEV === true ||
       import.meta.env.MODE !== 'production' ||
       window.localStorage.getItem('ENABLE_DEVTOOLS') === 'true')

@@ -176,10 +176,12 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
     return <Navigate to={target} replace />
   }
 
-  const needsOnboarding = staffRoles.includes(roleKey) && (currentUser?.mustChangeCredentials || currentUser?.mustSetupMfa)
+  // Staff and admin must complete onboarding (MFA/password) before accessing protected areas
+  const needsOnboarding = (staffRoles.includes(roleKey) || roleKey === 'admin') && (currentUser?.mustChangeCredentials || currentUser?.mustSetupMfa)
   const onboardingAllowedPaths = ['/staff/onboarding', '/mfa/setup']
   if (needsOnboarding && !onboardingAllowedPaths.includes(location.pathname)) {
-    return <Navigate to="/staff/onboarding" replace state={{ from: location }} />
+    const onboardingTarget = roleKey === 'admin' ? '/mfa/setup' : '/staff/onboarding'
+    return <Navigate to={onboardingTarget} replace state={{ from: location }} />
   }
 
   // If roles are specified and user doesn't match

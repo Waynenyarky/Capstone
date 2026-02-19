@@ -60,6 +60,7 @@ mongoose.Aggregate.prototype.exec = function(...args) {
   return result;
 };
 
+// Production must use TLS for MongoDB (e.g. mongodb+srv or tls=true in MONGO_URI). REQUIREMENT IAS-3.6.
 async function connectDB(uri) {
   if (!uri) {
     logger.warn('MONGO_URI not set. Skipping MongoDB connection.');

@@ -69,6 +69,51 @@ async function seedDevDataIfEmpty() {
     const tempPassword = process.env.SEED_TEMP_PASSWORD || 'TempPass123!';
     const tempPasswordHash = await bcrypt.hash(tempPassword, 10);
 
+    // In production (demo mode), never seed @example.com for role accounts — use Mailinator only.
+    const isProduction = process.env.NODE_ENV === 'production';
+    const mailinatorDefaults = {
+      officer: 'bizclear-officer@mailinator.com',
+      manager: 'bizclear-manager@mailinator.com',
+      admin: 'bizclear-admin@mailinator.com',
+      admin2: 'bizclear-admin2@mailinator.com',
+      admin3: 'bizclear-admin3@mailinator.com',
+      inspector: 'bizclear-inspector@mailinator.com',
+      cso: 'bizclear-cso@mailinator.com',
+      business: 'bizclear-business@mailinator.com',
+    };
+    const devEmails = {
+      officer: process.env.DEV_EMAIL_OFFICER || (isProduction ? mailinatorDefaults.officer : 'officer@example.com'),
+      manager: process.env.DEV_EMAIL_MANAGER || (isProduction ? mailinatorDefaults.manager : 'manager@example.com'),
+      admin: process.env.DEV_EMAIL_ADMIN || (isProduction ? mailinatorDefaults.admin : 'admin@example.com'),
+      admin2: process.env.DEV_EMAIL_ADMIN2 || (isProduction ? mailinatorDefaults.admin2 : 'admin2@example.com'),
+      admin3: process.env.DEV_EMAIL_ADMIN3 || (isProduction ? mailinatorDefaults.admin3 : 'admin3@example.com'),
+      inspector: process.env.DEV_EMAIL_INSPECTOR || (isProduction ? mailinatorDefaults.inspector : 'inspector@example.com'),
+      cso: process.env.DEV_EMAIL_CSO || (isProduction ? mailinatorDefaults.cso : 'cso@example.com'),
+      business: process.env.DEV_EMAIL_BUSINESS || (isProduction ? mailinatorDefaults.business : 'business@example.com'),
+    };
+
+    // In production, remove stale @example.com seeder accounts BEFORE creating new ones
+    // (avoids unique-index conflicts on phoneNumber, etc.)
+    if (isProduction) {
+      const activeEmails = Object.values(devEmails);
+      const staleExampleAccounts = [
+        'admin@example.com', 'admin2@example.com', 'admin3@example.com',
+        'officer@example.com', 'manager@example.com',
+        'inspector@example.com', 'cso@example.com',
+        'business@example.com',
+      ].filter(e => !activeEmails.includes(e));
+
+      if (staleExampleAccounts.length > 0) {
+        const result = await User.deleteMany({
+          email: { $in: staleExampleAccounts },
+          createdBy: 'seeder',
+        });
+        if (result.deletedCount > 0) {
+          logger.info(`Production cleanup: removed ${result.deletedCount} stale @example.com seeder account(s)`);
+        }
+      }
+    }
+
     // Helper to ensure a user exists
     const ensureUser = async (email, roleSlug, firstName, lastName, phoneNumber, overrides = {}) => {
       const roleDoc = await Role.findOne({ slug: roleSlug });
@@ -103,48 +148,48 @@ async function seedDevDataIfEmpty() {
     };
 
     // Ensure admin accounts
-    await ensureUser('admin@example.com', 'admin', 'Alice', 'Admin', '+10000000090', {
+    await ensureUser(devEmails.admin, 'admin', 'Alice', 'Admin', '+10000000090', {
       mustChangeCredentials: true,
       mustSetupMfa: true,
     });
-    await ensureUser('admin2@example.com', 'admin', 'Alex', 'Admin', '+10000000091', {
+    await ensureUser(devEmails.admin2, 'admin', 'Alex', 'Admin', '+10000000091', {
       mustChangeCredentials: true,
       mustSetupMfa: true,
     });
-    await ensureUser('admin3@example.com', 'admin', 'Avery', 'Admin', '+10000000092', {
+    await ensureUser(devEmails.admin3, 'admin', 'Avery', 'Admin', '+10000000092', {
       mustChangeCredentials: true,
       mustSetupMfa: true,
     });
 
     // Ensure staff accounts (each assigned to an office)
-    await ensureUser('officer@example.com', 'lgu_officer', 'Larry', 'Officer', '+1-555-0303', {
+    await ensureUser(devEmails.officer, 'lgu_officer', 'Larry', 'Officer', '+1-555-0303', {
       mustChangeCredentials: true,
       mustSetupMfa: true,
       isStaff: true,
       office: 'OSBC',
     });
-    await ensureUser('manager@example.com', 'lgu_manager', 'Mary', 'Manager', '+1-555-0404', {
+    await ensureUser(devEmails.manager, 'lgu_manager', 'Mary', 'Manager', '+1-555-0404', {
       mustChangeCredentials: true,
       mustSetupMfa: true,
       isStaff: true,
       office: 'CTO',
     });
-    await ensureUser('inspector@example.com', 'inspector', 'Ian', 'Inspector', '+1-555-0505', {
+    await ensureUser(devEmails.inspector, 'inspector', 'Ian', 'Inspector', '+1-555-0505', {
       mustChangeCredentials: true,
       mustSetupMfa: true,
       isStaff: true,
       office: 'BFP',
     });
-    await ensureUser('cso@example.com', 'cso', 'Charlie', 'Support', '+1-555-0606', {
+    await ensureUser(devEmails.cso, 'cso', 'Charlie', 'Support', '+1-555-0606', {
       mustChangeCredentials: true,
       mustSetupMfa: true,
       isStaff: true,
       office: 'OSBC',
     });
 
-    // Ensure business owner (dev-only: no forced password change or MFA so you can log in without OTP/setup)
-    await ensureUser('business@example.com', 'business_owner', 'Bob', 'Business', '+10000000093', {
-      mustChangeCredentials: false,
+    // Ensure business owner
+    await ensureUser(devEmails.business, 'business_owner', 'Bob', 'Business', '+10000000093', {
+      mustChangeCredentials: isProduction,
       mustSetupMfa: false,
       mfaEnabled: false,
       mfaMethod: '',

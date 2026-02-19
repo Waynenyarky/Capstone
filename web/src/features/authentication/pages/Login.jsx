@@ -7,8 +7,14 @@ export default function Login() {
 
   const handleLoginSuccess = React.useCallback((user) => {
     const role = String(user?.role?.slug || user?.role || '').toLowerCase()
-    
+    const needsOnboarding = !!(user?.mustChangeCredentials || user?.mustSetupMfa)
+
     if (role === 'admin') {
+      // Seeded admin first-login: must complete MFA (and optionally change password) before using the app
+      if (needsOnboarding) {
+        navigate('/mfa/setup', { state: { from: '/admin/dashboard' }, replace: true })
+        return
+      }
       navigate('/admin/dashboard')
       return
     }

@@ -129,9 +129,9 @@ export default function LoginForm({ onSubmit } = {}) {
     }
   }, [])
 
-  // Listen for devtools-driven prefill events (global FAB)
+  // Listen for devtools-driven prefill events (global FAB) — only in dev, not in demo-ui
   React.useEffect(() => {
-    if (import.meta.env.MODE === 'production') return undefined
+    if (import.meta.env.DEV !== true || import.meta.env.VITE_DEMO_UI === 'true') return undefined
     const handler = (event) => {
       const preset = event?.detail?.preset
       const map = {
@@ -267,8 +267,8 @@ export default function LoginForm({ onSubmit } = {}) {
             <Text type="secondary">Don't have an account? </Text>
             <Button type="link" onClick={() => navigate('/sign-up')} style={{ padding: 0, fontWeight: 600, color: '#001529' }} className="auth-link-hover">Sign up</Button>
           </div>
-          {/* Dev Prefill Controls - Hidden in production */}
-          {import.meta.env.MODE !== 'production' && (
+          {/* Dev Prefill Controls - Hidden in production build and demo-ui (--demo / --demo-ui) */}
+          {import.meta.env.DEV === true && import.meta.env.VITE_DEMO_UI !== 'true' && (
              <div style={{ marginTop: 24, textAlign: 'center', opacity: 0.5 }}>
                 <Dropdown
                   menu={{

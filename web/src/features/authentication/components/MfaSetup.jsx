@@ -36,10 +36,12 @@ export default function MfaSetup() {
     cardShadow: '0 12px 32px rgba(0, 21, 41, 0.4)'
   }
 
-  // Determine role-based logic
+  // Determine role-based logic (admin and staff may need MFA setup or full onboarding)
   const roleKey = String(role?.slug || role || '').toLowerCase()
   const isStaffRole = ['lgu_officer', 'lgu_manager', 'inspector', 'cso', 'staff'].includes(roleKey)
-  const needsOnboarding = isStaffRole && (!!currentUser?.mustSetupMfa || !!currentUser?.mustChangeCredentials)
+  const isAdmin = roleKey === 'admin'
+  const needsOnboarding = (isStaffRole || isAdmin) && (!!currentUser?.mustSetupMfa || !!currentUser?.mustChangeCredentials)
+  const postMfaTarget = isAdmin ? '/admin/dashboard' : (needsOnboarding ? '/staff/onboarding' : null)
 
   // Sync step with state
   useEffect(() => {
@@ -60,8 +62,10 @@ export default function MfaSetup() {
   const handleVerifyAndContinue = async () => {
     const ok = await handleVerify()
     if (!ok) return
-    if (needsOnboarding) {
-      navigate('/staff/onboarding', { replace: true })
+    if (postMfaTarget) {
+      navigate(postMfaTarget, { replace: true })
+    } else {
+      navigate(-1)
     }
   }
 
@@ -81,8 +85,8 @@ export default function MfaSetup() {
           title="Two-Factor Authentication Enabled"
           subTitle="Your account is now secured. You will need to enter a verification code when signing in."
           extra={[
-            <Button type="primary" key="continue" onClick={() => needsOnboarding ? navigate('/staff/onboarding', { replace: true }) : navigate(-1)}>
-              {needsOnboarding ? 'Continue Onboarding' : 'Return to Settings'}
+            <Button type="primary" key="continue" onClick={() => (postMfaTarget ? navigate(postMfaTarget, { replace: true }) : navigate(-1))}>
+              {postMfaTarget ? (isAdmin ? 'Go to Admin Dashboard' : 'Continue Onboarding') : 'Return to Settings'}
             </Button>,
             <Button key="disable" danger onClick={handleDisable} loading={loading}>
               Disable MFA

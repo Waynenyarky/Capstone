@@ -5,7 +5,7 @@ import LGUOfficerDashboard from '../lgu-officer/pages/LGUOfficerDashboard'
 import LGUManagerDashboard from '../lgu-manager/pages/LGUManagerDashboard'
 import InspectorDashboard from '../inspector/pages/InspectorDashboard'
 import CSODashboard from '../cso/pages/CSODashboard'
-import { PlaceholderPage } from '@/features/shared'
+import PlaceholderPage from '@/features/shared/pages/PlaceholderPage.jsx'
 
 export default function StaffDashboard() {
   const { role, currentUser } = useAuthSession()

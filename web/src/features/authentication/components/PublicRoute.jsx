@@ -20,6 +20,9 @@ export default function PublicRoute({ children }) {
     const state = location.state // Preserve state (e.g. notifications) during redirect
 
     if (r === 'admin') {
+      if (currentUser?.mustChangeCredentials || currentUser?.mustSetupMfa) {
+        return <Navigate to="/mfa/setup" replace state={{ ...state, from: '/admin/dashboard' }} />
+      }
       return <Navigate to="/admin/dashboard" replace state={state} />
     }
     

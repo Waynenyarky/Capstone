@@ -52,7 +52,7 @@ const WalkInApplicationPage = lazy(() => import("@/features/staffs/lgu-officer/p
 const InspectionManagementPage = lazy(() => import("@/features/staffs/lgu-officer/pages/InspectionManagementPage.jsx"))
 const CessationReviewPage = lazy(() => import("@/features/staffs/lgu-officer/pages/CessationReviewPage.jsx"))
 const StaffAppealsPage = lazy(() => import("@/features/staffs/lgu-officer/pages/StaffAppealsPage.jsx"))
-const PlaceholderPage = lazy(() => import("@/features/shared").then(m => ({ default: m.PlaceholderPage })))
+const PlaceholderPage = lazy(() => import("@/features/shared/pages/PlaceholderPage.jsx"))
 const LGUManagerDashboard = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.LGUManagerDashboard })))
 const ReportsAnalyticsPage = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.ReportsAnalyticsPage })))
 const PermitApplicationsOverviewPage = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.PermitApplicationsOverviewPage })))

@@ -2,7 +2,7 @@ import { Form, App } from 'antd'
 import { useState } from 'react'
 import { changePassword, changePasswordStart, changePasswordVerify, loginPost } from "@/features/authentication/services"
 import { useNotifier } from '@/shared/notifications.js'
-import { getCurrentUser } from '@/features/authentication/lib/authEvents.js'
+import { getCurrentUser, setCurrentUser } from '@/features/authentication/lib/authEvents.js'
 import { useAuthSession } from '@/features/authentication/hooks/useAuthSession.js'
 
 export function useChangePasswordForm({ onSubmit, email, resetToken, isLoggedInFlow = false } = {}) {
@@ -75,7 +75,6 @@ export function useChangePasswordForm({ onSubmit, email, resetToken, isLoggedInF
         // Update the user session with the new token from the response
         // This ensures the user stays logged in after password change
         if (user && user.token) {
-          const { setCurrentUser } = await import('@/features/authentication/lib/authEvents.js')
           const current = getCurrentUser()
           const remember = !!localStorage.getItem('auth__currentUser')
           
@@ -100,8 +99,7 @@ export function useChangePasswordForm({ onSubmit, email, resetToken, isLoggedInF
         } else {
           // If no token returned, user needs to log in again
           success('Password changed successfully. Please log in again with your new password.')
-          setTimeout(async () => {
-            const { setCurrentUser } = await import('@/features/authentication/lib/authEvents.js')
+          setTimeout(() => {
             setCurrentUser(null)
             try {
               localStorage.removeItem('auth__currentUser')

@@ -27,6 +27,14 @@ app.use(cors({
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
+// CSRF (IAS-2.7): cookie-parser required for double-submit cookie; token endpoint and middleware for /api/admin
+let cookieParser;
+try { cookieParser = require('cookie-parser'); app.use(cookieParser()); } catch (_) { /* optional */ }
+const csrfDisabled = process.env.DISABLE_CSRF === 'true' || process.env.NODE_ENV === 'test';
+const { createCsrfMiddleware, getCsrfTokenHandler } = require('../../../shared/csrf');
+app.get('/api/admin/csrf-token', getCsrfTokenHandler({ sameSite: 'lax' }));
+app.use('/api/admin', createCsrfMiddleware({ skipPaths: ['/api/admin/csrf-token'], disabled: csrfDisabled }));
+
 if (process.env.NODE_ENV !== 'production') {
   let morgan
   try { morgan = require('morgan') } catch (_) { morgan = null }

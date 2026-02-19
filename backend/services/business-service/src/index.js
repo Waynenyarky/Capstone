@@ -27,6 +27,18 @@ app.use(cors({
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
+// CSRF (IAS-2.7): cookie-parser for double-submit cookie; token endpoint and middleware for /api/business and /api/inspector, /api/lgu-officer
+let cookieParser;
+try { cookieParser = require('cookie-parser'); app.use(cookieParser()); } catch (_) { /* optional */ }
+const csrfDisabled = process.env.DISABLE_CSRF === 'true' || process.env.NODE_ENV === 'test';
+const { createCsrfMiddleware, getCsrfTokenHandler } = require('../../../shared/csrf');
+app.get('/api/business/csrf-token', getCsrfTokenHandler({ sameSite: 'lax' }));
+app.get('/api/inspector/csrf-token', getCsrfTokenHandler({ sameSite: 'lax' }));
+app.get('/api/lgu-officer/csrf-token', getCsrfTokenHandler({ sameSite: 'lax' }));
+app.use('/api/business', createCsrfMiddleware({ skipPaths: ['/api/business/csrf-token'], disabled: csrfDisabled }));
+app.use('/api/inspector', createCsrfMiddleware({ skipPaths: ['/api/inspector/csrf-token'], disabled: csrfDisabled }));
+app.use('/api/lgu-officer', createCsrfMiddleware({ skipPaths: ['/api/lgu-officer/csrf-token'], disabled: csrfDisabled }));
+
 if (process.env.NODE_ENV !== 'production') {
   let morgan
   try { morgan = require('morgan') } catch (_) { morgan = null }

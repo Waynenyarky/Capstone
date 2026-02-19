@@ -1,0 +1,10 @@
+# Production/demo override: NODE_ENV=production, no dev bypasses; keep seeded accounts for demo.
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Or with --skip-ipfs: -f docker-compose.yml -f docker-compose.no-ipfs.yml -f docker-compose.prod.yml
+
+services:
+  auth-service:
+    environment:
+      - NODE_ENV=production
+      - SEED_DEV=true
+      - ALLOW_SEEDED_MFA_SETUP=true

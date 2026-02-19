@@ -24,11 +24,24 @@ docker-compose down 2>/dev/null || docker-compose -f docker-compose.yml -f docke
 
 echo -e "\n${GREEN}✅ All Docker services stopped!${NC}\n"
 
-# Stop web dev server if running
+# Stop web preview server (demo/production build on 4173) if running
+if [ -f "/tmp/web-preview-server.pid" ]; then
+  WEB_PID=$(cat /tmp/web-preview-server.pid)
+  if ps -p $WEB_PID > /dev/null 2>&1; then
+    echo -e "${CYAN}🛑 Stopping web preview server (4173)...${NC}"
+    kill $WEB_PID 2>/dev/null || true
+    rm -f /tmp/web-preview-server.pid
+    echo -e "${GREEN}✅ Web preview server stopped${NC}\n"
+  else
+    rm -f /tmp/web-preview-server.pid
+  fi
+fi
+
+# Stop web dev server (Vite HMR on 5173) if running
 if [ -f "/tmp/web-dev-server.pid" ]; then
   WEB_PID=$(cat /tmp/web-dev-server.pid)
   if ps -p $WEB_PID > /dev/null 2>&1; then
-    echo -e "${CYAN}🛑 Stopping web dev server...${NC}"
+    echo -e "${CYAN}🛑 Stopping web dev server (5173)...${NC}"
     kill $WEB_PID 2>/dev/null || true
     rm -f /tmp/web-dev-server.pid
     echo -e "${GREEN}✅ Web dev server stopped${NC}\n"
@@ -37,10 +50,12 @@ if [ -f "/tmp/web-dev-server.pid" ]; then
   fi
 fi
 
-# Also kill any remaining vite processes
-if pgrep -f "vite.*5173" > /dev/null; then
-  echo -e "${CYAN}🛑 Stopping any remaining web dev servers...${NC}"
+# Also kill any remaining vite processes (dev or preview)
+if pgrep -f "vite.*5173" > /dev/null || pgrep -f "vite preview" > /dev/null || pgrep -f "vite.*4173" > /dev/null; then
+  echo -e "${CYAN}🛑 Stopping any remaining web servers...${NC}"
   pkill -f "vite.*5173" 2>/dev/null || true
+  pkill -f "vite preview" 2>/dev/null || true
+  pkill -f "vite.*4173" 2>/dev/null || true
   echo -e "${GREEN}✅ All web servers stopped${NC}\n"
 fi
 

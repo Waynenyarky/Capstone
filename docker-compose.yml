@@ -125,6 +125,14 @@ services:
       - AUDIT_SERVICE_URL=${DOCKER_AUDIT_SERVICE_URL}
       - SEED_DEV=true
       - SEED_TEMP_PASSWORD=${SEED_TEMP_PASSWORD:-TempPass123!}
+      - DEV_EMAIL_OFFICER=${DEV_EMAIL_OFFICER:-}
+      - DEV_EMAIL_MANAGER=${DEV_EMAIL_MANAGER:-}
+      - DEV_EMAIL_ADMIN=${DEV_EMAIL_ADMIN:-}
+      - DEV_EMAIL_ADMIN2=${DEV_EMAIL_ADMIN2:-}
+      - DEV_EMAIL_ADMIN3=${DEV_EMAIL_ADMIN3:-}
+      - DEV_EMAIL_INSPECTOR=${DEV_EMAIL_INSPECTOR:-}
+      - DEV_EMAIL_CSO=${DEV_EMAIL_CSO:-}
+      - DEV_EMAIL_BUSINESS=${DEV_EMAIL_BUSINESS:-}
     volumes:
       - contract_addresses:/app/contract-addresses:ro
     restart: unless-stopped

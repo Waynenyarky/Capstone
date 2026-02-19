@@ -114,6 +114,7 @@ router.get('/session/active', requireJwt, async (req, res) => {
 const invalidateSessionSchema = Joi.object({
   sessionId: Joi.string().required(),
 })
+// REQUIREMENT IAS-1.8: logout invalidates session (invalidate one or all)
 router.post('/session/invalidate', requireJwt, validateBody(invalidateSessionSchema), async (req, res) => {
   try {
     const userId = req._userId

@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import react from '@vitejs/plugin-react';
 
@@ -171,8 +172,21 @@ if (ENABLE_STORYBOOK_TESTS) {
   });
 }
 
+// Read DEV_EMAIL_* from root .env so dev prefill buttons use the correct emails.
+// Vite only exposes VITE_ vars, so we bridge them here as compile-time defines.
+const rootEnvPath = path.resolve(__dirname, '..', '.env');
+const devEmailDefines = {};
+try {
+  const rootEnv = fs.readFileSync(rootEnvPath, 'utf-8');
+  for (const line of rootEnv.split('\n')) {
+    const m = line.match(/^\s*(DEV_EMAIL_\w+)\s*=\s*(.+?)\s*$/);
+    if (m) devEmailDefines[`import.meta.env.VITE_${m[1]}`] = JSON.stringify(m[2]);
+  }
+} catch { /* root .env missing — prefills use @example.com defaults */ }
+
 export default defineConfig({
   plugins: [react()],
+  define: devEmailDefines,
   build: {
     rollupOptions: {
       output: {

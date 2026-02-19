@@ -248,31 +248,40 @@ else
 fi
 sleep 0.5
 
-# Web frontend - always try to open (will show error if not running)
-# Check if web server is running using multiple methods for cross-platform compatibility
+# Web frontend - use WEB_APP_PORT if set (e.g. 4173 for demo/preview), else 5173 (dev server)
+WEB_APP_PORT="${WEB_APP_PORT:-5173}"
+if [ "${PRODUCTION_DEMO:-0}" = "1" ] && [ "$WEB_APP_PORT" = "5173" ]; then
+    WEB_APP_PORT=4173
+fi
+
+# Check if web server is running on the chosen port
 WEB_RUNNING=false
-if command -v nc >/dev/null 2>&1 && nc -z localhost 5173 2>/dev/null; then
+if command -v nc >/dev/null 2>&1 && nc -z localhost "$WEB_APP_PORT" 2>/dev/null; then
     WEB_RUNNING=true
-elif command -v curl >/dev/null 2>&1 && curl -s --max-time 1 "http://localhost:5173" >/dev/null 2>&1; then
+elif command -v curl >/dev/null 2>&1 && curl -s --max-time 1 "http://localhost:$WEB_APP_PORT" >/dev/null 2>&1; then
     WEB_RUNNING=true
-elif command -v timeout >/dev/null 2>&1 && timeout 1 bash -c "echo > /dev/tcp/localhost/5173" 2>/dev/null; then
+elif command -v timeout >/dev/null 2>&1 && timeout 1 bash -c "echo > /dev/tcp/localhost/$WEB_APP_PORT" 2>/dev/null; then
     WEB_RUNNING=true
 fi
 
 if [ "$WEB_RUNNING" = true ]; then
-    open_browser "http://localhost:5173" "Web App"
+    open_browser "http://localhost:$WEB_APP_PORT" "Web App"
     sleep 0.5
 else
-    echo -e "${YELLOW}   ℹ️  Web frontend not running, but opening anyway...${NC}"
-    echo -e "${YELLOW}   (Start it with: cd web && npm run dev)${NC}"
-    open_browser "http://localhost:5173" "Web App (Not Running)"
+    echo -e "${YELLOW}   ℹ️  Web frontend not running on port $WEB_APP_PORT, but opening anyway...${NC}"
+    if [ "$WEB_APP_PORT" = "4173" ]; then
+        echo -e "${YELLOW}   (Demo mode: start with ./start.sh --demo)${NC}"
+    else
+        echo -e "${YELLOW}   (Start it with: cd web && npm run dev)${NC}"
+    fi
+    open_browser "http://localhost:$WEB_APP_PORT" "Web App (Not Running)"
 fi
 
 echo -e "\n${GREEN}✅ Done! Browser tabs should be open.${NC}\n"
 echo -e "${CYAN}💡 Tip: If tabs didn't open, check your browser - they might be in the background.${NC}"
 echo -e "${CYAN}💡 Tip: Bookmark these pages for quick access!${NC}\n"
 echo -e "${YELLOW}📋 Quick URLs (copy/paste these if needed):${NC}"
-echo -e "   Web App: http://localhost:5173"
+echo -e "   Web App: http://localhost:$WEB_APP_PORT"
 echo -e "   Dozzle (live logs): http://localhost:9999"
 echo -e "   IPFS Gateway: http://localhost:8080/ipfs/{CID}"
 echo -e "   IPFS Web UI: http://localhost:5001/webui"
@@ -282,7 +291,11 @@ echo -e "   Admin API: http://localhost:3003/api/health"
 echo -e "   Audit API: http://localhost:3004/api/health"
 echo -e "   MongoDB: mongodb://localhost:27017/capstone_project"
 echo ""
-echo -e "${CYAN}💡 To start the web frontend: cd web && npm run dev${NC}"
+if [ "$WEB_APP_PORT" = "4173" ]; then
+    echo -e "${CYAN}💡 Demo mode: Web app is served from production build (npm run preview).${NC}"
+else
+    echo -e "${CYAN}💡 To start the web frontend: cd web && npm run dev${NC}"
+fi
 echo ""
 
 # No temp file to clean up anymore

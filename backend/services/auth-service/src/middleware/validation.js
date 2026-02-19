@@ -1,7 +1,7 @@
 const Joi = require('joi')
 const respond = require('./respond')
 
-function validateBody(schema) {
+function validateBody(schema) { // REQUIREMENT IAS-2.1 / IAS-2.5: server-side input and API schema validation
   return (req, res, next) => {
     // Store original body for role check
     req._originalBody = req.body || {}

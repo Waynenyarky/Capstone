@@ -6,12 +6,17 @@
 # when everything is ready. No need to remember commands!
 #
 # Usage:
-#   ./start.sh              # Production mode (no auto-reload)
-#   ./start.sh --dev        # Development mode (auto-reload enabled)
+#   ./start.sh              # Default (no auto-reload)
+#   ./start.sh --demo       # Security demo (production build on 4173, no FAB/prefill; uses same API)
+#   ./start.sh --demo-ui    # Demo UI on dev server (5173): hot reload, no FAB/prefill, same API
+#   ./start.sh --production # Full reset (containers + volumes; DB empty) then start
+#   ./start.sh --dev        # Development mode (auto-reload + FAB/prefill on 5173)
 #   ./start.sh --clean      # Clean up unused Docker resources before starting
 #   ./start.sh --status     # Just show status, don't start anything
 #   ./start.sh --test       # Run all tests (backend, web, blockchain)
 #   ./start.sh --skip-ipfs  # Skip IPFS (use when IPFS container fails)
+#
+# Note: --production cannot be combined with --dev or --clean. --demo cannot be combined with --dev, --production, or --clean.
 
 # Don't exit on error - we want to continue even if web server fails
 set +e
@@ -26,6 +31,9 @@ NC='\033[0m' # No Color
 
 # Parse arguments
 DEV_MODE=false
+DEMO_MODE=false
+DEMO_UI_MODE=false
+PRODUCTION_MODE=false
 SKIP_IPFS=false
 CLEAN_DOCKER=false
 STATUS_ONLY=false
@@ -35,6 +43,15 @@ for arg in "$@"; do
   case $arg in
     --dev|-d)
       DEV_MODE=true
+      ;;
+    --demo|-D)
+      DEMO_MODE=true
+      ;;
+    --demo-ui)
+      DEMO_UI_MODE=true
+      ;;
+    --production|-p)
+      PRODUCTION_MODE=true
       ;;
     --skip-ipfs)
       SKIP_IPFS=true
@@ -50,6 +67,47 @@ for arg in "$@"; do
       ;;
   esac
 done
+
+# --production cannot be used with --dev or --clean
+if [ "$PRODUCTION_MODE" = true ]; then
+  if [ "$DEV_MODE" = true ]; then
+    echo -e "${RED}Error: --production cannot be used with --dev.${NC}"
+    echo -e "   Use either ./start.sh --production or ./start.sh --dev"
+    exit 1
+  fi
+  if [ "$CLEAN_DOCKER" = true ]; then
+    echo -e "${RED}Error: --production cannot be used with --clean.${NC}"
+    echo -e "   Use either ./start.sh --production or ./start.sh --clean [--dev]"
+    exit 1
+  fi
+fi
+
+# --demo cannot be used with --dev, --production, or --clean
+if [ "$DEMO_MODE" = true ]; then
+  if [ "$DEV_MODE" = true ] || [ "$DEMO_UI_MODE" = true ]; then
+    echo -e "${RED}Error: --demo cannot be used with --dev or --demo-ui.${NC}"
+    exit 1
+  fi
+  if [ "$PRODUCTION_MODE" = true ]; then
+    echo -e "${RED}Error: --demo cannot be used with --production.${NC}"
+    exit 1
+  fi
+  if [ "$CLEAN_DOCKER" = true ]; then
+    echo -e "${RED}Error: --demo cannot be used with --clean.${NC}"
+    exit 1
+  fi
+fi
+# --demo-ui cannot be combined with --demo or --production
+if [ "$DEMO_UI_MODE" = true ]; then
+  if [ "$DEMO_MODE" = true ]; then
+    echo -e "${RED}Error: --demo-ui cannot be used with --demo.${NC}"
+    exit 1
+  fi
+  if [ "$PRODUCTION_MODE" = true ]; then
+    echo -e "${RED}Error: --demo-ui cannot be used with --production.${NC}"
+    exit 1
+  fi
+fi
 
 # ================================
 # Check for Already Running Services
@@ -100,6 +158,7 @@ if [ "$STATUS_ONLY" = true ]; then
   echo -e "${CYAN}💡 Commands:${NC}"
   echo -e "   • Start services: ./start.sh --dev"
   echo -e "   • Stop services:  ./stop.sh"
+  echo -e "   • Production:     ./start.sh --production  (full reset + empty DB)"
   echo -e "   • Clean Docker:   ./start.sh --clean --dev"
   echo -e "   • Run all tests:  ./start.sh --test"
   exit 0
@@ -399,23 +458,40 @@ if [ "$TEST_MODE" = true ]; then
   run_all_tests
 fi
 
-# Check if services are already running
-RUNNING_COUNT=$(check_running_services)
-if [ "$RUNNING_COUNT" -gt 0 ]; then
+# ================================
+# Production mode: full reset (containers + volumes → empty DB)
+# ================================
+if [ "$PRODUCTION_MODE" = true ]; then
   echo ""
-  echo -e "${YELLOW}⚠️  Capstone services are already running!${NC}"
-  echo -e "${CYAN}   Found $RUNNING_COUNT container(s):${NC}"
-  docker ps --filter "name=capstone-" --format "      • {{.Names}}" 2>/dev/null
-  echo ""
-  read -p "Do you want to restart them? [y/N]: " -n 1 -r
-  echo ""
-  if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo -e "${GREEN}   Keeping existing services. Use ./stop.sh to stop them.${NC}"
-    exit 0
+  echo -e "${CYAN}🏭 Production mode: resetting everything (containers + volumes)...${NC}"
+  echo -e "${YELLOW}   This will remove all containers and volumes (MongoDB, IPFS, etc.). DB will be empty.${NC}"
+  if [ "$SKIP_IPFS" = true ]; then
+    docker-compose -f docker-compose.yml -f docker-compose.no-ipfs.yml down -v 2>/dev/null || docker-compose down -v 2>/dev/null
+  else
+    docker-compose down -v 2>/dev/null
   fi
-  echo -e "${CYAN}   Stopping existing services first...${NC}"
-  docker-compose down 2>/dev/null
+  echo -e "${GREEN}   ✅ Containers and volumes removed.${NC}"
+  echo ""
   sleep 2
+else
+  # Check if services are already running (only when not production)
+  RUNNING_COUNT=$(check_running_services)
+  if [ "$RUNNING_COUNT" -gt 0 ]; then
+    echo ""
+    echo -e "${YELLOW}⚠️  Capstone services are already running!${NC}"
+    echo -e "${CYAN}   Found $RUNNING_COUNT container(s):${NC}"
+    docker ps --filter "name=capstone-" --format "      • {{.Names}}" 2>/dev/null
+    echo ""
+    read -p "Do you want to restart them? [y/N]: " -n 1 -r
+    echo ""
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+      echo -e "${GREEN}   Keeping existing services. Use ./stop.sh to stop them.${NC}"
+      exit 0
+    fi
+    echo -e "${CYAN}   Stopping existing services first...${NC}"
+    docker-compose down 2>/dev/null
+    sleep 2
+  fi
 fi
 
 # Clean Docker resources if requested
@@ -510,8 +586,21 @@ if [ "$DEV_MODE" = true ]; then
   else
     docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
   fi
+elif [ "$DEMO_MODE" = true ]; then
+  echo -e "${CYAN}🚀 Starting in DEMO mode (production build, no dev UI)...${NC}"
+  echo -e "${CYAN}   Rebuilding backend services to ensure latest code...${NC}"
+  if [ "$SKIP_IPFS" = true ]; then
+    echo -e "${YELLOW}   Skipping IPFS (file uploads will use local storage fallback)${NC}"
+    docker-compose -f docker-compose.yml -f docker-compose.no-ipfs.yml -f docker-compose.prod.yml up -d --build --force-recreate
+  else
+    docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --force-recreate
+  fi
 else
-  echo -e "${CYAN}🚀 Starting Docker services...${NC}"
+  if [ "$PRODUCTION_MODE" = true ]; then
+    echo -e "${CYAN}🚀 Starting in PRODUCTION mode (fresh DB)...${NC}"
+  else
+    echo -e "${CYAN}🚀 Starting Docker services...${NC}"
+  fi
   if [ "$SKIP_IPFS" = true ]; then
     echo -e "${YELLOW}   Skipping IPFS (file uploads will use local storage fallback)${NC}"
     docker-compose -f docker-compose.yml -f docker-compose.no-ipfs.yml up -d
@@ -536,22 +625,50 @@ if [ -d "web" ]; then
   echo -e "${CYAN}   Ensuring web dependencies are installed...${NC}"
   npm install
   
-  # Start web dev server in background
-  if ! pgrep -f "vite.*5173" > /dev/null; then
-    echo -e "${GREEN}   Starting web dev server on port 5173...${NC}"
-    # Start in background and capture PID
-    (npm run dev > /tmp/web-dev-server.log 2>&1) &
-    WEB_PID=$!
-    echo $WEB_PID > /tmp/web-dev-server.pid
-    sleep 2  # Give it a moment to start
-    if ps -p $WEB_PID > /dev/null 2>&1; then
-      echo -e "${GREEN}   ✅ Web server started (PID: $WEB_PID)${NC}"
-      echo -e "${CYAN}   Logs: tail -f /tmp/web-dev-server.log${NC}"
+  if [ "$DEMO_MODE" = true ]; then
+    # Demo mode: build and serve with Vite preview (port 4173), no dev server.
+    # Vite bakes env vars in at build time; ensure VITE_BACKEND_ORIGIN is set so production API routing works.
+    if [ -f .env ]; then set -a; . ./.env; set +a; fi
+    export VITE_BACKEND_ORIGIN="${VITE_BACKEND_ORIGIN:-http://localhost:3001}"
+    echo -e "${GREEN}   Building web app for demo (production)...${NC}"
+    if npm run build 2>&1; then
+      echo -e "${GREEN}   ✅ Build complete. Starting preview server on port 4173...${NC}"
+      (npm run preview > /tmp/web-preview-server.log 2>&1) &
+      WEB_PID=$!
+      echo $WEB_PID > /tmp/web-preview-server.pid
+      sleep 2
+      if ps -p $WEB_PID > /dev/null 2>&1; then
+        echo -e "${GREEN}   ✅ Preview server started (PID: $WEB_PID)${NC}"
+        echo -e "${CYAN}   App: http://localhost:4173${NC}"
+      else
+        echo -e "${YELLOW}   ⚠️  Preview may have failed. Check: tail /tmp/web-preview-server.log${NC}"
+      fi
     else
-      echo -e "${YELLOW}   ⚠️  Web server may have failed to start. Check logs: tail /tmp/web-dev-server.log${NC}"
+      echo -e "${RED}   ❌ Build failed. Check output above.${NC}"
     fi
   else
-    echo -e "${YELLOW}   Web dev server already running${NC}"
+    # Start web dev server in background (dev mode or demo-ui mode)
+    if ! pgrep -f "vite.*5173" > /dev/null; then
+      if [ "$DEMO_UI_MODE" = true ]; then
+        export VITE_DEMO_UI=true
+        echo -e "${GREEN}   Starting web dev server on port 5173 (demo UI: no FAB/prefill)...${NC}"
+      else
+        echo -e "${GREEN}   Starting web dev server on port 5173...${NC}"
+      fi
+      # Start in background and capture PID
+      (npm run dev > /tmp/web-dev-server.log 2>&1) &
+      WEB_PID=$!
+      echo $WEB_PID > /tmp/web-dev-server.pid
+      sleep 2  # Give it a moment to start
+      if ps -p $WEB_PID > /dev/null 2>&1; then
+        echo -e "${GREEN}   ✅ Web server started (PID: $WEB_PID)${NC}"
+        echo -e "${CYAN}   Logs: tail -f /tmp/web-dev-server.log${NC}"
+      else
+        echo -e "${YELLOW}   ⚠️  Web server may have failed to start. Check logs: tail /tmp/web-dev-server.log${NC}"
+      fi
+    else
+      echo -e "${YELLOW}   Web dev server already running${NC}"
+    fi
   fi
   
   cd ..
@@ -565,6 +682,9 @@ sleep 3
 
 echo ""
 echo -e "${CYAN}🌐 Opening browser tabs...${NC}"
+if [ "$DEMO_MODE" = true ]; then
+  export WEB_APP_PORT=4173
+fi
 if [ "$SKIP_IPFS" = true ]; then
   SKIP_IPFS=1 ./scripts/open-services.sh
 else
@@ -580,34 +700,57 @@ if [ "$DEV_MODE" = true ]; then
   echo -e "${CYAN}   • Frontend has hot module replacement (HMR) - changes appear instantly${NC}"
   echo ""
 fi
+if [ "$DEMO_MODE" = true ]; then
+  echo -e "${CYAN}🎭 Demo Mode (4173): Production build, no FAB/prefill. Same backend APIs (auth 3001, etc.). Use seeded accounts (e.g. bizclear-admin@mailinator.com + TempPass123!).${NC}"
+  echo ""
+fi
+if [ "$DEMO_UI_MODE" = true ]; then
+  echo -e "${CYAN}🎭 Demo UI (5173): Dev server with clean UI (no FAB/prefill). Hot reload enabled, same backend APIs.${NC}"
+  echo ""
+fi
 echo -e "${CYAN}Running services:${NC}"
 echo -e "   • Docker services (MongoDB, IPFS, APIs)"
-if [ -f "/tmp/web-dev-server.pid" ]; then
-  echo -e "   • Web frontend (http://localhost:5173) - HMR enabled"
+if [ -f "/tmp/web-preview-server.pid" ]; then
+  echo -e "   • Web frontend (http://localhost:4173) - production build (API: 3001–3004)"
+elif [ -f "/tmp/web-dev-server.pid" ]; then
+  if [ "$DEMO_UI_MODE" = true ]; then
+    echo -e "   • Web frontend (http://localhost:5173) - demo UI, HMR (API: 3001–3004)"
+  else
+    echo -e "   • Web frontend (http://localhost:5173) - HMR enabled"
+  fi
 fi
 echo ""
 echo -e "${CYAN}To stop:${NC}"
 echo -e "   • Docker: ./stop.sh"
-if [ -f "/tmp/web-dev-server.pid" ]; then
+if [ -f "/tmp/web-preview-server.pid" ]; then
+  echo -e "   • Web: kill \$(cat /tmp/web-preview-server.pid) or pkill -f 'vite preview'"
+elif [ -f "/tmp/web-dev-server.pid" ]; then
   echo -e "   • Web: kill \$(cat /tmp/web-dev-server.pid) or pkill -f vite"
 fi
 echo ""
 echo -e "${CYAN}To view logs:${NC}"
 echo -e "   • Dozzle (live in browser): http://localhost:9999"
-if [ "$DEV_MODE" = true ]; then
+if [ "$DEV_MODE" = true ] || [ "$DEMO_UI_MODE" = true ]; then
   echo -e "   • Docker (terminal): docker-compose -f docker-compose.yml -f docker-compose.dev.yml logs -f"
+elif [ "$DEMO_MODE" = true ]; then
+  echo -e "   • Docker (terminal): docker-compose -f docker-compose.yml -f docker-compose.prod.yml logs -f"
 else
   echo -e "   • Docker (terminal): docker-compose logs -f"
 fi
-if [ -f "/tmp/web-dev-server.pid" ]; then
+if [ -f "/tmp/web-preview-server.pid" ]; then
+  echo -e "   • Web: tail -f /tmp/web-preview-server.log"
+elif [ -f "/tmp/web-dev-server.pid" ]; then
   echo -e "   • Web: tail -f /tmp/web-dev-server.log"
 fi
 echo ""
-if [ "$DEV_MODE" = false ]; then
-  echo -e "${YELLOW}💡 Tip: Use './start.sh --dev' for development mode with auto-reload!${NC}"
+if [ "$DEV_MODE" = false ] && [ "$DEMO_MODE" = false ]; then
+  echo -e "${YELLOW}💡 Tip: Use './start.sh --dev' for development or './start.sh --demo' for security demo!${NC}"
 fi
 echo -e "${CYAN}💡 Other options:${NC}"
-echo -e "   • ./start.sh --status    # Check what's running and disk usage"
-echo -e "   • ./start.sh --clean     # Clean unused Docker resources before starting"
-echo -e "   • ./start.sh --skip-ipfs # Skip IPFS (use when IPFS container fails)"
-echo -e "   • ./start.sh --test      # Run all tests (backend, web, blockchain)"
+echo -e "   • ./start.sh --demo       # Security demo (4173, production build, no dev UI)"
+echo -e "   • ./start.sh --demo-ui   # Demo UI on 5173 (hot reload, no FAB/prefill)"
+echo -e "   • ./start.sh --production # Full reset + empty DB (cannot use with --dev or --clean)"
+echo -e "   • ./start.sh --status     # Check what's running and disk usage"
+echo -e "   • ./start.sh --clean      # Clean unused Docker resources before starting"
+echo -e "   • ./start.sh --skip-ipfs  # Skip IPFS (use when IPFS container fails)"
+echo -e "   • ./start.sh --test       # Run all tests (backend, web, blockchain)"

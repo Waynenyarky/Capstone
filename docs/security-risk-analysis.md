@@ -3,6 +3,8 @@
 **BizClear Capstone Project** — AI Validation & Blockchain Audit Prototypes  
 *Activity: Individual Analysis + Security Risk Spotting*
 
+*Last reviewed: 2025-02 (review periodically; see IAS-4.6 in the security checklist).*
+
 ---
 
 ## 1. Individual Analysis
@@ -95,6 +97,28 @@ Using the **Input → Processing → Output** diagram for each prototype.
 | Strong mitigations (1–2 sentences each) | ✅ Each risk has a concrete mitigation |
 | Input–Processing–Output coverage | ✅ Both AI and blockchain prototypes covered |
 | Individual analysis (hacker mindset) | ✅ Entry points, targets, and rules documented |
+
+---
+
+## 5. Mitigation priorities (IAS-4.4)
+
+| # | Risk (summary) | Priority | Mitigation status | Notes |
+|---|----------------|----------|------------------|--------|
+| 1 | Malicious CSV upload | High | Planned | Validate schema and sample; gold set check. |
+| 2 | Prompt injection in form fields | High | Implemented | Sanitizer, structured prompts; see [sanitizer.js](../backend/services/auth-service/src/lib/sanitizer.js). |
+| 3 | Oversized input / DoS | Medium | Implemented | Max file size, field length; rate limiting. |
+| 4 | Gemini API key leakage | High | Implemented | .env, server-side only; no key in client. |
+| 5 | Model poisoning | Medium | Planned | Dataset validation; adversarial tests. |
+| 6 | Information leakage in errors | Medium | Implemented | Generic errors; no internal details in responses. |
+| 7 | Adversarial bypass | Medium | Planned | Triple validation; adversarial testing tab. |
+| 8 | Fake hash logging | High | Implemented | Least-privilege; X-API-Key; audit who logs. |
+| 9 | X-API-Key theft | High | Implemented | Secrets in env/vault; rotate; HTTPS. |
+| 10 | Rate limit bypass | Medium | Implemented | Server-side rate limiting; see [rateLimit.js](../backend/services/auth-service/src/middleware/rateLimit.js). |
+| 11 | Ganache / RPC compromise | Medium | Deployment | Isolated Docker; restrict RPC; harden for production. |
+| 12 | Hash enumeration | Low | Documented | Public by design; add rate limit on verify if needed. |
+| 13 | Replay / verification spoofing | High | Implemented | verify-data recomputes hash server-side; never trust client hash. |
+
+*Priorities: High = critical for integrity/confidentiality; Medium = important; Low = accept or monitor. Review with each release or at least annually.*
 
 ---
 

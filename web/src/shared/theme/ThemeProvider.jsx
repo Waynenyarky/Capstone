@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { ConfigProvider, theme } from 'antd';
 import { useLocation } from 'react-router-dom';
-import { getCurrentUser, subscribeAuth } from '@/features/authentication/lib/authEvents.js';
+import { getCurrentUser, setCurrentUser, subscribeAuth } from '@/features/authentication/lib/authEvents.js';
 
 const ThemeContext = createContext();
 
@@ -287,10 +287,7 @@ export function ThemeProvider({ children }) {
     // On mount, if we have a user in storage but not in memory, sync it
     const storedUser = readStoredUser()
     if (storedUser && !getCurrentUser()) {
-      // Import and sync user to auth events system
-      import('@/features/authentication/lib/authEvents.js').then(({ setCurrentUser: syncUser }) => {
-        syncUser(storedUser)
-      })
+      setCurrentUser(storedUser)
     }
     
     let previousUserEmail = currentUser?.email;

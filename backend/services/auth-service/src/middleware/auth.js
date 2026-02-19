@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken')
 
 function signAccessToken(user) {
   const secret = process.env.JWT_SECRET || 'dev_secret_change_me'
-  const ttlMin = Number(process.env.ACCESS_TOKEN_TTL_MINUTES) || 60
+  const ttlMin = Number(process.env.ACCESS_TOKEN_TTL_MINUTES) || 60 // REQUIREMENT IAS-1.2: secure sessions with expiry
   const nowSec = Math.floor(Date.now() / 1000)
   const expSec = nowSec + Math.max(1, ttlMin) * 60
   const payload = {
@@ -40,7 +40,7 @@ async function requireJwt(req, res, next) {
     const token = m ? m[1] : ''
     if (!token) return res.status(401).json({ error: { code: 'unauthorized', message: 'Unauthorized: missing token' } })
     const secret = process.env.JWT_SECRET || 'dev_secret_change_me'
-    const decoded = jwt.verify(token, secret)
+    const decoded = jwt.verify(token, secret) // REQUIREMENT IAS-1.6: validated tokens (JWT)
     
     // Verify token version matches user's current token version (session invalidation check)
     const User = require('../models/User')
@@ -65,7 +65,7 @@ async function requireJwt(req, res, next) {
   }
 }
 
-function requireRole(allowedRoles) {
+function requireRole(allowedRoles) { // REQUIREMENT IAS-3.2: role-based access control
   return (req, res, next) => {
     // Ensure requireJwt has run or user info is available
     if (!req._userRole) {

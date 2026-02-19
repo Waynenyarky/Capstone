@@ -182,12 +182,12 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       // Track failed login attempt
       const securityMonitor = require('../middleware/securityMonitor')
       securityMonitor.trackFailedLogin(req.ip || req.connection.remoteAddress, null)
-      return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
+      return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password') // REQUIREMENT IAS-1.3: generic login errors
     }
     let match = false
     const isBcrypt = /^\$2[aby]\$/.test(String(doc.passwordHash))
     if (isBcrypt) {
-      match = await bcrypt.compare(password, doc.passwordHash)
+      match = await bcrypt.compare(password, doc.passwordHash) // REQUIREMENT IAS-1.1: strong password hashing (bcrypt)
     } else {
       match = String(password) === String(doc.passwordHash)
       if (match) {
@@ -248,18 +248,24 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       )
     }
 
-    // If this is a seeded first-login path (mustSetupMfa) allow bypass of email OTP to reach onboarding
+    // If this is a seeded first-login path (mustSetupMfa) allow bypass of email OTP.
+    // In production: force onboarding (password change + MFA setup).
+    // In dev: skip MFA/onboarding entirely so devs can log in instantly.
     if (allowSeededMfaSetup && requiresMfa && isFirstLoginMfaSetup) {
+      const isDevBypass = process.env.NODE_ENV !== 'production'
       try {
         const dbDoc = await User.findById(doc._id)
         if (dbDoc) {
           dbDoc.lastLoginAt = new Date()
+          if (isDevBypass) {
+            dbDoc.mustSetupMfa = false
+            dbDoc.mustChangeCredentials = false
+          }
           await dbDoc.save()
         }
       } catch (_) {}
 
       try {
-        // Create session and token, return safe user to force onboarding (password change + MFA setup)
         const { token, expiresAtMs } = signAccessToken(doc)
         await createSessionForUser(doc, roleSlug, req)
         return res.json({
@@ -275,25 +281,26 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
           office: doc.office || '',
           isActive: doc.isActive !== false,
           isStaff: !!doc.isStaff,
-          mustChangeCredentials: true,
-          mustSetupMfa: true,
+          mustChangeCredentials: !isDevBypass,
+          mustSetupMfa: !isDevBypass,
           mfaEnabled: false,
           mfaMethod: '',
-          onboardingRequired: true,
+          onboardingRequired: !isDevBypass,
           skipEmailVerification: true,
           token,
           expiresAt: new Date(expiresAtMs).toISOString(),
         })
       } catch (err) {
         console.error('Failed to bypass OTP for first-login MFA setup:', err)
-        // Fall through to normal flow if something goes wrong
       }
     }
 
-    // Dev-only: seeded business owner can skip email OTP entirely (no MFA required for this role)
+    // Dev-only: seeded business owner can skip email OTP entirely (no MFA required for this role).
+    // In production (NODE_ENV=production) always require email OTP.
     const seedDevEnabled = process.env.SEED_DEV === 'true'
+    const isNonProduction = process.env.NODE_ENV !== 'production'
     const isSeededBusinessOwner = roleSlug === 'business_owner' && emailKey === 'business@example.com'
-    if (seedDevEnabled && isSeededBusinessOwner && !requiresMfa) {
+    if (seedDevEnabled && isNonProduction && isSeededBusinessOwner && !requiresMfa) {
       try {
         const dbDoc = await User.findById(doc._id)
         if (dbDoc) {

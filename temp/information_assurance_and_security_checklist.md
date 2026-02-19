@@ -1,0 +1,72 @@
+# Information Assurance and Security Checklist
+
+Each requirement has an ID (IAS-x.x), status, links to code/docs (relative from this file), a short description of how it was implemented, and how to test.
+
+**Opening links:** Use Cursor’s “Open Link” (e.g. Ctrl/Cmd+Click) on the file path. Paths are relative to this file (`temp/`): `../backend/...` and `../docs/...` point to repo files.
+
+---
+
+## Category 1: Authentication
+
+| ID | Requirement | Status | Implementation (file links) | How implemented | How to test |
+|----|-------------|--------|------------------------------|-----------------|-------------|
+| IAS-1.1 | Strong password hashing (bcrypt/Argon2) | Implemented | [login.js](../backend/services/auth-service/src/routes/login.js), [signup.js](../backend/services/auth-service/src/routes/signup.js), [profilePassword.js](../backend/services/auth-service/src/routes/profilePassword.js), [passwordReset.js](../backend/services/auth-service/src/routes/passwordReset.js) | Passwords hashed with bcrypt (cost 10) on signup and password change; login uses bcrypt.compare. Legacy plaintext migrated to bcrypt on first successful login. | Register or change password; in MongoDB, user’s `passwordHash` is a long string starting with `$2a$` or `$2b$`, never plaintext. |
+| IAS-1.2 | Secure sessions with expiry | Implemented | [auth.js](../backend/services/auth-service/src/middleware/auth.js), [Session.js](../backend/services/auth-service/src/models/Session.js) | JWT includes `exp` from ACCESS_TOKEN_TTL_MINUTES (default 60 min). Session model has required `expiresAt`; sessions are invalid when expired. | After TTL, token is rejected. Profile/Settings session list shows expiry. |
+| IAS-1.3 | Generic login errors | Implemented | [login.js](../backend/services/auth-service/src/routes/login.js) | Login returns same message for wrong password and non-existent user: `invalid_credentials` / "Invalid email or password" (no user enumeration). | Wrong password or unknown email → same generic "Invalid email or password" message. |
+| IAS-1.4 | Rate limiting for logins | Implemented | [login.js](../backend/services/auth-service/src/routes/login.js), [rateLimit.js](../backend/services/auth-service/src/middleware/rateLimit.js) | Per-email rate limit on login/start and login/verify (e.g. 5 start and 10 verify per 10 min when not disabled). Returns rate-limit code and message. | Many login/verify attempts for same email → "Too many attempts" or "Please wait". |
+| IAS-1.5 | MFA available or enforced | Implemented | [mfa.js](../backend/services/auth-service/src/routes/mfa.js), [adminStepUp.js](../backend/services/auth-service/src/routes/adminStepUp.js), [webauthn.js](../backend/services/auth-service/src/routes/webauthn.js), [adminUsers.js](../backend/services/auth-service/src/routes/adminUsers.js) | TOTP and WebAuthn/passkey; staff must set up MFA (mustSetupMfa); admin step-up required for sensitive actions (TOTP or passkey). | Staff: MFA setup required after first login. Admin: step-up (TOTP/passkey) for sensitive actions. |
+| IAS-1.6 | Validated tokens (JWT) | Implemented | [auth.js](../backend/services/auth-service/src/middleware/auth.js) | JWT verified with shared secret; tokenVersion in payload checked against user’s current tokenVersion so revoked sessions are rejected. | No token or invalid/expired token → 401 Unauthorized or redirect to login. |
+| IAS-1.7 | Strong password policy | Implemented | [passwordValidator.js](../backend/services/auth-service/src/lib/passwordValidator.js), [signup.js](../backend/services/auth-service/src/routes/signup.js), [profilePassword.js](../backend/services/auth-service/src/routes/profilePassword.js) | validatePasswordStrength enforces length ≥12, upper/lower/number/special; used at signup, password change, and reset. | Weak password at signup or change password → error listing rules; strong password succeeds. |
+| IAS-1.8 | Logout invalidates session | Implemented | [session.js](../backend/services/auth-service/src/routes/session.js), password-change and deactivate flows | Single-session invalidate and “invalidate all” endpoints; password change and deactivate increment user tokenVersion so existing JWTs are rejected. | Change password or “Invalidate all”; other tab/device gets session invalidated and must log in again. |
+| IAS-1.9 | OAuth/SSO or advanced auth | Implemented | [webauthn.js](../backend/services/auth-service/src/routes/webauthn.js) | WebAuthn passkey registration and authentication; user can sign in with passkey instead of password. | Register passkey in Profile → Security; log out and sign in with passkey. |
+
+---
+
+## Category 2: Input Validation
+
+| ID | Requirement | Status | Implementation (file links) | How implemented | How to test |
+|----|-------------|--------|------------------------------|-----------------|-------------|
+| IAS-2.1 | All inputs validated server-side | Implemented | [validation.js](../backend/services/auth-service/src/middleware/validation.js) | validateBody(schema) with Joi on request body; stripUnknown, abortEarly: false; returns 400 with validation_error and details. | Submit form with missing/invalid data → 400 and field-level or request-level validation error. |
+| IAS-2.2 | Parameterized SQL queries | N/A | — | App uses MongoDB with Mongoose; no raw SQL. All queries are parameterized by the driver. See Notes below. | N/A. |
+| IAS-2.3 | XSS protection (context-aware escaping) | Implemented | [sanitizer.js](../backend/services/auth-service/src/lib/sanitizer.js), profile routes | sanitizeString / containsXss used on profile and business-owner fields; dangerous input rejected or sanitized before store. | Enter `<script>alert(1)</script>` in name field → error or stored value does not execute script. |
+| IAS-2.4 | File upload validation (type + size) | Implemented | [formDefinitions.js](../backend/services/admin-service/src/routes/formDefinitions.js), [profileAvatar.js](../backend/services/auth-service/src/routes/profileAvatar.js) | Multer limits and fileFilter (mimetype/extension) for form uploads; avatar: base64 + mime check + size limit. | Upload .exe or oversized file → rejected with type/size error. |
+| IAS-2.5 | API schema validation | Implemented | Same as IAS-2.1 | All API routes use Joi schemas and validateBody for request bodies. | Same as 2.1: invalid/missing body → 400 validation_error. |
+| IAS-2.6 | NoSQL injection protection | Implemented | [sanitizer.js](../backend/services/auth-service/src/lib/sanitizer.js), [formDefinitions.js](../backend/services/admin-service/src/routes/formDefinitions.js), [feeCalculator.js](../backend/services/business-service/src/lib/feeCalculator.js) | containsSqlInjection-style checks; regex escaping for $regex in queries; Mongoose schema typing. | Submit `'; DROP...'`-style input → validation error or treated as plain text; no DB error. |
+| IAS-2.7 | CSRF tokens enabled | Implemented | [csrf.js](../backend/shared/csrf.js), [auth routes](../backend/services/auth-service/src/routes/index.js), [security-csrf.md](../docs/security-csrf.md) | Double-submit cookie: GET .../csrf-token sets cookie and returns token; POST/PUT/PATCH/DELETE require X-CSRF-Token header to match cookie; 403 if missing/wrong. | Mutating request without valid CSRF token → 403 csrf_invalid. SPA gets token from GET .../csrf-token and sends in header. |
+
+---
+
+## Category 3: Database Security
+
+| ID | Requirement | Status | Implementation (file links) | How implemented | How to test |
+|----|-------------|--------|------------------------------|-----------------|-------------|
+| IAS-3.1 | Secure credential storage (.env/vault) | Implemented | [.env.example](../backend/.env.example) | Secrets (JWT_SECRET, MONGO_URI, etc.) read from process.env; .env.example lists vars with no real values; secrets not in repo. | Repo has no hardcoded secrets; .env.example only; config from env. |
+| IAS-3.2 | Role-based access control | Implemented | [auth.js](../backend/services/auth-service/src/middleware/auth.js) (requireRole); same pattern in admin, business, audit | requireRole(allowedRoles) after requireJwt; admin/business/audit routes restrict by role; 403 for disallowed roles. | As business owner, open admin-only page → Forbidden or redirect. |
+| IAS-3.3 | Database encryption at rest | Partial | [security-database.md](../docs/security-database.md) | Not in app code; deployment/infra (e.g. MongoDB Atlas or host encryption). Documented in security-database.md. | Confirm in deployment/runbook that DB uses encryption at rest. |
+| IAS-3.4 | Encrypted backups | Partial | [security-database.md](../docs/security-database.md) | Not in app code; backup/ops. Documented in security-database.md. | Confirm backup/restore procedure uses encrypted backups. |
+| IAS-3.5 | Audit logging enabled | Implemented | [AuditLog.js](../backend/services/auth-service/src/models/AuditLog.js), createAuditLog in auth/admin/business/audit routes | AuditLog model; createAuditLog called for sensitive actions (password change, profile edit, admin actions, etc.). | Trigger audited action → new entry in audit log (Profile → Audit history or Admin → Logs). |
+| IAS-3.6 | TLS database connections | Partial | [db.js](../backend/services/auth-service/src/config/db.js), [security-database.md](../docs/security-database.md) | connectDB(uri); production must use TLS in MONGO_URI (e.g. mongodb+srv). Comment in db.js; details in security-database.md. | Production MONGO_URI uses TLS (e.g. mongodb+srv). |
+| IAS-3.7 | Database hardening | Partial | [security-database.md](../docs/security-database.md) | Not in app code; runbook checklist (least-privilege user, network restriction, patches). | Runbook includes DB hardening steps. |
+
+---
+
+## Category 4: Threat Modeling
+
+| ID | Requirement | Status | Implementation (file links) | How implemented | How to test |
+|----|-------------|--------|------------------------------|-----------------|-------------|
+| IAS-4.1 | Data Flow Diagram created | Partial | [security-risk-analysis.md](../docs/security-risk-analysis.md), [system-architecture.svg](../docs/system-architecture.svg), [security-data-flow.md](../docs/security-data-flow.md) | IPO-style flow in security-risk-analysis; architecture diagram; security-data-flow describes user→API→DB and trust boundaries. | Show data flow and diagram in docs. |
+| IAS-4.2 | STRIDE threats identified | Implemented | [security-stride.md](../docs/security-stride.md) | STRIDE table per component with mitigations and code/doc references. | Open security-stride.md and show STRIDE table. |
+| IAS-4.3 | OWASP Top 10 mapped | Implemented | [security-owasp-mapping.md](../docs/security-owasp-mapping.md) | Each OWASP Top 10:2021 item mapped to controls and file references. | Open security-owasp-mapping.md and show mapping. |
+| IAS-4.4 | Mitigation plan with priorities | Implemented | [security-risk-analysis.md](../docs/security-risk-analysis.md) §5 | Section 5 lists risks with priority (High/Medium/Low) and mitigation status. | Show mitigation table with priorities. |
+| IAS-4.5 | Risk assessment done | Implemented | [security-risk-analysis.md](../docs/security-risk-analysis.md) | Document lists risks by stage (Input/Processing/Output) with mitigations. | Walk through risks and mitigations in doc. |
+| IAS-4.6 | Model updated regularly | Process | [security-stride.md](../docs/security-stride.md), [security-risk-analysis.md](../docs/security-risk-analysis.md) | “Last reviewed” date in threat-model docs; review at least annually or per major release. See Notes below. | Confirm “last reviewed” and review process in docs. |
+
+---
+
+## Traceability
+
+Full traceability matrix: [security-requirements-traceability.md](../docs/security-requirements-traceability.md)
+
+**Notes:**
+- **IAS-2.2 (N/A):** Application uses MongoDB with Mongoose; there is no raw SQL. Parameterization is inherent to the driver. See [Mongoose queries](https://mongoosejs.com/docs/queries.html).
+- **IAS-4.6 (Process):** Threat model is kept current via a “Last reviewed” date in [security-stride.md](../docs/security-stride.md) and [security-risk-analysis.md](../docs/security-risk-analysis.md). Review at least annually or with each major release.

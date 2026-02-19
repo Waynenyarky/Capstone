@@ -8,7 +8,7 @@
  * @param {string} password - Password to validate
  * @returns {object} - { valid: boolean, errors: string[] }
  */
-function validatePasswordStrength(password) {
+function validatePasswordStrength(password) { // REQUIREMENT IAS-1.7: strong password policy
   const errors = []
   
   if (!password || typeof password !== 'string') {
