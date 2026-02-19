@@ -33,7 +33,7 @@ export default function StaffRecoveryRequest() {
               {loggedInTemp && (
                 <>
                   <Divider />
-                  <TempLoginMfaPrompt onSetup={() => window.location.assign('/mfa/setup')} />
+                  <TempLoginMfaPrompt onSetup={() => window.location.assign('/account/security')} />
                 </>
               )}
             </Card>

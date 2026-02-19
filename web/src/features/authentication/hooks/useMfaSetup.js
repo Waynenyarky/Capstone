@@ -167,6 +167,11 @@ export default function useMfaSetup() {
     }
   }, [email, error, success, currentUser?.token, login])
 
+  /** Call after passkey registration success to show completion and allow redirect (e.g. from MfaSetup). */
+  const markMfaComplete = React.useCallback(() => {
+    setEnabled(true)
+  }, [])
+
   return {
     loading,
     qrDataUrl,
@@ -185,5 +190,6 @@ export default function useMfaSetup() {
     handleSetup,
     handleVerify,
     handleDisable,
+    markMfaComplete,
   }
 }

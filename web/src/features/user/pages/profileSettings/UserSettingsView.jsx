@@ -14,12 +14,12 @@ import { PROFILE_NAV_ITEMS } from './constants'
 
 const { Title, Text } = Typography
 
-function getTabContent(selectedTab, themeSettings) {
+function getTabContent(selectedTab, themeSettings, isBusinessOwner) {
   switch (selectedTab) {
     case 'general':
       return <GeneralTabContent />
     case 'security':
-      return <SecurityTabContent />
+      return <SecurityTabContent showPasswordSection={isBusinessOwner} />
     case 'account':
       return <AccountTabContent />
     case 'theme':
@@ -59,13 +59,14 @@ export default function UserSettingsView({
   passkeyLoading,
   officeLabel,
   isStaffRole,
+  isBusinessOwner,
   themeSettings,
 }) {
   const { token } = theme.useToken()
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md
   const activeTabLabel = PROFILE_NAV_ITEMS.find((n) => n.key === selectedTab)?.label ?? selectedTab
-  const tabContent = getTabContent(selectedTab, themeSettings)
+  const tabContent = getTabContent(selectedTab, themeSettings, isBusinessOwner)
 
   return (
     <Layout style={{ minHeight: '100vh' }}>

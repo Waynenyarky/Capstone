@@ -7,6 +7,7 @@ import useWebAuthn from '@/features/authentication/hooks/useWebAuthn.js'
 import { useNotifier } from '@/shared/notifications.js'
 import { LoginVerificationForm } from "@/features/authentication"
 import TotpVerificationForm from '@/features/authentication/components/TotpVerificationForm.jsx'
+import PlatformPasskeyAuth from '@/features/authentication/components/PlatformPasskeyAuth.jsx'
 import LockoutBanner from '@/features/authentication/components/LockoutBanner.jsx'
 import PasskeySignInOptions from './PasskeySignInOptions.jsx'
 
@@ -42,11 +43,7 @@ export default function LoginForm({ onSubmit } = {}) {
   const { authenticateConditional } = useWebAuthn()
   const { success } = useNotifier()
 
-  // Load remembered emails for autocomplete
-  React.useEffect(() => {
-    const emails = getRememberedEmails()
-    setEmailOptions(emails.map(email => ({ value: email, label: email })))
-  }, [getRememberedEmails])
+  // Remembered emails are shown only when user types (onSearch), not on focus
 
   // State to manage readOnly hack for autofill prevention
   const [fieldsReadOnly, setFieldsReadOnly] = React.useState(true)
@@ -111,7 +108,9 @@ export default function LoginForm({ onSubmit } = {}) {
       .catch((err) => {
         conditionalPasskeyRef.current.promise = null
         conditionalPasskeyRef.current.controller = null
-        if (err?.name !== 'AbortError' && err?.code !== 'user_cancelled') {
+        const isAbort = err?.name === 'AbortError' || err?.code === 'user_cancelled'
+        const isAlreadyPending = err?.name === 'OperationError' && typeof err?.message === 'string' && err.message.includes('already pending')
+        if (!isAbort && !isAlreadyPending) {
           console.error('[LoginForm] Conditional passkey error', err)
         }
       })
@@ -159,6 +158,16 @@ export default function LoginForm({ onSubmit } = {}) {
     return <VerificationComponent {...verificationProps} />
   }
 
+  if (step === 'verify-passkey') {
+    return (
+      <PlatformPasskeyAuth
+        form={form}
+        onAuthenticated={verificationProps.onSubmit}
+        onCancel={verificationProps.onSessionExpired}
+      />
+    )
+  }
+
   // Show lockout banner above login form when server indicates account is locked
   const banner = serverLockedUntil ? <LockoutBanner lockedUntil={serverLockedUntil} /> : null
   const mfaBanner = mfaRequired ? (
@@ -194,15 +203,15 @@ export default function LoginForm({ onSubmit } = {}) {
                 return value.includes(input)
               }}
               onSearch={(value) => {
-                const allEmails = getRememberedEmails()
                 if (!value || value.trim() === '') {
-                  setEmailOptions(allEmails.slice(0, 10).map(email => ({ value: email, label: email })))
-                } else {
-                  const filtered = allEmails.filter(email =>
-                    String(email).toLowerCase().includes(String(value).toLowerCase())
-                  )
-                  setEmailOptions(filtered.slice(0, 10).map(email => ({ value: email, label: email })))
+                  setEmailOptions([])
+                  return
                 }
+                const allEmails = getRememberedEmails()
+                const filtered = allEmails.filter(email =>
+                  String(email).toLowerCase().includes(String(value).toLowerCase())
+                )
+                setEmailOptions(filtered.slice(0, 10).map(email => ({ value: email, label: email })))
               }}
               onSelect={(value) => {
                 form.setFieldsValue({ email: value })
@@ -254,7 +263,16 @@ export default function LoginForm({ onSubmit } = {}) {
           </Flex>
 
           <Form.Item style={{ marginBottom: isMobile ? 20 : 24 }}>
-            <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block size="default" data-test="login-submit" data-testid="login-submit">
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={isSubmitting}
+              disabled={isSubmitting || (serverLockedUntil != null && serverLockedUntil > Date.now())}
+              block
+              size="default"
+              data-test="login-submit"
+              data-testid="login-submit"
+            >
               Sign in
             </Button>
           </Form.Item>
@@ -267,21 +285,27 @@ export default function LoginForm({ onSubmit } = {}) {
             <Text type="secondary">Don't have an account? </Text>
             <Button type="link" onClick={() => navigate('/sign-up')} style={{ padding: 0, fontWeight: 600, color: '#001529' }} className="auth-link-hover">Sign up</Button>
           </div>
-          {/* Dev Prefill Controls - Hidden in production build and demo-ui (--demo / --demo-ui) */}
-          {import.meta.env.DEV === true && import.meta.env.VITE_DEMO_UI !== 'true' && (
+          {/* Dev Prefill Controls - Labels show emails from root .env (DEV_EMAIL_*); hidden in production and demo-ui */}
+          {import.meta.env.DEV === true && import.meta.env.VITE_DEMO_UI !== 'true' && (() => {
+            const env = import.meta.env || {}
+            const devPrefillItems = [
+              { key: 'admin', label: env.VITE_DEV_EMAIL_ADMIN || 'admin@example.com', role: 'Admin' },
+              { key: 'admin2', label: env.VITE_DEV_EMAIL_ADMIN2 || 'admin2@example.com', role: 'Admin 2' },
+              { key: 'admin3', label: env.VITE_DEV_EMAIL_ADMIN3 || 'admin3@example.com', role: 'Admin 3' },
+              { key: 'business', label: env.VITE_DEV_EMAIL_BUSINESS || 'business@example.com', role: 'Business Owner' },
+              { key: 'officer', label: env.VITE_DEV_EMAIL_OFFICER || 'officer@example.com', role: 'LGU Officer' },
+              { key: 'manager', label: env.VITE_DEV_EMAIL_MANAGER || 'manager@example.com', role: 'Manager' },
+              { key: 'inspector', label: env.VITE_DEV_EMAIL_INSPECTOR || 'inspector@example.com', role: 'Inspector' },
+              { key: 'cso', label: env.VITE_DEV_EMAIL_CSO || 'cso@example.com', role: 'CSO' },
+            ]
+            return (
              <div style={{ marginTop: 24, textAlign: 'center', opacity: 0.5 }}>
                 <Dropdown
                   menu={{
-                    items: [
-                      { key: 'admin', label: 'Prefill Admin' },
-                      { key: 'admin2', label: 'Prefill Admin 2' },
-                      { key: 'admin3', label: 'Prefill Admin 3' },
-                      { key: 'business', label: 'Prefill Business Owner' },
-                      { key: 'officer', label: 'Prefill LGU Officer' },
-                      { key: 'manager', label: 'Prefill LGU Manager' },
-                      { key: 'inspector', label: 'Prefill Inspector' },
-                      { key: 'cso', label: 'Prefill CSO' },
-                    ],
+                    items: devPrefillItems.map(({ key, label, role }) => ({
+                      key,
+                      label: `${role}: ${label}`,
+                    })),
                     onClick: ({ key }) => {
                       if (key === 'admin') prefillAdmin()
                       else if (key === 'admin2') prefillAdmin2()
@@ -297,7 +321,8 @@ export default function LoginForm({ onSubmit } = {}) {
                   <Button type="text" size="small">Dev Tools</Button>
                 </Dropdown>
              </div>
-          )}
+            )
+          })()}
         </Form>
       </div>
     </>

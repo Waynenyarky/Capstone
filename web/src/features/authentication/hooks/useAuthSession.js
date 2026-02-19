@@ -18,6 +18,7 @@ function readStored() {
       const user = parsed?.user ?? parsed // backward compat if plain user is stored
       const expiresAt = parsed?.expiresAt ?? 0
       if (!expiresAt || Date.now() < expiresAt) {
+        console.log('[Auth] Loaded user from localStorage:', { email: user?.email, mustSetupMfa: user?.mustSetupMfa, mfaEnabled: user?.mfaEnabled })
         return user
       }
       localStorage.removeItem(LOCAL_KEY)
@@ -31,6 +32,7 @@ function readStored() {
       const user = parsed?.user ?? parsed
       const expiresAt = parsed?.expiresAt ?? 0
       if (!expiresAt || Date.now() < expiresAt) {
+        console.log('[Auth] Loaded user from sessionStorage:', { email: user?.email, mustSetupMfa: user?.mustSetupMfa, mfaEnabled: user?.mfaEnabled })
         return user
       }
       sessionStorage.removeItem(SESSION_KEY)

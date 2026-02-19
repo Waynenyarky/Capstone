@@ -15,6 +15,8 @@
 #   ./start.sh --status     # Just show status, don't start anything
 #   ./start.sh --test       # Run all tests (backend, web, blockchain)
 #   ./start.sh --skip-ipfs  # Skip IPFS (use when IPFS container fails)
+#   ./start.sh --slow-network  # Use longer wait times (for slow or high-latency networks)
+#   ./start.sh --atlas     # Use MongoDB Atlas instead of local MongoDB (set MONGO_URI in .env; see docs/mongodb-atlas-setup.md)
 #
 # Note: --production cannot be combined with --dev or --clean. --demo cannot be combined with --dev, --production, or --clean.
 
@@ -38,6 +40,8 @@ SKIP_IPFS=false
 CLEAN_DOCKER=false
 STATUS_ONLY=false
 TEST_MODE=false
+SLOW_NETWORK=false
+ATLAS_MODE=false
 
 for arg in "$@"; do
   case $arg in
@@ -65,8 +69,24 @@ for arg in "$@"; do
     --test|-t)
       TEST_MODE=true
       ;;
+    --slow-network|-s)
+      SLOW_NETWORK=true
+      ;;
+    --atlas|-a)
+      ATLAS_MODE=true
+      ;;
   esac
 done
+
+# Wait times (longer when --slow-network)
+WAIT_AFTER_DOCKER=5
+WAIT_AFTER_WEB=2
+WAIT_BEFORE_BROWSER=3
+if [ "$SLOW_NETWORK" = true ]; then
+  WAIT_AFTER_DOCKER=15
+  WAIT_AFTER_WEB=5
+  WAIT_BEFORE_BROWSER=10
+fi
 
 # --production cannot be used with --dev or --clean
 if [ "$PRODUCTION_MODE" = true ]; then
@@ -159,6 +179,7 @@ if [ "$STATUS_ONLY" = true ]; then
   echo -e "   • Start services: ./start.sh --dev"
   echo -e "   • Stop services:  ./stop.sh"
   echo -e "   • Production:     ./start.sh --production  (full reset + empty DB)"
+  echo -e "   • MongoDB Atlas:  ./start.sh --atlas  (set MONGO_URI in .env; see docs/mongodb-atlas-setup.md)"
   echo -e "   • Clean Docker:   ./start.sh --clean --dev"
   echo -e "   • Run all tests:  ./start.sh --test"
   exit 0
@@ -461,15 +482,20 @@ fi
 # ================================
 # Production mode: full reset (containers + volumes → empty DB)
 # ================================
+# Build compose file list (base + optional no-ipfs + optional atlas + optional dev/prod)
+COMPOSE_FILES="-f docker-compose.yml"
+if [ "$SKIP_IPFS" = true ]; then
+  COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.no-ipfs.yml"
+fi
+if [ "$ATLAS_MODE" = true ]; then
+  COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.atlas.yml"
+fi
+
 if [ "$PRODUCTION_MODE" = true ]; then
   echo ""
   echo -e "${CYAN}🏭 Production mode: resetting everything (containers + volumes)...${NC}"
   echo -e "${YELLOW}   This will remove all containers and volumes (MongoDB, IPFS, etc.). DB will be empty.${NC}"
-  if [ "$SKIP_IPFS" = true ]; then
-    docker-compose -f docker-compose.yml -f docker-compose.no-ipfs.yml down -v 2>/dev/null || docker-compose down -v 2>/dev/null
-  else
-    docker-compose down -v 2>/dev/null
-  fi
+  docker-compose $COMPOSE_FILES down -v 2>/dev/null || docker-compose down -v 2>/dev/null
   echo -e "${GREEN}   ✅ Containers and volumes removed.${NC}"
   echo ""
   sleep 2
@@ -489,7 +515,7 @@ else
       exit 0
     fi
     echo -e "${CYAN}   Stopping existing services first...${NC}"
-    docker-compose down 2>/dev/null
+    docker-compose $COMPOSE_FILES down 2>/dev/null || docker-compose down 2>/dev/null
     sleep 2
   fi
 fi
@@ -559,9 +585,9 @@ if [ "$CLEAN_DOCKER" = true ]; then
   echo ""
   echo -e "${YELLOW}   Rebuilding backend services (ensures package.json deps are installed)...${NC}"
   if [ "$DEV_MODE" = true ]; then
-    docker-compose -f docker-compose.yml -f docker-compose.dev.yml build --no-cache auth-service business-service admin-service audit-service 2>/dev/null || true
+    docker-compose $COMPOSE_FILES -f docker-compose.dev.yml build --no-cache auth-service business-service admin-service audit-service 2>/dev/null || true
   else
-    docker-compose build --no-cache auth-service business-service admin-service audit-service 2>/dev/null || true
+    docker-compose $COMPOSE_FILES build --no-cache auth-service business-service admin-service audit-service 2>/dev/null || true
   fi
 
   echo ""
@@ -578,23 +604,22 @@ fi
 # Start Docker Services
 # ================================
 echo ""
+if [ "$ATLAS_MODE" = true ]; then
+  echo -e "${CYAN}   Using MongoDB Atlas (MONGO_URI from .env). Local MongoDB container will not start.${NC}"
+fi
 if [ "$DEV_MODE" = true ]; then
   echo -e "${CYAN}🚀 Starting in DEVELOPMENT mode (auto-reload enabled)...${NC}"
   if [ "$SKIP_IPFS" = true ]; then
     echo -e "${YELLOW}   Skipping IPFS (file uploads will use local storage fallback)${NC}"
-    docker-compose -f docker-compose.yml -f docker-compose.no-ipfs.yml -f docker-compose.dev.yml up -d
-  else
-    docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
   fi
+  docker-compose $COMPOSE_FILES -f docker-compose.dev.yml up -d
 elif [ "$DEMO_MODE" = true ]; then
   echo -e "${CYAN}🚀 Starting in DEMO mode (production build, no dev UI)...${NC}"
   echo -e "${CYAN}   Rebuilding backend services to ensure latest code...${NC}"
   if [ "$SKIP_IPFS" = true ]; then
     echo -e "${YELLOW}   Skipping IPFS (file uploads will use local storage fallback)${NC}"
-    docker-compose -f docker-compose.yml -f docker-compose.no-ipfs.yml -f docker-compose.prod.yml up -d --build --force-recreate
-  else
-    docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --force-recreate
   fi
+  docker-compose $COMPOSE_FILES -f docker-compose.prod.yml up -d --build --force-recreate
 else
   if [ "$PRODUCTION_MODE" = true ]; then
     echo -e "${CYAN}🚀 Starting in PRODUCTION mode (fresh DB)...${NC}"
@@ -603,15 +628,17 @@ else
   fi
   if [ "$SKIP_IPFS" = true ]; then
     echo -e "${YELLOW}   Skipping IPFS (file uploads will use local storage fallback)${NC}"
-    docker-compose -f docker-compose.yml -f docker-compose.no-ipfs.yml up -d
-  else
-    docker-compose up -d
   fi
+  docker-compose $COMPOSE_FILES up -d
 fi
 
 echo ""
-echo -e "${CYAN}⏳ Waiting for services to initialize...${NC}"
-sleep 5
+if [ "$SLOW_NETWORK" = true ]; then
+  echo -e "${CYAN}⏳ Waiting for services to initialize (slow network: ${WAIT_AFTER_DOCKER}s)...${NC}"
+else
+  echo -e "${CYAN}⏳ Waiting for services to initialize...${NC}"
+fi
+sleep $WAIT_AFTER_DOCKER
 
 echo ""
 echo -e "${CYAN}🌐 Starting web frontend...${NC}"
@@ -636,7 +663,7 @@ if [ -d "web" ]; then
       (npm run preview > /tmp/web-preview-server.log 2>&1) &
       WEB_PID=$!
       echo $WEB_PID > /tmp/web-preview-server.pid
-      sleep 2
+      sleep $WAIT_AFTER_WEB
       if ps -p $WEB_PID > /dev/null 2>&1; then
         echo -e "${GREEN}   ✅ Preview server started (PID: $WEB_PID)${NC}"
         echo -e "${CYAN}   App: http://localhost:4173${NC}"
@@ -647,19 +674,31 @@ if [ -d "web" ]; then
       echo -e "${RED}   ❌ Build failed. Check output above.${NC}"
     fi
   else
-    # Start web dev server in background (dev mode or demo-ui mode)
+    # Write or clear VITE_DEMO_UI in .env.local so Vite exposes it to the client
+    if [ "$DEMO_UI_MODE" = true ]; then
+      grep -q '^VITE_DEMO_UI=' .env.local 2>/dev/null && sed -i 's/^VITE_DEMO_UI=.*/VITE_DEMO_UI=true/' .env.local || echo 'VITE_DEMO_UI=true' >> .env.local
+    else
+      sed -i '/^VITE_DEMO_UI=/d' .env.local 2>/dev/null || true
+    fi
+
+    # In demo-ui mode, restart if already running so the new .env.local takes effect
+    if [ "$DEMO_UI_MODE" = true ]; then
+      if pgrep -f "vite.*5173" > /dev/null; then
+        echo -e "${CYAN}   Restarting web dev server with demo UI (no FAB/prefill)...${NC}"
+        pkill -f "vite.*5173" 2>/dev/null || true
+        sleep 1
+      fi
+    fi
     if ! pgrep -f "vite.*5173" > /dev/null; then
       if [ "$DEMO_UI_MODE" = true ]; then
-        export VITE_DEMO_UI=true
         echo -e "${GREEN}   Starting web dev server on port 5173 (demo UI: no FAB/prefill)...${NC}"
       else
         echo -e "${GREEN}   Starting web dev server on port 5173...${NC}"
       fi
-      # Start in background and capture PID
       (npm run dev > /tmp/web-dev-server.log 2>&1) &
       WEB_PID=$!
       echo $WEB_PID > /tmp/web-dev-server.pid
-      sleep 2  # Give it a moment to start
+      sleep $WAIT_AFTER_WEB
       if ps -p $WEB_PID > /dev/null 2>&1; then
         echo -e "${GREEN}   ✅ Web server started (PID: $WEB_PID)${NC}"
         echo -e "${CYAN}   Logs: tail -f /tmp/web-dev-server.log${NC}"
@@ -678,15 +717,19 @@ fi
 
 echo ""
 echo -e "${CYAN}⏳ Waiting a bit more for everything to be ready...${NC}"
-sleep 3
+sleep $WAIT_BEFORE_BROWSER
 
 echo ""
 echo -e "${CYAN}🌐 Opening browser tabs...${NC}"
 if [ "$DEMO_MODE" = true ]; then
   export WEB_APP_PORT=4173
 fi
-if [ "$SKIP_IPFS" = true ]; then
+if [ "$SKIP_IPFS" = true ] && [ "$ATLAS_MODE" = true ]; then
+  SKIP_IPFS=1 ATLAS_MODE=1 ./scripts/open-services.sh
+elif [ "$SKIP_IPFS" = true ]; then
   SKIP_IPFS=1 ./scripts/open-services.sh
+elif [ "$ATLAS_MODE" = true ]; then
+  ATLAS_MODE=1 ./scripts/open-services.sh
 else
   ./scripts/open-services.sh
 fi
@@ -702,10 +745,12 @@ if [ "$DEV_MODE" = true ]; then
 fi
 if [ "$DEMO_MODE" = true ]; then
   echo -e "${CYAN}🎭 Demo Mode (4173): Production build, no FAB/prefill. Same backend APIs (auth 3001, etc.). Use seeded accounts (e.g. bizclear-admin@mailinator.com + TempPass123!).${NC}"
+  echo -e "${CYAN}   📧 To receive real verification emails: set EMAIL_API_KEY in .env (e.g. SendGrid).${NC}"
   echo ""
 fi
 if [ "$DEMO_UI_MODE" = true ]; then
   echo -e "${CYAN}🎭 Demo UI (5173): Dev server with clean UI (no FAB/prefill). Hot reload enabled, same backend APIs.${NC}"
+  echo -e "${CYAN}   📧 To receive real verification emails: set EMAIL_API_KEY in .env (e.g. SendGrid).${NC}"
   echo ""
 fi
 echo -e "${CYAN}Running services:${NC}"
@@ -731,11 +776,11 @@ echo ""
 echo -e "${CYAN}To view logs:${NC}"
 echo -e "   • Dozzle (live in browser): http://localhost:9999"
 if [ "$DEV_MODE" = true ] || [ "$DEMO_UI_MODE" = true ]; then
-  echo -e "   • Docker (terminal): docker-compose -f docker-compose.yml -f docker-compose.dev.yml logs -f"
+  echo -e "   • Docker (terminal): docker-compose $COMPOSE_FILES -f docker-compose.dev.yml logs -f"
 elif [ "$DEMO_MODE" = true ]; then
-  echo -e "   • Docker (terminal): docker-compose -f docker-compose.yml -f docker-compose.prod.yml logs -f"
+  echo -e "   • Docker (terminal): docker-compose $COMPOSE_FILES -f docker-compose.prod.yml logs -f"
 else
-  echo -e "   • Docker (terminal): docker-compose logs -f"
+  echo -e "   • Docker (terminal): docker-compose $COMPOSE_FILES logs -f"
 fi
 if [ -f "/tmp/web-preview-server.pid" ]; then
   echo -e "   • Web: tail -f /tmp/web-preview-server.log"
@@ -752,5 +797,7 @@ echo -e "   • ./start.sh --demo-ui   # Demo UI on 5173 (hot reload, no FAB/pre
 echo -e "   • ./start.sh --production # Full reset + empty DB (cannot use with --dev or --clean)"
 echo -e "   • ./start.sh --status     # Check what's running and disk usage"
 echo -e "   • ./start.sh --clean      # Clean unused Docker resources before starting"
-echo -e "   • ./start.sh --skip-ipfs  # Skip IPFS (use when IPFS container fails)"
-echo -e "   • ./start.sh --test       # Run all tests (backend, web, blockchain)"
+echo -e "   • ./start.sh --skip-ipfs      # Skip IPFS (use when IPFS container fails)"
+echo -e "   • ./start.sh --atlas         # Use MongoDB Atlas (set MONGO_URI in .env)"
+echo -e "   • ./start.sh --slow-network  # Longer waits for slow or high-latency networks"
+echo -e "   • ./start.sh --test          # Run all tests (backend, web, blockchain)"

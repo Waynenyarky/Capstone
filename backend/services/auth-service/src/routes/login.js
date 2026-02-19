@@ -11,6 +11,7 @@ const { loginRequests } = require('../lib/authRequestsStore')
 const { signAccessToken } = require('../middleware/auth')
 const LoginRequest = require('../models/LoginRequest')
 const respond = require('../middleware/respond')
+const logger = require('../lib/logger')
 const { validateBody, Joi } = require('../middleware/validation')
 const { perEmailRateLimit } = require('../middleware/rateLimit')
 const { decryptWithHash } = require('../lib/secretCipher')
@@ -85,8 +86,8 @@ const resendCodeSchema = Joi.object({
   email: Joi.alternatives().try(Joi.string().email(), Joi.string().valid('1')).required(),
 })
 
-// Allow disabling or relaxing rate limits in development/testing
-const DISABLE_LIMITS = process.env.DISABLE_RATE_LIMIT === 'true' || process.env.NODE_ENV !== 'production'
+// Allow disabling rate limits only when explicitly set (e.g. load tests or local debugging)
+const DISABLE_LIMITS = process.env.DISABLE_RATE_LIMIT === 'true'
 const passthrough = (req, res, next) => next()
 
 const loginStartLimiter = DISABLE_LIMITS
@@ -231,69 +232,22 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       return respond.error(res, 500, 'role_not_found', 'User role not found. Please contact support.')
     }
     const requiresMfa = doc.isStaff === true || roleSlug === 'admin'
+    // Re-fetch MFA fields so we use latest persisted state (e.g. after onboarding)
+    try {
+      const mfaDoc = await User.findOne({ email: emailKey }).select('webauthnCredentials mfaSecret mfaEnabled mfaMethod').lean()
+      if (mfaDoc) {
+        doc.webauthnCredentials = mfaDoc.webauthnCredentials
+        doc.mfaSecret = mfaDoc.mfaSecret
+        doc.mfaEnabled = mfaDoc.mfaEnabled
+        doc.mfaMethod = mfaDoc.mfaMethod
+      }
+    } catch (_) {}
     const hasPasskey = Array.isArray(doc.webauthnCredentials) && doc.webauthnCredentials.length > 0
     const hasTotpMfa = !!doc.mfaSecret
-    // Default allow in non-production unless explicitly disabled
-    const allowSeededMfaSetup =
-      process.env.ALLOW_SEEDED_MFA_SETUP === 'true' ||
-      (process.env.ALLOW_SEEDED_MFA_SETUP !== 'false' && process.env.NODE_ENV !== 'production')
-    const isFirstLoginMfaSetup = doc.mustSetupMfa === true
-    if (requiresMfa && !hasPasskey && !hasTotpMfa && !(allowSeededMfaSetup && isFirstLoginMfaSetup)) {
-      return respond.error(
-        res,
-        403,
-        'mfa_required',
-        'MFA required for this account. Contact an administrator to bootstrap MFA.',
-        { allowedMethods: ['authenticator', 'passkey'] }
-      )
-    }
-
-    // If this is a seeded first-login path (mustSetupMfa) allow bypass of email OTP.
-    // In production: force onboarding (password change + MFA setup).
-    // In dev: skip MFA/onboarding entirely so devs can log in instantly.
-    if (allowSeededMfaSetup && requiresMfa && isFirstLoginMfaSetup) {
-      const isDevBypass = process.env.NODE_ENV !== 'production'
-      try {
-        const dbDoc = await User.findById(doc._id)
-        if (dbDoc) {
-          dbDoc.lastLoginAt = new Date()
-          if (isDevBypass) {
-            dbDoc.mustSetupMfa = false
-            dbDoc.mustChangeCredentials = false
-          }
-          await dbDoc.save()
-        }
-      } catch (_) {}
-
-      try {
-        const { token, expiresAtMs } = signAccessToken(doc)
-        await createSessionForUser(doc, roleSlug, req)
-        return res.json({
-          id: String(doc._id),
-          role: roleSlug,
-          firstName: doc.firstName,
-          lastName: doc.lastName,
-          email: doc.email,
-          phoneNumber: displayPhoneNumber(doc.phoneNumber),
-          termsAccepted: doc.termsAccepted,
-          createdAt: doc.createdAt,
-          username: doc.username || '',
-          office: doc.office || '',
-          isActive: doc.isActive !== false,
-          isStaff: !!doc.isStaff,
-          mustChangeCredentials: !isDevBypass,
-          mustSetupMfa: !isDevBypass,
-          mfaEnabled: false,
-          mfaMethod: '',
-          onboardingRequired: !isDevBypass,
-          skipEmailVerification: true,
-          token,
-          expiresAt: new Date(expiresAtMs).toISOString(),
-        })
-      } catch (err) {
-        console.error('Failed to bypass OTP for first-login MFA setup:', err)
-      }
-    }
+    // Working MFA = passkey enrolled OR TOTP fully enabled (secret saved and mfaEnabled true)
+    const hasWorkingMfa = hasPasskey || (hasTotpMfa && doc.mfaEnabled === true)
+    // Do not skip email OTP for admin/staff (including fresh accounts that must set up MFA).
+    // They must receive the login OTP first, then after verify we return token with mustSetupMfa so they can complete MFA setup.
 
     // Dev-only: seeded business owner can skip email OTP entirely (no MFA required for this role).
     // In production (NODE_ENV=production) always require email OTP.
@@ -382,6 +336,9 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     // Check if account deletion is scheduled - if so, always send OTP via email
     const hasScheduledDeletion = doc.deletionScheduledFor && new Date(doc.deletionScheduledFor) > new Date()
 
+    // In non-production: use email OTP for admin/staff only when they have no working MFA (avoid lockout during setup)
+    const forceEmailOtpInDev = process.env.NODE_ENV !== 'production' && requiresMfa && !hasWorkingMfa
+
     try {
       // Send verification code via email if:
       // 1. Account deletion is scheduled (ALWAYS send email OTP for scheduled deletion accounts)
@@ -397,50 +354,48 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
           subject: 'Your Login Verification Code - Account Deletion Scheduled' 
         })
         if (!emailResult || !emailResult.success) {
-          console.error(`[Login] Failed to send OTP email to ${email} (scheduled deletion):`, emailResult?.error || 'Unknown error')
-        } else {
-          console.log(`[Login] Account deletion scheduled for ${email} - sending email OTP regardless of MFA settings`)
+          logger.error('Login OTP email failed (scheduled deletion)', { email, error: emailResult?.error || 'Unknown error' })
+          return respond.error(res, 500, 'email_send_failed', `Failed to send verification email. ${emailResult?.error || 'Check email configuration.'}`)
         }
-      } else if (!totpMfaEnabled && !isLguOfficer) {
-        // TOTP MFA is NOT enabled, send regular verification code via email
+        logger.info('Login: sent email OTP (scheduled deletion)', { email })
+      } else if (forceEmailOtpInDev || (!totpMfaEnabled && !isLguOfficer)) {
         const emailResult = await sendOtp({ to: email, code, subject: 'Your Login Verification Code' })
         if (!emailResult || !emailResult.success) {
-          console.error(`[Login] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
+          logger.error('Login OTP email failed', { email, error: emailResult?.error || 'Unknown error' })
+          return respond.error(res, 500, 'email_send_failed', `Failed to send verification email. ${emailResult?.error || 'Check email configuration (e.g. SendGrid sender verification).'}`)
+        }
+        if (forceEmailOtpInDev) {
+          logger.info('Login: sent email OTP (dev, admin/staff)', { email })
         } else {
-          console.log(`[Login] TOTP MFA not enabled for ${email} - sending email OTP`)
+          logger.info('Login: sent email OTP', { email })
         }
       } else if (totpMfaEnabled && !isLguOfficer) {
         // TOTP MFA is enabled - DO NOT send email OTP
-        // User must use their authenticator app (Microsoft Authenticator, Google Authenticator, etc.)
-        console.log(`[Login] TOTP MFA enabled for ${email} - using authenticator app, skipping email OTP`)
+        logger.info('Login: skipping email OTP (TOTP MFA enabled)', { email })
       } else if (isPasskeyMethod && !isLguOfficer) {
-        // Passkey authentication enabled - DO NOT send email OTP
-        // User will use passkey at login page
-        console.log(`[Login] Passkey authentication enabled for ${email} - skipping email OTP`)
+        logger.info('Login: skipping email OTP (passkey enabled)', { email })
       } else if (isLguOfficer) {
-        console.log(`[LGU Officer Login] Email suppressed. Use fixed OTP: ${code}`)
+        logger.info('Login: LGU Officer fixed OTP (no email)', { email, code })
       }
     } catch (mailErr) {
-      console.error('Failed to send login verification email:', mailErr)
-      // Don't block login, but log it. Frontend might need to handle this.
+      logger.error('Failed to send login verification email', { email, error: mailErr.message })
+      return respond.error(res, 500, 'email_send_failed', `Failed to send verification email: ${mailErr.message}`)
     }
 
     const payload = { sent: true }
-    // Only set mfaEnabled to true if TOTP is actually available (has mfaSecret)
-    payload.mfaEnabled = totpMfaEnabled
-    payload.mfaMethod = method
+    payload.mfaEnabled = forceEmailOtpInDev ? false : totpMfaEnabled
+    payload.mfaMethod = forceEmailOtpInDev ? 'email' : method
     try {
       payload.isFingerprintEnabled = !!doc.fprintEnabled || method.includes('fingerprint')
     } catch (_) {}
     payload.loginEmail = emailKey
-    
-    // If account deletion is scheduled, force email OTP verification (override MFA)
-    if (hasScheduledDeletion) {
+
+    if (hasScheduledDeletion || forceEmailOtpInDev) {
       payload.forceEmailOtp = true
-      payload.mfaEnabled = false // Override to show email OTP form instead of TOTP
+      if (forceEmailOtpInDev) payload.mfaEnabled = false
       payload.mfaMethod = 'email'
     }
-    
+
     if (process.env.NODE_ENV !== 'production') payload.devCode = code
     return res.json(payload)
   } catch (err) {
@@ -600,18 +555,38 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
       (process.env.ALLOW_SEEDED_MFA_SETUP !== 'false' && process.env.NODE_ENV !== 'production')
 
     const requiresMfa = doc.isStaff === true || roleSlug === 'admin'
+    // Re-fetch MFA fields so we use latest persisted state before deciding to clear TOTP / set mustSetupMfa
+    try {
+      const mfaDoc = await User.findOne({ email: emailKey }).select('webauthnCredentials mfaSecret mfaEnabled mfaMethod').lean()
+      if (mfaDoc) {
+        doc.webauthnCredentials = mfaDoc.webauthnCredentials
+        doc.mfaSecret = mfaDoc.mfaSecret
+        doc.mfaEnabled = mfaDoc.mfaEnabled
+        doc.mfaMethod = mfaDoc.mfaMethod
+      }
+    } catch (_) {}
     const hasPasskey = Array.isArray(doc.webauthnCredentials) && doc.webauthnCredentials.length > 0
     const hasTotp = !!doc.mfaSecret
-    if (requiresMfa && !hasPasskey && !hasTotp && !(allowSeededMfaSetup && doc.mustSetupMfa === true)) {
-      return respond.error(
-        res,
-        403,
-        'mfa_required',
-        'MFA required for this account. Contact an administrator to bootstrap MFA.',
-        { allowedMethods: ['authenticator', 'passkey'] }
-      )
+    const hasWorkingMfaVerify = hasPasskey || (hasTotp && doc.mfaEnabled === true)
+    // Admin/staff with no working MFA but valid OTP: avoid lockout by forcing MFA setup on next login
+    if (requiresMfa && !hasWorkingMfaVerify) {
+      try {
+        const dbDoc = await User.findById(doc._id)
+        if (dbDoc) {
+          dbDoc.mustSetupMfa = true
+          if (dbDoc.mfaSecret && dbDoc.mfaEnabled !== true) {
+            dbDoc.mfaSecret = undefined
+            dbDoc.mfaEnabled = false
+            dbDoc.mfaMethod = ''
+          }
+          await dbDoc.save()
+          doc.mustSetupMfa = true
+          doc.mfaEnabled = false
+        }
+      } catch (_) {}
+      // Fall through to issue token so user is logged in and redirected to MFA setup
     }
-    
+
     const safe = {
       id: String(doc._id),
       role: roleSlug,

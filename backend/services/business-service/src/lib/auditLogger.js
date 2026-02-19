@@ -1,9 +1,10 @@
 /**
  * Audit Logger Utility (Simplified for Business Service)
- * Creates audit logs - blockchain logging is optional
+ * Creates audit logs in DB and forwards to Audit Service for blockchain logging.
  */
 
 const crypto = require('crypto')
+const axios = require('axios')
 const AuditLog = require('../models/AuditLog')
 
 /**
@@ -60,6 +61,18 @@ async function createAuditLog(userId, eventType, fieldChanged, oldValue, newValu
       role,
       metadata: fullMetadata,
       hash,
+    })
+
+    // Forward to Audit Service for blockchain logging (non-blocking)
+    const auditServiceUrl = process.env.AUDIT_SERVICE_URL || 'http://localhost:3004'
+    const headers = { 'Content-Type': 'application/json' }
+    if (process.env.AUDIT_SERVICE_API_KEY) headers['X-API-Key'] = process.env.AUDIT_SERVICE_API_KEY
+    axios.post(`${auditServiceUrl}/api/audit/log`, {
+      operation: 'logAuditHash',
+      params: [auditLog.hash, eventType],
+      auditLogId: String(auditLog._id),
+    }, { headers }).catch((err) => {
+      console.warn('Failed to forward audit log to Audit Service', { error: err.message })
     })
 
     return auditLog

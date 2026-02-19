@@ -1,0 +1,31 @@
+# Optional override for MongoDB with TLS (IAS-3.6 local demonstration).
+# Use: ./scripts/mongo-tls-certs.sh  then  docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
+# Omit this file for normal (non-TLS) operation. Production must use Atlas or proper CA; do not use tlsAllowInvalidCertificates in production.
+
+services:
+  mongodb:
+    command:
+      - mongod
+      - --tlsMode=requireTLS
+      - --tlsCertificateKeyFile=/certs/server.pem
+      - --tlsCAFile=/certs/ca.pem
+    volumes:
+      - mongodb_data:/data/db
+      - ./deploy/mongo-init:/docker-entrypoint-initdb.d:ro
+      - ./deploy/mongo-tls:/certs:ro
+
+  auth-service:
+    environment:
+      - MONGO_URI=mongodb://${MONGO_APP_USER:-capstone_app}:${MONGO_APP_PASSWORD:-devapppass}@mongodb:27017/capstone_project?authSource=admin&tls=true&tlsAllowInvalidCertificates=true
+
+  business-service:
+    environment:
+      - MONGO_URI=mongodb://${MONGO_APP_USER:-capstone_app}:${MONGO_APP_PASSWORD:-devapppass}@mongodb:27017/capstone_project?authSource=admin&tls=true&tlsAllowInvalidCertificates=true
+
+  admin-service:
+    environment:
+      - MONGO_URI=mongodb://${MONGO_APP_USER:-capstone_app}:${MONGO_APP_PASSWORD:-devapppass}@mongodb:27017/capstone_project?authSource=admin&tls=true&tlsAllowInvalidCertificates=true
+
+  audit-service:
+    environment:
+      - MONGO_URI=mongodb://${MONGO_APP_USER:-capstone_app}:${MONGO_APP_PASSWORD:-devapppass}@mongodb:27017/capstone_project?authSource=admin&tls=true&tlsAllowInvalidCertificates=true

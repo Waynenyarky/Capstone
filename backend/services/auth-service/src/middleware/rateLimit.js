@@ -34,7 +34,7 @@ function perEmailRateLimit({ windowMs, max, code, message }) {
       } catch (_) {}
       const baseMsg = message || 'Too many requests'
       const msg = retryAfterSec > 0 ? `${baseMsg} Try again in ${retryAfterSec}s.` : baseMsg
-      return respond.error(res, 429, code || 'rate_limit_exceeded', msg)
+      return respond.error(res, 429, code || 'rate_limit_exceeded', msg, undefined, { retryAfterSec })
     },
   })
 }

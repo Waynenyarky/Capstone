@@ -23,25 +23,33 @@ NC='\033[0m' # No Color
 echo -e "${CYAN}🚀 Waiting for services to be ready...${NC}"
 
 # Function to check if a service is ready
+# Usage: check_service <container_name> <port> [max_attempts] [curl_path]
+# Optional curl_path: use for APIs that don't respond on / (e.g. IPFS: /api/v0/version)
 check_service() {
     local service=$1
     local port=$2
-    local max_attempts=30
+    local max_attempts=${3:-30}
+    local curl_path=${4:-/}
     local attempt=1
-    
+
     while [ $attempt -le $max_attempts ]; do
         # Check if container is running and healthy
         if docker ps --filter "name=$service" --filter "status=running" --format "{{.Names}}" | grep -q "^${service}$"; then
             # Check if container is healthy (if healthcheck exists)
             local health_status=$(docker inspect --format='{{.State.Health.Status}}' "$service" 2>/dev/null || echo "none")
             if [ "$health_status" = "healthy" ] || [ "$health_status" = "none" ]; then
-                # Try to check port connectivity
+                # Try to check port connectivity (TCP first, then HTTP)
                 if command -v nc >/dev/null 2>&1 && nc -z localhost "$port" 2>/dev/null; then
                     return 0
-                elif command -v curl >/dev/null 2>&1 && curl -s --max-time 1 "http://localhost:$port" >/dev/null 2>&1; then
-                    return 0
-                elif docker exec "$service" echo "test" >/dev/null 2>&1; then
-                    # Container is running and exec works, assume it's ready
+                fi
+                if command -v curl >/dev/null 2>&1; then
+                    if [ "$curl_path" = "/" ]; then
+                        curl -s --max-time 2 "http://localhost:$port/" >/dev/null 2>&1 && return 0
+                    else
+                        curl -s --max-time 2 "http://localhost:$port$curl_path" >/dev/null 2>&1 && return 0
+                    fi
+                fi
+                if docker exec "$service" echo "test" >/dev/null 2>&1; then
                     return 0
                 fi
             fi
@@ -103,19 +111,21 @@ open_browser() {
 # Wait for services
 echo -e "${BLUE}📦 Checking Docker services...${NC}"
 
-# Check MongoDB
-if check_service "capstone-mongodb" 27017; then
+# Check MongoDB (skip when using Atlas: ATLAS_MODE=1 or SKIP_MONGO=1)
+if [ "${ATLAS_MODE:-0}" = "1" ] || [ "${SKIP_MONGO:-0}" = "1" ]; then
+    echo -e "${YELLOW}   ℹ️  MongoDB skipped (using Atlas or SKIP_MONGO)${NC}"
+elif check_service "capstone-mongodb" 27017; then
     echo -e "${GREEN}✅ MongoDB is ready${NC}"
 else
     echo -e "${RED}❌ MongoDB not ready${NC}"
 fi
 
-# Check IPFS (skip when SKIP_IPFS=1, e.g. ./start.sh --skip-ipfs)
+# Check IPFS (skip when SKIP_IPFS=1). IPFS API is on 5001; use /api/v0/version and allow up to 45 attempts (90s) - daemon can be slow to start.
 if [ "${SKIP_IPFS:-0}" != "1" ]; then
-    if check_service "capstone-ipfs" 5001; then
+    if check_service "capstone-ipfs" 5001 45 "/api/v0/version"; then
         echo -e "${GREEN}✅ IPFS is ready${NC}"
     else
-        echo -e "${RED}❌ IPFS not ready${NC}"
+        echo -e "${RED}❌ IPFS not ready (check: docker logs capstone-ipfs)${NC}"
     fi
 else
     echo -e "${YELLOW}   ℹ️  IPFS skipped (--skip-ipfs)${NC}"
@@ -177,13 +187,18 @@ if [ "${SKIP_IPFS:-0}" != "1" ]; then
     sleep 1
 fi
 
-# Print MongoDB connection info instead of trying to open HTML file
-echo -e "\n${BLUE}🔌 MongoDB Connection Info:${NC}"
-echo -e "${CYAN}   Connection String:${NC} mongodb://localhost:27017"
-echo -e "${CYAN}   Database:${NC} capstone_project"
-echo -e "${CYAN}   Quick Access:${NC} docker exec -it capstone-mongodb mongosh capstone_project"
-echo -e "${CYAN}   MongoDB Compass:${NC} https://www.mongodb.com/try/download/compass"
-echo ""
+# Print MongoDB connection info (skip when using Atlas)
+if [ "${ATLAS_MODE:-0}" != "1" ] && [ "${SKIP_MONGO:-0}" != "1" ]; then
+    echo -e "\n${BLUE}🔌 MongoDB Connection Info:${NC}"
+    echo -e "${CYAN}   Connection String:${NC} mongodb://localhost:27017"
+    echo -e "${CYAN}   Database:${NC} capstone_project"
+    echo -e "${CYAN}   Quick Access:${NC} docker exec -it capstone-mongodb mongosh capstone_project"
+    echo -e "${CYAN}   MongoDB Compass:${NC} https://www.mongodb.com/try/download/compass"
+    echo ""
+else
+    echo -e "\n${BLUE}🔌 Database:${NC} Using MongoDB Atlas (MONGO_URI from .env)"
+    echo ""
+fi
 
 # Check and open API services (using health endpoints which actually exist)
 echo -e "\n${BLUE}🔌 Checking API services...${NC}"
@@ -289,7 +304,9 @@ echo -e "   Auth API: http://localhost:3001/api/health"
 echo -e "   Business API: http://localhost:3002/api/health"
 echo -e "   Admin API: http://localhost:3003/api/health"
 echo -e "   Audit API: http://localhost:3004/api/health"
-echo -e "   MongoDB: mongodb://localhost:27017/capstone_project"
+if [ "${ATLAS_MODE:-0}" != "1" ] && [ "${SKIP_MONGO:-0}" != "1" ]; then
+    echo -e "   MongoDB: mongodb://localhost:27017/capstone_project"
+fi
 echo ""
 if [ "$WEB_APP_PORT" = "4173" ]; then
     echo -e "${CYAN}💡 Demo mode: Web app is served from production build (npm run preview).${NC}"

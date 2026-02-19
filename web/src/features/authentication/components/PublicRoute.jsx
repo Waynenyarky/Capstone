@@ -21,7 +21,7 @@ export default function PublicRoute({ children }) {
 
     if (r === 'admin') {
       if (currentUser?.mustChangeCredentials || currentUser?.mustSetupMfa) {
-        return <Navigate to="/mfa/setup" replace state={{ ...state, from: '/admin/dashboard' }} />
+        return <Navigate to="/admin/onboarding" replace state={{ ...state, from: '/admin/dashboard' }} />
       }
       return <Navigate to="/admin/dashboard" replace state={state} />
     }

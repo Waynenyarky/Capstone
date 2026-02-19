@@ -80,7 +80,7 @@ class DocumentStorageService {
         .storeDocument(userId, docTypeEnum, ipfsCid)
         .send({
           from: defaultAccount,
-          gas: Math.floor(gasEstimate * 1.2),
+          gas: Math.floor(Number(gasEstimate) * 1.2), // Convert BigInt to Number
         });
 
       return {

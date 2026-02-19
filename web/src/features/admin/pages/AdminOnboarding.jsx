@@ -2,29 +2,27 @@ import React, { useState, useEffect } from 'react'
 import { Row, Col, Form, theme } from 'antd'
 import { useLocation } from 'react-router-dom'
 import { SecurityScanOutlined } from '@ant-design/icons'
-import { useStaffOnboarding } from '../hooks/useStaffOnboarding'
-import StaffLayout from '../components/StaffLayout'
-import { OnboardingStepContent } from '@/features/shared'
+import { useAuthSession } from '@/features/authentication'
 import { mfaStatus } from '@/features/authentication/services/mfaService'
+import { firstLoginChangeCredentials, getProfile } from '@/features/authentication/services/authService'
+import { useNotifier } from '@/shared/notifications'
+import AdminLayout from '../components/AdminLayout'
+import { OnboardingStepContent } from '@/features/shared'
 
-export default function StaffOnboarding() {
-  const [currentStep, setCurrentStep] = useState(0)
-  const {
-    form,
-    submitting,
-    mustChange,
-    mustMfa,
-    currentUser,
-    homePath,
-    handleCredentialsFinish,
-    navigate,
-  } = useStaffOnboarding({
-    onCredentialsSuccess: () => setCurrentStep(2),
-  })
-  const { token } = theme.useToken()
+export default function AdminOnboarding() {
+  const { currentUser, login } = useAuthSession()
+  const { success, error } = useNotifier()
   const location = useLocation()
+  const { token } = theme.useToken()
+  const [form] = Form.useForm()
+
+  const mustChange = !!currentUser?.mustChangeCredentials
+  const mustMfa = !!currentUser?.mustSetupMfa
+
+  const [currentStep, setCurrentStep] = useState(0)
   const [mfaEnabled, setMfaEnabled] = useState(false)
   const [checkingMfa, setCheckingMfa] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     const checkMfaStatus = async () => {
@@ -52,7 +50,7 @@ export default function StaffOnboarding() {
   }, [mustMfa, currentStep])
 
   useEffect(() => {
-    if (location.pathname === '/staff/onboarding') {
+    if (location.pathname === '/admin/onboarding') {
       const checkMfa = async () => {
         if (!currentUser?.email) return
         try {
@@ -70,30 +68,40 @@ export default function StaffOnboarding() {
     }
   }, [location.pathname, currentUser?.email, currentStep])
 
+  const handleCredentialsFinish = async (values) => {
+    setSubmitting(true)
+    try {
+      await firstLoginChangeCredentials({
+        newPassword: values.password,
+        newUsername: currentUser?.username || (currentUser?.email ? currentUser.email.split('@')[0] : 'admin'),
+      })
+      const fresh = await getProfile()
+      const raw = localStorage.getItem('auth__currentUser')
+      const remember = !!raw
+      const merged = { ...currentUser, ...fresh, token: currentUser?.token }
+      login(merged, { remember })
+      success('Password changed successfully')
+      if (mustMfa) setCurrentStep(2)
+      else setCurrentStep(3)
+    } catch (err) {
+      console.error('Change credentials error:', err)
+      error(err?.message || 'Failed to change password')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const handleComplete = () => {
-    navigate(homePath, { replace: true })
+    window.location.assign('/admin/dashboard')
   }
 
   return (
-    <StaffLayout
-      hideSidebar
-      pageTitle="Onboarding"
-      pageIcon={<SecurityScanOutlined />}
-      headerActions={null}
-      noContentWrap
-    >
-      <div
-        style={{
-          padding: '40px 24px',
-          background: token.colorBgLayout,
-          flex: 1,
-          overflow: 'auto',
-        }}
-      >
+    <AdminLayout hideSidebar pageTitle="Onboarding" pageIcon={<SecurityScanOutlined />}>
+      <div style={{ padding: '40px 24px', background: token.colorBgLayout, flex: 1, overflow: 'auto' }}>
         <Row justify="center">
           <Col xs={24} sm={24} md={20} lg={18} xl={16}>
             <OnboardingStepContent
-              variant="staff"
+              variant="admin"
               currentStep={currentStep}
               setCurrentStep={setCurrentStep}
               mustChange={mustChange}
@@ -109,6 +117,6 @@ export default function StaffOnboarding() {
           </Col>
         </Row>
       </div>
-    </StaffLayout>
+    </AdminLayout>
   )
 }

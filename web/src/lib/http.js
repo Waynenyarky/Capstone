@@ -23,6 +23,48 @@ export function clearAuthCsrfToken() {
   authCsrfTokenCache = null
 }
 
+let businessCsrfTokenCache = null
+
+/** Get CSRF token for business/inspector/lgu-officer APIs. Uses cache; refetches on 403 csrf_invalid. */
+async function getBusinessCsrfToken(pathPrefix, baseUrl) {
+  if (businessCsrfTokenCache) return businessCsrfTokenCache
+  const base = (baseUrl || '').replace(/\/$/, '')
+  const url = base ? `${base}${pathPrefix}/csrf-token` : `${pathPrefix}/csrf-token`
+  const res = await fetch(url, { method: 'GET', credentials: 'include' })
+  if (!res.ok) throw new Error('Failed to get security token')
+  const data = await res.json()
+  const token = data?.csrfToken
+  if (!token) throw new Error('Invalid security token response')
+  businessCsrfTokenCache = token
+  return token
+}
+
+/** Clear business CSRF cache (e.g. after 403 csrf_invalid). */
+export function clearBusinessCsrfToken() {
+  businessCsrfTokenCache = null
+}
+
+let adminCsrfTokenCache = null
+
+/** Get CSRF token for admin APIs. Uses cache; refetches on 403 csrf_invalid. */
+async function getAdminCsrfToken(baseUrl) {
+  if (adminCsrfTokenCache) return adminCsrfTokenCache
+  const base = (baseUrl || '').replace(/\/$/, '')
+  const url = base ? `${base}/api/admin/csrf-token` : '/api/admin/csrf-token'
+  const res = await fetch(url, { method: 'GET', credentials: 'include' })
+  if (!res.ok) throw new Error('Failed to get security token')
+  const data = await res.json()
+  const token = data?.csrfToken
+  if (!token) throw new Error('Invalid security token response')
+  adminCsrfTokenCache = token
+  return token
+}
+
+/** Clear admin CSRF cache (e.g. after 403 csrf_invalid). */
+export function clearAdminCsrfToken() {
+  adminCsrfTokenCache = null
+}
+
 // In production build, pick the correct backend origin per path (auth=3001, business=3002, admin/maintenance=3003, audit=3004).
 function getProductionApiOrigin(path) {
   const env = import.meta.env || {}
@@ -85,14 +127,39 @@ export async function fetchWithFallback(path, options = {}) {
   const origin = isProductionBuild && path.startsWith('/api') ? getProductionApiOrigin(path) : null
   const apiUrl = origin ? `${origin.replace(/\/$/, '')}${pathStr}` : path
 
-  // CSRF: for mutating auth requests (except csrf-token), fetch token and send header; send cookies so double-submit works.
+  // CSRF: for mutating requests, fetch token and send header per API; send cookies so double-submit works.
   const isMutating = MUTATING_METHODS.includes((opts.method || 'GET').toUpperCase())
   const isAuthPath = path.startsWith('/api/auth') && !path.includes('/api/auth/csrf-token')
+  const isBusinessPath = path.startsWith('/api/business') && !path.includes('/api/business/csrf-token')
+  const isInspectorPath = path.startsWith('/api/inspector') && !path.includes('/api/inspector/csrf-token')
+  const isLguOfficerPath = path.startsWith('/api/lgu-officer') && !path.includes('/api/lgu-officer/csrf-token')
+  const isAdminPath = path.startsWith('/api/admin') && !path.includes('/api/admin/csrf-token')
   if (isMutating && isAuthPath) {
     opts.credentials = opts.credentials ?? 'include'
     try {
       const authBase = origin || (isProductionBuild && path.startsWith('/api') ? getProductionApiOrigin('/api/auth/login/start') : '')
       const csrfToken = await getAuthCsrfToken(authBase)
+      headers['X-CSRF-Token'] = csrfToken
+    } catch (_) {
+      // Proceed without token; backend will return 403 and we map to generic message
+    }
+  }
+  if (isMutating && (isBusinessPath || isInspectorPath || isLguOfficerPath)) {
+    opts.credentials = opts.credentials ?? 'include'
+    try {
+      const pathPrefix = isBusinessPath ? '/api/business' : isInspectorPath ? '/api/inspector' : '/api/lgu-officer'
+      const businessOrigin = origin || (isProductionBuild && path.startsWith('/api') ? getProductionApiOrigin(path) : '')
+      const csrfToken = await getBusinessCsrfToken(pathPrefix, businessOrigin)
+      headers['X-CSRF-Token'] = csrfToken
+    } catch (_) {
+      // Proceed without token; backend will return 403 and we map to generic message
+    }
+  }
+  if (isMutating && isAdminPath) {
+    opts.credentials = opts.credentials ?? 'include'
+    try {
+      const adminOrigin = origin || (isProductionBuild && path.startsWith('/api') ? getProductionApiOrigin(path) : '')
+      const csrfToken = await getAdminCsrfToken(adminOrigin)
       headers['X-CSRF-Token'] = csrfToken
     } catch (_) {
       // Proceed without token; backend will return 403 and we map to generic message
@@ -112,7 +179,14 @@ export async function fetchWithFallback(path, options = {}) {
   const isAdminOrMaintenanceApi = path.includes('/api/admin') || path.includes('/api/maintenance')
   const has4xxResponse = res && res.status >= 400 && res.status < 500
   const fallbackOrigin = isProductionBuild && path.startsWith('/api') ? getProductionApiOrigin(path) : BACKEND_ORIGIN
-  const shouldFallback = (!res || !res.ok) && !has4xxResponse && !(isAuthEndpoint && res?.status === 500) && !isAdminOrMaintenanceApi && fallbackOrigin && apiUrl !== `${fallbackOrigin.replace(/\/$/, '')}${pathStr}`
+  // In dev/demo-ui: only fall back to absolute backend URL when the app is on localhost (same machine as backend).
+  // Otherwise (e.g. Codespaces, cloud IDE) the browser cannot reach the container's localhost:3001 → ERR_CONNECTION_REFUSED.
+  const isDevOnLocalhost = !isProductionBuild && typeof window !== 'undefined' && (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1')
+  const useAbsoluteFallback = isProductionBuild || isDevOnLocalhost
+  // Allow fallback on 404 when request was to same origin (relative path in dev): proxy may not be forwarding, so retry backend once
+  const isRelativeRequest = !origin && path.startsWith('/')
+  const allow404Fallback = isAuthEndpoint && res?.status === 404 && isRelativeRequest
+  const shouldFallback = (!res || !res.ok) && (!has4xxResponse || allow404Fallback) && !(isAuthEndpoint && res?.status === 500) && !isAdminOrMaintenanceApi && fallbackOrigin && useAbsoluteFallback && apiUrl !== `${fallbackOrigin.replace(/\/$/, '')}${pathStr}`
 
   if (shouldFallback) {
     try {
@@ -200,6 +274,8 @@ export async function fetchJsonWithFallback(path, options = {}) {
       // On CSRF 403, clear cached token so next request refetches; never surface raw CSRF message to user
       if (statusCode === 403 && errorCode === 'csrf_invalid') {
         clearAuthCsrfToken()
+        clearBusinessCsrfToken()
+        clearAdminCsrfToken()
       }
 
       // Map error codes to user-friendly messages (never expose internal security details like CSRF)
@@ -207,6 +283,8 @@ export async function fetchJsonWithFallback(path, options = {}) {
         'csrf_invalid': 'Request could not be completed. Please refresh the page and try again.',
         'forgot_password_not_available': 'Password reset is not available for your account type. If you are staff, use Request Recovery from the staff portal. If you are an administrator, contact another administrator.',
         'invalid_code': 'Incorrect verification code. Please check the code and try again.',
+        'invalid_mfa_code': 'Incorrect verification code. Please check the code from your authenticator app and try again.',
+        'verification_failed': 'Verification failed. Please check your code and try again.',
         'invalid_credentials': 'The email address or password you entered is incorrect. Please check your credentials and try again.',
         'webauthn_verification_failed': 'Passkey verification failed. Please try again.',
         'webauthn_verification_exception': 'Registration failed. Please try again.',
@@ -217,10 +295,35 @@ export async function fetchJsonWithFallback(path, options = {}) {
         'session_expired': 'Session expired. Please scan the QR code again.',
         'challenge_missing': 'Session error. Please scan the QR code again.',
         'cross_device_complete_failed': 'Failed to complete authentication. Please try again.',
+        'email_send_failed': 'Verification email could not be sent. Check that your email provider (e.g. SendGrid) is configured and the sender is verified, or try again in a moment.',
+        'request_not_found': 'Your login session expired or was not found. Please sign in again from the login page.',
+        'step_up_required': 'This action requires you to confirm your identity. Please enter your authenticator code again and retry.',
+        'invalid_step_up': 'Your confirmation has expired or was invalid. Please confirm your identity again and retry.',
+        'step_up_user_mismatch': 'Session mismatch. Please confirm your identity again and retry.',
+        'forbidden': 'You don\'t have permission to perform this action.',
+        'login_code_rate_limited': 'Too many login attempts. Please wait before trying again.',
+        'login_verify_rate_limited': 'Too many verification attempts. Please wait before trying again.',
+        'rate_limit_exceeded': 'Too many requests. Please slow down and try again later.',
       }
       
       if (errorCode && codeMap[errorCode]) {
         errMsg = codeMap[errorCode]
+      }
+
+      // 403: never show generic "Request failed: 403" — use backend message or friendly fallback
+      if (statusCode === 403 && (!errMsg || errMsg.toLowerCase().includes('request failed'))) {
+        if (err?.error?.message && !String(err.error.message).toLowerCase().includes('request failed')) {
+          errMsg = err.error.message
+        } else if (errorCode && codeMap[errorCode]) {
+          errMsg = codeMap[errorCode]
+        } else {
+          errMsg = 'You don\'t have permission to perform this action. You may need to confirm your identity again.'
+        }
+      }
+
+      // 401 with verification/step-up style codes: prefer user-friendly message over "Request failed"
+      if (statusCode === 401 && (errorCode === 'invalid_mfa_code' || errorCode === 'verification_failed' || errorCode === 'invalid_code')) {
+        if (codeMap[errorCode]) errMsg = codeMap[errorCode]
       }
 
       // Login endpoints: never expose validation details (password length, email format, etc.) — show generic invalid credentials only.

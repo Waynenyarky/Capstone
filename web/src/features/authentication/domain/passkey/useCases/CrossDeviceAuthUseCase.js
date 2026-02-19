@@ -74,6 +74,12 @@ export class CrossDeviceAuthUseCase {
     if (type === 'register' && pub.user?.id) {
       publicKey.user = { ...pub.user, id: this._base64ToBuffer(pub.user.id) }
     }
+    if (type === 'register' && Array.isArray(pub.excludeCredentials) && pub.excludeCredentials.length > 0) {
+      publicKey.excludeCredentials = pub.excludeCredentials.map((c) => ({
+        ...c,
+        id: typeof c.id === 'string' ? this._base64ToBuffer(c.id) : c.id
+      }))
+    }
     
     if (type === 'authenticate' && pub.allowCredentials) {
       publicKey.allowCredentials = pub.allowCredentials.map(c => ({

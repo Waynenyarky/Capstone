@@ -339,7 +339,7 @@ class BlockchainService {
         .logAuditHash(hashBytes32, eventType)
         .send({
           from: this.defaultAccount,
-          gas: Math.floor(gasEstimate * 1.2), // Add 20% buffer
+          gas: Math.floor(Number(gasEstimate) * 1.2), // Add 20% buffer (convert BigInt to Number)
         });
 
       return {
@@ -385,7 +385,7 @@ class BlockchainService {
         .logCriticalEvent(eventType, userId, detailsString)
         .send({
           from: this.defaultAccount,
-          gas: Math.floor(gasEstimate * 1.2),
+          gas: Math.floor(Number(gasEstimate) * 1.2), // Convert BigInt to Number
         });
 
       return {
@@ -434,7 +434,7 @@ class BlockchainService {
         .logAdminApproval(approvalId, eventType, userId, approverId, approved, detailsString)
         .send({
           from: this.defaultAccount,
-          gas: Math.floor(gasEstimate * 1.2),
+          gas: Math.floor(Number(gasEstimate) * 1.2), // Convert BigInt to Number
         });
 
       return {

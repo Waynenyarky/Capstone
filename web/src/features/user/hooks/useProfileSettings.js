@@ -22,6 +22,7 @@ export function useProfileSettings() {
   const roleSlug = String(role?.slug || role || '').toLowerCase()
   const isStaffRole = ['lgu_officer', 'lgu_manager', 'inspector', 'cso', 'staff'].includes(roleSlug)
   const isAdmin = roleSlug === 'admin'
+  const isBusinessOwner = roleSlug === 'business_owner'
 
   const { passkeyEnabled, passkeyLoading } = usePasskeyStatus(currentUser)
   const themeSettings = useThemeSettings(messageApi)
@@ -99,6 +100,7 @@ export function useProfileSettings() {
     officeLabel,
     isStaffRole,
     isAdmin,
+    isBusinessOwner,
     settingsLastUpdated,
     setSettingsLastUpdated,
     settingsInfoOpen,

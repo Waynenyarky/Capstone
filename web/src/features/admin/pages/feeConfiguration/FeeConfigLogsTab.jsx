@@ -27,6 +27,7 @@ const ACTION_LABELS = {
   fee_config_created: 'Fee config created',
   fee_config_updated: 'Fee config updated',
   fee_config_deleted: 'Fee config deleted',
+  regulatory_fee_config_updated: 'Regulatory (special) fees updated',
   penalty_config_updated: 'Penalty config updated',
   penalty_config_reset: 'Penalty config reset',
 }
@@ -39,6 +40,7 @@ const ACTION_TAG_COLORS = {
   fee_config_created: 'green',
   fee_config_updated: 'blue',
   fee_config_deleted: 'red',
+  regulatory_fee_config_updated: 'cyan',
   penalty_config_updated: 'blue',
   penalty_config_reset: 'orange',
 }

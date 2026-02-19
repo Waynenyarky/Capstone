@@ -4,6 +4,7 @@ const { requireJwt, requireRole } = require('../middleware/auth');
 const respond = require('../middleware/respond');
 const { auditLogRateLimit } = require('../middleware/rateLimit');
 const { requireServiceAuth } = require('../middleware/requireServiceAuth');
+const logger = require('../lib/logger');
 const AuditLog = require('../models/AuditLog');
 const blockchainService = require('../lib/blockchainService');
 const router = express.Router();
@@ -117,7 +118,9 @@ router.post('/verify-data', requireJwt, async (req, res) => {
 router.post('/log', requireServiceAuth, auditLogRateLimit(), async (req, res) => {
   try {
     const { operation, params, auditLogId } = req.body;
-    
+    const eventType = Array.isArray(params) && params[1] != null ? params[1] : operation;
+    logger.info('Audit log received from service', { operation, eventType, auditLogId });
+
     // This endpoint is called by other services to log to blockchain
     if (blockchainService && blockchainService.isAvailable && blockchainService.isAvailable()) {
       const blockchainQueue = require('../lib/blockchainQueue');

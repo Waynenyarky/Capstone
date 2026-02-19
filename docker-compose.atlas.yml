@@ -1,0 +1,67 @@
+# Override to use MongoDB Atlas instead of local MongoDB (IAS-3.3, 3.6).
+# Usage: set MONGO_URI in .env to your Atlas connection string, then:
+#   docker compose -f docker-compose.yml -f docker-compose.atlas.yml up -d
+# See docs/mongodb-atlas-setup.md for full setup.
+#
+# We replace the mongodb service with a lightweight stub so base compose's
+# depends_on: mongodb stays valid; app services use MONGO_URI (Atlas) from env.
+
+services:
+  # Stub: satisfies depends_on without running real MongoDB. App uses MONGO_URI (Atlas).
+  mongodb:
+    image: alpine:latest
+    command: ["sleep", "infinity"]
+    healthcheck:
+      test: ["CMD", "true"]
+      interval: 2s
+      timeout: 1s
+      retries: 1
+      start_period: 0s
+    # No ports, no volumes - just a placeholder so the project is valid
+
+  wait-for-services:
+    depends_on:
+      ganache:
+        condition: service_healthy
+      ipfs:
+        condition: service_healthy
+
+  auth-service:
+    environment:
+      - MONGO_URI=${MONGO_URI}
+      - IPFS_API_URL=${DOCKER_IPFS_API_URL}
+      - IPFS_GATEWAY_URL=${DOCKER_IPFS_GATEWAY_URL}
+      - AUDIT_SERVICE_URL=${DOCKER_AUDIT_SERVICE_URL}
+      - SEED_DEV=true
+      - SEED_TEMP_PASSWORD=${SEED_TEMP_PASSWORD:-TempPass123!}
+      - DEV_EMAIL_OFFICER=${DEV_EMAIL_OFFICER:-}
+      - DEV_EMAIL_MANAGER=${DEV_EMAIL_MANAGER:-}
+      - DEV_EMAIL_ADMIN=${DEV_EMAIL_ADMIN:-}
+      - DEV_EMAIL_ADMIN2=${DEV_EMAIL_ADMIN2:-}
+      - DEV_EMAIL_ADMIN3=${DEV_EMAIL_ADMIN3:-}
+      - DEV_EMAIL_INSPECTOR=${DEV_EMAIL_INSPECTOR:-}
+      - DEV_EMAIL_CSO=${DEV_EMAIL_CSO:-}
+      - DEV_EMAIL_BUSINESS=${DEV_EMAIL_BUSINESS:-}
+
+  business-service:
+    environment:
+      - MONGO_URI=${MONGO_URI}
+      - IPFS_API_URL=${DOCKER_IPFS_API_URL}
+      - IPFS_GATEWAY_URL=${DOCKER_IPFS_GATEWAY_URL}
+      - AUDIT_SERVICE_URL=${DOCKER_AUDIT_SERVICE_URL}
+      - AUTH_SERVICE_URL=${DOCKER_AUTH_SERVICE_URL}
+      - SEED_FEE_CONFIGURATION=true
+
+  admin-service:
+    environment:
+      - MONGO_URI=${MONGO_URI}
+      - AUTH_SERVICE_URL=${DOCKER_AUTH_SERVICE_URL}
+      - AUDIT_SERVICE_URL=${DOCKER_AUDIT_SERVICE_URL}
+      - BUSINESS_SERVICE_URL=${DOCKER_BUSINESS_SERVICE_URL}
+      - SEED_FORM_DEFINITIONS=true
+
+  audit-service:
+    environment:
+      - MONGO_URI=${MONGO_URI}
+      - GANACHE_RPC_URL=http://ganache:8545
+      - CONTRACT_ABI_PATH=/app/contract-addresses

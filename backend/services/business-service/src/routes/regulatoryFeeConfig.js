@@ -1,6 +1,7 @@
 const express = require('express')
 const RegulatoryFeeConfig = require('../models/RegulatoryFeeConfig')
 const { requireJwt, requireRole, requireAdminStepUp } = require('../middleware/auth')
+const { createAuditLog } = require('../lib/auditLogger')
 
 const router = express.Router()
 const ID = RegulatoryFeeConfig.SINGLETON_ID
@@ -143,11 +144,25 @@ router.put('/', requireJwt, requireRole(['admin']), requireAdminStepUp, async (r
       if (Object.keys(cpy).length > 0) update.certifiedTrueCopyPerDocument = cpy
     }
 
+    const previous = await RegulatoryFeeConfig.findById(ID).lean()
     const config = await RegulatoryFeeConfig.findByIdAndUpdate(
       ID,
       { $set: update },
       { new: true, upsert: true }
     ).lean()
+
+    createAuditLog(
+      req._userId,
+      'regulatory_fee_config_updated',
+      'regulatory_fee_config',
+      previous ? JSON.stringify(previous) : '',
+      config ? JSON.stringify(config) : '',
+      'admin',
+      {
+        ip: req.ip,
+        userAgent: req.get && req.get('user-agent'),
+      }
+    ).catch((err) => console.error('Failed to create audit log for regulatory fee config update', err))
 
     return res.json({ data: config })
   } catch (err) {

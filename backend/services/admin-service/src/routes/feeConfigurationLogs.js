@@ -15,6 +15,7 @@ const FEE_AND_PENALTY_EVENT_TYPES = [
   'fee_config_created',
   'fee_config_updated',
   'fee_config_deleted',
+  'regulatory_fee_config_updated',
   'penalty_config_created',
   'penalty_config_updated',
   'penalty_config_reset',
@@ -46,7 +47,7 @@ router.get('/', requireJwt, requireRole(['admin']), async (req, res) => {
 
     const logs = rawLogs.map((log) => {
       const user = userMap.get(String(log.userId))
-      const resourceType = log.eventType && log.eventType.startsWith('fee_config') ? 'fee' : 'penalty'
+      const resourceType = log.eventType && (log.eventType.startsWith('fee_config') || log.eventType === 'regulatory_fee_config_updated') ? 'fee' : 'penalty'
       const lineOfBusiness = (log.metadata && log.metadata.lineOfBusiness) || null
       let changes = null
       if (log.oldValue || log.newValue) {

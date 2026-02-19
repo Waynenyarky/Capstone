@@ -10,9 +10,8 @@ export default function Login() {
     const needsOnboarding = !!(user?.mustChangeCredentials || user?.mustSetupMfa)
 
     if (role === 'admin') {
-      // Seeded admin first-login: must complete MFA (and optionally change password) before using the app
       if (needsOnboarding) {
-        navigate('/mfa/setup', { state: { from: '/admin/dashboard' }, replace: true })
+        navigate('/admin/onboarding', { state: { from: '/admin/dashboard' }, replace: true })
         return
       }
       navigate('/admin/dashboard')

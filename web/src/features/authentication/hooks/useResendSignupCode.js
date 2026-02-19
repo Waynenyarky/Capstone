@@ -27,7 +27,7 @@ export function useResendSignupCode({ email, cooldownSec = 60, onSent } = {}) {
       }
       start(Math.max(0, Math.floor(cooldownToStart)))
       
-      if (typeof onSent === 'function') onSent({ email })
+      if (typeof onSent === 'function') onSent({ email, devCode: data?.devCode })
     } catch (err) {
       console.error('Resend signup code error:', err)
       
@@ -36,20 +36,16 @@ export function useResendSignupCode({ email, cooldownSec = 60, onSent } = {}) {
       if (msg.includes('expired')) {
         error('Signup request expired, please sign up again')
       } else if (msg.includes('rate limited') || msg.includes('wait') || msg.includes('too many requests')) {
-         // If we hit a rate limit, try to parse the retry time
+         // If we hit a rate limit, use server retryAfterSec or parse from message
          try {
             let secs = 0
-            const maybe = err?.body || err?.response || null
-            
-            if (maybe?.retryAfter) {
-                secs = Number(maybe.retryAfter)
-            } else {
-                // Fallback parsing from message "Try again in Xs"
-                // Regex matches "in 42s", "wait 42s", "try again in 42s"
+            const body = err?.originalError || err?.body || err?.response || null
+            const errObj = body?.error ?? body
+            if (typeof errObj?.retryAfterSec === 'number') secs = errObj.retryAfterSec
+            else if (typeof errObj?.retryAfter === 'number') secs = errObj.retryAfter
+            else {
                 const match = msg.match(/(?:in|wait)\s+(\d+)\s*s/i)
-                if (match && match[1]) {
-                    secs = parseInt(match[1], 10)
-                }
+                if (match && match[1]) secs = parseInt(match[1], 10)
             }
             
             if (secs > 0 && !Number.isNaN(secs)) {

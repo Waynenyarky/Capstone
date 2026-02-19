@@ -1,6 +1,10 @@
 const rateLimit = require('express-rate-limit')
-const { ipKeyGenerator } = require('express-rate-limit')
 const respond = require('./respond')
+
+// Default key generator for IP-based rate limiting (v7+ uses req.ip by default)
+function ipKeyGenerator(req) {
+  return req.ip || req.socket?.remoteAddress || 'unknown'
+}
 
 function perEmailRateLimit({ windowMs, max, code, message }) {
   return rateLimit({

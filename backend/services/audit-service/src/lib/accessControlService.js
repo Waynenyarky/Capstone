@@ -82,7 +82,7 @@ class AccessControlService {
         .grantRole(account, roleBytes32)
         .send({
           from: defaultAccount,
-          gas: Math.floor(gasEstimate * 1.2),
+          gas: Math.floor(Number(gasEstimate) * 1.2), // Convert BigInt to Number
         });
 
       return {
@@ -125,7 +125,7 @@ class AccessControlService {
         .revokeRole(account, roleBytes32)
         .send({
           from: defaultAccount,
-          gas: Math.floor(gasEstimate * 1.2),
+          gas: Math.floor(Number(gasEstimate) * 1.2), // Convert BigInt to Number
         });
 
       return {

@@ -24,7 +24,7 @@ export default function MfaReenrollmentAlert() {
   }
 
   const handleSetup = () => {
-    navigate('/mfa/setup')
+    navigate('/account/security')
   }
 
   const handleDismiss = () => {

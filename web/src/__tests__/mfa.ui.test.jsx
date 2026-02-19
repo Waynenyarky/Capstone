@@ -4,11 +4,11 @@ import { renderWithProviders } from '@/test/utils/renderWithProviders.jsx'
 
 // Mock hooks and services used by MFA components
 vi.mock('@/features/authentication/hooks', () => ({
-  useAuthSession: () => ({ currentUser: { email: 'jane@example.com', role: 'user' } }),
+  useAuthSession: () => ({ currentUser: { email: 'jane@example.com', role: 'user' }, login: () => {} }),
   useLoginVerificationForm: () => ({ form: undefined, handleFinish: () => {}, isSubmitting: false, prefillDevCode: () => {} }),
   useTotpVerificationForm: () => ({ form: undefined, handleFinish: () => {}, isSubmitting: false }),
   useResendLoginCode: () => ({ isSending: false, handleResend: () => {}, isCooling: false, remaining: 0 }),
-  useMfaSetup: () => ({ loading: false, qrDataUrl: null, uri: null, secret: 'S3CR3T', code: '', setCode: () => {}, enabled: false, handleSetup: () => {}, handleVerify: () => {}, handleDisable: () => {} }),
+  useMfaSetup: () => ({ loading: false, qrDataUrl: null, uri: null, secret: 'S3CR3T', code: '', setCode: () => {}, enabled: false, handleSetup: () => {}, handleVerify: () => {}, handleDisable: () => {}, markMfaComplete: () => {}, showSecret: false, toggleShowSecret: () => {}, confirmedSaved: false, setConfirmedSaved: () => {}, handleCopy: () => {} }),
   useLoggedInMfaManager: () => ({
     currentUser: { email: 'jane@example.com', role: 'user' },
     status: 'disabled',
@@ -25,6 +25,10 @@ vi.mock('@/features/authentication/hooks', () => ({
     confirmDisable: () => {},
     confirmUndo: () => {},
   }),
+}))
+
+vi.mock('@/features/authentication/presentation/passkey/hooks/usePasskeyManager', () => ({
+  usePasskeyManager: () => ({ handleRegister: () => Promise.resolve(false), registering: false }),
 }))
 
 vi.mock('@/features/authentication/services/mfaService', () => ({

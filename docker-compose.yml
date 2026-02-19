@@ -1,6 +1,6 @@
 
 services:
-  # MongoDB Database
+  # MongoDB Database (IAS-3.7: auth + least-privilege app user)
   mongodb:
     image: mongo:7.0
     container_name: capstone-mongodb
@@ -8,10 +8,15 @@ services:
       - "27017:27017"
     environment:
       MONGO_INITDB_DATABASE: capstone_project
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-devrootpass}
+      MONGO_APP_USER: ${MONGO_APP_USER:-capstone_app}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:-devapppass}
     volumes:
       - mongodb_data:/data/db
+      - ./deploy/mongo-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD-SHELL", "mongosh -u \"$$MONGO_INITDB_ROOT_USERNAME\" -p \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval 'db.adminCommand(\"ping\")' && exit 0 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -55,6 +60,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 45s
 
   # Wait for services to be ready
   wait-for-services:
@@ -119,7 +125,7 @@ services:
         condition: service_completed_successfully
     env_file: .env
     environment:
-      - MONGO_URI=mongodb://mongodb:27017/capstone_project
+      - MONGO_URI=mongodb://${MONGO_APP_USER:-capstone_app}:${MONGO_APP_PASSWORD:-devapppass}@mongodb:27017/capstone_project?authSource=admin
       - IPFS_API_URL=${DOCKER_IPFS_API_URL}
       - IPFS_GATEWAY_URL=${DOCKER_IPFS_GATEWAY_URL}
       - AUDIT_SERVICE_URL=${DOCKER_AUDIT_SERVICE_URL}
@@ -151,7 +157,7 @@ services:
       - deploy-contracts
     env_file: .env
     environment:
-      - MONGO_URI=mongodb://mongodb:27017/capstone_project
+      - MONGO_URI=mongodb://${MONGO_APP_USER:-capstone_app}:${MONGO_APP_PASSWORD:-devapppass}@mongodb:27017/capstone_project?authSource=admin
       - IPFS_API_URL=${DOCKER_IPFS_API_URL}
       - IPFS_GATEWAY_URL=${DOCKER_IPFS_GATEWAY_URL}
       - AUDIT_SERVICE_URL=${DOCKER_AUDIT_SERVICE_URL}
@@ -176,7 +182,7 @@ services:
         condition: service_completed_successfully
     env_file: .env
     environment:
-      - MONGO_URI=mongodb://mongodb:27017/capstone_project
+      - MONGO_URI=mongodb://${MONGO_APP_USER:-capstone_app}:${MONGO_APP_PASSWORD:-devapppass}@mongodb:27017/capstone_project?authSource=admin
       - AUTH_SERVICE_URL=${DOCKER_AUTH_SERVICE_URL}
       - AUDIT_SERVICE_URL=${DOCKER_AUDIT_SERVICE_URL}
       - BUSINESS_SERVICE_URL=${DOCKER_BUSINESS_SERVICE_URL}
@@ -199,7 +205,7 @@ services:
       - deploy-contracts
     env_file: .env
     environment:
-      - MONGO_URI=mongodb://mongodb:27017/capstone_project
+      - MONGO_URI=mongodb://${MONGO_APP_USER:-capstone_app}:${MONGO_APP_PASSWORD:-devapppass}@mongodb:27017/capstone_project?authSource=admin
       - GANACHE_RPC_URL=http://ganache:8545
       - CONTRACT_ABI_PATH=/app/contract-addresses
     volumes:

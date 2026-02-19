@@ -119,7 +119,7 @@ export function useLoggedInMfaManager() {
     }
   }
 
-  const handleOpenSetup = () => navigate('/mfa/setup')
+  const handleOpenSetup = () => navigate('/account/security')
 
   const handleDisable = () => {
     setConfirmCode('')

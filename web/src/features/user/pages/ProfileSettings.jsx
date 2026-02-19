@@ -14,6 +14,7 @@ export default function ProfileSettings() {
     officeLabel,
     isStaffRole,
     isAdmin,
+    isBusinessOwner,
     settingsLastUpdated,
     setSettingsLastUpdated,
     settingsInfoOpen,
@@ -53,6 +54,7 @@ export default function ProfileSettings() {
       passkeyLoading={passkeyLoading}
       officeLabel={officeLabel}
       isStaffRole={isStaffRole}
+      isBusinessOwner={isBusinessOwner}
       themeSettings={themeSettings}
     />
   )

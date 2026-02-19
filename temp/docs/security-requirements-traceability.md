@@ -22,11 +22,11 @@ One place to link each IAS requirement to its implementation (code or doc) and e
 | IAS-2.7 | CSRF tokens | [shared/csrf.js](backend/shared/csrf.js), [auth routes#L29-L32](backend/services/auth-service/src/routes/index.js#L29-L32), [security-csrf.md](security-csrf.md) | Double-submit cookie |
 | IAS-3.1 | Secure credential storage | [.env.example](backend/.env.example) | process.env, no secrets in repo |
 | IAS-3.2 | RBAC | [auth.js#L67](backend/services/auth-service/src/middleware/auth.js#L67) | requireRole |
-| IAS-3.3 | DB encryption at rest | [security-database.md](security-database.md) | Infra/deployment |
-| IAS-3.4 | Encrypted backups | [security-database.md](security-database.md) | Backup/ops |
+| IAS-3.3 | DB encryption at rest | [security-database.md](security-database.md) | Documented: Atlas or encrypted host/volume; runbook sentence. |
+| IAS-3.4 | Encrypted backups | [backup.sh](../deploy/backup.sh), [restore.sh](../deploy/restore.sh), [security-database.md](security-database.md) | BACKUP_ENCRYPTION_PASSWORD → AES-256 .enc; restore decrypts. |
 | IAS-3.5 | Audit logging | [AuditLog.js](backend/services/auth-service/src/models/AuditLog.js), createAuditLog in routes | Audit trail |
-| IAS-3.6 | TLS DB connections | [db.js](backend/services/auth-service/src/config/db.js), [security-database.md](security-database.md) | MONGO_URI TLS in prod |
-| IAS-3.7 | Database hardening | [security-database.md](security-database.md) | Runbook checklist |
+| IAS-3.6 | TLS DB connections | [db.js](backend/services/auth-service/src/config/db.js), [security-database.md](security-database.md), [docker-compose.tls.yml](../docker-compose.tls.yml), [mongo-tls-certs.sh](../scripts/mongo-tls-certs.sh) | Prod: mongodb+srv or tls=true; optional TLS in Docker via profile. |
+| IAS-3.7 | Database hardening | [docker-compose.yml](../docker-compose.yml), [deploy/mongo-init/01-create-app-user.js](../deploy/mongo-init/01-create-app-user.js), [.env.example](../.env.example), [backup.sh](../deploy/backup.sh), [security-database.md](security-database.md) | Auth + least-privilege app user; MONGO_URI with credentials; runbook. |
 | IAS-4.1 | Data Flow Diagram | [security-risk-analysis.md](security-risk-analysis.md), [security-data-flow.md](security-data-flow.md), [system-architecture.svg](system-architecture.svg) | IPO + data flow doc |
 | IAS-4.2 | STRIDE threats | [security-stride.md](security-stride.md) | STRIDE table |
 | IAS-4.3 | OWASP Top 10 mapped | [security-owasp-mapping.md](security-owasp-mapping.md) | A01–A10 mapping |

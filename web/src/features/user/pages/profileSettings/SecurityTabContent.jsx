@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Typography, Grid, Select, Alert } from 'antd'
 import { theme } from 'antd'
 import { TabletOutlined, KeyOutlined, LockOutlined, InfoCircleOutlined } from '@ant-design/icons'
@@ -13,6 +13,12 @@ import { SECURITY_SECTIONS } from './constants'
 const { Title, Text } = Typography
 
 const SIDEBAR_WIDTH = 240
+
+/** Sections to show in Security tab. Password is only for business owner. */
+function getSecuritySections(showPasswordSection) {
+  if (showPasswordSection) return SECURITY_SECTIONS
+  return SECURITY_SECTIONS.filter((s) => s.key !== 'password')
+}
 
 function DetailHeader({ icon: Icon, title, tag }) {
   const { token } = theme.useToken()
@@ -50,13 +56,18 @@ function DetailHeader({ icon: Icon, title, tag }) {
   )
 }
 
-export default function SecurityTabContent() {
+export default function SecurityTabContent({ showPasswordSection = false }) {
   const { token } = theme.useToken()
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md
+  const sections = getSecuritySections(showPasswordSection)
   const [selectedKey, setSelectedKey] = useState('mfa')
   const { isAdmin, hasPasskeys } = usePasskeyManager()
   const { enabled: mfaEnabled, refetchMfaStatus } = useLoggedInMfaManager()
+
+  useEffect(() => {
+    if (!showPasswordSection && selectedKey === 'password') setSelectedKey('mfa')
+  }, [showPasswordSection, selectedKey])
 
   const renderSectionItem = ({ key: itemKey, label, icon: Icon }, isSelected) => (
     <div
@@ -156,7 +167,7 @@ export default function SecurityTabContent() {
         </div>
       )
     }
-    if (selectedKey === 'password') {
+    if (selectedKey === 'password' && showPasswordSection) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           <DetailHeader icon={LockOutlined} title="Password" />
@@ -176,7 +187,7 @@ export default function SecurityTabContent() {
           size="large"
           value={selectedKey}
           onChange={setSelectedKey}
-          options={SECURITY_SECTIONS.map((s) => ({ value: s.key, label: s.label }))}
+          options={sections.map((s) => ({ value: s.key, label: s.label }))}
           style={{ width: '100%' }}
         />
         {renderDetail()}
@@ -197,7 +208,7 @@ export default function SecurityTabContent() {
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {SECURITY_SECTIONS.map((item) => renderSectionItem(item, selectedKey === item.key))}
+          {sections.map((item) => renderSectionItem(item, selectedKey === item.key))}
         </div>
       </div>
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: token.colorBgContainer }}>

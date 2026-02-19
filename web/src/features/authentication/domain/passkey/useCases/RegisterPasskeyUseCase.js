@@ -46,6 +46,13 @@ export class RegisterPasskeyUseCase {
     if (pub.user?.id) {
       publicKey.user = { ...pub.user, id: this._base64ToBuffer(pub.user.id) }
     }
+    // excludeCredentials: browser expects each descriptor id as ArrayBuffer, not base64url string
+    if (Array.isArray(pub.excludeCredentials) && pub.excludeCredentials.length > 0) {
+      publicKey.excludeCredentials = pub.excludeCredentials.map((c) => ({
+        ...c,
+        id: typeof c.id === 'string' ? this._base64ToBuffer(c.id) : c.id
+      }))
+    }
     return publicKey
   }
 

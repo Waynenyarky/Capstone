@@ -1,6 +1,7 @@
-function error(res, status, code, message, details) {
+function error(res, status, code, message, details, extra) {
   const payload = { ok: false, error: { code, message } }
   if (details !== undefined) payload.error.details = details
+  if (extra && typeof extra === 'object') Object.assign(payload.error, extra)
   return res.status(status).json(payload)
 }
 

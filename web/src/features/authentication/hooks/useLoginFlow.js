@@ -11,6 +11,7 @@ export function useLoginFlow({ onSubmit } = {}) {
   const { success } = useNotifier()
   const { login } = useAuthSession()
   const { initialEmail, rememberEmail, clearRememberedEmail } = useRememberedEmail()
+  const isDemoUi = import.meta.env.VITE_DEMO_UI === 'true'
   const devPassword =
     (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SEED_TEMP_PASSWORD) ||
     // eslint-disable-next-line no-undef
@@ -32,8 +33,11 @@ export function useLoginFlow({ onSubmit } = {}) {
       setRememberMe(!!rm)
       setDevCode(null)
 
-      // If backend already issued a session (seeded first-login path), finish immediately and skip email OTP
-      if (serverData && serverData.skipEmailVerification && (serverData.token || serverData.accessToken)) {
+      // If backend already issued a session (e.g. first-login or "no MFA enrolled, go set it up"), finish and redirect
+      // In demo-ui mode, only allow auto-skip when backend forces MFA setup (mustSetupMfa), so user can reach onboarding
+      const canAutoComplete = serverData && serverData.skipEmailVerification && (serverData.token || serverData.accessToken)
+      const allowInDemoUi = canAutoComplete && serverData.mustSetupMfa === true
+      if (canAutoComplete && (allowInDemoUi || !isDemoUi)) {
         try {
           const remember = rm === true
           login(serverData, { remember })
@@ -51,7 +55,7 @@ export function useLoginFlow({ onSubmit } = {}) {
       // capture OTP expiry info from server response if present
       try {
         if (serverData) {
-          if (serverData.devCode) setDevCode(serverData.devCode)
+          if (serverData.devCode && !isDemoUi) setDevCode(serverData.devCode)
           if (serverData.expiresAt) {
             setOtpExpiresAt(Number(serverData.expiresAt))
           } else if (serverData.expires_in || serverData.expiresIn) {
@@ -68,7 +72,17 @@ export function useLoginFlow({ onSubmit } = {}) {
         setStep('verify')
         return { showVerificationSent: true }
       }
-      
+
+      // Passkey as second factor: no email sent; user must complete sign-in with passkey
+      if (serverData && serverData.forceEmailOtp !== true) {
+        const method = String(serverData.mfaMethod || '').toLowerCase()
+        if (method.includes('passkey')) {
+          setMfaRequired(null)
+          setStep('verify-passkey')
+          return { showVerificationSent: false }
+        }
+      }
+
       if (serverData && serverData.mfaEnabled === true) {
         setStep('verify-totp')
         return { showVerificationSent: false }
@@ -83,13 +97,25 @@ export function useLoginFlow({ onSubmit } = {}) {
     onError: (err) => {
       // Try to parse structured lock info from the error object
       try {
-        const maybe = err?.body || err?.response || err?.data || err
+        const maybe = err?.body || err?.response || err?.data || err?.originalError || err
         const locked = maybe?.lockedUntil || maybe?.adminLockedUntil || maybe?.locked_until || maybe?.locked_at || maybe?.lockedUntilMs || maybe?.lockedUntilMs || maybe?.locked_until_ms
         if (locked) {
           const lu = Number(locked) || Date.parse(locked)
           if (!Number.isNaN(lu)) setServerLockedUntil(Number(lu))
         }
-        const code = maybe?.error?.code || maybe?.code
+        // Rate limit (429): derive lockout end from retryAfterSec so LockoutBanner shows
+        const status = err?.status || maybe?.status
+        const code = maybe?.error?.code || maybe?.code || err?.code
+        if (status === 429 || code === 'login_code_rate_limited' || code === 'login_verify_rate_limited') {
+          const retrySec = maybe?.error?.retryAfterSec ?? err?.retryAfterSec
+          const sec = Number(retrySec)
+          if (Number.isFinite(sec) && sec > 0) {
+            setServerLockedUntil(Date.now() + sec * 1000)
+          } else {
+            setServerLockedUntil(Date.now() + 10 * 60 * 1000) // default 10 min
+          }
+          return true
+        }
         if (code === 'mfa_required') {
           const allowed = maybe?.error?.details?.allowedMethods || []
           const message = maybe?.error?.message || 'Multi-factor authentication is required. Use a passkey or authenticator app.'
@@ -175,7 +201,8 @@ export function useLoginFlow({ onSubmit } = {}) {
     setDevCode(null)
   }, [login, rememberMe, emailForVerify, rememberEmail, clearRememberedEmail, success, onSubmit])
 
-  const initialValues = React.useMemo(() => ({ rememberMe: !!initialEmail, email: initialEmail }), [initialEmail])
+  // Start with empty email so we never pre-fill with last remembered (e.g. admin) account
+  const initialValues = React.useMemo(() => ({ rememberMe: false, email: '' }), [])
 
   // Dev helpers to prefill login form (uses VITE_DEV_EMAIL_* or falls back to @example.com)
   const prefill = (email, password) => {
@@ -191,6 +218,11 @@ export function useLoginFlow({ onSubmit } = {}) {
   const prefillInspector = () => prefill(env.VITE_DEV_EMAIL_INSPECTOR || 'inspector@example.com', devPassword)
   const prefillCso = () => prefill(env.VITE_DEV_EMAIL_CSO || 'cso@example.com', devPassword)
 
+  const goBackToLogin = React.useCallback(() => {
+    setStep('login')
+    setDevCode(null)
+  }, [])
+
   const verificationProps = {
     email: emailForVerify,
     title: 'Login Verification',
@@ -198,6 +230,7 @@ export function useLoginFlow({ onSubmit } = {}) {
     otpExpiresAt,
     serverLockedUntil,
     devCode,
+    onSessionExpired: goBackToLogin,
   }
 
   return {

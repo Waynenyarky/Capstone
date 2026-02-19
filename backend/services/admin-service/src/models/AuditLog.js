@@ -50,6 +50,7 @@ const AuditLogSchema = new mongoose.Schema(
         'fee_config_created',
         'fee_config_updated',
         'fee_config_deleted',
+        'regulatory_fee_config_updated',
         'other',
       ],
       index: true,

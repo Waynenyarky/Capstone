@@ -3,7 +3,7 @@ import { loginResend } from '@/features/authentication/services/authService'
 import { useNotifier } from '@/shared/notifications'
 import useCooldown from './useCooldown'
 
-export function useResendLoginCode({ email, cooldownSec = 60, onSent } = {}) {
+export function useResendLoginCode({ email, cooldownSec = 60, onSent, onSessionExpired } = {}) {
   const { success, error } = useNotifier()
   const [isSending, setSending] = useState(false)
   const { remaining, isCooling, start } = useCooldown(cooldownSec)
@@ -36,6 +36,10 @@ export function useResendLoginCode({ email, cooldownSec = 60, onSent } = {}) {
       if (typeof onSent === 'function') onSent({ email })
     } catch (err) {
       console.error('Resend login code error:', err)
+      // When backend says no pending login (expired/refreshed), offer to go back to login step
+      if (err?.code === 'request_not_found' && typeof onSessionExpired === 'function') {
+        onSessionExpired()
+      }
         // If server returned structured lock info in a thrown object (some callers use fetchWithFallback),
         // try to honor it. Otherwise show a generic error.
         try {
@@ -56,7 +60,7 @@ export function useResendLoginCode({ email, cooldownSec = 60, onSent } = {}) {
     } finally {
       setSending(false)
     }
-  }, [email, isCooling, cooldownSec, start, success, error, onSent])
+  }, [email, isCooling, cooldownSec, start, success, error, onSent, onSessionExpired])
 
   return { isSending, handleResend, isCooling, remaining }
 }

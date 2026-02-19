@@ -292,8 +292,9 @@ router.post('/signup/start', validatePasswordStrengthMiddleware, validateBody(si
       console.error(`[Signup] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
       return respond.error(res, 500, 'email_send_failed', `Failed to send verification email: ${emailResult?.error || 'Please check your email configuration'}`)
     }
-    
-    return res.json({ sent: true })
+    const response = { sent: true }
+    if (process.env.NODE_ENV !== 'production') response.devCode = code
+    return res.json(response)
   } catch (err) {
     try {
       const logPath = path.join(process.cwd(), 'backend-error.log')
@@ -349,8 +350,9 @@ router.post('/signup/resend', validateBody(Joi.object({ email: Joi.string().emai
       console.error(`[Signup Resend] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
       return respond.error(res, 500, 'email_send_failed', `Failed to send verification email: ${emailResult?.error || 'Please check your email configuration'}`)
     }
-    
-    return res.json({ sent: true })
+    const response = { sent: true }
+    if (process.env.NODE_ENV !== 'production') response.devCode = code
+    return res.json(response)
   } catch (err) {
     console.error('POST /api/auth/signup/resend error:', err)
     return respond.error(res, 500, 'resend_failed', 'Failed to resend code')

@@ -16,6 +16,7 @@ const MfaSetup = lazy(() => import("@/features/authentication/components/MfaSetu
 const Dashboard = lazy(() => import("@/features/user").then(m => ({ default: m.Dashboard })))
 const ProfileSettings = lazy(() => import("@/features/user").then(m => ({ default: m.ProfileSettings })))
 const NotificationHistoryPage = lazy(() => import("@/features/user/pages/NotificationHistoryPage.jsx"))
+const AdminOnboarding = lazy(() => import("@/features/admin/pages/AdminOnboarding.jsx"))
 const AdminDashboard = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminDashboard })))
 const AdminUsers = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminUsers })))
 const AdminMaintenance = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminMaintenance })))
@@ -84,7 +85,8 @@ function App() {
       <Route path="/sign-up" element={<PublicRoute><SignUp /></PublicRoute>} />
       <Route path="/auth/passkey-mobile" element={<PublicRoute><PasskeyMobileAuth /></PublicRoute>} />
       <Route path="/deletion-pending" element={<ProtectedRoute><DeletionPendingScreen /></ProtectedRoute>} />
-      <Route path="/mfa/setup" element={<ProtectedRoute><MfaSetup /></ProtectedRoute>} />
+      <Route path="/account/security" element={<ProtectedRoute><MfaSetup /></ProtectedRoute>} />
+      <Route path="/admin/onboarding" element={<ProtectedRoute allowedRoles={['admin']}><AdminOnboarding /></ProtectedRoute>} />
       
       {/* Admin Routes */}
       <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><Outlet /></ProtectedRoute>}>

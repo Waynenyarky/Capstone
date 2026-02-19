@@ -69,27 +69,27 @@ async function seedDevDataIfEmpty() {
     const tempPassword = process.env.SEED_TEMP_PASSWORD || 'TempPass123!';
     const tempPasswordHash = await bcrypt.hash(tempPassword, 10);
 
-    // In production (demo mode), never seed @example.com for role accounts — use Mailinator only.
+    // In production (demo mode), never seed @example.com for role accounts — use MailSlurp (or Mailinator) defaults.
     const isProduction = process.env.NODE_ENV === 'production';
-    const mailinatorDefaults = {
-      officer: 'bizclear-officer@mailinator.com',
-      manager: 'bizclear-manager@mailinator.com',
-      admin: 'bizclear-admin@mailinator.com',
-      admin2: 'bizclear-admin2@mailinator.com',
-      admin3: 'bizclear-admin3@mailinator.com',
+    const roleEmailDefaults = {
+      officer: '39dfaab3-6daf-410b-bbea-865f8e878583@mailslurp.biz',
+      manager: 'afb90db7-5360-4783-a444-925b22abea70@mailslurp.biz',
+      admin: '1a7f9616-9643-4598-af65-3b7108e740aa@mailslurp.biz',
+      admin2: 'd7d29cd6-ccf6-4866-b7d1-bdc26dc2e89c@mailslurp.biz',
+      admin3: '67d7d200-da90-4dcf-8200-a513f5f19990@mailslurp.biz',
       inspector: 'bizclear-inspector@mailinator.com',
       cso: 'bizclear-cso@mailinator.com',
       business: 'bizclear-business@mailinator.com',
     };
     const devEmails = {
-      officer: process.env.DEV_EMAIL_OFFICER || (isProduction ? mailinatorDefaults.officer : 'officer@example.com'),
-      manager: process.env.DEV_EMAIL_MANAGER || (isProduction ? mailinatorDefaults.manager : 'manager@example.com'),
-      admin: process.env.DEV_EMAIL_ADMIN || (isProduction ? mailinatorDefaults.admin : 'admin@example.com'),
-      admin2: process.env.DEV_EMAIL_ADMIN2 || (isProduction ? mailinatorDefaults.admin2 : 'admin2@example.com'),
-      admin3: process.env.DEV_EMAIL_ADMIN3 || (isProduction ? mailinatorDefaults.admin3 : 'admin3@example.com'),
-      inspector: process.env.DEV_EMAIL_INSPECTOR || (isProduction ? mailinatorDefaults.inspector : 'inspector@example.com'),
-      cso: process.env.DEV_EMAIL_CSO || (isProduction ? mailinatorDefaults.cso : 'cso@example.com'),
-      business: process.env.DEV_EMAIL_BUSINESS || (isProduction ? mailinatorDefaults.business : 'business@example.com'),
+      officer: process.env.DEV_EMAIL_OFFICER || (isProduction ? roleEmailDefaults.officer : 'officer@example.com'),
+      manager: process.env.DEV_EMAIL_MANAGER || (isProduction ? roleEmailDefaults.manager : 'manager@example.com'),
+      admin: process.env.DEV_EMAIL_ADMIN || (isProduction ? roleEmailDefaults.admin : 'admin@example.com'),
+      admin2: process.env.DEV_EMAIL_ADMIN2 || (isProduction ? roleEmailDefaults.admin2 : 'admin2@example.com'),
+      admin3: process.env.DEV_EMAIL_ADMIN3 || (isProduction ? roleEmailDefaults.admin3 : 'admin3@example.com'),
+      inspector: process.env.DEV_EMAIL_INSPECTOR || (isProduction ? roleEmailDefaults.inspector : 'inspector@example.com'),
+      cso: process.env.DEV_EMAIL_CSO || (isProduction ? roleEmailDefaults.cso : 'cso@example.com'),
+      business: process.env.DEV_EMAIL_BUSINESS || (isProduction ? roleEmailDefaults.business : 'business@example.com'),
     };
 
     // In production, remove stale @example.com seeder accounts BEFORE creating new ones
@@ -114,7 +114,10 @@ async function seedDevDataIfEmpty() {
       }
     }
 
-    // Helper to ensure a user exists
+    // Helper to ensure a user exists.
+    // New users get full seed state (mustSetupMfa, mustChangeCredentials, etc.).
+    // Existing users: only sync role/profile/password — do NOT overwrite mustSetupMfa,
+    // mustChangeCredentials, or MFA fields, so completed onboarding and MFA setup persist across restarts.
     const ensureUser = async (email, roleSlug, firstName, lastName, phoneNumber, overrides = {}) => {
       const roleDoc = await Role.findOne({ slug: roleSlug });
       if (!roleDoc) {
@@ -122,28 +125,40 @@ async function seedDevDataIfEmpty() {
         return;
       }
       const passwordHash = overrides.passwordHash || tempPasswordHash;
-      await User.findOneAndUpdate(
-        { email },
-        {
-          role: roleDoc._id,
-          firstName,
-          lastName,
-          email,
-          phoneNumber: phoneNumber || '',
-          passwordHash,
-          termsAccepted: overrides.termsAccepted ?? true,
-          mustChangeCredentials: overrides.mustChangeCredentials ?? false,
-          mustSetupMfa: overrides.mustSetupMfa ?? false,
-          mfaEnabled: overrides.mfaEnabled ?? false,
-          mfaMethod: overrides.mfaMethod || '',
-          mfaSecret: overrides.mfaSecret || '',
-          isStaff: overrides.isStaff ?? false,
-          isActive: overrides.isActive ?? true,
-          office: overrides.office ?? '',
-          createdBy: 'seeder',
-        },
-        { upsert: true, new: true, runValidators: false }
-      );
+      const existing = await User.findOne({ email }).lean();
+      const baseUpdate = {
+        role: roleDoc._id,
+        firstName,
+        lastName,
+        email,
+        phoneNumber: phoneNumber || '',
+        passwordHash,
+        termsAccepted: overrides.termsAccepted ?? true,
+        isStaff: overrides.isStaff ?? false,
+        isActive: overrides.isActive ?? true,
+        office: overrides.office ?? '',
+        createdBy: 'seeder',
+      };
+      if (!existing) {
+        await User.findOneAndUpdate(
+          { email },
+          {
+            ...baseUpdate,
+            mustChangeCredentials: overrides.mustChangeCredentials ?? false,
+            mustSetupMfa: overrides.mustSetupMfa ?? false,
+            mfaEnabled: overrides.mfaEnabled ?? false,
+            mfaMethod: overrides.mfaMethod || '',
+            mfaSecret: overrides.mfaSecret || '',
+          },
+          { upsert: true, new: true, runValidators: false }
+        );
+      } else {
+        await User.findOneAndUpdate(
+          { email },
+          baseUpdate,
+          { new: true, runValidators: false }
+        );
+      }
       logger.info(`Ensured user: ${email} (${roleSlug})`);
     };
 

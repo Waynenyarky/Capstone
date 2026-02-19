@@ -6,10 +6,10 @@ import useOtpCountdown from '@/features/authentication/hooks/useOtpCountdown.js'
 const { Title, Text, Paragraph } = Typography
 const { useBreakpoint } = Grid
 
-export default function LoginVerificationForm({ email, onSubmit, title, otpExpiresAt, devCode } = {}) {
+export default function LoginVerificationForm({ email, onSubmit, title, otpExpiresAt, devCode, onSessionExpired } = {}) {
   const { form, handleFinish, isSubmitting } = useLoginVerificationForm({ email, onSubmit })
   const cardTitle = title || 'Verify Login'
-  const { isSending: isResending, handleResend, isCooling, remaining } = useResendLoginCode({ email, cooldownSec: 60 })
+  const { isSending: isResending, handleResend, isCooling, remaining } = useResendLoginCode({ email, cooldownSec: 60, onSessionExpired })
   const { remaining: otpRemaining, isExpired } = useOtpCountdown(otpExpiresAt)
   const { token } = theme.useToken()
   const screens = useBreakpoint()
@@ -36,6 +36,11 @@ export default function LoginVerificationForm({ email, onSubmit, title, otpExpir
         <Text type="secondary">
           Please enter the 6-digit code sent to <br/><Text strong style={{ color: token.colorPrimary }}>{email}</Text>
         </Text>
+        {devCode && import.meta.env.VITE_DEMO_UI !== 'true' && (
+          <Paragraph style={{ marginTop: 16, marginBottom: 0, padding: '12px 16px', background: token.colorFillQuaternary, borderRadius: 8, fontFamily: 'monospace', fontSize: 18, fontWeight: 600 }}>
+            Development: your code is <Text copyable={{ text: devCode }}>{devCode}</Text>
+          </Paragraph>
+        )}
       </div>
 
       <Form name="loginVerification" form={form} layout="vertical" onFinish={handleFinish} size="default">
@@ -97,7 +102,7 @@ export default function LoginVerificationForm({ email, onSubmit, title, otpExpir
             </Button>
           </Flex>
 
-          {devCode && (
+          {devCode && import.meta.env.VITE_DEMO_UI !== 'true' && (
             <Button type="dashed" onClick={prefillDevCode} block>
               Prefill Code (Dev: {devCode})
             </Button>

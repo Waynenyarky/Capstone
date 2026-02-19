@@ -77,6 +77,21 @@ npm run test
 Notes:
 - Tests use Vitest and `react-test-renderer` for basic snapshots. If you prefer `@testing-library/react`, the tests can be migrated.
 
+## MFA lockout recovery
+
+If an admin or staff user **starts** MFA setup but does not complete it (e.g. closes the browser), the backend now treats that as **incomplete MFA** and allows them to log in again so they can complete setup (no 403 lockout). Logging in with email/password will return a session that requires MFA setup, and they can enroll TOTP or a passkey.
+
+If you need to force-reset MFA for an admin (e.g. lost device, broken state), run from repo root:
+
+```bash
+node backend/scripts/reset-admin-mfa.js [email]
+# Examples:
+node backend/scripts/reset-admin-mfa.js 1
+node backend/scripts/reset-admin-mfa.js admin@example.com
+```
+
+This clears `mfaSecret` / `mfaEnabled` and sets `mustSetupMfa = true` so the next login sends them to MFA setup. Requires MongoDB (`MONGODB_URI` or `MONGO_URI` in `.env`).
+
 ## Security notes and recommendations
 
 - Do NOT implement OTP/TOTP generation or secret persistence purely on the frontend for real users — this is insecure.

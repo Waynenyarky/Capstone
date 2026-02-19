@@ -1,4 +1,5 @@
 const axios = require('axios')
+const logger = require('./logger')
 
 /**
  * Email API Service - REST API Implementation
@@ -9,12 +10,8 @@ const axios = require('axios')
 // Helper function to create mock email sender (for development)
 function createMockEmailSender() {
   return async (opts) => {
-    console.log('📧 [MOCK EMAIL] To:', opts.to)
-    console.log('Subject:', opts.subject)
     const codeMatch = opts.html?.match(/(\d{6})/) || opts.text?.match(/(\d{6})/)
-    if (codeMatch) {
-      console.log('📧 [MOCK EMAIL] OTP Code:', codeMatch[1])
-    }
+    logger.warn('Email: using mock sender (no API key). OTP in logs only.', { to: opts.to, subject: opts.subject, otpCode: codeMatch ? codeMatch[1] : undefined })
     // Simulate successful send
     await new Promise(resolve => setTimeout(resolve, 50))
     return { 
@@ -40,17 +37,13 @@ async function sendEmailViaAPI({ to, from, subject, text, html, headers = {} }) 
   const provider = process.env.EMAIL_API_PROVIDER || 'sendgrid'
   const apiKey = process.env.EMAIL_API_KEY
   const apiUrl = process.env.EMAIL_API_URL
-  const isDevelopment = process.env.NODE_ENV !== 'production'
 
-  // If no API key in development, use mock
-  if (!apiKey && isDevelopment) {
-    console.warn('⚠️ Email API key not configured. Using mock email sender in development.')
+  // No API key: use mock in all modes (dev, demo-ui, demo, production) so the app never breaks.
+  // To receive real emails in any mode, set EMAIL_API_KEY in .env (e.g. SendGrid).
+  if (!apiKey || apiKey === 'your-sendgrid-api-key-here') {
+    logger.warn('Email API key not set or placeholder. Using mock sender (code in logs/UI only).')
     const mockSender = createMockEmailSender()
     return await mockSender({ to, subject, text, html })
-  }
-
-  if (!apiKey) {
-    throw new Error('EMAIL_API_KEY is required. Set EMAIL_API_KEY in environment variables.')
   }
 
   try {
@@ -70,26 +63,19 @@ async function sendEmailViaAPI({ to, from, subject, text, html, headers = {} }) 
         throw new Error(`Unsupported email provider: ${provider}. Supported: sendgrid, mailgun, ses, resend, postmark`)
     }
   } catch (err) {
-    // Log detailed error information
     if (err.response) {
-      console.error('📧 Email API Error Details:', {
+      logger.error('Email API error', {
         status: err.response.status,
         statusText: err.response.statusText,
         data: err.response.data,
-        url: err.config?.url,
-        provider: provider
+        provider,
       })
     } else {
-      console.error('📧 Email API Error:', err.message)
+      logger.error('Email API error', { error: err.message })
     }
-    
-    // In development, fall back to mock on API errors
-    if (isDevelopment && err.response) {
-      console.warn('⚠️ Email API error. Falling back to mock email sender in development.')
-      console.warn('Error:', err.message)
-      const mockSender = createMockEmailSender()
-      return await mockSender({ to, subject, text, html })
-    }
+    // Do not fall back to mock on API errors: the user would see "verification sent"
+    // but receive no email. Let the error propagate so the client gets a clear failure
+    // (e.g. "Failed to send verification email") and can fix config (e.g. verify sender in SendGrid).
     throw err
   }
 }
@@ -404,8 +390,8 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
     // Ensure 'from' is set
     const fromAddress = from || process.env.DEFAULT_FROM_EMAIL || 'noreply@example.com'
     
-    console.log(`[Email API] Attempting to send OTP to ${to}... (Provider: ${process.env.EMAIL_API_PROVIDER || 'sendgrid'})`)
-    
+    logger.info('Email: sending OTP', { to, provider: process.env.EMAIL_API_PROVIDER || 'sendgrid' })
+
     const result = await sendEmailViaAPI({
       to,
       from: fromAddress,
@@ -418,35 +404,25 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
       }
     })
     
-    console.log(`[Email API] ✅ OTP email sent successfully to ${to}`, { 
-      messageId: result.messageId,
-      accepted: result.accepted,
-      rejected: result.rejected
-    })
-    
+    logger.info('Email: OTP sent successfully', { to, messageId: result.messageId, accepted: result.accepted, rejected: result.rejected })
+
     // Check if email was actually rejected
     if (result.rejected && result.rejected.length > 0) {
       const error = new Error(`Email rejected for: ${result.rejected.join(', ')}`)
-      console.log(`[Email API] ⚠️ Email was rejected`)
-      console.log(`[Email API] Rejected recipients:`, result.rejected)
+      logger.warn('Email: recipients rejected', { to, rejected: result.rejected })
       throw error
     }
     
     return { success: true, messageId: result.messageId, accepted: result.accepted }
   } catch (err) {
-    console.log('--------------------------------------------------')
-    console.log('⚠️  EMAIL API FAILED ⚠️')
-    console.log('To:', to)
-    console.log('Code:', code)
-    console.log('Subject:', subject)
-    console.log('Error:', err.message)
-    if (err.response) {
-      console.log('API Response:', err.response.data)
-      console.log('API Status:', err.response.status)
-    }
-    console.log('Stack:', err.stack)
-    console.log('--------------------------------------------------')
-    
+    logger.error('Email: OTP send failed', {
+      to,
+      subject,
+      error: err.message,
+      apiStatus: err.response?.status,
+      apiResponse: err.response?.data,
+    })
+
     // Return failure result instead of silently swallowing
     return { success: false, error: err.message }
   }

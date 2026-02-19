@@ -1,7 +1,7 @@
 import { Form, Input, Button, Card, Flex, Typography, theme, Grid } from 'antd'
 import { MailOutlined } from '@ant-design/icons'
 import { useSignUpVerificationForm, useResendSignupCode } from "@/features/authentication/hooks"
-import React from 'react'
+import React, { useState } from 'react'
 import { useNotifier } from '@/shared/notifications.js'
 
 const { Title, Text, Paragraph } = Typography
@@ -11,22 +11,26 @@ export default function SignUpVerificationForm({ email, onSubmit, title, devCode
   const { form, handleFinish, isSubmitting, attempts, setAttempts } = useSignUpVerificationForm({ email, onSubmit })
   const screens = useBreakpoint()
   const isMobile = !screens.md
+  // Displayed dev code: initial from signup/start (prop), updated when resend returns the new code
+  const [devCodeDisplay, setDevCodeDisplay] = useState(devCode)
+
   const { isSending: isResending, handleResend, isCooling, remaining } = useResendSignupCode({ 
     email, 
     cooldownSec: 60,
-    onSent: () => {
+    onSent: ({ devCode: newDevCode }) => {
       setAttempts(5)
       form.resetFields(['verificationCode'])
+      if (newDevCode !== undefined && newDevCode !== null) setDevCodeDisplay(String(newDevCode))
     }
   })
   const { success } = useNotifier()
   const { token } = theme.useToken()
 
   const handlePrefillCode = React.useCallback(() => {
-    if (!devCode) return
-    form.setFieldsValue({ verificationCode: String(devCode) })
+    if (!devCodeDisplay) return
+    form.setFieldsValue({ verificationCode: String(devCodeDisplay) })
     success('Dev code prefilled')
-  }, [form, devCode, success])
+  }, [form, devCodeDisplay, success])
 
   return (
     <Card 
@@ -112,9 +116,9 @@ export default function SignUpVerificationForm({ email, onSubmit, title, devCode
             </Button>
           </Flex>
 
-          {devCode && (
+          {devCodeDisplay && import.meta.env.VITE_DEMO_UI !== 'true' && (
             <Button type="dashed" onClick={handlePrefillCode} block>
-              Prefill Code (Dev: {devCode})
+              Prefill Code (Dev: {devCodeDisplay})
             </Button>
           )}
         </Flex>

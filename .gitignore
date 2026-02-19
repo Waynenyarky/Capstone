@@ -16,5 +16,8 @@ anaconda_projects/
 deploy/instance-info.txt
 backups/
 
+# MongoDB TLS (optional local demo)
+deploy/mongo-tls/
+
 # Test run error log (overwritten each run)
 test-results.log

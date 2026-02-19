@@ -68,7 +68,8 @@ export default function BusinessOwnerDashboard() {
   }
 
   // Dev-only: skip registration wizard for seeded business owner (business@example.com)
-  const isDev = typeof import.meta !== 'undefined' && import.meta.env?.DEV === true
+  // Disabled in demo-ui mode so the app behaves like a fresh user
+  const isDev = typeof import.meta !== 'undefined' && import.meta.env?.DEV === true && import.meta.env?.VITE_DEMO_UI !== 'true'
   const isSeededBusinessOwner = currentUser?.email === 'business@example.com'
   const wouldShowWizard = !profile || profile.status === 'draft' || profile.status === 'needs_revision'
   const skipWizardForDev = isDev && isSeededBusinessOwner && wouldShowWizard

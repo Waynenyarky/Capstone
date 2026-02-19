@@ -86,6 +86,14 @@ export default function useWebAuthn() {
         throw new Error('Invalid registration response: missing user object')
       }
 
+      // excludeCredentials: browser expects each descriptor id as ArrayBuffer, not base64url string
+      if (Array.isArray(pub.excludeCredentials) && pub.excludeCredentials.length > 0) {
+        publicKey.excludeCredentials = pub.excludeCredentials.map((c) => ({
+          ...c,
+          id: typeof c.id === 'string' ? base64ToBuffer(c.id) : c.id
+        }))
+      }
+
       let cred
       try {
         cred = await navigator.credentials.create({ publicKey })
