@@ -188,6 +188,7 @@ async function applyApprovedChange(approval) {
         const updatedHistory = addToPasswordHistory(oldHash, user.passwordHistory || []);
 
         user.passwordHash = newPasswordHash;
+        user.passwordChangedAt = new Date();
         user.passwordHistory = updatedHistory;
         user.tokenVersion = (user.tokenVersion || 0) + 1; // Invalidate all sessions
         user.mfaReEnrollmentRequired = true;
@@ -391,6 +392,7 @@ async function applyApprovedChange(approval) {
         const updatedHistory = addToPasswordHistory(oldHash, user.passwordHistory || []);
 
         user.passwordHash = newHash;
+        user.passwordChangedAt = new Date();
         user.passwordHistory = updatedHistory;
         user.tokenVersion = (user.tokenVersion || 0) + 1;
         user.mustChangeCredentials = true;

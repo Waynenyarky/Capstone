@@ -18,6 +18,7 @@ export default function AdminOnboarding() {
 
   const mustChange = !!currentUser?.mustChangeCredentials
   const mustMfa = !!currentUser?.mustSetupMfa
+  const passwordExpired = !!currentUser?.passwordExpired
 
   const [currentStep, setCurrentStep] = useState(0)
   const [mfaEnabled, setMfaEnabled] = useState(false)
@@ -113,6 +114,7 @@ export default function AdminOnboarding() {
               checkingMfa={checkingMfa}
               mfaEnabled={mfaEnabled}
               onComplete={handleComplete}
+              passwordExpired={passwordExpired}
             />
           </Col>
         </Row>

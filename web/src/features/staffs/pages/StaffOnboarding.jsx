@@ -105,6 +105,7 @@ export default function StaffOnboarding() {
               checkingMfa={checkingMfa}
               mfaEnabled={mfaEnabled}
               onComplete={handleComplete}
+              passwordExpired={!!currentUser?.passwordExpired}
             />
           </Col>
         </Row>

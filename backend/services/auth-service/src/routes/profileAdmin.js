@@ -260,6 +260,7 @@ router.post('/staff', requireJwt, requireRole(['admin']), requireAdminStepUp, va
       mustSetupMfa: true,
       termsAccepted: true,
       passwordHash,
+      passwordChangedAt: new Date(),
       isEmailVerified: true,
       createdBy: req._userId || null,
     })

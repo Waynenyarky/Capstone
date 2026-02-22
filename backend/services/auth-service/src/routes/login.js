@@ -17,6 +17,7 @@ const { perEmailRateLimit } = require('../middleware/rateLimit')
 const { decryptWithHash } = require('../lib/secretCipher')
 const Session = require('../models/Session')
 const { trackIP } = require('../lib/ipTracker')
+const { isPasswordExpired } = require('../lib/passwordExpiry')
 let OAuth2Client = null
 try { ({ OAuth2Client } = require('google-auth-library')) } catch (_) { OAuth2Client = null }
 
@@ -197,6 +198,7 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
           const dbDoc = await User.findById(doc._id)
           if (dbDoc) {
             dbDoc.passwordHash = await bcrypt.hash(password, 10)
+            dbDoc.passwordChangedAt = new Date()
             await dbDoc.save()
           }
         } catch (_) {}
@@ -255,10 +257,13 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     const isNonProduction = process.env.NODE_ENV !== 'production'
     const isSeededBusinessOwner = roleSlug === 'business_owner' && emailKey === 'business@example.com'
     if (seedDevEnabled && isNonProduction && isSeededBusinessOwner && !requiresMfa) {
+      const bypassPasswordExpired = isPasswordExpired(doc.passwordChangedAt)
+      const bypassMustChange = !!doc.mustChangeCredentials || bypassPasswordExpired
       try {
         const dbDoc = await User.findById(doc._id)
         if (dbDoc) {
           dbDoc.lastLoginAt = new Date()
+          if (bypassPasswordExpired) dbDoc.mustChangeCredentials = true
           await dbDoc.save()
         }
       } catch (_) {}
@@ -278,11 +283,12 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
           office: doc.office || '',
           isActive: doc.isActive !== false,
           isStaff: !!doc.isStaff,
-          mustChangeCredentials: !!doc.mustChangeCredentials,
+          mustChangeCredentials: bypassMustChange,
           mustSetupMfa: !!doc.mustSetupMfa,
           mfaEnabled: !!doc.mfaEnabled,
           mfaMethod: doc.mfaMethod || '',
           skipEmailVerification: true,
+          ...(bypassPasswordExpired ? { passwordExpired: true } : {}),
           token,
           expiresAt: new Date(expiresAtMs).toISOString(),
         })
@@ -587,6 +593,20 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
       // Fall through to issue token so user is logged in and redirected to MFA setup
     }
 
+    // 90-day password expiry: if expired, force password change on next use
+    let mustChangeCredentials = !!doc.mustChangeCredentials
+    const passwordExpired = isPasswordExpired(doc.passwordChangedAt)
+    if (passwordExpired) {
+      mustChangeCredentials = true
+      try {
+        const dbDoc = await User.findById(doc._id)
+        if (dbDoc) {
+          dbDoc.mustChangeCredentials = true
+          await dbDoc.save()
+        }
+      } catch (_) {}
+    }
+
     const safe = {
       id: String(doc._id),
       role: roleSlug,
@@ -604,14 +624,15 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
       office: doc.office || '',
       isActive: doc.isActive !== false,
       isStaff: !!doc.isStaff,
-      mustChangeCredentials: !!doc.mustChangeCredentials,
+      mustChangeCredentials,
       mustSetupMfa: !!doc.mustSetupMfa,
+      ...(passwordExpired ? { passwordExpired: true } : {}),
     }
     try {
       const { token, expiresAtMs } = signAccessToken(doc)
       safe.token = token
       safe.expiresAt = new Date(expiresAtMs).toISOString()
-      
+
       // Create session for successful login
       try {
         const Session = require('../models/Session')
@@ -709,18 +730,21 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
   if (doc.fprintEnabled) methods.add('fingerprint')
   if (currentMethod.includes('passkey')) methods.add('passkey')
   doc.mfaMethod = Array.from(methods).join(',')
+    doc.mustChangeCredentials = doc.mustChangeCredentials || isPasswordExpired(doc.passwordChangedAt)
     doc.mfaLastUsedTotpCounter = resVerify.counter
     doc.mfaLastUsedTotpAt = new Date()
     doc.lastLoginAt = new Date()
     await doc.save()
-    
+
+    const passwordExpired = isPasswordExpired(doc.passwordChangedAt)
+
     // Create session for successful login
     try {
       const Session = require('../models/Session')
       const { trackIP } = require('../lib/ipTracker')
       const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
       const userAgent = req.headers['user-agent'] || 'unknown'
-      
+
       // Track IP
       await trackIP(doc._id, ipAddress)
       
@@ -799,6 +823,7 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
       isStaff: !!doc.isStaff,
       mustChangeCredentials: !!doc.mustChangeCredentials,
       mustSetupMfa: !!doc.mustSetupMfa,
+      ...(passwordExpired ? { passwordExpired: true } : {}),
     }
     try {
       const { token, expiresAtMs } = signAccessToken(doc)
@@ -858,6 +883,7 @@ router.post('/google', validateBody(googleLoginSchema), async (req, res) => {
         phoneNumber: '',
         termsAccepted: true,
         passwordHash,
+        passwordChangedAt: new Date(),
         authProvider: 'google',
         providerId: finalSub,
         isEmailVerified: true, // Google verified

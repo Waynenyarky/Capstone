@@ -8,6 +8,7 @@ const { decryptWithHash, encryptWithHash } = require('../lib/secretCipher')
 const { sanitizeString } = require('../lib/sanitizer')
 const { createAuditLog } = require('../lib/auditLogger')
 const { isStaffRole } = require('../lib/roleHelpers')
+const { isPasswordExpired } = require('../lib/passwordExpiry')
 
 const router = express.Router()
 
@@ -33,6 +34,7 @@ router.get('/profile', requireJwt, async (req, res) => {
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
     const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+    const passwordExpired = isPasswordExpired(doc.passwordChangedAt)
     const userSafe = {
       id: String(doc._id),
       role: roleSlug,
@@ -57,6 +59,7 @@ router.get('/profile', requireJwt, async (req, res) => {
       deletionPending: !!doc.deletionPending,
       deletionRequestedAt: doc.deletionRequestedAt,
       deletionScheduledFor: doc.deletionScheduledFor,
+      ...(passwordExpired && doc.mustChangeCredentials ? { passwordExpired: true } : {}),
     }
 
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
@@ -78,6 +81,7 @@ router.get('/me', requireJwt, async (req, res) => {
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
     const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+    const passwordExpired = isPasswordExpired(doc.passwordChangedAt)
     const userSafe = {
       id: String(doc._id),
       role: roleSlug,
@@ -98,6 +102,7 @@ router.get('/me', requireJwt, async (req, res) => {
       mfaEnabled: !!doc.mfaEnabled,
       mfaMethod: doc.mfaMethod || '',
       termsAccepted: doc.termsAccepted,
+      ...(passwordExpired && doc.mustChangeCredentials ? { passwordExpired: true } : {}),
       createdAt: doc.createdAt,
       deletionPending: !!doc.deletionPending,
       deletionRequestedAt: doc.deletionRequestedAt,

@@ -1,6 +1,6 @@
 import React from 'react'
 import { useProfileSettings } from '@/features/user/hooks/useProfileSettings'
-import { AdminSettingsView, UserSettingsView } from '@/features/user/pages/profileSettings'
+import { AdminSettingsView, UserSettingsView } from '@/features/user/pages/profileSettings/index.js'
 
 export default function ProfileSettings() {
   const {

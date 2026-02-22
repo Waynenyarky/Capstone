@@ -293,6 +293,7 @@ router.post('/change-password', validateBody(changePasswordSchema), async (req, 
 
     // Update user: password, history, invalidate sessions, require MFA re-enrollment
     doc.passwordHash = passwordHash
+    doc.passwordChangedAt = new Date()
     doc.passwordHistory = updatedHistory
     doc.tokenVersion = (doc.tokenVersion || 0) + 1 // Invalidate all sessions
     doc.mfaReEnrollmentRequired = true // Require MFA re-enrollment

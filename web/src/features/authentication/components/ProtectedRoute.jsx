@@ -176,11 +176,13 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
     return <Navigate to={target} replace />
   }
 
-  // Staff and admin must complete onboarding (MFA/password) before accessing protected areas
+  // Staff and admin must complete onboarding (MFA/password); business owners with mustChangeCredentials (e.g. 90-day expiry) go to security
   const needsOnboarding = (staffRoles.includes(roleKey) || roleKey === 'admin') && (currentUser?.mustChangeCredentials || currentUser?.mustSetupMfa)
+  const businessOwnerMustChangePassword = roleKey === 'business_owner' && currentUser?.mustChangeCredentials
   const onboardingAllowedPaths = ['/staff/onboarding', '/admin/onboarding', '/account/security']
-  if (needsOnboarding && !onboardingAllowedPaths.includes(location.pathname)) {
-    const onboardingTarget = roleKey === 'admin' ? '/admin/onboarding' : '/staff/onboarding'
+  const needsPasswordOrOnboarding = needsOnboarding || businessOwnerMustChangePassword
+  if (needsPasswordOrOnboarding && !onboardingAllowedPaths.includes(location.pathname)) {
+    const onboardingTarget = roleKey === 'admin' ? '/admin/onboarding' : roleKey === 'business_owner' ? '/account/security' : '/staff/onboarding'
     console.warn('[ProtectedRoute] Redirecting to onboarding:', { 
       from: location.pathname, 
       to: onboardingTarget, 
@@ -190,6 +192,8 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
     })
     return <Navigate to={onboardingTarget} replace state={{ from: location }} />
   }
+
+  // Business owner with expired/must-change password: allow only /account/security (handled above)
 
   // If roles are specified and user doesn't match
   if (isUnauthorized) {

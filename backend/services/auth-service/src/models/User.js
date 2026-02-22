@@ -18,6 +18,8 @@ const UserSchema = new mongoose.Schema(
     avatarUrl: { type: String, default: '' }, // Legacy: local file URL (for backward compatibility)
     avatarIpfsCid: { type: String, default: '' }, // IPFS CID for avatar image
     passwordHash: { type: String, required: true },
+    // When password was last set; used for 90-day expiry (null = legacy, treated as expired until changed)
+    passwordChangedAt: { type: Date, default: null },
     termsAccepted: { type: Boolean, default: false },
     // MFA (Time-based One-Time Password)
     mfaEnabled: { type: Boolean, default: false },

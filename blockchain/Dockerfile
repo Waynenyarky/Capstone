@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM node:18-alpine
 
 WORKDIR /app
@@ -5,9 +6,10 @@ WORKDIR /app
 # Install build dependencies for native modules
 RUN apk add --no-cache python3 make g++
 
-# Install dependencies
+# Install dependencies (cache mount speeds up rebuilds)
 COPY package*.json ./
-RUN npm install
+RUN --mount=type=cache,target=/root/.npm \
+    npm install
 
 # Copy contract files
 COPY contracts/ ./contracts/

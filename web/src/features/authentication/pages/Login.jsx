@@ -19,7 +19,11 @@ export default function Login() {
     }
     
     if (role === 'business_owner') {
-      navigate('/owner')
+      if (user?.mustChangeCredentials) {
+        navigate('/account/security', { replace: true })
+      } else {
+        navigate('/owner')
+      }
       return
     }
 

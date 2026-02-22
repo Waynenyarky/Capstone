@@ -79,6 +79,7 @@ router.post('/change-password-authenticated', requireJwt, validateBody(changePas
 
     // Update user
     doc.passwordHash = newPasswordHash
+    doc.passwordChangedAt = new Date()
     doc.passwordHistory = updatedHistory
     doc.tokenVersion = (doc.tokenVersion || 0) + 1 // Invalidate all sessions
     doc.mfaReEnrollmentRequired = true // Require MFA re-enrollment
@@ -272,6 +273,7 @@ router.post('/change-password/verify', requireJwt, validateBody(changePasswordVe
 
     // Update user
     doc.passwordHash = newPasswordHash
+    doc.passwordChangedAt = new Date()
     doc.passwordHistory = updatedHistory
     doc.tokenVersion = (doc.tokenVersion || 0) + 1 // Invalidate all sessions
     doc.mfaReEnrollmentRequired = true // Require MFA re-enrollment

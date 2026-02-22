@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM node:18-alpine
 
 WORKDIR /app
@@ -5,8 +6,9 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Install dependencies (cache mount speeds up rebuilds)
+RUN --mount=type=cache,target=/root/.npm \
+    npm install
 
 # Copy application code
 COPY . .

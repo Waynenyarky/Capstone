@@ -1,4 +1,4 @@
-import { authHeaders, fetchJsonWithFallback, post } from '@/lib/http.js'
+import { authHeaders, clearAuthCsrfToken, fetchJsonWithFallback, post } from '@/lib/http.js'
 import { getCurrentUser } from '@/features/authentication/lib/authEvents.js'
 
 function base64ToBuffer(b64) {
@@ -28,16 +28,30 @@ export async function stepUpWithTotp(code) {
 
 /**
  * Start passkey step-up; returns publicKey options for navigator.credentials.get.
+ * Clears auth CSRF cache so a fresh token (and cookie) is used, avoiding 403 on first attempt.
+ * Retries once on 403 in case of stale CSRF.
  * @returns {Promise<{ publicKey: object }>}
  */
 export async function stepUpPasskeyStart() {
+  // Force a fresh CSRF token so cookie and header match (avoids 403 when cached token was from another context)
+  clearAuthCsrfToken()
   const current = getCurrentUser()
   const headers = authHeaders(current, 'admin', { 'Content-Type': 'application/json' })
-  return fetchJsonWithFallback('/api/auth/admin/step-up/start', {
+  const options = {
     method: 'POST',
     headers,
     body: JSON.stringify({}),
-  })
+    credentials: 'include',
+  }
+  try {
+    return await fetchJsonWithFallback('/api/auth/admin/step-up/start', options)
+  } catch (err) {
+    if (err?.status === 403) {
+      clearAuthCsrfToken()
+      return fetchJsonWithFallback('/api/auth/admin/step-up/start', options)
+    }
+    throw err
+  }
 }
 
 /**

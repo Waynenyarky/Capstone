@@ -372,6 +372,7 @@ router.post('/change-password-authenticated', requireJwt, validateBody(changePas
 
     // Update user
     doc.passwordHash = newPasswordHash
+    doc.passwordChangedAt = new Date()
     doc.passwordHistory = updatedHistory
     doc.tokenVersion = (doc.tokenVersion || 0) + 1 // Invalidate all sessions
     doc.mfaReEnrollmentRequired = true // Require MFA re-enrollment
@@ -569,6 +570,7 @@ router.post('/change-password/verify', requireJwt, validateBody(changePasswordVe
 
     // Update user
     doc.passwordHash = newPasswordHash
+    doc.passwordChangedAt = new Date()
     doc.passwordHistory = updatedHistory
     doc.tokenVersion = (doc.tokenVersion || 0) + 1 // Invalidate all sessions
     doc.mfaReEnrollmentRequired = true // Require MFA re-enrollment
@@ -985,6 +987,7 @@ router.post('/staff', requireJwt, requireRole(['admin']), validateBody(staffCrea
       mustSetupMfa: true,
       termsAccepted: true,
       passwordHash,
+      passwordChangedAt: new Date(),
       isEmailVerified: true,
     })
 
@@ -1130,6 +1133,7 @@ router.post('/first-login/change-credentials', requireJwt, validateBody(firstLog
 
     doc.username = usernameKey
     doc.passwordHash = await bcrypt.hash(String(newPassword), 10)
+    doc.passwordChangedAt = new Date()
     if (mfaPlain) {
       try {
         doc.mfaSecret = encryptWithHash(doc.passwordHash, mfaPlain)
@@ -2877,6 +2881,7 @@ async function applyApprovedChange(approval) {
         const updatedHistory = addToPasswordHistory(oldHash, user.passwordHistory || [])
 
         user.passwordHash = newPasswordHash
+        user.passwordChangedAt = new Date()
         user.passwordHistory = updatedHistory
         user.tokenVersion = (user.tokenVersion || 0) + 1 // Invalidate all sessions
         user.mfaReEnrollmentRequired = true

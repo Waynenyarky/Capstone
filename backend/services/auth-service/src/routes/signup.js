@@ -166,6 +166,7 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
       phoneNumber: phoneNumber || '',
       termsAccepted: !!termsAccepted,
       passwordHash,
+      passwordChangedAt: new Date(),
       theme: 'default', // Set default theme for new accounts
       createdBy: 'self',
       ...pisFields,
@@ -411,6 +412,7 @@ router.post('/signup/verify', validateBody(verifyCodeSchema), signupVerifyLimite
       phoneNumber: p.phoneNumber || '',
       termsAccepted: !!p.termsAccepted,
       passwordHash,
+      passwordChangedAt: new Date(),
       theme: 'default', // Set default theme for new accounts
       createdBy: 'self',
       ...pisFields,
@@ -568,6 +570,7 @@ router.post('/link-existing-account/verify', validateBody(linkVerifySchema), asy
       lastName: 'User',
       email: emailKey,
       passwordHash,
+      passwordChangedAt: new Date(),
       isEmailVerified: true,
       mustChangeCredentials: true, // Force password setup on first login
       theme: 'default',

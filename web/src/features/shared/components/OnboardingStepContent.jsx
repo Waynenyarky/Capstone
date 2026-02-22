@@ -43,6 +43,7 @@ export default function OnboardingStepContent({
   checkingMfa,
   mfaEnabled,
   onComplete,
+  passwordExpired = false,
 }) {
   const { token } = theme.useToken()
   const labels = LABELS[variant] || LABELS.admin
@@ -67,8 +68,19 @@ export default function OnboardingStepContent({
   if (currentStep === 1) {
     return (
       <div style={{ maxWidth: 600, margin: '0 auto' }}>
+        {passwordExpired && (
+          <Alert
+            type="warning"
+            message="Password expired"
+            description="Your password has expired (90-day policy). Please set a new, secure password."
+            showIcon
+            style={{ marginBottom: 24 }}
+          />
+        )}
         <Paragraph type="secondary" style={{ marginBottom: 24 }}>
-          Your temporary password was used to sign you in. Please set a new, secure password.
+          {passwordExpired
+            ? 'Choose a new password that meets the security requirements below.'
+            : 'Your temporary password was used to sign you in. Please set a new, secure password.'}
         </Paragraph>
         <Form form={form} layout="vertical" onFinish={handleCredentialsFinish} autoComplete="off">
           <Form.Item name="password" label="New Password" rules={passwordRules}>

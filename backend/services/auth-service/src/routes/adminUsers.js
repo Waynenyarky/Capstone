@@ -307,6 +307,7 @@ router.post(
       const updatedHistory = addToPasswordHistory(oldHash, staffUser.passwordHistory || [])
 
       staffUser.passwordHash = newHash
+      staffUser.passwordChangedAt = new Date()
       staffUser.passwordHistory = updatedHistory
       staffUser.tokenVersion = (staffUser.tokenVersion || 0) + 1
       staffUser.mustChangeCredentials = true

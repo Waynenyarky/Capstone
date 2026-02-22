@@ -16,6 +16,7 @@ const UserSchema = new mongoose.Schema(
     avatarUrl: { type: String, default: '' },
     avatarIpfsCid: { type: String, default: '' },
     passwordHash: { type: String, required: true },
+    passwordChangedAt: { type: Date, default: null },
     termsAccepted: { type: Boolean, default: false },
     // MFA (Time-based One-Time Password)
     mfaEnabled: { type: Boolean, default: false },

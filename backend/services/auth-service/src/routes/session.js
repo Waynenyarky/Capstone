@@ -13,7 +13,7 @@ const router = express.Router()
 // Session timeout durations (in milliseconds)
 const SESSION_TIMEOUT_BUSINESS_OWNER = 60 * 60 * 1000 // 1 hour
 const SESSION_TIMEOUT_STAFF = 60 * 60 * 1000 // 1 hour
-const SESSION_TIMEOUT_ADMIN = 10 * 60 * 1000 // 10 minutes
+const SESSION_TIMEOUT_ADMIN = 10  // 10 minutes
 
 /**
  * Get session timeout duration based on user role
