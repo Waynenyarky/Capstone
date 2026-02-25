@@ -24,14 +24,22 @@ export const THEMES = {
   ROYAL: 'royal',
 };
 
+export const BRAND_COLORS = {
+  blue: '#0038A8',
+  red: '#CE1126',
+  yellow: '#FED141',
+};
+
 const themeConfig = {
   [THEMES.DEFAULT]: {
     name: 'Default',
     config: {
       algorithm: theme.defaultAlgorithm,
       token: {
-        fontFamily: 'Raleway, sans-serif',
-        colorPrimary: '#001529', // Explicitly set Default theme to Navy
+        fontFamily: 'Urbanist, sans-serif',
+        colorPrimary: BRAND_COLORS.blue,
+        colorError: BRAND_COLORS.red,
+        colorWarning: BRAND_COLORS.yellow,
       },
     },
   },
@@ -40,7 +48,7 @@ const themeConfig = {
     config: {
       algorithm: theme.darkAlgorithm,
       token: {
-        fontFamily: "'Raleway', sans-serif",
+        fontFamily: "'Urbanist', sans-serif",
         colorPrimary: '#177ddc', // Ant Design Dark Blue - Clearer on dark
         colorBgBase: '#141414', // Standard Dark Grey (Better for eyes than #000000)
         colorBgContainer: '#1f1f1f', // Lighter container
@@ -71,7 +79,7 @@ const themeConfig = {
     config: {
       algorithm: theme.defaultAlgorithm,
       token: {
-        fontFamily: "'Raleway', sans-serif",
+        fontFamily: "'Urbanist', sans-serif",
         colorPrimary: '#00B96B', // Custom Green
         colorBgLayout: '#E5F8F0', // Light green background
         colorBgContainer: '#ffffff',
@@ -130,7 +138,7 @@ const themeConfig = {
     config: {
       algorithm: theme.defaultAlgorithm,
       token: {
-        fontFamily: "'Raleway', sans-serif",
+        fontFamily: "'Urbanist', sans-serif",
         colorPrimary: '#722ed1', // Purple
         colorBgLayout: '#f9f0ff', // Light purple background
         colorBgContainer: '#ffffff',
@@ -340,8 +348,8 @@ export function ThemeProvider({ children }) {
       
       if (fontFamily.includes('Georgia')) {
          document.documentElement.style.setProperty('--heading-font-family', fontFamily);
-      } else if (fontFamily.includes('Raleway')) {
-         document.documentElement.style.setProperty('--heading-font-family', "'Raleway', sans-serif");
+      } else if (fontFamily.includes('Urbanist')) {
+         document.documentElement.style.setProperty('--heading-font-family', "'Urbanist', sans-serif");
       } else {
          document.documentElement.style.setProperty('--heading-font-family', fontFamily);
       }

@@ -36,7 +36,13 @@ const ViolationSchema = new mongoose.Schema(
       index: true
     },
     issuedAt: { type: Date, default: Date.now },
-    blockchainHash: { type: String, default: '' }
+    blockchainHash: { type: String, default: '' },
+    acknowledgedAt: { type: Date, default: null },
+    acknowledgedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    }
   },
   { timestamps: true }
 )

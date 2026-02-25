@@ -82,13 +82,7 @@ export default function useSidebar() {
       ],
       lgu_officer: [
         { key: 'dashboard', label: 'Dashboard', to: '/staff', icon: <DashboardOutlined /> },
-        { key: 'walk-in', label: 'Walk-in Application', to: '/staff/walk-in', icon: <FormOutlined /> },
-        { key: 'applications', label: 'Permit Applications (Review)', to: '/staff/applications', icon: <FileTextOutlined /> },
-        { key: 'cessation', label: 'Cessation (Review)', to: '/staff/cessation', icon: <StopOutlined /> },
-        { key: 'inspections', label: 'Violations / Inspections', to: '/staff/inspections', icon: <SolutionOutlined /> },
-        { key: 'appeals', label: 'Appeals', to: '/staff/appeals', icon: <AuditOutlined /> },
-        { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
-        { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
+        { key: 'applications', label: 'Applications', to: '/staff/applications', icon: <FileTextOutlined /> },
       ],
       lgu_manager: [
         { key: 'dashboard', label: 'Dashboard', to: '/lgu-manager', icon: <DashboardOutlined /> },

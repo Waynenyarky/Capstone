@@ -1,18 +1,18 @@
-import { Layout, Card, Typography, Space, Tag, Divider, Grid, Button } from 'antd'
-import { LogoutOutlined } from '@ant-design/icons'
+import { Layout, Typography, Button, Grid, theme } from 'antd'
+import { LogoutOutlined, ToolOutlined } from '@ant-design/icons'
 import HomeHeader from '../components/HomeHeader.jsx'
 import HomeFooter from '../components/HomeFooter.jsx'
 import { useEffect, useState } from 'react'
 import { getMaintenanceStatus } from '../services/maintenanceService.js'
 import { useAuthSession } from '@/features/authentication'
 
-const { Title, Text } = Typography
+const { Title, Paragraph, Text } = Typography
 const { useBreakpoint } = Grid
 
 export default function Maintenance() {
   const [status, setStatus] = useState({ active: true })
   const screens = useBreakpoint()
-  const isMobile = !screens.md
+  const { token } = theme.useToken()
   const { currentUser, logout } = useAuthSession()
   const isLoggedIn = !!currentUser
 
@@ -23,67 +23,61 @@ export default function Maintenance() {
   }, [])
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#f5f7fb' }}>
+    <Layout style={{ minHeight: '100vh', background: token.colorBgContainer }}>
       <HomeHeader />
-      <Layout.Content style={{ padding: isMobile ? '24px 16px' : '48px 16px' }}>
-        <div style={{ maxWidth: 820, margin: '0 auto' }}>
-          <Card
-            style={{ borderColor: '#d1d5db' }}
-            bodyStyle={{ padding: 0 }}
-          >
-            <div style={{ padding: isMobile ? 16 : 24, borderBottom: '1px solid #e5e7eb' }}>
-              <Space align="start" size="large">
-                <img
-                  src="https://www.dagupan.gov.ph/wp-content/uploads/2019/11/dagupancity_seal.png"
-                  alt="Dagupan City Seal"
-                  style={{ width: 64, height: 64, objectFit: 'contain' }}
-                />
-                <Space direction="vertical" size={4}>
-                  <Text type="secondary" style={{ letterSpacing: 0.8 }}>REPUBLIC OF THE PHILIPPINES</Text>
-                  <Text type="secondary" style={{ letterSpacing: 0.6 }}>CITY GOVERNMENT OF DAGUPAN</Text>
-                  <Text type="secondary" style={{ letterSpacing: 0.4 }}>Dagupan City Service Portal</Text>
-                  <Title level={3} style={{ margin: 0 }}>System Maintenance Advisory</Title>
-                  <Tag color="blue">Official Notice</Tag>
-                </Space>
-              </Space>
-            </div>
-            <div style={{ padding: isMobile ? 16 : 24 }}>
-              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                <Text>
-                  The City Government of Dagupan is performing scheduled maintenance to improve the reliability, security, and continuity of online public services.
-                </Text>
-                <Text type="secondary">
-                  {status?.message || 'The site is temporarily unavailable while we perform system updates.'}
-                </Text>
-                <Divider style={{ margin: '8px 0' }} />
-                <Space direction="vertical" size={4}>
-                  <Text strong>Service Status</Text>
-                  <Text type="secondary">Online transactions and application tracking are temporarily unavailable.</Text>
-                  {status?.expectedResumeAt && (
-                    <Text>Expected restoration of service: {new Date(status.expectedResumeAt).toLocaleString()}</Text>
-                  )}
-                </Space>
-                <Divider style={{ margin: '8px 0' }} />
-                <Space direction="vertical" size={4}>
-                  <Text strong>Public Assistance</Text>
-                  <Text type="secondary">
-                    For urgent concerns, please contact your local LGU office or check the portal again later for updates.
-                  </Text>
-                </Space>
-                {isLoggedIn && (
-                  <>
-                    <Divider style={{ margin: '8px 0' }} />
-                    <Space>
-                      <Text type="secondary">You are currently signed in.</Text>
-                      <Button icon={<LogoutOutlined />} onClick={() => logout()}>
-                        Log out
-                      </Button>
-                    </Space>
-                  </>
-                )}
-              </Space>
-            </div>
-          </Card>
+      <Layout.Content style={{ display: 'flex', flexDirection: 'column' }}>
+        <div style={{ 
+          background: token.colorBgContainer,
+          padding: screens.md ? '0 50px' : '0 24px',
+          textAlign: 'center',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flex: 1,
+        }}>
+          <div style={{ maxWidth: '600px' }}>
+            <ToolOutlined style={{ fontSize: '48px', color: token.colorTextTertiary, marginBottom: '24px' }} />
+            
+            <Title level={1} style={{ 
+              marginBottom: '16px', 
+              fontSize: screens.md ? '48px' : '32px', 
+              fontWeight: 700,
+            }}>
+              Under Maintenance
+            </Title>
+            
+            <Paragraph style={{ 
+              fontSize: screens.md ? '18px' : '16px', 
+              color: token.colorTextSecondary, 
+              marginBottom: '24px', 
+              lineHeight: 1.7,
+            }}>
+              {status?.message || "We're performing scheduled maintenance to improve our services. Please check back soon."}
+            </Paragraph>
+
+            {status?.expectedResumeAt && (
+              <Text type="secondary" style={{ display: 'block', marginBottom: '24px' }}>
+                Expected back: {new Date(status.expectedResumeAt).toLocaleString()}
+              </Text>
+            )}
+
+            {isLoggedIn && (
+              <Button 
+                icon={<LogoutOutlined />} 
+                onClick={() => logout()}
+                size="large"
+                style={{ 
+                  height: '48px', 
+                  padding: '0 32px', 
+                  fontSize: '16px', 
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                }}
+              >
+                Log Out
+              </Button>
+            )}
+          </div>
         </div>
       </Layout.Content>
       <HomeFooter />

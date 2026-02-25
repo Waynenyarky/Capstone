@@ -1,68 +1,110 @@
-import { get, post, put, patch, del } from '@/lib/http'
-import { fetchWithFallback } from '@/lib/http'
+import { get, post, put, patch, del } from '@/lib/http.js'
 
-export const getBusinessProfile = async () => {
-  return get('/api/business/profile')
-}
+const BASE_PATH = '/api/business'
 
-export const updateBusinessProfile = async (step, data) => {
-  return post('/api/business/profile', { step, data })
+/**
+ * Get the current user's business profile
+ */
+export async function getProfile() {
+  return get(`${BASE_PATH}/profile`)
 }
 
 /**
- * Upload owner ID image (front or back) during business registration.
- * Returns { url, ipfsCid } for use in form submission.
+ * Update business profile step
+ * @param {number} step - Step number
+ * @param {object} data - Step data
  */
-export const uploadOwnerIdImage = async (file, side = 'front') => {
+export async function updateProfileStep(step, data) {
+  return post(`${BASE_PATH}/profile`, { step, data })
+}
+
+/**
+ * Upload owner ID image
+ * @param {File} file - Image file
+ * @param {'front' | 'back'} side - Which side of the ID
+ */
+export async function uploadOwnerId(file, side = 'front') {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('side', side)
-  const res = await fetchWithFallback('/api/business/profile/owner-id/upload', {
+
+  const response = await fetch(`${BASE_PATH}/profile/owner-id/upload`, {
     method: 'POST',
     body: formData,
-    // Don't set Content-Type - browser sets it with boundary for multipart
+    credentials: 'include'
   })
-  if (!res?.ok) {
-    const err = await res?.json().catch(() => ({}))
-    throw new Error(err?.error?.message || err?.message || 'Failed to upload ID image')
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err?.error?.message || 'Failed to upload ID')
   }
-  return res.json()
+
+  return response.json()
 }
 
-// Multiple Business Management
-export const getBusinesses = async () => {
-  return get('/api/business/businesses')
+/**
+ * Get all businesses for the current user
+ */
+export async function getBusinesses() {
+  const data = await get(`${BASE_PATH}/businesses`)
+  return data?.businesses || []
 }
 
-export const getPrimaryBusiness = async () => {
-  return get('/api/business/businesses/primary')
+/**
+ * Get primary business
+ */
+export async function getPrimaryBusiness() {
+  const data = await get(`${BASE_PATH}/businesses/primary`)
+  return data?.business || null
 }
 
-export const getBusiness = async (businessId) => {
-  const { businesses } = await getBusinesses()
-  return businesses?.find(b => b.businessId === businessId) || null
+/**
+ * Add a new business
+ * @param {object} businessData - Business data
+ */
+export async function addBusiness(businessData) {
+  return post(`${BASE_PATH}/businesses`, businessData)
 }
 
-export const addBusiness = async (data) => {
-  return post('/api/business/businesses', data)
+/**
+ * Update a business
+ * @param {string} businessId - Business ID
+ * @param {object} businessData - Updated business data
+ */
+export async function updateBusiness(businessId, businessData) {
+  return put(`${BASE_PATH}/businesses/${businessId}`, businessData)
 }
 
-export const updateBusiness = async (businessId, data) => {
-  return put(`/api/business/businesses/${businessId}`, data)
+/**
+ * Update business status only
+ * @param {string} businessId - Business ID
+ * @param {'active' | 'inactive' | 'closed'} businessStatus - New status
+ */
+export async function updateBusinessStatus(businessId, businessStatus) {
+  return patch(`${BASE_PATH}/businesses/${businessId}`, { businessStatus })
 }
 
-export const updateBusinessStatus = async (businessId, { businessStatus }) => {
-  return patch(`/api/business/businesses/${businessId}`, { businessStatus })
+/**
+ * Delete a business
+ * @param {string} businessId - Business ID
+ */
+export async function deleteBusiness(businessId) {
+  return del(`${BASE_PATH}/businesses/${businessId}`)
 }
 
-export const deleteBusiness = async (businessId) => {
-  return del(`/api/business/businesses/${businessId}`)
+/**
+ * Set a business as primary
+ * @param {string} businessId - Business ID
+ */
+export async function setPrimaryBusiness(businessId) {
+  return post(`${BASE_PATH}/businesses/${businessId}/primary`)
 }
 
-export const setPrimaryBusiness = async (businessId) => {
-  return post(`/api/business/businesses/${businessId}/primary`)
-}
-
-export const updateBusinessRiskProfile = async (businessId, data) => {
-  return put(`/api/business/businesses/${businessId}/risk-profile`, data)
+/**
+ * Update business risk profile
+ * @param {string} businessId - Business ID
+ * @param {object} riskProfileData - Risk profile data
+ */
+export async function updateRiskProfile(businessId, riskProfileData) {
+  return put(`${BASE_PATH}/businesses/${businessId}/risk-profile`, riskProfileData)
 }

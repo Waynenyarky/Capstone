@@ -9,6 +9,9 @@ import { useNotifier } from '@/shared/notifications'
 import AdminLayout from '../components/AdminLayout'
 import { OnboardingStepContent } from '@/features/shared'
 
+// Dev mode: bypass MFA setup when VITE_BYPASS_MFA_DEV=true
+const bypassMfaDev = import.meta.env.VITE_BYPASS_MFA_DEV === 'true'
+
 export default function AdminOnboarding() {
   const { currentUser, login } = useAuthSession()
   const { success, error } = useNotifier()
@@ -17,15 +20,22 @@ export default function AdminOnboarding() {
   const [form] = Form.useForm()
 
   const mustChange = !!currentUser?.mustChangeCredentials
-  const mustMfa = !!currentUser?.mustSetupMfa
+  // Override mustMfa in dev mode
+  const mustMfa = bypassMfaDev ? false : !!currentUser?.mustSetupMfa
   const passwordExpired = !!currentUser?.passwordExpired
 
   const [currentStep, setCurrentStep] = useState(0)
-  const [mfaEnabled, setMfaEnabled] = useState(false)
+  const [mfaEnabled, setMfaEnabled] = useState(bypassMfaDev ? true : false)
   const [checkingMfa, setCheckingMfa] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
+    // Dev mode: skip MFA check entirely
+    if (bypassMfaDev) {
+      setMfaEnabled(true)
+      if (currentStep === 0 && !mustChange) setCurrentStep(3)
+      return
+    }
     const checkMfaStatus = async () => {
       if (!currentUser?.email) return
       setCheckingMfa(true)

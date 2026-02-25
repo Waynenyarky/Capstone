@@ -3,8 +3,8 @@ html, body, #root {
 }
 
 :root {
-  --font-family: 'Raleway', sans-serif;
-  --heading-font-family: 'Raleway', sans-serif;
+  --font-family: 'Urbanist', sans-serif;
+  --heading-font-family: 'Urbanist', sans-serif;
   --body-background: #ffffff;
   --body-text: #1f1f1f;
 }

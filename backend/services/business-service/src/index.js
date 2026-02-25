@@ -78,6 +78,9 @@ const postRequirementsRouter = require('./routes/postRequirements');
 const walkInRouter = require('./routes/walkIn');
 const retirementRouter = require('./routes/retirement');
 const dashboardRouter = require('./routes/dashboard');
+const paymentsRouter = require('./routes/payments');
+const ownerInspectionsRouter = require('./routes/ownerInspections');
+const ownerViolationsRouter = require('./routes/ownerViolations');
 
 app.use('/api/business/admin/fee-configuration', feeConfigurationRouter);
 app.use('/api/business/admin/regulatory-fee-config', regulatoryFeeConfigRouter);
@@ -90,6 +93,9 @@ app.use('/api/business/walk-in', walkInRouter);
 app.use('/api/business/retirements', retirementRouter);
 app.use('/api/business', retirementRouter); // Also mount at /api/business/:businessId/retire
 app.use('/api/business/dashboard', dashboardRouter);
+app.use('/api/business/payments', paymentsRouter);
+app.use('/api/business/inspections', ownerInspectionsRouter);
+app.use('/api/business/violations', ownerViolationsRouter);
 
 // Inspector routes
 const inspectorRouter = require('./routes/inspector/index');

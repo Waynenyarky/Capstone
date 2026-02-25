@@ -64,14 +64,7 @@ export default function TermsOfService() {
               </div>
             </div>
 
-            <Alert
-              message="Important Legal Notice"
-              description="By using the BizClear Portal, you enter into a binding legal agreement with the City Government of Dagupan. Please read these terms carefully."
-              type="info"
-              showIcon
-              icon={<InfoCircleOutlined style={{ fontSize: 24 }} />}
-              style={{ marginBottom: 32, borderRadius: 8, border: '1px solid #bae7ff', background: '#e6f7ff' }}
-            />
+          
 
             <Typography>
               <Paragraph style={{ fontSize: 16, lineHeight: 1.8, marginBottom: 32 }}>

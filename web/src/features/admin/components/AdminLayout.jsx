@@ -15,28 +15,9 @@ export default function AdminLayout({
   hiddenSidebarKeys = [],
   hideSidebar = false,
   showPageHeader = true,
-  headerContent,
 }) {
-  const { currentUser, logout } = useAuthSession()
+  
   const { token } = theme.useToken()
-
-  const defaultSidebarHeader = (
-    <div style={{ padding: 12 }}>
-      <Text strong>Admin</Text>
-      {currentUser?.email && (
-        <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
-          {currentUser.email}
-        </Text>
-      )}
-      <div style={{ marginTop: 8 }}>
-        <Button size="small" onClick={logout}>
-          Logout
-        </Button>
-      </div>
-    </div>
-  )
-
-  const sidebarHeader = headerContent ?? defaultSidebarHeader
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -44,7 +25,6 @@ export default function AdminLayout({
         <Sidebar
           itemOverrides={sidebarOverrides}
           hiddenKeys={hiddenSidebarKeys}
-          headerContent={sidebarHeader}
         />
       )}
       <Layout>

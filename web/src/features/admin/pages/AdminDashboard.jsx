@@ -1,15 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Row, Col, Card, Typography, Space, Tag, List, message, theme, Button } from 'antd'
 import { Link } from 'react-router-dom'
-import {
-  DashboardOutlined,
-  CheckCircleOutlined,
-  SafetyCertificateOutlined,
-  ToolOutlined,
-  FileTextOutlined,
-  ReloadOutlined,
-  InfoCircleOutlined,
-} from '@ant-design/icons'
+import { DashboardOutlined, CheckCircleOutlined, SafetyCertificateOutlined, ToolOutlined, FileTextOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import DashboardInfoModal from './DashboardInfoModal'
 import dayjs from 'dayjs'
 import AdminLayout from '../components/AdminLayout'

@@ -233,7 +233,9 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     if (!roleSlug) {
       return respond.error(res, 500, 'role_not_found', 'User role not found. Please contact support.')
     }
-    const requiresMfa = doc.isStaff === true || roleSlug === 'admin'
+    // Dev mode: bypass MFA entirely when BYPASS_MFA_DEV=true and not in production
+    const bypassMfaDev = process.env.BYPASS_MFA_DEV === 'true' && process.env.NODE_ENV !== 'production'
+    const requiresMfa = bypassMfaDev ? false : (doc.isStaff === true || roleSlug === 'admin')
     // Re-fetch MFA fields so we use latest persisted state (e.g. after onboarding)
     try {
       const mfaDoc = await User.findOne({ email: emailKey }).select('webauthnCredentials mfaSecret mfaEnabled mfaMethod').lean()
@@ -256,6 +258,52 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     const seedDevEnabled = process.env.SEED_DEV === 'true'
     const isNonProduction = process.env.NODE_ENV !== 'production'
     const isSeededBusinessOwner = roleSlug === 'business_owner' && emailKey === 'business@example.com'
+    
+    // Dev mode: bypass all MFA, email OTP, and onboarding for any seeded user when BYPASS_MFA_DEV=true
+    const isSeededUser = emailKey.endsWith('@example.com') || emailKey.endsWith('@mailslurp.biz')
+    if (bypassMfaDev && isSeededUser) {
+      try {
+        const dbDoc = await User.findById(doc._id)
+        if (dbDoc) {
+          dbDoc.lastLoginAt = new Date()
+          // Clear all onboarding requirements in dev mode
+          dbDoc.mustSetupMfa = false
+          dbDoc.mustChangeCredentials = false
+          await dbDoc.save()
+        }
+      } catch (_) {}
+      try {
+        const { token, expiresAtMs } = signAccessToken(doc)
+        await createSessionForUser(doc, roleSlug, req)
+        logger.info('Login: dev mode MFA bypass', { email: emailKey, role: roleSlug })
+        return res.json({
+          id: String(doc._id),
+          role: roleSlug,
+          firstName: doc.firstName,
+          lastName: doc.lastName,
+          email: doc.email,
+          phoneNumber: displayPhoneNumber(doc.phoneNumber),
+          termsAccepted: doc.termsAccepted,
+          createdAt: doc.createdAt,
+          username: doc.username || '',
+          office: doc.office || '',
+          isActive: doc.isActive !== false,
+          isStaff: !!doc.isStaff,
+          mustChangeCredentials: false,
+          mustSetupMfa: false,
+          mfaEnabled: false,
+          mfaMethod: '',
+          skipEmailVerification: true,
+          devMfaBypassed: true,
+          token,
+          expiresAt: new Date(expiresAtMs).toISOString(),
+        })
+      } catch (err) {
+        console.error('Failed to bypass MFA for dev user:', err)
+        // Fall through to normal flow
+      }
+    }
+    
     if (seedDevEnabled && isNonProduction && isSeededBusinessOwner && !requiresMfa) {
       const bypassPasswordExpired = isPasswordExpired(doc.passwordChangedAt)
       const bypassMustChange = !!doc.mustChangeCredentials || bypassPasswordExpired

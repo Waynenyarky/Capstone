@@ -7,26 +7,37 @@ import StaffLayout from '../components/StaffLayout'
 import { OnboardingStepContent } from '@/features/shared'
 import { mfaStatus } from '@/features/authentication/services/mfaService'
 
+// Dev mode: bypass MFA setup when VITE_BYPASS_MFA_DEV=true
+const bypassMfaDev = import.meta.env.VITE_BYPASS_MFA_DEV === 'true'
+
 export default function StaffOnboarding() {
   const [currentStep, setCurrentStep] = useState(0)
   const {
     form,
     submitting,
     mustChange,
-    mustMfa,
+    mustMfa: mustMfaRaw,
     currentUser,
     homePath,
     handleCredentialsFinish,
     navigate,
   } = useStaffOnboarding({
-    onCredentialsSuccess: () => setCurrentStep(2),
+    onCredentialsSuccess: () => setCurrentStep(bypassMfaDev ? 3 : 2),
   })
+  // Override mustMfa in dev mode
+  const mustMfa = bypassMfaDev ? false : mustMfaRaw
   const { token } = theme.useToken()
   const location = useLocation()
-  const [mfaEnabled, setMfaEnabled] = useState(false)
+  const [mfaEnabled, setMfaEnabled] = useState(bypassMfaDev ? true : false)
   const [checkingMfa, setCheckingMfa] = useState(false)
 
   useEffect(() => {
+    // Dev mode: skip MFA check entirely
+    if (bypassMfaDev) {
+      setMfaEnabled(true)
+      if (currentStep === 0 && !mustChange) setCurrentStep(3)
+      return
+    }
     const checkMfaStatus = async () => {
       if (!currentUser?.email) return
       setCheckingMfa(true)

@@ -1,73 +1,57 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
-import { Table, Card, Input, Select, DatePicker, Button, Space, Tag, Typography, Row, Col, message, Badge } from 'antd'
+import React, { useState, useEffect, useMemo } from 'react'
+import { Table, Input, Select, Button, Tag, Typography, Dropdown, Splitter, Grid, Pagination, theme } from 'antd'
 import { useNotifier } from '@/shared/notifications.js'
-import { SearchOutlined, ReloadOutlined, EyeOutlined, FilterOutlined, ClearOutlined } from '@ant-design/icons'
+import { SearchOutlined, FilterOutlined, CloseOutlined, FileTextOutlined, ReloadOutlined } from '@ant-design/icons'
 import { StaffLayout } from '../../components'
 import { usePermitApplications } from '@/features/lgu-officer/presentation/hooks/usePermitApplications'
-import PermitApplicationDetail from '../components/PermitApplicationDetail'
+import ApplicationDetailPanel from '../components/ApplicationDetailPanel'
 import dayjs from 'dayjs'
 
-const { Title, Text } = Typography
-const { RangePicker } = DatePicker
-const { Option } = Select
+const { Text } = Typography
 
 export default function PermitReviewPage() {
+  const { token } = theme.useToken()
+  const screens = Grid.useBreakpoint()
+  const isMobile = !screens.md
+
   const { loading, applications, pagination, loadApplications, reviewApplication } = usePermitApplications()
   const { error: notifyError } = useNotifier()
+  
   const [selectedApplication, setSelectedApplication] = useState(null)
-  const [detailModalVisible, setDetailModalVisible] = useState(false)
-  const [filters, setFilters] = useState({
-    status: undefined,
-    businessName: '',
-    applicationType: undefined,
-    dateRange: null
-  })
+  const [search, setSearch] = useState('')
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [statusFilter, setStatusFilter] = useState(null)
+  const [typeFilter, setTypeFilter] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
 
-  // Debounce filter changes to avoid excessive API calls
-  const debounceRef = useRef(null)
+  const PAGE_SIZE = 20
+
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      loadApplicationsData()
-    }, 400)
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, pageSize, filters])
+    loadApplicationsData()
+  }, [])
+
+  useEffect(() => {
+    if (selectedApplication && applications?.length) {
+      const updated = applications.find((a) => a.applicationId === selectedApplication.applicationId)
+      if (updated) setSelectedApplication(updated)
+      else setSelectedApplication(null)
+    }
+  }, [applications])
+
 
   const loadApplicationsData = async () => {
     try {
-      const filterParams = {
-        ...(filters.status && { status: filters.status }),
-        ...(filters.businessName && { businessName: filters.businessName }),
-        ...(filters.applicationType && { applicationType: filters.applicationType }),
-        ...(filters.dateRange && filters.dateRange[0] && { dateFrom: filters.dateRange[0].format('YYYY-MM-DD') }),
-        ...(filters.dateRange && filters.dateRange[1] && { dateTo: filters.dateRange[1].format('YYYY-MM-DD') })
-      }
-
       await loadApplications({
-        filters: filterParams,
-        pagination: {
-          page: currentPage,
-          limit: pageSize
-        }
+        filters: {},
+        pagination: { page: 1, limit: 100 }
       })
     } catch (error) {
       notifyError(error, 'Failed to load applications')
     }
   }
 
-  const handleViewDetails = (application) => {
-    setSelectedApplication(application)
-    setDetailModalVisible(true)
-  }
-
   const handleReviewComplete = async () => {
-    setDetailModalVisible(false)
-    setSelectedApplication(null)
     await loadApplicationsData()
-    message.success('Application reviewed successfully')
   }
 
   const handleReviewStarted = async (updatedApplication) => {
@@ -77,279 +61,271 @@ export default function PermitReviewPage() {
     await loadApplicationsData()
   }
 
-  const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }))
-    setCurrentPage(1) // Reset to first page when filters change
-  }
+  const activeFilterCount = [statusFilter, typeFilter].filter(Boolean).length
 
-  const handleClearFilters = () => {
-    setFilters({
-      status: undefined,
-      businessName: '',
-      applicationType: undefined,
-      dateRange: null
+  const filteredApplications = useMemo(() => {
+    let list = applications || []
+    if (search.trim()) {
+      const q = search.trim().toLowerCase()
+      list = list.filter((rec) => {
+        const businessName = (rec?.businessName || '').toLowerCase()
+        const refNumber = (rec?.applicationReferenceNumber || '').toLowerCase()
+        return businessName.includes(q) || refNumber.includes(q)
+      })
+    }
+    if (statusFilter) {
+      list = list.filter((rec) => rec?.status === statusFilter)
+    }
+    if (typeFilter) {
+      list = list.filter((rec) => rec?.applicationType === typeFilter)
+    }
+    list.sort((a, b) => {
+      const dateA = new Date(a?.updatedAt || a?.submittedAt || 0).getTime()
+      const dateB = new Date(b?.updatedAt || b?.submittedAt || 0).getTime()
+      return dateB - dateA
     })
+    return list
+  }, [applications, search, statusFilter, typeFilter])
+
+  const paginatedApplications = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return (filteredApplications || []).slice(start, start + PAGE_SIZE)
+  }, [filteredApplications, currentPage])
+
+  useEffect(() => {
     setCurrentPage(1)
+  }, [search, statusFilter, typeFilter])
+
+  const clearFilters = () => {
+    setStatusFilter(null)
+    setTypeFilter(null)
   }
 
   const getStatusTag = (status) => {
     const statusConfig = {
       'draft': { color: 'default', text: 'Draft' },
-      'submitted': { color: 'processing', text: 'Pending Review' },
+      'submitted': { color: 'processing', text: 'Pending' },
       'resubmit': { color: 'processing', text: 'Resubmit' },
-      'under_review': { color: 'processing', text: 'Under Review' },
+      'under_review': { color: 'processing', text: 'Reviewing' },
       'approved': { color: 'success', text: 'Approved' },
       'rejected': { color: 'error', text: 'Rejected' },
-      'needs_revision': { color: 'warning', text: 'Needs Revision' }
+      'needs_revision': { color: 'warning', text: 'Revision' }
     }
     const config = statusConfig[status] || { color: 'default', text: status }
     return <Tag color={config.color}>{config.text}</Tag>
   }
 
-  const getAIValidationBadge = (aiValidation) => {
-    if (!aiValidation || !aiValidation.completed) {
-      return <Badge status="default" text="Not Validated" />
-    }
-
-    const status = aiValidation.results?.overallStatus || 'pass'
-    const statusConfig = {
-      'pass': { status: 'success', text: 'Pass' },
-      'warning': { status: 'warning', text: 'Warning' },
-      'fail': { status: 'error', text: 'Fail' }
-    }
-    const config = statusConfig[status] || statusConfig.pass
-    return <Badge status={config.status} text={config.text} />
-  }
-
   const columns = [
     {
-      title: 'Application Reference',
-      dataIndex: 'applicationReferenceNumber',
-      key: 'applicationReferenceNumber',
-      width: 180,
-      render: (text) => <Text strong style={{ fontFamily: 'monospace' }}>{text || 'N/A'}</Text>
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (status) => getStatusTag(status)
     },
     {
       title: 'Business Name',
       dataIndex: 'businessName',
       key: 'businessName',
-      width: 200,
-      render: (text) => <Text>{text || 'N/A'}</Text>
+      render: (text) => <Text ellipsis={{ tooltip: text }}>{text || 'N/A'}</Text>
     },
     {
       title: 'Type',
       dataIndex: 'applicationType',
       key: 'applicationType',
-      width: 120,
+      width: 80,
       render: (type) => (
         <Tag color={type === 'new_registration' ? 'blue' : 'cyan'}>
-          {type === 'new_registration' ? 'New Registration' : 'Renewal'}
+          {type === 'new_registration' ? 'New' : 'Renewal'}
         </Tag>
       )
     },
     {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      width: 140,
-      render: (status) => getStatusTag(status)
-    },
-    {
-      title: 'AI Validation',
-      dataIndex: 'aiValidation',
-      key: 'aiValidation',
-      width: 120,
-      render: (aiValidation) => getAIValidationBadge(aiValidation)
-    },
-    {
-      title: 'Submitted Date',
+      title: 'Submitted',
       dataIndex: 'submittedAt',
       key: 'submittedAt',
-      width: 150,
+      width: 100,
       render: (_, record) => {
         const displayDate = record.submittedAt || record.updatedAt
-        return displayDate ? dayjs(displayDate).format('YYYY-MM-DD HH:mm') : 'N/A'
-      },
-      sorter: (a, b) => {
-        const dateA = a.submittedAt || a.updatedAt
-        const dateB = b.submittedAt || b.updatedAt
-        if (!dateA) return 1
-        if (!dateB) return -1
-        return new Date(dateA) - new Date(dateB)
-      },
-      defaultSortOrder: 'descend'
+        return displayDate ? dayjs(displayDate).format('MMM D') : 'N/A'
+      }
     },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 120,
-      fixed: 'right',
-      render: (_, record) => (
-        <Space>
-          <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewDetails(record)}
-            size="small"
-          >
-            Review
-          </Button>
-        </Space>
-      )
-    }
   ]
 
-  const hasActiveFilters = filters.status || filters.businessName || filters.applicationType || filters.dateRange
+  const tableContent = (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, padding: 12, paddingBottom: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+          <Input
+            placeholder="Search business or reference"
+            prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+            allowClear
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ flex: 1, minWidth: 0 }}
+          />
+          <Dropdown
+            open={filterOpen}
+            onOpenChange={setFilterOpen}
+            trigger={['click']}
+            dropdownRender={() => (
+              <div
+                style={{
+                  padding: '16px 20px',
+                  background: '#fff',
+                  borderRadius: 10,
+                  border: `1px solid ${token.colorBorderSecondary}`,
+                  boxShadow: '0 6px 20px rgba(0, 0, 0, 0.12)',
+                  minWidth: 240,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 14,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text strong style={{ fontSize: 13 }}>Filters</Text>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<CloseOutlined style={{ fontSize: 12 }} />}
+                    onClick={() => setFilterOpen(false)}
+                    aria-label="Close filters"
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Status</Text>
+                  <Select
+                    placeholder="All statuses"
+                    allowClear
+                    value={statusFilter}
+                    onChange={setStatusFilter}
+                    style={{ width: '100%' }}
+                    options={[
+                      { value: 'submitted', label: 'Pending Review' },
+                      { value: 'resubmit', label: 'Resubmit' },
+                      { value: 'under_review', label: 'Under Review' },
+                      { value: 'approved', label: 'Approved' },
+                      { value: 'rejected', label: 'Rejected' },
+                      { value: 'needs_revision', label: 'Needs Revision' },
+                      { value: 'draft', label: 'Draft' },
+                    ]}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Type</Text>
+                  <Select
+                    placeholder="All types"
+                    allowClear
+                    value={typeFilter}
+                    onChange={setTypeFilter}
+                    style={{ width: '100%' }}
+                    options={[
+                      { value: 'new_registration', label: 'New Registration' },
+                      { value: 'renewal', label: 'Renewal' },
+                    ]}
+                  />
+                </div>
+                {activeFilterCount > 0 && (
+                  <Button size="small" type="link" onClick={clearFilters} style={{ alignSelf: 'flex-start', padding: 0 }}>
+                    Clear all filters
+                  </Button>
+                )}
+              </div>
+            )}
+          >
+            <Button
+              icon={<FilterOutlined />}
+              type={activeFilterCount > 0 ? 'primary' : 'default'}
+              ghost={activeFilterCount > 0}
+              aria-label="Toggle filters"
+            />
+          </Dropdown>
+        </div>
+      </div>
 
-  const sortedApplications = useMemo(() => {
-    const items = Array.isArray(applications) ? [...applications] : []
-    items.sort((a, b) => {
-      const dateA = new Date(a?.updatedAt || a?.submittedAt || 0).getTime()
-      const dateB = new Date(b?.updatedAt || b?.submittedAt || 0).getTime()
-      return dateB - dateA
-    })
-    return items
-  }, [applications])
+      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column', ['--row-selected-bg']: token.colorPrimaryBg }}>
+        <div style={{ borderBottom: `1px solid ${token.colorBorderSecondary}`, borderTop: `1px solid ${token.colorBorderSecondary}`, overflow: 'auto', flex: 1, minHeight: 0 }}>
+          <Table
+            size="small"
+            rowKey="applicationId"
+            columns={columns}
+            dataSource={paginatedApplications}
+            loading={loading}
+            pagination={false}
+            scroll={{ x: 'max-content' }}
+            rowClassName={(rec) => rec?.applicationId === selectedApplication?.applicationId ? 'app-row-selected' : ''}
+            onRow={(rec) => ({
+              onClick: () => setSelectedApplication(rec),
+              style: { cursor: 'pointer' },
+            })}
+          />
+        </div>
+        <div style={{ padding: '12px 0', display: 'flex', justifyContent: 'flex-end' }}>
+          <Pagination
+            current={currentPage}
+            total={filteredApplications?.length || 0}
+            pageSize={PAGE_SIZE}
+            showSizeChanger={false}
+            onChange={setCurrentPage}
+            size="small"
+          />
+        </div>
+      </div>
+      <style>{`
+        .ant-table-tbody > tr.app-row-selected > td {
+          background: var(--row-selected-bg) !important;
+        }
+        .ant-table-tbody > tr:hover > td {
+          cursor: pointer;
+        }
+      `}</style>
+    </div>
+  )
+
+  const headerActions = (
+    <Button
+      icon={<ReloadOutlined />}
+      onClick={loadApplicationsData}
+      loading={loading}
+      aria-label="Refresh"
+    />
+  )
+
+  if (isMobile) {
+    return (
+      <StaffLayout
+        pageTitle="Applications"
+        pageIcon={<FileTextOutlined />}
+        headerActions={headerActions}
+      >
+        <div style={{ height: 'calc(100vh - 120px)' }}>
+          {tableContent}
+        </div>
+      </StaffLayout>
+    )
+  }
 
   return (
     <StaffLayout
-      title="Permit Applications Review"
-      description="Review and process permit applications from business owners"
-      roleLabel="LGU Officer"
-      fullWidth={true}
+      pageTitle="Applications"
+      pageIcon={<FileTextOutlined />}
+      headerActions={headerActions}
     >
-      <Card style={{ width: '100%' }}>
-        {/* Filters Section */}
-        <Card
-          type="inner"
-          title={
-            <Space>
-              <FilterOutlined />
-              <Text strong>Filters</Text>
-            </Space>
-          }
-          style={{ marginBottom: 24, width: '100%' }}
-          extra={
-            hasActiveFilters && (
-              <Button
-                type="link"
-                icon={<ClearOutlined />}
-                onClick={handleClearFilters}
-                size="small"
-              >
-                Clear Filters
-              </Button>
-            )
-          }
-        >
-          <Row gutter={16}>
-            <Col xs={24} sm={12} md={6}>
-              <Text strong style={{ display: 'block', marginBottom: 8 }}>Status</Text>
-              <Select
-                placeholder="All Statuses"
-                style={{ width: '100%' }}
-                value={filters.status}
-                onChange={(value) => handleFilterChange('status', value)}
-                allowClear
-              >
-                <Option value="submitted">Pending Review</Option>
-                <Option value="resubmit">Resubmit</Option>
-                <Option value="under_review">Under Review</Option>
-                <Option value="approved">Approved</Option>
-                <Option value="rejected">Rejected</Option>
-                <Option value="needs_revision">Needs Revision</Option>
-                <Option value="draft">Draft</Option>
-              </Select>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Text strong style={{ display: 'block', marginBottom: 8 }}>Application Type</Text>
-              <Select
-                placeholder="All Types"
-                style={{ width: '100%' }}
-                value={filters.applicationType}
-                onChange={(value) => handleFilterChange('applicationType', value)}
-                allowClear
-              >
-                <Option value="new_registration">New Registration</Option>
-                <Option value="renewal">Renewal</Option>
-              </Select>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Text strong style={{ display: 'block', marginBottom: 8 }}>Business Name</Text>
-              <Input
-                placeholder="Search business name"
-                prefix={<SearchOutlined />}
-                value={filters.businessName}
-                onChange={(e) => handleFilterChange('businessName', e.target.value)}
-                allowClear
-              />
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Text strong style={{ display: 'block', marginBottom: 8 }}>Date Range</Text>
-              <RangePicker
-                style={{ width: '100%' }}
-                value={filters.dateRange}
-                onChange={(dates) => handleFilterChange('dateRange', dates)}
-                format="YYYY-MM-DD"
-              />
-            </Col>
-          </Row>
-        </Card>
-
-        {/* Applications Table */}
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Title level={4} style={{ margin: 0 }}>
-            Applications ({pagination?.total || 0})
-          </Title>
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={loadApplicationsData}
-            loading={loading}
-          >
-            Refresh
-          </Button>
-        </div>
-
-        <Table
-          aria-label="Permit applications"
-          columns={columns}
-          dataSource={sortedApplications}
-          loading={loading}
-          rowKey="applicationId"
-          pagination={{
-            current: currentPage,
-            pageSize: pageSize,
-            total: pagination?.total || 0,
-            showSizeChanger: true,
-            showTotal: (total) => `Total ${total} applications`,
-            onChange: (page, size) => {
-              setCurrentPage(page)
-              setPageSize(size)
-            },
-            onShowSizeChange: (current, size) => {
-              setCurrentPage(1)
-              setPageSize(size)
-            }
-          }}
-          scroll={{ x: 'max-content' }}
-          style={{ width: '100%' }}
-        />
-      </Card>
-
-      {/* Detail Modal */}
-      {selectedApplication && (
-        <PermitApplicationDetail
-          visible={detailModalVisible}
-          application={selectedApplication}
-          onClose={() => {
-            setDetailModalVisible(false)
-            setSelectedApplication(null)
-          }}
-          onReviewComplete={handleReviewComplete}
-          onReviewStarted={handleReviewStarted}
-          onReview={reviewApplication}
-        />
-      )}
+      <div style={{ height: 'calc(100vh - 120px)' }}>
+        <Splitter style={{ height: '100%' }}>
+          <Splitter.Panel min="25%" defaultSize="35%" style={{ overflow: 'hidden' }}>
+            {tableContent}
+          </Splitter.Panel>
+          <Splitter.Panel min="40%" defaultSize="65%" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <ApplicationDetailPanel
+              application={selectedApplication}
+              onReviewComplete={handleReviewComplete}
+              onReviewStarted={handleReviewStarted}
+              onReview={reviewApplication}
+            />
+          </Splitter.Panel>
+        </Splitter>
+      </div>
     </StaffLayout>
   )
 }
