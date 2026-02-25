@@ -10,7 +10,7 @@ export default function Home() {
   
   return (
     <Layout style={{ minHeight: '100vh', background: token.colorBgContainer }}>
-      {/*<HomeHeader />*/}
+      <HomeHeader />
       <Content style={{ display: 'flex', flexDirection: 'column' }}>
         <HeroSection />
       </Content>

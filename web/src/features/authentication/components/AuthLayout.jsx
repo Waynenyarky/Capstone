@@ -1,16 +1,13 @@
 import React from 'react'
-import { Layout, ConfigProvider, Grid, Typography } from 'antd'
+import { Layout, Grid } from 'antd'
 import { useNavigate } from 'react-router-dom'
-
-// Logo from public folder (web/public/BizClear.png)
-const BizClearLogo = '/BizClear.png'
+import BizClearLogo from '@/shared/components/BizClearLogo.jsx'
 
 const { useBreakpoint } = Grid
-const { Title } = Typography
 
 /**
  * AuthLayout Component
- * Logo + "BizClear" at top (home link), then form.
+ * Logo at top (home link), then form.
  */
 export default function AuthLayout({
   children,
@@ -62,28 +59,11 @@ export default function AuthLayout({
               flexDirection: 'column',
               alignItems: 'center',
               gap: isMobile ? 8 : 12,
-              marginBottom: isMobile ? 24 : 32,
+              marginBottom: isMobile ? 24 : 48,
             }}
             aria-label="Go to home"
           >
-            <div
-              style={{
-                width: isMobile ? 170 : 250,
-                overflow: 'hidden',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <img
-                src={BizClearLogo}
-                alt="BizClear"
-                style={{ height: '100%', width: '100%', objectFit: 'cover', display: 'block' }}
-              />
-            </div>
-            {/* <Title level={1} style={{ color: '#003a70',  lineHeight: 1, fontWeight: 800 }}>
-              BizClear
-            </Title> */}
+            <BizClearLogo width={isMobile ? 80 : 120} />
           </button>
           {children}
         </div>

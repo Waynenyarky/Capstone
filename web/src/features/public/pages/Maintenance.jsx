@@ -1,30 +1,45 @@
 import { Layout, Typography, Button, Grid, theme } from 'antd'
-import { LogoutOutlined, ToolOutlined } from '@ant-design/icons'
-import HomeHeader from '../components/HomeHeader.jsx'
+import { LogoutOutlined } from '@ant-design/icons'
 import HomeFooter from '../components/HomeFooter.jsx'
-import { useEffect, useState } from 'react'
-import { getMaintenanceStatus } from '../services/maintenanceService.js'
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useMaintenanceStatus } from '@/features/authentication'
 import { useAuthSession } from '@/features/authentication'
 
 const { Title, Paragraph, Text } = Typography
 const { useBreakpoint } = Grid
 
 export default function Maintenance() {
-  const [status, setStatus] = useState({ active: true })
   const screens = useBreakpoint()
   const { token } = theme.useToken()
+  const navigate = useNavigate()
+  const { loading, active, message, expectedResumeAt } = useMaintenanceStatus()
   const { currentUser, logout } = useAuthSession()
   const isLoggedIn = !!currentUser
 
   useEffect(() => {
-    getMaintenanceStatus()
-      .then((res) => setStatus(res || { active: true }))
-      .catch(() => setStatus({ active: true }))
-  }, [])
+    if (!loading && !active) {
+      navigate('/', { replace: true })
+    }
+  }, [loading, active, navigate])
+
+  if (loading) {
+    return (
+      <Layout style={{ minHeight: '100vh', background: token.colorBgContainer }}>
+        <Layout.Content style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+          <Paragraph type="secondary">Checking status…</Paragraph>
+        </Layout.Content>
+        <HomeFooter />
+      </Layout>
+    )
+  }
+
+  if (!active) {
+    return null
+  }
 
   return (
     <Layout style={{ minHeight: '100vh', background: token.colorBgContainer }}>
-      <HomeHeader />
       <Layout.Content style={{ display: 'flex', flexDirection: 'column' }}>
         <div style={{ 
           background: token.colorBgContainer,
@@ -36,7 +51,6 @@ export default function Maintenance() {
           flex: 1,
         }}>
           <div style={{ maxWidth: '600px' }}>
-            <ToolOutlined style={{ fontSize: '48px', color: token.colorTextTertiary, marginBottom: '24px' }} />
             
             <Title level={1} style={{ 
               marginBottom: '16px', 
@@ -52,12 +66,12 @@ export default function Maintenance() {
               marginBottom: '24px', 
               lineHeight: 1.7,
             }}>
-              {status?.message || "We're performing scheduled maintenance to improve our services. Please check back soon."}
+              {message || "We're performing scheduled maintenance to improve our services. Please check back soon."}
             </Paragraph>
 
-            {status?.expectedResumeAt && (
+            {expectedResumeAt && (
               <Text type="secondary" style={{ display: 'block', marginBottom: '24px' }}>
-                Expected back: {new Date(status.expectedResumeAt).toLocaleString()}
+                Expected back: {new Date(expectedResumeAt).toLocaleString()}
               </Text>
             )}
 
