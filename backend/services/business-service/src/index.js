@@ -8,11 +8,34 @@ const { performanceMonitorMiddleware } = require('./middleware/performanceMonito
 const { securityMonitorMiddleware } = require('./middleware/securityMonitor');
 const errorHandlerMiddleware = require('./middleware/errorHandler');
 const http = require('http');
+const path = require('path');
 const mongoose = require('mongoose');
 
 dotenv.config();
 
+// Load .env from project root when running from backend/services/business-service (so GEMINI_API_KEY etc. are found)
+const projectRootEnv = path.join(__dirname, '..', '..', '..', '..', '.env');
+try {
+  require('dotenv').config({ path: projectRootEnv });
+} catch (_) { /* optional */ }
+
 const app = express();
+
+const helmet = require('helmet');
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://challenges.cloudflare.com"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      frameSrc: ["https://challenges.cloudflare.com"],
+      fontSrc: ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
 
 // Structured Logging & Monitoring Middleware (early in chain)
 app.use(correlationIdMiddleware);
@@ -46,17 +69,26 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+  let ipfsStatus = 'not_configured'
+  try {
+    const ipfsService = require('./lib/ipfsService')
+    if (ipfsService.isAvailable()) {
+      ipfsStatus = 'connected'
+    } else {
+      ipfsStatus = 'unavailable'
+    }
+  } catch { ipfsStatus = 'error' }
   res.json({ 
     ok: true, 
     service: 'business-service', 
     timestamp: new Date().toISOString(),
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    ipfs: ipfsStatus,
   });
 });
 
 // Serve static uploads (business registration documents)
-const path = require('path');
 // Uploads are stored at: backend/services/business-service/../../../uploads/business-registration
 // Which resolves to: backend/uploads/business-registration
 // But we need to serve from the parent uploads directory to match the URL structure
@@ -81,6 +113,9 @@ const dashboardRouter = require('./routes/dashboard');
 const paymentsRouter = require('./routes/payments');
 const ownerInspectionsRouter = require('./routes/ownerInspections');
 const ownerViolationsRouter = require('./routes/ownerViolations');
+const aiRouter = require('./routes/ai');
+const lobTrainerRouter = require('./routes/lobTrainer');
+const feesRouter = require('./routes/fees');
 
 app.use('/api/business/admin/fee-configuration', feeConfigurationRouter);
 app.use('/api/business/admin/regulatory-fee-config', regulatoryFeeConfigRouter);
@@ -96,6 +131,12 @@ app.use('/api/business/dashboard', dashboardRouter);
 app.use('/api/business/payments', paymentsRouter);
 app.use('/api/business/inspections', ownerInspectionsRouter);
 app.use('/api/business/violations', ownerViolationsRouter);
+app.use('/api/business/ai', aiRouter);
+app.use('/api/business/admin/lob-trainer', lobTrainerRouter);
+app.use('/api/business', feesRouter);
+
+const adminStatsRouter = require('./routes/adminStats');
+app.use('/api/business/admin', adminStatsRouter);
 
 // Inspector routes
 const inspectorRouter = require('./routes/inspector/index');
@@ -104,6 +145,10 @@ app.use('/api/inspector', inspectorRouter);
 // LGU Officer inspection assignment routes
 const inspectionAssignmentsRouter = require('./routes/lgu-officer/inspectionAssignments');
 app.use('/api/lgu-officer', inspectionAssignmentsRouter);
+
+// LGU Manager routes
+const lguManagerRouter = require('./routes/lguManager');
+app.use('/api/lgu-manager', lguManagerRouter);
 
 // Global Error Handler (must be last middleware)
 app.use(errorHandlerMiddleware);
@@ -142,13 +187,96 @@ async function start() {
       }
     }
 
+    // Seed LOB training examples (idempotent — only inserts when empty)
+    if (shouldSeedFeeConfig) {
+      try {
+        const { seedIfEmpty: seedLobExamples } = require('./seed/seedLobTrainingExamples');
+        const lobResult = await seedLobExamples();
+        if (lobResult.seeded) {
+          logger.info('LOB training examples seeded', { count: lobResult.count });
+        } else if (lobResult.skipped === 'dataset_not_found') {
+          logger.info('LOB training examples skip: dataset file not found', {
+            triedPaths: lobResult.triedPaths || [],
+            hint: 'In Docker ensure volume ./ai/datasets:/backend/ai/datasets is mounted and restart the container (docker-compose up -d --force-recreate business-service)',
+          });
+        }
+      } catch (error) {
+        logger.warn('LOB training examples seed failed', { error: error.message });
+      }
+    }
+
     // IPFS service is lazy-loaded in routes when needed
     // Don't initialize here to avoid module loading issues
     logger.info('IPFS service will be loaded on-demand in routes');
 
+    // Cron jobs (only in non-test environments)
+    if (process.env.NODE_ENV !== 'test') {
+      const cron = require('node-cron')
+      const { flagBusinessesForRenewal, calculateMonthlyInterest } = require('./cron/renewalAutoFlag')
+      const { detectAbandonedBusinesses } = require('./cron/abandonedDetection')
+      const { markOverduePostRequirements } = require('./cron/postRequirementOverdue')
+      const { checkPostRequirementDue, checkOverduePostRequirements } = require('./cron/notificationReminders')
+
+      const cronLocks = new Set()
+      async function withCronMutex(name, fn) {
+        if (cronLocks.has(name)) {
+          logger.warn(`[CRON] Skipping ${name} — previous run still in progress`)
+          return
+        }
+        cronLocks.add(name)
+        try { await fn() } finally { cronLocks.delete(name) }
+      }
+
+      cron.schedule('0 0 1 1 *', () => withCronMutex('renewalAutoFlag', async () => {
+        logger.info('[CRON] Running renewal auto-flag...')
+        try { await flagBusinessesForRenewal() }
+        catch (err) { logger.error('[CRON] renewalAutoFlag error:', { error: err.message }) }
+      }))
+
+      cron.schedule('0 1 1 * *', () => withCronMutex('monthlyInterest', async () => {
+        logger.info('[CRON] Calculating monthly interest...')
+        try { await calculateMonthlyInterest() }
+        catch (err) { logger.error('[CRON] calculateMonthlyInterest error:', { error: err.message }) }
+      }))
+
+      cron.schedule('0 6 1 * *', () => withCronMutex('abandonedDetection', async () => {
+        logger.info('[CRON] Running abandoned business detection...')
+        try {
+          const flagged = await detectAbandonedBusinesses()
+          logger.info(`[CRON] Flagged ${flagged.length} businesses as potentially abandoned`)
+        }
+        catch (err) { logger.error('[CRON] abandonedDetection error:', { error: err.message }) }
+      }))
+
+      cron.schedule('0 0 * * *', () => withCronMutex('postRequirementOverdue', async () => {
+        logger.info('[CRON] Checking for overdue post-requirements...')
+        try {
+          const result = await markOverduePostRequirements()
+          logger.info(`[CRON] Marked ${result.marked} post-requirements as overdue`)
+        }
+        catch (err) { logger.error('[CRON] postRequirementOverdue error:', { error: err.message }) }
+      }))
+
+      cron.schedule('0 9 * * *', () => withCronMutex('notificationReminders', async () => {
+        logger.info('[CRON] Running notification reminders...')
+        try {
+          const dueCount = await checkPostRequirementDue()
+          const overdueCount = await checkOverduePostRequirements()
+          logger.info(`[CRON] Notification reminders: ${dueCount} due, ${overdueCount} overdue`)
+        }
+        catch (err) { logger.error('[CRON] notificationReminders error:', { error: err.message }) }
+      }))
+
+      logger.info('Cron jobs scheduled: renewalAutoFlag, monthlyInterest, abandonedDetection, postRequirementOverdue, notificationReminders')
+    }
+
     const server = http.createServer(app);
     server.listen(PORT, () => {
       logger.info(`Business Service listening on http://localhost:${PORT}`);
+      logger.info('AI LOB recommendation config', {
+        geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+        lobModelServiceUrl: process.env.LOB_MODEL_SERVICE_URL ? '(set)' : '(not set)',
+      });
     });
 
     return server;

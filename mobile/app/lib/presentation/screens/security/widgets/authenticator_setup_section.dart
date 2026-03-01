@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:app/core/theme/bizclear_colors.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -28,7 +29,7 @@ class AuthenticatorSetupSection extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
+                border: Border.all(color: BizClearColors.inputBorder),
                 boxShadow: [
                   BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2)),
                 ],
@@ -41,95 +42,43 @@ class AuthenticatorSetupSection extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(height: 12),
+          Text(
+            'Scan with Google Authenticator, Microsoft Authenticator, or similar.',
+            style: TextStyle(fontSize: 13, color: BizClearColors.textSecondary),
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 16),
         ],
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        if (secret != null) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Text(
-                'Add to your TOTP authenticator',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 12),
-              if (issuer != null) ...[
-                Text('Account Name', style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Text(
-                    issuer!,
-                    style: const TextStyle(fontSize: 15, fontFamily: 'monospace'),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              if (secret != null) ...[
-                Text('Secret Key (manual entry)', style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
-                const SizedBox(height: 6),
-                Row(
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: SelectableText(
-                          secret!,
-                          style: const TextStyle(fontSize: 15, fontFamily: 'monospace'),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.copy, size: 20),
-                      tooltip: 'Copy',
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: secret!));
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Secret Key copied')));
-                      },
+                    if (issuer != null && issuer!.isNotEmpty)
+                      Text('Account: $issuer', style: TextStyle(fontSize: 12, color: BizClearColors.textSecondary)),
+                    const SizedBox(height: 4),
+                    SelectableText(
+                      secret!,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 14) ?? const TextStyle(fontSize: 14),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.blue.shade50,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Open Microsoft Authenticator → Add account → Other (custom) → scan QR or enter the Secret Key.',
-                  style: TextStyle(fontSize: 13, color: Colors.blue.shade900, height: 1.3),
-                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.copy, size: 22),
+                tooltip: 'Copy secret',
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: secret!));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Secret copied')));
+                },
               ),
             ],
           ),
-        ),
+        ],
       ],
     );
   }

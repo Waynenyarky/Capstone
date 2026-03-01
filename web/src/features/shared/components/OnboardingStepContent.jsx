@@ -1,5 +1,6 @@
 import React from 'react'
-import { Form, Input, Button, Typography, Spin, Alert, theme } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Input, Button, Typography, Spin, Alert, theme } from 'antd'
 import {
   SafetyCertificateOutlined,
   LockOutlined,
@@ -84,7 +85,7 @@ export default function OnboardingStepContent({
         </Paragraph>
         <Form form={form} layout="vertical" onFinish={handleCredentialsFinish} autoComplete="off">
           <Form.Item name="password" label="New Password" rules={passwordRules}>
-            <Input.Password size="large" placeholder="Enter new password" />
+            <Input.Password placeholder="Enter new password" />
           </Form.Item>
           <Form.Item
             name="confirmPassword"
@@ -92,10 +93,10 @@ export default function OnboardingStepContent({
             dependencies={['password']}
             rules={confirmPasswordRules}
           >
-            <Input.Password size="large" placeholder="Confirm new password" />
+            <Input.Password placeholder="Confirm new password" />
           </Form.Item>
           <Form.Item style={{ marginBottom: 0, marginTop: 32 }}>
-            <Button type="primary" htmlType="submit" size="large" block loading={submitting}>
+            <Button type="primary" htmlType="submit"  block loading={submitting}>
               Set Password
             </Button>
           </Form.Item>
@@ -126,7 +127,7 @@ export default function OnboardingStepContent({
               showIcon
               style={{ marginBottom: 24 }}
             />
-            <Button type="primary" size="large" onClick={() => setCurrentStep(3)}>
+            <Button type="primary" onClick={() => setCurrentStep(3)}>
               Continue
             </Button>
           </div>

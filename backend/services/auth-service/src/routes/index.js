@@ -3,6 +3,7 @@ const { createCsrfMiddleware, getCsrfTokenHandler } = require('../lib/csrf')
 
 const signupRouter = require('./signup')
 const loginRouter = require('./login')
+const logoutRouter = require('./logout')
 const passwordResetRouter = require('./passwordReset')
 const deleteAccountRouter = require('./deleteAccount')
 const profileRouter = require('./profile')
@@ -34,6 +35,7 @@ router.use(createCsrfMiddleware({ skipPaths: ['/api/auth/csrf-token'], disabled:
 // Compose feature routers under /api/auth
 router.use('/', signupRouter)
 router.use('/', loginRouter)
+router.use('/', logoutRouter)
 router.use('/', passwordResetRouter)
 router.use('/', deleteAccountRouter)
 router.use('/', profileRouter)

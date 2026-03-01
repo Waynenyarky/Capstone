@@ -19,7 +19,7 @@ cp .env.docker .env
 ```
 
 Edit `.env` if you want to customize:
-- `EMAIL_API_KEY` (if using SendGrid)
+- `EMAIL_API_KEY` (e.g. Resend)
 - `JWT_SECRET` (change in production)
 - `DEPLOYER_PRIVATE_KEY` (optional - uses default)
 

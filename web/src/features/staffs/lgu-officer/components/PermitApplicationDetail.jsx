@@ -232,7 +232,7 @@ export default function PermitApplicationDetail({
     Modal.confirm({
       title: 'Submit Review?',
       content: `You are about to ${decisionLabel} this application. Do you want to continue?`,
-      okText: 'Yes, submit',
+      okText: 'Submit Review',
       cancelText: 'Cancel',
       onOk: () => handleReview(values)
     })
@@ -778,7 +778,6 @@ export default function PermitApplicationDetail({
                 htmlType="submit"
                 loading={reviewing}
                 block
-                size="large"
                 icon={decision === 'approve' ? <CheckCircleOutlined /> : decision === 'reject' ? <CloseCircleOutlined /> : <EditOutlined />}
                 style={{
                   background: decision === 'approve' ? token.colorSuccess :
@@ -799,7 +798,6 @@ export default function PermitApplicationDetail({
               <Button
                 onClick={onClose}
                 block
-                size="large"
                 style={{ marginTop: 12 }}
               >
                 Cancel
@@ -1056,7 +1054,7 @@ export default function PermitApplicationDetail({
                   <Descriptions.Item label="Email Address">
                     {businessReg.emailAddress || application?.businessOwner?.email || 'N/A'}
                   </Descriptions.Item>
-                  <Descriptions.Item label="Mobile Number">
+                  <Descriptions.Item label="Mobile Number" span={2}>
                     {businessReg.mobileNumber || application?.businessOwner?.phoneNumber || 'N/A'}
                   </Descriptions.Item>
                 </Descriptions>
@@ -1184,7 +1182,7 @@ export default function PermitApplicationDetail({
                   <Descriptions.Item label="Declaration Date">
                     {formatDate(businessReg.declarationDate)}
                   </Descriptions.Item>
-                  <Descriptions.Item label="Certification Accepted">
+                  <Descriptions.Item label="Certification Accepted" span={2}>
                     {formatBoolean(businessReg.certificationAccepted)}
                   </Descriptions.Item>
                 </Descriptions>
@@ -1230,7 +1228,7 @@ export default function PermitApplicationDetail({
                 <Descriptions.Item label="Zip Code">
                   {location.zipCode || 'N/A'}
                 </Descriptions.Item>
-                <Descriptions.Item label="Business Location Type">
+                <Descriptions.Item label="Business Location Type" span={2}>
                   {location.businessLocationType ? (
                     <Tag color={location.businessLocationType === 'owned' ? 'success' : 'default'}>
                       {location.businessLocationType === 'owned' ? 'Owned' : 'Leased'}
@@ -1451,7 +1449,7 @@ export default function PermitApplicationDetail({
             >
               <Descriptions bordered column={2} size="middle">
                 {birRegistration.registrationNumber && (
-                  <Descriptions.Item label="Registration Number">
+                  <Descriptions.Item label="Registration Number" span={2}>
                     {birRegistration.registrationNumber}
                   </Descriptions.Item>
                 )}
@@ -1491,7 +1489,7 @@ export default function PermitApplicationDetail({
               }}
             >
               <Descriptions bordered column={2} size="middle">
-                <Descriptions.Item label="Has Employees">
+                <Descriptions.Item label="Has Employees" span={2}>
                   {formatBoolean(otherAgencies.hasEmployees)}
                 </Descriptions.Item>
               </Descriptions>
@@ -1589,116 +1587,6 @@ export default function PermitApplicationDetail({
                 </Descriptions>
               </Card>
             </Space>
-              )
-            },
-            {
-              key: 'ai',
-              label: <span><RobotOutlined />AI Validation</span>,
-              children: (
-            <Card
-              title={
-                <Space>
-                  <RobotOutlined style={{ color: token.colorPrimary }} />
-                  <Text strong>AI Validation Results</Text>
-                </Space>
-              }
-              style={{
-                boxShadow: token.boxShadowSecondary,
-                border: `1px solid ${token.colorBorderSecondary}`
-              }}
-            >
-              <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                {aiValidation?.completed ? (
-                  <>
-                    <div>
-                      <Text type="secondary" style={{ fontSize: 13 }}>
-                        Validated on: {formatDate(aiValidation.completedAt)}
-                      </Text>
-                    </div>
-
-                    <Divider />
-
-                    <div>
-                      <Text strong>Overall Status: </Text>
-                      <Badge
-                        status={
-                          aiValidation.results?.overallStatus === 'pass' ? 'success' :
-                          aiValidation.results?.overallStatus === 'warning' ? 'warning' : 'error'
-                        }
-                        text={
-                          aiValidation.results?.overallStatus === 'pass' ? 'Pass' :
-                          aiValidation.results?.overallStatus === 'warning' ? 'Warning' : 'Fail'
-                        }
-                        style={{ marginLeft: 8 }}
-                      />
-                    </div>
-
-                    {aiValidation.results?.documentCompleteness && (
-                      <Card size="small" title="Document Completeness">
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          <Text>Score: {aiValidation.results.documentCompleteness.score || 0}%</Text>
-                          {aiValidation.results.documentCompleteness.issues?.length > 0 && (
-                            <div>
-                              <Text strong>Issues:</Text>
-                              <ul style={{ marginTop: 8 }}>
-                                {aiValidation.results.documentCompleteness.issues.map((issue, idx) => (
-                                  <li key={idx}>{issue}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </Space>
-                      </Card>
-                    )}
-
-                    {aiValidation.results?.consistency && (
-                      <Card size="small" title="Consistency Check">
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          <Text>Score: {aiValidation.results.consistency.score || 0}%</Text>
-                          {aiValidation.results.consistency.issues?.length > 0 && (
-                            <div>
-                              <Text strong>Issues:</Text>
-                              <ul style={{ marginTop: 8 }}>
-                                {aiValidation.results.consistency.issues.map((issue, idx) => (
-                                  <li key={idx}>{issue}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </Space>
-                      </Card>
-                    )}
-
-                    {aiValidation.results?.anomalies?.length > 0 && (
-                      <Card size="small" title="Anomalies Detected" style={{ borderColor: '#ff4d4f' }}>
-                        <ul>
-                          {aiValidation.results.anomalies.map((anomaly, idx) => (
-                            <li key={idx} style={{ color: '#ff4d4f' }}>{anomaly}</li>
-                          ))}
-                        </ul>
-                      </Card>
-                    )}
-
-                    {aiValidation.results?.riskFlags?.length > 0 && (
-                      <Card size="small" title="Risk Flags" style={{ borderColor: '#faad14' }}>
-                        <ul>
-                          {aiValidation.results.riskFlags.map((flag, idx) => (
-                            <li key={idx} style={{ color: '#faad14' }}>{flag}</li>
-                          ))}
-                        </ul>
-                      </Card>
-                    )}
-                  </>
-                ) : (
-                  <Alert
-                    message="AI Validation Not Completed"
-                    description="This application has not been validated by AI yet."
-                    type="info"
-                    icon={<RobotOutlined />}
-                  />
-                )}
-              </Space>
-            </Card>
               )
             },
           ]}

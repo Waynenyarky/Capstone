@@ -152,6 +152,7 @@ export default function StaffByOfficeRoleTab({
             loading={loading}
             pagination={false}
             scroll={{ x: 'max-content' }}
+            locale={{ emptyText: <Empty description="No offices" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
             rowClassName={(rec) => rec?.office === selectedOffice ? 'office-row-selected' : ''}
             onRow={(rec) => ({
               onClick: () => setSelectedOffice(rec.office),
@@ -325,7 +326,7 @@ export default function StaffByOfficeRoleTab({
               onClick: () => onNavigateToStaff?.(rec?.id),
               style: { cursor: 'pointer' },
             })}
-            locale={{ emptyText: 'No employees in this office' }}
+            locale={{ emptyText: <Empty description="No employees in this office" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
           />
         </div>
         <div style={{ padding: '12px 0', display: 'flex', justifyContent: 'flex-end' }}>

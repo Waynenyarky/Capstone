@@ -85,6 +85,13 @@ function getProductionApiOrigin(path) {
   return authOrigin
 }
 
+/** Get the API origin for a path (for EventSource etc). Returns '' for same-origin (dev with proxy). */
+export function getApiOriginForPath(path) {
+  const isProductionBuild = import.meta.env.PROD === true
+  if (isProductionBuild && path.startsWith('/api')) return getProductionApiOrigin(path)
+  return ''
+}
+
 export async function fetchWithFallback(path, options = {}) {
   const BACKEND_ORIGIN = import.meta.env.VITE_BACKEND_ORIGIN
 
@@ -167,6 +174,14 @@ export async function fetchWithFallback(path, options = {}) {
   }
   opts.headers = headers
 
+  // Optional request timeout (e.g. for slow connections during demos). Uses AbortController.
+  let timeoutId = null
+  if (opts.timeoutMs != null && opts.timeoutMs > 0) {
+    const ac = new AbortController()
+    timeoutId = setTimeout(() => ac.abort(), opts.timeoutMs)
+    opts.signal = ac.signal
+  }
+
   let res
   try {
     res = await fetch(apiUrl, opts)
@@ -178,12 +193,11 @@ export async function fetchWithFallback(path, options = {}) {
   const isAuthEndpoint = path.includes('/login') || path.includes('/signup') || path.includes('/sign-up') || path.includes('/forgot-password')
   const isAdminOrMaintenanceApi = path.includes('/api/admin') || path.includes('/api/maintenance')
   const has4xxResponse = res && res.status >= 400 && res.status < 500
-  const fallbackOrigin = isProductionBuild && path.startsWith('/api') ? getProductionApiOrigin(path) : BACKEND_ORIGIN
-  // In dev/demo-ui: only fall back to absolute backend URL when the app is on localhost (same machine as backend).
-  // Otherwise (e.g. Codespaces, cloud IDE) the browser cannot reach the container's localhost:3001 → ERR_CONNECTION_REFUSED.
-  const isDevOnLocalhost = !isProductionBuild && typeof window !== 'undefined' && (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1')
-  const useAbsoluteFallback = isProductionBuild || isDevOnLocalhost
-  // Allow fallback on 404 when request was to same origin (relative path in dev): proxy may not be forwarding, so retry backend once
+  // Use path-aware origin for fallback when path is /api/* (dev and prod) so /api/business falls back to 3002, not 3001
+  const fallbackOrigin = path.startsWith('/api') ? (getProductionApiOrigin(path) || BACKEND_ORIGIN) : BACKEND_ORIGIN
+  // In dev we use the proxy (relative URLs only). Do not retry with absolute backend URL — it can trigger CSP
+  // and the backend is the same process the proxy forwards to anyway. In production we do use absolute URLs and fallback.
+  const useAbsoluteFallback = isProductionBuild
   const isRelativeRequest = !origin && path.startsWith('/')
   const allow404Fallback = isAuthEndpoint && res?.status === 404 && isRelativeRequest
   const shouldFallback = (!res || !res.ok) && (!has4xxResponse || allow404Fallback) && !(isAuthEndpoint && res?.status === 500) && !isAdminOrMaintenanceApi && fallbackOrigin && useAbsoluteFallback && apiUrl !== `${fallbackOrigin.replace(/\/$/, '')}${pathStr}`
@@ -195,6 +209,8 @@ export async function fetchWithFallback(path, options = {}) {
       res = null
     }
   }
+
+  if (timeoutId != null) clearTimeout(timeoutId)
 
   return res
 }
@@ -216,20 +232,23 @@ export async function fetchJsonWithFallback(path, options = {}) {
         // Skip auto-logout for login/signup endpoints to avoid redirect loops
         const isAuthEndpoint = path.includes('/login') || path.includes('/signup') || path.includes('/sign-up') || path.includes('/forgot-password')
         
-        if (!isAuthEndpoint && (errMsgLower.includes('session') && errMsgLower.includes('invalidated'))) {
-          // Clear user session
-          setCurrentUser(null)
-          try {
-            localStorage.removeItem('auth__currentUser')
-            sessionStorage.removeItem('auth__sessionUser')
-          } catch { /* ignore */ }
-          
-          // Redirect to login after a short delay to allow error to propagate
-          setTimeout(() => {
-            if (window.location.pathname !== '/login' && window.location.pathname !== '/sign-up') {
-              window.location.href = '/login?reason=session_invalidated'
-            }
-          }, 100)
+        if (!isAuthEndpoint) {
+          const isSessionInvalidation = errMsgLower.includes('session') && errMsgLower.includes('invalidated')
+          const isTokenExpired = errMsgLower.includes('expired') || errMsgLower.includes('jwt') || errMsgLower.includes('token')
+          if (isSessionInvalidation || isTokenExpired) {
+            setCurrentUser(null)
+            try {
+              localStorage.removeItem('auth__currentUser')
+              sessionStorage.removeItem('auth__sessionUser')
+            } catch { /* ignore */ }
+            
+            const reason = isSessionInvalidation ? 'session_invalidated' : 'token_expired'
+            setTimeout(() => {
+              if (window.location.pathname !== '/login' && window.location.pathname !== '/sign-up') {
+                window.location.href = `/login?reason=${reason}`
+              }
+            }, 100)
+          }
         }
       } catch { /* ignore JSON parse errors */ }
     }
@@ -285,6 +304,7 @@ export async function fetchJsonWithFallback(path, options = {}) {
         'invalid_code': 'Incorrect verification code. Please check the code and try again.',
         'invalid_mfa_code': 'Incorrect verification code. Please check the code from your authenticator app and try again.',
         'verification_failed': 'Verification failed. Please check your code and try again.',
+        'captcha_failed': 'Verification failed. Please try again.',
         'invalid_credentials': 'The email address or password you entered is incorrect. Please check your credentials and try again.',
         'webauthn_verification_failed': 'Passkey verification failed. Please try again.',
         'webauthn_verification_exception': 'Registration failed. Please try again.',
@@ -295,7 +315,9 @@ export async function fetchJsonWithFallback(path, options = {}) {
         'session_expired': 'Session expired. Please scan the QR code again.',
         'challenge_missing': 'Session error. Please scan the QR code again.',
         'cross_device_complete_failed': 'Failed to complete authentication. Please try again.',
-        'email_send_failed': 'Verification email could not be sent. Check that your email provider (e.g. SendGrid) is configured and the sender is verified, or try again in a moment.',
+        'email_send_failed': import.meta.env.PROD
+          ? 'Verification email could not be sent. Please try again in a moment, or contact support if the problem continues.'
+          : 'Verification email could not be sent. Check that your email provider (e.g. Resend) is configured and the sender is verified, or try again in a moment.',
         'request_not_found': 'Your login session expired or was not found. Please sign in again from the login page.',
         'step_up_required': 'This action requires you to confirm your identity. Please enter your authenticator code again and retry.',
         'invalid_step_up': 'Your confirmation has expired or was invalid. Please confirm your identity again and retry.',
@@ -304,6 +326,8 @@ export async function fetchJsonWithFallback(path, options = {}) {
         'login_code_rate_limited': 'Too many login attempts. Please wait before trying again.',
         'login_verify_rate_limited': 'Too many verification attempts. Please wait before trying again.',
         'rate_limit_exceeded': 'Too many requests. Please slow down and try again later.',
+        'account_locked': 'Account temporarily locked due to too many failed attempts. Try again later.',
+        'file_rejected': 'File could not be accepted. Please try a different file.',
       }
       
       if (errorCode && codeMap[errorCode]) {

@@ -22,6 +22,8 @@ import {
   CheckCircleOutlined,
   AccountBookOutlined,
   SettingOutlined,
+  ExperimentOutlined,
+  NotificationOutlined,
 } from '@ant-design/icons'
 
 // Role keys used across the app: 'business_owner', 'admin', 'inspector', 'lgu_officer', 'lgu_manager', 'cso', 'user'
@@ -36,22 +38,8 @@ export default function useSidebar() {
       { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
     ]
 
-    const businessItems = [
-      { key: 'dashboard', label: 'Dashboard', to: '/owner', icon: <DashboardOutlined /> },
-      { key: 'my-businesses', label: 'My Businesses', to: '/owner/businesses', icon: <ShopOutlined /> },
-      { key: 'general-permits', label: 'General Permits', to: '/owner/general-permits', icon: <FileProtectOutlined /> },
-      { key: 'occupational-permits', label: 'Occupational Permits', to: '/owner/occupational-permits', icon: <IdcardOutlined /> },
-      { key: 'retirement', label: 'Business Retirement', to: '/owner/retirement', icon: <StopOutlined /> },
-      { key: 'my-appeals', label: 'Appeals', to: '/owner/my-appeals', icon: <AuditOutlined /> },
-      { key: 'edit-requests', label: 'Edit Requests', to: '/owner/edit-requests', icon: <EditOutlined /> },
-      { key: 'payments', label: 'Payments', to: '/owner/payments', icon: <CreditCardOutlined /> },
-      { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
-      { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
-    ]
-
     const perRole = {
-      business: businessItems, // Backward compatibility
-      business_owner: businessItems,
+      business_owner: [], // Business owner routes use BusinessOwnerLayout (no sidebar)
       admin: [
         { key: 'dashboard', label: 'Dashboard', to: '/admin/dashboard', icon: <DashboardOutlined /> },
         { key: 'admin-users', label: 'User Management', to: '/admin/users', icon: <TeamOutlined /> },
@@ -60,6 +48,8 @@ export default function useSidebar() {
         { key: 'fee-configuration', label: 'Fee Configuration', to: '/admin/fee-configuration', icon: <DollarOutlined /> },
         { key: 'finance', label: 'Finance', to: '/admin/finance', icon: <AccountBookOutlined /> },
         { key: 'security', label: 'Security', to: '/admin/security', icon: <SafetyCertificateOutlined /> },
+        { key: 'lob-trainer', label: 'AI Training Data', to: '/admin/lob-trainer', icon: <ExperimentOutlined /> },
+        { key: 'announcements', label: 'Announcements', to: '/admin/announcements', icon: <NotificationOutlined /> },
         { key: 'maintenance', label: 'Maintenance', to: '/admin/maintenance', icon: <SettingOutlined /> },
       ],
       staff: [
@@ -83,6 +73,8 @@ export default function useSidebar() {
       lgu_officer: [
         { key: 'dashboard', label: 'Dashboard', to: '/staff', icon: <DashboardOutlined /> },
         { key: 'applications', label: 'Applications', to: '/staff/applications', icon: <FileTextOutlined /> },
+        { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
+        { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
       ],
       lgu_manager: [
         { key: 'dashboard', label: 'Dashboard', to: '/lgu-manager', icon: <DashboardOutlined /> },

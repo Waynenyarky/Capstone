@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { Table, Input, Select, Button, Tag, Typography, Dropdown, Splitter, Grid, Pagination, theme } from 'antd'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { Table, Input, Select, Button, Tag, Typography, Dropdown, Splitter, Grid, Pagination, theme, Space, Drawer, AutoComplete, Empty, Steps, Descriptions, App, message } from 'antd'
 import { useNotifier } from '@/shared/notifications.js'
-import { SearchOutlined, FilterOutlined, CloseOutlined, FileTextOutlined, ReloadOutlined } from '@ant-design/icons'
+import { SearchOutlined, FilterOutlined, CloseOutlined, FileTextOutlined, ReloadOutlined, PlusOutlined, UserOutlined, StarOutlined, StarFilled } from '@ant-design/icons'
 import { StaffLayout } from '../../components'
 import { usePermitApplications } from '@/features/lgu-officer/presentation/hooks/usePermitApplications'
 import ApplicationDetailPanel from '../components/ApplicationDetailPanel'
+import { createWalkInApplication } from '@/features/business-owner/services/businessProfileService'
+import { get } from '@/lib/http.js'
 import dayjs from 'dayjs'
 
 const { Text } = Typography
@@ -23,11 +25,40 @@ export default function PermitReviewPage() {
   const [statusFilter, setStatusFilter] = useState(null)
   const [typeFilter, setTypeFilter] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [lastUpdated, setLastUpdated] = useState(null)
+
+  const [walkInOpen, setWalkInOpen] = useState(false)
+  const [ownerSearch, setOwnerSearch] = useState('')
+  const [ownerOptions, setOwnerOptions] = useState([])
+  const [selectedOwner, setSelectedOwner] = useState(null)
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [actionLoading, setActionLoading] = useState(false)
+  const [bookmarks, setBookmarks] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('officer_bookmarks') || '[]') } catch { return [] }
+  })
+  const [showBookmarkedOnly, setShowBookmarkedOnly] = useState(false)
+
+  const toggleBookmark = useCallback((appId) => {
+    setBookmarks(prev => {
+      const next = prev.includes(appId) ? prev.filter(id => id !== appId) : [...prev, appId]
+      localStorage.setItem('officer_bookmarks', JSON.stringify(next))
+      return next
+    })
+  }, [])
 
   const PAGE_SIZE = 20
+  const POLL_INTERVAL_MS = 30 * 1000 // 30 seconds
 
   useEffect(() => {
     loadApplicationsData()
+  }, [])
+
+  // Poll for fresh applications list so the table stays up to date (silent = no loading spinner)
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      loadApplicationsData(true)
+    }, POLL_INTERVAL_MS)
+    return () => clearInterval(intervalId)
   }, [])
 
   useEffect(() => {
@@ -39,14 +70,16 @@ export default function PermitReviewPage() {
   }, [applications])
 
 
-  const loadApplicationsData = async () => {
+  const loadApplicationsData = async (silent = false) => {
     try {
       await loadApplications({
         filters: {},
-        pagination: { page: 1, limit: 100 }
+        pagination: { page: 1, limit: 100 },
+        silent
       })
-    } catch (error) {
-      notifyError(error, 'Failed to load applications')
+      setLastUpdated(new Date())
+    } catch (err) {
+      if (!silent) notifyError(err, 'Failed to load applications')
     }
   }
 
@@ -65,6 +98,9 @@ export default function PermitReviewPage() {
 
   const filteredApplications = useMemo(() => {
     let list = applications || []
+    if (showBookmarkedOnly) {
+      list = list.filter((rec) => bookmarks.includes(rec?.applicationId))
+    }
     if (search.trim()) {
       const q = search.trim().toLowerCase()
       list = list.filter((rec) => {
@@ -85,7 +121,7 @@ export default function PermitReviewPage() {
       return dateB - dateA
     })
     return list
-  }, [applications, search, statusFilter, typeFilter])
+  }, [applications, search, statusFilter, typeFilter, showBookmarkedOnly, bookmarks])
 
   const paginatedApplications = useMemo(() => {
     const start = (currentPage - 1) * PAGE_SIZE
@@ -101,12 +137,45 @@ export default function PermitReviewPage() {
     setTypeFilter(null)
   }
 
+  const handleOwnerSearch = useCallback(async (value) => {
+    setOwnerSearch(value)
+    if (!value || value.length < 2) { setOwnerOptions([]); return }
+    setSearchLoading(true)
+    try {
+      const users = await get(`/api/auth/users/search?q=${encodeURIComponent(value)}&role=business_owner`)
+      const list = Array.isArray(users) ? users : users?.data || []
+      setOwnerOptions(list.map(u => ({
+        value: u._id,
+        label: `${u.firstName} ${u.lastName} (${u.email})`,
+        user: u,
+      })))
+    } catch { setOwnerOptions([]) }
+    finally { setSearchLoading(false) }
+  }, [])
+
+  const handleOwnerSelect = (_value, option) => {
+    setSelectedOwner(option.user)
+  }
+
+  const openWalkIn = () => {
+    setWalkInOpen(true)
+    setSelectedOwner(null)
+    setOwnerSearch('')
+    setOwnerOptions([])
+  }
+
+  const closeWalkIn = () => {
+    setWalkInOpen(false)
+    setSelectedOwner(null)
+    setOwnerSearch('')
+  }
+
   const getStatusTag = (status) => {
     const statusConfig = {
       'draft': { color: 'default', text: 'Draft' },
       'submitted': { color: 'processing', text: 'Pending' },
       'resubmit': { color: 'processing', text: 'Resubmit' },
-      'under_review': { color: 'processing', text: 'Reviewing' },
+      'under_review': { color: 'processing', text: 'Under Review' },
       'approved': { color: 'success', text: 'Approved' },
       'rejected': { color: 'error', text: 'Rejected' },
       'needs_revision': { color: 'warning', text: 'Revision' }
@@ -116,6 +185,17 @@ export default function PermitReviewPage() {
   }
 
   const columns = [
+    {
+      title: '',
+      key: 'bookmark',
+      width: 36,
+      render: (_, rec) => {
+        const isBookmarked = bookmarks.includes(rec?.applicationId)
+        return isBookmarked
+          ? <StarFilled style={{ color: '#faad14', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); toggleBookmark(rec.applicationId) }} />
+          : <StarOutlined style={{ color: '#d9d9d9', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); toggleBookmark(rec.applicationId) }} />
+      },
+    },
     {
       title: 'Status',
       dataIndex: 'status',
@@ -164,11 +244,18 @@ export default function PermitReviewPage() {
             onChange={(e) => setSearch(e.target.value)}
             style={{ flex: 1, minWidth: 0 }}
           />
+          <Button
+            icon={showBookmarkedOnly ? <StarFilled style={{ color: '#faad14' }} /> : <StarOutlined />}
+            type={showBookmarkedOnly ? 'primary' : 'default'}
+            ghost={showBookmarkedOnly}
+            onClick={() => setShowBookmarkedOnly(prev => !prev)}
+            aria-label="Toggle bookmarked applications"
+          />
           <Dropdown
             open={filterOpen}
             onOpenChange={setFilterOpen}
             trigger={['click']}
-            dropdownRender={() => (
+            popupRender={() => (
               <div
                 style={{
                   padding: '16px 20px',
@@ -253,6 +340,7 @@ export default function PermitReviewPage() {
             loading={loading}
             pagination={false}
             scroll={{ x: 'max-content' }}
+            locale={{ emptyText: <Empty description="No permit applications to review" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
             rowClassName={(rec) => rec?.applicationId === selectedApplication?.applicationId ? 'app-row-selected' : ''}
             onRow={(rec) => ({
               onClick: () => setSelectedApplication(rec),
@@ -283,12 +371,99 @@ export default function PermitReviewPage() {
   )
 
   const headerActions = (
-    <Button
-      icon={<ReloadOutlined />}
-      onClick={loadApplicationsData}
-      loading={loading}
-      aria-label="Refresh"
-    />
+    <Space size="middle">
+      {lastUpdated != null && (
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          Last updated: {dayjs(lastUpdated).format('MMM D, h:mm A')}
+        </Text>
+      )}
+      <Button
+        icon={<ReloadOutlined />}
+        onClick={loadApplicationsData}
+        loading={loading}
+        aria-label="Refresh"
+      />
+      <Button type="primary" icon={<PlusOutlined />} onClick={openWalkIn}>
+        Walk-In
+      </Button>
+    </Space>
+  )
+
+  const walkInDrawer = (
+    <Drawer
+      title="Walk-In Application"
+      placement="right"
+      width={520}
+      open={walkInOpen}
+      onClose={closeWalkIn}
+      destroyOnClose
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div>
+          <Text strong style={{ display: 'block', marginBottom: 8 }}>Search Business Owner</Text>
+          <AutoComplete
+            style={{ width: '100%' }}
+            options={ownerOptions}
+            onSearch={handleOwnerSearch}
+            onSelect={handleOwnerSelect}
+            placeholder="Search by name or email (min 2 chars)"
+            value={ownerSearch}
+            onChange={setOwnerSearch}
+            notFoundContent={searchLoading ? 'Searching...' : ownerSearch.length >= 2 ? 'No owners found' : null}
+          />
+        </div>
+
+        {selectedOwner && (
+          <div>
+            <Descriptions
+              size="small"
+              bordered
+              column={1}
+              style={{ marginBottom: 16 }}
+              items={[
+                { key: 'name', label: 'Name', children: `${selectedOwner.firstName} ${selectedOwner.lastName}` },
+                { key: 'email', label: 'Email', children: selectedOwner.email },
+              ]}
+            />
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
+              This will create a walk-in application on behalf of this business owner.
+              The application will appear in your review queue.
+            </Text>
+            <Button
+              type="primary"
+              block
+              loading={actionLoading}
+              onClick={async () => {
+                try {
+                  setActionLoading(true)
+                  await createWalkInApplication({ ownerId: selectedOwner._id })
+                  message.success(`Walk-in application created for ${selectedOwner.firstName} ${selectedOwner.lastName}`)
+                  closeWalkIn()
+                  await loadApplicationsData()
+                } catch (err) {
+                  notifyError(err, 'Failed to create walk-in application')
+                } finally {
+                  setActionLoading(false)
+                }
+              }}
+            >
+              Create Walk-In Application
+            </Button>
+          </div>
+        )}
+
+        {!selectedOwner && ownerSearch.length >= 2 && ownerOptions.length === 0 && !searchLoading && (
+          <Empty
+            description="No business owners found"
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          >
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              The business owner must have a registered account first.
+            </Text>
+          </Empty>
+        )}
+      </div>
+    </Drawer>
   )
 
   if (isMobile) {
@@ -301,6 +476,7 @@ export default function PermitReviewPage() {
         <div style={{ height: 'calc(100vh - 120px)' }}>
           {tableContent}
         </div>
+        {walkInDrawer}
       </StaffLayout>
     )
   }
@@ -311,21 +487,22 @@ export default function PermitReviewPage() {
       pageIcon={<FileTextOutlined />}
       headerActions={headerActions}
     >
-      <div style={{ height: 'calc(100vh - 120px)' }}>
+      <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <Splitter style={{ height: '100%' }}>
-          <Splitter.Panel min="25%" defaultSize="35%" style={{ overflow: 'hidden' }}>
+          <Splitter.Panel min="25%" defaultSize="30%" style={{ overflow: 'hidden' }}>
             {tableContent}
           </Splitter.Panel>
-          <Splitter.Panel min="40%" defaultSize="65%" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <ApplicationDetailPanel
-              application={selectedApplication}
-              onReviewComplete={handleReviewComplete}
-              onReviewStarted={handleReviewStarted}
-              onReview={reviewApplication}
-            />
+          <Splitter.Panel min="40%" defaultSize="70%" style={{ overflow: 'hidden'}}>
+              <ApplicationDetailPanel
+                application={selectedApplication}
+                onReviewComplete={handleReviewComplete}
+                onReviewStarted={handleReviewStarted}
+                onReview={reviewApplication}
+              />
           </Splitter.Panel>
         </Splitter>
       </div>
+      {walkInDrawer}
     </StaffLayout>
   )
 }

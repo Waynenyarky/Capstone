@@ -35,7 +35,10 @@ function createCsrfMiddleware(options = {}) {
     const cookieToken = req.cookies && req.cookies[cookieName];
     const headerToken = req.get && req.get(headerName);
 
-    if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+    // If no CSRF cookie is present (e.g. native mobile app), skip check so API clients can call mutating endpoints.
+    if (!cookieToken) return next();
+
+    if (!headerToken || cookieToken !== headerToken) {
       return res.status(403).json({
         error: {
           code: 'csrf_invalid',

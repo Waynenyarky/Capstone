@@ -245,7 +245,6 @@ export default function ViolationsInspectionsOverviewPage() {
                       value={timeRange}
                       onChange={setTimeRange}
                       style={{ width: '100%' }}
-                      size="large"
                     >
                       <Option value="day">Today</Option>
                       <Option value="week">This Week</Option>
@@ -260,7 +259,7 @@ export default function ViolationsInspectionsOverviewPage() {
                       <Text strong style={{ fontSize: 12, color: token.colorTextSecondary }}>
                         Select Dates
                       </Text>
-                      <RangePicker style={{ width: '100%' }} size="large" />
+                      <RangePicker style={{ width: '100%' }} />
                     </Space>
                   </Col>
                 )}
@@ -274,7 +273,6 @@ export default function ViolationsInspectionsOverviewPage() {
                       value={violationStatus}
                       onChange={setViolationStatus}
                       style={{ width: '100%' }}
-                      size="large"
                     >
                       <Option value="all">All Status</Option>
                       <Option value="pending">Pending</Option>
@@ -293,7 +291,6 @@ export default function ViolationsInspectionsOverviewPage() {
                       value={inspectionStatus}
                       onChange={setInspectionStatus}
                       style={{ width: '100%' }}
-                      size="large"
                     >
                       <Option value="all">All Status</Option>
                       <Option value="scheduled">Scheduled</Option>
@@ -313,7 +310,6 @@ export default function ViolationsInspectionsOverviewPage() {
                         value={exportFormat}
                         onChange={setExportFormat}
                         style={{ flex: 1 }}
-                        size="large"
                       >
                         <Option value="pdf">PDF</Option>
                         <Option value="csv">CSV</Option>
@@ -322,7 +318,6 @@ export default function ViolationsInspectionsOverviewPage() {
                         type="primary"
                         icon={<DownloadOutlined />}
                         onClick={handleExport}
-                        size="large"
                       >
                         Export
                       </Button>

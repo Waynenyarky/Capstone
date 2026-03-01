@@ -14,8 +14,12 @@ import {
   Alert,
   Space,
   Typography,
+  Table,
+  Tag,
+  Empty,
 } from 'antd'
-import { AuditOutlined, PlusOutlined } from '@ant-design/icons'
+import { AuditOutlined, PlusOutlined, WarningOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import LGUManagerLayout from '../components/LGUManagerLayout'
 import {
   getInspectors,
@@ -29,6 +33,7 @@ export default function AssignInspectionPage() {
   const [form] = Form.useForm()
   const [inspectors, setInspectors] = useState([])
   const [businesses, setBusinesses] = useState([])
+  const [pendingInspections, setPendingInspections] = useState([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
@@ -47,6 +52,8 @@ export default function AssignInspectionPage() {
       ])
       setInspectors(inspList)
       setBusinesses(bizList)
+      const unassigned = bizList.filter(b => !b.inspectorAssigned)
+      setPendingInspections(unassigned)
     } catch (e) {
       setError(e?.message || 'Failed to load data')
       message.error(e?.message || 'Failed to load data')
@@ -92,14 +99,57 @@ export default function AssignInspectionPage() {
     label: `${b.businessName || 'Unknown'} (${b.businessId})`,
   }))
 
-  const inspectorOptions = inspectors.map((i) => ({
-    value: i._id,
-    label: `${i.name || i.email} (${i.email})`,
-  }))
+  const MAX_INSPECTOR_CAPACITY = 10
+  const inspectorOptions = inspectors.map((i) => {
+    const assignmentCount = i.activeInspections ?? i.assignmentCount ?? 0
+    const isOverloaded = assignmentCount >= MAX_INSPECTOR_CAPACITY
+    return {
+      value: i._id,
+      label: `${i.name || i.email} (${i.email}) — ${assignmentCount} active${isOverloaded ? ' [OVERLOADED]' : ''}`,
+      disabled: isOverloaded,
+    }
+  })
 
   return (
     <LGUManagerLayout pageTitle="Assign Inspection">
-      <div style={{ maxWidth: 640, margin: '0 auto', paddingBottom: 24, paddingLeft: 16, paddingRight: 16 }}>
+      <div style={{ maxWidth: 900, margin: '0 auto', paddingBottom: 24, paddingLeft: 16, paddingRight: 16 }}>
+        {pendingInspections.length > 0 && (
+          <Card style={{ marginBottom: 16 }}>
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Space>
+                <WarningOutlined style={{ color: '#faad14' }} />
+                <Title level={5} style={{ margin: 0 }}>Unassigned Businesses ({pendingInspections.length})</Title>
+              </Space>
+              <Table
+                size="small"
+                rowKey={(r) => `${r.businessProfileId}::${r.businessId}`}
+                dataSource={pendingInspections}
+                pagination={{ pageSize: 5 }}
+                columns={[
+                  { title: 'Business', dataIndex: 'businessName', key: 'name', render: (v) => v || 'Unknown' },
+                  { title: 'Business ID', dataIndex: 'businessId', key: 'id', render: (v) => <Tag>{v}</Tag> },
+                  {
+                    title: 'Action',
+                    key: 'action',
+                    render: (_, record) => (
+                      <Button
+                        size="small"
+                        type="link"
+                        onClick={() => {
+                          form.setFieldsValue({ business: `${record.businessProfileId}::${record.businessId}` })
+                          window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+                        }}
+                      >
+                        Assign
+                      </Button>
+                    ),
+                  },
+                ]}
+                locale={{ emptyText: <Empty description="All businesses have inspectors assigned" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+              />
+            </Space>
+          </Card>
+        )}
         <Card>
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             <Title level={4}>

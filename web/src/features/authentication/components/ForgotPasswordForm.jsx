@@ -1,4 +1,5 @@
-import { Form, Input, Button, Typography, Alert, Grid } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Input, Button, Typography, Alert, Grid } from 'antd'
 import { useForgotPasswordForm } from "@/features/authentication/hooks"
 import { forgotPasswordEmailRules } from "@/features/authentication/validations"
 import { useNavigate } from 'react-router-dom'
@@ -32,7 +33,7 @@ export default function ForgotPasswordForm({ onSubmit } = {}) {
         
         <Form.Item style={{ marginBottom: 16 }}>
           <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block>
-            Continue
+            Send Reset Link
           </Button>
         </Form.Item>
 

@@ -7,6 +7,7 @@ const logger = require('../lib/logger')
 
 // Import job functions
 const verifyAuditIntegrity = require('./verifyAuditIntegrity')
+const retryFailedAnchors = require('./retryFailedAnchors')
 
 // Try to use node-cron, fallback to setInterval if not available
 let cron = null
@@ -58,6 +59,15 @@ function startJobs() {
       logger.error('Error in verifyAuditIntegrity job', { error })
     }
   }, 'verifyAuditIntegrity')
+
+  // Retry failed blockchain anchors (every 30 minutes)
+  scheduleJob('*/30 * * * *', async () => {
+    try {
+      await retryFailedAnchors()
+    } catch (error) {
+      logger.error('Error in retryFailedAnchors job', { error })
+    }
+  }, 'retryFailedAnchors')
 
   logger.info('Audit Service background jobs started successfully')
 }

@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthSession } from "@/features/authentication"
-import { useNotifier } from '@/shared/notifications.js'
+import { useAuthNotification, useNotifier } from '@/shared/notifications.js'
 import { cancelAccountDeletion } from "@/features/authentication/services/authService"
 
 export function useCancelDeleteAccount({ onSubmit } = {}) {
-  const { success, error } = useNotifier()
+  const { notificationSuccess } = useAuthNotification()
+  const { error } = useNotifier()
   const { login, currentUser } = useAuthSession()
   const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
@@ -45,7 +46,7 @@ export function useCancelDeleteAccount({ onSubmit } = {}) {
         
         try { login(user, { remember: true }) } catch (err) { void err }
       }
-      success('Account deletion cancelled')
+      notificationSuccess('Account deletion cancelled', 'Your account is no longer scheduled for deletion.')
       if (typeof onSubmit === 'function') onSubmit(data)
 
       // Explicitly navigate to the correct dashboard based on role

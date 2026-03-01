@@ -146,7 +146,7 @@ export default function AdminAuditTamper() {
           headerActions={
             tabKey === 'history' ? (
               <Button type="primary" icon={<DownloadOutlined />} onClick={() => setExportLogsOpen(true)}>
-                Export
+                Export Logs
               </Button>
             ) : null
           }

@@ -3,6 +3,10 @@
 # Or with --skip-ipfs: -f docker-compose.yml -f docker-compose.no-ipfs.yml -f docker-compose.prod.yml
 
 services:
+  # Remove Ganache RPC port from host to restrict access to backend network only
+  ganache:
+    ports: !override []
+
   auth-service:
     environment:
       - NODE_ENV=production

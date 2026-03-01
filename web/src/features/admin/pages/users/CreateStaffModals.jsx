@@ -1,5 +1,6 @@
 import React from 'react'
-import { Modal, Form, Input, Select, Button, Space, Typography, Grid } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Modal, Input, Select, Button, Space, Typography, Grid } from 'antd'
 import { roleLabel, officeLabel } from './useAdminUsersPage'
 import { preventNonNumericKeyDown } from '@/shared/forms'
 
@@ -65,7 +66,7 @@ export default function CreateStaffModals({
         >
           <Form form={form} layout="vertical" onFinish={onCreateSubmit}>
             <Form.Item name="email" label="Staff Email" rules={[{ required: true, message: 'Enter an email' }, { type: 'email', message: 'Enter a valid email' }]}>
-              <Input size="large" placeholder="staff@example.com" style={{ borderRadius: 10 }} />
+              <Input placeholder="staff@example.com" style={{ borderRadius: 10 }} />
             </Form.Item>
             <Form.Item
               name="phoneNumber"
@@ -74,7 +75,6 @@ export default function CreateStaffModals({
               getValueFromEvent={(e) => String(e?.target?.value ?? '').replace(/\D/g, '').slice(0, 12)}
             >
               <Input
-                size="large"
                 placeholder="09XX XXX XXXX or +63 9XX XXX XXXX"
                 style={{ borderRadius: 10 }}
                 inputMode="numeric"
@@ -90,7 +90,6 @@ export default function CreateStaffModals({
             </Form.Item>
             <Form.Item name="office" label="Office" rules={[{ required: true, message: 'Select an office' }]}>
               <Select
-                size="large"
                 placeholder="Select office"
                 showSearch
                 optionFilterProp="label"
@@ -99,9 +98,9 @@ export default function CreateStaffModals({
               />
             </Form.Item>
             <Form.Item name="role" label="Role" rules={[{ required: true, message: 'Select a role' }]}>
-              <Select size="large" placeholder="Select role" options={roleOptionsState} style={{ borderRadius: 10 }} />
+              <Select placeholder="Select role" options={roleOptionsState} style={{ borderRadius: 10 }} />
             </Form.Item>
-            <Button type="primary" htmlType="submit" block size="large" style={{ borderRadius: 12 }}>
+            <Button type="primary" htmlType="submit" block style={{ borderRadius: 12 }}>
               Review & Create
             </Button>
           </Form>

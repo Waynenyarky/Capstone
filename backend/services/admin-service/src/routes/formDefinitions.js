@@ -56,7 +56,7 @@ const requirementItemSchema = Joi.object({
   label: Joi.string().required(),
   required: Joi.boolean().optional(),
   notes: Joi.string().allow('', null).optional(),
-  type: Joi.string().valid('text', 'textarea', 'number', 'date', 'select', 'multiselect', 'file', 'download', 'checkbox', 'address').optional(),
+  type: Joi.string().valid('text', 'textarea', 'number', 'date', 'select', 'multiselect', 'file', 'download', 'checkbox', 'address', 'address_alaminos', 'repeatable_group', 'ai_lob_recommendation').optional(),
   placeholder: Joi.string().allow('', null).optional(),
   helpText: Joi.string().allow('', null).optional(),
   span: Joi.number().min(1).max(24).optional(),
@@ -922,6 +922,20 @@ router.post('/:id/upload', requireJwt, requireRole(['admin']), requireAdminStepU
 
     if (!req.file) {
       return respond.error(res, 400, 'file_required', 'No file uploaded')
+    }
+
+    const { validateMagicBytes } = require('../lib/fileValidator')
+    const magicCheck = await validateMagicBytes(req.file.path, req.file.mimetype)
+    if (!magicCheck.valid) {
+      try { await fs.promises.unlink(req.file.path) } catch (_) {}
+      return respond.error(res, 400, 'invalid_file_content', magicCheck.error || 'File content does not match declared file type')
+    }
+
+    const { scanFile } = require('../../../../shared/fileScan')
+    const scanResult = await scanFile(req.file.path)
+    if (!scanResult.clean) {
+      try { await fs.promises.unlink(req.file.path) } catch (_) {}
+      return respond.error(res, 400, 'file_rejected', 'File could not be accepted. Please try a different file.')
     }
 
     // Try IPFS upload if available

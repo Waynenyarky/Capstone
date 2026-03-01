@@ -85,12 +85,14 @@ async function requestVerification(userId, method = 'otp', purpose = 'profile_ch
       })
     }
 
-    // Send OTP via email
+    // Send OTP via email (map purpose to mailer enum; use generic for profile_change or unknown)
+    const otpPurpose = (purpose === 'email_change' || purpose === 'password_change') ? purpose : 'generic'
     try {
       await sendOtp({
         to: user.email,
         code,
         subject: `Verification code for ${purpose.replace(/_/g, ' ')}`,
+        purpose: otpPurpose,
       })
     } catch (emailError) {
       console.error('Failed to send verification email:', emailError)

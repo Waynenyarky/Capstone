@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { Form } from 'antd'
+import { Form } from '@/shared/components/AppForm'
 import { fireEvent } from '@testing-library/react'
 import { renderWithProviders, screen, waitFor, renderHook, act } from '@/test/utils/renderWithProviders.jsx'
 import LoginForm from '@/features/authentication/components/LoginForm.jsx'

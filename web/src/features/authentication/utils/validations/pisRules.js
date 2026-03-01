@@ -4,6 +4,8 @@
  * (user can skip and complete later from profile).
  */
 
+import { namePatternRule } from './namePattern.js'
+
 export const pisStreetRules = [
   { required: true, message: 'Please enter your street address' },
   { max: 200, message: 'Street address must be at most 200 characters' },
@@ -56,26 +58,25 @@ export const pisDateOfBirthRules = [
 export const pisPlaceOfBirthRules = [
   { required: true, message: 'Please enter your place of birth' },
   { max: 200, message: 'Place of birth must be at most 200 characters' },
+  namePatternRule,
 ]
 
 export const pisNationalityRules = [
   { required: true, message: 'Please enter your nationality' },
   { max: 50, message: 'Nationality must be at most 50 characters' },
-]
-
-export const pisSpouseNameRules = [
-  { required: true, message: 'Please enter your spouse name' },
-  { max: 100, message: 'Spouse name must be at most 100 characters' },
+  namePatternRule,
 ]
 
 export const pisFatherNameRules = [
   { required: true, message: "Please enter your father's name" },
   { max: 100, message: "Father's name must be at most 100 characters" },
+  namePatternRule,
 ]
 
 export const pisMotherNameRules = [
   { required: true, message: "Please enter your mother's name" },
   { max: 100, message: "Mother's name must be at most 100 characters" },
+  namePatternRule,
 ]
 
 export const pisEducationRules = [

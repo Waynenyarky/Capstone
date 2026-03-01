@@ -2,7 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const { requireJwt, requireRole } = require('../middleware/auth');
 const respond = require('../middleware/respond');
-const { auditLogRateLimit } = require('../middleware/rateLimit');
+const { auditLogRateLimit, auditVerifyRateLimit } = require('../middleware/rateLimit');
 const { requireServiceAuth } = require('../middleware/requireServiceAuth');
 const logger = require('../lib/logger');
 const AuditLog = require('../models/AuditLog');
@@ -53,7 +53,7 @@ router.get('/history', requireJwt, async (req, res) => {
 });
 
 // GET /api/audit/verify/:auditLogId - Verify audit log integrity
-router.get('/verify/:auditLogId', requireJwt, async (req, res) => {
+router.get('/verify/:auditLogId', requireJwt, auditVerifyRateLimit(), async (req, res) => {
   try {
     const { auditLogId } = req.params;
     const auditLog = await AuditLog.findById(auditLogId);
@@ -86,7 +86,7 @@ router.get('/verify/:auditLogId', requireJwt, async (req, res) => {
 });
 
 // POST /api/audit/verify-data - Verify raw data against on-chain hash (hash is one-way; we verify data matches)
-router.post('/verify-data', requireJwt, async (req, res) => {
+router.post('/verify-data', requireJwt, auditVerifyRateLimit(), async (req, res) => {
   try {
     const { data } = req.body;
     if (data == null || (typeof data === 'string' && !data.trim())) {
@@ -202,6 +202,72 @@ router.post('/register-user', requireServiceAuth, async (req, res) => {
   } catch (err) {
     console.error('POST /api/audit/register-user error:', err);
     return res.json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/audit/queue-status — blockchain queue health (service-to-service)
+router.get('/queue-status', requireServiceAuth, async (req, res) => {
+  try {
+    const blockchainQueue = require('../lib/blockchainQueue');
+    const status = blockchainQueue.getQueueStatus()
+    const pendingCount = await AuditLog.countDocuments({ blockchainStatus: 'pending', txHash: { $in: ['', null] } })
+    const failedCount = await AuditLog.countDocuments({ blockchainStatus: 'failed' })
+    const skippedCount = await AuditLog.countDocuments({ blockchainStatus: 'skipped' })
+
+    return res.json({
+      queue: status,
+      unanchored: { pending: pendingCount, failed: failedCount, skipped: skippedCount },
+      blockchainAvailable: blockchainService.isAvailable(),
+    })
+  } catch (err) {
+    return res.status(500).json({ error: err.message })
+  }
+});
+
+// GET /api/audit/forensic/:auditLogId — forensic analysis of a single audit record
+router.get('/forensic/:auditLogId', requireServiceAuth, async (req, res) => {
+  try {
+    const auditLog = await AuditLog.findById(req.params.auditLogId).lean()
+    if (!auditLog) return res.status(404).json({ error: 'Audit log not found' })
+
+    const hashableData = {
+      userId: String(auditLog.userId),
+      eventType: auditLog.eventType,
+      fieldChanged: auditLog.fieldChanged || '',
+      oldValue: auditLog.oldValue || '',
+      newValue: auditLog.newValue || '',
+      role: auditLog.role,
+      metadata: JSON.stringify(auditLog.metadata || {}),
+      timestamp: auditLog.createdAt ? auditLog.createdAt.toISOString() : '',
+    }
+    const currentHash = crypto.createHash('sha256').update(JSON.stringify(hashableData)).digest('hex')
+    const storedHash = auditLog.hash
+    const tampered = currentHash !== storedHash
+
+    let blockchainRecord = null
+    if (auditLog.txHash && blockchainService.isAvailable()) {
+      try { blockchainRecord = await blockchainService.verifyHash(storedHash) } catch { blockchainRecord = null }
+    }
+
+    return res.json({
+      auditLog,
+      forensic: {
+        currentHash,
+        storedHash,
+        hashMatch: !tampered,
+        tampered,
+        blockchainRecord,
+        blockchainAnchored: !!auditLog.txHash,
+        blockchainVerified: blockchainRecord?.exists || false,
+        diagnosis: tampered
+          ? 'The MongoDB record has been modified after it was hashed. The stored hash (anchored on blockchain) represents the ORIGINAL data.'
+          : auditLog.txHash
+            ? 'Record integrity verified. MongoDB data matches the blockchain-anchored hash.'
+            : 'Record has not been anchored to blockchain. Integrity cannot be verified against an immutable source.',
+      },
+    })
+  } catch (err) {
+    return res.status(500).json({ error: err.message })
   }
 });
 

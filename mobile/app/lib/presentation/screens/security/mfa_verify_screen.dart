@@ -103,7 +103,7 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
               ],
             ),
             content: const Text(
-              'Multi-Factor Authentication has been successfully enabled. Your account is now more secure.',
+              '2FA is now enabled.',
               style: TextStyle(fontSize: 15, height: 1.4),
             ),
             actions: [
@@ -117,7 +117,7 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
                 ),
                 child: const Text(
                   'Done',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -171,56 +171,28 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Section
-              const Text(
-                'Enable Two-Factor Auth',
-                style: TextStyle(
-                  fontSize: 28,
+              Text(
+                isBiometric ? 'Verify with biometrics' : 'Enter 6-digit code',
+                style: const TextStyle(
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: BizClearColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Text(
                 isBiometric
-                  ? 'Use biometrics to verify and enable 2FA'
-                  : 'Enter the 6-digit code from your TOTP authenticator to complete setup',
+                  ? 'Tap Verify below.'
+                  : 'From your authenticator app.',
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 15,
                   color: BizClearColors.textSecondary,
-                  height: 1.4,
                 ),
               ),
-              SizedBox(height: isBiometric ? 40 : 32),
+              SizedBox(height: isBiometric ? 32 : 24),
 
               if (!isBiometric) ...[
-                // Method Badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green.shade200),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.phone_android, size: 16, color: Colors.green.shade700),
-                      const SizedBox(width: 8),
-                      Text(
-                        'TOTP Authenticator',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.green.shade900,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // OTP Input Boxes - Responsive layout
+                // OTP Input Boxes
                 LayoutBuilder(
                   builder: (context, constraints) {
                     const spacing = 8.0;
@@ -296,133 +268,17 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
                     ],
                   ),
                 ],
-
-                const SizedBox(height: 24),
-
-                // Info Card
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blue.shade100),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Helpful Tip',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.blue.shade900,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Open your TOTP authenticator (Google Authenticator, Authy, etc.) to get the current 6-digit verification code.',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.blue.shade800,
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Security Note
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.green.shade100),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.shield_outlined, color: Colors.green.shade700, size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Why Enable 2FA?',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.green.shade900,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Two-factor authentication adds an extra layer of security to your account, protecting it from unauthorized access even if your password is compromised.',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.green.shade800,
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
 
               if (isBiometric) ...[
-                // Biometric Visual
                 Center(
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(32),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.fingerprint, size: 80, color: Colors.blue.shade700),
-                      ),
-                      const SizedBox(height: 24),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.blue.shade100),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'Tap the verify button below to authenticate with your ${widget.method}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.blue.shade800,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  child: Container(
+                    padding: const EdgeInsets.all(32),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.fingerprint_rounded, size: 72, color: Colors.grey.shade700),
                   ),
                 ),
               ],
@@ -432,18 +288,22 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
               // Verify Button
               SizedBox(
                 width: double.infinity,
-                height: 56,
+                height: 40,
                 child: ElevatedButton(
                   onPressed: _loading || (!isBiometric && !_isOtpComplete) ? null : _verify,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: BizClearColors.primary,
-                    foregroundColor: BizClearColors.buttonPrimaryFg,
+                    backgroundColor: BizClearColors.webPrimary,
+                    foregroundColor: Colors.white,
                     disabledBackgroundColor: BizClearColors.border,
                     disabledForegroundColor: BizClearColors.textSecondary,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
+                    padding: BizClearColors.primaryButtonPadding,
+                    minimumSize: BizClearColors.primaryButtonMinimumSize,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    textStyle: BizClearColors.primaryButtonTextStyle,
                   ),
                   child: _loading
                       ? const SizedBox(
@@ -454,27 +314,13 @@ class _MfaVerifyScreenState extends State<MfaVerifyScreen> {
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : Text(
-                          isBiometric ? 'Verify with Fingerprint' : 'Verify & Enable 2FA',
-                          style: const TextStyle(
+                      : const Text(
+                          'Verify',
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Help Text
-              Center(
-                child: Text(
-                  'Having trouble? Contact support for assistance',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: BizClearColors.textSecondary,
-                  ),
-                  textAlign: TextAlign.center,
                 ),
               ),
             ],

@@ -21,6 +21,8 @@ const NotificationSchema = new mongoose.Schema(
         'inspection_schedule_changed',
         'appeal_outcome',
         'system_alert',
+        'post_requirement_due',
+        'post_requirement_overdue',
         'general'
       ],
       default: 'general'
@@ -37,7 +39,7 @@ const NotificationSchema = new mongoose.Schema(
     },
     relatedEntityType: {
       type: String,
-      enum: ['business_application', 'business_renewal', 'payment', 'inspection', 'system', null],
+      enum: ['business_application', 'business_renewal', 'payment', 'inspection', 'system', 'post_requirement', null],
       default: null
     },
     relatedEntityId: {

@@ -1,4 +1,5 @@
-import { Form, App } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { App } from 'antd'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { verifySignupCode } from "@/features/authentication/services"

@@ -282,7 +282,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
               />
               <Button type="text" size="small" icon={<UpOutlined />} disabled={isFirst} onClick={onMoveUp} />
               <Button type="text" size="small" icon={<DownOutlined />} disabled={isLast} onClick={onMoveDown} />
-              <Popconfirm title="Delete this field?" onConfirm={onDelete} okText="Delete" okButtonProps={{ danger: true }}>
+              <Popconfirm title="Delete this field?" onConfirm={onDelete} okText="Delete Field" okButtonProps={{ danger: true }}>
                 <Button type="text" size="small" danger icon={<DeleteOutlined />} />
               </Popconfirm>
             </>
@@ -495,7 +495,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                           const updated = field.groupFields.filter((_, i) => i !== gfIdx)
                           onUpdate({ ...field, groupFields: updated })
                         }}
-                        okText="Remove"
+                        okText="Remove Column"
                         okButtonProps={{ danger: true }}
                       >
                         <Button type="text" size="small" danger icon={<DeleteOutlined />} />
@@ -735,7 +735,7 @@ function SectionPanel({ section, sectionIndex, onUpdate, onDelete, onMoveUp, onM
     <Space size={4} onClick={(e) => e.stopPropagation()}>
       <Button type="text" size="small" icon={<UpOutlined />} disabled={isFirst} onClick={onMoveUp} />
       <Button type="text" size="small" icon={<DownOutlined />} disabled={isLast} onClick={onMoveDown} />
-      <Popconfirm title="Delete this section and all its fields?" onConfirm={onDelete} okText="Delete" okButtonProps={{ danger: true }}>
+      <Popconfirm title="Delete this section and all its fields?" onConfirm={onDelete} okText="Delete Section" okButtonProps={{ danger: true }}>
         <Button type="text" size="small" danger icon={<DeleteOutlined />} />
       </Popconfirm>
     </Space>

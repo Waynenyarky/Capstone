@@ -67,8 +67,9 @@ const LINE_OF_BUSINESS = [
       'Printing & publishing',
       'Chemical products',
       'Electronics assembly',
+      'Fireworks / pyrotechnics',
     ],
-    psicCodes: ['1010', '1020', '1040', '1311', '1410', '1621', '2211', '2220', '1811', '2610'],
+    psicCodes: ['1010', '1020', '1040', '1311', '1410', '1621', '2211', '2220', '1811', '2610', '2040'],
   },
   {
     taxCode: 'SVC',

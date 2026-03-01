@@ -201,11 +201,13 @@ router.patch(
 
       if (isActive !== undefined) {
         const active = !!isActive
+        if (!active && String(staffUser._id) === String(adminId)) {
+          return respond.error(res, 400, 'self_disable_not_allowed', 'You cannot disable your own account')
+        }
         const prev = staffUser.isActive !== false
         if (active !== prev) {
           changes.push({ field: 'account', oldValue: String(prev), newValue: String(active) })
           staffUser.isActive = active
-          // Invalidate sessions when deactivating
           if (!active) {
             staffUser.tokenVersion = (staffUser.tokenVersion || 0) + 1
           }
@@ -870,5 +872,50 @@ router.get(
     }
   }
 )
+
+router.get('/users/count', requireJwt, requireRole(['admin']), async (req, res) => {
+  try {
+    const { role } = req.query
+    const filter = {}
+    if (role) {
+      const roleDoc = await Role.findOne({ slug: role })
+      if (roleDoc) filter.role = roleDoc._id
+    }
+    const count = await User.countDocuments(filter)
+    return respond.success(res, 200, { count })
+  } catch (err) {
+    console.error('GET /api/auth/users/count error:', err)
+    return respond.error(res, 500, 'count_failed', 'User count failed')
+  }
+})
+
+router.get('/users/search', requireJwt, requireRole(['admin', 'staff', 'lgu_officer', 'lgu_manager']), async (req, res) => {
+  try {
+    const { q, role } = req.query
+    if (!q || q.length < 2) {
+      return respond.error(res, 400, 'invalid_query', 'Search term must be at least 2 characters')
+    }
+
+    const roleDoc = role ? await Role.findOne({ slug: role }) : null
+    const filter = {
+      $or: [
+        { email: { $regex: q, $options: 'i' } },
+        { firstName: { $regex: q, $options: 'i' } },
+        { lastName: { $regex: q, $options: 'i' } },
+      ],
+    }
+    if (roleDoc) filter.role = roleDoc._id
+
+    const users = await User.find(filter)
+      .select('firstName lastName email _id')
+      .limit(20)
+      .lean()
+
+    return respond.success(res, 200, users)
+  } catch (err) {
+    console.error('GET /api/auth/users/search error:', err)
+    return respond.error(res, 500, 'search_failed', 'User search failed')
+  }
+})
 
 module.exports = router

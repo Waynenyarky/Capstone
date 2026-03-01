@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:app/core/theme/app_theme.dart';
+import 'package:app/core/theme/bizclear_colors.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'profile.dart';
 
 class ChangeEmailNewPage extends StatefulWidget {
   final String currentEmail;
-  const ChangeEmailNewPage({super.key, required this.currentEmail});
+  final bool embeddedInShell;
+  final bool canEditProfile;
+  const ChangeEmailNewPage({
+    super.key,
+    required this.currentEmail,
+    this.embeddedInShell = false,
+    this.canEditProfile = true,
+  });
 
   @override
   State<ChangeEmailNewPage> createState() => _ChangeEmailNewPageState();
@@ -100,12 +109,6 @@ class _ChangeEmailNewPageState extends State<ChangeEmailNewPage> {
     try {
       final res = await MongoDBService.changeEmailStart(currentEmail: widget.currentEmail, newEmail: email);
       if (res['success'] == true) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Verification code sent to new email'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
         setState(() {
           _codeSent = true;
           _cooldownSec = 60;
@@ -156,6 +159,11 @@ class _ChangeEmailNewPageState extends State<ChangeEmailNewPage> {
       if (!mounted) return;
       if (ok) {
         final updated = (res['email'] is String) ? res['email'] as String : _newEmailController.text.trim();
+        if (widget.embeddedInShell) {
+          if (!mounted) return;
+          Navigator.of(context).pop(updated);
+          return;
+        }
         try {
           final profileRes = await MongoDBService.fetchProfile(email: updated);
           final user = (profileRes['user'] is Map<String, dynamic>) ? (profileRes['user'] as Map<String, dynamic>) : <String, dynamic>{};
@@ -173,6 +181,7 @@ class _ChangeEmailNewPageState extends State<ChangeEmailNewPage> {
                 phoneNumber: phoneNumber,
                 token: '',
                 avatarUrl: avatarUrl,
+                canEditProfile: widget.canEditProfile,
               ),
             ),
             (route) => false,
@@ -187,6 +196,7 @@ class _ChangeEmailNewPageState extends State<ChangeEmailNewPage> {
                 phoneNumber: '',
                 token: '',
                 avatarUrl: '',
+                canEditProfile: widget.canEditProfile,
               ),
             ),
             (route) => false,
@@ -296,171 +306,174 @@ class _ChangeEmailNewPageState extends State<ChangeEmailNewPage> {
                     const SizedBox(height: 12),
                     Text(
                       _codeSent
-                          ? 'Enter the verification code to complete the email change.'
-                          : 'Please enter your new email address. A verification code will be sent to confirm the change.',
+                          ? 'Enter the 6-digit code to confirm your new email.'
+                          : 'Enter your new email address. A verification code will be sent to confirm.',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.textTheme.bodySmall?.color,
                         height: 1.5,
                       ),
                     ),
-                    const SizedBox(height: 32),
-                    TextField(
-                      controller: _newEmailController,
-                      focusNode: _emailFocusNode,
-                      keyboardType: TextInputType.emailAddress,
-                      autocorrect: false,
-                      enabled: !_emailLocked,
-                      style: theme.textTheme.bodyLarge,
-                      decoration: InputDecoration(
-                        labelText: 'New Email Address',
-                        hintText: 'Enter your new email',
-                        prefixIcon: const Icon(Icons.email_outlined),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: theme.dividerColor,
-                            width: 1.5,
+                    SizedBox(height: _codeSent ? 16 : 32),
+                    if (!_codeSent) ...[
+                      TextField(
+                        controller: _newEmailController,
+                        focusNode: _emailFocusNode,
+                        keyboardType: TextInputType.emailAddress,
+                        autocorrect: false,
+                        enabled: !_emailLocked,
+                        style: theme.textTheme.bodyLarge,
+                        decoration: InputDecoration(
+                          labelText: 'New Email Address',
+                          hintText: 'Enter your new email',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: theme.colorScheme.primary,
-                            width: 2,
-                          ),
-                        ),
-                        errorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: theme.colorScheme.error,
-                            width: 1.5,
-                          ),
-                        ),
-                        focusedErrorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: theme.colorScheme.error,
-                            width: 2,
-                          ),
-                        ),
-                        filled: true,
-                        fillColor: _emailLocked
-                            ? theme.disabledColor.withValues(alpha: 0.05)
-                            : theme.inputDecorationTheme.fillColor,
-                        errorText: _emailError,
-                        errorMaxLines: 2,
-                      ),
-                      onChanged: (value) {
-                        final v = value.trim();
-                        if (v.toLowerCase() == widget.currentEmail.toLowerCase()) {
-                          setState(() => _emailError = 'This is your current email. Please select a different email');
-                        } else if (_emailError != null) {
-                          setState(() => _emailError = null);
-                        }
-                      },
-                      onSubmitted: (_) => !_emailLocked ? _sendCode() : null,
-                    ),
-                    const SizedBox(height: 20),
-                    if (!_emailLocked) ...[
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: _sending ? null : _sendCode,
-                          style: ElevatedButton.styleFrom(
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: _sending
-                              ? SizedBox(
-                                  height: 24,
-                                  width: 24,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      theme.colorScheme.onPrimary,
-                                    ),
-                                  ),
-                                )
-                              : Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Text(
-                                      'Send Verification Code',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Icon(
-                                      Icons.arrow_forward_rounded,
-                                      size: 20,
-                                      color: theme.colorScheme.onPrimary,
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      ),
-                    ] else ...[
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: OutlinedButton(
-                          onPressed: () {
-                            setState(() {
-                              _emailLocked = false;
-                              _codeSent = false;
-                              _errorMessage = null;
-                              _attemptsRemaining = 5;
-                              _cooldownSec = 0;
-                            });
-                            _clearOtp();
-                          },
-                          style: OutlinedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            side: BorderSide(
-                              color: theme.colorScheme.primary,
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: theme.dividerColor,
                               width: 1.5,
                             ),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.edit_outlined,
-                                size: 20,
-                                color: theme.colorScheme.primary,
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: theme.colorScheme.primary,
+                              width: 2,
+                            ),
+                          ),
+                          errorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: theme.colorScheme.error,
+                              width: 1.5,
+                            ),
+                          ),
+                          focusedErrorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: theme.colorScheme.error,
+                              width: 2,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: _emailLocked
+                              ? theme.disabledColor.withValues(alpha: 0.05)
+                              : theme.inputDecorationTheme.fillColor,
+                          errorText: _emailError,
+                          errorMaxLines: 2,
+                        ),
+                        onChanged: (value) {
+                          final v = value.trim();
+                          if (v.toLowerCase() == widget.currentEmail.toLowerCase()) {
+                            setState(() => _emailError = 'This is your current email. Please select a different email');
+                          } else if (_emailError != null) {
+                            setState(() => _emailError = null);
+                          }
+                        },
+                        onSubmitted: (_) => !_emailLocked ? _sendCode() : null,
+                      ),
+                      const SizedBox(height: 20),
+                      if (!_emailLocked)
+                        SizedBox(
+                          width: double.infinity,
+                          height: 40,
+                          child: ElevatedButton(
+                            onPressed: _sending ? null : _sendCode,
+                            style: ElevatedButton.styleFrom(
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Change Email Address',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
+                              padding: BizClearColors.primaryButtonPadding,
+                              minimumSize: BizClearColors.primaryButtonMinimumSize,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              textStyle: BizClearColors.primaryButtonTextStyle,
+                            ),
+                            child: _sending
+                                ? SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        theme.colorScheme.onPrimary,
+                                      ),
+                                    ),
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Text(
+                                        'Send Verification Code',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Icon(
+                                        Icons.arrow_forward_rounded,
+                                        size: 20,
+                                        color: theme.colorScheme.onPrimary,
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        )
+                      else
+                        SizedBox(
+                          width: double.infinity,
+                          height: 40,
+                          child: OutlinedButton(
+                            onPressed: () {
+                              setState(() {
+                                _emailLocked = false;
+                                _codeSent = false;
+                                _errorMessage = null;
+                                _attemptsRemaining = 5;
+                                _cooldownSec = 0;
+                              });
+                              _clearOtp();
+                            },
+                            style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              side: BorderSide(
+                                color: theme.colorScheme.primary,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.edit_outlined,
+                                  size: 20,
                                   color: theme.colorScheme.primary,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Change Email Address',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
                     ],
                     if (_codeSent && _emailLocked) ...[
-                      const SizedBox(height: 32),
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
+                          color: BizClearColors.webPrimaryTintLight,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.blue.shade100, width: 1.5),
+                          border: Border.all(color: BizClearColors.webPrimaryTintBorder, width: 1.5),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -470,13 +483,13 @@ class _ChangeEmailNewPageState extends State<ChangeEmailNewPage> {
                                 Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: Colors.blue.shade100,
+                                    color: BizClearColors.webPrimaryTintBorder,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Icon(
                                     Icons.mark_email_read_outlined,
                                     size: 20,
-                                    color: Colors.blue.shade700,
+                                    color: BizClearColors.webPrimaryTintIcon,
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -485,7 +498,7 @@ class _ChangeEmailNewPageState extends State<ChangeEmailNewPage> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       const Text(
-                                        'Verification code sent to',
+                                        'Code sent to',
                                         style: TextStyle(
                                           fontSize: 13,
                                           color: Color(0xFF334155),
@@ -507,45 +520,16 @@ class _ChangeEmailNewPageState extends State<ChangeEmailNewPage> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: const [
-                                  Icon(Icons.schedule, size: 16, color: Color(0xFF0369A1)),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Code expires in 10 minutes',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Color(0xFF0369A1),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 28),
-                      Text(
-                        'Enter Verification Code',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
                       LayoutBuilder(
                         builder: (ctx, constraints) {
                           const spacing = 10.0;
                           final available = constraints.maxWidth;
                           final boxWidth = (available - spacing * 5) / 6;
-                          final boxHeight = (boxWidth * 1.35).clamp(56.0, 92.0);
+                          final boxHeight = AppTheme.inputFieldMinHeight;
                           return Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: List.generate(6, (i) {
@@ -566,19 +550,19 @@ class _ChangeEmailNewPageState extends State<ChangeEmailNewPage> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           decoration: BoxDecoration(
-                            color: Colors.red.shade50,
+                            color: BizClearColors.error.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.red.shade200),
+                            border: Border.all(color: BizClearColors.error.withValues(alpha: 0.3)),
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.error_outline, size: 18, color: Colors.red.shade700),
+                              Icon(Icons.error_outline, size: 18, color: BizClearColors.error),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   _errorMessage!,
                                   style: TextStyle(
-                                    color: Colors.red.shade700,
+                                    color: BizClearColors.error,
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -591,7 +575,7 @@ class _ChangeEmailNewPageState extends State<ChangeEmailNewPage> {
                       const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
-                        height: 52,
+                        height: 40,
                         child: ElevatedButton(
                           onPressed: _verifying ? null : _saveNewEmail,
                           style: ElevatedButton.styleFrom(
@@ -599,6 +583,10 @@ class _ChangeEmailNewPageState extends State<ChangeEmailNewPage> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
+                            padding: BizClearColors.primaryButtonPadding,
+                            minimumSize: BizClearColors.primaryButtonMinimumSize,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            textStyle: BizClearColors.primaryButtonTextStyle,
                           ),
                           child: _verifying
                               ? SizedBox(
@@ -634,7 +622,7 @@ class _ChangeEmailNewPageState extends State<ChangeEmailNewPage> {
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
-                        height: 52,
+                        height: 40,
                         child: OutlinedButton(
                           onPressed: (_cooldownSec > 0 || _resending) ? null : _resend,
                           style: OutlinedButton.styleFrom(
@@ -686,35 +674,6 @@ class _ChangeEmailNewPageState extends State<ChangeEmailNewPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      Center(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.info_outline,
-                                size: 16,
-                                color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Attempts remaining: $_attemptsRemaining',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
                     ],
                   ],
                 ),
@@ -755,7 +714,7 @@ class _OtpBox extends StatelessWidget {
         textAlign: TextAlign.center,
         keyboardType: TextInputType.number,
         style: TextStyle(
-          fontSize: (height * 0.38).clamp(20.0, 30.0),
+          fontSize: 14,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5,
         ),
@@ -767,29 +726,29 @@ class _OtpBox extends StatelessWidget {
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(
-              color: Colors.grey.shade400,
+              color: hasError ? BizClearColors.error : BizClearColors.inputBorder,
               width: 1.5,
             ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(
-              color: Colors.grey.shade400,
+              color: hasError ? BizClearColors.error : BizClearColors.inputBorder,
               width: 1.5,
             ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(
-              color: Colors.grey.shade600,
+              color: hasError ? BizClearColors.error : BizClearColors.inputFocusedBorder,
               width: 2,
             ),
           ),
           filled: true,
           fillColor: hasError
-              ? Colors.grey.shade200
-              : Colors.grey.shade200,
-          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ? BizClearColors.error.withValues(alpha: 0.06)
+              : BizClearColors.surface,
+          contentPadding: BizClearColors.inputFieldContentPadding,
         ),
         onChanged: onChanged,
       ),

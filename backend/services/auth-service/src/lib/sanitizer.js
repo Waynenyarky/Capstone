@@ -16,6 +16,12 @@ function sanitizeString(input) {
   // Remove null bytes
   let sanitized = input.replace(/\0/g, '')
 
+  // Strip MongoDB $-operator prefixes from values
+  sanitized = sanitized.replace(/\$[a-zA-Z]+/g, '')
+
+  // Strip shell metacharacters that could enable command injection
+  sanitized = sanitized.replace(/[;|&`$\\]/g, '')
+
   // Remove script tags and event handlers (basic XSS prevention)
   sanitized = sanitized.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
   sanitized = sanitized.replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
@@ -185,6 +191,9 @@ function sanitizeObject(obj) {
 
   const sanitized = {}
   for (const [key, value] of Object.entries(obj)) {
+    // Strip keys starting with $ to prevent NoSQL operator injection
+    if (key.startsWith('$')) continue
+
     if (typeof value === 'string') {
       sanitized[key] = sanitizeString(value)
     } else if (typeof value === 'object' && value !== null) {

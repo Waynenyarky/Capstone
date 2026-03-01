@@ -8,6 +8,7 @@ const {
 const {
   createTestUsers,
   getTestTokens,
+  getAdminStepUpHeaders,
   generateUniqueEmail,
 } = require('../helpers/fixtures')
 const { cleanupTestData } = require('../helpers/cleanup')
@@ -210,10 +211,10 @@ describe('Integration Flows Tests', () => {
       // Use auth service for creating approval, admin service for approving
       const adminApp = setupApp('admin')
       
-      // Step 1: Create approval request via auth service
+      // Step 1: Create approval request via auth service (requires step-up)
       const createResponse = await request(app)
         .patch('/api/auth/profile/personal-info')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(getAdminStepUpHeaders(adminToken, adminUser))
         .send({
           firstName: 'ApprovedFirstName',
           lastName: 'ApprovedLastName',
@@ -223,10 +224,10 @@ describe('Integration Flows Tests', () => {
       expect(createResponse.body.approval).toBeDefined()
       const approvalId = createResponse.body.approval.approvalId
 
-      // Step 2: First approval via admin service
+      // Step 2: First approval via admin service (requires step-up)
       const firstApprovalResponse = await request(adminApp)
         .post(`/api/admin/approvals/${approvalId}/approve`)
-        .set('Authorization', `Bearer ${adminToken2}`)
+        .set(getAdminStepUpHeaders(adminToken2, adminUser2))
         .send({
           approved: true,
           comment: 'Looks good',
@@ -253,10 +254,10 @@ describe('Integration Flows Tests', () => {
       await adminUser3.populate('role')
       const adminToken3 = signAccessToken(adminUser3).token
 
-      // Step 5: Second approval (should trigger change application)
+      // Step 5: Second approval (should trigger change application, requires step-up)
       const secondApprovalResponse = await request(adminApp)
         .post(`/api/admin/approvals/${approvalId}/approve`)
-        .set('Authorization', `Bearer ${adminToken3}`)
+        .set(getAdminStepUpHeaders(adminToken3, adminUser3))
         .send({
           approved: true,
           comment: 'Approved',

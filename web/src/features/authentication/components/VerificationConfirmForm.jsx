@@ -1,11 +1,13 @@
-import { Form, Input, Button, Typography } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Input, Button, Typography } from 'antd'
 import { useVerificationConfirmForm } from '@/features/authentication/hooks'
 
 const { Title, Text } = Typography
 
-export default function VerificationConfirmForm({ email, onSubmit, title } = {}) {
+export default function VerificationConfirmForm({ email, onSubmit, title, onBack } = {}) {
   const { form, handleFinish, isSubmitting } = useVerificationConfirmForm({ email, onSubmit })
-  
+  const showBack = typeof onBack === 'function'
+
   return (
     <div style={{ maxWidth: 400, margin: '0 auto' }}>
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
@@ -26,7 +28,6 @@ export default function VerificationConfirmForm({ email, onSubmit, title } = {})
         >
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <Input.OTP 
-              size="large" 
               length={6} 
               style={{ width: '100%' }}
               inputType="numeric"
@@ -54,6 +55,14 @@ export default function VerificationConfirmForm({ email, onSubmit, title } = {})
           </Button>
         </Form.Item>
       </Form>
+
+      {showBack && (
+        <div style={{ textAlign: 'center', marginTop: 24 }}>
+          <Button type="text" onClick={onBack} style={{ padding: 0 }}>
+            Back
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

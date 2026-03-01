@@ -1,4 +1,5 @@
-import { Card, Form, Select, Divider, DatePicker } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Card, Select, Divider, DatePicker } from 'antd'
 import { BUSINESS_TYPE_OPTIONS } from '@/constants'
 
 export default function TargetingTab({ form, definition, lgus, viewOnly }) {

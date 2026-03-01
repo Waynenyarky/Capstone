@@ -15,6 +15,22 @@ dotenv.config();
 
 const app = express();
 
+const helmet = require('helmet');
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://challenges.cloudflare.com"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      frameSrc: ["https://challenges.cloudflare.com"],
+      fontSrc: ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
+
 // Structured Logging & Monitoring Middleware (early in chain)
 app.use(correlationIdMiddleware);
 app.use(performanceMonitorMiddleware);

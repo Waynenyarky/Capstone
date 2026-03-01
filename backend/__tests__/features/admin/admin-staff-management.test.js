@@ -14,7 +14,7 @@ const User = require('../../../services/auth-service/src/models/User')
 const Role = require('../../../services/auth-service/src/models/Role')
 const Office = require('../../../services/auth-service/src/models/Office')
 const AuditLog = require('../../../services/auth-service/src/models/AuditLog')
-const { signAccessToken } = require('../../../services/auth-service/src/middleware/auth')
+const { signAccessToken, signStepUpToken } = require('../../../services/auth-service/src/middleware/auth')
 
 jest.setTimeout(60000)
 
@@ -102,9 +102,11 @@ describe('Admin staff management endpoints', () => {
   })
 
   it('allows admin to update staff fields with reason and logs audit entries', async () => {
+    const stepUpToken = signStepUpToken(adminUser._id).token
     const res = await request(app)
       .patch(`/api/auth/admin/staff/${staffUser._id}`)
       .set('Authorization', `Bearer ${adminToken}`)
+      .set('X-Step-Up-Token', stepUpToken)
       .send({
         firstName: 'Updated',
         office: 'CTO',
@@ -132,9 +134,11 @@ describe('Admin staff management endpoints', () => {
   })
 
   it('allows admin to issue temp password with reason and logs audit', async () => {
+    const stepUpToken = signStepUpToken(adminUser._id).token
     const res = await request(app)
       .post(`/api/auth/admin/staff/${staffUser._id}/reset-password`)
       .set('Authorization', `Bearer ${adminToken}`)
+      .set('X-Step-Up-Token', stepUpToken)
       .send({
         reason: 'Security rotation',
       })

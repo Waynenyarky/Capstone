@@ -1,4 +1,4 @@
-import { fetchJsonWithFallback} from "@/lib/http.js"
+import { fetchJsonWithFallback } from '@/lib/http.js'
 
 export async function mfaSetup(email) {
   return await fetchJsonWithFallback('/api/auth/mfa/setup', {
@@ -23,6 +23,13 @@ export async function mfaDisable(email) {
   })
 }
 
+export async function mfaDisableRequestStart() {
+  return await fetchJsonWithFallback('/api/auth/mfa/disable-request/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
 export async function mfaDisableRequest(email) {
   return await fetchJsonWithFallback('/api/auth/mfa/disable-request', {
     method: 'POST',
@@ -30,11 +37,18 @@ export async function mfaDisableRequest(email) {
   })
 }
 
+export async function mfaDisableUndoStart() {
+  return await fetchJsonWithFallback('/api/auth/mfa/disable-undo/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
 export async function mfaDisableUndo(email, code) {
   return await fetchJsonWithFallback('/api/auth/mfa/disable-undo', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-user-email': String(email || '') },
-    body: JSON.stringify({ code }),
+    body: JSON.stringify(code != null && code !== '' ? { code } : {}),
   })
 }
 

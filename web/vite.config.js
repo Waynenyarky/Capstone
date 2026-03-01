@@ -184,6 +184,42 @@ try {
   }
 } catch { /* root .env missing — prefills use @example.com defaults */ }
 
+// Security headers for SPA (CSP, X-Frame-Options) — dev and preview
+// In dev, connect-src must allow backend origins (proxy or direct) and HMR websocket
+const CSP_CONNECT_SRC = [
+  "'self'",
+  "https://challenges.cloudflare.com",
+  "https://psgc.gitlab.io",
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://localhost:3002",
+  "http://localhost:3003",
+  "http://localhost:3004",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:3001",
+  "http://127.0.0.1:3002",
+  "http://127.0.0.1:3003",
+  "http://127.0.0.1:3004",
+  "ws://localhost:5173",
+  "ws://127.0.0.1:5173",
+].join(' ');
+
+const SECURITY_HEADERS = {
+  'Content-Security-Policy': [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: blob: http://localhost:8080 http://127.0.0.1:8080",
+    `connect-src ${CSP_CONNECT_SRC}`,
+    "frame-src https://challenges.cloudflare.com http://localhost:8080 http://127.0.0.1:8080",
+    "frame-ancestors 'self'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; '),
+  'X-Frame-Options': 'SAMEORIGIN',
+};
+
 export default defineConfig({
   plugins: [react()],
   define: devEmailDefines,
@@ -208,6 +244,8 @@ export default defineConfig({
   server: {
     host: '0.0.0.0', // Listen on all network interfaces (required for mobile device access)
     port: 5173,
+    hmr: true, // Hot Module Replacement (default: true) — ensures dev server pushes updates
+    headers: SECURITY_HEADERS,
     proxy: USE_MICROSERVICES ? {
       // MICROSERVICES MODE: Route to specific service ports
       
@@ -216,7 +254,8 @@ export default defineConfig({
       
       // Business endpoints -> Business Service (port 3002)
       '/api/business': createProxyConfig('/api/business', `http://localhost:${MICROSERVICES.business}`),
-      
+      '/api/lgu-manager': createProxyConfig('/api/lgu-manager', `http://localhost:${MICROSERVICES.business}`),
+
       // Admin endpoints -> Admin Service (port 3003)
       '/api/admin': createProxyConfig('/api/admin', `http://localhost:${MICROSERVICES.admin}`),
       
@@ -250,6 +289,7 @@ export default defineConfig({
       '/api/audit': createProxyConfig('/api/audit', UNIFIED_BACKEND_TARGET),
       '/api/maintenance': createProxyConfig('/api/maintenance', UNIFIED_BACKEND_TARGET),
       '/api/lgu-officer': createProxyConfig('/api/lgu-officer', UNIFIED_BACKEND_TARGET),
+      '/api/lgu-manager': createProxyConfig('/api/lgu-manager', UNIFIED_BACKEND_TARGET),
       '/api/lgus': createProxyConfig('/api/lgus', UNIFIED_BACKEND_TARGET),
       '/api/forms': createProxyConfig('/api/forms', UNIFIED_BACKEND_TARGET),
       '/uploads': createProxyConfig('/uploads', UNIFIED_BACKEND_TARGET),

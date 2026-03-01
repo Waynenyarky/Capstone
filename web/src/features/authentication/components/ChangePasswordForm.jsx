@@ -1,4 +1,5 @@
-import { Form, Input, Button, Typography, Space, Alert, Grid } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Input, Button, Typography, Space, Alert, Grid } from 'antd'
 import { MailOutlined } from '@ant-design/icons'
 import { changeConfirmPasswordRules as confirmPasswordRules, changePasswordRules as passwordRules } from "@/features/authentication/validations"
 import { useChangePasswordForm } from "@/features/authentication/hooks"
@@ -121,7 +122,7 @@ export default function ChangePasswordForm({
           <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block>
             {isResetFlow 
               ? 'Reset Password' 
-              : (step === 'verify' ? 'Verify & Change Password' : 'Send Verification Code')}
+              : (step === 'verify' ? 'Verify & Update Password' : 'Send Verification Code')}
           </Button>
         </Form.Item>
         

@@ -9,7 +9,7 @@ const respond = require('../middleware/respond')
 const { validateBody, Joi } = require('../middleware/validation')
 const { perEmailRateLimit } = require('../middleware/rateLimit')
 const { decryptWithHash, encryptWithHash } = require('../lib/secretCipher')
-const { sendOtp } = require('../lib/mailer')
+const { sendOtp, sendForgotPasswordNotAvailableEmail } = require('../lib/mailer')
 const { trackIP, isUnusualIP } = require('../lib/ipTracker')
 const { checkLockout, incrementFailedAttempts } = require('../lib/accountLockout')
 const securityMonitor = require('../middleware/securityMonitor')
@@ -17,12 +17,47 @@ const { checkPasswordHistory, addToPasswordHistory } = require('../lib/passwordH
 const { validatePasswordStrength } = require('../lib/passwordValidator')
 const { createAuditLog } = require('../lib/auditLogger')
 const { isBusinessOwnerRole, isAdminRole } = require('../lib/roleHelpers')
+const { verifyTurnstileToken, isCaptchaEnabled } = require('../lib/turnstile')
 const { sendAdminAlert } = require('../lib/notificationService')
+
+/**
+ * Create a security incident on admin-service for staff/admin forgot-password attempt.
+ * No-op if ADMIN_SERVICE_URL is not set or the request fails (log only).
+ */
+async function createSecurityIncidentForForgotPasswordAttempt({ userId, userEmail, roleSlug, ipAddress, userAgent }) {
+  const baseUrl = process.env.ADMIN_SERVICE_URL || ''
+  if (!baseUrl) return
+  const axios = require('axios')
+  const internalKey = process.env.ADMIN_SERVICE_INTERNAL_API_KEY || ''
+  try {
+    await axios.post(
+      `${baseUrl.replace(/\/$/, '')}/api/admin/tamper/incidents`,
+      {
+        eventType: 'staff_or_admin_forgot_password_attempted',
+        userId: String(userId),
+        userEmail,
+        roleSlug: roleSlug || '',
+        ipAddress: ipAddress || '',
+        userAgent: userAgent || '',
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(internalKey && { 'X-Internal-API-Key': internalKey }),
+        },
+        timeout: 5000,
+      }
+    )
+  } catch (err) {
+    console.error('Failed to create security incident for forgot-password attempt:', err?.message || err)
+  }
+}
 
 const router = express.Router()
 
 const emailOnlySchema = Joi.object({
   email: Joi.string().email().required(),
+  captchaToken: Joi.string().allow('', null).optional(),
 })
 
 const verifyCodeSchema = Joi.object({
@@ -59,17 +94,25 @@ const verifyLimiter = perEmailRateLimit({
 // POST /api/auth/forgot-password
 router.post('/forgot-password', sendCodeLimiter, validateBody(emailOnlySchema), async (req, res) => {
   try {
+    if (isCaptchaEnabled()) {
+      const captchaResult = await verifyTurnstileToken(req.body.captchaToken, req.ip)
+      if (!captchaResult.success) {
+        return respond.error(res, 400, 'captcha_failed', 'CAPTCHA verification failed')
+      }
+    }
+
     let { email } = req.body || {}
     const emailKey = String(email).toLowerCase().trim()
     const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
     const userAgent = req.headers['user-agent'] || 'unknown'
 
-    // Check existence
+    // Check existence — always return generic response to prevent email enumeration
     const user = await User.findOne({ email: emailKey }).populate('role').lean()
-    if (!user) return respond.error(res, 404, 'email_not_found', 'Email not found')
+    if (!user) return res.json({ sent: true })
 
     const roleSlug = user.role?.slug || 'user'
     if (!isBusinessOwnerRole(roleSlug)) {
+      // Admin/staff: send "not available" email (no code), alert admins, return resetNotAvailable so UI skips verify step
       await createAuditLog(
         user._id,
         'security_event',
@@ -79,18 +122,35 @@ router.post('/forgot-password', sendCodeLimiter, validateBody(emailOnlySchema), 
         roleSlug,
         { ip: ipAddress, userAgent, reason: 'recovery_not_available_for_role' }
       ).catch((err) => console.error('Audit log failed:', err))
-      if (isAdminRole(roleSlug)) {
-        sendAdminAlert('admin_forgot_password_attempted', {
-          userId: String(user._id),
-          userEmail: user.email,
-          ipAddress,
-          userAgent,
-        }).catch((err) => console.error('Admin alert failed:', err))
+      sendAdminAlert('staff_or_admin_forgot_password_attempted', {
+        userId: String(user._id),
+        userEmail: user.email,
+        roleSlug,
+        ipAddress,
+        userAgent,
+      }).catch((err) => console.error('Admin alert failed:', err))
+      createSecurityIncidentForForgotPasswordAttempt({
+        userId: user._id,
+        userEmail: user.email,
+        roleSlug,
+        ipAddress,
+        userAgent,
+      }).catch(() => {})
+
+      const emailResult = await sendForgotPasswordNotAvailableEmail({
+        to: email,
+        roleSlug,
+      })
+      if (!emailResult || !emailResult.success) {
+        console.error(`[Password Reset] Failed to send not-available email to ${email}:`, emailResult?.error || 'Unknown error')
+        return respond.error(res, 500, 'email_send_failed', `Failed to send email: ${emailResult?.error || 'Please check your email configuration'}`)
       }
-      return respond.error(res, 403, 'forgot_password_not_available', 'Password reset is not available for this account.')
+
+      // Return same shape as success so UI still shows verify step; attacker never gets a code in email
+      return res.json({ sent: true })
     }
 
-    // Check account lockout
+    // Business owner: full recovery flow with lockout, IP tracking, and normal OTP email
     const lockoutCheck = await checkLockout(user._id)
     if (lockoutCheck.locked) {
       return respond.error(res, 423, 'account_locked', `Account is temporarily locked. Try again in ${lockoutCheck.remainingMinutes} minutes.`)
@@ -161,7 +221,7 @@ router.post('/forgot-password', sendCodeLimiter, validateBody(emailOnlySchema), 
       })
     }
 
-    const emailResult = await sendOtp({ to: email, code, subject: 'Reset your password' })
+    const emailResult = await sendOtp({ to: email, code, subject: 'Reset your password', purpose: 'password_reset' })
     if (!emailResult || !emailResult.success) {
       console.error(`[Password Reset] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
       return respond.error(res, 500, 'email_send_failed', `Failed to send reset code: ${emailResult?.error || 'Please check your email configuration'}`)
@@ -210,7 +270,9 @@ router.post('/verify-code', verifyLimiter, validateBody(verifyCodeSchema), async
       reqObj.verified = true
       reqObj.resetToken = token
       await reqObj.save()
-      return res.json({ verified: true, resetToken: token })
+      const user = await User.findOne({ email: emailKey }).populate('role').lean()
+      const allowedToReset = user ? isBusinessOwnerRole(user.role?.slug || 'user') : true
+      return res.json({ verified: true, resetToken: token, allowedToReset })
     } else {
       reqObj = resetRequests.get(emailKey)
       if (!reqObj) return respond.error(res, 404, 'reset_request_not_found', 'No reset request found')
@@ -220,14 +282,10 @@ router.post('/verify-code', verifyLimiter, validateBody(verifyCodeSchema), async
       reqObj.verified = true
       reqObj.resetToken = token
       resetRequests.set(emailKey, reqObj)
-      return res.json({ verified: true, resetToken: token })
+      const user = await User.findOne({ email: emailKey }).populate('role').lean()
+      const allowedToReset = user ? isBusinessOwnerRole(user.role?.slug || 'user') : true
+      return res.json({ verified: true, resetToken: token, allowedToReset })
     }
-
-    const token = generateToken()
-    reqObj.verified = true
-    reqObj.resetToken = token
-    resetRequests.set(emailKey, reqObj)
-    return res.json({ verified: true, resetToken: token })
   } catch (err) {
     console.error('POST /api/auth/verify-code error:', err)
     return respond.error(res, 500, 'reset_verify_failed', 'Failed to verify code')

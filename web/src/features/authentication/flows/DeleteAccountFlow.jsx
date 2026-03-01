@@ -1,85 +1,76 @@
-import { Steps, theme, Result, Button } from 'antd'
-import { SendDeleteCodeForCurrentUser, VerifyDeleteCodeForm, ConfirmDeleteAccountForm } from "@/features/authentication"
+import { useState } from 'react'
+import { Result, Button, Typography, Input, Alert } from 'antd'
+import { Form } from '@/shared/components/AppForm'
 import { useLoggedInDeleteAccountFlow } from "@/features/authentication/hooks"
-import { WarningOutlined, SafetyCertificateOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons'
 
-export default function DeleteAccountFlow() {
-  const { step, sendProps, verifyProps, confirmProps } = useLoggedInDeleteAccountFlow()
-  const { token } = theme.useToken()
+const { Title, Text, Paragraph } = Typography
 
-  const currentStep = step === 'send' ? 0 : step === 'verify' ? 1 : step === 'confirm' ? 2 : 3
+export default function DeleteAccountFlow({ onBackToStart } = {}) {
+  const { step, confirmProps } = useLoggedInDeleteAccountFlow()
+  const [form] = Form.useForm()
+  const [isSubmitting, setSubmitting] = useState(false)
+  const showBack = typeof onBackToStart === 'function' && step !== 'done'
 
-  const items = [
-    {
-      title: 'Request',
-      icon: <WarningOutlined />,
-    },
-    {
-      title: 'Verify',
-      icon: <SafetyCertificateOutlined />,
-    },
-    {
-      title: 'Confirm',
-      icon: <DeleteOutlined />,
-    },
-    {
-      title: 'Scheduled',
-      icon: <CheckCircleOutlined />,
-    },
-  ]
+  const onFinish = async (values) => {
+    setSubmitting(true)
+    try {
+      await confirmProps.onSubmit({ password: values.password })
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto' }}>
-      <Steps 
-        current={currentStep} 
-        items={items} 
-        style={{ marginBottom: 40 }} 
-        size="small"
-      />
-      
-      <div style={{ 
-        padding: 24, 
-        background: token.colorFillAlter, 
-        borderRadius: token.borderRadiusLG,
-        border: `1px solid ${token.colorBorderSecondary}`
-      }}>
-        {step === 'send' && (
-          <SendDeleteCodeForCurrentUser
-            email={sendProps.email}
-            onSent={sendProps.onSent}
-            title="Request Account Deletion"
-          />
-        )}
+    <div style={{ maxWidth: 420, width: '100%', margin: '0 auto' }}>
+      {showBack && (
+        <Button type="text" onClick={onBackToStart} style={{ marginBottom: 16, paddingLeft: 0 }}>
+          &larr; Back
+        </Button>
+      )}
 
-        {step === 'verify' && (
-          <VerifyDeleteCodeForm
-            email={verifyProps.email}
-            onSubmit={verifyProps.onSubmit}
-            title="Verify Identity"
+      {step === 'confirm' && (
+        <>
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <Title level={4} style={{ marginBottom: 8 }}>Delete Account</Title>
+            <Text type="secondary">
+              Enter your password to confirm account deletion. This action is irreversible.
+            </Text>
+          </div>
+          <Alert
+            type="error"
+            showIcon
+            message="This will permanently delete your account and all associated data."
+            style={{ marginBottom: 24 }}
           />
-        )}
+          <Form form={form} layout="vertical" onFinish={onFinish} requiredMark={false}>
+            <Form.Item
+              name="password"
+              label="Current Password"
+              rules={[{ required: true, message: 'Please enter your password to confirm' }]}
+            >
+              <Input.Password placeholder="Enter your password" variant="filled" />
+            </Form.Item>
+            <Form.Item style={{ marginBottom: 16 }}>
+              <Button type="primary" danger htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block>
+                Delete my account
+              </Button>
+            </Form.Item>
+          </Form>
+        </>
+      )}
 
-        {step === 'confirm' && (
-          <ConfirmDeleteAccountForm
-            email={confirmProps.email}
-            deleteToken={confirmProps.deleteToken}
-            onSubmit={confirmProps.onSubmit}
-          />
-        )}
-
-        {step === 'done' && (
-          <Result
-            status="success"
-            title="Account Deletion Scheduled"
-            subTitle="Your account has been scheduled for deletion. You will be logged out shortly."
-            extra={[
-              <Button type="primary" key="done" onClick={() => window.location.reload()}>
-                Done
-              </Button>,
-            ]}
-          />
-        )}
-      </div>
+      {step === 'done' && (
+        <Result
+          status="success"
+          title="Account Deleted"
+          subTitle="Your account has been deleted. You will be logged out shortly."
+          extra={[
+            <Button type="primary" key="done" onClick={() => window.location.reload()}>
+              Done
+            </Button>,
+          ]}
+        />
+      )}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react'
-import { Table, Button, Tag, Typography, Input, Select, Tooltip, Splitter, Grid, Pagination, theme } from 'antd'
+import { Table, Button, Tag, Typography, Input, Select, Tooltip, Splitter, Grid, Pagination, theme, Empty } from 'antd'
 import { PlusOutlined, FilterOutlined, SearchOutlined, CloseOutlined } from '@ant-design/icons'
 import { roleLabel, officeLabel, getStaffStatus, getStaffStatusTag } from './useAdminUsersPage'
 import StaffDetailPanel from './StaffDetailPanel'
@@ -238,6 +238,7 @@ export default function StaffAccountsTab({
             loading={loading}
             pagination={false}
             scroll={{ x: 'max-content' }}
+            locale={{ emptyText: <Empty description="No staff accounts" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
             rowClassName={(rec) => rec?.id === selectedStaff?.id ? 'staff-row-selected' : ''}
             onRow={(rec) => ({
               onClick: () => setSelectedStaff(rec),

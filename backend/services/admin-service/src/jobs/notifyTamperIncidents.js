@@ -16,6 +16,7 @@ async function runNotifyTamperIncidents() {
       $or: [
         { severity: 'high' },
         { severity: 'medium', verificationStatus: 'tamper_detected' },
+        { severity: 'medium', verificationStatus: 'security_event' },
       ],
     }
     const incidents = await TamperIncident.find(query).lean()

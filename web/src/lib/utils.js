@@ -1,4 +1,10 @@
 
+/** True when diagnostic/error logging to console is allowed (dev only, not production or demo). */
+export const isDevLoggingEnabled =
+  typeof import.meta !== 'undefined' &&
+  import.meta.env?.DEV === true &&
+  import.meta.env?.VITE_DEMO_UI !== 'true'
+
 export function resolveAvatarUrl(url) {
   if (!url) return undefined
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {

@@ -75,20 +75,20 @@ async function processQueue() {
       }
 
       if (result.success) {
-        // Update audit log if ID provided
         if (item.auditLogId) {
-          await AuditLog.findByIdAndUpdate(item.auditLogId, {
+          const update = {
             txHash: result.txHash,
-            blockNumber: result.blockNumber,
-          }).catch((err) => {
+            blockNumber: result.blockNumber != null ? Number(result.blockNumber) : null,
+            blockchainStatus: 'anchored',
+          };
+          await AuditLog.findByIdAndUpdate(item.auditLogId, update).catch((err) => {
             console.error('Failed to update audit log with blockchain data:', err)
           })
         }
       } else {
-        // Retry if failed
         if (item.retries < MAX_RETRIES && !shouldStop) {
           item.retries++
-          queue.push(item) // Re-add to queue
+          queue.push(item)
           await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
         } else {
           console.error(`Blockchain operation failed after ${MAX_RETRIES} retries:`, {
@@ -96,15 +96,21 @@ async function processQueue() {
             error: result.error,
             auditLogId: item.auditLogId,
           })
+          if (item.auditLogId) {
+            await AuditLog.findByIdAndUpdate(item.auditLogId, {
+              blockchainStatus: 'failed',
+              blockchainError: result.error || 'Max retries exceeded',
+              blockchainRetries: item.retries,
+            }).catch(() => {})
+          }
         }
       }
     } catch (error) {
       console.error('Error processing blockchain queue item:', error)
       
-      // Retry on error
       if (item.retries < MAX_RETRIES && !shouldStop) {
         item.retries++
-        queue.push(item) // Re-add to queue
+        queue.push(item)
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
       } else {
         console.error(`Blockchain operation failed after ${MAX_RETRIES} retries:`, {
@@ -112,6 +118,13 @@ async function processQueue() {
           error: error.message,
           auditLogId: item.auditLogId,
         })
+        if (item.auditLogId) {
+          await AuditLog.findByIdAndUpdate(item.auditLogId, {
+            blockchainStatus: 'failed',
+            blockchainError: error.message || 'Exception during processing',
+            blockchainRetries: item.retries,
+          }).catch(() => {})
+        }
       }
     }
   }

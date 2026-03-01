@@ -4,6 +4,13 @@ import { renderWithProviders, screen } from '@/test/utils/renderWithProviders.js
 import ProtectedRoute from '@/features/authentication/components/ProtectedRoute.jsx'
 import { Routes, Route, useLocation } from 'react-router-dom'
 
+// Mock ThemeProvider to avoid localStorage usage in tests (ThemeProvider calls localStorage.getItem on init)
+vi.mock('@/shared/theme/ThemeProvider.jsx', () => ({
+  ThemeProvider: ({ children }) => <>{children}</>,
+  THEMES: {},
+  useAppTheme: () => 'default',
+}))
+
 // Mock auth session
 const mockUseAuthSession = vi.fn()
 const mockUseMaintenanceStatus = vi.fn()

@@ -1,0 +1,62 @@
+{"sessionId":"1def8a","location":"LoginForm.jsx:onInitialMount","message":"mount effect ran","data":{"setPassword":false,"emailFromInitial":false},"hypothesisId":"H1","timestamp":1772272444473}
+{"sessionId":"1def8a","location":"LoginForm.jsx:passwordDOM","message":"password input DOM autocomplete","data":{"autocomplete":"current-password","tagName":"INPUT"},"hypothesisId":"H3_H4","timestamp":1772272444476}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":1,"passwordLength":0,"emailPreview":"s"},"hypothesisId":"H1_H5","timestamp":1772272453617}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":2,"passwordLength":0,"emailPreview":"st"},"hypothesisId":"H1_H5","timestamp":1772272453778}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":3,"passwordLength":0,"emailPreview":"ste"},"hypothesisId":"H1_H5","timestamp":1772272453929}
+{"sessionId":"1def8a","location":"LoginForm.jsx:syncAutofill","message":"sync skipped","data":{"domLen":0,"formLen":0,"from":"email-350"},"hypothesisId":"H5_fix","timestamp":1772272454281}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":25,"passwordLength":0,"emailPreview":"stephendiaz.syv@gmai"},"hypothesisId":"H1_H5","timestamp":1772272454523}
+{"sessionId":"1def8a","location":"LoginForm.jsx:syncAutofill","message":"sync skipped","data":{"domLen":0,"formLen":0,"from":"email-350"},"hypothesisId":"H5_fix","timestamp":1772272454875}
+{"sessionId":"1def8a","location":"LoginForm.jsx:syncAutofill","message":"sync skipped","data":{"domLen":0,"formLen":0,"from":"email-800"},"hypothesisId":"H5_fix","timestamp":1772272455325}
+{"sessionId":"1def8a","location":"LoginForm.jsx:syncAutofill","message":"sync skipped","data":{"domLen":0,"formLen":0,"from":"focus-100"},"hypothesisId":"H5_fix","timestamp":1772272460261}
+{"sessionId":"1def8a","location":"LoginForm.jsx:syncAutofill","message":"sync skipped","data":{"domLen":0,"formLen":0,"from":"focus-300"},"hypothesisId":"H5_fix","timestamp":1772272460460}
+{"sessionId":"1def8a","location":"LoginForm.jsx:syncAutofill","message":"sync skipped","data":{"domLen":0,"formLen":0,"from":"focus-600"},"hypothesisId":"H5_fix","timestamp":1772272460764}
+{"sessionId":"1def8a","location":"LoginForm.jsx:onInitialMount","message":"mount effect ran","data":{"setPassword":false,"emailFromInitial":false},"hypothesisId":"H1","timestamp":1772272541860}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":0,"passwordLength":0,"emailPreview":""},"hypothesisId":"H1_H5","timestamp":1772272541882}
+{"sessionId":"1def8a","location":"LoginForm.jsx:passwordDOM","message":"password input DOM autocomplete","data":{"autocomplete":"current-password","tagName":"INPUT"},"hypothesisId":"H3_H4","timestamp":1772272541960}
+{"sessionId":"1def8a","location":"LoginForm.jsx:onInitialMount","message":"mount effect ran","data":{"setPassword":false,"emailFromInitial":false},"hypothesisId":"H1","timestamp":1772272543460}
+{"sessionId":"1def8a","location":"LoginForm.jsx:passwordDOM","message":"password input DOM autocomplete","data":{"autocomplete":"current-password","tagName":"INPUT"},"hypothesisId":"H3_H4","timestamp":1772272543461}
+{"sessionId":"1def8a","location":"LoginForm.jsx:syncAutofill","message":"sync skipped","data":{"domLen":0,"formLen":0,"from":"focus-100"},"hypothesisId":"H5_fix","timestamp":1772272555208}
+{"sessionId":"1def8a","location":"LoginForm.jsx:syncAutofill","message":"sync skipped","data":{"domLen":0,"formLen":0,"from":"focus-300"},"hypothesisId":"H5_fix","timestamp":1772272555407}
+{"sessionId":"1def8a","location":"LoginForm.jsx:syncAutofill","message":"sync skipped","data":{"domLen":0,"formLen":0,"from":"focus-600"},"hypothesisId":"H5_fix","timestamp":1772272555709}
+{"sessionId":"1def8a","location":"LoginForm.jsx:mount","message":"LoginForm loaded (syncAutofill enabled)","data":{"build":"with-sync"},"hypothesisId":"version","timestamp":1772272556913}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":0,"passwordLength":0,"emailPreview":""},"hypothesisId":"H1_H5","timestamp":1772272556914}
+{"sessionId":"1def8a","location":"LoginForm.jsx:mount","message":"LoginForm loaded (syncAutofill enabled)","data":{"build":"with-sync"},"hypothesisId":"version","timestamp":1772272556916}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":0,"passwordLength":0,"emailPreview":""},"hypothesisId":"H1_H5","timestamp":1772272556917}
+{"sessionId":"1def8a","location":"LoginForm.jsx:onInitialMount","message":"mount effect ran","data":{"setPassword":false,"emailFromInitial":false},"hypothesisId":"H1","timestamp":1772272556979}
+{"sessionId":"1def8a","location":"LoginForm.jsx:passwordDOM","message":"password input DOM autocomplete","data":{"autocomplete":"current-password","tagName":"INPUT"},"hypothesisId":"H3_H4","timestamp":1772272557068}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":1,"passwordLength":0,"emailPreview":"s"},"hypothesisId":"H1_H5","timestamp":1772272559400}
+{"sessionId":"1def8a","location":"LoginForm.jsx:syncAutofill","message":"sync skipped","data":{"domLen":0,"formLen":0,"from":"email-350"},"hypothesisId":"H5_fix","timestamp":1772272559752}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":25,"passwordLength":0,"emailPreview":"stephendiaz.syv@gmai"},"hypothesisId":"H1_H5","timestamp":1772272560096}
+{"sessionId":"1def8a","location":"LoginForm.jsx:syncAutofill","message":"sync skipped","data":{"domLen":0,"formLen":0,"from":"email-350"},"hypothesisId":"H5_fix","timestamp":1772272560449}
+{"sessionId":"1def8a","location":"LoginForm.jsx:syncAutofill","message":"sync skipped","data":{"domLen":0,"formLen":0,"from":"email-800"},"hypothesisId":"H5_fix","timestamp":1772272560898}
+{"sessionId":"1def8a","location":"LoginForm.jsx:mount","message":"LoginForm loaded (syncAutofill enabled)","data":{"build":"with-sync"},"hypothesisId":"version","timestamp":1772272622606}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":0,"passwordLength":0,"emailPreview":""},"hypothesisId":"H1_H5","timestamp":1772272622607}
+{"sessionId":"1def8a","location":"LoginForm.jsx:mount","message":"LoginForm loaded (syncAutofill enabled)","data":{"build":"with-sync"},"hypothesisId":"version","timestamp":1772272622616}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":0,"passwordLength":0,"emailPreview":""},"hypothesisId":"H1_H5","timestamp":1772272622617}
+{"sessionId":"1def8a","location":"LoginForm.jsx:onInitialMount","message":"mount effect ran","data":{"setPassword":false,"emailFromInitial":false},"hypothesisId":"H1","timestamp":1772272622710}
+{"sessionId":"1def8a","location":"LoginForm.jsx:passwordDOM","message":"password input DOM autocomplete","data":{"autocomplete":"current-password","tagName":"INPUT"},"hypothesisId":"H3_H4","timestamp":1772272622816}
+{"sessionId":"1def8a","location":"LoginForm.jsx:mount","message":"LoginForm loaded (syncAutofill enabled)","data":{"build":"with-sync"},"hypothesisId":"version","timestamp":1772272684345}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":0,"passwordLength":0,"emailPreview":""},"hypothesisId":"H1_H5","timestamp":1772272684346}
+{"sessionId":"1def8a","location":"LoginForm.jsx:mount","message":"LoginForm loaded (syncAutofill enabled)","data":{"build":"with-sync"},"hypothesisId":"version","timestamp":1772272684349}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":0,"passwordLength":0,"emailPreview":""},"hypothesisId":"H1_H5","timestamp":1772272684349}
+{"sessionId":"1def8a","location":"LoginForm.jsx:onInitialMount","message":"mount effect ran","data":{"setPassword":false,"emailFromInitial":false},"hypothesisId":"H1","timestamp":1772272684400}
+{"sessionId":"1def8a","location":"LoginForm.jsx:passwordDOM","message":"password input DOM autocomplete","data":{"autocomplete":"current-password","tagName":"INPUT"},"hypothesisId":"H3_H4","timestamp":1772272684524}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":1,"passwordLength":0,"emailPreview":"s"},"hypothesisId":"H1_H5","timestamp":1772272688760}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":2,"passwordLength":0,"emailPreview":"st"},"hypothesisId":"H1_H5","timestamp":1772272688854}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":3,"passwordLength":0,"emailPreview":"ste"},"hypothesisId":"H1_H5","timestamp":1772272688983}
+{"sessionId":"1def8a","location":"LoginForm.jsx:syncAutofill","message":"sync skipped","data":{"domLen":0,"formLen":0,"from":"email-350"},"hypothesisId":"H5_fix","timestamp":1772272689336}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":25,"passwordLength":0,"emailPreview":"stephendiaz.syv@gmai"},"hypothesisId":"H1_H5","timestamp":1772272689650}
+{"sessionId":"1def8a","location":"LoginForm.jsx:syncAutofill","message":"sync skipped","data":{"domLen":0,"formLen":0,"from":"email-350"},"hypothesisId":"H5_fix","timestamp":1772272690003}
+{"sessionId":"1def8a","location":"LoginForm.jsx:syncAutofill","message":"sync skipped","data":{"domLen":0,"formLen":0,"from":"email-800"},"hypothesisId":"H5_fix","timestamp":1772272690453}
+{"sessionId":"1def8a","location":"LoginForm.jsx:mount","message":"LoginForm loaded (syncAutofill enabled)","data":{"build":"with-sync"},"hypothesisId":"version","timestamp":1772279493961}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":0,"passwordLength":0,"emailPreview":""},"hypothesisId":"H1_H5","timestamp":1772279493962}
+{"sessionId":"1def8a","location":"LoginForm.jsx:mount","message":"LoginForm loaded (syncAutofill enabled)","data":{"build":"with-sync"},"hypothesisId":"version","timestamp":1772279493968}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":0,"passwordLength":0,"emailPreview":""},"hypothesisId":"H1_H5","timestamp":1772279493969}
+{"sessionId":"1def8a","location":"LoginForm.jsx:onInitialMount","message":"mount effect ran","data":{"setPassword":false,"emailFromInitial":false},"hypothesisId":"H1","timestamp":1772279494480}
+{"sessionId":"1def8a","location":"LoginForm.jsx:passwordDOM","message":"password input DOM autocomplete","data":{"autocomplete":"current-password","tagName":"INPUT"},"hypothesisId":"H3_H4","timestamp":1772279494481}
+{"sessionId":"1def8a","location":"LoginForm.jsx:mount","message":"LoginForm loaded (syncAutofill enabled)","data":{"build":"with-sync"},"hypothesisId":"version","timestamp":1772284953982}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":0,"passwordLength":0,"emailPreview":""},"hypothesisId":"H1_H5","timestamp":1772284953984}
+{"sessionId":"1def8a","location":"LoginForm.jsx:mount","message":"LoginForm loaded (syncAutofill enabled)","data":{"build":"with-sync"},"hypothesisId":"version","timestamp":1772284953989}
+{"sessionId":"1def8a","location":"LoginForm.jsx:useWatch","message":"form values changed","data":{"emailLength":0,"passwordLength":0,"emailPreview":""},"hypothesisId":"H1_H5","timestamp":1772284953990}
+{"sessionId":"1def8a","location":"LoginForm.jsx:onInitialMount","message":"mount effect ran","data":{"setPassword":false,"emailFromInitial":false},"hypothesisId":"H1","timestamp":1772284954496}
+{"sessionId":"1def8a","location":"LoginForm.jsx:passwordDOM","message":"password input DOM autocomplete","data":{"autocomplete":"current-password","tagName":"INPUT"},"hypothesisId":"H3_H4","timestamp":1772284954497}

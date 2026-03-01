@@ -5,7 +5,7 @@ import {
 } from 'antd'
 import {
   StopOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  EyeOutlined, SearchOutlined, ReloadOutlined
+  EyeOutlined, SearchOutlined, ReloadOutlined, ScheduleOutlined
 } from '@ant-design/icons'
 import StaffLayout from '../../components/StaffLayout.jsx'
 import { get, post } from '@/lib/http.js'
@@ -166,6 +166,29 @@ export default function CessationReviewPage() {
 
               {detailModal.retirementStatus === 'requested' && (
                 <Space direction="vertical" style={{ width: '100%' }}>
+                  <Button
+                    icon={<ScheduleOutlined />}
+                    onClick={async () => {
+                      try {
+                        setActionLoading(true)
+                        await post('/api/lgu-officer/inspections/assign', {
+                          businessId: detailModal.businessId,
+                          inspectionType: 'cessation',
+                          notes: 'Scheduled for cessation verification',
+                        })
+                        success('Inspection scheduled for cessation verification')
+                      } catch (err) {
+                        notifyError(err, 'Failed to schedule inspection')
+                      } finally {
+                        setActionLoading(false)
+                      }
+                    }}
+                    loading={actionLoading}
+                    block
+                    style={{ marginBottom: 8 }}
+                  >
+                    Schedule Cessation Inspection
+                  </Button>
                   <TextArea
                     rows={3}
                     placeholder="Enter rejection reason (required to reject)"

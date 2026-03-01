@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:app/core/theme/bizclear_colors.dart';
 import 'package:app/data/services/mongodb_service.dart';
-import 'package:app/data/mock/inspector_mock_data.dart';
 import 'inspection_detail_screen.dart';
 
 class AssignedInspectionsScreen extends StatefulWidget {
@@ -52,36 +52,6 @@ class _AssignedInspectionsScreenState extends State<AssignedInspectionsScreen> {
     }
   }
 
-  List<Map<String, dynamic>> _filterMockInspections(List<Map<String, dynamic>> list) {
-    var out = list;
-    if (_statusFilter != null && _statusFilter!.isNotEmpty) {
-      out = out.where((e) => e['status'] == _statusFilter).toList();
-    }
-    if (_dateFrom != null) {
-      try {
-        final from = DateTime.parse(_dateFrom!);
-        out = out.where((e) {
-          final s = e['scheduledDate'] as String?;
-          if (s == null) return false;
-          final d = DateTime.parse(s);
-          return !d.isBefore(DateTime(from.year, from.month, from.day));
-        }).toList();
-      } catch (_) {}
-    }
-    if (_dateTo != null) {
-      try {
-        final to = DateTime.parse('${_dateTo}T23:59:59');
-        out = out.where((e) {
-          final s = e['scheduledDate'] as String?;
-          if (s == null) return false;
-          final d = DateTime.parse(s);
-          return !d.isAfter(to);
-        }).toList();
-      } catch (_) {}
-    }
-    return out;
-  }
-
   Future<void> _loadInspections() async {
     setState(() {
       _loading = true;
@@ -98,10 +68,9 @@ class _AssignedInspectionsScreenState extends State<AssignedInspectionsScreen> {
       if (res['success'] == true) {
         final list = List<dynamic>.from(res['inspections'] ?? []);
         if (list.isEmpty && _page == 1) {
-          final mockList = _filterMockInspections(InspectorMockData.getInspections());
           setState(() {
-            _inspections = mockList;
-            _pagination = {'page': 1, 'limit': _limit, 'total': mockList.length, 'totalPages': 1};
+            _inspections = [];
+            _pagination = {'page': 1, 'limit': _limit, 'total': 0, 'totalPages': 1};
             _loading = false;
             _error = null;
           });
@@ -115,12 +84,11 @@ class _AssignedInspectionsScreenState extends State<AssignedInspectionsScreen> {
         });
       } else {
         if (_page == 1) {
-          final mockList = _filterMockInspections(InspectorMockData.getInspections());
           setState(() {
-            _inspections = mockList;
-            _pagination = {'page': 1, 'limit': _limit, 'total': mockList.length, 'totalPages': 1};
+            _inspections = [];
+            _pagination = {'page': 1, 'limit': _limit, 'total': 0, 'totalPages': 1};
             _loading = false;
-            _error = null;
+            _error = res['message'] ?? 'Failed to load inspections';
           });
           return;
         }
@@ -131,12 +99,11 @@ class _AssignedInspectionsScreenState extends State<AssignedInspectionsScreen> {
       }
     } catch (e) {
       if (_page == 1) {
-        final mockList = _filterMockInspections(InspectorMockData.getInspections());
         setState(() {
-          _inspections = mockList;
-          _pagination = {'page': 1, 'limit': _limit, 'total': mockList.length, 'totalPages': 1};
+          _inspections = [];
+          _pagination = {'page': 1, 'limit': _limit, 'total': 0, 'totalPages': 1};
           _loading = false;
-          _error = null;
+          _error = 'Failed to load. Pull to refresh.';
         });
         return;
       }
@@ -251,7 +218,7 @@ class _AssignedInspectionsScreenState extends State<AssignedInspectionsScreen> {
                         const SizedBox(height: 16),
                         Text(
                           'No inspections assigned',
-                          style: TextStyle(fontSize: 18, color: Colors.grey.shade700),
+                          style: TextStyle(fontSize: 15, color: Colors.grey.shade700),
                         ),
                       ],
                     ),
@@ -297,7 +264,7 @@ class _AssignedInspectionsScreenState extends State<AssignedInspectionsScreen> {
                       }
                       Color statusColor = Colors.grey;
                       if (status == 'completed') statusColor = Colors.green;
-                      else if (status == 'in_progress') statusColor = Colors.blue;
+                      else if (status == 'in_progress') statusColor = BizClearColors.webPrimary;
                       else if (status == 'pending') statusColor = Colors.orange;
 
                       return Card(

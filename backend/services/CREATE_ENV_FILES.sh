@@ -19,7 +19,7 @@ echo "⚠️  You'll need to manually edit these files to add:"
 echo "   - Contract addresses (from deployment output)"
 echo "   - DEPLOYER_PRIVATE_KEY (from Ganache)"
 echo "   - MONGO_URI (your MongoDB connection string)"
-echo "   - EMAIL_API_KEY (if using SendGrid)"
+echo "   - EMAIL_API_KEY (e.g. Resend)"
 echo "   - JWT_SECRET (strong random string)"
 echo ""
 
@@ -27,10 +27,9 @@ echo ""
 cat > auth-service/.env << EOF
 AUTH_SERVICE_PORT=3001
 MONGO_URI=mongodb://localhost:27017/capstone_project
-EMAIL_API_PROVIDER=sendgrid
-EMAIL_API_KEY=your_sendgrid_api_key_here
-EMAIL_API_URL=https://api.sendgrid.com/v3
-DEFAULT_FROM_EMAIL=noreply@yourdomain.com
+EMAIL_API_PROVIDER=resend
+EMAIL_API_KEY=your_email_api_key_here
+DEFAULT_FROM_EMAIL=onboarding@resend.dev
 IPFS_PROVIDER=local
 IPFS_API_URL=http://127.0.0.1:5001
 IPFS_GATEWAY_URL=http://127.0.0.1:8080/ipfs/
@@ -85,7 +84,7 @@ echo "   1. Edit audit-service/.env and add:"
 echo "      - DEPLOYER_PRIVATE_KEY (from Ganache)"
 echo "      - Contract addresses (from deployment output)"
 echo "   2. Edit auth-service/.env and add:"
-echo "      - EMAIL_API_KEY (if using SendGrid)"
+echo "      - EMAIL_API_KEY (e.g. Resend: https://resend.com/api-keys)"
 echo "      - JWT_SECRET (strong random string)"
 echo "   3. Update MONGO_URI in all files if using MongoDB Atlas"
 echo ""

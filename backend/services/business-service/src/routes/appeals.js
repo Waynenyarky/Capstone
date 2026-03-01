@@ -1,6 +1,7 @@
 const express = require('express')
 const Appeal = require('../models/Appeal')
 const { requireJwt } = require('../middleware/auth')
+const { logAuditEvent } = require('../lib/auditClient')
 
 const router = express.Router()
 
@@ -82,6 +83,7 @@ router.post('/', requireJwt, async (req, res) => {
       requestedBy: req._userId,
       status: 'submitted',
     })
+    logAuditEvent('appeal_submitted', req._userId, 'Appeal', appeal._id.toString(), { businessId: appeal.businessId })
     return res.status(201).json({ data: appeal })
   } catch (err) {
     console.error('POST /appeals error:', err)
@@ -114,6 +116,7 @@ router.put('/:id', requireJwt, async (req, res) => {
       }
     }
     await appeal.save()
+    logAuditEvent('appeal_resolved', req._userId, 'Appeal', appeal._id.toString(), { status: appeal.status })
     return res.json({ data: appeal })
   } catch (err) {
     console.error('PUT /appeals error:', err)

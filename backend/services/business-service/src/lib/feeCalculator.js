@@ -40,20 +40,36 @@ async function getRegulatoryFeeConfig() {
 }
 
 /**
- * Look up the active FeeConfiguration for a line of business.
- * Match is case-insensitive so stored sentence-case (e.g. "Restaurants - Above 50 sq.m.") matches form input.
- * @param {string} lineOfBusiness
+ * Look up the active FeeConfiguration for a line of business or tax code.
+ * 1. First tries matching by taxCode (exact, uppercase)
+ * 2. Falls back to label match (case-insensitive regex)
+ * 3. Falls back to partial match
+ * @param {string} lineOfBusinessOrTaxCode
  * @returns {Object|null} FeeConfiguration document or null
  */
-async function getFeeConfig(lineOfBusiness) {
-  if (!lineOfBusiness || typeof lineOfBusiness !== 'string') return null
-  const trimmed = lineOfBusiness.trim()
+async function getFeeConfig(lineOfBusinessOrTaxCode) {
+  if (!lineOfBusinessOrTaxCode || typeof lineOfBusinessOrTaxCode !== 'string') return null
+  const trimmed = lineOfBusinessOrTaxCode.trim()
   if (!trimmed) return null
-  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return FeeConfiguration.findOne({
-    lineOfBusiness: { $regex: new RegExp(`^${escaped}$`, 'i') },
-    isActive: true,
+
+  let config = await FeeConfiguration.findOne({
+    taxCode: trimmed.toUpperCase(),
+    isActive: { $ne: false },
   }).lean()
+  if (config) return config
+
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  config = await FeeConfiguration.findOne({
+    lineOfBusiness: { $regex: new RegExp(`^${escaped}$`, 'i') },
+    isActive: { $ne: false },
+  }).lean()
+  if (config) return config
+
+  config = await FeeConfiguration.findOne({
+    lineOfBusiness: { $regex: new RegExp(trimmed, 'i') },
+    isActive: { $ne: false },
+  }).lean()
+  return config || null
 }
 
 /**
@@ -281,8 +297,11 @@ async function computeApplicationFees({
 }
 
 /**
- * Compute penalty on late renewal.
- * Reads PenaltyConfiguration from admin-service (or env fallback).
+ * Compute penalty on late renewal using simple interest.
+ * Per Philippine LGU practice, penalties use simple (not compound) interest:
+ *   surcharge = baseFees * surchargePercentage
+ *   interest  = (baseFees + surcharge) * monthlyRate * monthsLate
+ *
  * @param {number} baseFees - total fees before penalty
  * @param {Date} submissionDate
  * @param {Object} penaltyConfig - { surchargePercentage, monthlyInterestRate, penaltyStartDay }

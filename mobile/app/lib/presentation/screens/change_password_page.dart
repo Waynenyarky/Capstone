@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:app/core/theme/bizclear_colors.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'change_password_otp_page.dart';
 
@@ -33,19 +34,18 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     super.dispose();
   }
 
-  InputDecoration _decoration(String label, IconData icon, {Widget? suffix}) {
+  InputDecoration _decoration(String label, {Widget? suffix}) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon),
       suffixIcon: suffix,
       errorMaxLines: 3,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-      focusedBorder: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)), borderSide: BorderSide(color: Colors.blue, width: 2)),
-      errorBorder: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)), borderSide: BorderSide(color: Colors.red, width: 1.5)),
-      focusedErrorBorder: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)), borderSide: BorderSide(color: Colors.red, width: 2)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: BizClearColors.inputBorder)),
+      focusedBorder: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)), borderSide: BorderSide(color: BizClearColors.webPrimary, width: 2)),
+      errorBorder: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)), borderSide: BorderSide(color: BizClearColors.error, width: 1.5)),
+      focusedErrorBorder: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)), borderSide: BorderSide(color: BizClearColors.error, width: 2)),
       filled: true,
-      fillColor: Colors.grey.shade50,
+      fillColor: BizClearColors.surfaceLight,
     );
   }
 
@@ -148,13 +148,13 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(color: Colors.blue.shade50, shape: BoxShape.circle),
-                      child: const Icon(Icons.lock_reset, size: 80, color: Colors.blue),
+                      decoration: BoxDecoration(color: BizClearColors.webPrimaryTintLight, shape: BoxShape.circle),
+                      child: Icon(Icons.lock_reset, size: 80, color: BizClearColors.webPrimary),
                     ),
                     const SizedBox(height: 24),
                     Text('Update Your Password', style: TextStyle(fontSize: titleSize, fontWeight: FontWeight.bold, color: Colors.black87), textAlign: TextAlign.center),
                     const SizedBox(height: 8),
-                    Text('Enter your current password and choose a new one', style: TextStyle(fontSize: subtitleSize, color: Colors.grey.shade600), textAlign: TextAlign.center),
+                    Text('Enter your current password and choose a new one', style: TextStyle(fontSize: subtitleSize, color: BizClearColors.textSecondary), textAlign: TextAlign.center),
                     const SizedBox(height: 24),
 
                     TextFormField(
@@ -163,7 +163,6 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                       enabled: !_loading,
                       decoration: _decoration(
                         'Current Password',
-                        Icons.lock_outline,
                         suffix: _currentController.text.isNotEmpty
                             ? IconButton(
                                 icon: Icon(_obscureCurrent ? Icons.visibility_off : Icons.visibility),
@@ -190,7 +189,6 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                       enabled: !_loading,
                       decoration: _decoration(
                         'New Password',
-                        Icons.lock,
                         suffix: _newController.text.isNotEmpty
                             ? IconButton(
                                 icon: Icon(_obscureNew ? Icons.visibility_off : Icons.visibility),
@@ -214,7 +212,6 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                       enabled: !_loading,
                       decoration: _decoration(
                         'Confirm New Password',
-                        Icons.lock,
                         suffix: _confirmController.text.isNotEmpty
                             ? IconButton(
                                 icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility),
@@ -233,12 +230,16 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
                     const SizedBox(height: 24),
                     SizedBox(
-                      height: 52,
+                      height: 40,
                       child: ElevatedButton(
                         onPressed: _loading ? null : _submit,
                         style: ElevatedButton.styleFrom(
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 2,
+                          padding: BizClearColors.primaryButtonPadding,
+                          minimumSize: BizClearColors.primaryButtonMinimumSize,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          textStyle: BizClearColors.primaryButtonTextStyle,
                         ),
                         child: _loading
                             ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))

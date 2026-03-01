@@ -71,6 +71,25 @@ const UserSchema = new mongoose.Schema(
     deletionUndoExpiresAt: { type: Date, default: null },
     // Theme preference (default, dark, document, blossom, sunset, royal)
     theme: { type: String, default: 'default' },
+    // ── PIS (Personal Information Sheet) fields — for LGU officer review (mirrors auth-service User) ──
+    middleName: { type: String, default: '' },
+    suffix: { type: String, default: '' },
+    address: {
+      street: { type: String, default: '' },
+      barangay: { type: String, default: '' },
+      city: { type: String, default: '' },
+      province: { type: String, default: '' },
+      zipCode: { type: String, default: '' },
+    },
+    sex: { type: String, enum: ['', 'male', 'female'], default: '' },
+    maritalStatus: { type: String, enum: ['', 'single', 'married', 'widowed', 'divorced', 'separated'], default: '' },
+    dateOfBirth: { type: Date, default: null },
+    placeOfBirth: { type: String, default: '' },
+    nationality: { type: String, default: '' },
+    fatherName: { type: String, default: '' },
+    motherName: { type: String, default: '' },
+    distinctiveMark: { type: String, default: '' },
+    highestEducationalAttainment: { type: String, enum: ['', 'elementary', 'high_school', 'vocational', 'college', 'postgraduate'], default: '' },
   },
   { timestamps: true }
 )

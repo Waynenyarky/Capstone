@@ -1,14 +1,15 @@
-import { Form } from 'antd'
+import { Form } from '@/shared/components/AppForm'
 import { useState } from 'react'
 import { useAuthSession } from "@/features/authentication"
-import { useNotifier } from '@/shared/notifications.js'
+import { useAuthNotification, useNotifier } from '@/shared/notifications.js'
 import { confirmAccountDeletion } from "@/features/authentication/services/authService"
 
 export function useConfirmDeleteAccountForm({ onSubmit, email, deleteToken } = {}) {
   const [form] = Form.useForm()
   const [isSubmitting, setSubmitting] = useState(false)
   const { logout } = useAuthSession()
-  const { success, error } = useNotifier()
+  const { notificationSuccess } = useAuthNotification()
+  const { error } = useNotifier()
 
   const handleFinish = async (values) => {
     const payload = { 
@@ -21,7 +22,7 @@ export function useConfirmDeleteAccountForm({ onSubmit, email, deleteToken } = {
       const data = await confirmAccountDeletion(payload)
       const date = data?.user?.deletionScheduledFor ? new Date(data.user.deletionScheduledFor) : null
       const dateStr = date ? date.toLocaleString() : 'in 30 days'
-      success(`Account deletion scheduled for ${dateStr}`)
+      notificationSuccess('Account deletion scheduled', `Your account will be deleted on ${dateStr}.`)
       form.resetFields()
       try { logout() } catch (err) { void err }
       if (typeof onSubmit === 'function') onSubmit(data)

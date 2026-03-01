@@ -21,6 +21,21 @@ function isPasswordExpired(passwordChangedAt) {
 }
 
 /**
+ * True only when the password is expired due to the 90-day policy (passwordChangedAt is set and older than 90 days).
+ * Returns false for null/undefined (first-time or temporary password) so the UI does not show "90-day policy" for new accounts.
+ * Use this for the passwordExpired flag in API responses (user-facing message). Use isPasswordExpired() for forcing mustChangeCredentials.
+ * @param {Date|string|null|undefined} passwordChangedAt - When the password was last set
+ * @returns {boolean} - True if password has expired due to 90-day policy only
+ */
+function isPasswordExpiredByPolicy(passwordChangedAt) {
+  if (passwordChangedAt == null) return false
+  const changed = new Date(passwordChangedAt).getTime()
+  if (Number.isNaN(changed)) return false
+  const cutoff = Date.now() - PASSWORD_EXPIRY_DAYS * MS_PER_DAY
+  return changed < cutoff
+}
+
+/**
  * Get expiry config (for tests or config exposure).
  */
 function getPasswordExpiryDays() {
@@ -30,5 +45,6 @@ function getPasswordExpiryDays() {
 module.exports = {
   PASSWORD_EXPIRY_DAYS,
   isPasswordExpired,
+  isPasswordExpiredByPolicy,
   getPasswordExpiryDays,
 }

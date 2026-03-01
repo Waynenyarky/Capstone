@@ -108,3 +108,7 @@ export async function setPrimaryBusiness(businessId) {
 export async function updateRiskProfile(businessId, riskProfileData) {
   return put(`${BASE_PATH}/businesses/${businessId}/risk-profile`, riskProfileData)
 }
+
+export async function createWalkInApplication(ownerId, businessData) {
+  return post(`${BASE_PATH}/staff/walk-in`, { ownerId, businessData })
+}

@@ -5,7 +5,7 @@ import { useNavigationNotifications } from "@/features/authentication/hooks"
 
 // Eager-load only the homepage (LCP) and auth shell - everything else is lazy
 import Home from "@/features/public/pages/Home"
-import { Login, SignUp, ForgotPassword, DeletionPendingScreen } from "@/features/authentication"
+import { Login, SignUp, SignUpMfaSetup, ForgotPassword, DeletionPendingScreen } from "@/features/authentication"
 
 // Lazy load routes - chunks load on navigation
 const TermsOfService = lazy(() => import("@/features/public").then(m => ({ default: m.TermsOfService })))
@@ -26,12 +26,18 @@ const AdminFormDefinitionEditor = lazy(() => import("@/features/admin").then(m =
 const AdminAuditTamper = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminAuditTamper })))
 const AdminRequests = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminRequests })))
 const AdminFinance = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminFinance })))
+const AdminLobTrainer = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminLobTrainer })))
+const AdminAnnouncements = lazy(() => import("@/features/admin/pages/AdminAnnouncements.jsx"))
 // Phase 2 admin pages
 const AdminFeeConfiguration = lazy(() => import("@/features/admin/pages/AdminFeeConfiguration.jsx"))
 const BusinessOwnerDashboard = lazy(() => import("@/features/business-owner").then(m => ({ default: m.BusinessOwnerDashboard })))
 const StaffDashboard = lazy(() => import("@/features/staffs").then(m => ({ default: m.StaffDashboard })))
 const StaffOnboarding = lazy(() => import("@/features/staffs").then(m => ({ default: m.StaffOnboarding })))
 const PermitReviewPage = lazy(() => import("@/features/staffs/lgu-officer/pages/PermitReviewPage.jsx"))
+const InspectionManagementPage = lazy(() => import("@/features/staffs/lgu-officer/pages/InspectionManagementPage.jsx"))
+const CessationReviewPage = lazy(() => import("@/features/staffs/lgu-officer/pages/CessationReviewPage.jsx"))
+const AppealsPage = lazy(() => import("@/features/staffs/lgu-officer/pages/StaffAppealsPage.jsx"))
+const StaffReportsPage = lazy(() => import("@/features/staffs/lgu-officer/pages/StaffReportsPage.jsx"))
 const PlaceholderPage = lazy(() => import("@/features/shared/pages/PlaceholderPage.jsx"))
 const LGUManagerDashboard = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.LGUManagerDashboard })))
 const ReportsAnalyticsPage = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.ReportsAnalyticsPage })))
@@ -62,6 +68,7 @@ function App() {
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
       <Route path="/sign-up" element={<PublicRoute><SignUp /></PublicRoute>} />
+      <Route path="/signup/mfa-setup" element={<SignUpMfaSetup />} />
       <Route path="/auth/passkey-mobile" element={<PublicRoute><PasskeyMobileAuth /></PublicRoute>} />
       <Route path="/deletion-pending" element={<ProtectedRoute><DeletionPendingScreen /></ProtectedRoute>} />
       <Route path="/account/security" element={<ProtectedRoute><MfaSetup /></ProtectedRoute>} />
@@ -82,16 +89,25 @@ function App() {
         <Route path="finance" element={<AdminFinance />} />
         <Route path="security" element={<AdminAuditTamper />} />
         <Route path="audit-tamper" element={<Navigate to="/admin/security" replace />} />
+        <Route path="lob-trainer" element={<AdminLobTrainer />} />
+        <Route path="announcements" element={<AdminAnnouncements />} />
       </Route>
 
       {/* Business Owner Routes */}
       <Route path="/owner" element={<ProtectedRoute allowedRoles={['business_owner']}><BusinessOwnerDashboard /></ProtectedRoute>} />
+      <Route path="/owner/notifications" element={<Navigate to="/notifications" replace />} />
       
       {/* Staff Routes */}
       <Route path="/staff" element={<ProtectedRoute allowedRoles={['staff', 'lgu_officer', 'lgu_manager', 'inspector', 'cso']}><Outlet /></ProtectedRoute>}>
         <Route index element={<StaffDashboard />} />
         <Route path="onboarding" element={<StaffOnboarding />} />
         <Route path="applications" element={<PermitReviewPage />} />
+        <Route path="inspections" element={<InspectionManagementPage />} />
+        <Route path="cessation" element={<CessationReviewPage />} />
+        <Route path="appeals" element={<AppealsPage />} />
+        <Route path="reports" element={<StaffReportsPage />} />
+        <Route path="support" element={<PlaceholderPage title="Customer Support" />} />
+        <Route path="recovery-request" element={<PlaceholderPage title="Account Recovery Requests" />} />
       </Route>
 
       {/* LGU Manager Routes */}

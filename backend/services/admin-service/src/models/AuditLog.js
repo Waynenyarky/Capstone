@@ -52,6 +52,21 @@ const AuditLogSchema = new mongoose.Schema(
         'fee_config_deleted',
         'regulatory_fee_config_updated',
         'other',
+        'form_definition_created',
+        'form_definition_updated',
+        'form_definition_published',
+        'form_definition_archived',
+        'form_definition_duplicated',
+        'announcement_created',
+        'announcement_updated',
+        'announcement_deleted',
+        'staff_created',
+        'containment_activated',
+        'containment_deactivated',
+        'contact_update',
+        'name_update',
+        'error_critical',
+        'restricted_field_attempt',
       ],
       index: true,
     },
@@ -90,6 +105,14 @@ const AuditLogSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
+    blockchainStatus: {
+      type: String,
+      enum: ['pending', 'anchored', 'failed', 'skipped'],
+      default: 'pending',
+      index: true,
+    },
+    blockchainError: { type: String, default: '' },
+    blockchainRetries: { type: Number, default: 0 },
     verified: {
       type: Boolean,
       default: false,
@@ -104,6 +127,5 @@ const AuditLogSchema = new mongoose.Schema(
 
 AuditLogSchema.index({ userId: 1, createdAt: -1 })
 AuditLogSchema.index({ eventType: 1, createdAt: -1 })
-AuditLogSchema.index({ txHash: 1 })
 
 module.exports = mongoose.models.AuditLog || mongoose.model('AuditLog', AuditLogSchema)

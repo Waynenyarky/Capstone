@@ -27,13 +27,16 @@ vi.mock('antd', async () => {
 vi.mock('@/features/user/services/userService.js', () => ({
   getUserProfile: vi.fn(),
   updateUserProfile: vi.fn(),
+  updateBusinessOwnerProfileName: vi.fn(),
+  updateBusinessOwnerProfileContact: vi.fn(),
+  updateBusinessOwnerProfilePis: vi.fn(),
 }))
 
-// Mock auth session
+// Mock auth session (use non-business-owner role so tests use updateUserProfile)
 vi.mock('@/features/authentication', () => ({
   useAuthSession: () => ({
     currentUser: { id: '123', email: 'test@example.com' },
-    role: { slug: 'business_owner' },
+    role: { slug: 'user' },
     login: vi.fn(),
   }),
 }))
@@ -43,6 +46,10 @@ vi.mock('@/shared/notifications.js', () => ({
   useNotifier: () => ({
     success: vi.fn(),
     error: vi.fn(),
+  }),
+  useAuthNotification: () => ({
+    notificationSuccess: vi.fn(),
+    notificationError: vi.fn(),
   }),
 }))
 

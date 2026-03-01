@@ -1,6 +1,7 @@
 // Centralized validation exports to simplify imports across the app.
 // Avoid duplicate names by aliasing where rules overlap across contexts.
 
+export { namePatternRule } from './namePattern.js'
 export {
   firstNameRules,
   lastNameRules,

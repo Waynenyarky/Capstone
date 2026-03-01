@@ -572,17 +572,12 @@ describe('FormDefinition Model Tests', () => {
 
       expect(def.sections.length).toBeGreaterThan(0)
 
-      // Check Business Activity section exists with tax code, line of business in repeatable group
-      const activitySection = def.sections.find((s) => s.category === 'Business Activity')
-      expect(activitySection).toBeTruthy()
-      const repeatableItem = activitySection.items.find((i) => i.type === 'repeatable_group' && i.groupFields)
-      expect(repeatableItem).toBeTruthy()
-      const taxCodeField = repeatableItem.groupFields.find((f) => f.key === 'taxCode')
-      expect(taxCodeField).toBeTruthy()
-      expect(taxCodeField.type).toBe('select')
-      const lobField = repeatableItem.groupFields.find((f) => f.key === 'lineOfBusiness')
-      expect(lobField).toBeTruthy()
-      expect(lobField.type).toBe('select')
+      // Check Line of Business (AI) section exists with ai_lob_recommendation field
+      const lobSection = def.sections.find((s) => s.category === 'Line of Business (AI)')
+      expect(lobSection).toBeTruthy()
+      const aiLobField = lobSection.items.find((i) => i.type === 'ai_lob_recommendation')
+      expect(aiLobField).toBeTruthy()
+      expect(aiLobField.key).toBe('aiLobRecommendation')
 
       // Check Ownership / Lease section
       const ownershipSection = def.sections.find((s) => s.category === 'Ownership / Lease Information')

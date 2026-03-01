@@ -79,7 +79,6 @@ export default function Maintenance() {
               <Button 
                 icon={<LogoutOutlined />} 
                 onClick={() => logout()}
-                size="large"
                 style={{ 
                   height: '48px', 
                   padding: '0 32px', 

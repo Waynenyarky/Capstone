@@ -2,8 +2,11 @@ import { ForgotPasswordForm, VerificationForm, ChangePasswordForm } from "@/feat
 import { usePasswordResetFlow, useResendForgotPasswordCode } from "@/features/authentication/hooks"
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useNotifier } from '@/shared/notifications.js'
+import { Button, Typography } from 'antd'
+import { useAuthNotification } from '@/shared/notifications.js'
 import { getCurrentUser } from '@/features/authentication/lib/authEvents.js'
+
+const { Title, Text } = Typography
 
 function redirectByRole(navigate, user) {
   const role = String(user?.role?.slug || user?.role || '').toLowerCase()
@@ -30,21 +33,21 @@ function redirectByRole(navigate, user) {
 export default function PasswordResetFlow() {
   const { step, forgotProps, verifyProps, changeProps, goBack } = usePasswordResetFlow()
   const navigate = useNavigate()
-  const { success } = useNotifier()
+  const { notificationSuccess } = useAuthNotification()
   const resend = useResendForgotPasswordCode({ email: verifyProps.email, cooldownSec: 60 })
 
   useEffect(() => {
     if (step === 'done') {
       const user = getCurrentUser()
       if (user) {
-        success('Your password was updated. You are now logged in.')
+        notificationSuccess('Password updated', 'You are now logged in.')
         redirectByRole(navigate, user)
       } else {
-        success('Your password was updated. Please log in with your new password.')
+        notificationSuccess('Password updated', 'Please log in with your new password.')
         navigate('/login')
       }
     }
-  }, [step, navigate, success])
+  }, [step, navigate, notificationSuccess])
 
   return (
     <>
@@ -68,6 +71,18 @@ export default function PasswordResetFlow() {
           onSubmit={changeProps.onSubmit}
           onBack={goBack}
         />
+      )}
+      {step === 'not_allowed' && (
+        <div style={{ maxWidth: 400, margin: '0 auto', width: '100%', textAlign: 'center' }}>
+          <Title level={3} style={{ marginBottom: 16 }}>Password reset not available</Title>
+          <Text type="secondary" style={{ display: 'block', marginBottom: 24, textAlign: 'left', lineHeight: 1.6 }}>
+            Password reset is not available for your account type. If you are <strong>staff</strong>, use <strong>Request Recovery</strong> from the staff portal. If you are an <strong>administrator</strong>, contact another administrator to change your password. This attempt has been logged and administrators have been alerted.
+          </Text>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Button onClick={goBack}>Back</Button>
+            <Button type="primary" onClick={() => navigate('/login')}>Go to login</Button>
+          </div>
+        </div>
       )}
     </>
   )

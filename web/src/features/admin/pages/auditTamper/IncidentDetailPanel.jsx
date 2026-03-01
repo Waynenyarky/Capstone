@@ -25,6 +25,12 @@ const { Text } = Typography
 
 const statusColors = { new: 'red', acknowledged: 'gold', resolved: 'green' }
 const severityColors = { high: 'red', medium: 'orange', low: 'blue' }
+const verificationStatusLabels = {
+  tamper_detected: 'Tamper detected',
+  verification_error: 'Verification error',
+  not_logged: 'Not logged',
+  security_event: 'Security event',
+}
 
 export default function IncidentDetailPanel({
   incident,
@@ -167,7 +173,7 @@ export default function IncidentDetailPanel({
             <Tag color={severityColors[incident.severity] || 'default'}>{incident.severity}</Tag>
           </Descriptions.Item>
           <Descriptions.Item label="Verification status">
-            {incident.verificationStatus || '—'}
+            {verificationStatusLabels[incident.verificationStatus] || incident.verificationStatus || '—'}
           </Descriptions.Item>
           <Descriptions.Item label="Containment">
             <Tag color={incident.containmentActive ? 'red' : 'blue'}>

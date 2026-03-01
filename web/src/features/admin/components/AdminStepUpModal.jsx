@@ -95,7 +95,6 @@ export default function AdminStepUpModal({ open, onCancel, onVerified, mfaMethod
             type="primary"
             icon={<SafetyCertificateOutlined />}
             block
-            size="large"
             loading={loading}
             onClick={handlePasskeyClick}
           >
@@ -110,10 +109,9 @@ export default function AdminStepUpModal({ open, onCancel, onVerified, mfaMethod
               onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               onPressEnter={handleTotpSubmit}
               maxLength={6}
-              size="large"
               autoComplete="one-time-code"
             />
-            <Button type="primary" block size="large" loading={loading} onClick={handleTotpSubmit}>
+            <Button type="primary" block loading={loading} onClick={handleTotpSubmit}>
               Verify
             </Button>
           </>

@@ -214,8 +214,8 @@ describe('Walk-In Application (2D)', () => {
         })
 
       expect(res.status).toBe(201)
-      // Fees should be 0 but application still created
-      expect(res.body.data.computedFees.total).toBe(0)
+      // Application created; fees include fire safety minimum (P500) when no LOB config found
+      expect(res.body.data.computedFees.total).toBe(500)
       expect(res.body.data.computedFees.warnings).toBeDefined()
     })
   })
@@ -242,7 +242,7 @@ describe('Walk-In Application (2D)', () => {
       expect(res.status).toBe(200)
       expect(res.body.data.mayorsPermitFee).toBe(300)
       expect(res.body.data.businessTax).toBe(2000) // 100000 * 2%
-      expect(res.body.data.total).toBe(2300)
+      expect(res.body.data.total).toBe(2800) // 300 + 2000 + 500 (fire safety min)
     })
   })
 

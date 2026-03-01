@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from 'react'
-import { Row, Col, Form, theme } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Row, Col, theme } from 'antd'
 import { useLocation } from 'react-router-dom'
 import { SecurityScanOutlined } from '@ant-design/icons'
 import { useStaffOnboarding } from '../hooks/useStaffOnboarding'
 import StaffLayout from '../components/StaffLayout'
 import { OnboardingStepContent } from '@/features/shared'
 import { mfaStatus } from '@/features/authentication/services/mfaService'
+import { getProfile } from '@/features/authentication/services/authService'
+import { useAuthSession } from '@/features/authentication'
 
-// Dev mode: bypass MFA setup when VITE_BYPASS_MFA_DEV=true
-const bypassMfaDev = import.meta.env.VITE_BYPASS_MFA_DEV === 'true'
+// MFA always required for staff when backend sets mustSetupMfa (no dev bypass)
+const bypassMfaDev = false
 
 export default function StaffOnboarding() {
   const [currentStep, setCurrentStep] = useState(0)
+  const { login } = useAuthSession()
   const {
     form,
     submitting,
@@ -22,13 +26,12 @@ export default function StaffOnboarding() {
     handleCredentialsFinish,
     navigate,
   } = useStaffOnboarding({
-    onCredentialsSuccess: () => setCurrentStep(bypassMfaDev ? 3 : 2),
+    onCredentialsSuccess: () => setCurrentStep(2),
   })
-  // Override mustMfa in dev mode
-  const mustMfa = bypassMfaDev ? false : mustMfaRaw
+  const mustMfa = mustMfaRaw
   const { token } = theme.useToken()
   const location = useLocation()
-  const [mfaEnabled, setMfaEnabled] = useState(bypassMfaDev ? true : false)
+  const [mfaEnabled, setMfaEnabled] = useState(false)
   const [checkingMfa, setCheckingMfa] = useState(false)
 
   useEffect(() => {
@@ -81,8 +84,17 @@ export default function StaffOnboarding() {
     }
   }, [location.pathname, currentUser?.email, currentStep])
 
-  const handleComplete = () => {
-    navigate(homePath, { replace: true })
+  const handleComplete = async () => {
+    try {
+      const fresh = await getProfile()
+      const merged = { ...currentUser, ...fresh, token: currentUser?.token }
+      const remember = !!localStorage.getItem('auth__currentUser')
+      login(merged, { remember })
+    } catch (e) {
+      console.error('[StaffOnboarding] Failed to refresh profile before dashboard', e)
+    }
+    // Defer navigation so auth context can re-render with updated user; otherwise StaffDashboard may still see stale mustChangeCredentials/mustSetupMfa and redirect back
+    setTimeout(() => navigate(homePath, { replace: true }), 0)
   }
 
   return (

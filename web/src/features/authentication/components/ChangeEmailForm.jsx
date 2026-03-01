@@ -1,4 +1,5 @@
-import { Form, Input, Button, Typography } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Input, Button, Typography } from 'antd'
 import { useChangeEmailForm } from "@/features/authentication/hooks"
 import { emailRules } from "@/features/authentication/utils/validations"
 import { MailOutlined } from '@ant-design/icons'
@@ -23,7 +24,6 @@ export default function ChangeEmailForm({ currentEmail, resetToken, onSubmit } =
         layout="vertical" 
         onFinish={handleFinish} 
         initialValues={{ newEmail: '' }}
-        size="large"
         requiredMark={false}
       >
         <Form.Item
@@ -47,7 +47,7 @@ export default function ChangeEmailForm({ currentEmail, resetToken, onSubmit } =
 
         <Form.Item style={{ marginBottom: 16 }}>
           <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block>
-            Continue
+            Update Email
           </Button>
         </Form.Item>
       </Form>

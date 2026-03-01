@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Form, App } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { App } from 'antd'
 import {
   getFormDefinition,
   updateFormDefinition,

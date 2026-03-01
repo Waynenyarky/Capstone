@@ -106,7 +106,7 @@ export default function MaintenanceMobileView({
         footer={null}
         width="100%"
         style={{ maxWidth: 480 }}
-        destroyOnClose
+        destroyOnHidden
       >
         {selectedApproval && (
           <MaintenanceRequestDetailPanel
@@ -236,7 +236,7 @@ export default function MaintenanceMobileView({
         onCancel={() => setSelectedHistoryApproval(null)}
         footer={null}
         width="90%"
-        destroyOnClose
+        destroyOnHidden
       >
         {selectedHistoryApproval && <MaintenanceHistoryDetailPanel approval={selectedHistoryApproval} />}
       </Modal>

@@ -1,67 +1,92 @@
-import { Steps, theme, Result, Button } from 'antd'
-import { SendCodeForCurrentUser, VerificationForm, ChangePasswordForm } from "@/features/authentication"
-import { useLoggedInPasswordChangeFlow, useResendForgotPasswordCode } from "@/features/authentication/hooks"
-import { MailOutlined, SafetyCertificateOutlined, LockOutlined } from '@ant-design/icons'
+import { useState } from 'react'
+import { Form } from '@/shared/components/AppForm'
+import { Input, Button, Typography, Result } from 'antd'
+import { changePasswordRules, changeConfirmPasswordRules } from '@/features/authentication/validations'
+import PasswordStrengthIndicator from '@/features/authentication/components/PasswordStrengthIndicator.jsx'
+import { useLoggedInPasswordChangeFlow } from '@/features/authentication/hooks'
 
-export default function LoggedInPasswordChangeFlow() {
-  const { step, sendProps, verifyProps, changeProps, reset, goBack } = useLoggedInPasswordChangeFlow()
-  const { token } = theme.useToken()
-  const resend = useResendForgotPasswordCode({ email: verifyProps.email, cooldownSec: 60 })
+const { Title, Text } = Typography
 
-  const currentStep = step === 'send' ? 0 : step === 'verify' ? 1 : step === 'change' ? 2 : 3
-  const items = [
-    { title: 'Request Code', icon: <MailOutlined /> },
-    { title: 'Verify', icon: <SafetyCertificateOutlined /> },
-    { title: 'New Password', icon: <LockOutlined /> },
-  ]
+export default function LoggedInPasswordChangeFlow({ onBackToStart } = {}) {
+  const { step, changeProps, reset } = useLoggedInPasswordChangeFlow()
+  const [passwordForm] = Form.useForm()
+  const [passwordValue, setPasswordValue] = useState('')
+  const [isSubmitting, setSubmitting] = useState(false)
+  const showBack = typeof onBackToStart === 'function'
 
-  return (
-    <div style={{ maxWidth: 600, margin: '0 auto' }}>
-      <div>
-      
-        {step === 'send' && (
-          <SendCodeForCurrentUser
-            email={sendProps.email}
-            onSent={sendProps.onSent}
-            title="Secure Password Change"
-            subtitle="To protect your account, we need to verify your identity before changing your password."
-          />
-        )}
-        {step === 'verify' && (
-          <VerificationForm
-            email={verifyProps.email}
-            onSubmit={verifyProps.onSubmit}
-            title="Verify Identity"
-            isLoggedInFlow={true}
-            onResend={resend.handleResend}
-            isResending={resend.isSending}
-            isCooling={resend.isCooling}
-            remaining={resend.remaining}
-            onBack={goBack}
-          />
-        )}
-        {step === 'change' && (
-          <ChangePasswordForm
-            email={changeProps.email}
-            resetToken={changeProps.resetToken}
-            onSubmit={changeProps.onSubmit}
-            isLoggedInFlow={true}
-            onBack={goBack}
-          />
-        )}
-        {step === 'done' && (
-          <Result
-            status="success"
-            title="Password Changed Successfully"
-            subTitle="Your password has been updated. You can now use your new password to log in."
-            extra={[
-              <Button type="primary" key="again" onClick={reset}>
-                Change Again
-              </Button>,
-            ]}
-          />
-        )}
+  const onPasswordFinish = async (values) => {
+    setSubmitting(true)
+    try {
+      await changeProps.onSubmit(values)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (step === 'password') {
+    return (
+      <div style={{ maxWidth: 420, width: '100%', margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <Title level={4} style={{ marginBottom: 8 }}>Change Password</Title>
+          <Text type="secondary">Enter your current password and choose a new one.</Text>
+        </div>
+        <Form
+          form={passwordForm}
+          layout="vertical"
+          onFinish={onPasswordFinish}
+          requiredMark={false}
+        >
+          <Form.Item
+            name="currentPassword"
+            label="Current Password"
+            rules={[{ required: true, message: 'Please enter your current password' }]}
+          >
+            <Input.Password placeholder="Enter current password" variant="filled" />
+          </Form.Item>
+          <Form.Item name="password" label="New Password" rules={changePasswordRules}>
+            <Input.Password
+              placeholder="Enter new password"
+              variant="filled"
+              onChange={(e) => setPasswordValue(e?.target?.value ?? '')}
+            />
+          </Form.Item>
+          <PasswordStrengthIndicator value={passwordValue} />
+          <Form.Item name="confirmPassword" label="Confirm New Password" dependencies={['password']} hasFeedback rules={changeConfirmPasswordRules}>
+            <Input.Password placeholder="Confirm new password" variant="filled" />
+          </Form.Item>
+          <Form.Item style={{ marginBottom: 16 }}>
+            <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block>
+              Change password
+            </Button>
+          </Form.Item>
+          {showBack && (
+            <div style={{ textAlign: 'center' }}>
+              <Button type="text" onClick={onBackToStart} style={{ padding: 0 }}>
+                Back
+              </Button>
+            </div>
+          )}
+        </Form>
       </div>
-    </div>
-  )
+    )
+  }
+
+  if (step === 'done') {
+    return (
+      <div style={{ maxWidth: 420, width: '100%', margin: '0 auto' }}>
+        <Result
+          status="success"
+          title="Password Changed Successfully"
+          subTitle="Your password has been updated. You can now use your new password to log in."
+          extra={[
+            <Button type="primary" key="again" onClick={reset}>
+              Change again
+            </Button>,
+          ]}
+        />
+      </div>
+    )
+  }
+
+  return null
 }

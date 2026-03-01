@@ -168,6 +168,10 @@ const BusinessProfileSchema = new mongoose.Schema(
       retirementConfirmedAt: { type: Date, default: null },
       retirementRejectionReason: { type: String, default: '' },
 
+      permitRevoked: { type: Boolean, default: false },
+      revokedAt: { type: Date, default: null },
+      revokedReason: { type: String, default: '' },
+
       // New Business Registration Application Fields
       applicationStatus: {
         type: String,
@@ -253,6 +257,11 @@ const BusinessProfileSchema = new mongoose.Schema(
       submittedAt: { type: Date },
       submittedToLguOfficer: { type: Boolean, default: false },
       isSubmitted: { type: Boolean, default: false },
+      // Permit / form application fields (draft and submitted)
+      formType: { type: String, default: '' },
+      category: { type: String, default: '' },
+      formDefinitionId: { type: mongoose.Schema.Types.Mixed, default: null },
+      formData: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
       // Business Renewal Applications
       renewals: [{
         renewalId: { type: String, required: true },

@@ -12,6 +12,8 @@ const mongoose = require('mongoose')
 const User = require('../models/User')
 const Role = require('../models/Role')
 const respond = require('../middleware/respond')
+const { sendPasskeyAddedNotification, sendPasskeyRemovedNotification } = require('../lib/notificationService')
+const inAppNotificationService = require('../services/notificationService')
 const { validateBody, Joi } = require('../middleware/validation')
 const { requireJwt, requireRole, signStepUpToken } = require('../middleware/auth')
 
@@ -464,7 +466,8 @@ router.post('/webauthn/register/complete', validateBody(registrationCompleteSche
       
       user.webauthnCredentials.push(newCredential)
       user.mfaEnabled = true
-      
+      user.mfaReEnrollmentRequired = false
+
       // Resolve role for admin check and MFA activation
       let roleSlug = ''
       try {
@@ -506,7 +509,13 @@ router.post('/webauthn/register/complete', validateBody(registrationCompleteSche
       }
       
       await user.save()
-      
+
+      sendPasskeyAddedNotification(user._id).catch((err) => {
+        console.error('Failed to send passkey added notification:', err)
+      })
+
+      inAppNotificationService.createNotification(user._id, 'auth_passkey_added', 'Passkey added', 'Your passkey has been added successfully.').catch((err) => console.error('Failed to create auth notification:', err))
+
       // Verify it was saved correctly
       const savedUser = await User.findOne({ email: normalizedEmail })
       const savedCred = savedUser.webauthnCredentials.find(c => c.credId === credID)
@@ -636,19 +645,55 @@ router.post('/webauthn/authenticate/start', validateBody(authStartSchema), async
 const authCompleteSchema = Joi.object({
    email: Joi.string().email().optional(),
    credential: Joi.object().required(),
-   purpose: Joi.string().valid('admin_step_up').optional(),
+   purpose: Joi.string().valid('admin_step_up', 'mfa_disable', 'mfa_disable_undo').optional(),
 })
 
-// Helper: run step-up auth (JWT + admin role) and set req._stepUp when purpose is admin_step_up
+const mfaStepUpVerify = require('../lib/mfaStepUpVerify')
+
+// Helper: run step-up auth (JWT + admin role) and set req._stepUp when purpose is admin_step_up; same for mfa_disable / mfa_disable_undo
 function withStepUpIfNeeded(req, res, rest) {
-  if (req.body.purpose !== 'admin_step_up') return rest()
-  requireJwt(req, res, () => {
-    requireRole(['admin'])(req, res, async () => {
+  const purpose = req.body.purpose
+  if (purpose === 'admin_step_up') {
+    return requireJwt(req, res, () => {
+      requireRole(['admin'])(req, res, async () => {
+        try {
+          const stepUpKey = 'step_up_' + req._userId
+          let expectedChallenge = authenticationChallenges.get(stepUpKey)
+          if (!expectedChallenge) {
+            return respond.error(res, 428, 'challenge_missing', 'Step-up challenge expired. Start step-up again.')
+          }
+          if (Buffer.isBuffer(expectedChallenge)) expectedChallenge = expectedChallenge.toString('base64url')
+          else if (expectedChallenge instanceof Uint8Array) expectedChallenge = Buffer.from(expectedChallenge).toString('base64url')
+          else if (typeof expectedChallenge !== 'string') expectedChallenge = Buffer.from(expectedChallenge).toString('base64url')
+          const user = await User.findById(req._userId).populate('role')
+          if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
+          const cred = req.body.credential || {}
+          const receivedCredId = String(cred.id || cred.rawId || '').trim()
+          const receivedRawId = String(cred.rawId || cred.id || '').trim()
+          const credRecord = (user.webauthnCredentials || []).find((c) => {
+            if (!c || !c.credId) return false
+            const storedCredId = String(c.credId).trim()
+            if (storedCredId === receivedCredId || storedCredId === receivedRawId) return true
+            const n = storedCredId.replace(/=+$/, '')
+            return n === receivedCredId.replace(/=+$/, '') || n === receivedRawId.replace(/=+$/, '')
+          })
+          if (!credRecord) return respond.error(res, 404, 'credential_not_found', 'Credential not recognized.')
+          req._stepUp = { expectedChallenge, user, credRecord }
+          rest()
+        } catch (e) {
+          console.error('[WebAuthn] admin step-up prepare error:', e)
+          return respond.error(res, 500, 'step_up_failed', 'Step-up verification failed')
+        }
+      })
+    })
+  }
+  if (purpose === 'mfa_disable' || purpose === 'mfa_disable_undo') {
+    return requireJwt(req, res, async () => {
       try {
-        const stepUpKey = 'step_up_' + req._userId
-        let expectedChallenge = authenticationChallenges.get(stepUpKey)
+        const key = purpose === 'mfa_disable' ? 'mfa_disable_' + req._userId : 'mfa_undo_' + req._userId
+        let expectedChallenge = authenticationChallenges.get(key)
         if (!expectedChallenge) {
-          return respond.error(res, 428, 'challenge_missing', 'Step-up challenge expired. Start step-up again.')
+          return respond.error(res, 428, 'challenge_missing', 'Verification challenge expired. Please try again.')
         }
         if (Buffer.isBuffer(expectedChallenge)) expectedChallenge = expectedChallenge.toString('base64url')
         else if (expectedChallenge instanceof Uint8Array) expectedChallenge = Buffer.from(expectedChallenge).toString('base64url')
@@ -669,11 +714,12 @@ function withStepUpIfNeeded(req, res, rest) {
         req._stepUp = { expectedChallenge, user, credRecord }
         rest()
       } catch (e) {
-        console.error('[WebAuthn] admin step-up prepare error:', e)
-        return respond.error(res, 500, 'step_up_failed', 'Step-up verification failed')
+        console.error('[WebAuthn] mfa step-up prepare error:', e)
+        return respond.error(res, 500, 'verification_failed', 'Verification failed')
       }
     })
-  })
+  }
+  return rest()
 }
 
 // POST /api/auth/webauthn/authenticate/complete
@@ -703,7 +749,7 @@ router.post('/webauthn/authenticate/complete', validateBody(authCompleteSchema),
       let user = null
       let credRecord = null
 
-      if (req.body.purpose === 'admin_step_up' && req._stepUp) {
+      if ((req.body.purpose === 'admin_step_up' || req.body.purpose === 'mfa_disable' || req.body.purpose === 'mfa_disable_undo') && req._stepUp) {
         expectedChallenge = req._stepUp.expectedChallenge
         user = req._stepUp.user
         credRecord = req._stepUp.credRecord
@@ -1191,6 +1237,16 @@ router.post('/webauthn/authenticate/complete', validateBody(authCompleteSchema),
           const { token: stepUpToken, expiresAtMs } = signStepUpToken(req._userId)
           return res.json({ stepUpToken, expiresAtMs })
         }
+        if (req.body.purpose === 'mfa_disable') {
+          authenticationChallenges.delete('mfa_disable_' + req._userId)
+          mfaStepUpVerify.setDisableRequestVerified(req._userId)
+          return res.json({ verified: true })
+        }
+        if (req.body.purpose === 'mfa_disable_undo') {
+          authenticationChallenges.delete('mfa_undo_' + req._userId)
+          mfaStepUpVerify.setDisableUndoVerified(req._userId)
+          return res.json({ verified: true })
+        }
 
         try {
            // Use the user document with populated role for token signing
@@ -1201,6 +1257,8 @@ router.post('/webauthn/authenticate/complete', validateBody(authCompleteSchema),
         } catch (err) {
            console.error('[WebAuthn] Token signing error:', err)
         }
+
+        inAppNotificationService.createNotification(user._id, 'auth_login', 'Welcome back', 'You have signed in successfully.').catch((err) => console.error('Failed to create auth notification:', err))
 
         return res.json(safe)
       } catch (verifyErr) {
@@ -1941,7 +1999,8 @@ router.post('/webauthn/cross-device/complete', validateBody(crossDeviceCompleteS
         transports: registrationInfo.transports || []
       })
       dbUser.mfaEnabled = true
-      
+      dbUser.mfaReEnrollmentRequired = false
+
       // Update mfaMethod to include passkey, preserving existing methods
       const currentMethod = String(dbUser.mfaMethod || '').toLowerCase()
       const methods = new Set()
@@ -1995,6 +2054,8 @@ router.post('/webauthn/cross-device/complete', validateBody(crossDeviceCompleteS
       } catch (err) {
         console.error('cross-device token signing error', err)
       }
+
+      inAppNotificationService.createNotification(populatedUser._id, 'auth_login', 'Welcome back', 'You have signed in successfully.').catch((err) => console.error('Failed to create auth notification:', err))
 
       session.authenticated = true
       session.user = safe
@@ -2273,6 +2334,8 @@ router.post('/webauthn/cross-device/complete', validateBody(crossDeviceCompleteS
         console.error('cross-device token signing error', err)
       }
 
+      inAppNotificationService.createNotification(user._id, 'auth_login', 'Welcome back', 'You have signed in successfully.').catch((err) => console.error('Failed to create auth notification:', err))
+
       // Update session
       session.authenticated = true
       session.user = safe
@@ -2398,6 +2461,10 @@ router.delete('/webauthn/credentials/:credId', requireJwt, async (req, res) => {
     }
     
     await user.save()
+    sendPasskeyRemovedNotification(userId).catch((err) => {
+      console.error('Failed to send passkey removed notification:', err)
+    })
+    inAppNotificationService.createNotification(userId, 'auth_passkey_removed', 'Passkey removed', 'The passkey has been removed from your account.').catch((err) => console.error('Failed to create auth notification:', err))
     return res.json({ deleted: true, remainingCount: user.webauthnCredentials.length })
   } catch (err) {
     console.error('DELETE /api/auth/webauthn/credentials/:credId error:', err)
@@ -2428,6 +2495,12 @@ router.delete('/webauthn/credentials', requireJwt, async (req, res) => {
     }
     
     await user.save()
+    if (hadCredentials) {
+      sendPasskeyRemovedNotification(userId).catch((err) => {
+        console.error('Failed to send passkey removed notification:', err)
+      })
+      inAppNotificationService.createNotification(userId, 'auth_passkey_removed', 'Passkey removed', 'The passkey has been removed from your account.').catch((err) => console.error('Failed to create auth notification:', err))
+    }
     return res.json({ disabled: true, hadCredentials })
   } catch (err) {
     console.error('DELETE /api/auth/webauthn/credentials error:', err)

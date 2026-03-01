@@ -1,38 +1,33 @@
 import { useAuthSession } from "@/features/authentication"
 import { useCallback, useEffect, useState } from 'react'
+import { deleteAccountAuthenticated } from '@/features/authentication/services'
+import { useNotifier } from '@/shared/notifications'
 
 export function useLoggedInDeleteAccountFlow() {
   const { currentUser } = useAuthSession()
-  const [step, setStep] = useState('send')
+  const { error } = useNotifier()
+  const [step, setStep] = useState('confirm')
   const [email, setEmail] = useState(currentUser?.email || '')
-  const [deleteToken, setDeleteToken] = useState('')
 
   useEffect(() => {
     setEmail(currentUser?.email || '')
   }, [currentUser])
 
-  const handleSent = useCallback(() => {
-    setStep('verify')
-  }, [])
+  const handleConfirmSubmit = useCallback(async ({ password }) => {
+    try {
+      await deleteAccountAuthenticated({ password })
+      setStep('done')
+    } catch (err) {
+      console.error('Delete account error:', err)
+      error(err, 'Failed to delete account')
+    }
+  }, [error])
 
-  const handleVerifySubmit = useCallback(({ email: e, deleteToken: token }) => {
-    setEmail(e)
-    setDeleteToken(token)
+  const reset = useCallback(() => {
     setStep('confirm')
   }, [])
 
-  const handleConfirmSubmit = useCallback(() => {
-    setStep('done')
-  }, [])
+  const confirmProps = { email, onSubmit: handleConfirmSubmit }
 
-  const reset = useCallback(() => {
-    setStep('send')
-    setDeleteToken('')
-  }, [])
-
-  const sendProps = { email, onSent: handleSent }
-  const verifyProps = { email, onSubmit: handleVerifySubmit }
-  const confirmProps = { email, deleteToken, onSubmit: handleConfirmSubmit }
-
-  return { step, sendProps, verifyProps, confirmProps, email, deleteToken, reset }
+  return { step, confirmProps, email, reset }
 }

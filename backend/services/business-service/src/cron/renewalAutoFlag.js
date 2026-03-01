@@ -5,8 +5,14 @@
  * Also runs monthly to calculate interest on overdue renewals.
  */
 const BusinessProfile = require('../models/BusinessProfile')
-const PenaltyConfiguration = require('../../../../services/admin-service/src/models/PenaltyConfiguration')
 const logger = require('../lib/logger')
+
+let PenaltyConfiguration = null
+try {
+  PenaltyConfiguration = require('../../../../services/admin-service/src/models/PenaltyConfiguration')
+} catch (_) {
+  logger.warn('[renewalAutoFlag] PenaltyConfiguration model not available — using defaults')
+}
 
 /**
  * Flag all active businesses for renewal at the start of each year.
@@ -70,7 +76,9 @@ async function calculateMonthlyInterest() {
     // Get active penalty config
     let penaltyConfig = null
     try {
-      penaltyConfig = await PenaltyConfiguration.findOne({ isActive: true }).lean()
+      if (PenaltyConfiguration) {
+        penaltyConfig = await PenaltyConfiguration.findOne({ isActive: true }).lean()
+      }
     } catch (_) {
       // PenaltyConfiguration might not be accessible from business-service
     }

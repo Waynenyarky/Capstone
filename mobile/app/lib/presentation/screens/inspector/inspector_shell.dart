@@ -1,8 +1,10 @@
-import 'dart:io' as io;
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:app/core/theme/bizclear_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'package:app/data/services/connectivity_service.dart';
+import 'package:app/data/local/inspection_local_store.dart';
 import '../login_page.dart';
 import '../profile.dart';
 import 'package:app/data/services/google_auth_service.dart';
@@ -48,57 +50,105 @@ class InspectorShell extends StatefulWidget {
 
 class _InspectorShellState extends State<InspectorShell> {
   InspectorNavItem _selected = InspectorNavItem.dashboard;
-  late String _avatarUrl;
   late String _firstName;
   late String _lastName;
+  late String _email;
   String? _dateFromForAssigned;
   String? _dateToForAssigned;
   bool _isOnline = true;
+  bool _syncing = false;
+  StreamSubscription<bool>? _connectivitySub;
 
   @override
   void initState() {
     super.initState();
-    _avatarUrl = widget.avatarUrl;
     _firstName = widget.firstName;
     _lastName = widget.lastName;
-    _loadCachedAvatar();
+    _email = widget.email;
     _initConnectivity();
+  }
+
+  @override
+  void dispose() {
+    _connectivitySub?.cancel();
+    super.dispose();
   }
 
   Future<void> _initConnectivity() async {
     _isOnline = await ConnectivityService.instance.isOnline;
     if (mounted) setState(() {});
-    ConnectivityService.instance.isOnlineStream.listen((online) {
+    _connectivitySub = ConnectivityService.instance.isOnlineStream.listen((online) {
       if (mounted) setState(() => _isOnline = online);
+      if (online && !_syncing) _syncPendingItems();
     });
+    if (_isOnline) _syncPendingItems();
+  }
+
+  Future<void> _syncPendingItems() async {
+    if (_syncing) return;
+    _syncing = true;
+    try {
+      final pending = await InspectionLocalStore.getPendingSync();
+      if (pending.isEmpty) return;
+      for (final item in pending) {
+        final opType = item['op_type'] as String;
+        final inspectionId = item['inspection_id'] as String;
+        final payload = item['payload'] as Map<String, dynamic>;
+        final itemId = item['id'] as int;
+
+        Map<String, dynamic> res;
+        if (opType == 'checklist') {
+          final checklistData = (payload['checklist'] as List<dynamic>)
+              .map((e) => e is Map<String, dynamic> ? e : Map<String, dynamic>.from(e as Map))
+              .toList();
+          res = await MongoDBService.updateChecklist(inspectionId, checklistData);
+        } else if (opType == 'submit') {
+          final serverInspection = await MongoDBService.getInspectionDetail(inspectionId);
+          if (serverInspection['success'] == true) {
+            final serverData = serverInspection['inspection'] as Map<String, dynamic>?;
+            final serverUpdated = serverData?['updatedAt'] as String? ?? '';
+            final cached = await InspectionLocalStore.getCachedInspection(inspectionId);
+            final cachedUpdated = cached?['updatedAt'] as String? ?? '';
+            if (serverUpdated.isNotEmpty && cachedUpdated.isNotEmpty && serverUpdated != cachedUpdated) {
+              debugPrint('[Sync] Conflict detected for $inspectionId — server version is newer, skipping local submission');
+              await InspectionLocalStore.removePendingSync(itemId);
+              continue;
+            }
+          }
+          res = await MongoDBService.submitInspection(
+            inspectionId,
+            payload['overallResult'] as String,
+            inspectorSignature: payload['inspectorSignature'] as Map<String, dynamic>?,
+          );
+        } else {
+          continue;
+        }
+
+        if (res['success'] == true) {
+          await InspectionLocalStore.removePendingSync(itemId);
+        }
+      }
+    } catch (e) {
+      debugPrint('[Sync] Error syncing pending items: $e');
+    } finally {
+      _syncing = false;
+    }
   }
 
   @override
   void didUpdateWidget(InspectorShell oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.avatarUrl != widget.avatarUrl) {
-      _avatarUrl = widget.avatarUrl;
-    }
     if (oldWidget.firstName != widget.firstName) _firstName = widget.firstName;
     if (oldWidget.lastName != widget.lastName) _lastName = widget.lastName;
+    if (oldWidget.email != widget.email) _email = widget.email;
   }
 
-  Future<void> _loadCachedAvatar() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final cached = (prefs.getString('avatar_url_${widget.email.toLowerCase()}') ?? '').trim();
-      if (cached.isNotEmpty && mounted) {
-        setState(() => _avatarUrl = cached);
-      }
-    } catch (_) {}
-  }
-
-  void _onProfileUpdated({String? avatarUrl, String? firstName, String? lastName}) {
+  void _onProfileUpdated({String? avatarUrl, String? firstName, String? lastName, String? email}) {
     if (!mounted) return;
     setState(() {
-      if (avatarUrl != null) _avatarUrl = avatarUrl;
       if (firstName != null) _firstName = firstName;
       if (lastName != null) _lastName = lastName;
+      if (email != null) _email = email;
     });
   }
 
@@ -159,14 +209,14 @@ class _InspectorShellState extends State<InspectorShell> {
         return const NotificationsScreen();
       case InspectorNavItem.profile:
         return ProfilePage(
-          email: widget.email,
+          email: _email,
           firstName: _firstName,
           lastName: _lastName,
           phoneNumber: widget.phoneNumber,
           token: widget.token,
-          avatarUrl: _avatarUrl,
+          avatarUrl: widget.avatarUrl,
           embeddedInShell: true,
-          showDeviceTrust: true,
+          canEditProfile: false,
           onProfileUpdated: _onProfileUpdated,
         );
       case InspectorNavItem.logout:
@@ -210,21 +260,14 @@ class _InspectorShellState extends State<InspectorShell> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
+              padding: BizClearColors.primaryButtonPadding,
+              minimumSize: BizClearColors.primaryButtonMinimumSize,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              textStyle: BizClearColors.primaryButtonTextStyle,
             ),
             onPressed: () async {
               final nav = Navigator.of(context);
               Navigator.pop(context); // Close dialog
-              bool preFingerprintEnabled = false;
-              String? preFingerprintEmail;
-              try {
-                final prefs = await SharedPreferences.getInstance();
-                final fpEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
-                if (fpEmail.isNotEmpty) {
-                  final s = await MongoDBService.getMfaStatusDetail(email: fpEmail).timeout(const Duration(seconds: 3));
-                  preFingerprintEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
-                  preFingerprintEmail = preFingerprintEnabled ? fpEmail : null;
-                }
-              } catch (_) {}
               try {
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.remove('loggedInEmail');
@@ -235,10 +278,7 @@ class _InspectorShellState extends State<InspectorShell> {
               if (!mounted) return;
               nav.pushAndRemoveUntil(
                 MaterialPageRoute(
-                  builder: (_) => LoginScreen(
-                    preFingerprintEnabled: preFingerprintEnabled,
-                    preFingerprintEmail: preFingerprintEmail,
-                  ),
+                  builder: (_) => const LoginScreen(),
                 ),
                 (route) => false,
               );
@@ -252,50 +292,6 @@ class _InspectorShellState extends State<InspectorShell> {
 
   static const Color _primaryColor = Color(0xFF003A70);
   static const Color _primaryLight = Color(0xFFE8EEF4);
-
-  Widget _buildAvatarFallback() {
-    return Container(
-      width: 56,
-      height: 56,
-      color: Colors.white.withValues(alpha: 0.2),
-      alignment: Alignment.center,
-      child: Text(
-        _firstName.isNotEmpty
-            ? _firstName[0].toUpperCase()
-            : widget.email.isNotEmpty
-                ? widget.email[0].toUpperCase()
-                : 'I',
-        style: const TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.w700,
-          color: Colors.white,
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
-
-  String _resolveAvatarUrl(String url) {
-    final u = (url).trim();
-    if (u.isEmpty) return '';
-    if (u.startsWith('http://') || u.startsWith('https://')) {
-      try {
-        final uri = Uri.parse(u);
-        final host = uri.host.toLowerCase();
-        if (host.contains('googleusercontent.com')) {
-          final path = uri.path.replaceAll(RegExp(r's\d{2,4}-c'), 's1024-c');
-          final query = uri.query.replaceAll(RegExp(r'(?<=^|[&])sz=\d{2,4}'), 'sz=1024');
-          return uri.replace(path: path, query: query).toString();
-        }
-      } catch (_) {}
-      return u;
-    }
-    String base = MongoDBService.baseUrl;
-    if (io.Platform.isAndroid && (base.contains('localhost') || base.contains('127.0.0.1'))) {
-      base = base.replaceFirst('localhost', '10.0.2.2').replaceFirst('127.0.0.1', '10.0.2.2');
-    }
-    return '$base$u';
-  }
 
   Widget _buildDrawerItem({
     required IconData icon,
@@ -359,7 +355,7 @@ class _InspectorShellState extends State<InspectorShell> {
           style: const TextStyle(
             color: Color(0xFF1E293B),
             fontWeight: FontWeight.w600,
-            fontSize: 18,
+            fontSize: 16,
             letterSpacing: 0.3,
           ),
         ),
@@ -396,28 +392,25 @@ class _InspectorShellState extends State<InspectorShell> {
                       children: [
                         Container(
                           width: 56,
-                          height: 56,
+                          height: 40,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
+                            color: Colors.white.withValues(alpha: 0.2),
                             border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.2),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
                           ),
-                          child: ClipOval(
-                            child: _avatarUrl.trim().isNotEmpty
-                                ? Image.network(
-                                    _resolveAvatarUrl(_avatarUrl),
-                                    fit: BoxFit.cover,
-                                    width: 56,
-                                    height: 56,
-                                    errorBuilder: (_, __, ___) => _buildAvatarFallback(),
-                                  )
-                                : _buildAvatarFallback(),
+                          alignment: Alignment.center,
+                          child: Text(
+                            _firstName.isNotEmpty
+                                ? _firstName[0].toUpperCase()
+                                : _email.isNotEmpty
+                                    ? _email[0].toUpperCase()
+                                    : 'I',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -430,7 +423,7 @@ class _InspectorShellState extends State<InspectorShell> {
                                     ? 'Inspector'
                                     : '$_firstName $_lastName',
                                 style: const TextStyle(
-                                  fontSize: 17,
+                                  fontSize: 15,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white,
                                   letterSpacing: 0.3,
@@ -448,7 +441,7 @@ class _InspectorShellState extends State<InspectorShell> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                widget.email,
+                                _email,
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.white.withValues(alpha: 0.7),

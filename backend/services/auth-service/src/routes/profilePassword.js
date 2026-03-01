@@ -13,6 +13,7 @@ const { checkPasswordHistory, addToPasswordHistory } = require('../lib/passwordH
 const { sanitizeString } = require('../lib/sanitizer')
 const { createAuditLog } = require('../lib/auditLogger')
 const { sendPasswordChangeNotification } = require('../lib/notificationService')
+const inAppNotificationService = require('../services/notificationService')
 
 const router = express.Router()
 
@@ -120,9 +121,11 @@ router.post('/change-password-authenticated', requireJwt, validateBody(changePas
     // Send password change notification (non-blocking)
     sendPasswordChangeNotification(doc._id, {
       timestamp: new Date(),
-    }).catch((err) => {
+    }    ).catch((err) => {
       console.error('Failed to send password change notification:', err)
     })
+
+    inAppNotificationService.createNotification(doc._id, 'auth_password_changed', 'Password changed', 'Your password has been updated successfully.').catch((err) => console.error('Failed to create auth notification:', err))
 
     const userSafe = {
       id: String(doc._id),
@@ -197,7 +200,7 @@ router.post('/change-password/start', requireJwt, validateBody(changePasswordSta
       verified: false 
     })
 
-    await sendOtp({ to: email, code, subject: 'Confirm password change' })
+    await sendOtp({ to: email, code, subject: 'Confirm password change', purpose: 'password_change' })
     return res.json({ 
       sent: true, 
       to: email, 
@@ -321,6 +324,8 @@ router.post('/change-password/verify', requireJwt, validateBody(changePasswordVe
     }).catch((err) => {
       console.error('Failed to send password change notification:', err)
     })
+
+    inAppNotificationService.createNotification(doc._id, 'auth_password_changed', 'Password changed', 'Your password has been updated successfully.').catch((err) => console.error('Failed to create auth notification:', err))
 
     const userSafe = {
       id: String(doc._id),

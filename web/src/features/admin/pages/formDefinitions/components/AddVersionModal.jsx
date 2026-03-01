@@ -74,7 +74,7 @@ export default function AddVersionModal({
       open={open}
       onCancel={onClose}
       onOk={handleOk}
-      okText="Continue"
+      okText="Continue to Form"
       okButtonProps={{ disabled: !canConfirm }}
       width={isMobile ? '95%' : 480}
       destroyOnHidden

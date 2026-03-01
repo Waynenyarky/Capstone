@@ -2,8 +2,8 @@ const axios = require('axios')
 
 /**
  * Email API Service - REST API Implementation
- * Supports multiple providers: SendGrid, Mailgun, AWS SES, Resend, Postmark
- * Default: SendGrid (recommended for capstone)
+ * Supports multiple providers: Resend, SendGrid, Mailgun, Postmark
+ * Default: Resend
  */
 
 // Helper function to create mock email sender (for development)
@@ -30,21 +30,61 @@ function createMockEmailSender() {
  * Send email via REST API (SendGrid, Mailgun, etc.)
  */
 async function sendEmail(opts) {
-  const provider = process.env.EMAIL_API_PROVIDER || 'sendgrid'
+  const provider = process.env.EMAIL_API_PROVIDER || 'resend'
   const apiKey = process.env.EMAIL_API_KEY || ''
-  const apiUrl = process.env.EMAIL_API_URL || 'https://api.sendgrid.com/v3'
+  const apiUrl = process.env.EMAIL_API_URL
   const fromEmail = process.env.DEFAULT_FROM_EMAIL || 'noreply@localhost'
 
-  // If no API key, use mock sender in development
-  if (!apiKey || process.env.NODE_ENV === 'development') {
+  // Dev redirect: send all emails to one address (e.g. Resend account email) when using Resend without a verified domain
+  const devRedirectTo = process.env.EMAIL_DEV_REDIRECT_TO
+  let actualTo = opts.to
+  if (devRedirectTo && devRedirectTo.includes('@')) {
+    console.log('📧 [Email] Dev redirect:', opts.to, '→', devRedirectTo)
+    actualTo = devRedirectTo.trim()
+  }
+  opts = { ...opts, to: actualTo }
+
+  const placeholderKeys = ['your-sendgrid-api-key-here', 'your-email-api-key-here', 'your-resend-api-key-here', 'YOUR_SENDGRID_API_KEY_HERE']
+  const isPlaceholder = apiKey && placeholderKeys.some(p => apiKey === p)
+
+  // If no API key or placeholder, use mock sender in development
+  if (!apiKey || isPlaceholder || process.env.NODE_ENV === 'development') {
     const mockSender = createMockEmailSender()
     return await mockSender(opts)
   }
 
   try {
-    if (provider === 'sendgrid') {
+    if (provider === 'resend') {
+      const url = apiUrl || 'https://api.resend.com/emails'
       const response = await axios.post(
-        `${apiUrl}/mail/send`,
+        url,
+        {
+          from: fromEmail,
+          to: [opts.to],
+          subject: opts.subject,
+          text: opts.text || '',
+          html: opts.html || ''
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+      if (response.status === 200 && response.data) {
+        return {
+          messageId: response.data.id || 'unknown',
+          accepted: [opts.to],
+          rejected: [],
+          response: '250 OK'
+        }
+      }
+      throw new Error(`Resend API returned status: ${response.status}`)
+    } else if (provider === 'sendgrid') {
+      const baseUrl = apiUrl || 'https://api.sendgrid.com/v3'
+      const response = await axios.post(
+        `${baseUrl}/mail/send`,
         {
           personalizations: [{
             to: [{ email: opts.to }],
@@ -72,8 +112,11 @@ async function sendEmail(opts) {
         response: '250 OK'
       }
     } else if (provider === 'mailgun') {
+      const domain = process.env.MAILGUN_DOMAIN || (apiUrl ? new URL(apiUrl).hostname.split('.')[0] : '')
+      if (!domain) throw new Error('MAILGUN_DOMAIN is required for Mailgun')
+      const mgUrl = apiUrl || `https://api.mailgun.net/v3/${domain}/messages`
       const response = await axios.post(
-        `${apiUrl}/messages`,
+        mgUrl,
         new URLSearchParams({
           from: fromEmail,
           to: opts.to,
@@ -85,17 +128,21 @@ async function sendEmail(opts) {
           auth: {
             username: 'api',
             password: apiKey
-          }
+          },
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
         }
       )
-      return {
-        messageId: response.data.id || 'unknown',
-        accepted: [opts.to],
-        rejected: [],
-        response: '250 OK'
+      if (response.status === 200 && response.data) {
+        return {
+          messageId: response.data.id || 'unknown',
+          accepted: [opts.to],
+          rejected: [],
+          response: '250 OK'
+        }
       }
+      throw new Error(`Mailgun API returned status: ${response.status}`)
     } else {
-      throw new Error(`Unsupported email provider: ${provider}`)
+      throw new Error(`Unsupported email provider: ${provider}. Supported: resend, sendgrid, mailgun`)
     }
   } catch (error) {
     console.error('Email send error:', error.message)

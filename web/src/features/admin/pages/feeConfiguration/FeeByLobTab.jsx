@@ -98,7 +98,7 @@ export default function FeeByLobTab({
       icon: <ExclamationCircleOutlined />,
       content:
         'This action cannot be undone. If this is the last active configuration for this line of business, it will be deactivated instead.',
-      okText: 'Delete',
+      okText: 'Delete Configuration',
       okType: 'danger',
       onOk: async () => {
         await onDelete(id)

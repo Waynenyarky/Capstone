@@ -1,7 +1,8 @@
-import { Form, App } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { App } from 'antd'
 import { useState } from 'react'
 import { changePassword, changePasswordStart, changePasswordVerify, loginPost } from "@/features/authentication/services"
-import { useNotifier } from '@/shared/notifications.js'
+import { useAuthNotification, useNotifier } from '@/shared/notifications.js'
 import { getCurrentUser, setCurrentUser } from '@/features/authentication/lib/authEvents.js'
 import { useAuthSession } from '@/features/authentication/hooks/useAuthSession.js'
 
@@ -11,6 +12,7 @@ export function useChangePasswordForm({ onSubmit, email, resetToken, isLoggedInF
   const [step, setStep] = useState('password') // 'password' or 'verify'
   const [otpSent, setOtpSent] = useState(false)
   const { success, error } = useNotifier()
+  const { notificationSuccess } = useAuthNotification()
   const { login } = useAuthSession()
 
   const handleFinish = async (values) => {
@@ -30,13 +32,13 @@ export function useChangePasswordForm({ onSubmit, email, resetToken, isLoggedInF
           const user = await loginPost({ email, password: values.password })
           if (user?.token) {
             login(user, { remember: true })
-            success('Password updated. You are now logged in.')
+            notificationSuccess('Password updated', 'You are now logged in.')
           } else {
-            success('Password changed successfully')
+            notificationSuccess('Password changed', 'Your password has been updated successfully.')
           }
         } catch (loginErr) {
           console.warn('Post-reset auto-login failed, user can log in manually:', loginErr)
-          success('Password changed successfully. Please log in with your new password.')
+          notificationSuccess('Password changed', 'Please log in with your new password.')
         }
         if (typeof onSubmit === 'function') onSubmit()
         return
@@ -67,7 +69,7 @@ export function useChangePasswordForm({ onSubmit, email, resetToken, isLoggedInF
         }
         
         const user = await changePasswordVerify({ code: values.verificationCode })
-        success('Password changed successfully')
+        notificationSuccess('Password changed', 'Your password has been updated successfully.')
         form.resetFields()
         setStep('password')
         setOtpSent(false)
@@ -98,7 +100,7 @@ export function useChangePasswordForm({ onSubmit, email, resetToken, isLoggedInF
           } catch { /* ignore storage errors */ }
         } else {
           // If no token returned, user needs to log in again
-          success('Password changed successfully. Please log in again with your new password.')
+          notificationSuccess('Password changed', 'Please log in again with your new password.')
           setTimeout(() => {
             setCurrentUser(null)
             try {

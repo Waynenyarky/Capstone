@@ -9,6 +9,7 @@ const {
 const {
   createTestUsers,
   getTestTokens,
+  getAdminStepUpHeaders,
   generateUniqueEmail,
   generateUniquePhone,
 } = require('../helpers/fixtures')
@@ -637,7 +638,7 @@ describe('Profile Edit Integration Tests', () => {
     it('should create approval request for personal info change', async () => {
       const response = await request(app)
         .patch('/api/auth/profile/personal-info')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(getAdminStepUpHeaders(adminToken, adminUser))
         .send({
           firstName: 'NewFirstName',
           lastName: 'NewLastName',
@@ -657,7 +658,7 @@ describe('Profile Edit Integration Tests', () => {
       // Create approval request via auth service
       const approvalResponse = await request(app)
         .patch('/api/auth/profile/personal-info')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(getAdminStepUpHeaders(adminToken, adminUser))
         .send({
           firstName: 'NewFirstName',
         })
@@ -668,10 +669,10 @@ describe('Profile Edit Integration Tests', () => {
       const approvalId = approvalResponse.body.approval.approvalId
       expect(approvalId).toBeDefined()
 
-      // Try to self-approve via admin service
+      // Try to self-approve via admin service (requires step-up)
       const response = await request(adminApp)
         .post(`/api/admin/approvals/${approvalId}/approve`)
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(getAdminStepUpHeaders(adminToken, adminUser))
         .send({
           approved: true,
         })
@@ -717,7 +718,7 @@ describe('Profile Edit Integration Tests', () => {
       // Create approval request via auth service
       const approvalResponse = await request(app)
         .patch('/api/auth/profile/personal-info')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(getAdminStepUpHeaders(adminToken, adminUser))
         .send({
           firstName: 'NewFirstName',
         })
@@ -728,10 +729,10 @@ describe('Profile Edit Integration Tests', () => {
       const approvalId = approvalResponse.body.approval.approvalId
       expect(approvalId).toBeDefined()
 
-      // First approval via admin service
+      // First approval via admin service (requires step-up)
       const firstApprovalResponse = await request(adminApp)
         .post(`/api/admin/approvals/${approvalId}/approve`)
-        .set('Authorization', `Bearer ${admin2Token}`)
+        .set(getAdminStepUpHeaders(admin2Token, admin2))
         .send({
           approved: true,
         })
@@ -752,10 +753,10 @@ describe('Profile Edit Integration Tests', () => {
       await admin3.populate('role')
       const admin3Token = signAccessToken(admin3).token
 
-      // Second approval (should trigger change application)
+      // Second approval (should trigger change application, requires step-up)
       const response = await request(adminApp)
         .post(`/api/admin/approvals/${approvalId}/approve`)
-        .set('Authorization', `Bearer ${admin3Token}`)
+        .set(getAdminStepUpHeaders(admin3Token, admin3))
         .send({
           approved: true,
         })

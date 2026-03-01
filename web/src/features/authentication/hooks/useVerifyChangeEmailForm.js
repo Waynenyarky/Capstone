@@ -1,13 +1,14 @@
-import { Form } from 'antd'
+import { Form } from '@/shared/components/AppForm'
 import { useState, useCallback } from 'react'
 import { changeEmailVerify, getProfile } from '@/features/authentication/services'
-import { useNotifier } from '@/shared/notifications.js'
+import { useAuthNotification, useNotifier } from '@/shared/notifications.js'
 import { useAuthSession } from '@/features/authentication/hooks'
 
 export function useVerifyChangeEmailForm({ onSubmit, email, currentEmail } = {}) {
   const [form] = Form.useForm()
   const [isSubmitting, setSubmitting] = useState(false)
-  const { success, error } = useNotifier()
+  const { notificationSuccess } = useAuthNotification()
+  const { error } = useNotifier()
   const { login, currentUser } = useAuthSession()
 
   const handleFinish = useCallback(async (values) => {
@@ -30,7 +31,7 @@ export function useVerifyChangeEmailForm({ onSubmit, email, currentEmail } = {})
       } catch {
         login(updated, { remember: false })
       }
-      success('Email changed and verified')
+      notificationSuccess('Email changed', 'Your email has been updated and verified.')
       form.resetFields()
       if (typeof onSubmit === 'function') onSubmit({ email: updated?.email })
     } catch (err) {
@@ -39,7 +40,7 @@ export function useVerifyChangeEmailForm({ onSubmit, email, currentEmail } = {})
     } finally {
       setSubmitting(false)
     }
-  }, [form, onSubmit, success, error, login, currentUser, currentEmail, email])
+  }, [form, onSubmit, notificationSuccess, error, login, currentUser, currentEmail, email])
 
   return { form, handleFinish, isSubmitting }
 }

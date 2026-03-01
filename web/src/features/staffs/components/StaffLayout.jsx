@@ -29,7 +29,7 @@ export default function StaffLayout({
       <Layout>
         <Content
           style={{
-            background: token.colorBgLayout,
+            background: token.colorBgContainer,
             overflow: 'hidden',
             height: '100vh',
             display: 'flex',

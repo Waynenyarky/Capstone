@@ -13,7 +13,7 @@ import { useNotifier } from '@/shared/notifications.js'
 export default function PasskeySignInOptions({ form, onAuthenticated, onBeforePasskeyAuth } = {}) {
   const { authenticateWithPlatform } = useWebAuthn()
   const { login } = useAuthSession()
-  const { success, error: notifyError } = useNotifier()
+  const { error: notifyError } = useNotifier()
   const [loading, setLoading] = React.useState(false)
 
   const handlePasskeyAuth = async () => {
@@ -29,7 +29,7 @@ export default function PasskeySignInOptions({ form, onAuthenticated, onBeforePa
       if (res && typeof res === 'object') {
         const remember = !!form?.getFieldValue('rememberMe')
         login(res, { remember })
-        success('Logged in with passkey')
+        // Login success shown on destination via navigate state (Option A)
         if (typeof onAuthenticated === 'function') {
           onAuthenticated(res)
         }
@@ -95,6 +95,10 @@ export default function PasskeySignInOptions({ form, onAuthenticated, onBeforePa
     } finally {
       setLoading(false)
     }
+  }
+
+  if (typeof window !== 'undefined' && !window.PublicKeyCredential) {
+    return null
   }
 
   return (

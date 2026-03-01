@@ -177,9 +177,10 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
   }
 
   // Staff and admin must complete onboarding (MFA/password); business owners with mustChangeCredentials (e.g. 90-day expiry) go to security
-  // Dev mode: bypass MFA setup requirement when VITE_BYPASS_MFA_DEV=true
+  // Dev bypass only applies to business owner; staff and admin always must complete MFA when mustSetupMfa is set
   const bypassMfaDev = import.meta.env.VITE_BYPASS_MFA_DEV === 'true'
-  const mustSetupMfaEffective = bypassMfaDev ? false : currentUser?.mustSetupMfa
+  const isStaffOrAdmin = staffRoles.includes(roleKey) || roleKey === 'admin'
+  const mustSetupMfaEffective = isStaffOrAdmin ? !!currentUser?.mustSetupMfa : (bypassMfaDev ? false : !!currentUser?.mustSetupMfa)
   const needsOnboarding = (staffRoles.includes(roleKey) || roleKey === 'admin') && (currentUser?.mustChangeCredentials || mustSetupMfaEffective)
   const businessOwnerMustChangePassword = roleKey === 'business_owner' && currentUser?.mustChangeCredentials
   const onboardingAllowedPaths = ['/staff/onboarding', '/admin/onboarding', '/account/security']

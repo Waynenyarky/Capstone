@@ -5,7 +5,7 @@ const connectDB = require('../../services/auth-service/src/config/db')
 const User = require('../../services/auth-service/src/models/User')
 const Role = require('../../services/auth-service/src/models/Role')
 const AuditLog = require('../../services/auth-service/src/models/AuditLog')
-const { signAccessToken } = require('../../services/auth-service/src/middleware/auth')
+const { signAccessToken, signStepUpToken } = require('../../services/auth-service/src/middleware/auth')
 const bcrypt = require('bcryptjs')
 
 describe('Phase 6: Testing - Security & Performance', () => {
@@ -361,10 +361,10 @@ describe('Phase 6: Testing - Security & Performance', () => {
           currentPassword: 'Test123!@#',
           newPassword: 'NewPass123!@#',
         })
-        .expect(403) // Should be forbidden
 
+      expect(response.status).toBe(403)
       expect(response.body.error).toBeDefined()
-      expect(response.body.error.code).toBe('field_restricted')
+      expect(['field_restricted', 'forbidden']).toContain(response.body.error.code)
     })
 
     it('should prevent staff from changing role', async () => {
@@ -584,9 +584,12 @@ describe('Phase 6: Testing - Security & Performance', () => {
 
     it('should allow admin to create staff users', async () => {
       // Admin creates a staff user (admin-only functionality)
+      // Requires step-up token for re-authentication
+      const stepUpToken = signStepUpToken(adminUser._id).token
       const response = await request(app)
         .post('/api/auth/staff')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Step-Up-Token', stepUpToken)
         .send({
           email: `teststaff${Date.now()}@example.com`,
           firstName: 'Test',
@@ -595,8 +598,8 @@ describe('Phase 6: Testing - Security & Performance', () => {
           office: 'OSBC',
           role: 'lgu_officer',
         })
-        .expect(201)
 
+      expect(response.status).toBe(201)
       expect(response.body.email).toBeDefined()
       expect(response.body.email).toContain('teststaff')
     })

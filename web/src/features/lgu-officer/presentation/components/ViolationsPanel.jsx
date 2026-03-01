@@ -3,7 +3,7 @@
  * Pure presentation - no business logic
  */
 import React from 'react'
-import { Card, Table, Tag, Button, Space, Typography } from 'antd'
+import { Card, Table, Tag, Button, Space, Typography, Empty } from 'antd'
 import { WarningOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 
 const { Title } = Typography
@@ -93,6 +93,7 @@ export default function ViolationsPanel({ violations, loading, onView, onUpdateS
         rowKey="id"
         pagination={{ pageSize: 10 }}
         scroll={{ x: 'max-content' }}
+        locale={{ emptyText: <Empty description="No violations recorded" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
       />
     </Card>
   )

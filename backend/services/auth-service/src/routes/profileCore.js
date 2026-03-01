@@ -7,8 +7,9 @@ const { validateBody, Joi } = require('../middleware/validation')
 const { decryptWithHash, encryptWithHash } = require('../lib/secretCipher')
 const { sanitizeString } = require('../lib/sanitizer')
 const { createAuditLog } = require('../lib/auditLogger')
+const inAppNotificationService = require('../services/notificationService')
 const { isStaffRole } = require('../lib/roleHelpers')
-const { isPasswordExpired } = require('../lib/passwordExpiry')
+const { isPasswordExpiredByPolicy } = require('../lib/passwordExpiry')
 
 const router = express.Router()
 
@@ -34,7 +35,7 @@ router.get('/profile', requireJwt, async (req, res) => {
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
     const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
-    const passwordExpired = isPasswordExpired(doc.passwordChangedAt)
+    const passwordExpiredByPolicy = isPasswordExpiredByPolicy(doc.passwordChangedAt)
     const userSafe = {
       id: String(doc._id),
       role: roleSlug,
@@ -43,6 +44,7 @@ router.get('/profile', requireJwt, async (req, res) => {
       middleName: doc.middleName || '',
       suffix: doc.suffix || '',
       sex: doc.sex || '',
+      dateOfBirth: doc.dateOfBirth || null,
       email: doc.email,
       phoneNumber: displayPhoneNumber(doc.phoneNumber),
       username: doc.username || '',
@@ -53,13 +55,23 @@ router.get('/profile', requireJwt, async (req, res) => {
       mustSetupMfa: !!doc.mustSetupMfa,
       isEmailVerified: !!doc.isEmailVerified,
       mfaEnabled: !!doc.mfaEnabled,
+      mfaReEnrollmentRequired: !!doc.mfaReEnrollmentRequired,
       mfaMethod: doc.mfaMethod || '',
       termsAccepted: doc.termsAccepted,
       createdAt: doc.createdAt,
       deletionPending: !!doc.deletionPending,
       deletionRequestedAt: doc.deletionRequestedAt,
       deletionScheduledFor: doc.deletionScheduledFor,
-      ...(passwordExpired && doc.mustChangeCredentials ? { passwordExpired: true } : {}),
+      // PIS (Personal Information Sheet) fields for business owners / profile edit
+      address: doc.address || { street: '', barangay: '', city: '', province: '', zipCode: '' },
+      maritalStatus: doc.maritalStatus || '',
+      placeOfBirth: doc.placeOfBirth || '',
+      nationality: doc.nationality || '',
+      fatherName: doc.fatherName || '',
+      motherName: doc.motherName || '',
+      distinctiveMark: doc.distinctiveMark || '',
+      highestEducationalAttainment: doc.highestEducationalAttainment || '',
+      ...(passwordExpiredByPolicy && doc.mustChangeCredentials ? { passwordExpired: true } : {}),
     }
 
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
@@ -81,7 +93,7 @@ router.get('/me', requireJwt, async (req, res) => {
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
     const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
-    const passwordExpired = isPasswordExpired(doc.passwordChangedAt)
+    const passwordExpiredByPolicy = isPasswordExpiredByPolicy(doc.passwordChangedAt)
     const userSafe = {
       id: String(doc._id),
       role: roleSlug,
@@ -90,6 +102,7 @@ router.get('/me', requireJwt, async (req, res) => {
       middleName: doc.middleName || '',
       suffix: doc.suffix || '',
       sex: doc.sex || '',
+      dateOfBirth: doc.dateOfBirth || null,
       email: doc.email,
       phoneNumber: displayPhoneNumber(doc.phoneNumber),
       username: doc.username || '',
@@ -100,13 +113,23 @@ router.get('/me', requireJwt, async (req, res) => {
       mustSetupMfa: !!doc.mustSetupMfa,
       isEmailVerified: !!doc.isEmailVerified,
       mfaEnabled: !!doc.mfaEnabled,
+      mfaReEnrollmentRequired: !!doc.mfaReEnrollmentRequired,
       mfaMethod: doc.mfaMethod || '',
       termsAccepted: doc.termsAccepted,
-      ...(passwordExpired && doc.mustChangeCredentials ? { passwordExpired: true } : {}),
+      ...(passwordExpiredByPolicy && doc.mustChangeCredentials ? { passwordExpired: true } : {}),
       createdAt: doc.createdAt,
       deletionPending: !!doc.deletionPending,
       deletionRequestedAt: doc.deletionRequestedAt,
       deletionScheduledFor: doc.deletionScheduledFor,
+      // PIS (Personal Information Sheet) fields
+      address: doc.address || { street: '', barangay: '', city: '', province: '', zipCode: '' },
+      maritalStatus: doc.maritalStatus || '',
+      placeOfBirth: doc.placeOfBirth || '',
+      nationality: doc.nationality || '',
+      fatherName: doc.fatherName || '',
+      motherName: doc.motherName || '',
+      distinctiveMark: doc.distinctiveMark || '',
+      highestEducationalAttainment: doc.highestEducationalAttainment || '',
     }
 
     // Force 200 by adding a cache-busting header or modifying response headers
@@ -216,6 +239,8 @@ router.patch('/profile', requireJwt, validateBody(updateProfileSchema), async (r
         }
       )
     }
+
+    inAppNotificationService.createNotification(doc._id, 'auth_profile_updated', 'Profile updated', 'Your profile has been saved successfully.').catch((err) => console.error('Failed to create auth notification:', err))
 
     // Refetch to ensure we have the latest data
     const updatedDoc = await User.findById(doc._id).populate('role').lean()

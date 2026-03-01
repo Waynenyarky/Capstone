@@ -4,14 +4,19 @@ import { SafetyCertificateOutlined, CloseOutlined } from '@ant-design/icons'
 import { useAuthSession } from '@/features/authentication'
 import { useNavigate } from 'react-router-dom'
 
-export default function MfaReenrollmentAlert() {
+/**
+ * @param {object} [props]
+ * @param {() => void} [props.onSetupClick] - If provided, called when "Setup MFA Now" is clicked instead of navigating to /account/security (e.g. to show form inline).
+ */
+export default function MfaReenrollmentAlert({ onSetupClick }) {
   const { currentUser } = useAuthSession()
   const navigate = useNavigate()
   const [dismissed, setDismissed] = useState(false)
 
   // Check if MFA was previously enabled but is now disabled after email/password change
-  // This would typically be set by the backend when email/password changes require MFA re-enrollment
-  const needsReenrollment = currentUser?.mfaReenrollmentRequired || 
+  // Backend may send mfaReEnrollmentRequired (capital E); support both casings
+  const reenrollmentFlag = currentUser?.mfaReenrollmentRequired ?? currentUser?.mfaReEnrollmentRequired
+  const needsReenrollment = reenrollmentFlag === true ||
     (currentUser?.mfaEnabled === false && currentUser?.previousMfaEnabled === true)
 
   useEffect(() => {
@@ -24,7 +29,11 @@ export default function MfaReenrollmentAlert() {
   }
 
   const handleSetup = () => {
-    navigate('/account/security')
+    if (typeof onSetupClick === 'function') {
+      onSetupClick()
+    } else {
+      navigate('/account/security')
+    }
   }
 
   const handleDismiss = () => {

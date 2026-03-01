@@ -9,6 +9,7 @@ const {
 const {
   createTestUsers,
   getTestTokens,
+  getAdminStepUpHeaders,
   generateUniqueEmail,
 } = require('../helpers/fixtures')
 const { cleanupTestData } = require('../helpers/cleanup')
@@ -245,7 +246,7 @@ describe('Authorization Boundary Tests', () => {
     it('should require admin approval for admin profile changes', async () => {
       const response = await request(app)
         .patch('/api/auth/profile/personal-info')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(getAdminStepUpHeaders(adminToken, adminUser))
         .send({
           firstName: 'NewFirstName',
         })

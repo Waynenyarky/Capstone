@@ -5,7 +5,7 @@ import { useNotifier } from '@/shared/notifications.js'
 export function usePasskeyLogin(form) {
   const { authenticate } = useWebAuthn()
   const { login } = useAuthSession()
-  const { success, error } = useNotifier()
+  const { error } = useNotifier()
 
   const handlePasskeyLogin = async () => {
     try {
@@ -17,7 +17,7 @@ export function usePasskeyLogin(form) {
       if (res && typeof res === 'object') {
         const remember = !!form.getFieldValue('rememberMe')
         login(res, { remember })
-        success('Logged in with passkey')
+        // Login success shown on destination via navigate state (Option A)
       } else {
         error('Passkey login did not return a valid user')
       }

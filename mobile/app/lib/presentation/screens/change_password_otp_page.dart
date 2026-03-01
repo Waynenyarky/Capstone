@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:app/core/theme/bizclear_colors.dart';
 import 'package:app/data/services/mongodb_service.dart';
 
 class ChangePasswordOtpPage extends StatefulWidget {
@@ -89,7 +90,7 @@ class _ChangePasswordOtpPageState extends State<ChangePasswordOtpPage> {
         } else {
           messenger.showSnackBar(const SnackBar(
             content: Text('Verification code sent via email'),
-            backgroundColor: Colors.green,
+            backgroundColor: BizClearColors.success,
           ));
         }
       } else {
@@ -220,7 +221,7 @@ class _ChangePasswordOtpPageState extends State<ChangePasswordOtpPage> {
         if (!_successShown) {
           messenger.showSnackBar(SnackBar(
             content: Text((res['message'] is String) ? res['message'] as String : 'Password changed successfully'),
-            backgroundColor: Colors.green,
+            backgroundColor: BizClearColors.success,
           ));
           _successShown = true;
         }
@@ -269,8 +270,8 @@ class _ChangePasswordOtpPageState extends State<ChangePasswordOtpPage> {
               children: [
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: Colors.blue.shade50, shape: BoxShape.circle),
-              child: Icon(Icons.mail_outline, size: 56, color: Colors.blue.shade700),
+              decoration: BoxDecoration(color: BizClearColors.webPrimaryTintLight, shape: BoxShape.circle),
+              child: Icon(Icons.mail_outline, size: 56, color: BizClearColors.webPrimaryTintIcon),
             ),
             const SizedBox(height: 16),
             Text(
@@ -281,7 +282,7 @@ class _ChangePasswordOtpPageState extends State<ChangePasswordOtpPage> {
             const SizedBox(height: 8),
             Text(
               'We sent a 6-digit code to your current login account',
-              style: TextStyle(fontSize: subtitleSize, color: Colors.grey.shade700),
+              style: TextStyle(fontSize: subtitleSize, color: BizClearColors.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
@@ -330,7 +331,7 @@ class _ChangePasswordOtpPageState extends State<ChangePasswordOtpPage> {
             if (_errorMessage != null)
               Text(
                 _errorMessage!,
-                style: const TextStyle(color: Colors.red, fontSize: 14),
+                style: const TextStyle(color: BizClearColors.error, fontSize: 14),
               ),
             const SizedBox(height: 16),
             Text(
@@ -340,7 +341,7 @@ class _ChangePasswordOtpPageState extends State<ChangePasswordOtpPage> {
             const SizedBox(height: 8),
             Text(
               'Code expires in ${_fmt(_remaining)}',
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+              style: TextStyle(fontSize: 14, color: BizClearColors.textSecondary),
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -351,10 +352,14 @@ class _ChangePasswordOtpPageState extends State<ChangePasswordOtpPage> {
                 style: ElevatedButton.styleFrom(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 0,
-                ),
+                  padding: BizClearColors.primaryButtonPadding,
+                  minimumSize: BizClearColors.primaryButtonMinimumSize,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    textStyle: BizClearColors.primaryButtonTextStyle,
+                  ),
                 child: _verifying
                     ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                    : const Text('Verify and Change Password', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    : const Text('Verify and Change Password', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
               ),
             ),
             const SizedBox(height: 12),
@@ -366,14 +371,14 @@ class _ChangePasswordOtpPageState extends State<ChangePasswordOtpPage> {
                 style: OutlinedButton.styleFrom(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: Text(_cooldownSec > 0 ? 'Resend in ${_cooldownSec}s' : 'Resend Code', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                child: Text(_cooldownSec > 0 ? 'Resend in ${_cooldownSec}s' : 'Resend Code', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
               ),
             ),
             if (_resendMessage != null) ...[
               const SizedBox(height: 8),
               Text(
                 _resendMessage!,
-                style: TextStyle(fontSize: 14, color: _resendSuccess ? Colors.green : Colors.red),
+                style: TextStyle(fontSize: 14, color: _resendSuccess ? BizClearColors.success : BizClearColors.error),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -381,7 +386,7 @@ class _ChangePasswordOtpPageState extends State<ChangePasswordOtpPage> {
             Center(
               child: Text(
                 'Didn\'t receive the code? Check your spam folder\nMake sure your email is correct.',
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade600, height: 1.5),
+                style: TextStyle(fontSize: 14, color: BizClearColors.textSecondary, height: 1.5),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -410,12 +415,12 @@ class _OtpBox extends StatelessWidget {
     final isFocused = focusNode.hasFocus;
     return Container(
       width: 48,
-      height: 56,
+      height: 40,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: hasError ? Colors.red : (isFocused ? Colors.blue : Colors.grey.shade300),
+          color: hasError ? BizClearColors.error : (isFocused ? BizClearColors.webPrimary : BizClearColors.inputBorder),
           width: hasError || isFocused ? 2 : 1.5,
         ),
       ),

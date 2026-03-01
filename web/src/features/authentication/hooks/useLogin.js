@@ -1,11 +1,12 @@
-import { Form, App } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { App } from 'antd'
 import { useState } from 'react'
 import { loginStart, loginPost } from "@/features/authentication/services"
 import { useNotifier } from '@/shared/notifications.js'
 import React from 'react'
 import { ExclamationCircleOutlined } from '@ant-design/icons'
 
-export function useLogin({ onBegin, onSubmit, onError } = {}) {
+export function useLogin({ onBegin, onSubmit, onError, getCaptchaToken } = {}) {
   const [form] = Form.useForm()
   const [isSubmitting, setSubmitting] = useState(false)
   const { success, error } = useNotifier()
@@ -13,6 +14,10 @@ export function useLogin({ onBegin, onSubmit, onError } = {}) {
 
   const handleFinish = async (values) => {
     const payload = { email: values.email, password: values.password }
+    if (typeof getCaptchaToken === 'function') {
+      const token = getCaptchaToken()
+      if (token) payload.captchaToken = token
+    }
     try {
       setSubmitting(true)
       if (typeof onBegin === 'function') {
@@ -77,7 +82,7 @@ export function useLogin({ onBegin, onSubmit, onError } = {}) {
           ])
           return
         }
-        success('Logged in successfully')
+        // Login success shown on destination via navigate state (Option A); no duplicate toast here
         form.resetFields()
         if (typeof onSubmit === 'function') onSubmit(user, values)
       }

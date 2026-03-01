@@ -1,10 +1,12 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
-import { Table, Button, Tag, Typography, Input, Select, Tooltip, Splitter, Grid, Pagination, Modal, Form, Space, Alert, theme } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Table, Button, Tag, Typography, Input, Select, Tooltip, Splitter, Grid, Pagination, Modal, Space, Alert, theme, Empty } from 'antd'
 import { FilterOutlined, SearchOutlined, CloseOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import AdminDetailPanel from './AdminDetailPanel'
 import { getAdminList, requestAdminChange } from '../../services/staffService'
 import { useNotifier } from '@/shared/notifications'
 import { useAdminStepUp } from '../../hooks/useAdminStepUp'
+import { namePatternRule } from '@/features/authentication/validations'
 
 const { Text } = Typography
 
@@ -374,6 +376,7 @@ export default function AdminAccountsTab({ currentUserId }) {
             loading={loading}
             pagination={false}
             scroll={{ x: 'max-content' }}
+            locale={{ emptyText: <Empty description="No admin accounts" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
             rowClassName={(rec) => rec?.id === selectedAdmin?.id ? 'admin-row-selected' : ''}
             onRow={(rec) => ({
               onClick: () => setSelectedAdmin(rec),
@@ -428,10 +431,10 @@ export default function AdminAccountsTab({ currentUserId }) {
           style={{ marginBottom: 16 }}
         />
         <Form form={editForm} layout="vertical">
-          <Form.Item name="firstName" label="First Name" rules={[{ required: true, message: 'Enter first name' }]}>
+          <Form.Item name="firstName" label="First Name" rules={[{ required: true, message: 'Enter first name' }, namePatternRule]}>
             <Input />
           </Form.Item>
-          <Form.Item name="lastName" label="Last Name" rules={[{ required: true, message: 'Enter last name' }]}>
+          <Form.Item name="lastName" label="Last Name" rules={[{ required: true, message: 'Enter last name' }, namePatternRule]}>
             <Input />
           </Form.Item>
           <Form.Item name="email" label="Email" rules={[{ required: true, message: 'Enter email' }, { type: 'email', message: 'Enter a valid email' }]}>

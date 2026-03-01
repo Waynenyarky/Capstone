@@ -5,6 +5,7 @@ const { requireJwt } = require('../middleware/auth')
 const respond = require('../middleware/respond')
 const { validateBody, Joi } = require('../middleware/validation')
 const { createAuditLog } = require('../lib/auditLogger')
+const inAppNotificationService = require('../services/notificationService')
 const { trackIP } = require('../lib/ipTracker')
 const { isAdminRole } = require('../lib/roleHelpers')
 
@@ -150,6 +151,8 @@ router.post('/session/invalidate', requireJwt, validateBody(invalidateSessionSch
       }
     )
 
+    inAppNotificationService.createNotification(userId, 'auth_session_invalidated', 'Session invalidated', 'A device was signed out.').catch((err) => console.error('Failed to create auth notification:', err))
+
     return res.json({ success: true, message: 'Session invalidated' })
   } catch (err) {
     console.error('POST /api/auth/session/invalidate error:', err)
@@ -198,6 +201,8 @@ router.post('/session/invalidate-all', requireJwt, async (req, res) => {
         sessionsInvalidated: result.modifiedCount,
       }
     )
+
+    inAppNotificationService.createNotification(userId, 'auth_session_invalidated', 'Other sessions invalidated', 'All other devices have been signed out.').catch((err) => console.error('Failed to create auth notification:', err))
 
     return res.json({
       success: true,

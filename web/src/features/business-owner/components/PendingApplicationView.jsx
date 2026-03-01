@@ -1,5 +1,5 @@
 import React from 'react'
-import { Typography, Steps, Card, Tag, Space, theme, Divider, Button, Alert } from 'antd'
+import { Typography, Steps, Card, Tag, Space, theme, Divider, Button, Alert, Modal } from 'antd'
 import {
   FileTextOutlined,
   SearchOutlined,
@@ -9,6 +9,7 @@ import {
   ExclamationCircleOutlined,
   EditOutlined,
   SendOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons'
 
 const { Title, Text, Paragraph } = Typography
@@ -126,7 +127,7 @@ function formatDate(dateStr) {
   }
 }
 
-export default function PendingApplicationView({ business, onEdit, onSubmit, submitting }) {
+export default function PendingApplicationView({ business, onEdit, onSubmit, onDelete, submitting }) {
   const { token } = theme.useToken()
   const status = business.applicationStatus || business.permitStatus || 'submitted'
   const currentStep = getStepFromStatus(status)
@@ -135,40 +136,19 @@ export default function PendingApplicationView({ business, onEdit, onSubmit, sub
   const isDraft = status.toLowerCase() === 'draft'
   const needsRevision = status.toLowerCase() === 'needs_revision' || status.toLowerCase() === 'resubmit'
 
+  const handleDeleteClick = () => {
+    Modal.confirm({
+      title: 'Delete application?',
+      content: 'This will permanently remove this draft application. You can add a new business later if needed.',
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: () => onDelete?.(business),
+    })
+  }
+
   return (
     <div style={{ padding: 24 }}>
-      {/* Status Card */}
-      <Card
-        style={{ marginBottom: 24 }}
-        styles={{ body: { padding: '20px 24px' } }}
-      >
-        <Space align="start" size={16}>
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: token.borderRadiusLG,
-              background: token[`color${statusInfo.color === 'processing' ? 'Primary' : statusInfo.color === 'warning' ? 'Warning' : statusInfo.color === 'error' ? 'Error' : 'Fill'}Bg`],
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 24,
-              color: token[`color${statusInfo.color === 'processing' ? 'Primary' : statusInfo.color === 'warning' ? 'Warning' : statusInfo.color === 'error' ? 'Error' : 'TextSecondary'}`],
-            }}
-          >
-            {statusInfo.icon}
-          </div>
-          <div style={{ flex: 1 }}>
-            <Space align="center" size={8}>
-              <Title level={5} style={{ margin: 0 }}>Current Status</Title>
-              <Tag color={statusInfo.color}>{statusInfo.label}</Tag>
-            </Space>
-            <Paragraph type="secondary" style={{ margin: '8px 0 0', maxWidth: 500 }}>
-              {statusInfo.message}
-            </Paragraph>
-          </div>
-        </Space>
-      </Card>
 
       {/* Action Buttons for Draft */}
       {isDraft && (
@@ -198,6 +178,16 @@ export default function PendingApplicationView({ business, onEdit, onSubmit, sub
                 loading={submitting}
               >
                 Submit Application
+              </Button>
+            )}
+            {onDelete && (
+              <Button 
+                type="text" 
+                danger 
+                icon={<DeleteOutlined />}
+                onClick={handleDeleteClick}
+              >
+                Delete Application
               </Button>
             )}
           </Space>

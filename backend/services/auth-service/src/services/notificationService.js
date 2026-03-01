@@ -28,6 +28,14 @@ async function createNotification(userId, type, title, message, relatedEntityTyp
       metadata,
       read: false
     })
+    // Fire-and-forget: push to SSE stream so connected clients get real-time update
+    try {
+      const registry = require('../lib/notificationStreamRegistry')
+      const payload = notification.toObject ? notification.toObject() : { ...notification }
+      setImmediate(() => {
+        registry.push(String(userId), { type: 'new', notification: payload })
+      })
+    } catch (_) { /* ignore if registry unavailable (e.g. in tests) */ }
     return notification
   } catch (error) {
     console.error('Error creating notification:', error)
@@ -204,6 +212,26 @@ async function deleteNotification(notificationId, userId) {
   }
 }
 
+/**
+ * Delete all notifications for a user (within the same 7-day window as the list)
+ * @param {string|ObjectId} userId - User ID
+ * @returns {Promise<object>} Deletion result with deletedCount
+ */
+async function deleteAllForUser(userId) {
+  try {
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - NOTIFICATION_MAX_AGE_DAYS)
+    const result = await Notification.deleteMany({
+      userId,
+      createdAt: { $gte: cutoff }
+    })
+    return result
+  } catch (error) {
+    console.error('Error deleting all notifications:', error)
+    throw new Error(`Failed to delete all notifications: ${error.message}`)
+  }
+}
+
 module.exports = {
   createNotification,
   getUserNotifications,
@@ -211,5 +239,6 @@ module.exports = {
   markAsRead,
   markAllAsRead,
   deleteNotification,
+  deleteAllForUser,
   deleteNotificationsOlderThan
 }

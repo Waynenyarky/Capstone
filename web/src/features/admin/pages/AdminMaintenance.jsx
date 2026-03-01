@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
-import { App, Form, Button, Grid, Typography } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { App, Button, Grid, Typography } from 'antd'
 import { SettingOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import AdminLayout from '../components/AdminLayout'
 import {
@@ -153,8 +154,8 @@ export default function AdminMaintenance() {
         modal.confirm({
           title: 'Cancel Maintenance?',
           content: 'Are you sure you want to Cancel the Maintenance?',
-          okText: 'Yes, cancel',
-          cancelText: 'No',
+          okText: 'Yes, cancel maintenance',
+          cancelText: 'No, keep maintenance',
           onOk: () => handleSubmit(values),
           onCancel: () => setSubmitting(false),
         })

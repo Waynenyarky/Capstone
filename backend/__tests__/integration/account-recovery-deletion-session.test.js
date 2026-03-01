@@ -165,30 +165,70 @@ describe('Account Recovery, Deletion & Session Management', () => {
   })
 
   describe('Forgot password role restriction', () => {
-    test('should return 403 for staff email on forgot-password', async () => {
+    test('should return 200 for staff on forgot-password, send email without code, no ResetRequest (UI shows verify step)', async () => {
+      await ResetRequest.deleteMany({ email: staffUser.email.toLowerCase() })
       const res = await request(app)
         .post('/api/auth/forgot-password')
         .send({ email: staffUser.email })
 
-      expect(res.status).toBe(403)
-      expect(res.body.error?.code).toBe('forgot_password_not_available')
-      expect(res.body.error?.message).toContain('not available')
+      expect(res.status).toBe(200)
+      expect(res.body.sent).toBe(true)
 
-      // No ResetRequest should be created
       const resetReq = await ResetRequest.findOne({ email: staffUser.email.toLowerCase() })
       expect(resetReq).toBeFalsy()
     })
 
-    test('should return 403 for admin email on forgot-password', async () => {
+    test('should return 200 for admin on forgot-password, send email without code, no ResetRequest (UI shows verify step)', async () => {
+      await ResetRequest.deleteMany({ email: adminUser.email.toLowerCase() })
       const res = await request(app)
         .post('/api/auth/forgot-password')
         .send({ email: adminUser.email })
 
-      expect(res.status).toBe(403)
-      expect(res.body.error?.code).toBe('forgot_password_not_available')
+      expect(res.status).toBe(200)
+      expect(res.body.sent).toBe(true)
 
       const resetReq = await ResetRequest.findOne({ email: adminUser.email.toLowerCase() })
       expect(resetReq).toBeFalsy()
+    })
+
+    test('verify-code returns allowedToReset false for staff', async () => {
+      const code = '654321'
+      await ResetRequest.deleteMany({ email: staffUser.email.toLowerCase() })
+      await ResetRequest.create({
+        email: staffUser.email.toLowerCase(),
+        code,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        verified: false,
+      })
+
+      const res = await request(app)
+        .post('/api/auth/verify-code')
+        .send({ email: staffUser.email, code })
+
+      expect(res.status).toBe(200)
+      expect(res.body.verified).toBe(true)
+      expect(res.body.resetToken).toBeDefined()
+      expect(res.body.allowedToReset).toBe(false)
+    })
+
+    test('verify-code returns allowedToReset true for business owner', async () => {
+      const code = '111222'
+      await ResetRequest.deleteMany({ email: 'businessowner@test.com' })
+      await ResetRequest.create({
+        email: 'businessowner@test.com',
+        code,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        verified: false,
+      })
+
+      const res = await request(app)
+        .post('/api/auth/verify-code')
+        .send({ email: 'businessowner@test.com', code })
+
+      expect(res.status).toBe(200)
+      expect(res.body.verified).toBe(true)
+      expect(res.body.resetToken).toBeDefined()
+      expect(res.body.allowedToReset).toBe(true)
     })
 
     test('should return 403 for staff on change-password even with valid reset token', async () => {
@@ -695,7 +735,9 @@ describe('Account Recovery, Deletion & Session Management', () => {
       })
 
       const { isWithinOfficeHours } = require('../../services/auth-service/src/lib/officeHoursValidator')
-      const check = await isWithinOfficeHours('OSBC', new Date('2024-01-15T10:00:00Z')) // Monday 10 AM UTC (within 08:00-17:00)
+      // Use local time: Monday Jan 15, 2024 10:00 (within 08:00-17:00) - timezone-independent
+      const monday10am = new Date(2024, 0, 15, 10, 0, 0)
+      const check = await isWithinOfficeHours('OSBC', monday10am)
 
       expect(check.isWithinHours).toBe(true)
     })

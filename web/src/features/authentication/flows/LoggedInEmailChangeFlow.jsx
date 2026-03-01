@@ -1,50 +1,50 @@
-import { Steps, theme, Result, Button } from 'antd'
-import { SendCodeForCurrentUserConfirm, VerificationConfirmForm, ChangeEmailForm, VerificationNewEmailForm, EmailChangeGracePeriod } from "@/features/authentication"
-import { useLoggedInEmailChangeFlow } from "@/features/authentication/hooks"
-import { MailOutlined, SafetyCertificateOutlined, EditOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { useEffect, useRef } from 'react'
+import { Spin, Result, Button, Typography } from 'antd'
+import { VerificationConfirmForm, ChangeEmailForm, VerificationNewEmailForm, EmailChangeGracePeriod } from "@/features/authentication"
+import { useLoggedInEmailChangeFlow, useSendCodeForCurrentUserConfirm } from "@/features/authentication/hooks"
 
-export default function LoggedInEmailChangeFlow() {
+export default function LoggedInEmailChangeFlow({ onBackToStart } = {}) {
   const { step, sendProps, verifyProps, changeProps, verifyNewProps, reset } = useLoggedInEmailChangeFlow()
-  const { token } = theme.useToken()
+  const { isSending, handleSend } = useSendCodeForCurrentUserConfirm({ email: sendProps.email, onSent: sendProps.onSent })
+  const sendTriggeredRef = useRef(false)
 
-  const currentStep = step === 'send' ? 0 : step === 'verify' ? 1 : step === 'change' ? 2 : step === 'verifyNew' ? 3 : 4
-
-  const items = [
-    {
-      title: 'Request',
-      icon: <MailOutlined />,
-    },
-    {
-      title: 'Verify',
-      icon: <SafetyCertificateOutlined />,
-    },
-    {
-      title: 'Update',
-      icon: <EditOutlined />,
-    },
-    {
-      title: 'Confirm',
-      icon: <CheckCircleOutlined />,
-    },
-  ]
+  useEffect(() => {
+    if (step !== 'send' || !sendProps.email || sendTriggeredRef.current) return
+    sendTriggeredRef.current = true
+    handleSend()
+  }, [step, sendProps.email, handleSend])
 
   return (
-    <div style={{ maxWidth: 400, margin: '0 auto', marginTop: 48 }}>
+    <div style={{ maxWidth: 420, width: '100%', margin: '0 auto' }}>
       <div>
         {step === 'send' && (
-          <SendCodeForCurrentUserConfirm
-            email={sendProps.email}
-            onSent={sendProps.onSent}
-            title="Update Email Address"
-            subtitle="To update your email, we first need to verify your current email address."
-          />
+          <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+            {isSending ? (
+              <>
+                <Spin size="large" />
+                <Typography.Paragraph type="secondary" style={{ marginTop: 16, marginBottom: 0 }}>
+                  Sending verification code to your email…
+                </Typography.Paragraph>
+              </>
+            ) : (
+              <>
+                <Typography.Paragraph type="secondary" style={{ marginBottom: 16 }}>
+                  Could not send the code. Please try again.
+                </Typography.Paragraph>
+                <Button type="primary" onClick={handleSend} loading={isSending}>
+                  Try again
+                </Button>
+              </>
+            )}
+          </div>
         )}
 
         {step === 'verify' && (
           <VerificationConfirmForm
             email={verifyProps.email}
             onSubmit={verifyProps.onSubmit}
-            title="Verify Current Email"
+            title="Enter verification code"
+            onBack={onBackToStart}
           />
         )}
 
@@ -61,7 +61,7 @@ export default function LoggedInEmailChangeFlow() {
             email={verifyNewProps.email}
             currentEmail={verifyNewProps.currentEmail}
             onSubmit={verifyNewProps.onSubmit}
-            title="Verify New Email"
+            title="Confirm new email"
           />
         )}
 
@@ -72,12 +72,12 @@ export default function LoggedInEmailChangeFlow() {
               title="Email Address Updated"
               subTitle={
                 <span>
-                  Your email has been successfully updated to <strong>{verifyNewProps?.email || ''}</strong>. 
-                  <br/>Please use this email for future logins.
+                  Your email has been successfully updated to <strong>{verifyNewProps?.email || ''}</strong>.
+                  <br />Please use this email for future logins.
                 </span>
               }
               extra={[
-                <Button type="primary" key="done" onClick={reset}>
+                <Button type="primary" key="done" onClick={() => (typeof onBackToStart === 'function' ? onBackToStart() : reset())}>
                   Done
                 </Button>,
               ]}

@@ -1,4 +1,5 @@
-import { Form, App } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { App } from 'antd'
 import { useState, useCallback } from 'react'
 import { verifyResetCode } from "@/features/authentication/services"
 import { useNotifier } from '@/shared/notifications.js'
@@ -170,7 +171,7 @@ export function useVerificationForm({ onSubmit, email, devCode } = {}) {
       const data = await res.json()
       success('Code verified')
       form.resetFields()
-      if (typeof onSubmit === 'function') onSubmit({ email, resetToken: data?.resetToken })
+      if (typeof onSubmit === 'function') onSubmit({ email, resetToken: data?.resetToken, allowedToReset: data?.allowedToReset })
     } catch (err) {
       console.error('Verification error:', err)
       

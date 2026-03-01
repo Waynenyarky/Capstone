@@ -4,6 +4,7 @@
  */
 
 const crypto = require('crypto')
+const axios = require('axios')
 const AuditLog = require('../models/AuditLog')
 
 /**
@@ -60,6 +61,23 @@ async function createAuditLog(userId, eventType, fieldChanged, oldValue, newValu
       role,
       metadata: fullMetadata,
       hash,
+      blockchainStatus: 'pending',
+    })
+
+    // Forward to audit-service for blockchain anchoring (non-blocking)
+    const auditServiceUrl = process.env.AUDIT_SERVICE_URL || 'http://localhost:3004'
+    const headers = { 'Content-Type': 'application/json' }
+    if (process.env.AUDIT_SERVICE_API_KEY) headers['X-API-Key'] = process.env.AUDIT_SERVICE_API_KEY
+    axios.post(`${auditServiceUrl}/api/audit/log`, {
+      operation: 'logAuditHash',
+      params: [hash, eventType],
+      auditLogId: String(auditLog._id),
+    }, { headers, timeout: 5000 }).catch(async (err) => {
+      console.warn('[AuditLogger] Failed to forward audit log to Audit Service:', err.message)
+      await AuditLog.findByIdAndUpdate(auditLog._id, {
+        blockchainStatus: 'skipped',
+        blockchainError: err.message,
+      }).catch(() => {})
     })
 
     return auditLog

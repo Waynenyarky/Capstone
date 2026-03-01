@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Form } from 'antd'
+import { Form } from '@/shared/components/AppForm'
 import { useStaffManagement, roleLabel, officeLabel } from '../../hooks'
 import { updateStaff, resetStaffPassword } from '../../services'
 import { useNotifier } from '@/shared/notifications'

@@ -50,6 +50,9 @@ function getUserFriendlyMessage(code, defaultMessage, context = {}) {
     // Rate limiting
     rate_limit_exceeded: 'Too many requests. Please slow down and try again later.',
     
+    // CAPTCHA
+    captcha_failed: 'Verification failed. Please try again.',
+    
     // Account lockout
     account_locked: 'Your account has been temporarily locked due to too many failed attempts. Please try again later.',
     

@@ -3,7 +3,9 @@ const User = require('../models/User')
 const AuditLog = require('../models/AuditLog')
 // Register Role model to enable populate('role')
 require('../models/Role')
+const crypto = require('crypto')
 const blockchainService = require('../lib/blockchainService')
+const { logAuditEvent } = require('../lib/auditClient')
 const { validateBusinessRegistrationNumber, validateGeolocation, calculateRiskLevel } = require('../lib/businessValidation')
 const mongoose = require('mongoose')
 
@@ -319,6 +321,10 @@ class BusinessProfileService {
       submittedAt: hasExistingPermit ? new Date() : null,
       submittedToLguOfficer: hasExistingPermit,
       isSubmitted: hasExistingPermit,
+      formType: businessData.formType || '',
+      category: businessData.category || '',
+      formDefinitionId: businessData.formDefinitionId ?? null,
+      formData: businessData.formData && typeof businessData.formData === 'object' ? businessData.formData : {},
       requirementsChecklist: {
         confirmed: false,
         confirmedAt: null,
@@ -392,6 +398,18 @@ class BusinessProfileService {
       updatedAt: new Date()
     }
 
+    // Merge document CIDs from dynamic form into lguDocuments (*IpfsCid keys)
+    if (businessData.documentCids && typeof businessData.documentCids === 'object') {
+      const cids = businessData.documentCids
+      Object.keys(cids).forEach((key) => {
+        const cid = cids[key]
+        if (cid && typeof cid === 'string' && cid.trim()) {
+          const ipfsKey = key.endsWith('IpfsCid') ? key : `${key}IpfsCid`
+          newBusiness.lguDocuments[ipfsKey] = cid.trim()
+        }
+      })
+    }
+
     // Add to businesses array
     if (!profile.businesses) {
       profile.businesses = []
@@ -456,6 +474,7 @@ class BusinessProfileService {
         oldValue: '',
         newValue: JSON.stringify(newBusiness),
         role: roleSlug,
+        hash: crypto.randomUUID(),
         metadata: {
           businessId,
           businessName: businessData.businessName,
@@ -465,6 +484,8 @@ class BusinessProfileService {
     } catch (error) {
       console.error('Error creating audit log for business add:', error)
     }
+
+    logAuditEvent('business_registered', userId, 'BusinessProfile', profile._id.toString(), { businessId, businessName: businessData.businessName })
 
     return { profile, businessId }
   }
@@ -587,11 +608,50 @@ class BusinessProfileService {
       }
     }
 
+    // Merge lguDocuments / documentCids into existing (do not replace entire lguDocuments)
+    const existingLgu = existingBusinessObj.lguDocuments && typeof existingBusinessObj.lguDocuments === 'object'
+      ? existingBusinessObj.lguDocuments
+      : {}
+    const mergedLgu = { ...existingLgu }
+    if (businessData.documentCids && typeof businessData.documentCids === 'object') {
+      Object.keys(businessData.documentCids).forEach((key) => {
+        const cid = businessData.documentCids[key]
+        if (cid && typeof cid === 'string' && cid.trim()) {
+          const ipfsKey = key.endsWith('IpfsCid') ? key : `${key}IpfsCid`
+          mergedLgu[ipfsKey] = cid.trim()
+        }
+      })
+    }
+    if (businessData.lguDocuments && typeof businessData.lguDocuments === 'object') {
+      Object.assign(mergedLgu, businessData.lguDocuments)
+    }
+    updatedBusiness.lguDocuments = mergedLgu
+
     const wasResubmit = existingBusinessObj?.applicationStatus === 'resubmit'
     if (updatedBusiness.applicationStatus === 'resubmit') {
       updatedBusiness.submittedAt = new Date()
       updatedBusiness.submittedToLguOfficer = true
       updatedBusiness.isSubmitted = true
+    }
+
+    // When transitioning to 'submitted' from draft, set reference number and submittedAt if missing
+    const wasDraft = (existingBusinessObj?.applicationStatus || '').toLowerCase() === 'draft'
+    const isNowSubmitted = (updatedBusiness.applicationStatus || '').toLowerCase() === 'submitted'
+    if (isNowSubmitted && wasDraft) {
+      updatedBusiness.submittedAt = updatedBusiness.submittedAt || new Date()
+      updatedBusiness.submittedToLguOfficer = true
+      updatedBusiness.isSubmitted = true
+      if (!updatedBusiness.applicationReferenceNumber || String(updatedBusiness.applicationReferenceNumber).trim() === '') {
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+        const randomSeq = Math.floor(1000 + Math.random() * 9000)
+        updatedBusiness.applicationReferenceNumber = `APP-${dateStr}-${randomSeq}`
+      }
+    }
+    // Also ensure any submitted application has a reference number (e.g. old records or edge cases)
+    if (isNowSubmitted && (!updatedBusiness.applicationReferenceNumber || String(updatedBusiness.applicationReferenceNumber).trim() === '')) {
+      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+      const randomSeq = Math.floor(1000 + Math.random() * 9000)
+      updatedBusiness.applicationReferenceNumber = `APP-${dateStr}-${randomSeq}`
     }
 
     // Update the business in the array
@@ -655,6 +715,7 @@ class BusinessProfileService {
         oldValue: JSON.stringify(existingBusiness),
         newValue: JSON.stringify(updatedBusiness),
         role: roleSlug,
+        hash: crypto.randomUUID(),
         metadata: {
           businessId,
           businessName: updatedBusiness.businessName
@@ -690,6 +751,12 @@ class BusinessProfileService {
 
     const businessToDelete = profile.businesses[businessIndex]
     const wasPrimary = businessToDelete.isPrimary
+
+    // Only allow deletion of applications that have never been submitted
+    const status = (businessToDelete.applicationStatus || '').toLowerCase()
+    if (status !== 'draft') {
+      throw new Error('Cannot delete an application that has already been submitted.')
+    }
 
     // Remove business
     profile.businesses.splice(businessIndex, 1)

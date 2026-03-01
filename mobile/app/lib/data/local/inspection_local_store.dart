@@ -74,6 +74,17 @@ class InspectionLocalStore {
     });
   }
 
+  /// Queue a submission for sync when online
+  static Future<void> queueSubmission(String inspectionId, Map<String, dynamic> payload) async {
+    final db = await _getDb();
+    await db.insert('pending_sync', {
+      'op_type': 'submit',
+      'inspection_id': inspectionId,
+      'payload': json.encode(payload),
+      'created_at': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
   /// Get all pending sync items
   static Future<List<Map<String, dynamic>>> getPendingSync() async {
     final db = await _getDb();
@@ -99,6 +110,13 @@ class InspectionLocalStore {
   static Future<void> clearPendingSync() async {
     final db = await _getDb();
     await db.delete('pending_sync');
+  }
+
+  /// Check if there are pending items to sync
+  static Future<bool> hasPendingSync() async {
+    final db = await _getDb();
+    final result = await db.rawQuery('SELECT COUNT(*) as cnt FROM pending_sync');
+    return (result.first['cnt'] as int? ?? 0) > 0;
   }
 
   static Future<void> close() async {

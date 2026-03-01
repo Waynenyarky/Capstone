@@ -12,10 +12,7 @@ const BracketSchema = new mongoose.Schema(
 
 const FeeConfigurationSchema = new mongoose.Schema(
   {
-    taxCode: {
-      type: String,
-      default: '',
-    },
+    taxCode: { type: String, index: true, unique: true, sparse: true },
     lineOfBusiness: {
       type: String,
       required: true,

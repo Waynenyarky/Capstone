@@ -144,6 +144,19 @@ function getTestTokens(users) {
 }
 
 /**
+ * Get headers for admin requests that require step-up (e.g. profile/personal-info, approvals).
+ * Use with .set() for supertest: request(app).patch(...).set(...getAdminStepUpHeaders(adminToken, adminUser))
+ */
+function getAdminStepUpHeaders(adminToken, adminUser) {
+  const { signStepUpToken } = require('../../services/auth-service/src/middleware/auth')
+  const stepUpToken = signStepUpToken(adminUser._id).token
+  return {
+    'Authorization': `Bearer ${adminToken}`,
+    'X-Step-Up-Token': stepUpToken,
+  }
+}
+
+/**
  * Create a test verification request
  */
 async function createTestVerificationRequest(userId, purpose, method = 'otp') {
@@ -158,5 +171,6 @@ module.exports = {
   createTestUser,
   createTestUsers,
   getTestTokens,
+  getAdminStepUpHeaders,
   createTestVerificationRequest,
 }

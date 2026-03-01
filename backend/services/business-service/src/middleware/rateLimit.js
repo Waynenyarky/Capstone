@@ -129,6 +129,39 @@ function adminApprovalRateLimit() {
   })
 }
 
+/**
+ * Rate limiter for AI / LOB recommendation requests
+ * 10 requests per minute per authenticated user (falls back to IP)
+ */
+function aiValidationRateLimit() {
+  return rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => {
+      return req._userId || ipKeyGenerator(req)
+    },
+    handler: (req, res) => {
+      req.rateLimitViolated = true
+      let retryAfterSec = 60
+      try {
+        const rl = req.rateLimit || {}
+        let resetMs = 0
+        if (rl.resetTime) {
+          resetMs = new Date(rl.resetTime).getTime()
+        } else if (typeof rl.resetMs === 'number') {
+          resetMs = rl.resetMs
+        }
+        if (resetMs > Date.now()) {
+          retryAfterSec = Math.ceil((resetMs - Date.now()) / 1000)
+        }
+      } catch (_) {}
+      return respond.error(res, 429, 'ai_validation_rate_limited', `Too many AI validation requests. Try again in ${retryAfterSec}s.`)
+    },
+  })
+}
+
 module.exports = {
   perEmailRateLimit,
   verificationRateLimit,
@@ -136,4 +169,5 @@ module.exports = {
   passwordChangeRateLimit,
   idUploadRateLimit,
   adminApprovalRateLimit,
+  aiValidationRateLimit,
 }

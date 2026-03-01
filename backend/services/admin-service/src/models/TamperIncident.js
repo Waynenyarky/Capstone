@@ -16,7 +16,7 @@ const TamperIncidentSchema = new mongoose.Schema(
     },
     verificationStatus: {
       type: String,
-      enum: ['tamper_detected', 'verification_error', 'not_logged'],
+      enum: ['tamper_detected', 'verification_error', 'not_logged', 'security_event'],
       default: 'tamper_detected',
       index: true,
     },

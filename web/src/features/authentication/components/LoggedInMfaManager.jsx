@@ -14,7 +14,13 @@ import { useAppTheme, THEMES } from '@/shared/theme/ThemeProvider'
 
 const { Text, Paragraph, Title } = Typography
 
-export default function LoggedInMfaManager({ isAdmin = false, hasPasskeys = false }) {
+/**
+ * @param {object} props
+ * @param {boolean} [props.isAdmin]
+ * @param {boolean} [props.hasPasskeys]
+ * @param {() => void} [props.onOpenSetupForm] - If provided, "Setup MFA" opens the form inline (e.g. in settings tab) instead of navigating to /account/security.
+ */
+export default function LoggedInMfaManager({ isAdmin = false, hasPasskeys = false, onOpenSetupForm }) {
   const { token } = theme.useToken()
   const { currentTheme } = useAppTheme()
   const isDarkTheme = currentTheme === THEMES.DARK
@@ -22,6 +28,7 @@ export default function LoggedInMfaManager({ isAdmin = false, hasPasskeys = fals
 
   const {
     currentUser,
+    role,
     loading,
     enabled,
     statusFetchFailed,
@@ -39,23 +46,39 @@ export default function LoggedInMfaManager({ isAdmin = false, hasPasskeys = fals
     handleOpenSetup,
     handleDisable,
     confirmDisable,
+    confirmDisableWithoutVerify,
     confirmUndo
   } = useLoggedInMfaManager()
 
-  const handleSetupClick = () => {
-    if (isAdmin && hasPasskeys) {
-      setSwitchConfirmVisible(true)
+  const roleKey = String(role?.slug ?? role ?? '').toLowerCase()
+  const canDisableMfa = roleKey === 'business_owner'
+  const passkeyOnly = hasPasskeys && !enabled
+
+  const openSetup = () => {
+    if (typeof onOpenSetupForm === 'function') {
+      onOpenSetupForm()
     } else {
       handleOpenSetup()
     }
   }
 
+  const handleSetupClick = () => {
+    if (isAdmin && hasPasskeys) {
+      setSwitchConfirmVisible(true)
+    } else {
+      openSetup()
+    }
+  }
+
   const confirmSwitchToMfa = () => {
     setSwitchConfirmVisible(false)
-    handleOpenSetup()
+    openSetup()
   }
 
   if (!currentUser) return null
+
+  // User has 2FA if they have TOTP/authenticator enabled OR at least one passkey
+  const effectiveEnabled = enabled || hasPasskeys
 
   return (
     <div>
@@ -69,7 +92,7 @@ export default function LoggedInMfaManager({ isAdmin = false, hasPasskeys = fals
         />
       )}
 
-      {disablePending && scheduledFor && (
+      {canDisableMfa && disablePending && scheduledFor && (
         <Alert
           type="error"
           showIcon
@@ -101,50 +124,64 @@ export default function LoggedInMfaManager({ isAdmin = false, hasPasskeys = fals
         />
       )}
       
-      {/* Status Card */}
+      {/* Status Card - centered, login-style */}
       <div style={{ 
         padding: 24, 
-        background: enabled 
+        background: effectiveEnabled 
             ? (isDarkTheme ? 'rgba(82, 196, 26, 0.15)' : '#f6ffed') 
             : (isDarkTheme ? 'rgba(250, 173, 20, 0.15)' : '#fffbe6'), 
-        border: `1px solid ${enabled 
+        border: `1px solid ${effectiveEnabled 
             ? (isDarkTheme ? '#237804' : '#b7eb8f') 
             : (isDarkTheme ? '#d48806' : '#ffe58f')}`,
         borderRadius: token.borderRadiusLG,
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 16
+        textAlign: 'center',
+        gap: 20,
       }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, maxWidth: '70%' }}>
-          {enabled ? (
-            <SafetyCertificateOutlined style={{ fontSize: 32, color: '#52c41a', marginTop: 4 }} />
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          {effectiveEnabled ? (
+            <SafetyCertificateOutlined style={{ fontSize: 32, color: '#52c41a' }} />
           ) : (
-            <SecurityScanOutlined style={{ fontSize: 32, color: '#faad14', marginTop: 4 }} />
+            <SecurityScanOutlined style={{ fontSize: 32, color: '#faad14' }} />
           )}
-          <div>
-            <Title level={5} style={{ margin: 0, marginBottom: 4, color: isDarkTheme ? '#fff' : undefined }}>
-              {enabled ? 'Two-Factor Authentication is active' : 'Two-Factor Authentication is not enabled'}
-            </Title>
-            <Text type="secondary" style={{ color: isDarkTheme ? 'rgba(255, 255, 255, 0.65)' : undefined }}>
-              {enabled 
-                ? 'Your account is protected with an extra layer of security.' 
-                : 'Protect your account by requiring a verification code when signing in.'}
-            </Text>
-          </div>
+        </div>
+        <div>
+          <Title level={5} style={{ margin: 0, marginBottom: 4, color: isDarkTheme ? '#fff' : undefined }}>
+            {effectiveEnabled ? 'Two-Factor Authentication is active' : 'Two-Factor Authentication is not enabled'}
+          </Title>
+          <Paragraph type="secondary" style={{ margin: 0, color: isDarkTheme ? 'rgba(255, 255, 255, 0.65)' : undefined }}>
+            {effectiveEnabled 
+              ? (hasPasskeys && !enabled 
+                  ? 'Your account is protected with passkey sign-in.' 
+                  : 'Your account is protected with an extra layer of security.')
+              : 'Protect your account by requiring a verification code or passkey when signing in.'}
+          </Paragraph>
         </div>
         
         <div>
-          {enabled ? (
-            <Button 
-              danger 
-              onClick={handleDisable} 
-              disabled={loading || disablePending}
-              icon={<LockOutlined />}
-            >
-              Disable MFA
-            </Button>
+          {effectiveEnabled ? (
+            <Space wrap>
+              <Button 
+                type="primary" 
+                onClick={handleSetupClick} 
+                disabled={loading}
+                icon={<SafetyCertificateOutlined />}
+              >
+                Set up again
+              </Button>
+              {canDisableMfa && (
+                <Button 
+                  danger 
+                  onClick={handleDisable} 
+                  disabled={loading || disablePending}
+                  icon={<LockOutlined />}
+                >
+                  Disable MFA
+                </Button>
+              )}
+            </Space>
           ) : (
             <Button 
               type="primary" 
@@ -158,7 +195,7 @@ export default function LoggedInMfaManager({ isAdmin = false, hasPasskeys = fals
         </div>
       </div>
 
-      {/* Confirm Disable Modal */}
+      {/* Confirm Disable Modal — passkey-only: no code; TOTP: require 6-digit code */}
       <Modal
         title={
           <Space>
@@ -167,11 +204,16 @@ export default function LoggedInMfaManager({ isAdmin = false, hasPasskeys = fals
           </Space>
         }
         open={confirmModalVisible}
-        onOk={confirmDisable}
+        onOk={passkeyOnly ? confirmDisableWithoutVerify : confirmDisable}
         onCancel={() => setConfirmModalVisible(false)}
         okText="Disable MFA"
-        okButtonProps={{ danger: true, size: 'large' }}
-        cancelButtonProps={{ size: 'large' }}
+        okButtonProps={{
+          danger: true,
+          size: 'large',
+          loading,
+          disabled: !passkeyOnly && confirmCode.replace(/\D/g, '').length !== 6
+        }}
+        cancelButtonProps={{ size: 'large', disabled: loading }}
         width={480}
         centered
       >
@@ -183,45 +225,49 @@ export default function LoggedInMfaManager({ isAdmin = false, hasPasskeys = fals
             description="For your security, disabling MFA requires a 24-hour waiting period. You can cancel this request at any time during the countdown."
             style={{ marginBottom: 24 }}
           />
-          
-          <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <Paragraph style={{ fontSize: 16 }}>
-              Enter the 6-digit code from your authenticator app
+          {passkeyOnly ? (
+            <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+              You use passkey sign-in. Click &quot;Disable MFA&quot; and you will be asked to verify with your passkey before the request is scheduled.
             </Paragraph>
-            <div 
-              style={{ display: 'flex', justifyContent: 'center', maxWidth: 320, margin: '0 auto' }}
-              onKeyDown={(e) => {
-                const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
-                if (allowedKeys.includes(e.key)) return
-                if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
-                if (!/^[0-9]$/.test(e.key)) {
-                  e.preventDefault()
-                  e.stopPropagation()
-                }
-              }}
-              onPaste={(e) => {
-                e.preventDefault()
-                const pastedText = (e.clipboardData || window.clipboardData).getData('text')
-                const numericOnly = pastedText.replace(/[^0-9]/g, '').slice(0, 6)
-                if (numericOnly) {
-                  setConfirmCode(numericOnly)
-                }
-              }}
-            >
-              <Input.OTP 
-                length={6} 
-                value={confirmCode}
-                onChange={(text) => {
-                  const numericValue = text.replace(/[^0-9]/g, '').slice(0, 6)
-                  setConfirmCode(numericValue)
+          ) : (
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+              <Paragraph style={{ fontSize: 16 }}>
+                Enter the 6-digit code from your authenticator app
+              </Paragraph>
+              <div 
+                style={{ display: 'flex', justifyContent: 'center', maxWidth: 320, margin: '0 auto' }}
+                onKeyDown={(e) => {
+                  const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
+                  if (allowedKeys.includes(e.key)) return
+                  if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
+                  if (!/^[0-9]$/.test(e.key)) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                  }
                 }}
-                size="large"
-                inputType="numeric"
-                mask={false}
-                style={{ width: '100%', justifyContent: 'center', gap: 8 }}
-              />
+                onPaste={(e) => {
+                  e.preventDefault()
+                  const pastedText = (e.clipboardData || window.clipboardData).getData('text')
+                  const numericOnly = pastedText.replace(/[^0-9]/g, '').slice(0, 6)
+                  if (numericOnly) {
+                    setConfirmCode(numericOnly)
+                  }
+                }}
+              >
+                <Input.OTP 
+                  length={6} 
+                  value={confirmCode}
+                  onChange={(text) => {
+                    const numericValue = text.replace(/[^0-9]/g, '').slice(0, 6)
+                    setConfirmCode(numericValue)
+                  }}
+                  inputType="numeric"
+                  mask={false}
+                  style={{ width: '100%', justifyContent: 'center', gap: 8 }}
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </Modal>
 
@@ -248,7 +294,7 @@ export default function LoggedInMfaManager({ isAdmin = false, hasPasskeys = fals
         </Paragraph>
       </Modal>
 
-      {/* Undo Disable Modal */}
+      {/* Undo Disable Modal — passkey-only: no code; TOTP: require 6-digit code */}
       <Modal
         title={
           <Space>
@@ -257,52 +303,58 @@ export default function LoggedInMfaManager({ isAdmin = false, hasPasskeys = fals
           </Space>
         }
         open={undoModalVisible}
-        onOk={confirmUndo}
+        onOk={() => confirmUndo(passkeyOnly)}
         onCancel={() => setUndoModalVisible(false)}
         okText="Keep MFA Enabled"
-        okButtonProps={{ type: 'primary', size: 'large' }}
-        cancelButtonProps={{ size: 'large' }}
+        okButtonProps={{
+          type: 'primary',
+          size: 'large',
+          loading,
+          disabled: !passkeyOnly && undoCode.replace(/\D/g, '').length !== 6
+        }}
+        cancelButtonProps={{ size: 'large', disabled: loading }}
         width={480}
         centered
       >
         <div style={{ padding: '24px 0' }}>
-          <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <Paragraph type="secondary" style={{ marginBottom: 24 }}>
-              Verify your identity to cancel the pending disable request.
+          <div style={{ textAlign: 'center', marginBottom: passkeyOnly ? 0 : 24 }}>
+            <Paragraph type="secondary" style={{ marginBottom: passkeyOnly ? 0 : 24 }}>
+              {passkeyOnly
+                ? 'Click "Keep MFA Enabled" and you will be asked to verify with your passkey to cancel the disable request.'
+                : 'Verify your identity to cancel the pending disable request.'}
             </Paragraph>
-            <div 
-              style={{ display: 'flex', justifyContent: 'center' }}
-              onKeyDown={(e) => {
-                const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
-                if (allowedKeys.includes(e.key)) return
-                if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
-                if (!/^[0-9]$/.test(e.key)) {
-                  e.preventDefault()
-                  e.stopPropagation()
-                }
-              }}
-              onPaste={(e) => {
-                e.preventDefault()
-                const pastedText = (e.clipboardData || window.clipboardData).getData('text')
-                const numericOnly = pastedText.replace(/[^0-9]/g, '').slice(0, 6)
-                if (numericOnly) {
-                  setUndoCode(numericOnly)
-                }
-              }}
-            >
-              <Input.OTP 
-                length={6} 
-                value={undoCode}
-                onChange={(text) => {
-                  const numericValue = text.replace(/[^0-9]/g, '').slice(0, 6)
-                  setUndoCode(numericValue)
+            {!passkeyOnly && (
+              <div
+                style={{ display: 'flex', justifyContent: 'center' }}
+                onKeyDown={(e) => {
+                  const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
+                  if (allowedKeys.includes(e.key)) return
+                  if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
+                  if (!/^[0-9]$/.test(e.key)) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                  }
                 }}
-                size="large"
-                inputType="numeric"
-                mask={false}
-                style={{ width: '100%', justifyContent: 'center', gap: 8 }}
-              />
-            </div>
+                onPaste={(e) => {
+                  e.preventDefault()
+                  const pastedText = (e.clipboardData || window.clipboardData).getData('text')
+                  const numericOnly = pastedText.replace(/[^0-9]/g, '').slice(0, 6)
+                  if (numericOnly) setUndoCode(numericOnly)
+                }}
+              >
+                <Input.OTP
+                  length={6}
+                  value={undoCode}
+                  onChange={(text) => {
+                    const numericValue = text.replace(/[^0-9]/g, '').slice(0, 6)
+                    setUndoCode(numericValue)
+                  }}
+                  inputType="numeric"
+                  mask={false}
+                  style={{ width: '100%', justifyContent: 'center', gap: 8 }}
+                />
+              </div>
+            )}
           </div>
         </div>
       </Modal>

@@ -5,6 +5,8 @@ const respond = require('../middleware/respond')
 const { requireJwt } = require('../middleware/auth')
 const { validateBody, Joi } = require('../middleware/validation')
 const { decryptWithHash, encryptWithHash } = require('../lib/secretCipher')
+const { createAuditLog } = require('../lib/auditLogger')
+const { validatePasswordStrength } = require('../lib/passwordValidator')
 
 const router = express.Router()
 
@@ -37,6 +39,11 @@ router.post('/first-login/change-credentials', requireJwt, validateBody(firstLog
       if (!ok) return respond.error(res, 401, 'invalid_current_password', 'Invalid current password')
     }
 
+    const passwordValidation = validatePasswordStrength(newPassword)
+    if (!passwordValidation.valid) {
+      return respond.error(res, 400, 'weak_password', 'Password does not meet requirements', passwordValidation.errors)
+    }
+
     const usernameKey = String(newUsername).toLowerCase().trim()
     const exists = await User.findOne({ username: usernameKey, _id: { $ne: doc._id } }).lean()
     if (exists) return respond.error(res, 409, 'username_exists', 'Username already exists')
@@ -51,6 +58,7 @@ router.post('/first-login/change-credentials', requireJwt, validateBody(firstLog
 
     doc.username = usernameKey
     doc.passwordHash = await bcrypt.hash(String(newPassword), 10)
+    doc.passwordChangedAt = new Date()
     if (mfaPlain) {
       try {
         doc.mfaSecret = encryptWithHash(doc.passwordHash, mfaPlain)
@@ -60,6 +68,8 @@ router.post('/first-login/change-credentials', requireJwt, validateBody(firstLog
     doc.mustChangeCredentials = false
     if (doc.isStaff) doc.isActive = doc.mustSetupMfa ? false : true
     await doc.save()
+
+    createAuditLog(req._userId, 'first_login_credentials_changed', 'password', '', 'changed', req._role || 'staff', {}).catch(() => {})
 
     const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
     const userSafe = {

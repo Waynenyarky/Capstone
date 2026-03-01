@@ -2,6 +2,7 @@ const express = require('express')
 const { requireJwt, requireRole } = require('../middleware/auth')
 const BusinessProfile = require('../models/BusinessProfile')
 const { computeApplicationFees } = require('../lib/feeCalculator')
+const { logAuditEvent } = require('../lib/auditClient')
 
 const router = express.Router()
 
@@ -97,6 +98,8 @@ router.post('/', requireJwt, requireRole(['lgu_officer', 'admin']), async (req, 
 
     profile.businesses.push(newBusiness)
     await profile.save()
+
+    logAuditEvent('walk_in_registered', req._userId, 'BusinessProfile', profile._id.toString(), { businessId })
 
     // Compute fees
     let computedFees = null

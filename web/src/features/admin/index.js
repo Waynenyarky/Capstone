@@ -13,6 +13,7 @@ export { default as AdminFormDefinitionEditor } from './pages/AdminFormDefinitio
 export { default as AdminAuditTamper } from './pages/AdminAuditTamper'
 export { default as AdminRequests } from './pages/AdminRequests'
 export { default as AdminFinance } from './pages/AdminFinance'
+export { default as AdminLobTrainer } from './pages/AdminLobTrainer'
 
 // Notes:
 // - Users expose their own barrels.

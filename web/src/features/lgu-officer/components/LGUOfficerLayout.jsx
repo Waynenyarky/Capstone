@@ -47,7 +47,7 @@ export default function LGUOfficerLayout({
       <Layout>
         <Content
           style={{
-            background: token.colorBgLayout,
+            background: token.colorBgContainer,
             overflow: 'hidden',
             height: '100vh',
             display: 'flex',

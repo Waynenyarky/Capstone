@@ -3,8 +3,43 @@ const User = require('../models/User')
 const AuditLog = require('../models/AuditLog')
 const Role = require('../models/Role') // Ensure Role model is registered
 const blockchainService = require('../lib/blockchainService')
+const { logAuditEvent } = require('../lib/auditClient')
 const crypto = require('crypto')
 const sendEmail = require('../lib/mailer').sendEmail
+
+/** Build a simple application history for timeline (reverse chronological) */
+function buildApplicationHistory(business) {
+  const events = []
+  if (business.createdAt) {
+    events.push({ event: 'created', at: business.createdAt, label: 'Draft saved' })
+  }
+  if (business.submittedAt) {
+    events.push({ event: 'submitted', at: business.submittedAt, label: 'Submitted by applicant' })
+  }
+  if (business.reviewedAt) {
+    const status = business.applicationStatus || ''
+    if (status === 'under_review') {
+      events.push({ event: 'review_started', at: business.reviewedAt, label: 'Review started' })
+    } else if (status === 'needs_revision') {
+      events.push({ event: 'needs_revision', at: business.reviewedAt, label: 'Marked needs revision' })
+    } else if (status === 'approved') {
+      events.push({ event: 'approved', at: business.reviewedAt, label: 'Approved' })
+    } else if (status === 'rejected') {
+      events.push({ event: 'rejected', at: business.reviewedAt, label: 'Rejected' })
+    } else {
+      events.push({ event: 'reviewed', at: business.reviewedAt, label: 'Reviewed' })
+    }
+  }
+  if (business.updatedAt && !events.some(e => e.at && e.at.getTime && e.at.getTime() === business.updatedAt.getTime())) {
+    events.push({ event: 'updated', at: business.updatedAt, label: 'Last updated' })
+  }
+  events.sort((a, b) => {
+    const tA = a.at ? new Date(a.at).getTime() : 0
+    const tB = b.at ? new Date(b.at).getTime() : 0
+    return tB - tA
+  })
+  return events
+}
 
 class PermitApplicationService {
   /**
@@ -176,7 +211,7 @@ class PermitApplicationService {
     }
 
     const user = await User.findById(profile.userId)
-      .select('email firstName lastName phoneNumber')
+      .select('email firstName lastName phoneNumber middleName suffix sex dateOfBirth maritalStatus placeOfBirth nationality fatherName motherName distinctiveMark highestEducationalAttainment address')
       .lean()
 
     // Get business owner full name with priority:
@@ -202,6 +237,18 @@ class PermitApplicationService {
     const birReg = business.birRegistration || {}
     const otherAgencies = business.otherAgencyRegistrations || {}
 
+    // Merge owner identity: use profile.ownerIdentity and fill gaps from business/user so review UI always has owner data
+    const profileOwner = profile.ownerIdentity || {}
+    const idPictureUrl = getDocumentUrl(lguDocs.idPicture, lguDocs.idPictureIpfsCid)
+    const ownerIdentity = {
+      fullName: (profileOwner.fullName && profileOwner.fullName.trim()) || (business.ownerFullName && business.ownerFullName.trim()) || ownerFullName,
+      dateOfBirth: profileOwner.dateOfBirth || undefined,
+      idType: (profileOwner.idType && profileOwner.idType.trim()) || (business.governmentIdType && business.governmentIdType.trim()) || '',
+      idNumber: (profileOwner.idNumber && profileOwner.idNumber.trim()) || (business.governmentIdNumber && business.governmentIdNumber.trim()) || '',
+      idFileUrl: (profileOwner.idFileUrl && profileOwner.idFileUrl.trim()) || idPictureUrl || '',
+      isSubmitted: profileOwner.isSubmitted
+    }
+
     return {
       applicationId: business.businessId,
       businessId: business.businessId,
@@ -217,8 +264,14 @@ class PermitApplicationService {
       reviewedAt: business.reviewedAt,
       reviewComments: business.reviewComments,
       rejectionReason: business.rejectionReason,
-      // Owner Identity from BusinessProfile
-      ownerIdentity: profile.ownerIdentity || {},
+      // Per-field review decisions (accepted/rejected with optional reason)
+      fieldReviewDecisions: business.fieldReviewDecisions && typeof business.fieldReviewDecisions === 'object' ? business.fieldReviewDecisions : {},
+      // Form definition–driven application (for review UI)
+      formType: business.formType || '',
+      formDefinitionId: business.formDefinitionId || null,
+      formData: business.formData && typeof business.formData === 'object' ? business.formData : {},
+      // Owner Identity (merged from profile + business so review detail always has owner data)
+      ownerIdentity,
       // Complete Business Registration Data
       businessRegistration: {
         registeredBusinessName: business.registeredBusinessName || business.businessName,
@@ -289,25 +342,58 @@ class PermitApplicationService {
       },
       // Requirements Checklist
       requirementsChecklist: business.requirementsChecklist || {},
-      // Documents (with IPFS URL resolution)
-      documents: {
-        idPicture: getDocumentUrl(lguDocs.idPicture, lguDocs.idPictureIpfsCid),
-        ctc: getDocumentUrl(lguDocs.ctc, lguDocs.ctcIpfsCid),
-        barangayClearance: getDocumentUrl(lguDocs.barangayClearance, lguDocs.barangayClearanceIpfsCid),
-        dtiSecCda: getDocumentUrl(lguDocs.dtiSecCda, lguDocs.dtiSecCdaIpfsCid),
-        leaseOrLandTitle: getDocumentUrl(lguDocs.leaseOrLandTitle, lguDocs.leaseOrLandTitleIpfsCid),
-        occupancyPermit: getDocumentUrl(lguDocs.occupancyPermit, lguDocs.occupancyPermitIpfsCid),
-        healthCertificate: getDocumentUrl(lguDocs.healthCertificate, lguDocs.healthCertificateIpfsCid)
-      },
+      // Documents: fixed keys for backward compat + all dynamic keys from lguDocuments (*IpfsCid) so form-defined docs show in review
+      documents: (() => {
+        const fixed = {
+          idPicture: getDocumentUrl(lguDocs.idPicture, lguDocs.idPictureIpfsCid),
+          ctc: getDocumentUrl(lguDocs.ctc, lguDocs.ctcIpfsCid),
+          barangayClearance: getDocumentUrl(lguDocs.barangayClearance, lguDocs.barangayClearanceIpfsCid),
+          dtiSecCda: getDocumentUrl(lguDocs.dtiSecCda, lguDocs.dtiSecCdaIpfsCid),
+          leaseOrLandTitle: getDocumentUrl(lguDocs.leaseOrLandTitle, lguDocs.leaseOrLandTitleIpfsCid),
+          occupancyPermit: getDocumentUrl(lguDocs.occupancyPermit, lguDocs.occupancyPermitIpfsCid),
+          healthCertificate: getDocumentUrl(lguDocs.healthCertificate, lguDocs.healthCertificateIpfsCid)
+        }
+        const dynamic = {}
+        Object.keys(lguDocs || {}).forEach((k) => {
+          if (k.endsWith('IpfsCid')) {
+            const baseKey = k.slice(0, -7) // 'IpfsCid' is 7 chars
+            dynamic[baseKey] = getDocumentUrl(null, lguDocs[k])
+          }
+        })
+        return { ...fixed, ...dynamic }
+      })(),
       // AI Validation
       aiValidation: business.aiValidation || { completed: false },
-      // Business Owner (with correct full name priority)
+      // Business Owner (with correct full name priority + PIS fields for Owner tab)
       businessOwner: user ? {
         email: user.email,
         name: ownerFullName,
         phoneNumber: user.phoneNumber,
         firstName: user.firstName,
-        lastName: user.lastName
+        lastName: user.lastName,
+        middleName: user.middleName,
+        suffix: user.suffix,
+        sex: user.sex,
+        dateOfBirth: user.dateOfBirth,
+        maritalStatus: user.maritalStatus,
+        placeOfBirth: user.placeOfBirth,
+        nationality: user.nationality,
+        fatherName: user.fatherName,
+        motherName: user.motherName,
+        distinctiveMark: user.distinctiveMark,
+        highestEducationalAttainment: user.highestEducationalAttainment,
+        address: user.address ? {
+          street: user.address.street,
+          streetAddress: user.address.street,
+          barangay: user.address.barangay,
+          barangayName: user.address.barangay,
+          city: user.address.city,
+          cityName: user.address.city,
+          province: user.address.province,
+          provinceName: user.address.province,
+          zipCode: user.address.zipCode,
+          postalCode: user.address.zipCode,
+        } : null,
       } : null,
       // Legacy businessDetails for backward compatibility
       businessDetails: {
@@ -323,7 +409,9 @@ class PermitApplicationService {
         withFoodHandlers: business.withFoodHandlers
       },
       createdAt: business.createdAt,
-      updatedAt: business.updatedAt
+      updatedAt: business.updatedAt,
+      // Application history for timeline (built from existing fields)
+      applicationHistory: buildApplicationHistory(business)
     }
   }
 
@@ -377,8 +465,16 @@ class PermitApplicationService {
 
     // Only allow starting review if status is 'submitted', 'resubmit' or 'needs_revision'
     if (!['submitted', 'resubmit', 'needs_revision'].includes(oldStatus)) {
-      // If already under review or final decision, just return current state
-      return this.getApplicationById(applicationId, businessId)
+      const result = await this.getApplicationById(applicationId, businessId)
+      if (oldStatus === 'under_review' && business.reviewedBy && String(business.reviewedBy) !== String(officerId)) {
+        try {
+          const reviewer = await User.findById(business.reviewedBy).lean()
+          if (reviewer) {
+            result.lockedByOfficer = `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim() || 'Another officer'
+          }
+        } catch { /* ignore */ }
+      }
+      return result
     }
 
     // Update status to under_review
@@ -398,7 +494,7 @@ class PermitApplicationService {
       
       // Create notification for business owner
       try {
-        const notificationService = require('../../../src/services/notificationService')
+        const notificationService = require('./notificationService')
         await notificationService.createNotification(
           profile.userId,
           'application_review_started',
@@ -706,6 +802,10 @@ class PermitApplicationService {
     // Create audit log
     const auditLog = await AuditLog.create(auditData)
 
+    // Send to central audit-service for blockchain anchoring
+    const auditEventType = newStatus === 'approved' ? 'business_approved' : newStatus === 'rejected' ? 'business_rejected' : 'permit_review'
+    logAuditEvent(auditEventType, officerId, 'BusinessProfile', profile._id.toString(), { businessId: businessId || applicationId, decision, newStatus })
+
     // Log to blockchain (non-blocking)
     if (blockchainService.isAvailable()) {
       const blockchainQueue = require('../lib/blockchainQueue')
@@ -933,6 +1033,81 @@ class PermitApplicationService {
       text,
       html
     })
+  }
+
+  /**
+   * Update field-level review decision(s) for an application
+   * @param {string} applicationId - Application ID
+   * @param {string} businessId - Business ID
+   * @param {string} officerId - LGU Officer user ID
+   * @param {object|object[]} payload - Single { fieldKey, status, reasonCode?, reasonOther? } or array of same
+   * @returns {Promise<object>} Updated application with fieldReviewDecisions
+   */
+  async updateFieldDecisions(applicationId, businessId, officerId, payload) {
+    const profile = await BusinessProfile.findOne({
+      'businesses.businessId': businessId || applicationId
+    })
+    if (!profile) throw new Error('Application not found')
+    const idx = profile.businesses.findIndex(b => b.businessId === (businessId || applicationId))
+    if (idx === -1) throw new Error('Application not found')
+    const business = profile.businesses[idx]
+    const status = business.applicationStatus || 'draft'
+    if (!['submitted', 'resubmit', 'needs_revision', 'under_review'].includes(status)) {
+      throw new Error('Application is not in a reviewable status')
+    }
+    const decisions = business.fieldReviewDecisions && typeof business.fieldReviewDecisions === 'object'
+      ? { ...business.fieldReviewDecisions }
+      : {}
+    const items = Array.isArray(payload) ? payload : [payload]
+    for (const item of items) {
+      const { fieldKey, status: decisionStatus, reasonCode, reasonOther } = item
+      if (!fieldKey || !decisionStatus) continue
+      if (!['accepted', 'rejected'].includes(decisionStatus)) continue
+      decisions[fieldKey] = {
+        status: decisionStatus,
+        reasonCode: decisionStatus === 'rejected' ? (reasonCode || null) : undefined,
+        reasonOther: decisionStatus === 'rejected' ? (reasonOther || null) : undefined,
+        decidedAt: new Date()
+      }
+    }
+    profile.businesses[idx].fieldReviewDecisions = decisions
+    profile.markModified('businesses')
+    await profile.save()
+    return this.getApplicationById(applicationId, businessId)
+  }
+
+  /**
+   * Update LOB-related formData (businessDescriptionText, businessActivities) for officer edit
+   * @param {string} applicationId - Application ID
+   * @param {string} businessId - Business ID
+   * @param {string} officerId - LGU Officer user ID
+   * @param {object} payload - { businessDescriptionText?: string, businessActivities?: array }
+   * @returns {Promise<object>} Updated application
+   */
+  async updateLobFormData(applicationId, businessId, officerId, payload) {
+    const profile = await BusinessProfile.findOne({
+      'businesses.businessId': businessId || applicationId
+    })
+    if (!profile) throw new Error('Application not found')
+    const idx = profile.businesses.findIndex(b => b.businessId === (businessId || applicationId))
+    if (idx === -1) throw new Error('Application not found')
+    const business = profile.businesses[idx]
+    const status = business.applicationStatus || 'draft'
+    if (!['submitted', 'resubmit', 'needs_revision', 'under_review'].includes(status)) {
+      throw new Error('Application is not in a reviewable status')
+    }
+    const formData = business.formData && typeof business.formData === 'object' ? { ...business.formData } : {}
+    if (payload.businessDescriptionText !== undefined) {
+      formData.businessDescriptionText = payload.businessDescriptionText
+    }
+    if (payload.businessActivities !== undefined && Array.isArray(payload.businessActivities)) {
+      formData.businessActivities = payload.businessActivities
+    }
+    profile.businesses[idx].formData = formData
+    profile.businesses[idx].updatedAt = new Date()
+    profile.markModified('businesses')
+    await profile.save()
+    return this.getApplicationById(applicationId, businessId)
   }
 }
 

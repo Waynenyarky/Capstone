@@ -8,6 +8,7 @@ const respond = require('../middleware/respond')
 const businessProfileService = require('../services/businessProfileService')
 const pdfService = require('../lib/pdfService')
 const logger = require('../lib/logger')
+const { scanFile } = require('../../../../shared/fileScan')
 
 const businessUploadsRoot = path.join(__dirname, '..', '..', '..', 'uploads', 'business-registration')
 const renewalUploadsRoot = path.join(__dirname, '..', '..', '..', 'uploads', 'business-renewal')
@@ -45,8 +46,22 @@ const renewalUploadStorage = multer.diskStorage({
   }
 })
 
-const upload = multer({ storage: uploadStorage })
-const renewalUpload = multer({ storage: renewalUploadStorage })
+const ALLOWED_MIMETYPES = [
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+  'application/pdf',
+  'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+
+function fileFilter(req, file, cb) {
+  if (!ALLOWED_MIMETYPES.includes(file.mimetype)) {
+    return cb(new Error('File type not allowed. Accepted: JPEG, PNG, GIF, WebP, PDF, DOC, DOCX'), false)
+  }
+  cb(null, true)
+}
+
+const upload = multer({ storage: uploadStorage, fileFilter, limits: { fileSize: MAX_FILE_SIZE } })
+const renewalUpload = multer({ storage: renewalUploadStorage, fileFilter, limits: { fileSize: MAX_FILE_SIZE } })
 
 // Owner ID upload (for business registration identity step - no businessId yet)
 const ownerIdUploadRoot = path.join(__dirname, '..', '..', '..', 'uploads', 'owner-ids')
@@ -82,10 +97,15 @@ router.post(
   requireJwt,
   requireRole(['business_owner']),
   ownerIdUpload.single('file'),
-  async (req, res) => {
+    async (req, res) => {
     try {
       if (!req.file) {
         return respond.error(res, 400, 'file_required', 'No file uploaded')
+      }
+      const scanResult = await scanFile(req.file.path)
+      if (!scanResult.clean) {
+        try { await fs.promises.unlink(req.file.path) } catch (_) {}
+        return respond.error(res, 400, 'file_rejected', 'File could not be accepted. Please try a different file.')
       }
       const userId = req._userId
       const side = (req.body?.side || 'front').toString().replace(/[^a-zA-Z0-9_-]/g, '') || 'front'
@@ -797,6 +817,22 @@ router.get('/business-renewal/:businessId/:renewalId/status', requireJwt, requir
   } catch (err) {
     console.error('GET /api/business/business-renewal/:businessId/:renewalId/status error:', err)
     return respond.error(res, 400, 'status_error', err.message || 'Failed to get renewal status')
+  }
+})
+
+router.post('/staff/walk-in', requireJwt, requireRole(['staff', 'lgu_officer', 'lgu_manager']), async (req, res) => {
+  try {
+    const { ownerId, businessData } = req.body
+    if (!ownerId) return respond.error(res, 400, 'missing_owner', 'ownerId is required')
+
+    const result = await businessProfileService.addBusiness(ownerId, businessData)
+    const profileObj = result.profile && typeof result.profile.toObject === 'function'
+      ? result.profile.toObject()
+      : result.profile
+    res.json({ ...profileObj, businessId: result.businessId, walkIn: true })
+  } catch (err) {
+    console.error('POST /api/business/staff/walk-in error:', err)
+    return respond.error(res, 400, 'walk_in_error', err.message || 'Failed to create walk-in application')
   }
 })
 

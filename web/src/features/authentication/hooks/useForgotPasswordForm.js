@@ -1,4 +1,4 @@
-import { Form } from 'antd'
+import { Form } from '@/shared/components/AppForm'
 import { useState } from 'react'
 import { sendForgotPassword } from "@/features/authentication/services"
 import { useNotifier } from '@/shared/notifications.js'
@@ -13,7 +13,6 @@ export function useForgotPasswordForm({ onSubmit } = {}) {
     try {
       setSubmitting(true)
       await sendForgotPassword(payload)
-      // Don't show success or dev-code notifications; user must check email
       form.resetFields()
       if (typeof onSubmit === 'function') onSubmit({ email: payload.email })
     } catch (err) {

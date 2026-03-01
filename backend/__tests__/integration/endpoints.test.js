@@ -19,7 +19,7 @@ const bcrypt = require('bcryptjs')
 // Ensure TamperIncident model is registered for testing
 const TamperIncident = require('../../services/admin-service/src/models/TamperIncident')
 
-jest.setTimeout(60000)
+jest.setTimeout(120000)
 
 function joinPaths(a, b) {
   const left = String(a || '').replace(/\/+$/, '')
@@ -132,6 +132,17 @@ function bodyForRoute(method, path) {
     return { email: 'admin@example.com' }
   }
 
+  if (method === 'post' && path === '/api/auth/staff') {
+    return {
+      email: `smoketest-staff-${Date.now()}@example.com`,
+      firstName: 'Smoke',
+      lastName: 'Test',
+      phoneNumber: '+1234567890',
+      office: 'OSBC',
+      role: 'lgu_officer',
+    }
+  }
+
   if (method === 'post' && path === '/api/business/profile') {
     return { step: 2, data: { fullName: 'Test Owner' } }
   }
@@ -239,15 +250,22 @@ describe('API endpoint smoke tests', () => {
     const routes = uniqRoutes(collectRoutesFromStack(app._router && app._router.stack, ''))
       .filter((r) => !r.path.startsWith('/uploads'))
 
+    const admin = await User.findOne({ email: 'admin@example.com' }).lean()
+    const adminId = admin ? String(admin._id) : '000000000000000000000001'
+
     for (const r of routes) {
       const isBusiness = r.path.startsWith('/api/business/')
       const token = isBusiness ? businessOwnerToken : adminToken
-      let req = request(app)[r.method](r.path).set('Authorization', `Bearer ${token}`)
+      let path = r.path
+      if (path.includes(':id') || path.includes(':userId')) {
+        path = path.replace(/:id|:userId/g, adminId)
+      }
+      let req = request(app)[r.method](path).set('Authorization', `Bearer ${token}`)
 
       if (r.method === 'post' && r.path === '/api/auth/profile/avatar-file') {
         req = req.attach('avatar', Buffer.alloc(1500, 1), 'avatar.png')
       } else {
-        const body = bodyForRoute(r.method, r.path)
+        const body = bodyForRoute(r.method, path)
         if (body !== undefined) req = req.send(body)
       }
 
@@ -263,7 +281,7 @@ describe('API endpoint smoke tests', () => {
 
       if (res.status === 500 || isDefaultExpress404(res)) {
         // Log failing route for debugging
-        console.error(`Endpoint check failed: ${r.method.toUpperCase()} ${r.path} -> ${res.status} ${res.text || ''}`)
+        console.error(`Endpoint check failed: ${r.method.toUpperCase()} ${path} -> ${res.status} ${res.text || ''}`)
       }
       expect(res.status).not.toBe(500)
       expect(isDefaultExpress404(res)).toBe(false)

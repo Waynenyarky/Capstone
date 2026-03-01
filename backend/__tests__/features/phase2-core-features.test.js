@@ -9,6 +9,7 @@ const {
 const {
   createTestUsers,
   getTestTokens,
+  getAdminStepUpHeaders,
   generateUniqueEmail,
   generateUniquePhone,
 } = require('../helpers/fixtures')
@@ -424,7 +425,7 @@ describe('Phase 2: Core Features', () => {
       const freshAdminToken = signAccessToken(adminUser).token
 
       const response = await request(app)
-        .patch('/api/auth/profile/contact')
+        .patch('/api/auth/admin/profile/contact')
         .set('Authorization', `Bearer ${freshAdminToken}`)
         .send({
           phoneNumber: '1111111111',
@@ -440,7 +441,7 @@ describe('Phase 2: Core Features', () => {
     it('should create approval request for personal info change', async () => {
       const response = await request(app)
         .patch('/api/auth/profile/personal-info')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(getAdminStepUpHeaders(adminToken, adminUser))
         .send({
           firstName: 'NewFirstName',
           lastName: 'NewLastName',
@@ -499,10 +500,10 @@ describe('Phase 2: Core Features', () => {
         requiredApprovals: 2,
       })
 
-      // Try to approve own request
+      // Try to approve own request (requires step-up)
       const response = await request(adminApp)
         .post(`/api/admin/approvals/${approval.approvalId}/approve`)
-        .set('Authorization', `Bearer ${freshAdminToken}`)
+        .set(getAdminStepUpHeaders(freshAdminToken, adminUser))
         .send({
           approved: true,
           comment: 'test',
@@ -551,10 +552,10 @@ describe('Phase 2: Core Features', () => {
         requiredApprovals: 2,
       })
 
-      // Admin2 approves
+      // Admin2 approves (requires step-up)
       const response = await request(adminApp)
         .post(`/api/admin/approvals/${approval.approvalId}/approve`)
-        .set('Authorization', `Bearer ${admin2Token}`)
+        .set(getAdminStepUpHeaders(admin2Token, admin2))
         .send({
           approved: true,
           comment: 'Looks good',
@@ -639,19 +640,19 @@ describe('Phase 2: Core Features', () => {
         requiredApprovals: 2,
       })
 
-      // First approval
+      // First approval (requires step-up)
       await request(adminApp)
         .post(`/api/admin/approvals/${approval.approvalId}/approve`)
-        .set('Authorization', `Bearer ${admin2Token}`)
+        .set(getAdminStepUpHeaders(admin2Token, admin2))
         .send({
           approved: true,
           comment: 'First approval',
         })
 
-      // Second approval (should trigger auto-apply)
+      // Second approval (should trigger auto-apply, requires step-up)
       const response = await request(adminApp)
         .post(`/api/admin/approvals/${approval.approvalId}/approve`)
-        .set('Authorization', `Bearer ${admin3Token}`)
+        .set(getAdminStepUpHeaders(admin3Token, admin3))
         .send({
           approved: true,
           comment: 'Second approval',

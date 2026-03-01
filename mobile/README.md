@@ -4,42 +4,44 @@ Run the app on your **iPad** (or iPhone) from a **Mac** with Flutter installed. 
 
 ## Prerequisites (on your Mac)
 
-1. **Flutter** – [Install Flutter](https://docs.flutter.dev/get-started/install/macos) and ensure `flutter doctor` passes.
-2. **Xcode** – Required for iOS. Install from the App Store and run `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer` if needed.
-3. **Backend** – The app needs the backend API. Either:
-   - Run the backend on your Mac (e.g. unified server on port 3000), or
-   - Use a deployed backend URL.
+1. **Flutter** – ✅ Installed via Homebrew (`/opt/homebrew/bin/flutter`). Verify with `flutter doctor -v`.
+2. **Xcode** – Required for iOS. You have Xcode.app; point the dev tools at it and run first launch (run in Terminal, will ask for your password):
+   ```bash
+   sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+   sudo xcodebuild -runFirstLaunch
+   ```
+3. **CocoaPods** – ✅ Installed via Homebrew.
+4. **Backend** – The app needs the backend API. Copy `mobile/app/.env.example` to `mobile/app/.env` and set `BASE_URL` to your Mac’s LAN IP and **port 3001** (auth-service). With Docker (`./start.sh`), auth runs on 3001 and business on 3002; set `ALT_BASE_URLS` to the same host with port 3002 so inspector APIs work. Nothing listens on port 3000.
 
 ## Run on your iPad
 
-1. **Clone the repo** on your Mac (if not already), and open a terminal in the project root.
+1. **Connect your iPad** to the Mac via USB. Unlock the iPad and tap **Trust** if prompted.
 
-2. **Create `.env`** in the app folder:
+2. **One-time: point Xcode at the full app** (if you haven’t already):
+   ```bash
+   sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+   sudo xcodebuild -runFirstLaunch
+   ```
+
+3. **Run the app:**
    ```bash
    cd mobile/app
-   cp .env.example .env
-   ```
-   Edit `.env` and set `BASE_URL` so the iPad can reach your backend:
-   - Backend on your **Mac** (iPad on same Wi‑Fi): use your Mac’s LAN IP, e.g.  
-     `BASE_URL=http://192.168.1.38:3000`  
-     (Find the IP: System Settings → Network → Wi‑Fi → Details, or run `ipconfig getifaddr en0` in Terminal.)
-   - Backend **deployed** elsewhere: use that URL, e.g.  
-     `BASE_URL=https://your-api.example.com`
-
-3. **Connect your iPad** to the Mac via USB (or set up [wireless debugging](https://developer.apple.com/documentation/xcode/wireless-debugging)).
-
-4. **Install dependencies and run:**
-   ```bash
    flutter pub get
    flutter run
    ```
    When prompted, select your iPad. The app will build and launch on the device.
 
-5. **First time only:** On the iPad you may need to trust the developer certificate:  
-   Settings → General → VPN & Device Management → your Apple ID → Trust.
+   Or use the helper script:
+   ```bash
+   ./mobile/app/run_on_device.sh
+   ```
+
+4. **First time only:** On the iPad you may need to trust the developer certificate:  
+   **Settings → General → VPN & Device Management → your Apple ID → Trust.**
 
 ## Troubleshooting
 
-- **“flutter: command not found”** – You’re in an environment without Flutter (e.g. Codespaces). Use your Mac with Flutter installed.
-- **App can’t reach backend** – Ensure iPad and backend host are on the same Wi‑Fi and `BASE_URL` uses the host’s LAN IP, not `localhost`.
+- **“flutter: command not found”** – Add Homebrew to PATH: `export PATH="/opt/homebrew/bin:$PATH"` (or use the run script above).
+- **Xcode “incomplete”** – Run the two `sudo` commands in the Prerequisites section.
+- **App can’t reach backend** – Ensure device and backend host are on the same Wi‑Fi. In `mobile/app/.env` set `BASE_URL=http://YOUR_MAC_IP:3001` (auth) and `ALT_BASE_URLS=http://YOUR_MAC_IP:3002` (business). Use your Mac’s LAN IP (e.g. `ipconfig getifaddr en0`), not `localhost`. Port 3000 is not used by the Docker backend.
 - **No devices shown** – Connect iPad via USB, unlock it, tap “Trust” if asked, and run `flutter devices` again.

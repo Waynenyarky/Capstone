@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Form, Input, Button, Typography, Alert } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Input, Button, Typography, Alert } from 'antd'
 import { requestRecovery } from '../services/recoveryService.js'
 import { useNotifier } from '@/shared/notifications.js'
 import { useAuthSession } from '@/features/authentication'

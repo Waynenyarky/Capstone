@@ -2,6 +2,7 @@ const express = require('express')
 const bcrypt = require('bcryptjs')
 const User = require('../models/User')
 const EmailChangeRequest = require('../models/EmailChangeRequest')
+const ChangeEmailOtpRequest = require('../models/ChangeEmailOtpRequest')
 const respond = require('../middleware/respond')
 const { requireJwt } = require('../middleware/auth')
 const { validateBody, Joi } = require('../middleware/validation')
@@ -11,6 +12,7 @@ const { changeEmailRequests } = require('../lib/authRequestsStore')
 const { sanitizeEmail } = require('../lib/sanitizer')
 const { createAuditLog } = require('../lib/auditLogger')
 const { sendEmailChangeNotification } = require('../lib/notificationService')
+const inAppNotificationService = require('../services/notificationService')
 const { isBusinessOwnerRole, isAdminRole } = require('../lib/roleHelpers')
 const { profileUpdateRateLimit, adminApprovalRateLimit } = require('../middleware/rateLimit')
 const { requireFieldPermission, requireVerification } = require('../middleware/fieldPermissions')
@@ -129,7 +131,17 @@ router.post('/change-email/start', requireJwt, validateBody(changeEmailStartSche
     const key = currentEmail
     changeEmailRequests.set(key, { code, expiresAt: expiresAtMs, newEmail: input })
 
-    await sendOtp({ to: input, code, subject: 'Confirm email change' })
+    // Persist to DB so the flow survives server restarts
+    await ChangeEmailOtpRequest.deleteMany({ userId: doc._id })
+    await ChangeEmailOtpRequest.create({
+      userId: doc._id,
+      currentEmail: key,
+      newEmail: input,
+      code,
+      expiresAt: new Date(expiresAtMs),
+    })
+
+    await sendOtp({ to: input, code, subject: 'Confirm email change', purpose: 'email_change' })
     return res.json({ sent: true, to: input, expiresAt: new Date(expiresAtMs).toISOString() })
   } catch (err) {
     console.error('POST /api/auth/change-email/start error:', err)
@@ -154,9 +166,23 @@ router.post('/change-email/verify', requireJwt, validateBody(changeEmailVerifySc
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
     const key = String(doc.email || '').toLowerCase()
-    const reqObj = changeEmailRequests.get(key)
-    if (!reqObj) return respond.error(res, 404, 'change_email_request_not_found', 'No change email request found')
-    if (Date.now() > reqObj.expiresAt) return respond.error(res, 410, 'code_expired', 'Code expired')
+    let reqObj = changeEmailRequests.get(key)
+    if (!reqObj) {
+      const persisted = await ChangeEmailOtpRequest.findOne({ userId: doc._id }).lean()
+      if (persisted && new Date(persisted.expiresAt).getTime() > Date.now()) {
+        reqObj = {
+          code: persisted.code,
+          expiresAt: new Date(persisted.expiresAt).getTime(),
+          newEmail: persisted.newEmail,
+        }
+      }
+    }
+    if (!reqObj) return respond.error(res, 404, 'change_email_request_not_found', 'No change email request found. Please start the process again from the first step.')
+    if (Date.now() > reqObj.expiresAt) {
+      changeEmailRequests.delete(key)
+      await ChangeEmailOtpRequest.deleteMany({ userId: doc._id })
+      return respond.error(res, 410, 'code_expired', 'Verification code expired. Please request a new code.')
+    }
 
     const { code } = req.body || {}
     if (String(reqObj.code) !== String(code)) return respond.error(res, 401, 'invalid_code', 'Invalid code')
@@ -166,6 +192,7 @@ router.post('/change-email/verify', requireJwt, validateBody(changeEmailVerifySc
     const exists = await User.findOne({ email: nextEmail }).lean()
     if (exists) {
       changeEmailRequests.delete(key)
+      await ChangeEmailOtpRequest.deleteMany({ userId: doc._id })
       return respond.error(res, 409, 'email_in_use', 'Email already in use')
     }
 
@@ -180,6 +207,7 @@ router.post('/change-email/verify', requireJwt, validateBody(changeEmailVerifySc
     doc.tokenFprint = ''
     await doc.save()
     changeEmailRequests.delete(key)
+    await ChangeEmailOtpRequest.deleteMany({ userId: doc._id })
     return res.json({ updated: true, email: doc.email })
   } catch (err) {
     console.error('POST /api/auth/change-email/verify error:', err)
@@ -205,7 +233,7 @@ router.post('/change-email/confirm/start', requireJwt, validateBody(changeEmailC
     const expiresAtMs = Date.now() + ttlMin * 60 * 1000
     const code = generateCode()
     changeEmailRequests.set(currentEmail, { code, expiresAt: expiresAtMs, newEmail: '' })
-    await sendOtp({ to: currentEmail, code, subject: 'Confirm your email' })
+    await sendOtp({ to: currentEmail, code, subject: 'Confirm your email', purpose: 'email_change' })
     return res.json({ sent: true, to: currentEmail, expiresAt: new Date(expiresAtMs).toISOString() })
   } catch (err) {
     console.error('POST /api/auth/change-email/confirm/start error:', err)
@@ -323,6 +351,8 @@ router.patch(
         console.error('Failed to send email change notifications:', err)
       })
 
+      inAppNotificationService.createNotification(doc._id, 'auth_email_changed', 'Email changed', 'Your email has been updated and verified.').catch((err) => console.error('Failed to create auth notification:', err))
+
       // Create audit log
       const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
       const userAgent = req.headers['user-agent'] || 'unknown'
@@ -429,6 +459,8 @@ router.post('/profile/email/revert', requireJwt, async (req, res) => {
     }).catch((err) => {
       console.error('Failed to send revert notification:', err)
     })
+
+    inAppNotificationService.createNotification(doc._id, 'auth_email_reverted', 'Email change reverted', 'Your email has been reverted successfully.').catch((err) => console.error('Failed to create auth notification:', err))
 
     // Create audit log
     const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'

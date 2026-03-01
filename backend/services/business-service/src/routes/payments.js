@@ -2,6 +2,7 @@ const express = require('express')
 const Payment = require('../models/Payment')
 const BusinessProfile = require('../models/BusinessProfile')
 const { requireJwt, requireRole } = require('../middleware/auth')
+const { logAuditEvent } = require('../lib/auditClient')
 
 const router = express.Router()
 
@@ -279,6 +280,7 @@ router.post('/:paymentId/pay', requireJwt, async (req, res) => {
     payment.receiptNumber = `RCP-${Date.now()}`
 
     await payment.save()
+    logAuditEvent('payment_recorded', req._userId, 'Payment', payment._id.toString(), { amount: payment.amount, businessId: payment.businessId })
 
     return res.json({
       data: payment,

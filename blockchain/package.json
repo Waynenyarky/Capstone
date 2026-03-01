@@ -7,7 +7,9 @@
     "compile": "truffle compile",
     "migrate": "truffle migrate",
     "migrate:reset": "truffle migrate --reset",
-    "migrate:ganache": "truffle migrate --network ganache",
+    "migrate:ganache": "truffle migrate --network ganache && node write-env.js",
+    "migrate:development": "truffle migrate --network development && node write-env.js",
+    "setup": "truffle migrate --network development --reset && node write-env.js && node GRANT_ROLES.js",
     "test": "truffle test",
     "console": "truffle console",
     "console:ganache": "truffle console --network ganache",
@@ -19,12 +21,12 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "truffle": "^5.11.0",
-    "chai": "^4.3.10"
+    "chai": "^4.3.10",
+    "truffle": "^5.1.67"
   },
   "dependencies": {
+    "crypto-js": "^4.2.0",
     "dotenv": "^16.3.1",
-    "web3": "^4.0.0",
-    "crypto-js": "^4.2.0"
+    "web3": "^4.0.0"
   }
 }

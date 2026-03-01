@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'login_page.dart';
 import 'profile.dart';
+import 'package:app/core/theme/bizclear_colors.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -94,13 +95,13 @@ class _DeleteAccountNextPageState extends State<DeleteAccountNextPage> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.red.shade50,
+                        color: BizClearColors.error.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.red.shade200),
+                        border: Border.all(color: BizClearColors.error.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.warning_amber_rounded, color: Colors.red.shade700, size: 28),
+                          Icon(Icons.warning_amber_rounded, color: BizClearColors.error, size: 28),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
@@ -108,7 +109,7 @@ class _DeleteAccountNextPageState extends State<DeleteAccountNextPage> {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.red.shade700,
+                                color: BizClearColors.error,
                               ),
                             ),
                           ),
@@ -118,7 +119,7 @@ class _DeleteAccountNextPageState extends State<DeleteAccountNextPage> {
                     const SizedBox(height: 32),
                     const Text(
                       'Delete Account',
-                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
                     const Text(
@@ -129,23 +130,23 @@ class _DeleteAccountNextPageState extends State<DeleteAccountNextPage> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
+                        color: BizClearColors.surfaceLight,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300),
+                        border: Border.all(color: BizClearColors.inputBorder),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.info_outline, color: Colors.grey.shade700, size: 20),
+                              Icon(Icons.info_outline, color: BizClearColors.textSecondary, size: 20),
                               const SizedBox(width: 8),
                               Text(
                                 'What happens to your data:',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 15,
-                                  color: Colors.grey.shade800,
+                                  color: BizClearColors.textPrimary,
                                 ),
                               ),
                             ],
@@ -174,7 +175,7 @@ class _DeleteAccountNextPageState extends State<DeleteAccountNextPage> {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade800,
+                        color: BizClearColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -187,21 +188,20 @@ class _DeleteAccountNextPageState extends State<DeleteAccountNextPage> {
                       decoration: InputDecoration(
                         labelText: 'Current Email Address',
                         hintText: 'your.email@example.com',
-                        prefixIcon: const Icon(Icons.email_outlined),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
+                          borderSide: BorderSide(color: BizClearColors.inputBorder),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.blue, width: 2),
+                          borderSide: const BorderSide(color: BizClearColors.webPrimary, width: 2),
                         ),
                         errorBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.red, width: 2),
+                          borderSide: const BorderSide(color: BizClearColors.error, width: 2),
                         ),
                         errorText: _errorMessage,
                         filled: true,
@@ -211,7 +211,7 @@ class _DeleteAccountNextPageState extends State<DeleteAccountNextPage> {
                     const SizedBox(height: 32),
                     SizedBox(
                       width: double.infinity,
-                      height: 54,
+                      height: 40,
                       child: ElevatedButton(
                         onPressed: _scheduling
                             ? null
@@ -257,10 +257,14 @@ class _DeleteAccountNextPageState extends State<DeleteAccountNextPage> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           elevation: 0,
+                          padding: BizClearColors.primaryButtonPadding,
+                          minimumSize: BizClearColors.primaryButtonMinimumSize,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          textStyle: BizClearColors.primaryButtonTextStyle,
                         ),
                         child: _scheduling
                             ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                            : const Text('Send Verification Code', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                            : const Text('Send Verification Code', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                       ),
                     ),
                   ],
@@ -324,20 +328,20 @@ class _DeleteAccountNextPageState extends State<DeleteAccountNextPage> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
+                        color: BizClearColors.webPrimaryTintLight,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue.shade200),
+                        border: Border.all(color: BizClearColors.webPrimaryTintBorder),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.lightbulb_outline, color: Colors.blue.shade700, size: 24),
+                          Icon(Icons.lightbulb_outline, color: BizClearColors.webPrimaryTintIcon, size: 24),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               'Changed your mind? You can cancel the deletion below.',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.blue.shade900,
+                                color: BizClearColors.webPrimaryTintText,
                                 height: 1.4,
                               ),
                             ),
@@ -349,7 +353,7 @@ class _DeleteAccountNextPageState extends State<DeleteAccountNextPage> {
                     const SizedBox(height: 32),
                     SizedBox(
                       width: double.infinity,
-                      height: 54,
+                      height: 40,
                       child: OutlinedButton.icon(
                         onPressed: _undoLoading
                             ? null
@@ -386,7 +390,7 @@ class _DeleteAccountNextPageState extends State<DeleteAccountNextPage> {
                         icon: _undoLoading
                             ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
                             : const Icon(Icons.undo),
-                        label: const Text('Cancel Deletion', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                        label: const Text('Cancel Deletion', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                         style: OutlinedButton.styleFrom(
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -398,38 +402,26 @@ class _DeleteAccountNextPageState extends State<DeleteAccountNextPage> {
                     const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
-                      height: 54,
+                      height: 40,
                       child: ElevatedButton.icon(
                         onPressed: () async {
                           final nav = Navigator.of(context);
-                          bool preFpEnabled = false;
-                          bool preFaceEnabled = false;
                           bool preAuthenticatorEnabled = false;
-                          String preFpEmail = '';
                           try {
                             GoogleAuthService.signOutAndReset();
                           } catch (_) {}
                           try {
                             final prefs = await SharedPreferences.getInstance();
-                            String targetEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
-                            if (targetEmail.isEmpty) {
-                              targetEmail = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
+                            String targetEmail = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
+                            if (targetEmail.isEmpty) targetEmail = widget.email;
+                            if (targetEmail.isNotEmpty) {
+                              final s = await MongoDBService.getMfaStatusDetail(email: targetEmail);
+                              final enabledMfa = s['success'] == true && s['enabled'] == true;
+                              final method = (s['method'] ?? '').toString().toLowerCase();
+                              if (enabledMfa && (method.contains('authenticator') || method.contains('totp') || method.contains('otp'))) {
+                                preAuthenticatorEnabled = true;
+                              }
                             }
-                            if (targetEmail.isEmpty) {
-                              targetEmail = widget.email;
-                            }
-                            final s = await MongoDBService.getMfaStatusDetail(email: targetEmail);
-                            preFpEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
-                            final enabledMfa = s['success'] == true && s['enabled'] == true;
-                            final method = (s['method'] ?? '').toString().toLowerCase();
-                            if (enabledMfa) {
-                              if (method.contains('face')) preFaceEnabled = true;
-                              if (method.contains('authenticator')) preAuthenticatorEnabled = true;
-                            }
-                            preFpEmail = targetEmail;
-                          } catch (_) {}
-                          try {
-                            final prefs = await SharedPreferences.getInstance();
                             await prefs.remove('loggedInEmail');
                             await prefs.setBool('disableAutoAuthenticatorOnce', true);
                           } catch (_) {}
@@ -438,9 +430,6 @@ class _DeleteAccountNextPageState extends State<DeleteAccountNextPage> {
                             MaterialPageRoute(
                               builder: (_) => LoginScreen(
                                 deletionScheduledForISO: _scheduledISO,
-                                preFingerprintEnabled: preFpEnabled,
-                                preFingerprintEmail: preFpEmail,
-                                preFaceEnabled: preFaceEnabled,
                                 preAuthenticatorEnabled: preAuthenticatorEnabled,
                               ),
                             ),
@@ -448,12 +437,16 @@ class _DeleteAccountNextPageState extends State<DeleteAccountNextPage> {
                           );
                         },
                         icon: const Icon(Icons.login),
-                        label: const Text('Go to Login', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                        label: const Text('Go to Login', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                         style: ElevatedButton.styleFrom(
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                           elevation: 0,
+                          padding: BizClearColors.primaryButtonPadding,
+                          minimumSize: BizClearColors.primaryButtonMinimumSize,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          textStyle: BizClearColors.primaryButtonTextStyle,
                         ),
                       ),
                     ),
@@ -488,14 +481,14 @@ class _OtpBox extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: hasError
-              ? Colors.red
-              : (isFocused ? Colors.blue : Colors.grey.shade300),
+              ? BizClearColors.error
+              : (isFocused ? BizClearColors.webPrimary : BizClearColors.inputBorder),
           width: hasError || isFocused ? 2 : 1.5,
         ),
         boxShadow: isFocused
             ? [
                 BoxShadow(
-                  color: Colors.blue.withValues(alpha: 0.1),
+                  color: BizClearColors.webPrimary.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -508,7 +501,7 @@ class _OtpBox extends StatelessWidget {
         textAlign: TextAlign.center,
         keyboardType: TextInputType.number,
         style: const TextStyle(
-          fontSize: 24,
+          fontSize: 20,
           fontWeight: FontWeight.bold,
           color: Colors.black87,
         ),
@@ -536,14 +529,14 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: Colors.grey.shade600),
+        Icon(icon, size: 18, color: BizClearColors.textSecondary),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
             text,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey.shade700,
+              color: BizClearColors.textSecondary,
               height: 1.4,
             ),
           ),
@@ -621,12 +614,12 @@ class _DeleteAccountOtpPageState extends State<DeleteAccountOtpPage> {
       final nav = Navigator.of(context);
       if (_remaining == Duration.zero) {
         setState(() => _errorMessage = 'Code expired. Please resend.');
-        messenger.showSnackBar(const SnackBar(content: Text('Code expired. Please resend.'), backgroundColor: Colors.red));
+        messenger.showSnackBar(const SnackBar(content: Text('Code expired. Please resend.'), backgroundColor: BizClearColors.error));
         return;
       }
       if (_attemptsLeft <= 0) {
         setState(() => _errorMessage = 'No attempts remaining. Please resend code.');
-        messenger.showSnackBar(const SnackBar(content: Text('No attempts remaining. Please resend code.'), backgroundColor: Colors.red));
+        messenger.showSnackBar(const SnackBar(content: Text('No attempts remaining. Please resend code.'), backgroundColor: BizClearColors.error));
         return;
       }
       final code = _otpCode;
@@ -658,13 +651,13 @@ class _DeleteAccountOtpPageState extends State<DeleteAccountOtpPage> {
           _errorMessage = msg;
           _attemptsLeft = (_attemptsLeft > 0) ? (_attemptsLeft - 1) : 0;
         });
-        messenger.showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+        messenger.showSnackBar(SnackBar(content: Text(msg), backgroundColor: BizClearColors.error));
       }
     } catch (e) {
       setState(() => _errorMessage = 'Connection error');
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
-      messenger.showSnackBar(SnackBar(content: Text('Connection error: ${e.toString()}'), backgroundColor: Colors.red));
+      messenger.showSnackBar(SnackBar(content: Text('Connection error: ${e.toString()}'), backgroundColor: BizClearColors.error));
     } finally {
       if (mounted) setState(() => _verifying = false);
     }
@@ -732,21 +725,21 @@ class _DeleteAccountOtpPageState extends State<DeleteAccountOtpPage> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                  color: BizClearColors.webPrimaryTintLight,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.mail_outline, size: 56, color: Colors.blue.shade700),
+                child: Icon(Icons.mail_outline, size: 56, color: BizClearColors.webPrimaryTintIcon),
               ),
               const SizedBox(height: 24),
               const Text(
                 'Check your email',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
               Text(
                 'We sent a 6-digit verification code to',
-                style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 15, color: BizClearColors.textSecondary),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 6),
@@ -785,7 +778,7 @@ class _DeleteAccountOtpPageState extends State<DeleteAccountOtpPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: BizClearColors.surfaceLight,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -795,14 +788,14 @@ class _DeleteAccountOtpPageState extends State<DeleteAccountOtpPage> {
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.security, size: 18, color: Colors.grey.shade700),
+                            Icon(Icons.security, size: 18, color: BizClearColors.textSecondary),
                             const SizedBox(width: 8),
                             Text(
                               'Attempts: $_attemptsLeft of 5',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
-                                color: Colors.grey.shade700,
+                                color: BizClearColors.textSecondary,
                               ),
                             ),
                           ],
@@ -812,7 +805,7 @@ class _DeleteAccountOtpPageState extends State<DeleteAccountOtpPage> {
                             Icon(
                               _remaining == Duration.zero ? Icons.error_outline : Icons.timer_outlined,
                               size: 18,
-                              color: _remaining == Duration.zero ? Colors.red : Colors.grey.shade700,
+                              color: _remaining == Duration.zero ? BizClearColors.error : BizClearColors.textSecondary,
                             ),
                             const SizedBox(width: 8),
                             Text(
@@ -820,7 +813,7 @@ class _DeleteAccountOtpPageState extends State<DeleteAccountOtpPage> {
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
-                                color: _remaining == Duration.zero ? Colors.red : Colors.grey.shade700,
+                                color: _remaining == Duration.zero ? BizClearColors.error : BizClearColors.textSecondary,
                               ),
                             ),
                           ],
@@ -835,7 +828,7 @@ class _DeleteAccountOtpPageState extends State<DeleteAccountOtpPage> {
                           _resendMessage!,
                           style: TextStyle(
                             fontSize: 14,
-                            color: _resendIsError ? Colors.red.shade700 : Colors.green.shade700,
+                            color: _resendIsError ? BizClearColors.error : BizClearColors.success,
                           ),
                         ),
                       ),
@@ -849,7 +842,7 @@ class _DeleteAccountOtpPageState extends State<DeleteAccountOtpPage> {
                 icon: _resending
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.refresh, size: 20),
-                label: const Text('Resend Code', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                label: const Text('Resend Code', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 ),
@@ -859,18 +852,18 @@ class _DeleteAccountOtpPageState extends State<DeleteAccountOtpPage> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade50,
+                    color: BizClearColors.error.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.red.shade200),
+                    border: Border.all(color: BizClearColors.error.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                      Icon(Icons.error_outline, color: BizClearColors.error, size: 20),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           _errorMessage!,
-                          style: TextStyle(color: Colors.red.shade700, fontSize: 14),
+                          style: TextStyle(color: BizClearColors.error, fontSize: 14),
                         ),
                       ),
                     ],
@@ -880,7 +873,7 @@ class _DeleteAccountOtpPageState extends State<DeleteAccountOtpPage> {
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
-                height: 54,
+                height: 40,
                 child: ElevatedButton(
                   onPressed: _verifying || !_isComplete ? null : _verify,
                   style: ElevatedButton.styleFrom(
@@ -888,10 +881,14 @@ class _DeleteAccountOtpPageState extends State<DeleteAccountOtpPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     elevation: 0,
+                    padding: BizClearColors.primaryButtonPadding,
+                    minimumSize: BizClearColors.primaryButtonMinimumSize,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    textStyle: BizClearColors.primaryButtonTextStyle,
                   ),
                   child: _verifying
                       ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                      : const Text('Verify Code', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      : const Text('Verify Code', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 ),
               ),
             ],
@@ -947,39 +944,39 @@ class DeleteAccountConfirmPage extends StatelessWidget {
             const SizedBox(height: 24),
             const Text(
               'Identity Verified',
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
               'What would you like to do next?',
-              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 16, color: BizClearColors.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: BizClearColors.surfaceLight,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade300),
+                border: Border.all(color: BizClearColors.inputBorder),
               ),
               child: Column(
                 children: [
                   _OptionCard(
                     icon: Icons.delete_forever,
-                    iconColor: Colors.red.shade700,
-                    backgroundColor: Colors.red.shade50,
+                    iconColor: BizClearColors.error,
+                    backgroundColor: BizClearColors.error.withValues(alpha: 0.08),
                     title: 'Schedule Deletion',
                     description: 'Proceed with account deletion in 30 days',
                   ),
                   const SizedBox(height: 16),
-                  const Text('OR', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey)),
+                  const Text('OR', style: TextStyle(fontWeight: FontWeight.w600, color: BizClearColors.textSecondary)),
                   const SizedBox(height: 16),
                   _OptionCard(
                     icon: Icons.cancel_outlined,
-                    iconColor: Colors.blue.shade700,
-                    backgroundColor: Colors.blue.shade50,
+                    iconColor: BizClearColors.webPrimaryTintIcon,
+                    backgroundColor: BizClearColors.webPrimaryTintLight,
                     title: 'Keep Account',
                     description: 'Cancel deletion and return to profile',
                   ),
@@ -990,7 +987,7 @@ class DeleteAccountConfirmPage extends StatelessWidget {
             const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
-              height: 54,
+              height: 40,
               child: ElevatedButton(
                 onPressed: () async {
                   final confirmed = await showDialog<bool>(
@@ -999,7 +996,7 @@ class DeleteAccountConfirmPage extends StatelessWidget {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           title: Row(
                             children: [
-                              Icon(Icons.warning_amber_rounded, color: Colors.red.shade700),
+                              Icon(Icons.warning_amber_rounded, color: BizClearColors.error),
                               const SizedBox(width: 12),
                               const Expanded(child: Text('Confirm Deletion')),
                             ],
@@ -1011,15 +1008,19 @@ class DeleteAccountConfirmPage extends StatelessWidget {
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('Go Back', style: TextStyle(fontSize: 15)),
+                              child: const Text('Go Back', style: TextStyle(fontSize: 14)),
                             ),
                             ElevatedButton(
                               onPressed: () => Navigator.pop(ctx, true),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
+                                backgroundColor: BizClearColors.error,
                                 foregroundColor: Colors.white,
+                                padding: BizClearColors.primaryButtonPadding,
+                                minimumSize: BizClearColors.primaryButtonMinimumSize,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                textStyle: BizClearColors.primaryButtonTextStyle,
                               ),
-                              child: const Text('Confirm', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                              child: const Text('Confirm', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                             ),
                           ],
                         ),
@@ -1038,29 +1039,6 @@ class DeleteAccountConfirmPage extends StatelessWidget {
                       try {
                         GoogleAuthService.signOutAndReset();
                       } catch (_) {}
-                      bool preFpEnabled = false;
-                      bool preFaceEnabled = false;
-                      bool preAuthenticatorEnabled = false;
-                      String preFpEmail = '';
-                      try {
-                        final prefs = await SharedPreferences.getInstance();
-                        String targetEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
-                        if (targetEmail.isEmpty) {
-                          targetEmail = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
-                        }
-                        if (targetEmail.isEmpty) {
-                          targetEmail = email;
-                        }
-                        final s = await MongoDBService.getMfaStatusDetail(email: targetEmail);
-                        preFpEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
-                        final enabledMfa = s['success'] == true && s['enabled'] == true;
-                        final method = (s['method'] ?? '').toString().toLowerCase();
-                        if (enabledMfa) {
-                          if (method.contains('face')) preFaceEnabled = true;
-                          if (method.contains('authenticator')) preAuthenticatorEnabled = true;
-                        }
-                        preFpEmail = targetEmail;
-                      } catch (_) {}
                       try {
                         final prefs = await SharedPreferences.getInstance();
                         await prefs.remove('loggedInEmail');
@@ -1069,13 +1047,19 @@ class DeleteAccountConfirmPage extends StatelessWidget {
                         await prefs.setBool('avatarIsCustom', false);
                         await prefs.setBool('disableAutoAuthenticatorOnce', true);
                       } catch (_) {}
+                      bool preAuthenticatorEnabled = false;
+                      try {
+                        final s = await MongoDBService.getMfaStatusDetail(email: email);
+                        final enabledMfa = s['success'] == true && s['enabled'] == true;
+                        final method = (s['method'] ?? '').toString().toLowerCase();
+                        if (enabledMfa && (method.contains('authenticator') || method.contains('totp') || method.contains('otp'))) {
+                          preAuthenticatorEnabled = true;
+                        }
+                      } catch (_) {}
                       nav.pushAndRemoveUntil(
                         MaterialPageRoute(
                           builder: (_) => LoginScreen(
                             deletionScheduledForISO: scheduledISO,
-                            preFingerprintEnabled: preFpEnabled,
-                            preFingerprintEmail: preFpEmail,
-                            preFaceEnabled: preFaceEnabled,
                             preAuthenticatorEnabled: preAuthenticatorEnabled,
                           ),
                         ),
@@ -1090,20 +1074,24 @@ class DeleteAccountConfirmPage extends StatelessWidget {
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
+                  backgroundColor: BizClearColors.error,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   elevation: 0,
+                  padding: BizClearColors.primaryButtonPadding,
+                  minimumSize: BizClearColors.primaryButtonMinimumSize,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: BizClearColors.primaryButtonTextStyle,
                 ),
-                child: const Text('Schedule Deletion', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                child: const Text('Schedule Deletion', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
               ),
             ),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
-              height: 54,
+              height: 40,
               child: OutlinedButton.icon(
                 onPressed: () async {
                   final confirmed = await showDialog<bool>(
@@ -1118,11 +1106,11 @@ class DeleteAccountConfirmPage extends StatelessWidget {
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('No', style: TextStyle(fontSize: 15)),
+                              child: const Text('No', style: TextStyle(fontSize: 14)),
                             ),
                             ElevatedButton(
                               onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text('Yes, Keep Account', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                              child: const Text('Yes, Keep Account', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                             ),
                           ],
                         ),
@@ -1144,7 +1132,7 @@ class DeleteAccountConfirmPage extends StatelessWidget {
                   );
                 },
                 icon: const Icon(Icons.arrow_back),
-                label: const Text('Keep My Account', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                label: const Text('Keep My Account', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 style: OutlinedButton.styleFrom(
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -1210,7 +1198,7 @@ class _OptionCard extends StatelessWidget {
                   description,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.grey.shade700,
+                    color: BizClearColors.textSecondary,
                   ),
                 ),
               ],

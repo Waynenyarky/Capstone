@@ -147,8 +147,8 @@ This will automatically:
 ## Testing and temporary emails
 
 - **Verification emails (signup / business owner registration)**  
-  Signup sends a verification code via the configured email provider (default: SendGrid). If you don't receive the email:
-  1. **Check the sender is verified** – `DEFAULT_FROM_EMAIL` in `.env` must be a [verified Single Sender or domain](https://docs.sendgrid.com/ui/account-and-settings/sender-auth) in SendGrid. Using an unverified address (e.g. a random Gmail) causes SendGrid to reject the send; the app will now show "Failed to send verification email" with the error instead of silently succeeding.
+  Signup sends a verification code via the configured email provider (default: Resend). If you don't receive the email:
+  1. **Check the sender is verified** – `DEFAULT_FROM_EMAIL` in `.env` must be verified in your provider (e.g. [Resend: verify domain](https://resend.com/domains); SendGrid: [Sender Authentication](https://docs.sendgrid.com/ui/account-and-settings/sender-auth)). Using an unverified address causes the provider to reject the send; the app will show "Failed to send verification email" with the error.
   2. **Development without an API key** – If `EMAIL_API_KEY` is not set and `NODE_ENV` is not `production`, a mock sender is used: no real email is sent; the code is only printed in the auth-service logs (Dozzle or `docker logs capstone-auth-service`).
   3. **Spam/junk** – Check the recipient's spam folder.
 
@@ -191,7 +191,7 @@ Or use Dozzle: **http://localhost:9999** → select `capstone-auth-service` and 
   You’ll see `[Email API] Attempting to send OTP to <your-email>...` then `[Email API] ✅ OTP email sent successfully to ...`. If MailSlurp still shows nothing, check that inbox’s spam/junk and that the address matches exactly (e.g. the MailSlurp inbox ID in the address).
 - **Mock sender (no real email):**  
   You’ll see `⚠️ Email API key not set or still placeholder. Using mock sender` and `📧 [MOCK EMAIL] OTP Code: 123456`. So the code is only in logs; set `EMAIL_API_KEY` (and optionally `EMAIL_API_PROVIDER`, `DEFAULT_FROM_EMAIL`) in the **project root** `.env`, then restart: `docker-compose up -d --force-recreate auth-service`.
-- **SendGrid/API error:**  
-  You’ll see `⚠️ EMAIL API FAILED` with `To:`, `Error:`, and possibly `API Response:` / `API Status:`. Often the cause is **sender not verified**: in [SendGrid Sender Authentication](https://docs.sendgrid.com/ui/account-and-settings/sender-auth), verify the address in `DEFAULT_FROM_EMAIL` (e.g. your Gmail or a domain you own).
+- **Email API error:**  
+  You’ll see `⚠️ EMAIL API FAILED` with `To:`, `Error:`, and possibly `API Response:` / `API Status:`. Often the cause is **sender/domain not verified**: ensure the address in `DEFAULT_FROM_EMAIL` is verified in your provider (e.g. [Resend Domains](https://resend.com/domains), [SendGrid Sender Authentication](https://docs.sendgrid.com/ui/account-and-settings/sender-auth)).
 - **No email sent by design (TOTP):**  
   You’ll see `[Login] TOTP MFA enabled for <email> - using authenticator app, skipping email OTP`. For that account, the app uses the authenticator app only; no login OTP email is sent. Use your authenticator app, or reset MFA for that user (e.g. `node backend/scripts/reset-admin-mfa.js <email>`) and sign in again to get email OTP.

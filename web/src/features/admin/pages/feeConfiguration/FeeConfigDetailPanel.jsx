@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'
+import { Form } from '@/shared/components/AppForm'
 import {
-  Form,
   InputNumber,
   Input,
   Select,
@@ -206,14 +206,14 @@ export default function FeeConfigDetailPanel({
 
           <Space style={{ marginTop: 16 }}>
             <Button type="primary" htmlType="submit" loading={saving}>
-              {isCreate ? 'Create' : 'Save'}
+              {isCreate ? 'Create Fee Configuration' : 'Save Changes'}
             </Button>
             {isCreate && onCancel && (
               <Button onClick={onCancel}>Cancel</Button>
             )}
             {onDelete && config._id != null && (
               <Button danger onClick={() => onDelete(config._id)}>
-                Delete
+                Delete Configuration
               </Button>
             )}
           </Space>

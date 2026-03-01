@@ -44,6 +44,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import LGUManagerLayout from '../components/LGUManagerLayout'
 import { useLGUManagerDashboard } from '../presentation/hooks/useLGUManagerDashboard'
+import { Column as ColumnChart, Pie } from '@ant-design/charts'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 
@@ -421,6 +422,50 @@ export default function LGUManagerDashboard() {
                 </Col>
               </Row>
             </Card>
+
+            {/* Charts Section */}
+            <Row gutter={[24, 24]} style={{ marginBottom: 24 }}>
+              <Col xs={24} md={14}>
+                <Card title={<Space><BarChartOutlined style={{ color: token.colorPrimary }} /><Text strong>Overview by Category</Text></Space>}>
+                  <ColumnChart
+                    data={[
+                      { category: 'Permits', status: 'Pending', value: metrics.permits.pending },
+                      { category: 'Permits', status: 'Approved', value: metrics.permits.approved },
+                      { category: 'Permits', status: 'Rejected', value: metrics.permits.rejected },
+                      { category: 'Violations', status: 'Pending', value: metrics.violations.pending },
+                      { category: 'Violations', status: 'Resolved', value: metrics.violations.resolved },
+                      { category: 'Appeals', status: 'Pending', value: metrics.appeals.pending },
+                      { category: 'Appeals', status: 'Approved', value: metrics.appeals.approved },
+                      { category: 'Appeals', status: 'Rejected', value: metrics.appeals.rejected },
+                      { category: 'Cessations', status: 'Active', value: metrics.cessations.active },
+                      { category: 'Cessations', status: 'Resolved', value: metrics.cessations.resolved },
+                    ]}
+                    xField="category"
+                    yField="value"
+                    colorField="status"
+                    group={true}
+                    height={260}
+                    style={{ maxWidth: 3 }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} md={10}>
+                <Card title={<Space><SafetyCertificateOutlined style={{ color: token.colorSuccess }} /><Text strong>Permits Breakdown</Text></Space>}>
+                  <Pie
+                    data={[
+                      { type: 'Pending', value: metrics.permits.pending },
+                      { type: 'Approved', value: metrics.permits.approved },
+                      { type: 'Rejected', value: metrics.permits.rejected },
+                    ].filter(d => d.value > 0)}
+                    angleField="value"
+                    colorField="type"
+                    innerRadius={0.5}
+                    height={260}
+                    label={{ text: 'type', position: 'outside' }}
+                  />
+                </Card>
+              </Col>
+            </Row>
 
             {/* Quick Actions & Overview Cards */}
             <Row gutter={[24, 24]}>

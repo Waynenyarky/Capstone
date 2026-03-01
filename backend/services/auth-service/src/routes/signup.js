@@ -1,4 +1,6 @@
 const express = require('express')
+const path = require('path')
+const fs = require('fs')
 const bcrypt = require('bcryptjs')
 const mongoose = require('mongoose')
 const jwt = require('jsonwebtoken')
@@ -6,13 +8,16 @@ const User = require('../models/User')
 const Role = require('../models/Role')
 // Provider-related models removed in unified user flow
 const { generateCode } = require('../lib/codes')
-const { sendOtp, sendVerificationEmail } = require('../lib/mailer')
+const { sendOtp } = require('../lib/mailer')
 const { signUpRequests } = require('../lib/authRequestsStore')
 const SignUpRequest = require('../models/SignUpRequest')
 const respond = require('../middleware/respond')
 const { validateBody, Joi } = require('../middleware/validation')
 const { perEmailRateLimit } = require('../middleware/rateLimit')
 const { signAccessToken } = require('../middleware/auth')
+const { verifyTurnstileToken, isCaptchaEnabled } = require('../lib/turnstile')
+const { createAuditLog } = require('../lib/auditLogger')
+const { sanitizeName } = require('../lib/sanitizer')
 
 const router = express.Router()
 const BUSINESS_OWNER_ROLE_SLUG = 'business_owner'
@@ -51,11 +56,11 @@ const signupPayloadSchema = Joi.object({
   dateOfBirth: Joi.date().iso().max('now').allow(null),
   placeOfBirth: Joi.string().trim().max(200).allow('', null),
   nationality: Joi.string().trim().max(50).allow('', null),
-  spouseName: Joi.string().trim().max(100).allow('', null),
   fatherName: Joi.string().trim().max(100).allow('', null),
   motherName: Joi.string().trim().max(100).allow('', null),
   distinctiveMark: Joi.string().trim().max(200).allow('', null),
   highestEducationalAttainment: Joi.string().valid('elementary', 'high_school', 'vocational', 'college', 'postgraduate').allow('', null),
+  captchaToken: Joi.string().allow('', null).optional(),
 })
 
 const verifyCodeSchema = Joi.object({
@@ -108,7 +113,6 @@ function extractPisFields(body) {
   if (body.dateOfBirth) pis.dateOfBirth = body.dateOfBirth
   if (body.placeOfBirth) pis.placeOfBirth = body.placeOfBirth
   if (body.nationality) pis.nationality = body.nationality
-  if (body.spouseName) pis.spouseName = body.spouseName
   if (body.fatherName) pis.fatherName = body.fatherName
   if (body.motherName) pis.motherName = body.motherName
   if (body.distinctiveMark) pis.distinctiveMark = body.distinctiveMark
@@ -126,7 +130,7 @@ function extractPisFields(body) {
 }
 
 // POST /api/auth/signup
-router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
+router.post('/signup', validatePasswordStrengthMiddleware, validateBody(signupPayloadSchema), async (req, res) => {
   try {
     const {
       firstName,
@@ -142,6 +146,8 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
 
     // Normalize email to match User model's lowercase storage
     const emailKey = String(email || '').toLowerCase().trim()
+    const safeFirstName = sanitizeName(firstName) || firstName
+    const safeLastName = sanitizeName(lastName) || lastName
     const passwordHash = await bcrypt.hash(password, 10)
 
     let existing = null
@@ -158,8 +164,8 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
     const pisFields = extractPisFields(req.body || {})
     const doc = await User.create({
       role: roleDoc._id,
-      firstName,
-      lastName,
+      firstName: safeFirstName,
+      lastName: safeLastName,
       middleName: middleName || '',
       suffix: suffix || '',
       email: emailKey,
@@ -197,6 +203,8 @@ router.post('/signup', validateBody(signupPayloadSchema), async (req, res) => {
       response.user.expiresAt = new Date(expiresAtMs).toISOString()
     } catch (_) {}
 
+    createAuditLog(doc._id, 'signup', 'account', '', 'created', 'business_owner', { ip: req.ip }).catch(() => {})
+
     return respond.success(res, 201, response, 'Account created successfully')
   } catch (err) {
     if (err && err.code === 11000) {
@@ -233,6 +241,17 @@ function validatePasswordStrengthMiddleware(req, res, next) {
 // Step 1 for sign-up: collect payload, validate, send verification code
 router.post('/signup/start', validatePasswordStrengthMiddleware, validateBody(signupPayloadSchema), checkExistingEmailBeforeLimiter, signupStartLimiter, async (req, res) => {
   try {
+    if (isCaptchaEnabled()) {
+      const token = (req.body.captchaToken || '').trim()
+      if (!token) {
+        return respond.error(res, 400, 'captcha_failed', 'Verification failed. Please try again.')
+      }
+      const result = await verifyTurnstileToken(token, req.ip)
+      if (!result.success) {
+        return respond.error(res, 400, 'captcha_failed', 'Verification failed. Please try again.')
+      }
+    }
+
     const {
       firstName,
       lastName,
@@ -288,7 +307,7 @@ router.post('/signup/start', validatePasswordStrengthMiddleware, validateBody(si
       signupVerifyLimiter.resetKey(emailKey)
     }
 
-    const emailResult = await sendOtp({ to: email, code, subject: 'Verify your email' })
+    const emailResult = await sendOtp({ to: email, code, subject: 'Verify your email', purpose: 'signup' })
     if (!emailResult || !emailResult.success) {
       console.error(`[Signup] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
       return respond.error(res, 500, 'email_send_failed', `Failed to send verification email: ${emailResult?.error || 'Please check your email configuration'}`)
@@ -346,7 +365,7 @@ router.post('/signup/resend', validateBody(Joi.object({ email: Joi.string().emai
       console.log(`Reset verification attempts for ${emailKey} (resend)`)
     }
 
-    const emailResult = await sendOtp({ to: email, code, subject: 'Verify your email' })
+    const emailResult = await sendOtp({ to: email, code, subject: 'Verify your email', purpose: 'signup' })
     if (!emailResult || !emailResult.success) {
       console.error(`[Signup Resend] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
       return respond.error(res, 500, 'email_send_failed', `Failed to send verification email: ${emailResult?.error || 'Please check your email configuration'}`)
@@ -443,6 +462,8 @@ router.post('/signup/verify', validateBody(verifyCodeSchema), signupVerifyLimite
       created.expiresAt = new Date(expiresAtMs).toISOString()
     } catch (_) {}
 
+    createAuditLog(doc._id, 'signup', 'account', '', 'created', 'business_owner', { ip: req.ip }).catch(() => {})
+
     // Cleanup pending state
     if (useDB) await SignUpRequest.deleteOne({ email: emailKey })
     else signUpRequests.delete(emailKey)
@@ -507,7 +528,7 @@ router.post('/link-existing-account', validateBody(linkExistingSchema), async (r
       })
     }
 
-    const emailResult = await sendOtp({ to: email, code, subject: 'Verify your existing account link' })
+    const emailResult = await sendOtp({ to: email, code, subject: 'Verify your existing account link', purpose: 'signup' })
     if (!emailResult || !emailResult.success) {
       return respond.error(res, 500, 'email_send_failed', 'Failed to send verification email')
     }
@@ -576,6 +597,8 @@ router.post('/link-existing-account/verify', validateBody(linkVerifySchema), asy
       theme: 'default',
       createdBy: 'self',
     })
+
+    createAuditLog(doc._id, 'signup', 'account', '', 'created', 'business_owner', { ip: req.ip }).catch(() => {})
 
     // Cleanup
     if (useDB) await SignUpRequest.deleteOne({ email: emailKey })

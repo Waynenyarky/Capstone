@@ -11,7 +11,7 @@ const { Text, Title } = Typography
 export default function CrossDevicePasskeyAuth({ form, onAuthenticated, onCancel } = {}) {
   const { authenticateCrossDevice, checkCrossDeviceStatus } = useWebAuthn()
   const { login } = useAuthSession()
-  const { success, error: notifyError } = useNotifier()
+  const { error: notifyError } = useNotifier()
   const [loading, setLoading] = React.useState(false)
   const [polling, setPolling] = React.useState(false)
   const [error, setError] = React.useState(null)
@@ -222,11 +222,8 @@ export default function CrossDevicePasskeyAuth({ form, onAuthenticated, onCancel
           
           if (status.registered) {
             // Passkey was just registered, now log the user in
-            success('Passkey registered successfully! Logging you in...')
-          } else {
-            success('Logged in with passkey')
           }
-          
+          // Login success shown on destination via navigate state (Option A)
           login(status.user, { remember })
           if (typeof onAuthenticated === 'function') {
             onAuthenticated(status.user)
@@ -438,7 +435,6 @@ export default function CrossDevicePasskeyAuth({ form, onAuthenticated, onCancel
             />
             <Button
               type="primary"
-              size="large"
               icon={<ReloadOutlined />}
               onClick={() => startCrossDeviceAuth(true)}
               loading={loading}

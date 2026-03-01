@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { Form, InputNumber, DatePicker, Button, Spin, Alert, Space, Popconfirm, message, Card, Typography, Divider, Splitter, theme } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { InputNumber, DatePicker, Button, Spin, Alert, Space, Popconfirm, message, Card, Typography, Divider, Splitter, theme } from 'antd'
 import { CalculatorOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { get, post, put } from '@/lib/http.js'
@@ -221,13 +222,13 @@ export default function PenaltyConfigForm() {
         </Form.Item>
         <Space style={{ marginTop: 16 }}>
           <Button type="primary" htmlType="submit" loading={saving}>
-            Save
+            Save Changes
           </Button>
           <Popconfirm
             title="Reset to defaults?"
             description="This will reset surcharge to 25%, interest to 2%, and start day to 20."
             onConfirm={handleReset}
-            okText="Reset"
+            okText="Reset to Defaults"
             cancelText="Cancel"
           >
             <Button loading={resetting}>Reset to Defaults</Button>

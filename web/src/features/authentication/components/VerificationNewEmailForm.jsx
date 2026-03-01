@@ -1,4 +1,5 @@
-import { Form, Input, Button, Typography } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Input, Button, Typography } from 'antd'
 import { useVerifyChangeEmailForm } from '@/features/authentication/hooks'
 
 const { Title, Text } = Typography
@@ -24,11 +25,10 @@ export default function VerificationNewEmailForm({ email, currentEmail, onSubmit
           ]}
           style={{ marginBottom: 32 }}
         >
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
             <Input.OTP 
-              size="large" 
               length={6} 
-              style={{ width: '100%' }}
+              style={{ maxWidth: 280, justifyContent: 'center' }}
               inputType="numeric"
               mask={false}
               onChange={(value) => {

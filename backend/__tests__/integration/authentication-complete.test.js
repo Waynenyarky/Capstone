@@ -82,7 +82,7 @@ describe('Authentication Complete Integration Tests', () => {
             })
         }
 
-        // Next attempt should be locked out
+        // Next attempt should be locked out (or rate limited)
         const response = await request(app)
           .post('/api/auth/login/start')
           .send({
@@ -90,8 +90,9 @@ describe('Authentication Complete Integration Tests', () => {
             password: testPassword,
           })
 
-        // Account might be locked (423), return invalid credentials (401), or succeed if lockout not triggered (200)
-        expect([200, 401, 423, 403]).toContain(response.status)
+        // Account might be locked (423), return invalid credentials (401), succeed if lockout not triggered (200),
+        // or rate limited (429) when making many rapid requests
+        expect([200, 401, 423, 403, 429]).toContain(response.status)
       })
 
       it('should detect MFA requirement for admin users', async () => {

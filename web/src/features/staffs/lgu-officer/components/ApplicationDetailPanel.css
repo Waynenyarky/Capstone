@@ -1,0 +1,13 @@
+/* Hide the "more" dropdown on Ant Design Tabs so all tab labels stay visible (scroll if needed) */
+.application-detail-tabs .ant-tabs-nav-operations {
+  display: none !important;
+}
+
+.application-detail-tabs .ant-tabs-nav-wrap {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.application-detail-tabs .ant-tabs-nav-list {
+  flex: 0 1 auto;
+}

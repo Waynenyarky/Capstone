@@ -1,17 +1,20 @@
-import { Form } from 'antd'
+import { Form } from '@/shared/components/AppForm'
 import { notifyUserSignedUp } from "@/features/admin/users/lib/usersEvents.js"
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useRef, useState } from 'react'
 import { signupStart, signup } from "@/features/authentication/services"
-import { useNotifier } from '@/shared/notifications.js'
+import { useAuthNotification, useNotifier } from '@/shared/notifications.js'
 
-export function useUserSignUp({ onBegin, onSubmit } = {}) {
+export function useUserSignUp({ onBegin, onSubmit, getCaptchaToken } = {}) {
   const [form] = Form.useForm()
-  const navigate = useNavigate()
   const [isSubmitting, setSubmitting] = useState(false)
+  const submitLockRef = useRef(false)
   const { success, error } = useNotifier()
+  const { notificationSuccess } = useAuthNotification()
 
   const handleFinish = async (values) => {
+    if (submitLockRef.current) return
+    submitLockRef.current = true
+
     const payload = {
       firstName: values.firstName,
       lastName: values.lastName,
@@ -23,9 +26,21 @@ export function useUserSignUp({ onBegin, onSubmit } = {}) {
     }
     if (values.middleName) payload.middleName = values.middleName
     if (values.suffix) payload.suffix = values.suffix
+    if (typeof getCaptchaToken === 'function') {
+      const token = getCaptchaToken()
+      if (token) payload.captchaToken = token
+    }
 
     // Include PIS fields if provided (step 2 of signup)
-    if (values.address) payload.address = values.address
+    if (values.address && typeof values.address === 'object') {
+      payload.address = {
+        street: values.address.streetAddress ?? values.address.street ?? '',
+        barangay: values.address.barangayName ?? values.address.barangay ?? '',
+        city: values.address.cityName ?? values.address.city ?? '',
+        province: values.address.provinceName ?? values.address.province ?? '',
+        zipCode: values.address.postalCode ?? values.address.zipCode ?? '',
+      }
+    }
     if (values.sex) payload.sex = values.sex
     if (values.maritalStatus) payload.maritalStatus = values.maritalStatus
     if (values.dateOfBirth) {
@@ -34,7 +49,6 @@ export function useUserSignUp({ onBegin, onSubmit } = {}) {
     }
     if (values.placeOfBirth) payload.placeOfBirth = values.placeOfBirth
     if (values.nationality) payload.nationality = values.nationality
-    if (values.spouseName) payload.spouseName = values.spouseName
     if (values.fatherName) payload.fatherName = values.fatherName
     if (values.motherName) payload.motherName = values.motherName
     if (values.distinctiveMark) payload.distinctiveMark = values.distinctiveMark
@@ -48,18 +62,16 @@ export function useUserSignUp({ onBegin, onSubmit } = {}) {
         onBegin({ email: values.email, serverData: data })
       } else {
         const created = await signup(payload)
-        success('Account created successfully')
+        notificationSuccess('Account created', 'Your account has been created successfully.')
         form.resetFields()
         if (typeof onSubmit === 'function') onSubmit(created)
         notifyUserSignedUp(created)
       }
     } catch (err) {
-      console.error('Signup error:', err)
       const msg = String(err?.message || '').toLowerCase()
 
       if (msg.includes('email already exists')) {
-        error('Email is already verified. Redirecting to login...')
-        setTimeout(() => navigate('/login'), 2000)
+        error('This email is already registered. Please log in or use a different email.')
         return
       }
 
@@ -72,9 +84,11 @@ export function useUserSignUp({ onBegin, onSubmit } = {}) {
               error('Too many requests. Please wait a moment.')
           }
       } else {
+          console.error('Signup error:', err)
           error(err, 'Failed to create account')
       }
     } finally {
+      submitLockRef.current = false
       setSubmitting(false)
     }
   }

@@ -18,13 +18,12 @@ void main() {
     await tester.pumpWidget(const MyApp());
     // Avoid hanging: pump a few short frames until the login text appears
     for (var i = 0; i < 20; i++) {
-      if (find.text('Welcome Back').evaluate().isNotEmpty) break;
+      if (find.text('Sign In with BizClear').evaluate().isNotEmpty) break;
       await tester.pump(const Duration(milliseconds: 200));
     }
 
     // Expect the login title is visible
-    expect(find.text('Welcome Back'), findsOneWidget);
-    expect(find.text('Login to your account'), findsOneWidget);
+    expect(find.text('Sign In with BizClear'), findsOneWidget);
 
     // Smoke check: screen rendered without throwing
     expect(find.byType(MaterialApp), findsOneWidget);

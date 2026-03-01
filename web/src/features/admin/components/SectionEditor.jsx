@@ -198,7 +198,7 @@ export default function SectionEditor({ sections = [], onChange, disabled = fals
                   title="Delete section"
                   description="This will remove all items in this section."
                   onConfirm={() => handleDeleteSection(sectionIndex)}
-                  okText="Delete"
+                  okText="Delete Section"
                   okButtonProps={{ danger: true }}
                 >
                   <Button size="small" danger icon={<DeleteOutlined />} />
@@ -233,7 +233,7 @@ export default function SectionEditor({ sections = [], onChange, disabled = fals
                           key="delete"
                           title="Delete item"
                           onConfirm={() => handleDeleteItem(sectionIndex, itemIndex)}
-                          okText="Delete"
+                          okText="Delete Item"
                           okButtonProps={{ danger: true }}
                         >
                           <Button size="small" type="text" danger icon={<DeleteOutlined />} />

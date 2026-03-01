@@ -1,4 +1,5 @@
-import { Form, App } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { App } from 'antd'
 import { useState, useRef, useEffect } from 'react'
 import { verifyLoginCode } from "@/features/authentication/services"
 import { useNotifier } from '@/shared/notifications.js'
@@ -17,7 +18,7 @@ export function useLoginVerificationForm({ onSubmit, email } = {}) {
 
   const handleFinish = async (values) => {
     if (attemptsRef.current <= 0) {
-      form.setFields([{ name: 'verificationCode', errors: ['Too many attempts, please request a new code'] }])
+      error('Too many attempts, please request a new code')
       return
     }
 
@@ -130,7 +131,6 @@ export function useLoginVerificationForm({ onSubmit, email } = {}) {
           key: `otp-error-${Date.now()}`,
         })
         
-        form.setFields([{ name: 'verificationCode', errors: [backendMsg] }])
       } else if (lower && (lower.includes('expired') || lower.includes('410'))) {
         const expiredMsg = 'The OTP code has expired. Please request a new code.'
         notification.error({
@@ -149,7 +149,6 @@ export function useLoginVerificationForm({ onSubmit, email } = {}) {
           },
           key: `otp-expired-${Date.now()}`,
         })
-        form.setFields([{ name: 'verificationCode', errors: [expiredMsg] }])
       } else if (lower && (lower.includes('no login verification request') || lower.includes('not found') || lower.includes('404'))) {
         const notFoundMsg = 'No active login verification request found. Please start the login process again.'
         notification.error({
@@ -168,7 +167,6 @@ export function useLoginVerificationForm({ onSubmit, email } = {}) {
           },
           key: `otp-notfound-${Date.now()}`,
         })
-        form.setFields([{ name: 'verificationCode', errors: [notFoundMsg] }])
       } else {
         // For other errors, show user-friendly message
         const friendlyMsg = (typeof errorMessage === 'string' && errorMessage && 
@@ -193,7 +191,6 @@ export function useLoginVerificationForm({ onSubmit, email } = {}) {
           },
           key: `otp-error-${Date.now()}`,
         })
-        form.setFields([{ name: 'verificationCode', errors: [friendlyMsg] }])
       }
     } finally {
       setSubmitting(false)

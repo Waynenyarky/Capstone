@@ -25,7 +25,7 @@ export default function ApplicationReviewCard({ application, onApprove, onReject
           onClick={() => onApprove?.(application?.id)}
           loading={loading}
         >
-          Approve
+          Approve Application
         </Button>,
         <Button
           key="reject"
@@ -34,7 +34,7 @@ export default function ApplicationReviewCard({ application, onApprove, onReject
           onClick={() => onReject?.(application?.id)}
           loading={loading}
         >
-          Reject
+          Reject Application
         </Button>,
         <Button
           key="revision"

@@ -252,7 +252,6 @@ export default function SpecialFeesTab() {
           showIcon
         />
         <Select
-          size="large"
           value={selectedKey}
           onChange={setSelectedKey}
           options={SPECIAL_FEE_SECTIONS.map((s) => ({ value: s.key, label: s.label }))}

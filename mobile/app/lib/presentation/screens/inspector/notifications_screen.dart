@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:app/core/theme/bizclear_colors.dart';
 import 'package:app/data/services/mongodb_service.dart';
-import 'package:app/data/mock/inspector_mock_data.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -36,10 +36,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       if (res['success'] == true) {
         final list = List<dynamic>.from(res['notifications'] ?? []);
         if (list.isEmpty && _page == 1) {
-          final mockList = InspectorMockData.getNotifications();
           setState(() {
-            _notifications = mockList;
-            _pagination = {'page': 1, 'limit': _limit, 'total': mockList.length, 'totalPages': 1};
+            _notifications = [];
+            _pagination = {'page': 1, 'limit': _limit, 'total': 0, 'totalPages': 1};
             _loading = false;
             _error = null;
           });
@@ -53,12 +52,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         });
       } else {
         if (_page == 1) {
-          final mockList = InspectorMockData.getNotifications();
           setState(() {
-            _notifications = mockList;
-            _pagination = {'page': 1, 'limit': _limit, 'total': mockList.length, 'totalPages': 1};
+            _notifications = [];
+            _pagination = {'page': 1, 'limit': _limit, 'total': 0, 'totalPages': 1};
             _loading = false;
-            _error = null;
+            _error = res['message'] ?? 'Failed to load';
           });
           return;
         }
@@ -69,12 +67,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }
     } catch (e) {
       if (_page == 1) {
-        final mockList = InspectorMockData.getNotifications();
         setState(() {
-          _notifications = mockList;
-          _pagination = {'page': 1, 'limit': _limit, 'total': mockList.length, 'totalPages': 1};
+          _notifications = [];
+          _pagination = {'page': 1, 'limit': _limit, 'total': 0, 'totalPages': 1};
           _loading = false;
-          _error = null;
+          _error = 'Failed to load. Pull to refresh.';
         });
         return;
       }
@@ -121,7 +118,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   const SizedBox(height: 16),
                   Text(
                     'No notifications',
-                    style: TextStyle(fontSize: 18, color: Colors.grey.shade700),
+                    style: TextStyle(fontSize: 15, color: Colors.grey.shade700),
                   ),
                 ],
               ),
@@ -165,7 +162,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
-                  color: read ? null : Colors.blue.withValues(alpha: 0.05),
+                  color: read ? null : BizClearColors.webPrimary.withValues(alpha: 0.05),
                   child: ListTile(
                     leading: Icon(
                       Icons.notifications_outlined,

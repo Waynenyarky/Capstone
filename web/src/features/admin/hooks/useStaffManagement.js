@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Form } from 'antd'
+import { Form } from '@/shared/components/AppForm'
 import {
   getStaffList,
   createStaff,

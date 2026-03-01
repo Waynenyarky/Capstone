@@ -6,6 +6,16 @@ import { fetchJsonWithFallback } from '@/lib/http'
  */
 
 /**
+ * Get a one-time token for opening the notification SSE stream.
+ * EventSource cannot send Authorization header, so we use this token in the URL.
+ * @returns {Promise<{ streamToken: string, expiresIn: number } | null>}
+ */
+export async function getNotificationStreamToken() {
+  const res = await fetchJsonWithFallback('/api/notifications/stream-token', { method: 'POST' })
+  return res?.streamToken != null ? { streamToken: res.streamToken, expiresIn: res.expiresIn ?? 60 } : null
+}
+
+/**
  * Get user notifications
  * @param {object} options - Query options
  * @param {number} options.page - Page number (default: 1)
@@ -65,6 +75,16 @@ export async function markAllAsRead() {
  */
 export async function deleteNotification(notificationId) {
   return fetchJsonWithFallback(`/api/notifications/${notificationId}`, {
+    method: 'DELETE'
+  })
+}
+
+/**
+ * Delete all notifications for the current user
+ * @returns {Promise<object>} Result with deletedCount
+ */
+export async function deleteAllNotifications() {
+  return fetchJsonWithFallback('/api/notifications/all', {
     method: 'DELETE'
   })
 }

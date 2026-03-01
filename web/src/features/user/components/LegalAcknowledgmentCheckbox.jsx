@@ -1,4 +1,5 @@
-import { Form, Checkbox } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Checkbox } from 'antd'
 
 export default function LegalAcknowledgmentCheckbox({ name = 'legalAcknowledgment' }) {
   return (

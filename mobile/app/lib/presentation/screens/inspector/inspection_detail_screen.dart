@@ -2,13 +2,13 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:app/core/theme/bizclear_colors.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:signature/signature.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'package:app/data/services/connectivity_service.dart';
 import 'package:app/data/local/inspection_local_store.dart';
-import 'package:app/data/mock/inspector_mock_data.dart';
 import 'package:app/presentation/screens/inspector/legal_reference_sheet.dart';
 
 class InspectionDetailScreen extends StatefulWidget {
@@ -38,20 +38,11 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
       _error = null;
     });
     if (widget.inspectionId.startsWith('mock-')) {
-      final list = InspectorMockData.getInspections();
-      final found = list.where((e) => e['_id'] == widget.inspectionId).toList();
-      final data = found.isNotEmpty ? found.first : null;
       if (mounted) {
         setState(() {
-          if (data != null) {
-            final map = Map<String, dynamic>.from(data);
-            map['_isMock'] = true;
-            _inspection = map;
-          } else {
-            _inspection = null;
-          }
+          _inspection = null;
           _loading = false;
-          _error = data == null ? 'Demo inspection not found' : null;
+          _error = 'Inspection not found. Pull to refresh.';
         });
       }
       return;
@@ -101,35 +92,35 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
 
   Future<void> _startInspection() async {
     Map<String, dynamic>? gpsAtStart;
+    String? gpsSkipReason;
     try {
       final perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) {
         final req = await Geolocator.requestPermission();
         if (req == LocationPermission.denied || req == LocationPermission.deniedForever) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Location permission required to start inspection')),
-            );
-          }
-          return;
+          if (!mounted) return;
+          gpsSkipReason = await _showGpsSkipReasonDialog();
+          if (gpsSkipReason == null) return;
         }
       }
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium,
-      );
-      gpsAtStart = {
-        'lat': pos.latitude,
-        'lng': pos.longitude,
-        'accuracy': pos.accuracy,
-        'capturedAt': pos.timestamp?.toIso8601String() ?? DateTime.now().toIso8601String(),
-      };
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not get location: $e')),
+      if (gpsSkipReason == null) {
+        final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium,
         );
+        gpsAtStart = {
+          'lat': pos.latitude,
+          'lng': pos.longitude,
+          'accuracy': pos.accuracy,
+          'capturedAt': pos.timestamp?.toIso8601String() ?? DateTime.now().toIso8601String(),
+        };
       }
-      return;
+    } catch (e) {
+      if (!mounted) return;
+      gpsSkipReason = await _showGpsSkipReasonDialog(errorDetail: e.toString());
+      if (gpsSkipReason == null) return;
+    }
+    if (gpsSkipReason != null) {
+      gpsAtStart = {'skipped': true, 'reason': gpsSkipReason};
     }
 
     final res = await MongoDBService.startInspection(
@@ -153,6 +144,56 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
         );
       }
     }
+  }
+
+  Future<String?> _showGpsSkipReasonDialog({String? errorDetail}) async {
+    final ctrl = TextEditingController();
+    return showDialog<String?>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Location Unavailable'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              errorDetail != null
+                  ? 'Could not get GPS location. Please provide a reason to continue without location.'
+                  : 'GPS permission was denied. Please provide a reason to continue without location.',
+              style: const TextStyle(height: 1.5),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: ctrl,
+              decoration: const InputDecoration(
+                labelText: 'Reason (required)',
+                hintText: 'e.g. Indoor location, GPS hardware issue',
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final reason = ctrl.text.trim();
+              if (reason.isEmpty) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Please provide a reason')),
+                );
+                return;
+              }
+              Navigator.pop(ctx, reason);
+            },
+            child: const Text('Proceed Without GPS'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _showGpsMismatchReasonDialog() async {
@@ -203,6 +244,16 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
 
   Future<void> _updateChecklist(List<dynamic> checklist) async {
     final list = checklist.map((e) => e is Map<String, dynamic> ? e : Map<String, dynamic>.from(e as Map)).toList();
+    final online = await ConnectivityService.instance.isOnline;
+    if (!online) {
+      await InspectionLocalStore.queueChecklistUpdate(widget.inspectionId, list);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Saved locally — will sync when back online'), backgroundColor: Colors.orange),
+        );
+      }
+      return;
+    }
     final res = await MongoDBService.updateChecklist(widget.inspectionId, list);
     if (res['success'] == true) {
       await _loadDetail();
@@ -304,10 +355,26 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
 
   Future<void> _uploadEvidence() async {
     final picker = ImagePicker();
-    final xfile = await picker.pickImage(source: ImageSource.camera);
+    final xfile = await picker.pickImage(
+      source: ImageSource.camera,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 85,
+    );
     if (xfile == null) return;
     final path = xfile.path;
     if (path.isEmpty) return;
+
+    final fileSize = await File(path).length();
+    const maxFileSize = 10 * 1024 * 1024; // 10 MB
+    if (fileSize > maxFileSize) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Photo exceeds 10 MB limit. Please try again.'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
 
     final inv = _inspection;
     final checklist = inv != null ? List<dynamic>.from(inv['checklist'] ?? []) : <dynamic>[];
@@ -424,17 +491,48 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
   }
 
   void _showSubmitDialog() async {
-    final online = await ConnectivityService.instance.isOnline;
-    if (!online) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Connect to submit inspection'),
-            backgroundColor: Colors.orange,
+    final checklist = _inspection?['checklist'] as List<dynamic>? ?? [];
+    if (checklist.isNotEmpty) {
+      final incomplete = checklist.where((c) {
+        final m = c is Map<String, dynamic> ? c : <String, dynamic>{};
+        return m['checked'] != true;
+      }).toList();
+      if (incomplete.isNotEmpty) {
+        if (!mounted) return;
+        final proceed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Incomplete Checklist'),
+            content: Text('${incomplete.length} of ${checklist.length} checklist items are not completed. Submit anyway?'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Go Back')),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+                child: const Text('Submit Anyway'),
+              ),
+            ],
           ),
         );
+        if (proceed != true) return;
       }
-      return;
+    }
+
+    final online = await ConnectivityService.instance.isOnline;
+    if (!online) {
+      if (!mounted) return;
+      final queueOffline = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('No Connection'),
+          content: const Text('You are offline. Queue this submission to sync automatically when you reconnect?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Queue for Sync')),
+          ],
+        ),
+      );
+      if (queueOffline != true) return;
     }
     final signCtrl = SignatureController(
       penStrokeWidth: 2,
@@ -493,12 +591,24 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
                 child: const Text('Passed'),
               ),
               FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  padding: BizClearColors.primaryButtonPadding,
+                  minimumSize: BizClearColors.primaryButtonMinimumSize,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: BizClearColors.primaryButtonTextStyle,
+                ),
                 onPressed: () => _submitWithSignature(ctx, signCtrl, 'needs_reinspection'),
                 child: const Text('Needs Re-inspection'),
               ),
               FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  padding: BizClearColors.primaryButtonPadding,
+                  minimumSize: BizClearColors.primaryButtonMinimumSize,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: BizClearColors.primaryButtonTextStyle,
+                ),
                 onPressed: () => _submitWithSignature(ctx, signCtrl, 'failed'),
                 child: const Text('Failed'),
               ),
@@ -531,13 +641,32 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
     signCtrl.dispose();
     Navigator.pop(ctx);
 
-    final res = await MongoDBService.submitInspection(
-      widget.inspectionId,
-      overallResult,
-      inspectorSignature: {
+    final payload = {
+      'overallResult': overallResult,
+      'inspectorSignature': {
         'dataUrl': dataUrl,
         'timestamp': DateTime.now().toIso8601String(),
       },
+    };
+
+    final isOnline = await ConnectivityService.instance.isOnline;
+    if (!isOnline) {
+      await InspectionLocalStore.queueSubmission(widget.inspectionId, payload);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Queued for sync. Will submit automatically when back online.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    final res = await MongoDBService.submitInspection(
+      widget.inspectionId,
+      overallResult,
+      inspectorSignature: payload['inspectorSignature'] as Map<String, dynamic>,
     );
     if (res['success'] == true) {
       await _loadDetail();
@@ -603,17 +732,17 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-              color: Colors.blue.shade50,
+              color: BizClearColors.webPrimaryTintLight,
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.blue.shade800, size: 22),
+                  Icon(Icons.info_outline, color: BizClearColors.webPrimaryTintText, size: 22),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Demo data – connect to backend for full details and actions.',
                       style: TextStyle(
                         fontWeight: FontWeight.w500,
-                        color: Colors.blue.shade900,
+                        color: BizClearColors.webPrimaryTintText,
                         fontSize: 13,
                       ),
                     ),
@@ -668,7 +797,12 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
                     if (!gpsMismatchReason) ...[
                       const SizedBox(height: 12),
                       FilledButton(
-                        style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          padding: BizClearColors.primaryButtonPadding,
+                          minimumSize: BizClearColors.primaryButtonMinimumSize,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
                         onPressed: _showGpsMismatchReasonDialog,
                         child: const Text('Proceed anyway (add reason)'),
                       ),
@@ -687,19 +821,19 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
           if (gpsMismatch && status == 'in_progress') const SizedBox(height: 16),
           if (parentInspectionId != null)
             Card(
-              color: Colors.blue.shade50,
+              color: BizClearColors.webPrimaryTintLight,
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
-                    Icon(Icons.replay, color: Colors.blue.shade700, size: 20),
+                    Icon(Icons.replay, color: BizClearColors.webPrimaryTintIcon, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Re-inspection',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          color: Colors.blue.shade900,
+                          color: BizClearColors.webPrimaryTintText,
                           fontSize: 13,
                         ),
                       ),

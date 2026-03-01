@@ -1,43 +1,46 @@
-import { useAuthSession } from "@/features/authentication/hooks"
+import { useAuthSession } from '@/features/authentication/hooks'
 import { useCallback, useState, useEffect } from 'react'
+import { changePasswordAuthenticated } from '@/features/authentication/services'
+import { useAuthNotification, useNotifier } from '@/shared/notifications'
 
 export function useLoggedInPasswordChangeFlow() {
   const { currentUser } = useAuthSession()
-  const [step, setStep] = useState('send')
+  const { error } = useNotifier()
+  const { notificationSuccess } = useAuthNotification()
+  const [step, setStep] = useState('password')
   const [email, setEmail] = useState(currentUser?.email || '')
-  const [resetToken, setResetToken] = useState('')
 
   useEffect(() => {
     setEmail(currentUser?.email || '')
   }, [currentUser])
 
-  const handleSent = useCallback(() => {
-    setStep('verify')
-  }, [])
-
-  const handleVerifySubmit = useCallback(({ email: e, resetToken: token }) => {
-    setEmail(e)
-    setResetToken(token)
-    setStep('change')
-  }, [])
-
-  const handleChangeSubmit = useCallback(() => {
-    setStep('done')
-  }, [])
+  const handlePasswordSubmit = useCallback(async (values) => {
+    if (!values?.currentPassword || !values?.password || values.password !== values.confirmPassword) return
+    try {
+      await changePasswordAuthenticated({
+        currentPassword: values.currentPassword,
+        newPassword: values.password,
+      })
+      setStep('done')
+      notificationSuccess('Password changed', 'Your password has been updated successfully.')
+    } catch (err) {
+      console.error('Change password error:', err)
+      error(err, 'Failed to change password')
+    }
+  }, [notificationSuccess, error])
 
   const reset = useCallback(() => {
-    setStep('send')
-    setResetToken('')
+    setStep('password')
   }, [])
 
   const goBack = useCallback(() => {
-    if (step === 'verify') setStep('send')
-    else if (step === 'change') setStep('verify')
+    setStep('password')
   }, [step])
 
-  const sendProps = { email, onSent: handleSent }
-  const verifyProps = { email, onSubmit: handleVerifySubmit }
-  const changeProps = { email, resetToken, onSubmit: handleChangeSubmit }
+  const changeProps = {
+    email,
+    onSubmit: handlePasswordSubmit,
+  }
 
-  return { step, sendProps, verifyProps, changeProps, email, resetToken, reset, goBack }
+  return { step, changeProps, email, reset, goBack }
 }

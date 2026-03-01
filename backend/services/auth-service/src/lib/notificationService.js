@@ -149,6 +149,115 @@ async function sendPasswordChangeNotification(userId, options = {}) {
 }
 
 /**
+ * Send MFA enabled notification (authenticator or passkey)
+ * @param {string|ObjectId} userId - User ID
+ * @param {object} options - { method: 'authenticator' | 'passkey' }
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+async function sendMfaEnabledNotification(userId, options = {}) {
+  try {
+    const user = await User.findById(userId).lean()
+    if (!user) return { success: false, error: 'User not found' }
+    await mailer.sendMfaEnabledNotification({
+      to: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      method: options.method || 'authenticator',
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Error sending MFA enabled notification:', error)
+    return { success: false, error: error.message || 'Failed to send notification' }
+  }
+}
+
+/**
+ * Send MFA disable requested notification (24-hour delay)
+ * @param {string|ObjectId} userId - User ID
+ * @param {object} options - { scheduledFor: Date }
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+async function sendMfaDisableRequestedNotification(userId, options = {}) {
+  try {
+    const user = await User.findById(userId).lean()
+    if (!user) return { success: false, error: 'User not found' }
+    await mailer.sendMfaDisableRequestedNotification({
+      to: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      scheduledFor: options.scheduledFor,
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Error sending MFA disable requested notification:', error)
+    return { success: false, error: error.message || 'Failed to send notification' }
+  }
+}
+
+/**
+ * Send MFA disabled notification (after disable completed)
+ * @param {string|ObjectId} userId - User ID
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+async function sendMfaDisabledNotification(userId) {
+  try {
+    const user = await User.findById(userId).lean()
+    if (!user) return { success: false, error: 'User not found' }
+    await mailer.sendMfaDisabledNotification({
+      to: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Error sending MFA disabled notification:', error)
+    return { success: false, error: error.message || 'Failed to send notification' }
+  }
+}
+
+/**
+ * Send passkey added notification
+ * @param {string|ObjectId} userId - User ID
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+async function sendPasskeyAddedNotification(userId) {
+  try {
+    const user = await User.findById(userId).lean()
+    if (!user) return { success: false, error: 'User not found' }
+    await mailer.sendPasskeyAddedNotification({
+      to: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Error sending passkey added notification:', error)
+    return { success: false, error: error.message || 'Failed to send notification' }
+  }
+}
+
+/**
+ * Send passkey removed notification
+ * @param {string|ObjectId} userId - User ID
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+async function sendPasskeyRemovedNotification(userId) {
+  try {
+    const user = await User.findById(userId).lean()
+    if (!user) return { success: false, error: 'User not found' }
+    await mailer.sendPasskeyRemovedNotification({
+      to: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Error sending passkey removed notification:', error)
+    return { success: false, error: error.message || 'Failed to send notification' }
+  }
+}
+
+/**
  * Send admin alert for suspicious activity
  * @param {string} type - Alert type (e.g., 'suspicious_login', 'unusual_activity')
  * @param {object} data - Alert data
@@ -229,6 +338,11 @@ module.exports = {
   createInAppNotificationsForAdmins,
   sendEmailChangeNotification,
   sendPasswordChangeNotification,
+  sendMfaEnabledNotification,
+  sendMfaDisableRequestedNotification,
+  sendMfaDisabledNotification,
+  sendPasskeyAddedNotification,
+  sendPasskeyRemovedNotification,
   sendAdminAlert,
   sendApprovalNotification,
 }

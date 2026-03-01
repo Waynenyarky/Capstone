@@ -33,8 +33,9 @@ const FeeConfiguration = require('../../../services/business-service/src/models/
 const User = require('../../../services/business-service/src/models/User')
 const Role = require('../../../services/business-service/src/models/Role')
 const { signAccessToken } = require('../../../services/business-service/src/middleware/auth')
+const { signStepUpToken } = require('../../../services/auth-service/src/middleware/auth')
 
-let adminToken, ownerToken, adminId
+let adminToken, ownerToken, adminId, adminStepUpHeader
 
 async function setupUsers() {
   const bcrypt = require('bcryptjs')
@@ -63,6 +64,10 @@ async function setupUsers() {
   })
   adminId = admin._id.toString()
   adminToken = signAccessToken({ ...admin.toObject(), role: adminRole }).token
+  adminStepUpHeader = {
+    Authorization: `Bearer ${adminToken}`,
+    'X-Step-Up-Token': signStepUpToken(adminId).token,
+  }
 
   const owner = await User.create({
     role: ownerRole._id,
@@ -92,7 +97,7 @@ describe('Fee Configuration (2C)', () => {
     it('should create fee configuration with brackets and taxCode (Charter 1-12)', async () => {
       const res = await request(app)
         .post('/api/business/admin/fee-configuration')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(adminStepUpHeader)
         .send({
           taxCode: '12',
           lineOfBusiness: 'General Merchandise, Grocery, Sari-Sari Store - 5-9 sq.m.',
@@ -115,7 +120,7 @@ describe('Fee Configuration (2C)', () => {
     it('should create fee configuration without taxCode (defaults to empty)', async () => {
       const res = await request(app)
         .post('/api/business/admin/fee-configuration')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(adminStepUpHeader)
         .send({
           lineOfBusiness: 'Wholesale',
           mayorsPermitFee: 800,
@@ -129,7 +134,7 @@ describe('Fee Configuration (2C)', () => {
     it('should create fee configuration with bracketKind tiered', async () => {
       const res = await request(app)
         .post('/api/business/admin/fee-configuration')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(adminStepUpHeader)
         .send({
           taxCode: '6',
           lineOfBusiness: 'Restaurants - Less than 50 sq.m.',
@@ -149,7 +154,7 @@ describe('Fee Configuration (2C)', () => {
     it('should create fee configuration with bracketKind fixed and bracket amount', async () => {
       const res = await request(app)
         .post('/api/business/admin/fee-configuration')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(adminStepUpHeader)
         .send({
           taxCode: '1',
           lineOfBusiness: 'Food Manufacturing',
@@ -180,7 +185,7 @@ describe('Fee Configuration (2C)', () => {
 
       const res = await request(app)
         .put(`/api/business/admin/fee-configuration/${config._id}`)
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(adminStepUpHeader)
         .send({ mayorsPermitFee: 600 })
 
       expect(res.status).toBe(200)
@@ -199,7 +204,7 @@ describe('Fee Configuration (2C)', () => {
 
       const res = await request(app)
         .put(`/api/business/admin/fee-configuration/${config._id}`)
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(adminStepUpHeader)
         .send({ taxCode: '11' })
 
       expect(res.status).toBe(200)
@@ -228,7 +233,7 @@ describe('Fee Configuration (2C)', () => {
 
       const res = await request(app)
         .get('/api/business/admin/fee-configuration')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(adminStepUpHeader)
 
       expect(res.status).toBe(200)
       expect(res.body.data.length).toBe(2)
@@ -251,7 +256,7 @@ describe('Fee Configuration (2C)', () => {
 
       const res = await request(app)
         .post('/api/business/admin/fee-configuration')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(adminStepUpHeader)
         .send({
           taxCode: '12',
           lineOfBusiness: 'General Merchandise - below 5 sq.m.',
@@ -276,7 +281,7 @@ describe('Fee Configuration (2C)', () => {
 
       const res = await request(app)
         .delete(`/api/business/admin/fee-configuration/${config._id}`)
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(adminStepUpHeader)
 
       expect(res.status).toBe(200)
       expect(res.body.data.deactivated).toBe(true)
@@ -292,7 +297,7 @@ describe('Fee Configuration (2C)', () => {
     it('should reject brackets with negative min', async () => {
       const res = await request(app)
         .post('/api/business/admin/fee-configuration')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(adminStepUpHeader)
         .send({
           lineOfBusiness: 'manufacturing',
           mayorsPermitFee: 1000,
@@ -306,7 +311,7 @@ describe('Fee Configuration (2C)', () => {
     it('should reject brackets with rate > 100', async () => {
       const res = await request(app)
         .post('/api/business/admin/fee-configuration')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(adminStepUpHeader)
         .send({
           lineOfBusiness: 'manufacturing',
           mayorsPermitFee: 1000,
@@ -320,7 +325,7 @@ describe('Fee Configuration (2C)', () => {
     it('should reject brackets where max < min', async () => {
       const res = await request(app)
         .post('/api/business/admin/fee-configuration')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(adminStepUpHeader)
         .send({
           lineOfBusiness: 'manufacturing',
           mayorsPermitFee: 1000,
@@ -334,7 +339,7 @@ describe('Fee Configuration (2C)', () => {
     it('should reject fixed bracketKind when bracket missing amount', async () => {
       const res = await request(app)
         .post('/api/business/admin/fee-configuration')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(adminStepUpHeader)
         .send({
           lineOfBusiness: 'manufacturing_fixed',
           mayorsPermitFee: 1000,
@@ -350,7 +355,7 @@ describe('Fee Configuration (2C)', () => {
     it('should reject rate/tiered bracketKind when bracket missing rate', async () => {
       const res = await request(app)
         .post('/api/business/admin/fee-configuration')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(adminStepUpHeader)
         .send({
           lineOfBusiness: 'retail',
           mayorsPermitFee: 500,
@@ -382,7 +387,7 @@ describe('Fee Configuration (2C)', () => {
     it('should require lineOfBusiness and mayorsPermitFee', async () => {
       const res = await request(app)
         .post('/api/business/admin/fee-configuration')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(adminStepUpHeader)
         .send({})
 
       expect(res.status).toBe(400)
@@ -393,7 +398,7 @@ describe('Fee Configuration (2C)', () => {
       const fakeId = new mongoose.Types.ObjectId()
       const res = await request(app)
         .put(`/api/business/admin/fee-configuration/${fakeId}`)
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(adminStepUpHeader)
         .send({ mayorsPermitFee: 999 })
 
       expect(res.status).toBe(404)
@@ -403,7 +408,7 @@ describe('Fee Configuration (2C)', () => {
       const fakeId = new mongoose.Types.ObjectId()
       const res = await request(app)
         .delete(`/api/business/admin/fee-configuration/${fakeId}`)
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set(adminStepUpHeader)
 
       expect(res.status).toBe(404)
     })

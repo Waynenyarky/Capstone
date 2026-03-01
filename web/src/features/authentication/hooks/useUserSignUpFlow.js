@@ -23,7 +23,6 @@ export function useUserSignUpFlow() {
   }, [])
 
   const handleVerificationSubmit = useCallback((created) => {
-    // API may return user at top level (id, role, token, ...) or as created.user
     const rawUser = created?.user ?? created
     const token = rawUser?.token ?? created?.token
     const withToken = rawUser && token
@@ -37,18 +36,25 @@ export function useUserSignUpFlow() {
       navigate('/login', { replace: true })
       return
     }
+
+    notifyUserSignedUp(created)
+    const role = String(withToken?.role?.slug ?? withToken?.role ?? '').toLowerCase()
+
+    if (role === 'business_owner') {
+      // Do NOT call login() here — we are still on /sign-up which is wrapped
+      // by PublicRoute. If we set the user in auth state, PublicRoute re-renders
+      // and redirects to /owner before our navigate() takes effect.
+      // Pass the token via route state; the MFA page will call login() on mount.
+      navigate('/signup/mfa-setup', { replace: true, state: { pendingUser: withToken } })
+      return
+    }
+
     try {
       login(withToken, { remember: false })
     } catch { /* ignore */ }
-    notifyUserSignedUp(created)
-    const role = String(withToken?.role?.slug ?? withToken?.role ?? '').toLowerCase()
+
     if (role === 'admin') {
       navigate('/admin/dashboard', { replace: true })
-      return
-    }
-    if (role === 'business_owner') {
-      // /owner dashboard shows BusinessRegistrationWizard when profile is missing or draft
-      navigate('/owner', { replace: true })
       return
     }
     const staffRoles = ['staff', 'lgu_manager', 'lgu_officer', 'inspector', 'cso']

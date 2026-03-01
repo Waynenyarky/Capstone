@@ -19,18 +19,18 @@ export function usePermitApplications() {
     [permitAppRepo]
   )
 
-  const loadApplications = useCallback(async ({ filters, pagination } = {}) => {
-    setLoading(true)
+  const loadApplications = useCallback(async ({ filters, pagination, silent } = {}) => {
+    if (!silent) setLoading(true)
     try {
       const data = await permitAppRepo.getApplications({ filters, pagination })
       setApplications(data.applications || [])
       setPagination(data.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 })
       return data
     } catch (err) {
-      error(err, 'Failed to load permit applications')
+      if (!silent) error(err, 'Failed to load permit applications')
       throw err
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [permitAppRepo, error])
 

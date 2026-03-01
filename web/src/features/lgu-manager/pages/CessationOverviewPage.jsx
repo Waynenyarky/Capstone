@@ -239,7 +239,6 @@ export default function CessationOverviewPage() {
                       value={timeRange}
                       onChange={setTimeRange}
                       style={{ width: '100%' }}
-                      size="large"
                     >
                       <Option value="week">This Week</Option>
                       <Option value="month">This Month</Option>
@@ -254,7 +253,7 @@ export default function CessationOverviewPage() {
                       <Text strong style={{ fontSize: 12, color: token.colorTextSecondary }}>
                         Select Dates
                       </Text>
-                      <RangePicker style={{ width: '100%' }} size="large" />
+                      <RangePicker style={{ width: '100%' }} />
                     </Space>
                   </Col>
                 )}
@@ -268,7 +267,6 @@ export default function CessationOverviewPage() {
                       value={cessationStatus}
                       onChange={setCessationStatus}
                       style={{ width: '100%' }}
-                      size="large"
                     >
                       <Option value="all">All Status</Option>
                       <Option value="active">Active</Option>
@@ -287,7 +285,6 @@ export default function CessationOverviewPage() {
                       value={cessationType}
                       onChange={setCessationType}
                       style={{ width: '100%' }}
-                      size="large"
                     >
                       <Option value="all">All Types</Option>
                       <Option value="temporary">Temporary</Option>
@@ -306,7 +303,6 @@ export default function CessationOverviewPage() {
                         value={exportFormat}
                         onChange={setExportFormat}
                         style={{ flex: 1 }}
-                        size="large"
                       >
                         <Option value="pdf">PDF</Option>
                         <Option value="csv">CSV</Option>
@@ -315,7 +311,6 @@ export default function CessationOverviewPage() {
                         type="primary"
                         icon={<DownloadOutlined />}
                         onClick={handleExport}
-                        size="large"
                       >
                         Export
                       </Button>

@@ -17,7 +17,7 @@ describe('Authentication public API', () => {
       'ChangePasswordForm',
       'ForgotPasswordForm',
       'VerificationForm',
-      'SendCodeForCurrentUser',
+      'SendCodeForCurrentUserConfirm',
       'PasswordResetFlow',
       'DeleteAccountFlow',
       'LoggedInEmailChangeFlow',

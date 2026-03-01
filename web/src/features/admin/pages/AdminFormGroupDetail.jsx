@@ -176,7 +176,7 @@ export default function AdminFormGroupDetail() {
                 onClick={confirmRetire}
                 loading={retiring}
               >
-                Retire
+                Retire Form Group
               </Button>
             )}
             <Button

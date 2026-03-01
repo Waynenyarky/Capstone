@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Select, Button, Typography, theme, Space, Badge, Empty, Modal, Spin, message, Form, Alert, Tag, Row, Col, Card } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Select, Button, Typography, theme, Space, Badge, Empty, Modal, Spin, message, Alert, Tag, Row, Col, Card } from 'antd'
 import {
   ArrowLeftOutlined,
   SaveOutlined,
@@ -240,7 +241,7 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
     Modal.confirm({
       title: 'Delete draft',
       content: 'Are you sure you want to delete this draft? This action cannot be undone.',
-      okText: 'Delete',
+      okText: 'Delete Draft',
       cancelText: 'Cancel',
       okButtonProps: { danger: true },
       onOk: async () => {
@@ -264,7 +265,7 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
     Modal.confirm({
       title: 'Submit for approval',
       content: 'This form will be submitted for approval. It will only be published once other admins have approved it.',
-      okText: 'Submit',
+      okText: 'Submit for Approval',
       cancelText: 'Cancel',
       onOk: async () => {
         try {
@@ -574,7 +575,7 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
                   <Badge count={drafts.length} size="small">
                     <Button icon={<FileTextOutlined />} onClick={() => setDraftsModalOpen(true)} disabled={drafts.length === 0} size="middle">Drafts</Button>
                   </Badge>
-                  <Button type="primary" icon={<PlusOutlined />} size="middle" onClick={() => setAddVersionModalOpen(true)}>Add version</Button>
+                  <Button type="primary" icon={<PlusOutlined />} size="middle" onClick={() => setAddVersionModalOpen(true)}>Add Version</Button>
                 </Space>
               </div>
             )}
@@ -594,9 +595,9 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
                   >
                     {isPreviewMode ? 'Editor' : 'Preview'}
                   </Button>
-                  <Button icon={<SaveOutlined />} size="middle" onClick={handleSave} loading={saving} disabled={isPreviewMode}>Save</Button>
-                  <Button icon={<DeleteOutlined />} danger size="middle" onClick={handleDelete} disabled={isPreviewMode}>Delete</Button>
-                  <Button type="primary" icon={<SendOutlined />} size="middle" onClick={handlePublish} disabled={isPreviewMode}>Publish</Button>
+                  <Button icon={<SaveOutlined />} size="middle" onClick={handleSave} loading={saving} disabled={isPreviewMode}>Save Draft</Button>
+                  <Button icon={<DeleteOutlined />} danger size="middle" onClick={handleDelete} disabled={isPreviewMode}>Delete Draft</Button>
+                  <Button type="primary" icon={<SendOutlined />} size="middle" onClick={handlePublish} disabled={isPreviewMode}>Submit for Approval</Button>
                 </Space>
               </div>
             )}
@@ -641,7 +642,7 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
                 showIcon
                 message={`Deactivated until ${formatDraftDate(formGroup.deactivatedUntil)}`}
                 description={formGroup.deactivateReason || undefined}
-                action={<Button size="small" onClick={handleReactivate}>Reactivate</Button>}
+                action={<Button size="small" onClick={handleReactivate}>Reactivate Form</Button>}
                 style={{ marginBottom: 16 }}
               />
             )}
@@ -693,7 +694,7 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
                   </div>
                   <Space size="small">
                     {formGroup && !groupDeactivated && versions.some((v) => v.status === 'published') && (
-                      <Button danger size="small" onClick={() => setDeactivateModalOpen(true)}>Deactivate</Button>
+                      <Button danger size="small" onClick={() => setDeactivateModalOpen(true)}>Deactivate Form</Button>
                     )}
                   </Space>
                 </div>

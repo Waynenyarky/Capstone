@@ -58,21 +58,23 @@ describe('AdminFormDefinitions Page', () => {
     expect(screen.getByText('Form Definitions')).toBeInTheDocument()
   })
 
-  it('should show Overview and Logs in navigation', () => {
+  it('should show Overview and History in navigation', () => {
     renderWithProviders(<AdminFormDefinitions />)
     expect(screen.getAllByText('Overview').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Logs').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('History').length).toBeGreaterThan(0)
   })
 
-  it('should show Global Forms in navigation', () => {
+  it('should show form type options in navigation', () => {
     renderWithProviders(<AdminFormDefinitions />)
-    expect(screen.getAllByText('Global Forms').length).toBeGreaterThan(0)
+    // Form types appear in nav (mobile: horizontal tabs, desktop: left panel)
+    expect(screen.getByText('Unified Business Permit')).toBeInTheDocument()
+    expect(screen.getByText('General Permit')).toBeInTheDocument()
   })
 
-  it('should show PSIC industry options', () => {
+  it('should show form type options from constants', () => {
     renderWithProviders(<AdminFormDefinitions />)
-    expect(screen.getByText('Agriculture, forestry and fishing')).toBeInTheDocument()
-    expect(screen.getByText('Manufacturing')).toBeInTheDocument()
+    // FORM_TYPES from constants are rendered in navigation
+    expect(screen.getByText('Form summary')).toBeInTheDocument()
   })
 
   it('should show overview stats on load', async () => {
@@ -241,13 +243,12 @@ describe('Form Definitions Constants', () => {
     expect(constants.FORM_TYPES).toBeDefined()
     expect(constants.FORM_TYPES.length).toBeGreaterThan(0)
 
-    // Ensure inspections is included
-    const inspections = constants.FORM_TYPES.find((t) => t.value === 'inspections')
-    expect(inspections).toBeTruthy()
-    expect(inspections.label).toBe('Inspections')
+    // Ensure core form types are included
+    expect(constants.FORM_TYPES.find((t) => t.value === 'permit')).toBeTruthy()
+    expect(constants.FORM_TYPES.find((t) => t.value === 'general_permit')).toBeTruthy()
 
     expect(constants.FIELD_TYPES).toBeDefined()
-    expect(constants.FIELD_TYPES.length).toBe(10)
+    expect(constants.FIELD_TYPES.length).toBe(12)
 
     // All field types should be present
     const fieldTypeValues = constants.FIELD_TYPES.map((t) => t.value)
@@ -261,6 +262,8 @@ describe('Form Definitions Constants', () => {
     expect(fieldTypeValues).toContain('download')
     expect(fieldTypeValues).toContain('checkbox')
     expect(fieldTypeValues).toContain('address')
+    expect(fieldTypeValues).toContain('address_alaminos')
+    expect(fieldTypeValues).toContain('repeatable_group')
 
     expect(constants.FIELD_TYPE_DEFAULTS).toBeDefined()
     expect(constants.FIELD_SPAN_OPTIONS).toBeDefined()

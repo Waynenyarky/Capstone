@@ -10,10 +10,10 @@ export function usePasswordResetFlow() {
     setStep('verify')
   }, [])
 
-  const handleVerifySubmit = useCallback(({ email: e, resetToken: token }) => {
+  const handleVerifySubmit = useCallback(({ email: e, resetToken: token, allowedToReset }) => {
     setEmail(e)
     setResetToken(token)
-    setStep('change')
+    setStep(allowedToReset === false ? 'not_allowed' : 'change')
   }, [])
 
   const handleChangeSubmit = useCallback(() => {
@@ -30,6 +30,7 @@ export function usePasswordResetFlow() {
   const goBack = useCallback(() => {
     if (step === 'verify') setStep('forgot')
     else if (step === 'change') setStep('verify')
+    else if (step === 'not_allowed') setStep('verify')
   }, [step])
 
   const forgotProps = { onSubmit: handleForgotSubmit }

@@ -31,6 +31,10 @@ vi.mock('@/shared/notifications.js', () => ({
     success: vi.fn(),
     error: vi.fn(),
   }),
+  useAuthNotification: () => ({
+    notificationSuccess: vi.fn(),
+    notificationError: vi.fn(),
+  }),
 }))
 
 describe('Email Change Flow', () => {

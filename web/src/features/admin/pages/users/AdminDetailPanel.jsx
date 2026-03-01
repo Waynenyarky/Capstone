@@ -252,7 +252,7 @@ export default function AdminDetailPanel({
               <Tag color={admin.mfaEnabled ? 'green' : 'orange'}>{admin.mfaEnabled ? 'Enabled' : 'Not Set Up'}</Tag>
             </Descriptions.Item>
             {admin.createdAt && (
-              <Descriptions.Item label="Created">
+              <Descriptions.Item label="Created" span={admin.phoneNumber ? 2 : 1}>
                 {new Date(admin.createdAt).toLocaleString()}
                 {admin.createdBy && (
                   <Text type="secondary" style={{ fontSize: 12 }}>

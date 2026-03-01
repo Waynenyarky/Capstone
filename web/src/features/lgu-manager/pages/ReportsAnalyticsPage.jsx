@@ -39,6 +39,7 @@ import {
 } from '@ant-design/icons'
 import LGUManagerLayout from '../components/LGUManagerLayout'
 import { useReports, useAnalytics } from '../presentation/hooks'
+import { Column as ColumnChart } from '@ant-design/charts'
 
 const { Title, Paragraph, Text } = Typography
 const { RangePicker } = DatePicker
@@ -50,6 +51,8 @@ export default function ReportsAnalyticsPage() {
   const { loading: analyticsLoading, analytics, loadAnalytics } = useAnalytics()
   
   const [timeRange, setTimeRange] = useState('month')
+  const [customRange, setCustomRange] = useState(null)
+  const [dateRangeError, setDateRangeError] = useState(null)
   const [department, setDepartment] = useState('all')
   const [exportFormat, setExportFormat] = useState('pdf')
 
@@ -139,7 +142,6 @@ export default function ReportsAnalyticsPage() {
                       value={timeRange}
                       onChange={setTimeRange}
                       style={{ width: '100%' }}
-                      size="large"
                     >
                       <Option value="today">Today</Option>
                       <Option value="month">This Month</Option>
@@ -154,7 +156,26 @@ export default function ReportsAnalyticsPage() {
                       <Text strong style={{ fontSize: 12, color: token.colorTextSecondary }}>
                         Select Dates
                       </Text>
-                      <RangePicker style={{ width: '100%' }} size="large" />
+                      <RangePicker
+                        style={{ width: '100%' }}
+                        value={customRange}
+                        status={dateRangeError ? 'error' : undefined}
+                        onChange={(dates) => {
+                          setCustomRange(dates)
+                          if (dates && dates[0] && dates[1]) {
+                            if (dates[1].isBefore(dates[0])) {
+                              setDateRangeError('End date must be after start date')
+                            } else if (dates[1].diff(dates[0], 'day') > 365) {
+                              setDateRangeError('Date range cannot exceed 1 year')
+                            } else {
+                              setDateRangeError(null)
+                            }
+                          } else {
+                            setDateRangeError(null)
+                          }
+                        }}
+                      />
+                      {dateRangeError && <Text type="danger" style={{ fontSize: 11 }}>{dateRangeError}</Text>}
                     </Space>
                   </Col>
                 )}
@@ -168,7 +189,6 @@ export default function ReportsAnalyticsPage() {
                       value={department}
                       onChange={setDepartment}
                       style={{ width: '100%' }}
-                      size="large"
                     >
                       <Option value="all">All Departments</Option>
                       <Option value="permits">Permits</Option>
@@ -188,7 +208,6 @@ export default function ReportsAnalyticsPage() {
                         value={exportFormat}
                         onChange={setExportFormat}
                         style={{ flex: 1 }}
-                        size="large"
                       >
                         <Option value="pdf">PDF</Option>
                         <Option value="csv">CSV</Option>
@@ -198,7 +217,6 @@ export default function ReportsAnalyticsPage() {
                         icon={<DownloadOutlined />}
                         onClick={handleExport}
                         loading={reportsLoading}
-                        size="large"
                       >
                         Export
                       </Button>
@@ -384,6 +402,26 @@ export default function ReportsAnalyticsPage() {
               </Card>
             </Col>
           </Row>
+        </Card>
+
+        {/* Analytics Chart */}
+        <Card
+          title={<Space><BarChartOutlined style={{ color: token.colorPrimary }} /><Title level={4} style={{ margin: 0 }}>Performance Overview</Title></Space>}
+          style={{ marginBottom: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+        >
+          <ColumnChart
+            data={[
+              { metric: 'Total Permits', value: kpiData.totalPermits },
+              { metric: 'Inspections', value: kpiData.inspectionsCompleted },
+              { metric: 'Active Violations', value: kpiData.activeViolations },
+              { metric: 'Appeals Pending', value: kpiData.appealsPending },
+            ]}
+            xField="metric"
+            yField="value"
+            colorField="metric"
+            height={260}
+            label={{ position: 'top' }}
+          />
         </Card>
 
         {/* 3. Permit Analytics Section */}

@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react'
-import { Row, Col, Card, Typography, theme, Table, Tag, Spin } from 'antd'
+import { Row, Col, Card, Typography, theme, Table, Tag, Spin, Empty } from 'antd'
 import { Pie } from '@ant-design/charts'
 import {
   UserAddOutlined,
@@ -254,7 +254,7 @@ export default function OverviewTab({ staff = [] }) {
                   render: (v) => (v ? dayjs(v).format('MMM D, YYYY HH:mm') : '—'),
                 },
               ]}
-              locale={{ emptyText: 'No recent activity' }}
+              locale={{ emptyText: <Empty description="No recent activity" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
             />
           </Card>
         </div>

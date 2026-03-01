@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- BizClear logo: three circles (blue, yellow, red) - match web BizClearLogo.jsx -->
+  <!-- Top: blue -->
+  <circle cx="50" cy="22" r="18" fill="#0038A8"/>
+  <!-- Bottom-left: yellow -->
+  <circle cx="22" cy="72" r="18" fill="#FED141"/>
+  <!-- Bottom-right: red -->
+  <circle cx="78" cy="72" r="18" fill="#CE1126"/>
+</svg>

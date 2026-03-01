@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Form, InputNumber, DatePicker, Button, Spin, Alert, Typography, Space, Popconfirm, message } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { InputNumber, DatePicker, Button, Spin, Alert, Typography, Space, Popconfirm, message } from 'antd'
 import { SafetyCertificateOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import AdminLayout from '../components/AdminLayout.jsx'
@@ -186,14 +187,14 @@ export default function AdminPenaltyConfig() {
 
           <Space style={{ marginTop: 16 }}>
             <Button type="primary" htmlType="submit" loading={saving}>
-              Save
+              Save Changes
             </Button>
             <Popconfirm
               title="Reset to defaults?"
               description="This will reset surcharge to 25%, interest to 2%, and start day to 20."
               onConfirm={handleReset}
-              okText="Reset"
-              cancelText="Cancel"
+okText="Reset to Defaults"
+            cancelText="Cancel"
             >
               <Button loading={resetting}>Reset to Defaults</Button>
             </Popconfirm>

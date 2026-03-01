@@ -11,7 +11,6 @@ import '../../../domain/usecases/undo_disable_mfa.dart';
 import '../../../data/services/mongodb_service.dart';
 import 'mfa_setup_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:local_auth/local_auth.dart';
 
 class MfaSettingsScreen extends StatefulWidget {
   final String email;
@@ -21,46 +20,26 @@ class MfaSettingsScreen extends StatefulWidget {
   State<MfaSettingsScreen> createState() => _MfaSettingsScreenState();
 }
 
-class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
-  String? _selected;
+class _MfaSettingsScreenState extends State<MfaSettingsScreen> with WidgetsBindingObserver {
   bool _authEnabled = false;
-  bool _fingerEnabled = false;
   bool _disablePending = false;
   DateTime? _scheduledFor;
   Duration _disableRemaining = Duration.zero;
   Timer? _disableTicker;
-  final LocalAuthentication _localAuth = LocalAuthentication();
-  bool _deviceSupportsFingerprint = false;
-  bool _deviceSupportChecked = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadAuthDetail();
-    _checkDeviceSupport();
   }
 
-  Future<void> _checkDeviceSupport() async {
-    try {
-      final supported = await _localAuth.isDeviceSupported();
-      final canCheck = await _localAuth.canCheckBiometrics;
-      final types = await _localAuth.getAvailableBiometrics();
-      final hasFingerprint = types.contains(BiometricType.fingerprint) || types.contains(BiometricType.strong) || types.contains(BiometricType.weak);
-      if (!mounted) return;
-      setState(() {
-        _deviceSupportsFingerprint = supported && canCheck && hasFingerprint;
-        _deviceSupportChecked = true;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _deviceSupportsFingerprint = false;
-        _deviceSupportChecked = true;
-      });
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadAuthDetail();
     }
   }
-
-  
 
   void _openSetupFor(String method) {
     final enable = EnableMfaImpl(email: widget.email);
@@ -77,24 +56,9 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
         ),
       ),
     ).then((result) async {
-      final selected = (result is String && result.isNotEmpty) ? result : null;
-      setState(() {
-        _selected = selected;
-      });
-      if (selected == 'fingerprint') {
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('lastLoginEmail', widget.email);
-          await prefs.setString('fingerprintEmail', widget.email.toLowerCase());
-        } catch (_) {}
-      }
+      // Keep section collapsed; just refresh status so header shows Enabled
       _loadAuthDetail();
-    });
-  }
-
-
-  void _select(String method) {
-    setState(() => _selected = (_selected == method) ? null : method);
+      });
   }
 
   Future<void> _loadAuthDetail() async {
@@ -104,21 +68,12 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
       setState(() {
         final currentMethod = (raw['method'] is String) ? (raw['method'] as String) : '';
         final methodNorm = currentMethod.toLowerCase().trim();
-        final fpEnabledFromServer = (raw['fprintEnabled'] == true) || (raw['isFingerprintEnabled'] == true);
         final isAuthMethod = methodNorm == 'authenticator' || methodNorm == 'totp' || methodNorm == 'microsoft' || methodNorm.contains('auth');
         _authEnabled = (raw['enabled'] == true) && isAuthMethod;
         _disablePending = raw['disablePending'] == true;
         final s = raw['scheduledFor'];
         _scheduledFor = s is String ? DateTime.tryParse(s) : null;
-        _fingerEnabled = fpEnabledFromServer;
-        
-        // Do not override selection here; details will render based on enabled flags
       });
-      if (_selected == 'authenticator') {
-        _syncDisableCountdown();
-      } else if (_selected == 'fingerprint') {
-        setState(() {});
-      }
       _syncDisableCountdown();
     } catch (_) {}
   }
@@ -151,167 +106,6 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
         ),
       ),
     ).then((_) => _loadAuthDetail());
-  }
-
-  Future<void> _toggleFingerprint(bool value) async {
-    if (value) {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final existingFpEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
-        if (existingFpEmail.isNotEmpty && existingFpEmail != widget.email.toLowerCase()) {
-          bool stillEnabled = true;
-          try {
-            final s = await MongoDBService.getMfaStatusDetail(email: existingFpEmail);
-            stillEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
-          } catch (_) {}
-          if (!stillEnabled) {
-            try { await prefs.remove('fingerprintEmail'); } catch (_) {}
-          } else {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  backgroundColor: Colors.red,
-                  content: Text(
-                    'You cannot use biometrics to log in to multiple accounts on the same device.',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              );
-            }
-            return;
-          }
-        }
-      } catch (_) {}
-      if (!_deviceSupportChecked) {
-        await _checkDeviceSupport();
-      }
-      if (!_deviceSupportsFingerprint) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fingerprint not supported on this device')));
-        }
-        return;
-      }
-      _openSetupFor('fingerprint');
-      return;
-    }
-    final proceed = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) {
-        final w = MediaQuery.of(ctx).size.width;
-        final isCompact = w < 360;
-        return AlertDialog(
-          scrollable: true,
-          insetPadding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 24, vertical: 24),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-          contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-          title: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.red.shade50, shape: BoxShape.circle),
-                child: Icon(Icons.warning_amber_rounded, color: Colors.red.shade600, size: 24),
-              ),
-              const SizedBox(width: 12),
-              Flexible(
-                child: Text(
-                  'Disable Biometrics Login',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.red.shade100),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, size: 18, color: Colors.red.shade700),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Disabling fingerprint will remove biometric login for this device/account.',
-                        style: TextStyle(fontSize: 13, color: Colors.red.shade900, height: 1.4),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Your TOTP Authenticator (if enabled) remains active.',
-                style: const TextStyle(fontSize: 13, color: Colors.black54),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(ctx).pop(true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  child: const Text('Disable Biometrics Login'),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.of(ctx).pop(false),
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  child: const Text('Cancel'),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    ) ?? false;
-    if (!mounted) return;
-    if (!proceed) {
-      setState(() {});
-      return;
-    }
-    try {
-      final res = await MongoDBService.disableFingerprintLogin(email: widget.email);
-      final ok = res['success'] == true;
-      if (!mounted) return;
-      setState(() => _fingerEnabled = ok ? false : _fingerEnabled);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(ok ? 'Biometrics login disabled' : (res['message'] ?? 'Update failed').toString())),
-      );
-      if (ok) {
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          final existing = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
-          if (existing.isNotEmpty && existing == widget.email.toLowerCase()) {
-            await prefs.remove('fingerprintEmail');
-          }
-        } catch (_) {}
-        _loadAuthDetail();
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Connection error')));
-      }
-    }
   }
 
   Future<void> _toggleAuthenticator(bool value) async {
@@ -360,7 +154,14 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
                         ),
             ElevatedButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: BizClearColors.error,
+                foregroundColor: Colors.white,
+                padding: BizClearColors.primaryButtonPadding,
+                minimumSize: BizClearColors.primaryButtonMinimumSize,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                textStyle: BizClearColors.primaryButtonTextStyle,
+              ),
               child: const Text('Disable'),
             ),
           ],
@@ -394,7 +195,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: BizClearColors.surfaceLight,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
@@ -411,46 +212,22 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Multi-Factor Authentication',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black87,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Enhance your account security by enabling an additional authentication method.',
-                style: TextStyle(fontSize: 15, color: Colors.grey.shade600, height: 1.4),
-              ),
-              const SizedBox(height: 32),
-
-              // TOTP Section
-              _buildSection(
-                id: 'authenticator',
-                title: 'TOTP Authenticator',
-                subtitle: 'Use time-based codes from an app',
-                icon: Icons.qr_code_rounded,
-                isEnabled: _authEnabled,
-                isSelected: _selected == 'authenticator',
-                onTap: () => _select('authenticator'),
-                content: _buildDetailFor('authenticator'),
-              ),
               
-              const SizedBox(height: 16),
 
-              // Biometrics Section
-              _buildSection(
-                id: 'fingerprint',
-                title: 'Biometrics',
-                subtitle: 'Use fingerprint or system biometrics',
-                icon: Icons.fingerprint_rounded,
-                isEnabled: _fingerEnabled,
-                isSelected: _selected == 'fingerprint',
-                onTap: () => _select('fingerprint'),
-                content: _buildDetailFor('fingerprint'),
+              // TOTP Authenticator – always visible
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha(10),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: _buildDetailFor('authenticator'),
               ),
             ],
           ),
@@ -459,109 +236,9 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
     );
   }
 
-  Widget _buildSection({
-    required String id,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required bool isEnabled,
-    required bool isSelected,
-    required VoidCallback onTap,
-    required Widget content,
-  }) {
-    final showDetails = isSelected || isEnabled;
-    
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: showDetails ? Colors.blue.withAlpha(76) : Colors.transparent,
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(10),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Header (Always visible, but acts as toggle if not enabled)
-          // If details are shown, we might hide this OR keep it as a header?
-          // The previous logic had a separate card for details.
-          // Let's integrate them. 
-          // If showDetails is true, the content (which is _buildMethodCard) is shown.
-          // _buildMethodCard HAS a header inside it.
-          // So if showDetails is true, we ONLY show content.
-          // If showDetails is false, we show the summary tile.
-          
-          if (showDetails)
-            content
-          else
-            Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(20),
-              child: InkWell(
-                onTap: onTap,
-                borderRadius: BorderRadius.circular(20),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(icon, color: Colors.blue.shade700, size: 24),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              subtitle,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey.shade500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 16,
-                        color: Colors.grey.shade300,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _disableTicker?.cancel();
     super.dispose();
   }
@@ -591,31 +268,31 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
+                    color: BizClearColors.warning.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.orange.shade200),
+                    border: Border.all(color: BizClearColors.warning.withValues(alpha: 0.4)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.schedule, size: 20, color: Colors.orange.shade800),
+                          Icon(Icons.schedule, size: 20, color: BizClearColors.warning),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'Deactivation Scheduled',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: Colors.orange.shade900,
+                                color: BizClearColors.webPrimaryTintText,
                               ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text('Scheduled for: ${_fmtDateTimeAmPm(_scheduledFor!)}', style: TextStyle(fontSize: 13, color: Colors.orange.shade900)),
-                      Text('Time remaining: ${_formatDuration(_disableRemaining)}', style: TextStyle(fontSize: 13, color: Colors.orange.shade900)),
+                      Text('Scheduled for: ${_fmtDateTimeAmPm(_scheduledFor!)}', style: TextStyle(fontSize: 13, color: BizClearColors.webPrimaryTintText)),
+                      Text('Time remaining: ${_formatDuration(_disableRemaining)}', style: TextStyle(fontSize: 13, color: BizClearColors.webPrimaryTintText)),
                     ],
                   ),
                 ),
@@ -626,7 +303,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
                     onPressed: _openDisablePage,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.black87,
-                      side: BorderSide(color: Colors.grey.shade300),
+                      side: BorderSide(color: BizClearColors.border),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
@@ -637,18 +314,18 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade50,
+                    color: BizClearColors.success.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.green.shade200),
+                    border: Border.all(color: BizClearColors.success.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.check_circle_outline, size: 20, color: Colors.green.shade700),
+                      Icon(Icons.check_circle_outline, size: 20, color: BizClearColors.success),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           'The authenticator is active and protecting your account.',
-                          style: TextStyle(color: Colors.green.shade900, fontSize: 13, fontWeight: FontWeight.w500),
+                          style: TextStyle(color: BizClearColors.webPrimaryTintText, fontSize: 13, fontWeight: FontWeight.w500),
                         ),
                       ),
                     ],
@@ -658,14 +335,17 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
               else
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton(
+                  child: ElevatedButton(
                     onPressed: () => _openSetupFor('authenticator'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.black,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: BizClearColors.webPrimary,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      padding: BizClearColors.primaryButtonPadding,
+                      minimumSize: BizClearColors.primaryButtonMinimumSize,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       elevation: 0,
+                      textStyle: BizClearColors.primaryButtonTextStyle,
                     ),
                     child: const Text('Set Up Authenticator', style: TextStyle(fontWeight: FontWeight.w600)),
                   ),
@@ -674,99 +354,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
           ),
         );
       case 'fingerprint':
-        return _buildMethodCard(
-          icon: Icons.fingerprint_rounded,
-          title: 'Biometrics',
-          enabled: _fingerEnabled,
-          onToggle: _toggleFingerprint,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('How it works', style: titleStyle),
-              const SizedBox(height: 8),
-              const Text('Use your device\'s biometrics to verify your identity during sign in.', style: bodyStyle),
-              const SizedBox(height: 8),
-              const Text('Make sure biometrics are enrolled in your device settings.', style: bodyStyle),
-              const SizedBox(height: 24),
-              if (_fingerEnabled) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.green.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.check_circle_outline, size: 20, color: Colors.green.shade700),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Biometric login is enabled.',
-                          style: TextStyle(color: Colors.green.shade900, fontSize: 13, fontWeight: FontWeight.w500),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              if (!_fingerEnabled) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () async {
-                      try {
-                        final prefs = await SharedPreferences.getInstance();
-                        final existingFpEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
-                        if (existingFpEmail.isNotEmpty && existingFpEmail != widget.email.toLowerCase()) {
-                          bool stillEnabled = true;
-                          try {
-                            final s = await MongoDBService.getMfaStatusDetail(email: existingFpEmail);
-                            stillEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
-                          } catch (_) {}
-                          if (!stillEnabled) {
-                            try { await prefs.remove('fingerprintEmail'); } catch (_) {}
-                          } else {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  backgroundColor: Colors.red,
-                                  content: Text(
-                                    'You cannot use biometrics to log in to multiple accounts on the same device.',
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                ),
-                              );
-                            }
-                            return;
-                          }
-                        }
-                      } catch (_) {}
-                      if (!_deviceSupportChecked) {
-                        await _checkDeviceSupport();
-                      }
-                      if (!_deviceSupportsFingerprint) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fingerprint not supported on this device')));
-                        }
-                        return;
-                      }
-                      _openSetupFor('fingerprint');
-                    },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    child: const Text('Set Up Biometrics', style: TextStyle(fontWeight: FontWeight.w600)),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        );
+        return const SizedBox.shrink();
       default:
         return const SizedBox.shrink();
     }
@@ -791,12 +379,12 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: enabled ? Colors.green.shade50 : Colors.blue.shade50,
+                  color: enabled ? BizClearColors.success.withValues(alpha: 0.12) : BizClearColors.webPrimaryTintLight,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   icon,
-                  color: enabled ? Colors.green.shade700 : Colors.blue.shade700,
+                  color: enabled ? BizClearColors.success : BizClearColors.webPrimaryTintIcon,
                   size: 24,
                 ),
               ),
@@ -819,7 +407,7 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Colors.green.shade600,
+                          color: BizClearColors.success,
                         ),
                       ),
                   ],
@@ -830,15 +418,15 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
                 child: Switch.adaptive(
                   value: enabled,
                   onChanged: loading ? null : onToggle,
-                  activeThumbColor: Colors.green,
-                  activeTrackColor: Colors.green.shade200,
+                  activeThumbColor: BizClearColors.success,
+                  activeTrackColor: BizClearColors.success.withValues(alpha: 0.3),
                 ),
               ),
             ],
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 20),
-            child: Divider(height: 1, color: Colors.grey.shade100),
+            child: Divider(height: 1, color: BizClearColors.divider),
           ),
           child,
           if (loading)
@@ -1055,7 +643,13 @@ class _MfaSettingsScreenState extends State<MfaSettingsScreen> {
                                           });
                                         }
                                       },
-                                style: ElevatedButton.styleFrom(backgroundColor: BizClearColors.primary),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: BizClearColors.webPrimary,
+                                  padding: BizClearColors.primaryButtonPadding,
+                                  minimumSize: BizClearColors.primaryButtonMinimumSize,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      textStyle: BizClearColors.primaryButtonTextStyle,
+                    ),
                                 child: loading
                                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2.5, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
                                     : const Text('Verify Microsoft Authenticator'),

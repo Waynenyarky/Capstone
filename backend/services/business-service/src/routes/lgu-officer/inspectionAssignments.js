@@ -2,6 +2,7 @@ const express = require('express')
 const router = express.Router()
 const { requireJwt, requireRole } = require('../../middleware/auth')
 const respond = require('../../middleware/respond')
+const { logAuditEvent } = require('../../lib/auditClient')
 const Inspection = require('../../models/Inspection')
 const Violation = require('../../models/Violation')
 const User = require('../../models/User')
@@ -153,6 +154,7 @@ router.post('/inspections', requireJwt, requireRole(['lgu_officer', 'lgu_manager
     }
 
     const inspection = await Inspection.create(inspectionPayload)
+    logAuditEvent('inspection_created', req._userId, 'Inspection', inspection._id.toString(), { businessId: inspection.businessId })
 
     if (carriedOverViolations.length > 0) {
       for (const v of carriedOverViolations) {

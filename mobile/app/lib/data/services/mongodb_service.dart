@@ -1289,6 +1289,44 @@ class MongoDBService {
     }
   }
 
+  /// First-login / staff onboarding: set new password (clears mustChangeCredentials). Requires JWT.
+  static Future<Map<String, dynamic>> firstLoginChangeCredentials({
+    required String email,
+    required String token,
+    required String newPassword,
+    String? newUsername,
+  }) async {
+    try {
+      final username = (newUsername ?? email.split('@').first).trim().toLowerCase();
+      final body = {
+        'newPassword': newPassword,
+        'newUsername': username.length >= 3 ? username : 'inspector',
+      };
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/first-login/change-credentials',
+        body,
+        headers: {
+          'x-user-email': email,
+          'Authorization': 'Bearer $token',
+        },
+        timeout: const Duration(seconds: 12),
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? (json.decode(res.body) as Map<String, dynamic>? ?? {}) : {};
+      if (res.statusCode == 200 && data['updated'] == true) {
+        final user = (data['user'] is Map<String, dynamic>) ? data['user'] as Map<String, dynamic> : <String, dynamic>{};
+        return { 'success': true, 'user': user };
+      }
+      final msg = (data['message'] is String) ? data['message'] as String : 'Failed to update password';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
   static Future<Map<String, dynamic>> resetStart({ required String email }) async {
     try {
       final res = await _postJsonWithFallbackH(
@@ -1750,6 +1788,78 @@ class MongoDBService {
           }
         }
 
+  /// GET /api/auth/session/active - requires auth token from SharedPreferences
+  static Future<Map<String, dynamic>> getActiveSessions() async {
+    try {
+      final res = await _getWithFallbackH(
+        '/api/auth/session/active',
+        timeout: const Duration(seconds: 12),
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200 && data is Map) {
+        final list = data['sessions'];
+        return {
+          'success': true,
+          'sessions': list is List ? List<Map<String, dynamic>>.from(list.map((e) => e is Map ? Map<String, dynamic>.from(e) : <String, dynamic>{})) : [],
+        };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to load sessions';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  /// POST /api/auth/session/invalidate
+  static Future<Map<String, dynamic>> invalidateSession({ required String sessionId }) async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/session/invalidate',
+        { 'sessionId': sessionId },
+        timeout: const Duration(seconds: 12),
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200) {
+        return { 'success': true };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to invalidate session';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
+  /// POST /api/auth/session/invalidate-all
+  static Future<Map<String, dynamic>> invalidateAllSessions() async {
+    try {
+      final res = await _postJsonWithFallbackH(
+        '/api/auth/session/invalidate-all',
+        {},
+        timeout: const Duration(seconds: 12),
+      );
+      final ct = (res.headers['content-type'] ?? '').toLowerCase();
+      final isJson = ct.contains('application/json');
+      final data = isJson ? json.decode(res.body) : {};
+      if (res.statusCode == 200) {
+        return { 'success': true, 'sessionsInvalidated': (data is Map && data['sessionsInvalidated'] is int) ? data['sessionsInvalidated'] : 0 };
+      }
+      final msg = (data is Map && data['message'] is String) ? data['message'] : 'Failed to invalidate sessions';
+      return { 'success': false, 'message': msg };
+    } on TimeoutException {
+      return { 'success': false, 'message': 'Request timeout.' };
+    } catch (e) {
+      return { 'success': false, 'message': 'Connection error: ${e.toString()}' };
+    }
+  }
+
   static Future<Map<String, dynamic>> cancelAccountDeletion({
     required String email,
   }) async {
@@ -2142,7 +2252,7 @@ class MongoDBService {
       }
       String errMsg;
       if (res.statusCode == 401) {
-        errMsg = 'Unauthorized. Log out and log in again as waynenrq@gmail.com (Inspector).';
+        errMsg = 'Unauthorized. Log out and log in again with an Inspector account.';
       } else if (res.statusCode == 403) {
         errMsg = 'Forbidden. This account is not an inspector.';
       } else {

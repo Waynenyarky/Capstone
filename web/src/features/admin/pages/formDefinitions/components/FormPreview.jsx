@@ -146,6 +146,15 @@ function PreviewField({ field, token }) {
         </div>
       )
       break
+    case 'address_alaminos':
+      input = (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <Input placeholder="House/Bldg No. & Street" disabled />
+          <Select placeholder="Barangay (Alaminos City)" disabled style={{ width: '100%' }} />
+          <Input placeholder="Postal code (optional)" disabled />
+        </div>
+      )
+      break
     case 'repeatable_group': {
       const groupFields = field.groupFields || []
       input = (

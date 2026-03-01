@@ -29,6 +29,7 @@ function calculateAuditHash(userId, eventType, fieldChanged, oldValue, newValue,
 /**
  * Create audit log and log to blockchain
  * Non-blocking - operation succeeds even if blockchain logging fails
+ * Uses explicit createdAt so verifyHash() (which uses createdAt) matches the hash.
  */
 async function createAuditLog(userId, eventType, fieldChanged, oldValue, newValue, role, metadata = {}) {
   try {
@@ -38,9 +39,10 @@ async function createAuditLog(userId, eventType, fieldChanged, oldValue, newValu
       ip: metadata.ip || 'unknown',
       userAgent: metadata.userAgent || 'unknown',
     }
-    
-    // Calculate hash before creating document (to avoid validation issues)
-    const timestamp = new Date().toISOString()
+
+    // Use one timestamp for both hash and createdAt so verification passes
+    const timestamp = new Date()
+    const timestampISO = timestamp.toISOString()
     const hash = calculateAuditHash(
       userId,
       eventType,
@@ -49,10 +51,10 @@ async function createAuditLog(userId, eventType, fieldChanged, oldValue, newValu
       newValue || '',
       role,
       fullMetadata,
-      timestamp
+      timestampISO
     )
-    
-    // Create audit log entry with hash already calculated
+
+    // Create audit log with hash and createdAt set so verifyHash() matches
     const auditLog = await AuditLog.create({
       userId,
       eventType,
@@ -61,7 +63,9 @@ async function createAuditLog(userId, eventType, fieldChanged, oldValue, newValu
       newValue: newValue || '',
       role,
       metadata: fullMetadata,
-      hash, // Set hash directly
+      hash,
+      createdAt: timestamp,
+      updatedAt: timestamp,
     })
 
     // Queue blockchain operation (non-blocking, with retry)

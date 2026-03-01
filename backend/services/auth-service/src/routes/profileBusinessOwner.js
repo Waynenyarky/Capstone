@@ -423,6 +423,158 @@ router.patch(
   }
 )
 
+// PATCH /api/auth/profile/pis
+// Update PIS (Personal Information Sheet): address, marital status, place of birth, nationality, education, family names, etc.
+const pisAddressSchema = Joi.object({
+  street: Joi.string().trim().max(200).allow('', null),
+  barangay: Joi.string().trim().max(100).allow('', null),
+  city: Joi.string().trim().max(100).allow('', null),
+  province: Joi.string().trim().max(100).allow('', null),
+  zipCode: Joi.string().trim().pattern(/^\d{4}$/).allow('', null),
+}).default({})
+
+const updatePisSchema = Joi.object({
+  address: pisAddressSchema,
+  maritalStatus: Joi.string().valid('single', 'married', 'widowed', 'divorced', 'separated').allow('', null),
+  placeOfBirth: Joi.string().trim().max(200).allow('', null).custom(sanitizeString),
+  nationality: Joi.string().trim().max(50).allow('', null).custom(sanitizeString),
+  fatherName: Joi.string().trim().max(100).allow('', null).custom(sanitizeString),
+  motherName: Joi.string().trim().max(100).allow('', null).custom(sanitizeString),
+  distinctiveMark: Joi.string().trim().max(200).allow('', null).custom(sanitizeString),
+  highestEducationalAttainment: Joi.string().valid('elementary', 'high_school', 'vocational', 'college', 'postgraduate').allow('', null),
+}).min(1).messages({
+  'object.min': 'At least one field must be provided',
+  'string.sqlInjection': 'Invalid input: SQL injection attempt detected',
+  'string.xss': 'Invalid input: XSS attempt detected',
+})
+
+router.patch(
+  '/profile/pis',
+  requireJwt,
+  profileUpdateRateLimit(),
+  validateBody(updatePisSchema),
+  async (req, res) => {
+    try {
+      const body = req.body || {}
+      const doc = await User.findById(req._userId).populate('role')
+      if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+      const roleSlug = (doc.role && doc.role.slug) ? doc.role.slug : 'user'
+      if (!isBusinessOwnerRole(roleSlug)) {
+        return respond.error(res, 403, 'forbidden', 'This endpoint is only available for business owners')
+      }
+
+      const changes = []
+      if (body.address !== undefined && typeof body.address === 'object') {
+        doc.address = {
+          street: (body.address.street ?? doc.address?.street ?? '').toString().trim(),
+          barangay: (body.address.barangay ?? doc.address?.barangay ?? '').toString().trim(),
+          city: (body.address.city ?? doc.address?.city ?? '').toString().trim(),
+          province: (body.address.province ?? doc.address?.province ?? '').toString().trim(),
+          zipCode: (body.address.zipCode ?? doc.address?.zipCode ?? '').toString().trim(),
+        }
+        changes.push('address')
+      }
+      if (body.maritalStatus !== undefined) {
+        const val = body.maritalStatus === null || body.maritalStatus === '' ? '' : body.maritalStatus
+        if (val !== (doc.maritalStatus || '')) {
+          doc.maritalStatus = val
+          changes.push('maritalStatus')
+        }
+      }
+      if (body.placeOfBirth !== undefined) {
+        const val = (body.placeOfBirth ?? '').toString().trim()
+        if (val !== (doc.placeOfBirth || '')) {
+          doc.placeOfBirth = val
+          changes.push('placeOfBirth')
+        }
+      }
+      if (body.nationality !== undefined) {
+        const val = (body.nationality ?? '').toString().trim()
+        if (val !== (doc.nationality || '')) {
+          doc.nationality = val
+          changes.push('nationality')
+        }
+      }
+      if (body.fatherName !== undefined) {
+        const val = (body.fatherName ?? '').toString().trim()
+        if (val !== (doc.fatherName || '')) {
+          doc.fatherName = val
+          changes.push('fatherName')
+        }
+      }
+      if (body.motherName !== undefined) {
+        const val = (body.motherName ?? '').toString().trim()
+        if (val !== (doc.motherName || '')) {
+          doc.motherName = val
+          changes.push('motherName')
+        }
+      }
+      if (body.distinctiveMark !== undefined) {
+        const val = (body.distinctiveMark ?? '').toString().trim()
+        if (val !== (doc.distinctiveMark || '')) {
+          doc.distinctiveMark = val
+          changes.push('distinctiveMark')
+        }
+      }
+      if (body.highestEducationalAttainment !== undefined) {
+        const val = body.highestEducationalAttainment === null || body.highestEducationalAttainment === '' ? '' : body.highestEducationalAttainment
+        if (val !== (doc.highestEducationalAttainment || '')) {
+          doc.highestEducationalAttainment = val
+          changes.push('highestEducationalAttainment')
+        }
+      }
+
+      if (changes.length === 0) {
+        return res.json({ updated: false, message: 'No changes detected' })
+      }
+
+      const hasPis = !!(
+        doc.address?.street && doc.address?.barangay && doc.address?.city &&
+        doc.address?.province && doc.address?.zipCode &&
+        doc.maritalStatus && doc.dateOfBirth && doc.placeOfBirth &&
+        doc.nationality && doc.fatherName && doc.motherName &&
+        doc.highestEducationalAttainment
+      )
+      if (hasPis) doc.pisCompleted = true
+
+      await doc.save()
+
+      const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+      const userAgent = req.headers['user-agent'] || 'unknown'
+      await createAuditLog(
+        doc._id,
+        'pis_update',
+        changes[0] || 'address',
+        JSON.stringify({}),
+        JSON.stringify(changes),
+        roleSlug,
+        { ip, userAgent, allChanges: changes }
+      )
+
+      const userSafe = {
+        id: String(doc._id),
+        role: roleSlug,
+        firstName: doc.firstName,
+        lastName: doc.lastName,
+        address: doc.address,
+        maritalStatus: doc.maritalStatus,
+        placeOfBirth: doc.placeOfBirth,
+        nationality: doc.nationality,
+        fatherName: doc.fatherName,
+        motherName: doc.motherName,
+        distinctiveMark: doc.distinctiveMark,
+        highestEducationalAttainment: doc.highestEducationalAttainment,
+      }
+
+      return res.json({ updated: true, user: userSafe })
+    } catch (err) {
+      console.error('PATCH /api/auth/profile/pis error:', err)
+      return respond.error(res, 500, 'pis_update_failed', 'Failed to update personal information')
+    }
+  }
+)
+
 // GET /api/auth/profile/audit-history
 // Get user's audit history
 router.get('/profile/audit-history', requireJwt, async (req, res) => {

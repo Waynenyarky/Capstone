@@ -3,13 +3,14 @@ import QRCode from 'qrcode'
 import { useAuthSession } from './useAuthSession.js'
 import { mfaSetup, mfaVerify, mfaStatus, mfaDisable } from '@/features/authentication/services/mfaService'
 import { getProfile } from '@/features/authentication/services/authService.js'
-import { useNotifier } from '@/shared/notifications'
+import { useAuthNotification, useNotifier } from '@/shared/notifications'
 
 // Hook that encapsulates MFA setup/verify/disable logic for the MfaSetup page
 export default function useMfaSetup() {
   const { currentUser, login } = useAuthSession()
   const email = currentUser?.email
   const { success, error } = useNotifier()
+  const { notificationSuccess } = useAuthNotification()
 
   const [loading, setLoading] = React.useState(false)
   const [qrDataUrl, setQrDataUrl] = React.useState('')
@@ -114,7 +115,7 @@ export default function useMfaSetup() {
     setLoading(true)
     try {
       const res = await mfaVerify(email, code)
-      success('MFA enabled')
+      notificationSuccess('MFA enabled', 'Multi-factor authentication has been enabled for your account.')
       setEnabled(true)
       const updatedUser = res?.user
       if (updatedUser && typeof updatedUser === 'object') {
@@ -139,14 +140,14 @@ export default function useMfaSetup() {
     } finally {
       setLoading(false)
     }
-  }, [email, code, error, success, currentUser, login])
+  }, [email, code, error, notificationSuccess, currentUser, login])
 
   const handleDisable = React.useCallback(async () => {
     if (!email) return error('Signed-in email missing')
     setLoading(true)
     try {
       await mfaDisable(email)
-      success('MFA disabled')
+      notificationSuccess('MFA disabled', 'Multi-factor authentication has been disabled for your account.')
       setEnabled(false)
       setQrDataUrl('')
       setSecret('')
@@ -165,7 +166,7 @@ export default function useMfaSetup() {
     } finally {
       setLoading(false)
     }
-  }, [email, error, success, currentUser?.token, login])
+  }, [email, error, notificationSuccess, currentUser?.token, login])
 
   /** Call after passkey registration success to show completion and allow redirect (e.g. from MfaSetup). */
   const markMfaComplete = React.useCallback(() => {

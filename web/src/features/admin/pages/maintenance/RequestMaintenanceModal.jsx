@@ -1,5 +1,6 @@
 import React from 'react'
-import { Modal, Form, Input, DatePicker, Select, Button, Typography } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Modal, Input, DatePicker, Select, Button, Typography } from 'antd'
 import dayjs from 'dayjs'
 
 const { Text } = Typography

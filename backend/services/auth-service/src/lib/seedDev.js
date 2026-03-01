@@ -116,8 +116,9 @@ async function seedDevDataIfEmpty() {
 
     // Helper to ensure a user exists.
     // New users get full seed state (mustSetupMfa, mustChangeCredentials, etc.).
-    // Existing users: only sync role/profile/password — do NOT overwrite mustSetupMfa,
-    // mustChangeCredentials, or MFA fields, so completed onboarding and MFA setup persist across restarts.
+    // Existing users: only sync role and profile metadata — do NOT overwrite
+    // passwordHash, passwordChangedAt, mustSetupMfa, mustChangeCredentials, isActive,
+    // or MFA fields, so completed onboarding and MFA setup persist across restarts.
     const ensureUser = async (email, roleSlug, firstName, lastName, phoneNumber, overrides = {}) => {
       const roleDoc = await Role.findOne({ slug: roleSlug });
       if (!roleDoc) {
@@ -126,24 +127,21 @@ async function seedDevDataIfEmpty() {
       }
       const passwordHash = overrides.passwordHash || tempPasswordHash;
       const existing = await User.findOne({ email }).lean();
-      const baseUpdate = {
-        role: roleDoc._id,
-        firstName,
-        lastName,
-        email,
-        phoneNumber: phoneNumber || '',
-        passwordHash,
-        termsAccepted: overrides.termsAccepted ?? true,
-        isStaff: overrides.isStaff ?? false,
-        isActive: overrides.isActive ?? true,
-        office: overrides.office ?? '',
-        createdBy: 'seeder',
-      };
       if (!existing) {
         await User.findOneAndUpdate(
           { email },
           {
-            ...baseUpdate,
+            role: roleDoc._id,
+            firstName,
+            lastName,
+            email,
+            phoneNumber: phoneNumber || '',
+            passwordHash,
+            termsAccepted: overrides.termsAccepted ?? true,
+            isStaff: overrides.isStaff ?? false,
+            isActive: overrides.isActive ?? true,
+            office: overrides.office ?? '',
+            createdBy: 'seeder',
             mustChangeCredentials: overrides.mustChangeCredentials ?? false,
             mustSetupMfa: overrides.mustSetupMfa ?? false,
             mfaEnabled: overrides.mfaEnabled ?? false,
@@ -153,9 +151,18 @@ async function seedDevDataIfEmpty() {
           { upsert: true, new: true, runValidators: false }
         );
       } else {
+        // Only sync role and profile metadata; preserve password, onboarding, and MFA state
         await User.findOneAndUpdate(
           { email },
-          baseUpdate,
+          {
+            role: roleDoc._id,
+            firstName,
+            lastName,
+            phoneNumber: phoneNumber || '',
+            isStaff: overrides.isStaff ?? existing.isStaff ?? false,
+            office: overrides.office ?? existing.office ?? '',
+            createdBy: 'seeder',
+          },
           { new: true, runValidators: false }
         );
       }

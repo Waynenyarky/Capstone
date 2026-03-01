@@ -18,6 +18,7 @@ export const useAppTheme = () => {
 export const THEMES = {
   DEFAULT: 'default',
   DARK: 'dark',
+  SYSTEM: 'system',
   DOCUMENT: 'document',
   BLOSSOM: 'blossom',
   SUNSET: 'sunset',
@@ -280,8 +281,25 @@ export function ThemeProvider({ children }) {
   const [previewTheme, setPreviewTheme] = useState(null);
   const [previewOverrides, setPreviewOverrides] = useState(null);
 
-  // The theme to actually render
-  const displayTheme = isPublicPage ? THEMES.DEFAULT : (previewTheme || currentTheme);
+  const [systemPrefersDark, setSystemPrefersDark] = useState(() => {
+    return typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)')?.matches
+  });
+
+  useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-color-scheme: dark)')
+    if (!mq) return
+    const handler = (e) => setSystemPrefersDark(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
+  // The theme to actually render — resolve "system" to default/dark based on OS preference
+  const resolvedTheme = (() => {
+    const base = previewTheme || currentTheme
+    if (base === THEMES.SYSTEM) return systemPrefersDark ? THEMES.DARK : THEMES.DEFAULT
+    return base
+  })();
+  const displayTheme = isPublicPage ? THEMES.DEFAULT : resolvedTheme;
 
   // Store custom theme overrides (primary color, border radius, etc.)
   const [themeOverrides, setThemeOverrides] = useState(() => {

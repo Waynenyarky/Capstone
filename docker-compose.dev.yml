@@ -15,6 +15,7 @@ services:
   auth-service:
     environment:
       - SEED_DEV=true
+      - EMAIL_DEV_REDIRECT_TO=${EMAIL_DEV_REDIRECT_TO:-}
     volumes:
       - ./backend/services/auth-service/src:/app/src
       - ./.env:/app/.env
@@ -24,9 +25,12 @@ services:
   business-service:
     environment:
       - SEED_FEE_CONFIGURATION=true
+      - LOB_MODEL_SERVICE_URL=http://lob-model:5050
     volumes:
       - ./backend/shared:/backend/shared:ro
       - ./backend/services/business-service/src:/backend/services/business-service/src
+      - ./ai/datasets:/backend/ai/datasets:ro
+      - ./ai/datasets:/ai/datasets:ro
       - ./.env:/backend/services/business-service/.env
     command: npm run dev
 
@@ -46,3 +50,11 @@ services:
       - ./backend/services/audit-service/src:/app/src
       - ./.env:/app/.env
     command: npm run dev
+
+  # LOB Model - dev: persist models and datasets on host so retraining from Admin UI is kept
+  lob-model:
+    environment:
+      - LOB_RETRAIN_ON_START=${LOB_RETRAIN_ON_START:-0}
+    volumes:
+      - ./ai/models:/app/models
+      - ./ai/datasets:/app/datasets

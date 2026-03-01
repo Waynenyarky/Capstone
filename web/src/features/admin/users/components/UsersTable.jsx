@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
-import { Table, Pagination, Input, Button, Select, Tooltip, Typography, Tag, Splitter, Grid, theme } from 'antd'
+import { Table, Pagination, Input, Button, Select, Tooltip, Typography, Tag, Splitter, Grid, theme, Empty } from 'antd'
 import { SearchOutlined, FilterOutlined, CloseOutlined } from '@ant-design/icons'
 import { useUsersTable } from "@/features/admin/users/hooks/useUsersTable.js"
 import UserDetailPanel from './UserDetailPanel.jsx'
@@ -223,6 +223,7 @@ export default function UsersTable() {
             loading={isLoading}
             pagination={false}
             scroll={{ x: 'max-content' }}
+            locale={{ emptyText: <Empty description="No users found" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
             rowClassName={(rec) => rec?.id === selectedUser?.id ? 'user-row-selected' : ''}
             onRow={(rec) => ({
               onClick: () => setSelectedUser(rec),

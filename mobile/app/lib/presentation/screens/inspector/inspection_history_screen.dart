@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:app/data/services/mongodb_service.dart';
-import 'package:app/data/mock/inspector_mock_data.dart';
 import 'inspection_detail_screen.dart';
 
 class InspectionHistoryScreen extends StatefulWidget {
@@ -36,7 +35,7 @@ class _InspectionHistoryScreenState extends State<InspectionHistoryScreen> {
         final list = List<dynamic>.from(res['inspections'] ?? []);
         if (list.isEmpty) {
           setState(() {
-            _inspections = InspectorMockData.getCompletedInspections();
+            _inspections = [];
             _loading = false;
             _error = null;
           });
@@ -49,16 +48,16 @@ class _InspectionHistoryScreenState extends State<InspectionHistoryScreen> {
         });
       } else {
         setState(() {
-          _inspections = InspectorMockData.getCompletedInspections();
+          _inspections = [];
           _loading = false;
-          _error = null;
+          _error = res['message'] ?? 'Failed to load';
         });
       }
     } catch (e) {
       setState(() {
-        _inspections = InspectorMockData.getCompletedInspections();
+        _inspections = [];
         _loading = false;
-        _error = null;
+        _error = 'Failed to load. Pull to refresh.';
       });
     }
   }
@@ -105,7 +104,7 @@ class _InspectionHistoryScreenState extends State<InspectionHistoryScreen> {
                   const SizedBox(height: 16),
                   Text(
                     'No completed inspections yet',
-                    style: TextStyle(fontSize: 18, color: Colors.grey.shade700),
+                    style: TextStyle(fontSize: 15, color: Colors.grey.shade700),
                   ),
                 ],
               ),

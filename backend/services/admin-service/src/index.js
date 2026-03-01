@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const path = require('path');
+const fs = require('fs');
 const connectDB = require('./config/db');
 const logger = require('./lib/logger');
 const correlationIdMiddleware = require('./middleware/correlationId');
@@ -11,8 +13,29 @@ const http = require('http');
 const mongoose = require('mongoose');
 
 dotenv.config();
+// Load project root .env so EMAIL_API_PROVIDER/EMAIL_API_KEY from root override any local .env
+const rootEnv = path.join(__dirname, '..', '..', '..', '..', '..', '.env');
+if (fs.existsSync(rootEnv)) {
+  dotenv.config({ path: rootEnv });
+}
 
 const app = express();
+
+const helmet = require('helmet');
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://challenges.cloudflare.com"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      frameSrc: ["https://challenges.cloudflare.com"],
+      fontSrc: ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
 
 // Structured Logging & Monitoring Middleware (early in chain)
 app.use(correlationIdMiddleware);
@@ -33,7 +56,13 @@ try { cookieParser = require('cookie-parser'); app.use(cookieParser()); } catch 
 const csrfDisabled = process.env.DISABLE_CSRF === 'true' || process.env.NODE_ENV === 'test';
 const { createCsrfMiddleware, getCsrfTokenHandler } = require('../../../shared/csrf');
 app.get('/api/admin/csrf-token', getCsrfTokenHandler({ sameSite: 'lax' }));
-app.use('/api/admin', createCsrfMiddleware({ skipPaths: ['/api/admin/csrf-token'], disabled: csrfDisabled }));
+app.use('/api/admin', createCsrfMiddleware({
+  skipPaths: [
+    '/api/admin/csrf-token',
+    '/api/admin/tamper/incidents', // server-to-server: audit-service creates incidents via X-Internal-API-Key
+  ],
+  disabled: csrfDisabled
+}));
 
 if (process.env.NODE_ENV !== 'production') {
   let morgan
@@ -91,11 +120,48 @@ app.use('/api/maintenance', maintenanceRouter);
 app.use('/api/lgus', lgusRouter);
 // Public form definitions endpoints
 app.use('/api/forms', publicFormsRouter);
+const announcementsRouter = require('./routes/announcements');
+app.use('/api/admin/announcements', announcementsRouter);
+
 // LGU Officer permit applications routes
 app.use('/api/lgu-officer/permit-applications', lguOfficerPermitRouter);
 
+// Staff personal activity endpoint
+const AuditLog = require('./models/AuditLog');
+const { requireJwt: requireJwtForActivity, requireRole: requireRoleForActivity } = require('./middleware/auth');
+const respondActivity = require('./middleware/respond');
+app.get('/api/admin/my-activity', requireJwtForActivity, requireRoleForActivity(['staff', 'lgu_officer', 'lgu_manager', 'inspector', 'admin']), async (req, res) => {
+  try {
+    const period = req.query.period || 'month'
+    const userId = req.user?._id || req._userId
+    const dateFilter = period === 'week'
+      ? { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+      : period === 'month'
+      ? { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+      : {}
+
+    const query = { performedBy: userId }
+    if (dateFilter.$gte) query.createdAt = dateFilter
+
+    const auditLogs = await AuditLog.find(query).sort({ createdAt: -1 }).limit(100).lean()
+    const approved = auditLogs.filter(l => (l.eventType || l.action || '').includes('approved')).length
+    const rejected = auditLogs.filter(l => (l.eventType || l.action || '').includes('rejected')).length
+    const totalReviews = auditLogs.filter(l => (l.eventType || l.action || '').includes('review') || (l.eventType || l.action || '').includes('approved') || (l.eventType || l.action || '').includes('rejected')).length
+
+    return respondActivity.success(res, 200, {
+      totalReviews,
+      approved,
+      rejected,
+      pending: Math.max(0, totalReviews - approved - rejected),
+      recentActivity: auditLogs.slice(0, 20),
+    })
+  } catch (err) {
+    console.error('GET /api/admin/my-activity error:', err)
+    return respondActivity.error(res, 500, 'activity_error', 'Failed to fetch activity')
+  }
+});
+
 // Serve static uploads (form templates, etc.)
-const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // Notification routes (shared across all services)

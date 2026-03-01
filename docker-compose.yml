@@ -62,13 +62,25 @@ services:
       retries: 5
       start_period: 45s
 
-  # Wait for services to be ready
+  # ClamAV (optional: set CLAMAV_HOST=clamav for virus scanning on uploads)
+  clamav:
+    image: clamav/clamav:latest
+    platform: linux/amd64
+    container_name: capstone-clamav
+    ports:
+      - "3310:3310"
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'PING' | nc -w 5 localhost 3310 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Wait for core services (mongodb, ipfs). Ganache is not waited for here; deploy-contracts command waits for RPC.
   wait-for-services:
     image: alpine:latest
     depends_on:
       mongodb:
-        condition: service_healthy
-      ganache:
         condition: service_healthy
       ipfs:
         condition: service_healthy
@@ -78,7 +90,19 @@ services:
         exit 0
       "
 
-  # Deploy contracts (runs once)
+  # LOB Model Service (Python Flask: /predict and /train for line-of-business recommendations)
+  lob-model:
+    build:
+      context: .
+      dockerfile: ai/Dockerfile
+    container_name: capstone-lob-model
+    ports:
+      - "5050:5050"
+    restart: unless-stopped
+    environment:
+      - LOB_RETRAIN_ON_START=${LOB_RETRAIN_ON_START:-0}
+
+  # Deploy contracts (runs once). Waits for wait-for-services then for Ganache RPC (see command); uses GANACHE_* env.
   deploy-contracts:
     build:
       context: ./blockchain
@@ -87,8 +111,6 @@ services:
     depends_on:
       wait-for-services:
         condition: service_completed_successfully
-      ganache:
-        condition: service_started
     environment:
       - GANACHE_HOST=ganache
       - GANACHE_PORT=8545
@@ -99,8 +121,11 @@ services:
       - ./.env:/env/.env
     command: >
       sh -c "
-        echo 'Waiting for Ganache...' &&
-        sleep 5 &&
+        echo 'Waiting for Ganache RPC...' &&
+        until node -e \"require('net').createConnection(process.env.GANACHE_PORT || 8545, process.env.GANACHE_HOST || 'ganache').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))\" 2>/dev/null; do sleep 2; done &&
+        echo 'Ganache is up.' &&
+        sleep 2 &&
+        (rm -rf /app/build/contracts/* 2>/dev/null; rm -f /app/build/migrations.json 2>/dev/null; true) &&
         npm run compile &&
         npm run migrate:ganache &&
         echo 'Contracts deployed!' &&
@@ -129,8 +154,10 @@ services:
       - IPFS_API_URL=${DOCKER_IPFS_API_URL}
       - IPFS_GATEWAY_URL=${DOCKER_IPFS_GATEWAY_URL}
       - AUDIT_SERVICE_URL=${DOCKER_AUDIT_SERVICE_URL}
+      - ADMIN_SERVICE_URL=${DOCKER_ADMIN_SERVICE_URL}
       - SEED_DEV=true
       - SEED_TEMP_PASSWORD=${SEED_TEMP_PASSWORD:-TempPass123!}
+      - EMAIL_DEV_REDIRECT_TO=${EMAIL_DEV_REDIRECT_TO:-}
       - DEV_EMAIL_OFFICER=${DEV_EMAIL_OFFICER:-}
       - DEV_EMAIL_MANAGER=${DEV_EMAIL_MANAGER:-}
       - DEV_EMAIL_ADMIN=${DEV_EMAIL_ADMIN:-}
@@ -163,8 +190,11 @@ services:
       - AUDIT_SERVICE_URL=${DOCKER_AUDIT_SERVICE_URL}
       - AUTH_SERVICE_URL=${DOCKER_AUTH_SERVICE_URL}
       - SEED_FEE_CONFIGURATION=true
+      - LOB_MODEL_SERVICE_URL=http://lob-model:5050
     volumes:
       - contract_addresses:/app/contract-addresses:ro
+      - ./ai/datasets:/backend/ai/datasets:ro
+      - ./ai/datasets:/ai/datasets:ro
     restart: unless-stopped
 
   # Admin Service
@@ -201,13 +231,13 @@ services:
       - "3004:3004"
     depends_on:
       - mongodb
-      - ganache
       - deploy-contracts
     env_file: .env
     environment:
       - MONGO_URI=mongodb://${MONGO_APP_USER:-capstone_app}:${MONGO_APP_PASSWORD:-devapppass}@mongodb:27017/capstone_project?authSource=admin
       - GANACHE_RPC_URL=http://ganache:8545
       - CONTRACT_ABI_PATH=/app/contract-addresses
+      - ADMIN_SERVICE_URL=${DOCKER_ADMIN_SERVICE_URL}
     volumes:
       - contract_addresses:/app/contract-addresses:ro
     restart: unless-stopped

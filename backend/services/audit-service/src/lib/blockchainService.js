@@ -345,7 +345,7 @@ class BlockchainService {
       return {
         success: true,
         txHash: tx.transactionHash,
-        blockNumber: tx.blockNumber,
+        blockNumber: Number(tx.blockNumber),
       };
     } catch (error) {
       logger.error('Error logging audit hash to blockchain:', error);
@@ -391,7 +391,7 @@ class BlockchainService {
       return {
         success: true,
         txHash: tx.transactionHash,
-        blockNumber: tx.blockNumber,
+        blockNumber: Number(tx.blockNumber),
       };
     } catch (error) {
       logger.error('Error logging critical event to blockchain:', error);
@@ -440,7 +440,7 @@ class BlockchainService {
       return {
         success: true,
         txHash: tx.transactionHash,
-        blockNumber: tx.blockNumber,
+        blockNumber: Number(tx.blockNumber),
       };
     } catch (error) {
       logger.error('Error logging admin approval to blockchain:', error);

@@ -2,6 +2,37 @@ import '@testing-library/jest-dom/vitest'
 import { afterAll, afterEach, beforeAll, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
 
+// Ensure localStorage is usable (vitest --localstorage-file can leave it broken in jsdom)
+if (typeof window !== 'undefined') {
+  const createStorage = () => {
+    const store = {}
+    return {
+      getItem: (k) => store[k] ?? null,
+      setItem: (k, v) => { store[k] = String(v) },
+      removeItem: (k) => { delete store[k] },
+      clear: () => { for (const k of Object.keys(store)) delete store[k] },
+      get length() { return Object.keys(store).length },
+      key: (i) => Object.keys(store)[i] ?? null,
+    }
+  }
+  const orig = window.localStorage
+  if (!orig || typeof orig.getItem !== 'function') {
+    try {
+      Object.defineProperty(window, 'localStorage', { value: createStorage(), writable: true, configurable: true })
+    } catch {
+      window.localStorage = createStorage()
+    }
+  }
+  const origSession = window.sessionStorage
+  if (!origSession || typeof origSession.getItem !== 'function') {
+    try {
+      Object.defineProperty(window, 'sessionStorage', { value: createStorage(), writable: true, configurable: true })
+    } catch {
+      window.sessionStorage = createStorage()
+    }
+  }
+}
+
 // Configure React 18/19 act() support for non-Jest environments (Vitest + jsdom)
 // This silences the warning: "The current testing environment is not configured to support act(...)"
 // See: https://react.dev/reference/react-dom/test-utils/act

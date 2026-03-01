@@ -1,4 +1,5 @@
-import { Form, Button, Card, Input, Typography, Flex, Grid } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Button, Card, Input, Typography, Flex, Grid } from 'antd'
 import { useTotpVerificationForm } from '@/features/authentication/hooks'
 import React from 'react'
 
@@ -30,7 +31,7 @@ export default function TotpVerificationForm({ email, onSubmit, title } = {}) {
         </Text>
       </div>
 
-      <Form name="totpVerification" form={form} layout="vertical" onFinish={handleFinish} size="large">
+      <Form name="totpVerification" form={form} layout="vertical" onFinish={handleFinish}>
         <Form.Item 
           name="verificationCode" 
           label={<Text strong>Authenticator Code</Text>}
@@ -41,7 +42,6 @@ export default function TotpVerificationForm({ email, onSubmit, title } = {}) {
         >
           <div style={{ maxWidth: 320, margin: '0 auto' }}>
             <Input.OTP 
-              size="large" 
               length={6} 
               style={{ width: '100%', justifyContent: 'center', gap: 8 }}
               inputType="numeric"
@@ -64,7 +64,7 @@ export default function TotpVerificationForm({ email, onSubmit, title } = {}) {
         </Form.Item>
 
         <Flex vertical gap="middle">
-          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block size="large" style={{ height: 48, fontSize: 16 }}>
+          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block style={{ height: 48, fontSize: 16 }}>
             Verify
           </Button>
 

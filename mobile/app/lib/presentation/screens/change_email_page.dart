@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:app/core/theme/bizclear_colors.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'change_email_verify_page.dart';
 
 class ChangeEmailPage extends StatefulWidget {
   final String currentEmail;
-  const ChangeEmailPage({super.key, required this.currentEmail});
+  final bool embeddedInShell;
+  final bool canEditProfile;
+  const ChangeEmailPage({
+    super.key,
+    required this.currentEmail,
+    this.embeddedInShell = false,
+    this.canEditProfile = true,
+  });
 
   @override
   State<ChangeEmailPage> createState() => _ChangeEmailPageState();
@@ -47,7 +55,11 @@ class _ChangeEmailPageState extends State<ChangeEmailPage> {
         if (!mounted) return;
         final updated = await navigator.push<String>(
           MaterialPageRoute(
-            builder: (_) => ChangeEmailVerifyPage(currentEmail: widget.currentEmail),
+            builder: (_) => ChangeEmailVerifyPage(
+              currentEmail: widget.currentEmail,
+              embeddedInShell: widget.embeddedInShell,
+              canEditProfile: widget.canEditProfile,
+            ),
           ),
         );
         if (!mounted) return;
@@ -131,10 +143,6 @@ class _ChangeEmailPageState extends State<ChangeEmailPage> {
                       hintStyle: const TextStyle(
                         color: Color(0xFF64748B),
                       ),
-                      prefixIcon: const Icon(
-                        Icons.email_outlined,
-                        color: Color(0xFF64748B),
-                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -181,7 +189,7 @@ class _ChangeEmailPageState extends State<ChangeEmailPage> {
                   const SizedBox(height: 32),
                   SizedBox(
                     width: double.infinity,
-                    height: 52,
+                    height: 40,
                     child: ElevatedButton(
                       onPressed: _loading ? null : _submit,
                       style: ElevatedButton.styleFrom(
@@ -190,6 +198,10 @@ class _ChangeEmailPageState extends State<ChangeEmailPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         disabledBackgroundColor: theme.disabledColor,
+                        padding: BizClearColors.primaryButtonPadding,
+                        minimumSize: BizClearColors.primaryButtonMinimumSize,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        textStyle: BizClearColors.primaryButtonTextStyle,
                       ),
                       child: _loading
                           ? SizedBox(

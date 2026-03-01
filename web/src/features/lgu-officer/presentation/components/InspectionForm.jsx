@@ -3,7 +3,8 @@
  * Pure presentation - no business logic
  */
 import React from 'react'
-import { Form, Input, DatePicker, Select, Button, Space, Typography } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Input, DatePicker, Select, Button, Space, Typography } from 'antd'
 import { SaveOutlined } from '@ant-design/icons'
 
 const { TextArea } = Input

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Row, Col, Card, Typography, Space, Tag, List, message, theme, Button } from 'antd'
 import { Link } from 'react-router-dom'
-import { DashboardOutlined, CheckCircleOutlined, SafetyCertificateOutlined, ToolOutlined, FileTextOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { DashboardOutlined, CheckCircleOutlined, SafetyCertificateOutlined, ToolOutlined, FileTextOutlined, ReloadOutlined, InfoCircleOutlined, ShopOutlined, DollarOutlined, TeamOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import DashboardInfoModal from './DashboardInfoModal'
 import dayjs from 'dayjs'
 import AdminLayout from '../components/AdminLayout'
@@ -19,6 +19,10 @@ const STAT_CARD_COLORS = {
   tamper: '#52c41a',
   tamperAlert: '#ff4d4f',
   forms: '#722ed1',
+  businesses: '#13c2c2',
+  pendingApps: '#fa8c16',
+  revenue: '#52c41a',
+  staff: '#722ed1',
 }
 
 const ACTION_COLORS = {
@@ -43,15 +47,21 @@ export default function AdminDashboard() {
   const [recentLogs, setRecentLogs] = useState([])
   const [lastUpdated, setLastUpdated] = useState(null)
   const [infoOpen, setInfoOpen] = useState(false)
+  const [businessStats, setBusinessStats] = useState(null)
+  const [paymentSummary, setPaymentSummary] = useState(null)
+  const [staffCount, setStaffCount] = useState(null)
 
   const loadKpis = useCallback(async () => {
     setKpiLoading(true)
     try {
-      const [approvalsRes, tamperRes, formsRes, maintenanceRes] = await Promise.allSettled([
+      const [approvalsRes, tamperRes, formsRes, maintenanceRes, bizStatsRes, paymentRes, staffRes] = await Promise.allSettled([
         getApprovals({ status: 'pending' }),
         fetchTamperStats(),
         getFormGroupStats(),
         getMaintenanceCurrent(),
+        get('/api/business/admin/stats'),
+        get('/api/business/admin/payments/summary'),
+        get('/api/auth/users/count?role=staff'),
       ])
       if (approvalsRes.status === 'fulfilled') {
         const list = approvalsRes.value?.approvals ?? []
@@ -67,6 +77,15 @@ export default function AdminDashboard() {
       }
       if (maintenanceRes.status === 'fulfilled') {
         setMaintenanceStatus(maintenanceRes.value ?? null)
+      }
+      if (bizStatsRes.status === 'fulfilled') {
+        setBusinessStats(bizStatsRes.value?.data ?? bizStatsRes.value ?? null)
+      }
+      if (paymentRes.status === 'fulfilled') {
+        setPaymentSummary(paymentRes.value?.data ?? paymentRes.value ?? null)
+      }
+      if (staffRes.status === 'fulfilled') {
+        setStaffCount(staffRes.value?.data?.count ?? staffRes.value?.count ?? null)
       }
     } catch {
       message.error('Failed to load dashboard stats')
@@ -143,6 +162,36 @@ export default function AdminDashboard() {
       to: '/admin/form-definitions',
       linkable: formCount != null,
     },
+    {
+      key: 'businesses',
+      label: 'Active businesses',
+      value: businessStats?.activeBusinesses ?? '—',
+      icon: ShopOutlined,
+      linkable: false,
+    },
+    {
+      key: 'pendingApps',
+      label: 'Pending applications',
+      value: businessStats?.pendingApplications ?? '—',
+      icon: ClockCircleOutlined,
+      linkable: false,
+    },
+    {
+      key: 'revenue',
+      label: 'Revenue this month',
+      value: paymentSummary?.revenueThisMonth != null ? `₱${Number(paymentSummary.revenueThisMonth).toLocaleString()}` : '—',
+      icon: DollarOutlined,
+      to: '/admin/finance',
+      linkable: paymentSummary?.revenueThisMonth != null,
+    },
+    {
+      key: 'staff',
+      label: 'Staff count',
+      value: staffCount ?? '—',
+      icon: TeamOutlined,
+      to: '/admin/users',
+      linkable: staffCount != null,
+    },
   ]
 
   const mainHeaderActions = (
@@ -172,7 +221,7 @@ export default function AdminDashboard() {
         <Row gutter={[16, 16]}>
           {/* KPI cards - same style as user management Overview tab */}
           {statCards.map(({ key, label, value, icon: Icon, to, colorKey, linkable }) => (
-            <Col xs={24} sm={12} md={8} key={key}>
+            <Col xs={12} sm={8} md={6} lg={6} key={key}>
               <Card size="small" loading={kpiLoading} style={{ height: '100%' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <span style={{ fontSize: 13, color: token.colorTextSecondary }}>{label}</span>

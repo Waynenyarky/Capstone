@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:app/core/theme/bizclear_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app/data/services/google_auth_service.dart';
-import 'package:app/data/services/mongodb_service.dart';
 import 'package:app/presentation/screens/login_page.dart';
 
 class SessionTimeoutManager extends StatefulWidget {
@@ -13,7 +13,7 @@ class SessionTimeoutManager extends StatefulWidget {
   const SessionTimeoutManager({
     super.key,
     required this.child,
-    this.duration = const Duration(minutes: 5),
+    this.duration = const Duration(days: 90),
     this.navigatorKey,
   });
 
@@ -174,17 +174,6 @@ class _SessionTimeoutManagerState extends State<SessionTimeoutManager> with Widg
 
   Future<void> _performLogout() async {
     final prefs = await SharedPreferences.getInstance();
-    // Check biometrics status before clearing token (API requires auth). Only pass to login when enabled.
-    bool preFingerprintEnabled = false;
-    String? preFingerprintEmail;
-    try {
-      final fpEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
-      if (fpEmail.isNotEmpty) {
-        final s = await MongoDBService.getMfaStatusDetail(email: fpEmail).timeout(const Duration(seconds: 3));
-        preFingerprintEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
-        preFingerprintEmail = preFingerprintEnabled ? fpEmail : null; // only pass email when enabled so login shows biometrics only then
-      }
-    } catch (_) {}
 
     await prefs.remove('loggedInEmail');
     await prefs.remove('accessToken');
@@ -195,10 +184,7 @@ class _SessionTimeoutManagerState extends State<SessionTimeoutManager> with Widg
     final nav = widget.navigatorKey?.currentState ?? Navigator.of(context);
     nav.pushAndRemoveUntil(
       MaterialPageRoute(
-        builder: (_) => LoginScreen(
-          preFingerprintEnabled: preFingerprintEnabled,
-          preFingerprintEmail: preFingerprintEmail,
-        ),
+        builder: (_) => const LoginScreen(),
       ),
       (route) => false,
     );
@@ -218,8 +204,9 @@ class _SessionTimeoutManagerState extends State<SessionTimeoutManager> with Widg
 
 class _SessionExpiredDialog extends StatefulWidget {
   final VoidCallback onLogout;
+  final VoidCallback? onContinue;
 
-  const _SessionExpiredDialog({required this.onLogout});
+  const _SessionExpiredDialog({required this.onLogout, this.onContinue});
 
   @override
   State<_SessionExpiredDialog> createState() => _SessionExpiredDialogState();
@@ -317,7 +304,7 @@ class _SessionExpiredDialogState extends State<_SessionExpiredDialog> {
                     const Text(
                       'Session Paused',
                       style: TextStyle(
-                        fontSize: 22,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: Colors.black,
                         letterSpacing: -0.5,
@@ -379,12 +366,18 @@ class _SessionExpiredDialogState extends State<_SessionExpiredDialog> {
                     
                     const SizedBox(height: 32),
                     
-                    // Button
+                    // Continue Session button
                     SizedBox(
                       width: double.infinity,
-                      height: 56,
+                      height: 40,
                       child: FilledButton(
-                        onPressed: widget.onLogout,
+                        onPressed: () {
+                          _timer?.cancel();
+                          if (widget.onContinue != null) {
+                            widget.onContinue!();
+                          }
+                          Navigator.of(context).pop(true);
+                        },
                         style: FilledButton.styleFrom(
                           backgroundColor: Colors.black,
                           foregroundColor: Colors.white,
@@ -392,6 +385,38 @@ class _SessionExpiredDialogState extends State<_SessionExpiredDialog> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
+                          padding: BizClearColors.primaryButtonPadding,
+                          minimumSize: BizClearColors.primaryButtonMinimumSize,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          textStyle: BizClearColors.primaryButtonTextStyle,
+                        ),
+                        child: const Text(
+                          "I'm Still Here",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Return to Login button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 40,
+                      child: OutlinedButton(
+                        onPressed: widget.onLogout,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.black,
+                          side: const BorderSide(color: Colors.black26),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          padding: BizClearColors.primaryButtonPadding,
+                          minimumSize: BizClearColors.primaryButtonMinimumSize,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -408,7 +433,7 @@ class _SessionExpiredDialogState extends State<_SessionExpiredDialog> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: Colors.white24,
+                                color: Colors.black12,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
@@ -416,7 +441,7 @@ class _SessionExpiredDialogState extends State<_SessionExpiredDialog> {
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,
-                                  color: Colors.white,
+                                  color: Colors.black54,
                                 ),
                               ),
                             ),

@@ -135,4 +135,48 @@ export class PermitApplicationService extends PermitApplicationRepository {
     const response = await fetchJsonWithFallback(url)
     return response
   }
+
+  /**
+   * Update field-level review decision(s)
+   * @param {object} params
+   * @param {string} params.applicationId
+   * @param {string} [params.businessId]
+   * @param {string} [params.fieldKey] - Single update
+   * @param {string} [params.status] - 'accepted' | 'rejected'
+   * @param {string} [params.reasonCode]
+   * @param {string} [params.reasonOther]
+   * @param {Array<{ fieldKey, status, reasonCode?, reasonOther? }>} [params.decisions] - Batch update
+   * @returns {Promise<object>} Updated application
+   */
+  async updateFieldDecisions({ applicationId, businessId, fieldKey, status, reasonCode, reasonOther, decisions }) {
+    const body = decisions && Array.isArray(decisions)
+      ? { businessId, decisions }
+      : { businessId, fieldKey, status, reasonCode, reasonOther }
+    const response = await fetchJsonWithFallback(
+      `/api/lgu-officer/permit-applications/${applicationId}/field-decisions`,
+      { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+    )
+    return response
+  }
+
+  /**
+   * Update LOB formData (businessDescriptionText, businessActivities) for officer edit
+   * @param {object} params
+   * @param {string} params.applicationId
+   * @param {string} [params.businessId]
+   * @param {string} [params.businessDescriptionText]
+   * @param {Array} [params.businessActivities]
+   * @returns {Promise<object>} Updated application
+   */
+  async updateLobFormData({ applicationId, businessId, businessDescriptionText, businessActivities }) {
+    const response = await fetchJsonWithFallback(
+      `/api/lgu-officer/permit-applications/${applicationId}/form-data`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ businessId, businessDescriptionText, businessActivities })
+      }
+    )
+    return response
+  }
 }

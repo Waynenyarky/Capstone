@@ -152,3 +152,41 @@ export function useNotifier() {
   const { message } = App.useApp()
   return useMemo(() => createNotifier(message), [message])
 }
+
+// Default placement and duration for auth notifications (visible, consistent)
+const AUTH_NOTIFICATION_PLACEMENT = 'topRight'
+const AUTH_NOTIFICATION_DURATION = 4.5
+
+/**
+ * Hook for high-impact auth success/error notifications (Ant Design notification API).
+ * Use for login, logout, profile/password/email change, MFA, passkey, account deletion, session invalidation.
+ * For short confirmations (e.g. "Code sent") keep using useNotifier() message API.
+ */
+export function useAuthNotification() {
+  const { notification } = App.useApp()
+  return useMemo(
+    () => ({
+      notificationSuccess: (message, description) => {
+        if (!notification?.success) return
+        notification.success({
+          message: String(message),
+          description: description ? String(description) : undefined,
+          placement: AUTH_NOTIFICATION_PLACEMENT,
+          duration: AUTH_NOTIFICATION_DURATION,
+          key: `auth-success-${Date.now()}`,
+        })
+      },
+      notificationError: (message, description) => {
+        if (!notification?.error) return
+        notification.error({
+          message: String(message),
+          description: description ? String(description) : undefined,
+          placement: AUTH_NOTIFICATION_PLACEMENT,
+          duration: AUTH_NOTIFICATION_DURATION,
+          key: `auth-error-${Date.now()}`,
+        })
+      },
+    }),
+    [notification]
+  )
+}

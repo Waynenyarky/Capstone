@@ -96,7 +96,6 @@ const UserSchema = new mongoose.Schema(
     dateOfBirth: { type: Date, default: null },
     placeOfBirth: { type: String, default: '' },
     nationality: { type: String, default: '' },
-    spouseName: { type: String, default: '' },
     fatherName: { type: String, default: '' },
     motherName: { type: String, default: '' },
     distinctiveMark: { type: String, default: '' },

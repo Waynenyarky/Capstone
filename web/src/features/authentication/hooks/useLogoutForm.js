@@ -1,10 +1,13 @@
-import { useNotifier } from '@/shared/notifications.js'
+import { useAuthNotification } from '@/shared/notifications.js'
 import { useAuthSession } from "@/features/authentication/hooks/useAuthSession.js"
 import { useNavigate } from 'react-router-dom'
+import { useNotifier } from '@/shared/notifications.js'
+import { logoutApi } from '@/features/authentication/services/authService.js'
 
 export function useLogoutForm() {
   const { currentUser, role, logout } = useAuthSession()
-  const { success, error } = useNotifier()
+  const { notificationSuccess } = useAuthNotification()
+  const { error } = useNotifier()
   const navigate = useNavigate()
   
   const name = [currentUser?.firstName, currentUser?.lastName]
@@ -13,10 +16,10 @@ export function useLogoutForm() {
 
   const handleLogout = async () => {
     try {
+      await logoutApi().catch(() => {})
       navigate('/login')
-      
       logout()
-      success('Logged out')
+      notificationSuccess('Logged out', 'You have been signed out successfully.')
     } catch (err) {
       console.error('Logout error:', err)
       error(err, 'Failed to logout')

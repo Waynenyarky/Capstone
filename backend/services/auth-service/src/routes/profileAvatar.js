@@ -142,6 +142,13 @@ router.post('/profile/avatar-file', requireJwt, async (req, res) => {
       if (err) return respond.error(res, 400, 'upload_failed', 'Upload failed')
       const file = req.file
       if (!file) return respond.error(res, 400, 'no_file', 'No file uploaded')
+
+      const { scanFile } = require('../../../../shared/fileScan')
+      const scanResult = await scanFile(file.path)
+      if (!scanResult.clean) {
+        try { await fs.promises.unlink(file.path) } catch (_) {}
+        return respond.error(res, 400, 'file_rejected', 'File could not be accepted. Please try a different file.')
+      }
       
       // Try to upload to IPFS first (if available)
       const ipfsService = require('../lib/ipfsService')

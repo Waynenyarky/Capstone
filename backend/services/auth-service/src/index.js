@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const path = require('path');
+const fs = require('fs');
 const mongoose = require('mongoose');
 const connectDB = require('./config/db');
 const logger = require('./lib/logger');
@@ -11,6 +13,11 @@ const errorHandlerMiddleware = require('./middleware/errorHandler');
 const http = require('http');
 
 dotenv.config();
+// Load project root .env so EMAIL_API_PROVIDER/EMAIL_API_KEY from root override any local .env (e.g. from CREATE_ENV_FILES.sh)
+const rootEnv = path.join(__dirname, '..', '..', '..', '..', '..', '.env');
+if (fs.existsSync(rootEnv)) {
+  dotenv.config({ path: rootEnv });
+}
 
 // In test mode, establish database connection immediately when app is required
 // This ensures middleware can access the database
@@ -31,6 +38,22 @@ if (process.env.NODE_ENV === 'test') {
 }
 
 const app = express();
+
+const helmet = require('helmet');
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://challenges.cloudflare.com"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      frameSrc: ["https://challenges.cloudflare.com"],
+      fontSrc: ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
 
 // Structured Logging & Monitoring Middleware (early in chain)
 app.use(correlationIdMiddleware);
@@ -99,6 +122,10 @@ if (process.env.NODE_ENV === 'test') {
   const tamperIncidentsRouter = require('../../admin-service/src/routes/tamperIncidents');
   app.use('/api/admin/tamper', tamperIncidentsRouter);
 }
+
+// Internal service-to-service endpoints
+const internalRouter = require('./routes/internal');
+app.use('/api/internal', internalRouter);
 
 // Global Error Handler (must be last middleware)
 app.use(errorHandlerMiddleware);

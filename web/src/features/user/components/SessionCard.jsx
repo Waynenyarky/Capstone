@@ -1,18 +1,19 @@
 import { Card, Tag, Space, Button, Typography } from 'antd'
 import { invalidateSession } from '@/features/authentication/services/sessionService.js'
-import { useNotifier } from '@/shared/notifications.js'
+import { useAuthNotification, useNotifier } from '@/shared/notifications.js'
 
 const { Text } = Typography
 
 export default function SessionCard({ session, onInvalidated }) {
-  const { success, error } = useNotifier()
+  const { notificationSuccess } = useAuthNotification()
+  const { error } = useNotifier()
 
   if (!session) return null
 
   const handleInvalidate = async () => {
     try {
       await invalidateSession(session.id)
-      success('Session invalidated')
+      notificationSuccess('Session invalidated', 'This device has been signed out.')
       onInvalidated?.()
     } catch (err) {
       console.error('invalidate session failed', err)
@@ -25,8 +26,11 @@ export default function SessionCard({ session, onInvalidated }) {
       <Space direction="vertical" style={{ width: '100%' }}>
         <Space>
           <Text strong>{session.userAgent || 'Unknown device'}</Text>
-          {session.isCurrentSession && <Tag color="blue">Current</Tag>}
-          {session.isExpired && <Tag color="red">Expired</Tag>}
+          {session.isCurrentSession ? (
+            <Tag color="blue">Current</Tag>
+          ) : session.isExpired ? (
+            <Tag color="red">Expired</Tag>
+          ) : null}
         </Space>
         <Text type="secondary">IP: {session.ipAddress || 'unknown'}</Text>
         <Text type="secondary">Last activity: {session.lastActivityAt ? new Date(session.lastActivityAt).toLocaleString() : '—'}</Text>

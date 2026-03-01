@@ -129,7 +129,7 @@ export default function AdminGeneralPermitConfig() {
                       Add Requirement
                     </Button>
                     <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving}>
-                      Save
+                      Save Changes
                     </Button>
                   </Space>
                 }

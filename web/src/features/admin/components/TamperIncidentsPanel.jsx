@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Card, Table, Tag, Button, Space, Typography, message, Tooltip } from 'antd'
+import { Card, Table, Tag, Button, Space, Typography, message, Tooltip, Empty } from 'antd'
 import {
   fetchTamperIncidents,
   fetchTamperStats,
@@ -19,6 +19,13 @@ const severityColors = {
   high: 'red',
   medium: 'orange',
   low: 'blue',
+}
+
+const verificationStatusLabels = {
+  tamper_detected: 'Tamper detected',
+  verification_error: 'Verification error',
+  not_logged: 'Not logged',
+  security_event: 'Security event',
 }
 
 export default function TamperIncidentsPanel() {
@@ -101,7 +108,7 @@ export default function TamperIncidentsPanel() {
         title: 'Verification',
         dataIndex: 'verificationStatus',
         key: 'verificationStatus',
-        render: (v) => <Tag>{v || 'unknown'}</Tag>,
+        render: (v) => <Tag>{verificationStatusLabels[v] || v || 'unknown'}</Tag>,
       },
       {
         title: 'Containment',
@@ -173,6 +180,7 @@ export default function TamperIncidentsPanel() {
         pagination={false}
         size="small"
         scroll={{ x: 'max-content' }}
+        locale={{ emptyText: <Empty description="No tamper incidents" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
       />
     </Card>
     {stepUpModal}

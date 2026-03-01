@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { message } from 'antd'
+import { App } from 'antd'
 import { getMe } from '../services/authService'
 import { useAuthSession } from './useAuthSession'
 
@@ -9,6 +9,7 @@ import { useAuthSession } from './useAuthSession'
  */
 export function useAuthSync() {
   const { login, currentUser } = useAuthSession()
+  const { message } = App.useApp()
 
   useEffect(() => {
     const bc = new BroadcastChannel('auth_channel')
@@ -40,5 +41,5 @@ export function useAuthSync() {
     }
 
     return () => bc.close()
-  }, [login, currentUser])
+  }, [login, currentUser, message])
 }

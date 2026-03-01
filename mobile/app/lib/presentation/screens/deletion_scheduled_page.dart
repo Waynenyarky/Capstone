@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:app/core/theme/bizclear_colors.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'profile.dart';
 import 'login_page.dart';
@@ -84,18 +85,18 @@ class _DeletionScheduledPageState extends State<DeletionScheduledPage> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
+                  color: BizClearColors.warning.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.orange.shade200, width: 2),
+                  border: Border.all(color: BizClearColors.warning.withValues(alpha: 0.4), width: 2),
                 ),
                 child: Column(
                   children: [
-                    Icon(Icons.event_busy, size: 64, color: Colors.orange.shade700),
+                    Icon(Icons.event_busy, size: 64, color: BizClearColors.warning),
                     const SizedBox(height: 16),
                     const Text(
                       'Deletion Scheduled',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                       textAlign: TextAlign.center,
@@ -118,10 +119,10 @@ class _DeletionScheduledPageState extends State<DeletionScheduledPage> {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [Colors.red.shade50, Colors.orange.shade50],
+                    colors: [BizClearColors.error.withValues(alpha: 0.08), BizClearColors.warning.withValues(alpha: 0.08)],
                   ),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.red.shade200),
+                  border: Border.all(color: BizClearColors.error.withValues(alpha: 0.3)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.05),
@@ -135,14 +136,14 @@ class _DeletionScheduledPageState extends State<DeletionScheduledPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.timer, color: Colors.red.shade700, size: 28),
+                        Icon(Icons.timer, color: BizClearColors.error, size: 28),
                         const SizedBox(width: 12),
                         Text(
                           '$daysRemaining days remaining',
                           style: TextStyle(
-                            fontSize: 28,
+                            fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            color: Colors.red.shade700,
+                            color: BizClearColors.error,
                           ),
                         ),
                       ],
@@ -161,7 +162,7 @@ class _DeletionScheduledPageState extends State<DeletionScheduledPage> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: Colors.grey.shade600,
+                              color: BizClearColors.textSecondary,
                               letterSpacing: 0.5,
                             ),
                           ),
@@ -169,14 +170,14 @@ class _DeletionScheduledPageState extends State<DeletionScheduledPage> {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.calendar_today, size: 18, color: Colors.red.shade700),
+                              Icon(Icons.calendar_today, size: 18, color: BizClearColors.error),
                               const SizedBox(width: 8),
                               Text(
                                 when,
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.red.shade900,
+                                  color: BizClearColors.webPrimaryTintText,
                                 ),
                               ),
                             ],
@@ -193,9 +194,9 @@ class _DeletionScheduledPageState extends State<DeletionScheduledPage> {
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                  color: BizClearColors.webPrimaryTintLight,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.shade200),
+                  border: Border.all(color: BizClearColors.webPrimaryTintBorder),
                 ),
                 child: Column(
                   children: [
@@ -204,10 +205,10 @@ class _DeletionScheduledPageState extends State<DeletionScheduledPage> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.blue.shade100,
+                            color: BizClearColors.webPrimaryTintBorder,
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Icon(Icons.info_outline, color: Colors.blue.shade700, size: 24),
+                          child: Icon(Icons.info_outline, color: BizClearColors.webPrimaryTintIcon, size: 24),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -219,7 +220,7 @@ class _DeletionScheduledPageState extends State<DeletionScheduledPage> {
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.blue.shade900,
+                                  color: BizClearColors.webPrimaryTintText,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -227,7 +228,7 @@ class _DeletionScheduledPageState extends State<DeletionScheduledPage> {
                                 'Your account will be permanently deleted on the scheduled date',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.blue.shade800,
+                                  color: BizClearColors.webPrimaryTintText,
                                   height: 1.4,
                                 ),
                               ),
@@ -244,9 +245,9 @@ class _DeletionScheduledPageState extends State<DeletionScheduledPage> {
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: Colors.green.shade50,
+                  color: BizClearColors.success.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.green.shade200),
+                  border: Border.all(color: BizClearColors.success.withValues(alpha: 0.3)),
                 ),
                 child: Column(
                   children: [
@@ -255,10 +256,10 @@ class _DeletionScheduledPageState extends State<DeletionScheduledPage> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.green.shade100,
-                            borderRadius: BorderRadius.circular(10),
+                            color: BizClearColors.success.withValues(alpha: 0.08),
+                            shape: BoxShape.circle,
                           ),
-                          child: Icon(Icons.undo, color: Colors.green.shade700, size: 24),
+                          child: Icon(Icons.check_circle_outline, color: BizClearColors.success, size: 24),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -270,7 +271,7 @@ class _DeletionScheduledPageState extends State<DeletionScheduledPage> {
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.green.shade900,
+                                  color: BizClearColors.webPrimaryTintText,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -278,7 +279,7 @@ class _DeletionScheduledPageState extends State<DeletionScheduledPage> {
                                 'You can cancel the deletion and keep your account anytime',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.green.shade800,
+                                  color: BizClearColors.webPrimaryTintText,
                                   height: 1.4,
                                 ),
                               ),
@@ -296,7 +297,7 @@ class _DeletionScheduledPageState extends State<DeletionScheduledPage> {
               // Action Buttons
               SizedBox(
                 width: double.infinity,
-                height: 54,
+                height: 40,
                 child: ElevatedButton.icon(
                   onPressed: _undoLoading
                       ? null
@@ -339,53 +340,45 @@ class _DeletionScheduledPageState extends State<DeletionScheduledPage> {
                       : const Icon(Icons.undo, size: 22),
                   label: const Text(
                     'Cancel Deletion & Keep Account',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
+                    backgroundColor: BizClearColors.success,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     elevation: 2,
+                    padding: BizClearColors.primaryButtonPadding,
+                    minimumSize: BizClearColors.primaryButtonMinimumSize,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    textStyle: BizClearColors.primaryButtonTextStyle,
                   ),
                 ),
               ),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
-                height: 54,
+                height: 40,
                 child: OutlinedButton.icon(
                   onPressed: () async {
                     final nav = Navigator.of(context);
-                    bool preFpEnabled = false;
-                    bool preFaceEnabled = false;
                     bool preAuthenticatorEnabled = false;
-                    String preFpEmail = '';
                     try {
                       GoogleAuthService.signOutAndReset();
                     } catch (_) {}
                     try {
                       final prefs = await SharedPreferences.getInstance();
-                      String targetEmail = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
-                      if (targetEmail.isEmpty) {
-                        targetEmail = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
+                      String targetEmail = (prefs.getString('lastLoginEmail') ?? '').trim().toLowerCase();
+                      if (targetEmail.isEmpty) targetEmail = widget.email;
+                      if (targetEmail.isNotEmpty) {
+                        final s = await MongoDBService.getMfaStatusDetail(email: targetEmail);
+                        final enabledMfa = s['success'] == true && s['enabled'] == true;
+                        final method = (s['method'] ?? '').toString().toLowerCase();
+                        if (enabledMfa && (method.contains('authenticator') || method.contains('totp') || method.contains('otp'))) {
+                          preAuthenticatorEnabled = true;
+                        }
                       }
-                      if (targetEmail.isEmpty) {
-                        targetEmail = widget.email;
-                      }
-                      final s = await MongoDBService.getMfaStatusDetail(email: targetEmail);
-                      preFpEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
-                      final enabledMfa = s['success'] == true && s['enabled'] == true;
-                      final method = (s['method'] ?? '').toString().toLowerCase();
-                      if (enabledMfa) {
-                        if (method.contains('face')) preFaceEnabled = true;
-                        if (method.contains('authenticator')) preAuthenticatorEnabled = true;
-                      }
-                      preFpEmail = targetEmail;
-                    } catch (_) {}
-                    try {
-                      final prefs = await SharedPreferences.getInstance();
                       await prefs.remove('loggedInEmail');
                       await prefs.setBool('disableAutoAuthenticatorOnce', true);
                     } catch (_) {}
@@ -393,9 +386,6 @@ class _DeletionScheduledPageState extends State<DeletionScheduledPage> {
                     nav.pushAndRemoveUntil(
                       MaterialPageRoute(
                         builder: (_) => LoginScreen(
-                          preFingerprintEnabled: preFpEnabled,
-                          preFingerprintEmail: preFpEmail,
-                          preFaceEnabled: preFaceEnabled,
                           preAuthenticatorEnabled: preAuthenticatorEnabled,
                         ),
                       ),
@@ -405,7 +395,7 @@ class _DeletionScheduledPageState extends State<DeletionScheduledPage> {
                   icon: const Icon(Icons.logout, size: 20),
                   label: const Text(
                     'Logout',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                   ),
                   style: OutlinedButton.styleFrom(
                     shape: RoundedRectangleBorder(
@@ -421,19 +411,19 @@ class _DeletionScheduledPageState extends State<DeletionScheduledPage> {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: BizClearColors.divider,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.help_outline, size: 20, color: Colors.grey.shade600),
+                    Icon(Icons.help_outline, size: 20, color: BizClearColors.textSecondary),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Need help? Contact support before the deletion date',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.grey.shade700,
+                          color: BizClearColors.textSecondary,
                           height: 1.4,
                         ),
                       ),

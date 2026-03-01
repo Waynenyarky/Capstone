@@ -242,9 +242,9 @@ const unifiedBusinessPermitSections = [
         placeholder: 'Enter business name',
         validation: { minLength: 2, maxLength: 200 },
       }),
-      item('Business address', 'address', {
+      item('Business address', 'address_alaminos', {
         key: 'businessAddress',
-        helpText: 'Physical location of the business',
+        helpText: 'Physical location of the business (Alaminos City)',
       }),
       item('Business telephone / mobile number', 'text', {
         key: 'businessPhone',
@@ -313,53 +313,15 @@ const unifiedBusinessPermitSections = [
     ],
   },
   {
-    category: 'Business Activity',
+    category: 'Line of Business (AI)',
     source: 'BPLO',
-    notes: 'Tax code, line of business, and detailed line of business. These determine the fees the business must pay. Add one row per business activity.',
+    notes: 'Describe what your business sells or does, then click Analyze to get suggestions. You may answer in Filipino or English.',
     items: [
-      item('Business activities', 'repeatable_group', {
-        key: 'businessActivities',
-        helpText: 'Add one row for each business activity. Click "Add row" to add more.',
-        groupFields: [
-          {
-            label: 'Tax code',
-            type: 'select',
-            key: 'taxCode',
-            required: true,
-            placeholder: 'Select tax code',
-            helpText: 'Each code corresponds to a line of business category',
-            span: 8,
-            validation: {},
-            dropdownSource: 'static',
-            dropdownOptions: ['RET', 'WHL', 'FDS', 'MFG', 'SVC', 'FIN', 'RES', 'TRN', 'AGR', 'CON', 'MIN', 'UTL'],
-          },
-          {
-            label: 'Line of business',
-            type: 'select',
-            key: 'lineOfBusiness',
-            required: true,
-            placeholder: 'Select line of business',
-            helpText: 'The broad business category',
-            span: 8,
-            validation: {},
-            dropdownSource: 'static',
-            dropdownOptions: ['Retail', 'Wholesale', 'Food Service', 'Manufacturing', 'Services', 'Financial', 'Real Estate', 'Transportation', 'Agriculture', 'Construction', 'Mining', 'Utilities'],
-          },
-          {
-            label: 'Detailed line of business',
-            type: 'select',
-            key: 'detailedLineOfBusiness',
-            required: true,
-            placeholder: 'Select detailed activity',
-            helpText: 'e.g. Sari-sari store, Restaurant, Salon',
-            span: 8,
-            validation: {},
-            dropdownSource: 'static',
-            dropdownOptions: [],
-          },
-        ],
-        minRows: 1,
-        maxRows: 20,
+      item('What does your business sell or do?', 'ai_lob_recommendation', {
+        key: 'aiLobRecommendation',
+        helpText: '',
+        placeholder: 'e.g. Sari-sari store selling groceries and snacks / Nagtitinda ako ng pagkain at groceries sa maliit kong tindahan',
+        validation: { minLength: 10, maxLength: 1000 },
       }),
     ],
   },
@@ -391,10 +353,10 @@ const unifiedBusinessPermitSections = [
         validation: { maxLength: 200 },
         span: 12,
       }),
-      item('Lessor address', 'address', {
+      item('Lessor address', 'address_alaminos', {
         key: 'lessorAddress',
         required: false,
-        helpText: 'Address of the lessor / property owner (required if leased)',
+        helpText: 'Address of the lessor / property owner (Alaminos City, required if leased)',
       }),
     ],
   },
@@ -580,9 +542,9 @@ const generalPermitSections = [
         placeholder: 'Enter name of business or activity',
         validation: { minLength: 2, maxLength: 200 },
       }),
-      item('Location of activity', 'address', {
+      item('Location of activity', 'address_alaminos', {
         key: 'activityLocation',
-        helpText: 'Where the business activity or stall will be located',
+        helpText: 'Where the business activity or stall will be located (Alaminos City)',
       }),
       item('Duration of activity', 'text', {
         key: 'activityDuration',
@@ -778,13 +740,6 @@ const occupationalPermitSections = [
         key: 'distinctiveMark',
         required: false,
         placeholder: 'Visible identifying mark if any',
-        validation: { maxLength: 200 },
-        span: 12,
-      }),
-      item('Spouse Name', 'text', {
-        key: 'spouseName',
-        required: false,
-        placeholder: 'Full name of spouse',
         validation: { maxLength: 200 },
         span: 12,
       }),

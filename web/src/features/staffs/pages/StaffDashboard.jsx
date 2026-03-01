@@ -9,8 +9,10 @@ import PlaceholderPage from '@/features/shared/pages/PlaceholderPage.jsx'
 
 export default function StaffDashboard() {
   const { role, currentUser } = useAuthSession()
+  const bypassMfaDev = import.meta.env.VITE_BYPASS_MFA_DEV === 'true'
+  const mustSetupMfaEffective = bypassMfaDev ? false : !!currentUser?.mustSetupMfa
 
-  if (currentUser?.mustChangeCredentials || currentUser?.mustSetupMfa) {
+  if (currentUser?.mustChangeCredentials || mustSetupMfaEffective) {
     return <Navigate to="/staff/onboarding" replace />
   }
 

@@ -13,6 +13,8 @@ const BusinessProfile = require('../../models/BusinessProfile')
 const { createChecklistFromTemplate } = require('../../data/inspectionChecklistTemplate')
 const blockchainQueue = require('../../lib/blockchainQueue')
 const crypto = require('crypto')
+const { scanFile } = require('../../../../../shared/fileScan')
+const { logAuditEvent } = require('../../lib/auditClient')
 
 const GPS_MISMATCH_THRESHOLD_METERS = Number(process.env.GPS_MISMATCH_THRESHOLD_METERS || 500)
 
@@ -377,6 +379,7 @@ router.post('/:id/violations', requireJwt, requireRole(['inspector']), async (re
     await violation.save()
 
     blockchainQueue.queueBlockchainOperation('logAuditHash', [hash, 'violation_issued'])
+    logAuditEvent('violation_issued', req._userId, 'Violation', violation._id.toString(), { violationId, inspectionId: id, severity })
 
     return res.status(201).json({ success: true, violation })
   } catch (err) {
@@ -401,6 +404,12 @@ router.post(
       const { type = 'photo', metadata = {} } = req.body || {}
 
       if (!file) return respond.error(res, 400, 'no_file', 'No file uploaded')
+
+      const scanResult = await scanFile(file.path)
+      if (!scanResult.clean) {
+        try { await fs.promises.unlink(file.path) } catch (_) {}
+        return respond.error(res, 400, 'file_rejected', 'File could not be accepted. Please try a different file.')
+      }
 
       const inspection = await Inspection.findOne({ _id: id, inspectorId })
       if (!inspection) return respond.error(res, 404, 'not_found', 'Inspection not found')
@@ -476,6 +485,7 @@ router.post('/:id/submit', requireJwt, requireRole(['inspector']), async (req, r
     await inspection.save()
 
     blockchainQueue.queueBlockchainOperation('logAuditHash', [hash, 'inspection_submitted'])
+    logAuditEvent('inspection_completed', req._userId, 'Inspection', inspection._id.toString(), { overallResult, businessId: inspection.businessId })
 
     return res.json({ success: true, inspection })
   } catch (err) {

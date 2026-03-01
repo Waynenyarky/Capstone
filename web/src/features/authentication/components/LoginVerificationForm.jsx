@@ -1,4 +1,5 @@
-import { Form, Button, Card, Flex, Typography, Input, theme, Grid } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Button, Flex, Typography, Input, theme, Grid } from 'antd'
 import { useLoginVerificationForm, useResendLoginCode } from "@/features/authentication/hooks"
 import React from 'react'
 import useOtpCountdown from '@/features/authentication/hooks/useOtpCountdown.js'
@@ -20,30 +21,15 @@ export default function LoginVerificationForm({ email, onSubmit, title, otpExpir
   }
 
   return (
-    <Card 
-      variant="borderless"
-      style={{ 
-        maxWidth: 480, 
-        margin: '0 auto', 
-        width: '100%',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-        borderRadius: 16
-      }}
-      styles={{ body: { padding: isMobile ? 24 : 40 } }}
-    >
+    <div style={{ width: '100%', maxWidth: 480, margin: '0 auto' }}>
       <div style={{ textAlign: 'center', marginBottom: isMobile ? 24 : 32 }}>
-        <Title level={isMobile ? 4 : 3}>{cardTitle}</Title>
-        <Text type="secondary">
-          Please enter the 6-digit code sent to <br/><Text strong style={{ color: token.colorPrimary }}>{email}</Text>
-        </Text>
-        {devCode && import.meta.env.VITE_DEMO_UI !== 'true' && (
-          <Paragraph style={{ marginTop: 16, marginBottom: 0, padding: '12px 16px', background: token.colorFillQuaternary, borderRadius: 8, fontFamily: 'monospace', fontSize: 18, fontWeight: 600 }}>
-            Development: your code is <Text copyable={{ text: devCode }}>{devCode}</Text>
-          </Paragraph>
-        )}
+        <Title level={isMobile ? 4 : 3} style={{ marginBottom: isMobile ? 6 : 8 }}>{cardTitle}</Title>
+        <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+          Please enter the 6-digit code sent to <br/><Text strong>{email}</Text>
+        </Paragraph>
       </div>
 
-      <Form name="loginVerification" form={form} layout="vertical" onFinish={handleFinish} size="default">
+      <Form name="loginVerification" form={form} layout="vertical" onFinish={handleFinish}>
         <Form.Item 
           name="verificationCode" 
           rules={[
@@ -51,37 +37,28 @@ export default function LoginVerificationForm({ email, onSubmit, title, otpExpir
           ]}
           style={{ marginBottom: 32 }}
         >
-          <div style={{ maxWidth: 320, margin: '0 auto' }}>
-            <Input.OTP 
-              size="large" 
-              length={6} 
-              style={{ width: '100%', justifyContent: 'center', gap: 8 }}
-              inputType="numeric"
-              mask={false}
-              onChange={(value) => {
-                // Input.OTP already handles numeric input, just ensure it's set in form
-                form.setFieldsValue({ verificationCode: value })
-              }}
-              onKeyDown={(e) => {
-                // Allow: backspace, delete, tab, escape, enter, arrows, home, end
-                const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
-                if (allowedKeys.includes(e.key)) return
-                
-                // Allow Ctrl/Cmd + A, C, V, X
-                if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
-                
-                // Block any non-numeric key
-                if (!/^[0-9]$/.test(e.key)) {
-                  e.preventDefault()
-                  e.stopPropagation()
-                }
-              }}
-            />
-          </div>
+          <Input.OTP 
+            length={6} 
+            style={{ width: '100%', justifyContent: 'center' }}
+            inputType="numeric"
+            mask={false}
+            onChange={(value) => {
+              form.setFieldsValue({ verificationCode: value })
+            }}
+            onKeyDown={(e) => {
+              const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
+              if (allowedKeys.includes(e.key)) return
+              if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
+              if (!/^[0-9]$/.test(e.key)) {
+                e.preventDefault()
+                e.stopPropagation()
+              }
+            }}
+          />
         </Form.Item>
 
         <Flex vertical gap="middle">
-          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block>
+          <Button type="primary" htmlType="submit" block size="default" loading={isSubmitting} disabled={isSubmitting}>
             Verify
           </Button>
 
@@ -96,19 +73,20 @@ export default function LoginVerificationForm({ email, onSubmit, title, otpExpir
               onClick={handleResend} 
               loading={isResending} 
               disabled={isCooling || isResending}
-              style={{ padding: 0, height: 'auto' }}
+              style={{ padding: 0, height: 'auto', fontSize: 13 }}
             >
               {isCooling ? `Resend available in ${remaining}s` : 'Resend Code'}
             </Button>
           </Flex>
 
           {devCode && import.meta.env.VITE_DEMO_UI !== 'true' && (
-            <Button type="dashed" onClick={prefillDevCode} block>
+            <Button type="dashed" onClick={prefillDevCode} block size="default" >
               Prefill Code (Dev: {devCode})
             </Button>
           )}
+          
         </Flex>
       </Form>
-    </Card>
+    </div>
   )
 }

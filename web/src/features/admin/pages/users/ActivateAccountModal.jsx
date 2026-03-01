@@ -1,5 +1,6 @@
 import React from 'react'
-import { Modal, Form, Input, Select } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Modal, Input, Select } from 'antd'
 
 const REASON_OPTIONS = [
   { value: 'return_from_leave', label: 'Return from leave' },

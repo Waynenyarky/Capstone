@@ -13,6 +13,175 @@ if (process.env.NODE_ENV !== 'test') {
 
 const router = express.Router()
 
+/**
+ * Middleware: require internal API key for server-to-server incident creation.
+ * Expects X-Internal-API-Key header to match ADMIN_SERVICE_INTERNAL_API_KEY (or skip in test if not set).
+ */
+function requireInternalApiKey(req, res, next) {
+  const key = req.get('X-Internal-API-Key') || (req.headers.authorization && req.headers.authorization.replace(/^Bearer\s+/i, ''))
+  const expected = process.env.ADMIN_SERVICE_INTERNAL_API_KEY
+  if (!expected) {
+    // In test or when not configured, allow if no key is required (optional security)
+    return next()
+  }
+  if (key !== expected) {
+    return respond.error(res, 401, 'invalid_internal_key', 'Invalid or missing internal API key')
+  }
+  next()
+}
+
+// POST /api/admin/tamper/incidents — internal: create security incident (e.g. staff/admin forgot-password, audit tamper from audit-service)
+router.post('/incidents', requireInternalApiKey, async (req, res) => {
+  try {
+    const body = req.body || {}
+    const eventType = body.eventType
+
+    if (eventType === 'staff_or_admin_forgot_password_attempted') {
+      const { userId, userEmail, roleSlug, ipAddress, userAgent } = body
+      if (!userId || !userEmail) {
+        return respond.error(res, 400, 'validation_error', 'userId and userEmail are required')
+      }
+
+      const message = `Staff or admin forgot-password attempt: ${userEmail} (${roleSlug || 'unknown'}). This account type cannot use the public forgot-password flow. Admins have been notified.`
+      const now = new Date()
+      const affectedUserId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : null
+
+      const incident = await TamperIncident.create({
+        status: 'new',
+        severity: 'medium',
+        verificationStatus: 'security_event',
+        message,
+        affectedUserIds: affectedUserId ? [affectedUserId] : [],
+        auditLogIds: [],
+        containmentActive: false,
+        detectedAt: now,
+        lastSeenAt: now,
+        verificationPayload: {
+          eventType,
+          userId: String(userId),
+          userEmail,
+          roleSlug: roleSlug || '',
+          ipAddress: ipAddress || '',
+          userAgent: userAgent || '',
+        },
+        verificationEvents: [
+          { at: now, payload: { eventType, userEmail, roleSlug } },
+        ],
+      })
+
+      logger.info('Security incident created (staff/admin forgot-password attempt)', {
+        incidentId: String(incident._id),
+        userEmail,
+        roleSlug,
+      })
+
+      return res.status(201).json({
+        success: true,
+        incident: {
+          id: String(incident._id),
+          status: incident.status,
+          severity: incident.severity,
+          verificationStatus: incident.verificationStatus,
+          message: incident.message,
+        },
+      })
+    }
+
+    if (eventType === 'audit_tamper_detected') {
+      const {
+        auditLogId,
+        userId,
+        verificationStatus,
+        message,
+        severity,
+        verification,
+        hash,
+        txHash,
+        blockNumber,
+      } = body
+
+      if (!auditLogId || !userId) {
+        return respond.error(res, 400, 'validation_error', 'auditLogId and userId are required for audit_tamper_detected')
+      }
+
+      const validStatuses = ['tamper_detected', 'verification_error', 'not_logged']
+      const status = validStatuses.includes(verificationStatus) ? verificationStatus : 'verification_error'
+      const sev = severity === 'high' || severity === 'medium' ? severity : status === 'tamper_detected' ? 'high' : 'medium'
+      const now = new Date()
+      const auditLogObjId = mongoose.Types.ObjectId.isValid(auditLogId) ? new mongoose.Types.ObjectId(auditLogId) : null
+      const affectedUserId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : null
+
+      const payload = {
+        auditLogId: String(auditLogId),
+        userId: String(userId),
+        hash: hash || '',
+        txHash: txHash || '',
+        blockNumber: blockNumber ?? null,
+        verification: verification || {},
+      }
+
+      let incident = await TamperIncident.findOne({
+        auditLogIds: { $in: [auditLogObjId || auditLogId] },
+        status: { $ne: 'resolved' },
+      })
+
+      if (!incident) {
+        incident = await TamperIncident.create({
+          status: 'new',
+          severity: sev,
+          verificationStatus: status,
+          message: message || (verification && verification.error) || 'Audit log integrity issue detected',
+          containmentActive: status === 'tamper_detected',
+          lastSeenAt: now,
+          detectedAt: now,
+          verificationPayload: payload,
+          affectedUserIds: affectedUserId ? [affectedUserId] : [],
+          auditLogIds: auditLogObjId ? [auditLogObjId] : [],
+          verificationEvents: [{ at: now, payload }],
+        })
+      } else {
+        incident.severity = sev
+        incident.verificationStatus = status
+        incident.message = message || incident.message
+        incident.containmentActive = status === 'tamper_detected'
+        incident.lastSeenAt = now
+        incident.verificationPayload = payload
+        if (affectedUserId && !incident.affectedUserIds.map(String).includes(String(affectedUserId))) {
+          incident.affectedUserIds.push(affectedUserId)
+        }
+        if (auditLogObjId && !incident.auditLogIds.map(String).includes(String(auditLogObjId))) {
+          incident.auditLogIds.push(auditLogObjId)
+        }
+        incident.verificationEvents = incident.verificationEvents || []
+        incident.verificationEvents.push({ at: now, payload })
+        await incident.save()
+      }
+
+      logger.info('Security incident created/updated (audit tamper detected)', {
+        incidentId: String(incident._id),
+        auditLogId: String(auditLogId),
+        verificationStatus: status,
+      })
+
+      return res.status(201).json({
+        success: true,
+        incident: {
+          id: String(incident._id),
+          status: incident.status,
+          severity: incident.severity,
+          verificationStatus: incident.verificationStatus,
+          message: incident.message,
+        },
+      })
+    }
+
+    return respond.error(res, 400, 'unsupported_event_type', 'Unsupported event type for incident creation')
+  } catch (error) {
+    logger.error('Failed to create security incident', { error })
+    return respond.error(res, 500, 'incident_create_failed', 'Failed to create incident')
+  }
+})
+
 // GET /api/admin/tamper/incidents
 router.get('/incidents', requireJwt, requireRole(['admin']), async (req, res) => {
   try {
@@ -220,6 +389,25 @@ router.post('/incidents/:id/resolve', requireJwt, requireRole(['admin']), requir
   } catch (error) {
     logger.error('Failed to resolve tamper incident', { error })
     return respond.error(res, 500, 'tamper_incident_resolve_failed', 'Failed to resolve incident')
+  }
+})
+
+/**
+ * GET /api/admin/tamper/incidents/contained-users
+ * Returns all user IDs under active containment (for inter-service containment checks)
+ */
+router.get('/incidents/contained-users', async (req, res) => {
+  try {
+    const incidents = await TamperIncident.find({
+      containmentActive: true,
+      status: { $ne: 'resolved' },
+    }).select('affectedUserIds').lean()
+
+    const userIds = [...new Set(incidents.flatMap(i => (i.affectedUserIds || []).map(String)))]
+    return res.json({ userIds })
+  } catch (error) {
+    logger.error('Failed to fetch contained users', { error })
+    return res.json({ userIds: [] })
   }
 })
 

@@ -1,9 +1,9 @@
 import React from 'react'
-import { Typography, Card, Row, Col, Button, Tooltip, ColorPicker, Grid } from 'antd'
+import { Typography, Row, Col, Button, Tooltip, ColorPicker, Grid, Space } from 'antd'
 import { theme } from 'antd'
-import { BgColorsOutlined, CheckCircleFilled } from '@ant-design/icons'
+import { CheckCircleFilled } from '@ant-design/icons'
 
-const { Title, Text } = Typography
+const { Title, Text, Paragraph } = Typography
 
 export default function ThemeTabContent({
   themeOptions,
@@ -21,56 +21,33 @@ export default function ThemeTabContent({
 }) {
   const { token } = theme.useToken()
   const screens = Grid.useBreakpoint()
+  const padding = screens.xs ? 16 : 24
 
   return (
-    <Card
-      style={{
-        border: `1px solid ${token.colorBorderSecondary}`,
-        borderRadius: token.borderRadiusLG,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-      }}
-      styles={{ body: { padding: screens.xs ? 16 : 24 } }}
-    >
-      <div style={{ display: 'flex', flexDirection: screens.xs ? 'column' : 'row', justifyContent: 'space-between', alignItems: screens.xs ? 'flex-start' : 'center', gap: screens.xs ? 16 : 0, marginBottom: 24 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            <div
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: token.borderRadius,
-                background: `linear-gradient(135deg, ${token.colorPrimary}20, ${token.colorPrimary}10)`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: `1px solid ${token.colorPrimary}30`,
-              }}
-            >
-              <BgColorsOutlined style={{ fontSize: 24, color: token.colorPrimary }} />
-            </div>
-            <div>
-              <Title level={4} style={{ margin: 0, marginBottom: 4 }}>Customize Theme</Title>
-              <Text type="secondary" style={{ fontSize: 14 }}>
-                Personalize your application appearance
-              </Text>
-            </div>
+    <div style={{ width: '100%', height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
+          <div>
+            <Title level={4} style={{ marginBottom: 4 }}>Theme</Title>
+            <Paragraph type="secondary" style={{ margin: 0 }}>
+              Personalize your application appearance. Choose a base theme and primary color, then apply changes.
+            </Paragraph>
           </div>
+          <Space wrap>
+            <Button type="primary" onClick={onApplyTheme}>
+              Apply Changes
+            </Button>
+          </Space>
         </div>
-        <Button
-          type="primary"
-          size="large"
-          onClick={onApplyTheme}
-          style={{
-            minWidth: screens.xs ? '100%' : 140,
-            height: 40,
-            fontWeight: 500,
-            boxShadow: `0 2px 8px ${token.colorPrimary}30`,
-          }}
-        >
-          Apply Changes
-        </Button>
       </div>
-
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflow: 'auto',
+          padding,
+        }}
+      >
       <div style={{ marginBottom: 32 }}>
         <div style={{ marginBottom: 20 }}>
           <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>Choose Theme</Text>
@@ -284,13 +261,13 @@ export default function ThemeTabContent({
                 showText
                 disabledAlpha
                 trigger="click"
-                size="large"
                 format="hex"
               />
             </div>
           </div>
         </div>
       </div>
-    </Card>
+      </div>
+    </div>
   )
 }

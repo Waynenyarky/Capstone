@@ -9,27 +9,29 @@ To send real OTP emails during signup, you need to configure email settings in y
 Add these to your `backend/.env` file (or `backend/services/auth-service/.env` if using microservices):
 
 ```bash
-# Email Provider Configuration
+# Email Provider Configuration (default: Resend)
 EMAIL_API_KEY=your_api_key_here
-EMAIL_API_PROVIDER=sendgrid
+EMAIL_API_PROVIDER=resend
 DEFAULT_FROM_EMAIL=noreply@yourdomain.com
 ```
 
 ### Supported Email Providers
 
-1. **SendGrid** (Recommended - Free tier available)
+1. **Resend** (Default – simple API, good deliverability)
+   - Get API key: https://resend.com/api-keys
+   - **No domain?** Use `DEFAULT_FROM_EMAIL=onboarding@resend.dev` — no verification needed; you can send to any email.
+   - With your own domain: verify it at https://resend.com/domains
+   - Example: `EMAIL_API_PROVIDER=resend`
+
+2. **SendGrid**
    - Get API key: https://app.sendgrid.com/settings/api_keys
    - Verify sender email: Settings → Sender Authentication
    - Example: `EMAIL_API_PROVIDER=sendgrid`
 
-2. **Mailgun**
+3. **Mailgun**
    - Get API key: https://app.mailgun.com/app/api_keys
    - Set domain: `MAILGUN_DOMAIN=yourdomain.com`
    - Example: `EMAIL_API_PROVIDER=mailgun`
-
-3. **Resend**
-   - Get API key: https://resend.com/api-keys
-   - Example: `EMAIL_API_PROVIDER=resend`
 
 4. **Postmark**
    - Get API token: https://account.postmarkapp.com/api_tokens
@@ -80,12 +82,17 @@ USE_MOCK_EMAILS=false
 - Verify sender email is verified with provider
 - Check provider status page for outages
 
-### Example .env Configuration
+**Problem: Resend 403 "You can only send testing emails to your own email address"**
+- When using `DEFAULT_FROM_EMAIL=onboarding@resend.dev` (no verified domain), Resend only allows sending **to** the email address on your Resend account. Use that address when testing (e.g. `node backend/scripts/test-sendgrid.js your@resend-account-email.com`).
+- To send to any recipient (e.g. signup OTPs to users): verify a domain at [resend.com/domains](https://resend.com/domains) and set `DEFAULT_FROM_EMAIL` to an address on that domain (e.g. `noreply@yourdomain.com`).
+- **Dev workaround:** Set `EMAIL_DEV_REDIRECT_TO` in `.env` to your Resend account email (e.g. `stephendiaz.syv@gmail.com`). All outgoing emails (OTPs, password reset, etc.) will be delivered to that address instead of the requested recipient, so you can use Resend with `onboarding@resend.dev` and still receive dev emails for any user (Mailinator, seeded accounts, etc.). Logs will show "dev redirect" with the original recipient.
+
+### Example .env Configuration (Resend)
 
 ```bash
 # Email Configuration
-EMAIL_API_KEY=SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-EMAIL_API_PROVIDER=sendgrid
+EMAIL_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+EMAIL_API_PROVIDER=resend
 DEFAULT_FROM_EMAIL=noreply@yourdomain.com
 
 # Optional: Disable mock emails in development

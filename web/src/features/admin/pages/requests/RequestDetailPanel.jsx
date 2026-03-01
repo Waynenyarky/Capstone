@@ -210,10 +210,10 @@ export default function RequestDetailPanel({ approval, loading, onRefresh }) {
         {canVote && (
           <Space style={{ marginTop: 16 }}>
             <Button type="primary" icon={<CheckCircleOutlined />} onClick={handleApproveClick}>
-              Approve
+              Approve Request
             </Button>
             <Button danger icon={<CloseCircleOutlined />} onClick={handleDenyClick}>
-              Deny
+              Reject Request
             </Button>
           </Space>
         )}
@@ -225,7 +225,7 @@ export default function RequestDetailPanel({ approval, loading, onRefresh }) {
         onCancel={() => !submitting && setActionModalOpen(false)}
         onOk={handleActionSubmit}
         confirmLoading={submitting}
-        okText={actionApproved ? 'Approve' : 'Deny'}
+        okText={actionApproved ? 'Approve Request' : 'Reject Request'}
         okButtonProps={actionApproved ? {} : { danger: true }}
       >
         <div style={{ marginBottom: 8 }}>

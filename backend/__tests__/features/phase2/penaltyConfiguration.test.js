@@ -13,13 +13,24 @@ beforeAll(async () => {
   process.env.NODE_ENV = 'test'
   process.env.JWT_SECRET = 'test-secret'
   mongoServer = await MongoMemoryServer.create()
-  await mongoose.connect(mongoServer.getUri())
+  const uri = mongoServer.getUri()
+  await mongoose.connect(uri)
+
+  // Admin-service has its own node_modules/mongoose — connect it too
+  const adminMongoose = require('../../../services/admin-service/src/models/Role').base
+  if (adminMongoose !== mongoose && adminMongoose.connection.readyState === 0) {
+    await adminMongoose.connect(uri)
+  }
 
   const adminService = require('../../../services/admin-service/src/index')
   app = adminService.app
 })
 
 afterAll(async () => {
+  const adminMongoose = require('../../../services/admin-service/src/models/Role').base
+  if (adminMongoose !== mongoose) {
+    await adminMongoose.disconnect().catch(() => {})
+  }
   await mongoose.disconnect()
   await mongoServer.stop()
 })
@@ -28,6 +39,7 @@ const PenaltyConfiguration = require('../../../services/admin-service/src/models
 const User = require('../../../services/admin-service/src/models/User')
 const Role = require('../../../services/admin-service/src/models/Role')
 const { signAccessToken } = require('../../../services/admin-service/src/middleware/auth')
+const { signStepUpToken } = require('../../../services/auth-service/src/middleware/auth')
 
 let adminToken, ownerToken, adminId
 
@@ -83,11 +95,15 @@ describe('Penalty Configuration (2O)', () => {
 
   // ── Happy Paths ──
 
+  function adminReq(method, path) {
+    return request(app)[method](path)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .set('X-Step-Up-Token', signStepUpToken(adminId).token)
+  }
+
   describe('UC-2O-1: Admin creates penalty config', () => {
     it('should create new penalty configuration', async () => {
-      const res = await request(app)
-        .post('/api/admin/penalty-configuration')
-        .set('Authorization', `Bearer ${adminToken}`)
+      const res = await adminReq('post', '/api/admin/penalty-configuration')
         .send({
           surchargePercentage: 30,
           monthlyInterestRate: 3,
@@ -112,9 +128,7 @@ describe('Penalty Configuration (2O)', () => {
         isActive: true,
       })
 
-      const res = await request(app)
-        .put(`/api/admin/penalty-configuration/${config._id}`)
-        .set('Authorization', `Bearer ${adminToken}`)
+      const res = await adminReq('put', `/api/admin/penalty-configuration/${config._id}`)
         .send({ surchargePercentage: 30 })
 
       expect(res.status).toBe(200)
@@ -132,9 +146,7 @@ describe('Penalty Configuration (2O)', () => {
         isActive: true,
       })
 
-      const res = await request(app)
-        .post('/api/admin/penalty-configuration/reset')
-        .set('Authorization', `Bearer ${adminToken}`)
+      const res = await adminReq('post', '/api/admin/penalty-configuration/reset')
 
       expect(res.status).toBe(200)
       expect(res.body.data.surchargePercentage).toBe(25)
@@ -209,9 +221,7 @@ describe('Penalty Configuration (2O)', () => {
         isActive: true,
       })
 
-      const res = await request(app)
-        .put(`/api/admin/penalty-configuration/${config._id}`)
-        .set('Authorization', `Bearer ${adminToken}`)
+      const res = await adminReq('put', `/api/admin/penalty-configuration/${config._id}`)
         .send({ isActive: false })
 
       expect(res.status).toBe(400)
@@ -235,9 +245,7 @@ describe('Penalty Configuration (2O)', () => {
         isActive: true,
       })
 
-      const res = await request(app)
-        .put(`/api/admin/penalty-configuration/${config1._id}`)
-        .set('Authorization', `Bearer ${adminToken}`)
+      const res = await adminReq('put', `/api/admin/penalty-configuration/${config1._id}`)
         .send({ isActive: false })
 
       expect(res.status).toBe(200)
@@ -247,9 +255,7 @@ describe('Penalty Configuration (2O)', () => {
 
   describe('UC-2O-5: penaltyStartDay validation', () => {
     it('should reject penaltyStartDay < 1', async () => {
-      const res = await request(app)
-        .post('/api/admin/penalty-configuration')
-        .set('Authorization', `Bearer ${adminToken}`)
+      const res = await adminReq('post', '/api/admin/penalty-configuration')
         .send({
           surchargePercentage: 25,
           monthlyInterestRate: 2,
@@ -261,9 +267,7 @@ describe('Penalty Configuration (2O)', () => {
     })
 
     it('should reject penaltyStartDay > 31', async () => {
-      const res = await request(app)
-        .post('/api/admin/penalty-configuration')
-        .set('Authorization', `Bearer ${adminToken}`)
+      const res = await adminReq('post', '/api/admin/penalty-configuration')
         .send({
           surchargePercentage: 25,
           monthlyInterestRate: 2,
@@ -275,9 +279,7 @@ describe('Penalty Configuration (2O)', () => {
     })
 
     it('should warn when penaltyStartDay is 31 (February issue)', async () => {
-      const res = await request(app)
-        .post('/api/admin/penalty-configuration')
-        .set('Authorization', `Bearer ${adminToken}`)
+      const res = await adminReq('post', '/api/admin/penalty-configuration')
         .send({
           surchargePercentage: 25,
           monthlyInterestRate: 2,
@@ -308,9 +310,7 @@ describe('Penalty Configuration (2O)', () => {
   describe('Not found', () => {
     it('should return 404 for non-existent config on update', async () => {
       const fakeId = new mongoose.Types.ObjectId()
-      const res = await request(app)
-        .put(`/api/admin/penalty-configuration/${fakeId}`)
-        .set('Authorization', `Bearer ${adminToken}`)
+      const res = await adminReq('put', `/api/admin/penalty-configuration/${fakeId}`)
         .send({ surchargePercentage: 50 })
 
       expect(res.status).toBe(404)

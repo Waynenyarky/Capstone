@@ -12,49 +12,6 @@ const AuditLogSchema = new mongoose.Schema(
     eventType: {
       type: String,
       required: true,
-      enum: [
-        'profile_update',
-        'email_change',
-        'password_change',
-        'admin_approval',
-        'admin_approval_request',
-        'admin_approval_approved',
-        'admin_approval_rejected',
-        'contact_update',
-        'name_update',
-        'id_update',
-        'id_upload',
-        'id_upload_reverted',
-        'terms_accepted',
-        'mfa_enabled',
-        'mfa_disabled',
-        'session_invalidated',
-        'email_change_reverted',
-        'restricted_field_attempt',
-        'account_lockout',
-        'account_unlock',
-        'security_event',
-        'error_critical',
-        'maintenance_mode',
-        // Account recovery events
-        'account_recovery_initiated',
-        'account_recovery_completed',
-        'temporary_credentials_issued',
-        'temporary_credentials_used',
-        'temporary_credentials_expired',
-        // Account deletion events
-        'account_deletion_requested',
-        'account_deletion_approved',
-        'account_deletion_denied',
-        'account_deletion_scheduled',
-        'account_deletion_undone',
-        'account_deletion_finalized',
-        'admin_deletion_requested',
-        'admin_deletion_approved',
-        'admin_deletion_denied',
-        // Session events
-        'session_timeout',
-      ],
       index: true,
     },
     fieldChanged: {
@@ -123,10 +80,17 @@ const AuditLogSchema = new mongoose.Schema(
       default: {},
       // Additional context: IP address, user agent, approval IDs, etc.
     },
+    blockchainStatus: {
+      type: String,
+      enum: ['pending', 'anchored', 'failed', 'skipped'],
+      default: 'pending',
+      index: true,
+    },
+    blockchainError: { type: String, default: '' },
+    blockchainRetries: { type: Number, default: 0 },
     verified: {
       type: Boolean,
       default: false,
-      // Whether this log has been verified against blockchain
     },
     verifiedAt: {
       type: Date,

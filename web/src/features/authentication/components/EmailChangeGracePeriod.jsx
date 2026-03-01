@@ -2,14 +2,15 @@ import { useState, useEffect } from 'react'
 import { Card, Button, Typography, Space, Alert, Statistic, theme } from 'antd'
 import { ClockCircleOutlined, UndoOutlined, CheckCircleOutlined, WarningOutlined } from '@ant-design/icons'
 import { getEmailChangeStatus, revertEmailChange } from '@/features/authentication/services/authService.js'
-import { useNotifier } from '@/shared/notifications.js'
+import { useAuthNotification, useNotifier } from '@/shared/notifications.js'
 import { useAuthSession } from '@/features/authentication'
 
 const { Title, Text, Paragraph } = Typography
 
 export default function EmailChangeGracePeriod({ onReverted } = {}) {
   const { token } = theme.useToken()
-  const { success, error } = useNotifier()
+  const { notificationSuccess } = useAuthNotification()
+  const { error } = useNotifier()
   const { login, currentUser } = useAuthSession()
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -84,7 +85,7 @@ export default function EmailChangeGracePeriod({ onReverted } = {}) {
     try {
       setReverting(true)
       const data = await revertEmailChange()
-      success('Email change has been reverted successfully')
+      notificationSuccess('Email change reverted', 'Your email has been reverted successfully.')
       
       // Update user session
       if (data?.user) {

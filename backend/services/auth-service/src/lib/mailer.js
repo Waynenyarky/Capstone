@@ -4,7 +4,7 @@ const logger = require('./logger')
 /**
  * Email API Service - REST API Implementation
  * Supports multiple providers: SendGrid, Mailgun, AWS SES, Resend, Postmark
- * Default: SendGrid (recommended for capstone)
+ * Default: Resend
  */
 
 // Helper function to create mock email sender (for development)
@@ -34,31 +34,41 @@ function createMockEmailSender() {
  * @returns {Promise<object>} Result with success, messageId, accepted, rejected
  */
 async function sendEmailViaAPI({ to, from, subject, text, html, headers = {} }) {
-  const provider = process.env.EMAIL_API_PROVIDER || 'sendgrid'
+  const provider = process.env.EMAIL_API_PROVIDER || 'resend'
   const apiKey = process.env.EMAIL_API_KEY
   const apiUrl = process.env.EMAIL_API_URL
 
+  // Dev redirect: send all emails to one address (e.g. your Resend account email) so you can
+  // use Resend with onboarding@resend.dev and still receive OTPs for any dev user (Mailinator, etc.).
+  const devRedirectTo = process.env.EMAIL_DEV_REDIRECT_TO
+  let actualTo = to
+  if (devRedirectTo && devRedirectTo.includes('@')) {
+    logger.info('Email: dev redirect active', { originalTo: to, redirectTo: devRedirectTo })
+    actualTo = devRedirectTo.trim()
+  }
+
   // No API key: use mock in all modes (dev, demo-ui, demo, production) so the app never breaks.
-  // To receive real emails in any mode, set EMAIL_API_KEY in .env (e.g. SendGrid).
-  if (!apiKey || apiKey === 'your-sendgrid-api-key-here') {
+  // To receive real emails in any mode, set EMAIL_API_KEY in .env (e.g. Resend, SendGrid).
+  const placeholderKeys = ['your-sendgrid-api-key-here', 'your-email-api-key-here', 'your-resend-api-key-here']
+  if (!apiKey || placeholderKeys.some(p => apiKey === p)) {
     logger.warn('Email API key not set or placeholder. Using mock sender (code in logs/UI only).')
     const mockSender = createMockEmailSender()
-    return await mockSender({ to, subject, text, html })
+    return await mockSender({ to: actualTo, subject, text, html })
   }
 
   try {
     switch (provider.toLowerCase()) {
       case 'sendgrid':
-        return await sendViaSendGrid({ to, from, subject, text, html, headers, apiKey, apiUrl })
+        return await sendViaSendGrid({ to: actualTo, from, subject, text, html, headers, apiKey, apiUrl })
       case 'mailgun':
-        return await sendViaMailgun({ to, from, subject, text, html, headers, apiKey, apiUrl })
+        return await sendViaMailgun({ to: actualTo, from, subject, text, html, headers, apiKey, apiUrl })
       case 'ses':
       case 'aws-ses':
-        return await sendViaAWSSES({ to, from, subject, text, html, headers, apiKey, apiUrl })
+        return await sendViaAWSSES({ to: actualTo, from, subject, text, html, headers, apiKey, apiUrl })
       case 'resend':
-        return await sendViaResend({ to, from, subject, text, html, headers, apiKey, apiUrl })
+        return await sendViaResend({ to: actualTo, from, subject, text, html, headers, apiKey, apiUrl })
       case 'postmark':
-        return await sendViaPostmark({ to, from, subject, text, html, headers, apiKey, apiUrl })
+        return await sendViaPostmark({ to: actualTo, from, subject, text, html, headers, apiKey, apiUrl })
       default:
         throw new Error(`Unsupported email provider: ${provider}. Supported: sendgrid, mailgun, ses, resend, postmark`)
     }
@@ -290,14 +300,59 @@ async function sendViaPostmark({ to, from, subject, text, html, headers, apiKey,
   throw new Error(`Postmark API returned unexpected status: ${response.status}`)
 }
 
-async function sendOtp({ to, code, subject = 'Your verification code', from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER }) {
+// Purpose-specific copy for OTP emails (heading + intro). Intro may use {{brandName}}.
+const OTP_PURPOSE_COPY = {
+  login: {
+    heading: 'Verification Code',
+    intro: `You recently requested to sign in to your {{brandName}} account. Use the code below to complete your verification.`,
+  },
+  signup: {
+    heading: 'Verify Your Email',
+    intro: `You're signing up for {{brandName}}. Use the code below to verify your email and complete registration.`,
+  },
+  email_change: {
+    heading: 'Confirm Email Change',
+    intro: `You requested to change the email address for your account. Use the code below to confirm this change.`,
+  },
+  password_change: {
+    heading: 'Confirm Password Change',
+    intro: `You requested to change your password. Use the code below to confirm your identity and complete the change.`,
+  },
+  password_reset: {
+    heading: 'Reset Your Password',
+    intro: `You requested to reset your password. Use the code below to set a new password. If you didn't request this, you can safely ignore this email.`,
+  },
+  account_deletion: {
+    heading: 'Confirm Account Deletion',
+    intro: `You requested to permanently delete your account. Use the code below to confirm account deletion. This action cannot be undone after the grace period.`,
+  },
+  mfa_setup: {
+    heading: 'Enable Verification',
+    intro: `You're enabling fingerprint or additional verification. Use the code below to complete setup.`,
+  },
+  generic: {
+    heading: 'Verification Code',
+    intro: `You requested a verification code. Use the code below to complete your request.`,
+  },
+}
+
+const VALID_OTP_PURPOSES = new Set(Object.keys(OTP_PURPOSE_COPY))
+
+async function sendOtp({ to, code, subject = 'Your verification code', from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER, purpose = 'login' }) {
   const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10)
   const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
   const supportEmail = process.env.SUPPORT_EMAIL || process.env.EMAIL_HOST_USER || 'support@bizclear.com'
   const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
 
+  const purposeKey = VALID_OTP_PURPOSES.has(purpose) ? purpose : 'generic'
+  const { heading, intro } = OTP_PURPOSE_COPY[purposeKey]
+  const introText = intro.replace(/\{\{brandName\}\}/g, brandName)
+  const introHtml = intro.replace(/\{\{brandName\}\}/g, `<strong>${brandName}</strong>`)
+
   const text = [
     'Hello,',
+    '',
+    introText,
     '',
     `Your verification code is: ${code}`,
     `This code expires in ${ttlMin} minutes.`,
@@ -326,10 +381,10 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
 
       <!-- Body -->
       <div style="padding:40px 32px;text-align:center;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">Verification Code</h2>
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">${heading}</h2>
         
         <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          You recently requested to sign in to your <strong>${brandName}</strong> account. Use the code below to complete your verification.
+          ${introHtml}
         </p>
 
         <div style="background:#f8f9fa;padding:24px;border-radius:8px;border:1px dashed #003a70;margin-bottom:24px;display:inline-block;">
@@ -390,7 +445,7 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
     // Ensure 'from' is set
     const fromAddress = from || process.env.DEFAULT_FROM_EMAIL || 'noreply@example.com'
     
-    logger.info('Email: sending OTP', { to, provider: process.env.EMAIL_API_PROVIDER || 'sendgrid' })
+    logger.info('Email: sending OTP', { to, provider: process.env.EMAIL_API_PROVIDER || 'resend' })
 
     const result = await sendEmailViaAPI({
       to,
@@ -424,6 +479,130 @@ async function sendOtp({ to, code, subject = 'Your verification code', from = pr
     })
 
     // Return failure result instead of silently swallowing
+    return { success: false, error: err.message }
+  }
+}
+
+/**
+ * Send "forgot password not available" email for admin/staff (no verification code; user sees not-allowed screen immediately).
+ * @param {object} options
+ * @param {string} options.to - Recipient email
+ * @param {string} [options.code] - Optional 6-digit code (omitted from email when not provided)
+ * @param {string} options.roleSlug - User role slug (admin, staff, etc.)
+ * @param {string} [options.subject] - Email subject
+ * @param {string} [options.from] - From address
+ */
+async function sendForgotPasswordNotAvailableEmail({ to, code, roleSlug, subject, from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER }) {
+  const logger = require('./logger')
+  const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10)
+  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
+  const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
+  const supportEmail = process.env.SUPPORT_EMAIL || process.env.EMAIL_HOST_USER || 'support@bizclear.com'
+  const { isStaffRole } = require('./roleHelpers')
+
+  subject = subject || `Password reset request – not available for your account - ${brandName}`
+
+  const isStaff = isStaffRole(roleSlug)
+  const instructionText = isStaff
+    ? 'If you are staff, use Request Recovery from the staff portal.'
+    : 'If you are an administrator, contact another administrator to change your password.'
+  const instructionHtml = isStaff
+    ? 'If you are <strong>staff</strong>, use <strong>Request Recovery</strong> from the staff portal.'
+    : 'If you are an <strong>administrator</strong>, contact another administrator to change your password.'
+
+  const textLines = [
+    'Hello,',
+    '',
+    'You requested a password reset, but password reset is not available for your account type.',
+    '',
+    instructionText,
+    '',
+    'This action has been logged and administrators have been alerted to this attempt.',
+    '',
+  ]
+  if (code) {
+    textLines.push('Your verification code (to confirm this request): ' + code)
+    textLines.push(`This code expires in ${ttlMin} minutes.`)
+    textLines.push('')
+  }
+  textLines.push('Thank you,', brandName)
+  const text = textLines.join('\n')
+
+  const codeBlockHtml = code
+    ? `
+        <p style="margin:0 0 12px;color:#595959;font-size:14px;">Your verification code (to confirm this request):</p>
+        <div style="background:#f8f9fa;padding:24px;border-radius:8px;border:1px dashed #003a70;margin-bottom:16px;display:inline-block;">
+          <div style="font-size:32px;letter-spacing:8px;color:#003a70;font-weight:700;font-family:monospace;">${code}</div>
+        </div>
+        <p style="margin:0;color:#8c8c8c;font-size:14px;">This code expires in ${ttlMin} minutes.</p>
+      `
+    : ''
+
+  const html = `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
+      <div style="background:#003a70;padding:32px;text-align:center;">
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;font-family:'Raleway', sans-serif;">${brandName}</h1>
+      </div>
+      <div style="padding:40px 32px;text-align:center;">
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">Password reset not available</h2>
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          You requested a password reset, but password reset is <strong>not available</strong> for your account type.
+        </p>
+        <p style="margin:0 0 16px;color:#595959;font-size:16px;line-height:1.6;">
+          ${instructionHtml}
+        </p>
+        <div style="background:#fff7e6;border:1px solid #ffd591;padding:16px;border-radius:4px;margin-bottom:24px;text-align:left;">
+          <p style="margin:0 0 4px;color:#d46b08;font-weight:700;font-size:14px;">Notice</p>
+          <p style="margin:0;color:#595959;font-size:14px;line-height:1.5;">
+            This action has been logged and administrators have been alerted to this attempt.
+          </p>
+        </div>
+        ${codeBlockHtml}
+      </div>
+      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
+        <p style="margin:0 0 8px;color:#8c8c8c;font-size:12px;">
+          <strong>${brandName}</strong><br>Dagupan City, Philippines
+        </p>
+        <p style="margin:0;">Need help? <a href="mailto:${supportEmail}" style="color:#003a70;text-decoration:none;">Contact Support</a></p>
+        <p style="margin:16px 0 0;font-size:11px;color:#bfbfbf;">© ${new Date().getFullYear()} ${brandName}. All rights reserved.</p>
+      </div>
+    </div>
+  </div>
+  </body>
+  </html>
+  `
+
+  try {
+    if (!to || !to.includes('@')) {
+      throw new Error(`Invalid email address: ${to}`)
+    }
+    const fromAddress = from || process.env.DEFAULT_FROM_EMAIL || 'noreply@example.com'
+    logger.info('Email: sending forgot-password not available', { to })
+    const result = await sendEmailViaAPI({
+      to,
+      from: fromAddress,
+      subject,
+      text,
+      html,
+      headers: { 'X-Mailer': 'BizClear Business Center', 'List-Unsubscribe': `<${appUrl}/unsubscribe>` },
+    })
+    if (result.rejected && result.rejected.length > 0) {
+      const error = new Error(`Email rejected for: ${result.rejected.join(', ')}`)
+      logger.warn('Email: recipients rejected', { to, rejected: result.rejected })
+      throw error
+    }
+    return { success: true, messageId: result.messageId, accepted: result.accepted }
+  } catch (err) {
+    logger.error('Email: sendForgotPasswordNotAvailableEmail failed', { to, error: err.message })
     return { success: false, error: err.message }
   }
 }
@@ -784,6 +963,369 @@ async function sendPasswordChangeNotification({ to, firstName, lastName, timesta
 }
 
 /**
+ * Send MFA enabled notification (authenticator app or passkey)
+ * @param {object} options - Notification options
+ * @param {string} options.to - Recipient email
+ * @param {string} options.firstName - User's first name
+ * @param {string} options.lastName - User's last name
+ * @param {string} options.method - 'authenticator' or 'passkey'
+ */
+async function sendMfaEnabledNotification({ to, firstName, lastName, method = 'authenticator', subject, from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER }) {
+  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
+  const supportEmail = process.env.SUPPORT_EMAIL || process.env.EMAIL_HOST_USER || 'support@bizclear.com'
+
+  subject = subject || `Two-Factor Authentication Enabled - ${brandName}`
+  const methodLabel = method === 'passkey' ? 'passkey (e.g. Face ID, Windows Hello)' : 'authenticator app'
+
+  const text = [
+    `Hello ${firstName},`,
+    '',
+    `Two-factor authentication has been enabled for your ${brandName} account using ${methodLabel}.`,
+    '',
+    'You will need this method when signing in. If you didn\'t make this change, please contact support immediately.',
+    '',
+    `Support: ${supportEmail}`,
+    '',
+    'Thank you,',
+    brandName
+  ].join('\n')
+
+  const html = `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
+      <div style="background:#003a70;padding:32px;text-align:center;">
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;font-family:'Raleway', sans-serif;">${brandName}</h1>
+      </div>
+      <div style="padding:40px 32px;">
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Two-Factor Authentication Enabled</h2>
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          Hello <strong>${firstName} ${lastName}</strong>,
+        </p>
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          Two-factor authentication has been enabled for your <strong>${brandName}</strong> account using <strong>${methodLabel}</strong>.
+        </p>
+        <div style="background:#f6ffed;border:1px solid #b7eb8f;padding:16px;border-radius:4px;margin-bottom:24px;">
+          <p style="margin:0;color:#389e0d;font-size:14px;">You will need this method when signing in.</p>
+        </div>
+        <p style="margin:0;color:#595959;font-size:13px;">If you didn't make this change, please contact support immediately.</p>
+      </div>
+      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
+        <p style="margin:0;font-size:12px;color:#8c8c8c;">Need help? <a href="mailto:${supportEmail}" style="color:#003a70;">Contact Support</a></p>
+      </div>
+    </div>
+  </div>
+  </body>
+  </html>
+  `
+
+  try {
+    const fromAddress = from || process.env.DEFAULT_FROM_EMAIL || 'noreply@example.com'
+    await sendEmailViaAPI({ to, from: fromAddress, subject, text, html })
+  } catch (err) {
+    console.log('--------------------------------------------------')
+    console.log('⚠️  EMAIL API FAILED (MFA Enabled Notification) ⚠️')
+    console.log('To:', to, 'Error:', err.message)
+    console.log('--------------------------------------------------')
+  }
+}
+
+/**
+ * Send MFA disable requested notification (24-hour delay)
+ * @param {object} options - Notification options
+ * @param {string} options.to - Recipient email
+ * @param {string} options.firstName - User's first name
+ * @param {string} options.lastName - User's last name
+ * @param {Date} options.scheduledFor - When MFA will be disabled
+ */
+async function sendMfaDisableRequestedNotification({ to, firstName, lastName, scheduledFor, subject, from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER }) {
+  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
+  const supportEmail = process.env.SUPPORT_EMAIL || process.env.EMAIL_HOST_USER || 'support@bizclear.com'
+
+  subject = subject || `MFA Disable Requested - ${brandName}`
+  const disableTime = scheduledFor ? new Date(scheduledFor).toLocaleString() : 'in 24 hours'
+
+  const text = [
+    `Hello ${firstName},`,
+    '',
+    `A request to disable two-factor authentication for your ${brandName} account has been received.`,
+    '',
+    `MFA will be disabled on: ${disableTime}`,
+    '',
+    'You can cancel this request from your security settings before that time. If you didn\'t request this, please secure your account and contact support.',
+    '',
+    `Support: ${supportEmail}`,
+    '',
+    'Thank you,',
+    brandName
+  ].join('\n')
+
+  const html = `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
+      <div style="background:#003a70;padding:32px;text-align:center;">
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;font-family:'Raleway', sans-serif;">${brandName}</h1>
+      </div>
+      <div style="padding:40px 32px;">
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">MFA Disable Requested</h2>
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          Hello <strong>${firstName} ${lastName}</strong>,
+        </p>
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          A request to disable two-factor authentication for your <strong>${brandName}</strong> account has been received.
+        </p>
+        <div style="background:#f8f9fa;padding:24px;border-radius:8px;border:1px solid #e8e8e8;margin-bottom:24px;">
+          <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Scheduled disable time</span><br>
+          <span style="color:#1f1f1f;font-size:16px;">${disableTime}</span>
+        </div>
+        <p style="margin:0;color:#595959;font-size:13px;">You can cancel this request from your security settings before that time. If you didn't request this, please secure your account and contact support.</p>
+      </div>
+      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
+        <p style="margin:0;font-size:12px;color:#8c8c8c;">Need help? <a href="mailto:${supportEmail}" style="color:#003a70;">Contact Support</a></p>
+      </div>
+    </div>
+  </div>
+  </body>
+  </html>
+  `
+
+  try {
+    const fromAddress = from || process.env.DEFAULT_FROM_EMAIL || 'noreply@example.com'
+    await sendEmailViaAPI({ to, from: fromAddress, subject, text, html })
+  } catch (err) {
+    console.log('--------------------------------------------------')
+    console.log('⚠️  EMAIL API FAILED (MFA Disable Requested Notification) ⚠️')
+    console.log('To:', to, 'Error:', err.message)
+    console.log('--------------------------------------------------')
+  }
+}
+
+/**
+ * Send MFA disabled notification (after disable completed)
+ * @param {object} options - Notification options
+ * @param {string} options.to - Recipient email
+ * @param {string} options.firstName - User's first name
+ * @param {string} options.lastName - User's last name
+ */
+async function sendMfaDisabledNotification({ to, firstName, lastName, subject, from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER }) {
+  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
+  const supportEmail = process.env.SUPPORT_EMAIL || process.env.EMAIL_HOST_USER || 'support@bizclear.com'
+
+  subject = subject || `Two-Factor Authentication Disabled - ${brandName}`
+
+  const text = [
+    `Hello ${firstName},`,
+    '',
+    `Two-factor authentication has been disabled for your ${brandName} account.`,
+    '',
+    'If you didn\'t make this change, please contact support immediately and re-enable MFA from your security settings.',
+    '',
+    `Support: ${supportEmail}`,
+    '',
+    'Thank you,',
+    brandName
+  ].join('\n')
+
+  const html = `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
+      <div style="background:#003a70;padding:32px;text-align:center;">
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;font-family:'Raleway', sans-serif;">${brandName}</h1>
+      </div>
+      <div style="padding:40px 32px;">
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Two-Factor Authentication Disabled</h2>
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          Hello <strong>${firstName} ${lastName}</strong>,
+        </p>
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          Two-factor authentication has been disabled for your <strong>${brandName}</strong> account.
+        </p>
+        <p style="margin:0;color:#595959;font-size:13px;">If you didn't make this change, please contact support immediately and re-enable MFA from your security settings.</p>
+      </div>
+      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
+        <p style="margin:0;font-size:12px;color:#8c8c8c;">Need help? <a href="mailto:${supportEmail}" style="color:#003a70;">Contact Support</a></p>
+      </div>
+    </div>
+  </div>
+  </body>
+  </html>
+  `
+
+  try {
+    const fromAddress = from || process.env.DEFAULT_FROM_EMAIL || 'noreply@example.com'
+    await sendEmailViaAPI({ to, from: fromAddress, subject, text, html })
+  } catch (err) {
+    console.log('--------------------------------------------------')
+    console.log('⚠️  EMAIL API FAILED (MFA Disabled Notification) ⚠️')
+    console.log('To:', to, 'Error:', err.message)
+    console.log('--------------------------------------------------')
+  }
+}
+
+/**
+ * Send passkey added notification
+ * @param {object} options - Notification options
+ * @param {string} options.to - Recipient email
+ * @param {string} options.firstName - User's first name
+ * @param {string} options.lastName - User's last name
+ */
+async function sendPasskeyAddedNotification({ to, firstName, lastName, subject, from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER }) {
+  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
+  const supportEmail = process.env.SUPPORT_EMAIL || process.env.EMAIL_HOST_USER || 'support@bizclear.com'
+
+  subject = subject || `Passkey Added - ${brandName}`
+
+  const text = [
+    `Hello ${firstName},`,
+    '',
+    `A passkey has been added to your ${brandName} account. You can use it to sign in (e.g. Face ID, Windows Hello).`,
+    '',
+    'If you didn\'t add this passkey, please remove it from security settings and contact support.',
+    '',
+    `Support: ${supportEmail}`,
+    '',
+    'Thank you,',
+    brandName
+  ].join('\n')
+
+  const html = `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
+      <div style="background:#003a70;padding:32px;text-align:center;">
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;font-family:'Raleway', sans-serif;">${brandName}</h1>
+      </div>
+      <div style="padding:40px 32px;">
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Passkey Added</h2>
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          Hello <strong>${firstName} ${lastName}</strong>,
+        </p>
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          A passkey has been added to your <strong>${brandName}</strong> account. You can use it to sign in (e.g. Face ID, Windows Hello).
+        </p>
+        <p style="margin:0;color:#595959;font-size:13px;">If you didn't add this passkey, please remove it from security settings and contact support.</p>
+      </div>
+      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
+        <p style="margin:0;font-size:12px;color:#8c8c8c;">Need help? <a href="mailto:${supportEmail}" style="color:#003a70;">Contact Support</a></p>
+      </div>
+    </div>
+  </div>
+  </body>
+  </html>
+  `
+
+  try {
+    const fromAddress = from || process.env.DEFAULT_FROM_EMAIL || 'noreply@example.com'
+    await sendEmailViaAPI({ to, from: fromAddress, subject, text, html })
+  } catch (err) {
+    console.log('--------------------------------------------------')
+    console.log('⚠️  EMAIL API FAILED (Passkey Added Notification) ⚠️')
+    console.log('To:', to, 'Error:', err.message)
+    console.log('--------------------------------------------------')
+  }
+}
+
+/**
+ * Send passkey removed notification
+ * @param {object} options - Notification options
+ * @param {string} options.to - Recipient email
+ * @param {string} options.firstName - User's first name
+ * @param {string} options.lastName - User's last name
+ */
+async function sendPasskeyRemovedNotification({ to, firstName, lastName, subject, from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER }) {
+  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
+  const supportEmail = process.env.SUPPORT_EMAIL || process.env.EMAIL_HOST_USER || 'support@bizclear.com'
+
+  subject = subject || `Passkey Removed - ${brandName}`
+
+  const text = [
+    `Hello ${firstName},`,
+    '',
+    `A passkey has been removed from your ${brandName} account.`,
+    '',
+    'If you didn\'t make this change, please contact support and consider re-adding a passkey or enabling an authenticator app from security settings.',
+    '',
+    `Support: ${supportEmail}`,
+    '',
+    'Thank you,',
+    brandName
+  ].join('\n')
+
+  const html = `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
+      <div style="background:#003a70;padding:32px;text-align:center;">
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;font-family:'Raleway', sans-serif;">${brandName}</h1>
+      </div>
+      <div style="padding:40px 32px;">
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Passkey Removed</h2>
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          Hello <strong>${firstName} ${lastName}</strong>,
+        </p>
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          A passkey has been removed from your <strong>${brandName}</strong> account.
+        </p>
+        <p style="margin:0;color:#595959;font-size:13px;">If you didn't make this change, please contact support and consider re-adding a passkey or enabling an authenticator app from security settings.</p>
+      </div>
+      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
+        <p style="margin:0;font-size:12px;color:#8c8c8c;">Need help? <a href="mailto:${supportEmail}" style="color:#003a70;">Contact Support</a></p>
+      </div>
+    </div>
+  </div>
+  </body>
+  </html>
+  `
+
+  try {
+    const fromAddress = from || process.env.DEFAULT_FROM_EMAIL || 'noreply@example.com'
+    await sendEmailViaAPI({ to, from: fromAddress, subject, text, html })
+  } catch (err) {
+    console.log('--------------------------------------------------')
+    console.log('⚠️  EMAIL API FAILED (Passkey Removed Notification) ⚠️')
+    console.log('To:', to, 'Error:', err.message)
+    console.log('--------------------------------------------------')
+  }
+}
+
+/**
  * Send admin alert email
  * @param {object} options - Alert options
  * @param {string} options.to - Admin email
@@ -906,10 +1448,121 @@ async function sendAdminAlertEmail({ to, adminName, userId, userName, userEmail,
 }
 
 /**
+ * Send admin alert for staff or admin forgot-password attempt (styled like other security alerts).
+ * @param {object} options - { to, adminName, userId, userEmail, roleSlug, ipAddress, userAgent }
+ */
+async function sendStaffOrAdminForgotPasswordAlertEmail({ to, adminName, userId, userEmail, roleSlug, ipAddress, userAgent, subject, from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER }) {
+  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
+  const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
+
+  subject = subject || `Security Alert: Forgot password attempt (staff/admin) - ${brandName}`
+
+  const attemptTime = new Date().toLocaleString()
+  const roleLabel = (roleSlug || 'unknown').replace(/_/g, ' ')
+
+  const text = [
+    `Hello ${adminName},`,
+    '',
+    'SECURITY ALERT: A staff or admin account was used on the Forgot Password page. Password reset is not allowed for this account type; the attempt has been logged.',
+    '',
+    `Account: ${userEmail}`,
+    `Role: ${roleLabel}`,
+    `IP Address: ${ipAddress || '—'}`,
+    `User-Agent: ${userAgent || '—'}`,
+    `Time: ${attemptTime}`,
+    '',
+    'Please review this in the Security page if needed.',
+    '',
+    `Security page: ${appUrl}/admin/security`,
+    '',
+    brandName,
+  ].join('\n')
+
+  const html = `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
+  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
+      <div style="background:#ff4d4f;padding:32px;text-align:center;">
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;font-family:'Raleway', sans-serif;">Security Alert</h1>
+      </div>
+      <div style="padding:40px 32px;">
+        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">Forgot password attempt (staff/admin)</h2>
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          Hello <strong>${adminName}</strong>,
+        </p>
+        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
+          A staff or admin account was used on the Forgot Password page. Password reset is not allowed for this account type. This action has been logged and an incident has been recorded.
+        </p>
+        <div style="background:#fff1f0;border:1px solid #ffccc7;padding:24px;border-radius:8px;margin-bottom:24px;">
+          <div style="margin-bottom:12px;">
+            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Account</span><br>
+            <span style="color:#1f1f1f;font-size:16px;font-weight:600;">${userEmail || '—'}</span>
+          </div>
+          <div style="margin-bottom:12px;">
+            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Role</span><br>
+            <span style="color:#1f1f1f;font-size:16px;">${roleLabel}</span>
+          </div>
+          <div style="margin-bottom:12px;">
+            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">IP Address</span><br>
+            <span style="color:#1f1f1f;font-size:14px;font-family:monospace;">${ipAddress || '—'}</span>
+          </div>
+          <div style="margin-bottom:12px;">
+            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">User-Agent</span><br>
+            <span style="color:#595959;font-size:13px;line-height:1.4;word-break:break-all;">${userAgent || '—'}</span>
+          </div>
+          <div>
+            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Time</span><br>
+            <span style="color:#1f1f1f;font-size:14px;">${attemptTime}</span>
+          </div>
+        </div>
+        <a href="${appUrl}/admin/security" style="display:inline-block;background:#ff4d4f;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:4px;font-weight:600;font-size:16px;">View Security Page</a>
+      </div>
+      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
+        <p style="margin:0 0 8px;color:#8c8c8c;font-size:12px;"><strong>${brandName}</strong> Security Team</p>
+        <p style="margin:16px 0 0;font-size:11px;color:#bfbfbf;">© ${new Date().getFullYear()} ${brandName}. All rights reserved.</p>
+      </div>
+    </div>
+  </div>
+  </body>
+  </html>
+  `
+
+  try {
+    const fromAddress = from || process.env.DEFAULT_FROM_EMAIL || 'noreply@example.com'
+    await sendEmailViaAPI({ to, from: fromAddress, subject, text, html })
+  } catch (err) {
+    console.log('--------------------------------------------------')
+    console.log('⚠️  EMAIL API FAILED (Staff/Admin Forgot Password Alert) ⚠️')
+    console.log('To:', to, 'Error:', err.message)
+    console.log('--------------------------------------------------')
+  }
+}
+
+/**
  * Send generic admin alert (suspicious activity, recovery/deletion from unusual IP, etc.)
  * @param {object} options - { to, adminName, type, data }
  */
 async function sendAdminAlert({ to, adminName, type, data = {} }) {
+  // Use dedicated template for staff/admin forgot-password attempt
+  if (type === 'staff_or_admin_forgot_password_attempted') {
+    return sendStaffOrAdminForgotPasswordAlertEmail({
+      to,
+      adminName,
+      userId: data.userId,
+      userEmail: data.userEmail,
+      roleSlug: data.roleSlug,
+      ipAddress: data.ipAddress,
+      userAgent: data.userAgent,
+    })
+  }
+
   const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
   const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
   const subject = `Security Alert: ${type} - ${brandName}`
@@ -1075,11 +1728,17 @@ async function sendApprovalNotification({ to, adminName, approvalId, status, req
   }
 }
 
-module.exports = { 
-  sendOtp, 
+module.exports = {
+  sendOtp,
+  sendForgotPasswordNotAvailableEmail,
   sendStaffCredentialsEmail,
   sendEmailChangeNotification,
   sendPasswordChangeNotification,
+  sendMfaEnabledNotification,
+  sendMfaDisableRequestedNotification,
+  sendMfaDisabledNotification,
+  sendPasskeyAddedNotification,
+  sendPasskeyRemovedNotification,
   sendAdminAlertEmail,
   sendAdminAlert,
   sendApprovalNotification,

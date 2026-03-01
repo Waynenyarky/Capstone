@@ -1,9 +1,9 @@
+import { Form } from '@/shared/components/AppForm'
 import {
   Card,
   Button,
   Space,
   Tabs,
-  Form,
   Input,
   Spin,
 } from 'antd'
@@ -30,6 +30,7 @@ export default function FormDefinitionEditorPanel({
     saving,
     definition,
     form,
+    deactivateForm,
     lgus,
     activeTab,
     setActiveTab,
@@ -53,12 +54,18 @@ export default function FormDefinitionEditorPanel({
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
         <Spin size="large" />
         <Form form={form} style={{ display: 'none' }} />
+        <Form form={deactivateForm} style={{ display: 'none' }} />
       </div>
     )
   }
 
   if (!definition) {
-    return <Form form={form} style={{ display: 'none' }} />
+    return (
+      <>
+        <Form form={form} style={{ display: 'none' }} />
+        <Form form={deactivateForm} style={{ display: 'none' }} />
+      </>
+    )
   }
 
   const tabItems = [
@@ -122,6 +129,7 @@ export default function FormDefinitionEditorPanel({
             <Input type="hidden" />
           </Form.Item>
         </Form>
+        <Form form={deactivateForm} style={{ display: 'none' }} />
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <Card size="small">
             <Tabs

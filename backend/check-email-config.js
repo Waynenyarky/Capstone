@@ -1,10 +1,8 @@
 #!/usr/bin/env node
 /**
  * Email Configuration Diagnostic Tool
- * 
- * This script checks if your email configuration is set up correctly
- * for sending OTP emails via SendGrid.
- * 
+ *
+ * Supports multiple providers: Resend, SendGrid, Mailgun, Postmark.
  * Usage: node check-email-config.js
  */
 
@@ -39,7 +37,7 @@ console.log('');
 
 // Check required environment variables
 const emailApiKey = process.env.EMAIL_API_KEY;
-const emailProvider = process.env.EMAIL_API_PROVIDER || 'sendgrid';
+const emailProvider = process.env.EMAIL_API_PROVIDER || 'resend';
 const defaultFromEmail = process.env.DEFAULT_FROM_EMAIL;
 const nodeEnv = process.env.NODE_ENV || 'development';
 
@@ -59,22 +57,28 @@ console.log('Validation Results:');
 console.log('───────────────────────────────────────────────────────────');
 
 // Check EMAIL_API_KEY
-if (!emailApiKey) {
-  console.log('❌ EMAIL_API_KEY: NOT SET');
+const placeholderKeys = ['your-sendgrid-api-key-here', 'your-email-api-key-here', 'your-resend-api-key-here'];
+const isPlaceholder = emailApiKey && placeholderKeys.includes(emailApiKey);
+
+if (!emailApiKey || isPlaceholder) {
+  console.log('❌ EMAIL_API_KEY: NOT SET or still placeholder');
   console.log('');
-  console.log('   📝 TO FIX:');
-  console.log('   1. Go to: https://app.sendgrid.com/settings/api_keys');
-  console.log('   2. Click "Create API Key"');
-  console.log('   3. Name it (e.g., "Capstone Project")');
-  console.log('   4. Select "Full Access" or "Restricted Access" with "Mail Send" permission');
-  console.log('   5. Copy the API key (starts with "SG.")');
-  console.log('   6. Add to your backend/.env file:');
-  console.log('      EMAIL_API_KEY=SG.your_actual_key_here');
+  console.log('   📝 TO FIX (Resend):');
+  console.log('   1. Go to: https://resend.com/api-keys');
+  console.log('   2. Create an API key');
+  console.log('   3. Add to .env: EMAIL_API_KEY=re_your_actual_key_here');
+  console.log('   4. Verify your domain in Resend and set DEFAULT_FROM_EMAIL to use it');
+  console.log('');
+  console.log('   Other providers: sendgrid, mailgun, postmark — set EMAIL_API_PROVIDER and the matching API key.');
   console.log('');
   hasErrors = true;
 } else {
-  if (emailProvider.toLowerCase() === 'sendgrid' && !emailApiKey.startsWith('SG.')) {
-    console.log('⚠️  EMAIL_API_KEY: Does not start with "SG." (may not be a valid SendGrid key)');
+  const provider = emailProvider.toLowerCase();
+  if (provider === 'sendgrid' && !emailApiKey.startsWith('SG.')) {
+    console.log('⚠️  EMAIL_API_KEY: SendGrid keys usually start with "SG."');
+    hasWarnings = true;
+  } else if (provider === 'resend' && !emailApiKey.startsWith('re_')) {
+    console.log('⚠️  EMAIL_API_KEY: Resend keys usually start with "re_"');
     hasWarnings = true;
   } else {
     console.log('✅ EMAIL_API_KEY: SET');
@@ -86,7 +90,7 @@ if (!defaultFromEmail) {
   console.log('❌ DEFAULT_FROM_EMAIL: NOT SET');
   console.log('   → Add to .env: DEFAULT_FROM_EMAIL=noreply@yourdomain.com');
   console.log('   → Or with display name: DEFAULT_FROM_EMAIL="BizClear <noreply@yourdomain.com>"');
-  console.log('   → Make sure this email is verified in SendGrid');
+  console.log('   → Make sure this email/domain is verified with your provider (e.g. Resend: Domains)');
   hasErrors = true;
 } else {
   // Parse email from display name format if present
@@ -95,7 +99,7 @@ if (!defaultFromEmail) {
   if (nameMatch) {
     emailOnly = nameMatch[2].trim();
   }
-  
+
   if (!emailOnly.includes('@')) {
     console.log('❌ DEFAULT_FROM_EMAIL: Invalid format (missing @)');
     console.log('   → Current value: ' + defaultFromEmail);
@@ -109,17 +113,24 @@ if (!defaultFromEmail) {
     } else {
       console.log(`   → Email: ${emailOnly}`);
     }
-    console.log('   → Make sure this email is verified in SendGrid:');
-    console.log('     https://app.sendgrid.com/settings/sender_auth/senders');
+    const provider = emailProvider.toLowerCase();
+    if (provider === 'resend') {
+      console.log('   → Verify the domain in Resend: https://resend.com/domains');
+    } else if (provider === 'sendgrid') {
+      console.log('   → Verify sender in SendGrid: https://app.sendgrid.com/settings/sender_auth/senders');
+    } else {
+      console.log('   → Ensure this sender is verified in your email provider.');
+    }
   }
 }
 
 // Check EMAIL_API_PROVIDER
-if (emailProvider.toLowerCase() !== 'sendgrid') {
-  console.log(`⚠️  EMAIL_API_PROVIDER: Set to "${emailProvider}" (expected "sendgrid")`);
+const supportedProviders = ['resend', 'sendgrid', 'mailgun', 'postmark'];
+if (!supportedProviders.includes(emailProvider.toLowerCase())) {
+  console.log(`⚠️  EMAIL_API_PROVIDER: "${emailProvider}" (supported: ${supportedProviders.join(', ')})`);
   hasWarnings = true;
 } else {
-  console.log('✅ EMAIL_API_PROVIDER: Set to sendgrid');
+  console.log(`✅ EMAIL_API_PROVIDER: ${emailProvider}`);
 }
 
 // Check NODE_ENV
@@ -148,10 +159,10 @@ if (hasErrors) {
   console.log('✅ CONFIGURATION LOOKS GOOD!');
   console.log('');
   console.log('Your email configuration appears to be set up correctly.');
-  console.log('OTP emails should be sent via SendGrid.');
+  console.log(`OTP emails will be sent via ${emailProvider}.`);
   console.log('');
   console.log('Next steps:');
-  console.log('1. Make sure your SendGrid sender email is verified');
+  console.log('1. Ensure your sender/domain is verified in your provider');
   console.log('2. Restart your backend server');
   console.log('3. Test signup and check backend logs for email status');
   process.exit(0);

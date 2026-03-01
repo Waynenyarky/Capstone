@@ -496,7 +496,7 @@ router.post('/change-password/start', requireJwt, validateBody(changePasswordSta
       verified: false 
     })
 
-    await sendOtp({ to: email, code, subject: 'Confirm password change' })
+    await sendOtp({ to: email, code, subject: 'Confirm password change', purpose: 'password_change' })
     return res.json({ sent: true, to: email, expiresAt: new Date(expiresAtMs).toISOString() })
   } catch (err) {
     console.error('POST /api/auth/change-password/start error:', err)
@@ -739,7 +739,7 @@ router.post('/change-email/start', requireJwt, validateBody(changeEmailStartSche
     const key = currentEmail
     changeEmailRequests.set(key, { code, expiresAt: expiresAtMs, newEmail: input })
 
-    await sendOtp({ to: input, code, subject: 'Confirm email change' })
+    await sendOtp({ to: input, code, subject: 'Confirm email change', purpose: 'email_change' })
     return res.json({ sent: true, to: input, expiresAt: new Date(expiresAtMs).toISOString() })
   } catch (err) {
     console.error('POST /api/auth/change-email/start error:', err)
@@ -823,7 +823,7 @@ router.post('/change-email/confirm/start', requireJwt, validateBody(changeEmailC
     const expiresAtMs = Date.now() + ttlMin * 60 * 1000
     const code = generateCode()
     changeEmailRequests.set(currentEmail, { code, expiresAt: expiresAtMs, newEmail: '' })
-    await sendOtp({ to: currentEmail, code, subject: 'Confirm your email' })
+    await sendOtp({ to: currentEmail, code, subject: 'Confirm your email', purpose: 'email_change' })
     return res.json({ sent: true, to: currentEmail, expiresAt: new Date(expiresAtMs).toISOString() })
   } catch (err) {
     console.error('POST /api/auth/change-email/confirm/start error:', err)

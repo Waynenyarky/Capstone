@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Typography, Tag, Button, Descriptions, Space, theme, Empty, Form, Radio, Input, Alert, Badge, Spin, Tabs, Image, Modal, App, Collapse } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Typography, Tag, Button, Descriptions, Space, theme, Empty, Radio, Input, Alert, Badge, Spin, Image, Modal, App, Select, Popover, Progress, Collapse, message } from 'antd'
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -8,23 +9,414 @@ import {
   RobotOutlined,
   UserOutlined,
   ShopOutlined,
-  EnvironmentOutlined,
-  BankOutlined,
-  SafetyOutlined,
-  SafetyCertificateOutlined,
   DownloadOutlined,
   EyeOutlined,
-  FilePdfOutlined,
-  FileOutlined
+  HistoryOutlined,
+  ClockCircleOutlined,
+  PlusOutlined,
 } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import { PermitApplicationService } from '@/features/lgu-officer/infrastructure/services'
 import { resolveIpfsUrl } from '@/lib/ipfsUtils'
-import { getBusinessTypeLabel } from '@/constants/businessTypes'
-import OwnerPersonalInfoSection from './OwnerPersonalInfoSection'
-import dayjs from 'dayjs'
+import { getActiveFormDefinition, getPublicFormDefinition } from '@/features/admin/services/formDefinitionService'
+import { filterSectionsByFormValues } from '@/features/business-owner/components/DynamicFormRenderer'
+import {
+  getFieldKey,
+  REJECTION_REASON_OPTIONS,
+  REASON_OTHER_CODE,
+  LOB_FIELD_DESCRIPTION,
+  getLobActivityFieldKey,
+  getReviewableFieldKeys,
+} from '../constants/rejectionReasons'
+import OwnerInfoReadOnlyView from './OwnerInfoReadOnlyView'
+import { LINE_OF_BUSINESS } from '@/constants/lineOfBusiness'
 
 const { Text, Title } = Typography
 const { TextArea } = Input
+
+/** Get a single displayable file URL from form value (string CID/URL or fileList item with cid/url) */
+function getFileUrlFromFormValue(value) {
+  if (value == null) return ''
+  if (typeof value === 'string' && value.trim() !== '') return value.trim()
+  if (Array.isArray(value) && value.length > 0) {
+    const first = value[0]
+    if (first && typeof first === 'object') {
+      const cid = first.cid || first.response?.cid
+      const url = first.url || first.response?.url
+      if (url && typeof url === 'string') return url
+      if (cid && typeof cid === 'string') return cid
+    }
+  }
+  return ''
+}
+
+/** Inline Accept/Reject UI for one field */
+function FieldDecisionControl({ fieldKey, decision, onAccept, onReject, token }) {
+  const [rejectOpen, setRejectOpen] = useState(false)
+  const [reasonCode, setReasonCode] = useState(undefined)
+  const [reasonOther, setReasonOther] = useState('')
+
+  const handleConfirmReject = () => {
+    if (reasonCode === REASON_OTHER_CODE && !reasonOther?.trim()) return
+    onReject(fieldKey, { status: 'rejected', reasonCode: reasonCode || undefined, reasonOther: reasonCode === REASON_OTHER_CODE ? reasonOther?.trim() : undefined })
+    setRejectOpen(false)
+    setReasonCode(undefined)
+    setReasonOther('')
+  }
+
+  const rejectContent = (
+    <Space direction="vertical" size={8} style={{ width: 280 }}>
+      <Select
+        placeholder="Select reason"
+        options={REJECTION_REASON_OPTIONS}
+        value={reasonCode}
+        onChange={(v) => { setReasonCode(v); if (v !== REASON_OTHER_CODE) setReasonOther('') }}
+        style={{ width: '100%' }}
+      />
+      {reasonCode === REASON_OTHER_CODE && (
+        <TextArea
+          placeholder="Specify reason (required)"
+          value={reasonOther}
+          onChange={(e) => setReasonOther(e.target.value)}
+          rows={2}
+        />
+      )}
+      <Button type="primary" danger size="small" onClick={handleConfirmReject} disabled={reasonCode === REASON_OTHER_CODE && !reasonOther?.trim()}>
+        Confirm Reject
+      </Button>
+    </Space>
+  )
+
+  if (decision) {
+    const isAccepted = decision.status === 'accepted'
+    const reasonText = decision.status === 'rejected'
+      ? (decision.reasonOther || REJECTION_REASON_OPTIONS.find((r) => r.value === decision.reasonCode)?.label || decision.reasonCode || 'Rejected')
+      : ''
+    return (
+      <Space size={8}>
+        {isAccepted ? (
+          <Tag color="success" icon={<CheckCircleOutlined />}>Accepted</Tag>
+        ) : (
+          <Tag color="error" icon={<CloseCircleOutlined />}>Rejected{reasonText ? `: ${reasonText}` : ''}</Tag>
+        )}
+        {isAccepted ? (
+          <Popover open={rejectOpen} onOpenChange={setRejectOpen} content={rejectContent} trigger="click">
+            <Button type="link" size="small">Change</Button>
+          </Popover>
+        ) : (
+          <Button type="link" size="small" onClick={() => onAccept(fieldKey)}>Change</Button>
+        )}
+      </Space>
+    )
+  }
+
+  return (
+    <Space size={8}>
+      <Button type="primary" size="small" icon={<CheckCircleOutlined />} onClick={() => onAccept(fieldKey)}>Accept</Button>
+      <Popover open={rejectOpen} onOpenChange={setRejectOpen} content={rejectContent} trigger="click">
+        <Button size="small" danger icon={<CloseCircleOutlined />}>Reject</Button>
+      </Popover>
+    </Space>
+  )
+}
+
+/** Render one form section as read-only with document/file viewers and per-field Accept/Reject */
+function SectionReadOnlyContent({
+  section,
+  sectionIdx,
+  formData,
+  documents = {},
+  token,
+  formatDate,
+  formatBoolean,
+  formatCurrency,
+  formatNumber,
+  DocumentViewer,
+  onViewDocument,
+  primaryLineOfBusiness,
+  fieldReviewDecisions = {},
+  onFieldDecision,
+}) {
+  const items = section?.items || []
+  if (!items.length) {
+    return <Text type="secondary">No fields in this section.</Text>
+  }
+
+  const handleAccept = (fieldKey) => {
+    if (onFieldDecision) onFieldDecision(fieldKey, { status: 'accepted' })
+  }
+  const handleReject = (fieldKey, payload) => {
+    if (onFieldDecision) onFieldDecision(fieldKey, payload)
+  }
+
+  return (
+    <Descriptions column={1} size="small" bordered>
+      {items.map((item, idx) => {
+        const key = item.key || item.label
+        const value = formData?.[key]
+        const label = item.label || key || `Field ${idx + 1}`
+
+        const renderValue = () => {
+          // Line of Business (AI): skip here; LOB section is rendered by LobReviewBlock
+          if (item.type === 'ai_lob_recommendation' || key === 'aiLobRecommendation') {
+            return null
+          }
+          if (item.type === 'file') {
+            const urlFromForm = getFileUrlFromFormValue(value)
+            const url = urlFromForm || documents[item.documentKey] || documents[key] || documents[item.label] || ''
+            return <DocumentViewer url={url} label={label} onViewDocument={onViewDocument} />
+          }
+          if (item.type === 'date') {
+            return formatDate(value)
+          }
+          if (item.type === 'checkbox') {
+            return formatBoolean(value)
+          }
+          if (item.type === 'number') {
+            return formatNumber(value)
+          }
+          if (item.type === 'currency') {
+            return formatCurrency(value)
+          }
+          if (item.type === 'select') {
+            const opts = item.dropdownOptions || []
+            const option = opts.find((o) => (typeof o === 'object' ? o.value === value : o === value))
+            const display = typeof option === 'object' ? option?.label : option
+            return display != null ? String(display) : (value != null && value !== '' ? String(value) : 'N/A')
+          }
+          if (item.type === 'repeatable_group') {
+            if (!Array.isArray(value) || value.length === 0) return 'N/A'
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {value.map((row, i) => (
+                  <div key={i} style={{ padding: 8, background: token.colorFillQuaternary, borderRadius: token.borderRadius }}>
+                    {(item.groupFields || []).map((gf) => {
+                      const gk = gf.key || gf.label
+                      const gv = row?.[gk]
+                      const gLabel = gf.label || gk
+                      const gDisplay = gf.type === 'date' ? formatDate(gv) : (gv != null && gv !== '' ? String(gv) : '—')
+                      return <div key={gk}><Text type="secondary" style={{ fontSize: 12 }}>{gLabel}: </Text>{gDisplay}</div>
+                    })}
+                  </div>
+                ))}
+              </div>
+            )
+          }
+          if (item.type === 'address' || item.type === 'address_alaminos') {
+            const prefix = key
+            const parts = [
+              formData?.[`${prefix}_streetAddress`] || formData?.[`${prefix}_street`],
+              formData?.[`${prefix}_barangay`] || formData?.[`${prefix}_barangayName`],
+              formData?.[`${prefix}_city`] || formData?.[`${prefix}_cityName`],
+              formData?.[`${prefix}_province`] || formData?.[`${prefix}_provinceName`],
+              formData?.[`${prefix}_postalCode`] || formData?.[`${prefix}_zipCode`]
+            ].filter(Boolean)
+            return parts.length ? parts.join(', ') : 'N/A'
+          }
+          if (item.type === 'download') return null
+          return value != null && value !== '' ? String(value) : 'N/A'
+        }
+
+        const rendered = renderValue()
+        if (rendered === null) return null
+
+        const showDecision = onFieldDecision && (item.type !== 'repeatable_group' ? true : Array.isArray(value) && value.length > 0)
+
+        if (item.type === 'repeatable_group' && Array.isArray(value) && value.length > 0) {
+          return (
+            <React.Fragment key={idx}>
+              {value.map((row, i) => {
+                const fk = getFieldKey(sectionIdx, item, i)
+                const dec = fieldReviewDecisions[fk]
+                const gLabel = item.label || item.key || `Row ${i + 1}`
+                const rowContent = (
+                  <div style={{ padding: 8, background: token.colorFillQuaternary, borderRadius: token.borderRadius }}>
+                    {(item.groupFields || []).map((gf) => {
+                      const gk = gf.key || gf.label
+                      const gv = row?.[gk]
+                      const gl = gf.label || gk
+                      const gDisplay = gf.type === 'date' ? formatDate(gv) : (gv != null && gv !== '' ? String(gv) : '—')
+                      return <div key={gk}><Text type="secondary" style={{ fontSize: 12 }}>{gl}: </Text>{gDisplay}</div>
+                    })}
+                  </div>
+                )
+                return (
+                  <Descriptions.Item key={fk} label={`${gLabel} (row ${i + 1})`}>
+                    <Space direction="vertical" size={4}>
+                      <div>{rowContent}</div>
+                      {showDecision && <FieldDecisionControl fieldKey={fk} decision={dec} onAccept={handleAccept} onReject={handleReject} token={token} />}
+                    </Space>
+                  </Descriptions.Item>
+                )
+              })}
+            </React.Fragment>
+          )
+        }
+
+        const fieldKey = getFieldKey(sectionIdx, item)
+        const decision = fieldReviewDecisions[fieldKey]
+        return (
+          <Descriptions.Item key={idx} label={label}>
+            <Space direction="vertical" size={4}>
+              <div>{rendered}</div>
+              {showDecision && <FieldDecisionControl fieldKey={fieldKey} decision={decision} onAccept={handleAccept} onReject={handleReject} token={token} />}
+            </Space>
+          </Descriptions.Item>
+        )
+      })}
+    </Descriptions>
+  )
+}
+
+/** LOB section: description + activities with Accept/Reject and editable list; Save calls PATCH form-data */
+function LobReviewBlock({
+  formData,
+  fieldReviewDecisions = {},
+  onFieldDecision,
+  onSaveLob,
+  token,
+  saving = false,
+  primaryLineOfBusiness,
+}) {
+  const desc = formData?.businessDescriptionText ?? formData?.aiLobRecommendation ?? ''
+  const activities = Array.isArray(formData?.businessActivities) ? formData.businessActivities : []
+  const [localDesc, setLocalDesc] = useState(desc)
+  const [localActivities, setLocalActivities] = useState(activities.map((a) => ({
+    taxCode: a.taxCode ?? '',
+    lineOfBusiness: a.lineOfBusiness ?? '',
+    detailedLineOfBusiness: a.detailedLineOfBusiness ?? a.detailedLine ?? '',
+  })))
+
+  useEffect(() => {
+    setLocalDesc(desc)
+    setLocalActivities(activities.map((a) => ({
+      taxCode: a.taxCode ?? '',
+      lineOfBusiness: a.lineOfBusiness ?? '',
+      detailedLineOfBusiness: a.detailedLineOfBusiness ?? a.detailedLine ?? '',
+    })))
+  }, [desc, activities])
+
+  const handleAccept = (fieldKey) => {
+    if (onFieldDecision) onFieldDecision(fieldKey, { status: 'accepted' })
+  }
+  const handleReject = (fieldKey, payload) => {
+    if (onFieldDecision) onFieldDecision(fieldKey, payload)
+  }
+
+  const addRow = () => {
+    setLocalActivities((prev) => [...prev, { taxCode: '', lineOfBusiness: '', detailedLineOfBusiness: '' }])
+  }
+  const removeRow = (index) => {
+    setLocalActivities((prev) => prev.filter((_, i) => i !== index))
+  }
+  const updateRow = (index, field, value) => {
+    setLocalActivities((prev) => {
+      const next = [...prev]
+      next[index] = { ...next[index], [field]: value }
+      return next
+    })
+  }
+
+  const hasChanges = localDesc !== desc || JSON.stringify(localActivities) !== JSON.stringify(activities)
+  const handleSave = () => {
+    if (!onSaveLob) return
+    onSaveLob({
+      businessDescriptionText: localDesc,
+      businessActivities: localActivities.filter((a) => a.taxCode || a.lineOfBusiness || a.detailedLineOfBusiness),
+    })
+  }
+
+  const taxCodeOptions = (LINE_OF_BUSINESS || []).map((l) => ({ value: l.taxCode, label: `${l.taxCode} — ${l.label || l.lineOfBusiness}` }))
+  const getDetailedForTaxCode = (taxCode) => {
+    const lob = (LINE_OF_BUSINESS || []).find((l) => l.taxCode === taxCode)
+    return (lob?.detailedLines || []).map((d) => ({ value: d, label: d }))
+  }
+
+  return (
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <div>
+        <Text strong style={{ fontSize: 12 }}>Business description</Text>
+        <TextArea
+          value={localDesc}
+          onChange={(e) => setLocalDesc(e.target.value)}
+          rows={3}
+          style={{ marginTop: 4, width: '100%' }}
+        />
+        {onFieldDecision && (
+          <div style={{ marginTop: 8 }}>
+            <FieldDecisionControl
+              fieldKey={LOB_FIELD_DESCRIPTION}
+              decision={fieldReviewDecisions[LOB_FIELD_DESCRIPTION]}
+              onAccept={handleAccept}
+              onReject={handleReject}
+              token={token}
+            />
+          </div>
+        )}
+      </div>
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <Text strong style={{ fontSize: 12 }}>Lines of business</Text>
+          <Button type="dashed" size="small" icon={<PlusOutlined />} onClick={addRow}>Add row</Button>
+        </div>
+        {localActivities.length === 0 && !primaryLineOfBusiness && (
+          <Text type="secondary">No activities. Add a row or they will be filled from primary line of business.</Text>
+        )}
+        {localActivities.map((row, i) => (
+          <div key={i} style={{ padding: 12, background: token.colorFillQuaternary, borderRadius: token.borderRadius, marginBottom: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <Space direction="vertical" size={4} style={{ flex: 1 }}>
+                <Select
+                  placeholder="Tax code"
+                  options={taxCodeOptions}
+                  value={row.taxCode || undefined}
+                  onChange={(v) => {
+                    const lob = (LINE_OF_BUSINESS || []).find((l) => l.taxCode === v)
+                    updateRow(i, 'taxCode', v)
+                    updateRow(i, 'lineOfBusiness', lob?.lineOfBusiness ?? '')
+                  }}
+                  style={{ width: 240 }}
+                  allowClear
+                />
+                <Input
+                  placeholder="Line of business"
+                  value={row.lineOfBusiness}
+                  onChange={(e) => updateRow(i, 'lineOfBusiness', e.target.value)}
+                  style={{ width: 280 }}
+                />
+                <Select
+                  placeholder="Detailed line"
+                  options={getDetailedForTaxCode(row.taxCode)}
+                  value={row.detailedLineOfBusiness || undefined}
+                  onChange={(v) => updateRow(i, 'detailedLineOfBusiness', v)}
+                  style={{ width: 280 }}
+                  allowClear
+                />
+              </Space>
+              <Space>
+                {onFieldDecision && (
+                  <FieldDecisionControl
+                    fieldKey={getLobActivityFieldKey(i)}
+                    decision={fieldReviewDecisions[getLobActivityFieldKey(i)]}
+                    onAccept={handleAccept}
+                    onReject={handleReject}
+                    token={token}
+                  />
+                )}
+                <Button type="text" danger size="small" icon={<CloseCircleOutlined />} onClick={() => removeRow(i)}>Remove</Button>
+              </Space>
+            </div>
+          </div>
+        ))}
+      </div>
+      {hasChanges && onSaveLob && (
+        <Button type="primary" loading={saving} onClick={handleSave}>
+          Save LOB changes
+        </Button>
+      )}
+    </Space>
+  )
+}
 
 export default function ApplicationDetailPanel({
   application: initialApplication,
@@ -36,8 +428,13 @@ export default function ApplicationDetailPanel({
   const [loading, setLoading] = useState(false)
   const [reviewing, setReviewing] = useState(false)
   const [startingReview, setStartingReview] = useState(false)
+  const [savingLob, setSavingLob] = useState(false)
   const [application, setApplication] = useState(initialApplication)
   const [decision, setDecision] = useState(null)
+  const [formDefinition, setFormDefinition] = useState(null)
+  const [formDefLoading, setFormDefLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState('review')
+  const [documentModal, setDocumentModal] = useState({ open: false, url: null, label: '', type: 'other' })
   const { token } = theme.useToken()
   const { message } = App.useApp()
 
@@ -46,12 +443,50 @@ export default function ApplicationDetailPanel({
   useEffect(() => {
     if (initialApplication) {
       setApplication(initialApplication)
+      setActiveTab('review')
       loadApplicationDetails()
       setDecision(null)
       form.resetFields()
       handleStartReview()
     }
   }, [initialApplication?.applicationId])
+
+  // Fetch form definition for dynamic section tabs (always when application is loaded)
+  useEffect(() => {
+    const app = application || initialApplication
+    if (!app?.applicationId) {
+      setFormDefinition(null)
+      return
+    }
+
+    let cancelled = false
+    setFormDefLoading(true)
+    setFormDefinition(null)
+
+    const formDefId = app?.formDefinitionId
+    const formType = app?.formType || 'permit'
+
+    const fetchDef = async () => {
+      try {
+        let res
+        if (formDefId) {
+          res = await getPublicFormDefinition(formDefId)
+        } else {
+          res = await getActiveFormDefinition(formType, app?.businessRegistration?.businessType || null, null)
+        }
+        if (cancelled) return
+        if (res?.success && res?.definition) {
+          setFormDefinition(res.definition)
+        }
+      } catch (e) {
+        if (!cancelled) console.error('Failed to load form definition for review:', e)
+      } finally {
+        if (!cancelled) setFormDefLoading(false)
+      }
+    }
+    fetchDef()
+    return () => { cancelled = true }
+  }, [application?.applicationId, application?.formDefinitionId, application?.formType, application?.businessRegistration?.businessType])
 
   const handleStartReview = async () => {
     if (!initialApplication?.applicationId) return
@@ -64,7 +499,10 @@ export default function ApplicationDetailPanel({
         businessId: initialApplication.businessId
       })
       
-      if (result?.application) {
+      if (result?.lockedByOfficer) {
+        message.warning(`This application is already under review by ${result.lockedByOfficer}`)
+        await loadApplicationDetails()
+      } else if (result?.application) {
         setApplication(result.application)
         if (onReviewStarted) {
           onReviewStarted(result.application)
@@ -98,6 +536,44 @@ export default function ApplicationDetailPanel({
     }
   }
 
+  const handleFieldDecision = async (fieldKey, payload) => {
+    if (!application?.applicationId) return
+    try {
+      const updated = await permitService.updateFieldDecisions({
+        applicationId: application.applicationId,
+        businessId: application.businessId,
+        fieldKey,
+        status: payload.status,
+        reasonCode: payload.reasonCode,
+        reasonOther: payload.reasonOther,
+      })
+      if (updated) setApplication(updated)
+    } catch (error) {
+      console.error('Failed to update field decision:', error)
+      message.error(error?.message || 'Failed to update field decision')
+    }
+  }
+
+  const handleSaveLob = async (payload) => {
+    if (!application?.applicationId) return
+    setSavingLob(true)
+    try {
+      const updated = await permitService.updateLobFormData({
+        applicationId: application.applicationId,
+        businessId: application.businessId,
+        businessDescriptionText: payload.businessDescriptionText,
+        businessActivities: payload.businessActivities,
+      })
+      if (updated) setApplication(updated)
+      message.success('LOB changes saved')
+    } catch (error) {
+      console.error('Failed to save LOB:', error)
+      message.error(error?.message || 'Failed to save LOB changes')
+    } finally {
+      setSavingLob(false)
+    }
+  }
+
   const handleDecisionChange = (e) => {
     setDecision(e.target.value)
     form.setFieldsValue({ 
@@ -109,6 +585,11 @@ export default function ApplicationDetailPanel({
   const handleReview = async (values) => {
     if (!decision) {
       message.error('Please select a decision')
+      return
+    }
+
+    if (canReview && allFieldKeys.length > 0 && !allFieldsReviewed) {
+      message.error(`Please review all fields before submitting. (${decidedCount} of ${allFieldKeys.length} completed)`)
       return
     }
 
@@ -168,7 +649,7 @@ export default function ApplicationDetailPanel({
     Modal.confirm({
       title: 'Submit Review?',
       content: `You are about to ${decisionLabel} this application. Do you want to continue?`,
-      okText: 'Yes, submit',
+      okText: 'Submit Review',
       cancelText: 'Cancel',
       onOk: () => handleReview(values)
     })
@@ -188,28 +669,20 @@ export default function ApplicationDetailPanel({
     }).format(amount)
   }
 
+  const formatNumber = (value) => {
+    if (value == null || value === '') return 'N/A'
+    const num = Number(value)
+    if (Number.isNaN(num)) return String(value)
+    return new Intl.NumberFormat('en-PH', {
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 0
+    }).format(num)
+  }
+
   const formatBoolean = (value) => {
     if (value === true || value === 'yes' || value === 'Yes') return <Tag color="success">Yes</Tag>
     if (value === false || value === 'no' || value === 'No') return <Tag color="default">No</Tag>
     return 'N/A'
-  }
-
-  const formatRegistrationType = (type) => {
-    if (!type) return 'N/A'
-    const typeMap = {
-      'sole_proprietorship': 'Sole Proprietorship',
-      'partnership': 'Partnership',
-      'corporation': 'Corporation',
-      'cooperative': 'Cooperative'
-    }
-    return typeMap[type] || type
-  }
-
-  const formatRiskLevel = (level) => {
-    if (!level) return 'N/A'
-    const colorMap = { 'low': 'success', 'medium': 'warning', 'high': 'error' }
-    const textMap = { 'low': 'Low', 'medium': 'Medium', 'high': 'High' }
-    return <Tag color={colorMap[level]}>{textMap[level] || level}</Tag>
   }
 
   const getStatusTag = (status) => {
@@ -226,7 +699,7 @@ export default function ApplicationDetailPanel({
     return <Tag color={config.color}>{config.text}</Tag>
   }
 
-  const DocumentViewer = ({ url, label }) => {
+  const DocumentViewer = ({ url, label, onViewDocument }) => {
     if (!url || url.trim() === '') {
       return <Text type="secondary">Not uploaded</Text>
     }
@@ -236,33 +709,52 @@ export default function ApplicationDetailPanel({
       return <Text type="secondary">Not available</Text>
     }
 
-    const isImage = resolvedUrl.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i)
-    const isPdf = resolvedUrl.toLowerCase().includes('.pdf')
+    // Infer type from extension in resolved URL first, then original url (IPFS CIDs often have no extension in gateway URL)
+    const urlPath = resolvedUrl.split('?')[0]
+    const originalPath = (typeof url === 'string' ? url : '').split('?')[0]
+    const isImage = urlPath.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i) || originalPath.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i)
+    const isPdf = urlPath.toLowerCase().includes('.pdf') || originalPath.toLowerCase().includes('.pdf')
+    const docType = isImage ? 'image' : isPdf ? 'pdf' : 'other'
+
+    const openModal = () => {
+      if (onViewDocument) {
+        onViewDocument({ url: resolvedUrl, label: label || 'Document', type: docType })
+      } else {
+        window.open(resolvedUrl, '_blank')
+      }
+    }
 
     if (isImage) {
       return (
-        <Image
-          src={resolvedUrl}
-          alt={label || 'Document'}
-          width={100}
-          height={100}
-          style={{ objectFit: 'cover', borderRadius: token.borderRadius, border: `1px solid ${token.colorBorderSecondary}` }}
-          preview={{ mask: <EyeOutlined /> }}
-        />
+        <Space direction="vertical" size={4}>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={openModal}
+            onKeyDown={(e) => e.key === 'Enter' && openModal()}
+            style={{ cursor: 'pointer', display: 'inline-block' }}
+          >
+            <Image
+              src={resolvedUrl}
+              alt={label || 'Document'}
+              width={120}
+              height={120}
+              style={{ objectFit: 'cover', borderRadius: token.borderRadius, border: `1px solid ${token.colorBorderSecondary}` }}
+              preview={false}
+            />
+          </div>
+          <Button type="link" size="small" icon={<EyeOutlined />} onClick={openModal}>
+            View document
+          </Button>
+        </Space>
       )
     }
 
     if (isPdf) {
       return (
         <Space>
-          <FilePdfOutlined style={{ color: token.colorError }} />
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => window.open(resolvedUrl, '_blank')}
-          >
-            View PDF
+          <Button type="link" size="small" icon={<EyeOutlined />} onClick={openModal}>
+            View document
           </Button>
           <Button type="link" size="small" icon={<DownloadOutlined />} href={resolvedUrl} download>
             Download
@@ -273,9 +765,8 @@ export default function ApplicationDetailPanel({
 
     return (
       <Space>
-        <FileOutlined />
-        <Button type="link" size="small" icon={<EyeOutlined />} href={resolvedUrl} target="_blank">
-          View
+        <Button type="link" size="small" icon={<EyeOutlined />} onClick={openModal}>
+          View document
         </Button>
       </Space>
     )
@@ -314,13 +805,80 @@ export default function ApplicationDetailPanel({
 
   const requirementsChecklist = application?.requirementsChecklist || {}
 
-  const tabItems = [
-    {
-      key: 'review',
-      label: <span><EditOutlined /> Review</span>,
+  const formData = application?.formData && typeof application.formData === 'object' ? application.formData : {}
+  const sections = formDefinition ? filterSectionsByFormValues(formDefinition.sections || [], formData) : []
+  // ST-PA-17: Officer field editing is intentionally scoped to LOB fields only.
+  // Other form fields (business info, address, etc.) are owner-controlled and
+  // can only be changed via the Edit Request workflow.
+  const { keys: allFieldKeys = [], lobSectionIndex } = getReviewableFieldKeys(sections, formData)
+  const fieldReviewDecisions = application?.fieldReviewDecisions && typeof application.fieldReviewDecisions === 'object' ? application.fieldReviewDecisions : {}
+  const decidedCount = allFieldKeys.filter((k) => fieldReviewDecisions[k]?.status).length
+  const allFieldsReviewed = allFieldKeys.length > 0 && decidedCount >= allFieldKeys.length
+  const rejectedFields = allFieldKeys.filter((k) => fieldReviewDecisions[k]?.status === 'rejected')
+  const applicationHistory = application?.applicationHistory || []
+
+  const sectionTabs = sections.map((section, idx) => {
+    const isLobSection = idx === lobSectionIndex
+    return {
+      key: `section-${idx}`,
+      label: section.category || `Section ${idx + 1}`,
       children: (
         <div style={{ padding: 16, overflow: 'auto' }}>
+          {formDefLoading ? (
+            <Spin tip="Loading..." />
+          ) : isLobSection ? (
+            <LobReviewBlock
+              formData={formData}
+              fieldReviewDecisions={fieldReviewDecisions}
+              onFieldDecision={handleFieldDecision}
+              onSaveLob={handleSaveLob}
+              token={token}
+              saving={savingLob}
+              primaryLineOfBusiness={businessReg.primaryLineOfBusiness}
+            />
+          ) : (
+            <SectionReadOnlyContent
+              section={section}
+              sectionIdx={idx}
+              formData={formData}
+              documents={application?.documents || {}}
+              token={token}
+              formatDate={formatDate}
+              formatBoolean={formatBoolean}
+              formatCurrency={formatCurrency}
+              formatNumber={formatNumber}
+              DocumentViewer={DocumentViewer}
+              onViewDocument={({ url, label, type }) => setDocumentModal({ open: true, url, label, type })}
+              primaryLineOfBusiness={businessReg.primaryLineOfBusiness}
+              fieldReviewDecisions={fieldReviewDecisions}
+              onFieldDecision={handleFieldDecision}
+            />
+          )}
+        </div>
+      ),
+    }
+  })
+
+  const reviewTab = {
+    key: 'review',
+    label: 'Review',
+    children: (
+        <div style={{ padding: 16, overflow: 'auto' }}>
           {/* Application Info Summary */}
+          {formDefLoading && (
+            <div style={{ marginBottom: 16 }}>
+              <Spin size="small" tip="Loading form sections..." />
+            </div>
+          )}
+          {!formDefLoading && !formDefinition && (
+            <Alert
+              message="Form definition not loaded"
+              description="No active form definition is available for this application type. Section tabs will appear when an active form is published by the admin."
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+          )}
           <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
             <Descriptions.Item label="Reference Number">
               <Text copyable strong style={{ fontFamily: 'monospace', color: token.colorPrimary }}>
@@ -334,7 +892,90 @@ export default function ApplicationDetailPanel({
             </Descriptions.Item>
             <Descriptions.Item label="Submitted Date">{formatDate(application?.submittedAt)}</Descriptions.Item>
             <Descriptions.Item label="Created Date">{formatDate(application?.createdAt)}</Descriptions.Item>
+            <Descriptions.Item label="Primary Line of Business">
+              {businessReg.primaryLineOfBusiness || (formData?.businessActivities?.[0]?.lineOfBusiness) || 'N/A'}
+            </Descriptions.Item>
           </Descriptions>
+
+          {/* Applicant snapshot */}
+          <div style={{ marginBottom: 16 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Applicant: <Text strong>{ownerName}</Text>
+              {' · '}
+              Ref: <Text strong copyable>{application?.applicationReferenceNumber || 'N/A'}</Text>
+            </Text>
+          </div>
+
+          {/* Review progress */}
+          {canReview && allFieldKeys.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                <Text strong style={{ fontSize: 13 }}>Review progress</Text>
+                <Progress
+                  percent={allFieldKeys.length ? Math.round((decidedCount / allFieldKeys.length) * 100) : 0}
+                  status={rejectedFields.length > 0 ? 'exception' : allFieldsReviewed ? 'success' : 'active'}
+                />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {decidedCount} of {allFieldKeys.length} fields reviewed
+                  {rejectedFields.length > 0 && ` · ${rejectedFields.length} rejected`}
+                </Text>
+              </Space>
+            </div>
+          )}
+
+          {/* Application timeline */}
+          {(application?.submittedAt || application?.reviewedAt || application?.updatedAt) && (
+            <div style={{ marginBottom: 16, padding: 12, background: token.colorFillAlter, borderRadius: token.borderRadius, border: `1px solid ${token.colorBorderSecondary}` }}>
+              <Space direction="vertical" size={4}>
+                <Text strong style={{ fontSize: 12 }}><ClockCircleOutlined /> Timeline</Text>
+                {application.submittedAt && <Text type="secondary" style={{ fontSize: 12 }}>Submitted: {formatDate(application.submittedAt)}</Text>}
+                {application.reviewedAt && <Text type="secondary" style={{ fontSize: 12 }}>Reviewed / last review: {formatDate(application.reviewedAt)}</Text>}
+                {application.updatedAt && <Text type="secondary" style={{ fontSize: 12 }}>Last updated: {formatDate(application.updatedAt)}</Text>}
+              </Space>
+            </div>
+          )}
+
+          {/* Rejection summary (field-level) */}
+          {rejectedFields.length > 0 && (
+            <Collapse
+              style={{ marginBottom: 16 }}
+              items={[{
+                key: 'rejections',
+                label: <Space><CloseCircleOutlined style={{ color: token.colorError }} /><Text strong>Rejection summary ({rejectedFields.length} field{rejectedFields.length !== 1 ? 's' : ''})</Text></Space>,
+                children: (
+                  <ul style={{ margin: 0, paddingLeft: 20 }}>
+                    {rejectedFields.map((fk) => {
+                      const d = fieldReviewDecisions[fk]
+                      const reason = d?.reasonOther || REJECTION_REASON_OPTIONS.find((r) => r.value === d?.reasonCode)?.label || d?.reasonCode || 'Rejected'
+                      return <li key={fk}><Text>{fk}: {reason}</Text></li>
+                    })}
+                  </ul>
+                ),
+              }]}
+            />
+          )}
+
+          {/* Application history (collapsible) */}
+          {applicationHistory.length > 0 && (
+            <Collapse
+              style={{ marginBottom: 16 }}
+              items={[{
+                key: 'history',
+                label: <Space><HistoryOutlined /><Text strong>Application history</Text></Space>,
+                children: (
+                  <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                    {applicationHistory.map((ev, i) => (
+                      <div key={i}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>{formatDate(ev.at)}</Text>
+                        {' — '}
+                        <Text>{ev.label || ev.event}</Text>
+                      </div>
+                    ))}
+                  </Space>
+                ),
+              }]}
+            />
+          )}
 
           {/* AI Validation Summary */}
           {aiValidation?.completed && (
@@ -372,23 +1013,15 @@ export default function ApplicationDetailPanel({
           {/* Permit Actions for Approved Applications */}
           {application?.status === 'approved' && (
             <div style={{
-              background: token.colorSuccessBg,
-              border: `1px solid ${token.colorSuccessBorder || token.colorSuccess}`,
+              background: token.colorFillAlter,
+              border: `1px solid ${token.colorBorderSecondary}`,
               borderRadius: token.borderRadius,
               padding: 12,
               marginBottom: 16
             }}>
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                <Text strong style={{ fontSize: 13 }}>Permit Actions</Text>
-                <Button
-                  type="primary"
-                  block
-                  icon={<FileTextOutlined />}
-                  onClick={() => message.success('Payment simulated. Permit issued successfully.')}
-                >
-                  Issue Permit (Simulate Payment)
-                </Button>
-              </Space>
+              <Text type="secondary" style={{ fontSize: 13 }}>
+                Permit issuance and payment are handled in a separate workflow.
+              </Text>
             </div>
           )}
 
@@ -467,11 +1100,31 @@ export default function ApplicationDetailPanel({
                 </>
               )}
 
+              {canReview && allFieldKeys.length > 0 && !allFieldsReviewed && (
+                <Alert
+                  message="Complete field review first"
+                  description={`Review all ${allFieldKeys.length} fields in the form sections (${decidedCount} of ${allFieldKeys.length} done). Submit will be enabled when every field is accepted or rejected.`}
+                  type="info"
+                  showIcon
+                  style={{ marginBottom: 16 }}
+                />
+              )}
+              {canReview && rejectedFields.length > 0 && (
+                <Alert
+                  message="Some fields are rejected"
+                  description="Consider selecting &quot;Request changes&quot; so the applicant can address the rejected fields."
+                  type="warning"
+                  showIcon
+                  style={{ marginBottom: 16 }}
+                />
+              )}
+
               <Form.Item style={{ marginBottom: 0, marginTop: 16 }}>
                 <Button
                   type="primary"
                   htmlType="submit"
                   loading={reviewing}
+                  disabled={canReview && allFieldKeys.length > 0 && !allFieldsReviewed}
                   block
                   icon={decision === 'approve' ? <CheckCircleOutlined /> : decision === 'reject' ? <CloseCircleOutlined /> : <EditOutlined />}
                   style={{
@@ -486,272 +1139,74 @@ export default function ApplicationDetailPanel({
           )}
         </div>
       )
-    },
-    {
-      key: 'owner',
-      label: <span><UserOutlined /> Owner</span>,
-      children: (
-        <div style={{ padding: 16, overflow: 'auto' }}>
-          <Text strong style={{ display: 'block', marginBottom: 12 }}>Owner Identity</Text>
-          <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
-            <Descriptions.Item label="Full Name">{ownerIdentity.fullName || ownerName}</Descriptions.Item>
-            <Descriptions.Item label="Date of Birth">{formatDate(ownerIdentity.dateOfBirth)}</Descriptions.Item>
-            <Descriptions.Item label="ID Type">{ownerIdentity.idType || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="ID Number">{ownerIdentity.idNumber || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="ID Document"><DocumentViewer url={ownerIdentity.idFileUrl} label="ID Document" /></Descriptions.Item>
-          </Descriptions>
+    }
 
-          <Text strong style={{ display: 'block', marginBottom: 12 }}>Contact Information</Text>
-          <Descriptions column={1} size="small" bordered>
-            <Descriptions.Item label="Position">{businessReg.ownerPosition || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Nationality">{businessReg.ownerNationality || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="TIN">{businessReg.ownerTin || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Email">{businessReg.emailAddress || application?.businessOwner?.email || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Mobile">{businessReg.mobileNumber || application?.businessOwner?.phoneNumber || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Residential Address">{businessReg.ownerResidentialAddress || 'N/A'}</Descriptions.Item>
-          </Descriptions>
-        </div>
-      )
-    },
-    {
-      key: 'business',
-      label: <span><ShopOutlined /> Business</span>,
-      children: (
-        <div style={{ padding: 16, overflow: 'auto' }}>
-          <Text strong style={{ display: 'block', marginBottom: 12 }}>Registration Information</Text>
-          <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
-            <Descriptions.Item label="Business Name">{businessReg.registeredBusinessName || application?.businessName || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Trade Name">{businessReg.businessTradeName || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Registration Type">{formatRegistrationType(businessReg.businessRegistrationType)}</Descriptions.Item>
-            <Descriptions.Item label="Registration Number">{businessReg.businessRegistrationNumber || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Registration Date">{formatDate(businessReg.businessRegistrationDate)}</Descriptions.Item>
-            <Descriptions.Item label="Registration Agency">{businessReg.registrationAgency || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Business Type">{getBusinessTypeLabel(businessReg.businessType) || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Business Classification">{businessReg.businessClassification || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Industry Category">{businessReg.industryCategory || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Primary Line of Business">{businessReg.primaryLineOfBusiness || 'N/A'}</Descriptions.Item>
-          </Descriptions>
+  const ownerTab = {
+    key: 'owner',
+    label: 'Owner',
+    children: (
+      <div style={{ padding: 16, overflow: 'auto' }}>
+        <OwnerInfoReadOnlyView
+          application={application}
+          ownerIdentity={ownerIdentity}
+          businessReg={businessReg}
+          ownerName={ownerName}
+        />
+      </div>
+    )
+  }
 
-          <Text strong style={{ display: 'block', marginBottom: 12 }}>Operations</Text>
-          <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
-            <Descriptions.Item label="Number of Employees">{businessReg.numberOfEmployees || 0}</Descriptions.Item>
-            <Descriptions.Item label="Number of Business Units">{businessReg.numberOfBusinessUnits || 0}</Descriptions.Item>
-            <Descriptions.Item label="With Food Handlers">{formatBoolean(businessReg.withFoodHandlers)}</Descriptions.Item>
-            <Descriptions.Item label="Business Start Date">{formatDate(businessReg.businessStartDate)}</Descriptions.Item>
-          </Descriptions>
-
-          <Text strong style={{ display: 'block', marginBottom: 12 }}>Financial Information</Text>
-          <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
-            <Descriptions.Item label="Declared Capital Investment">{formatCurrency(businessReg.declaredCapitalInvestment)}</Descriptions.Item>
-          </Descriptions>
-
-          <Text strong style={{ display: 'block', marginBottom: 12 }}>Declaration</Text>
-          <Descriptions column={1} size="small" bordered>
-            <Descriptions.Item label="Declarant Name">{businessReg.declarantName || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Declaration Date">{formatDate(businessReg.declarationDate)}</Descriptions.Item>
-            <Descriptions.Item label="Certification Accepted">{formatBoolean(businessReg.certificationAccepted)}</Descriptions.Item>
-          </Descriptions>
-        </div>
-      )
-    },
-    {
-      key: 'location',
-      label: <span><EnvironmentOutlined /> Location</span>,
-      children: (
-        <div style={{ padding: 16, overflow: 'auto' }}>
-          <Descriptions column={1} size="small" bordered>
-            <Descriptions.Item label="Complete Address">
-              {[location.unitBuildingName, location.street, location.barangay, location.city || location.cityMunicipality, location.province, location.zipCode].filter(Boolean).join(', ') || 'N/A'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Unit/Building Name">{location.unitBuildingName || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Street">{location.street || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Barangay">{location.barangay || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="City/Municipality">{location.city || location.cityMunicipality || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Province">{location.province || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Zip Code">{location.zipCode || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Location Type">
-              {location.businessLocationType ? (
-                <Tag color={location.businessLocationType === 'owned' ? 'success' : 'default'}>
-                  {location.businessLocationType === 'owned' ? 'Owned' : 'Leased'}
-                </Tag>
-              ) : 'N/A'}
-            </Descriptions.Item>
-            {location.geolocation?.lat && <Descriptions.Item label="Latitude">{location.geolocation.lat}</Descriptions.Item>}
-            {location.geolocation?.lng && <Descriptions.Item label="Longitude">{location.geolocation.lng}</Descriptions.Item>}
-          </Descriptions>
-        </div>
-      )
-    },
-    {
-      key: 'documents',
-      label: <span><FileTextOutlined /> Documents</span>,
-      children: (
-        <div style={{ padding: 16, overflow: 'auto' }}>
-          <Descriptions column={1} size="small" bordered>
-            <Descriptions.Item label="2x2 ID Picture"><DocumentViewer url={documents.idPicture} label="ID Picture" /></Descriptions.Item>
-            <Descriptions.Item label="Community Tax Certificate"><DocumentViewer url={documents.ctc} label="CTC" /></Descriptions.Item>
-            <Descriptions.Item label="Barangay Business Clearance"><DocumentViewer url={documents.barangayClearance} label="Barangay Clearance" /></Descriptions.Item>
-            <Descriptions.Item label="DTI/SEC/CDA Registration"><DocumentViewer url={documents.dtiSecCda} label="DTI/SEC/CDA" /></Descriptions.Item>
-            <Descriptions.Item label="Lease Contract or Land Title"><DocumentViewer url={documents.leaseOrLandTitle} label="Lease/Land Title" /></Descriptions.Item>
-            <Descriptions.Item label="Certificate of Occupancy"><DocumentViewer url={documents.occupancyPermit} label="Occupancy Permit" /></Descriptions.Item>
-            <Descriptions.Item label="Health Certificate"><DocumentViewer url={documents.healthCertificate} label="Health Certificate" /></Descriptions.Item>
-          </Descriptions>
-        </div>
-      )
-    },
-    {
-      key: 'bir',
-      label: <span><BankOutlined /> BIR</span>,
-      children: (
-        <div style={{ padding: 16, overflow: 'auto' }}>
-          <Descriptions column={1} size="small" bordered>
-            <Descriptions.Item label="Registration Number">{birRegistration.registrationNumber || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="BIR Certificate"><DocumentViewer url={birRegistration.certificateUrl} label="BIR Certificate" /></Descriptions.Item>
-            <Descriptions.Item label="Books of Accounts"><DocumentViewer url={birRegistration.booksOfAccountsUrl} label="Books of Accounts" /></Descriptions.Item>
-            <Descriptions.Item label="Authority to Print"><DocumentViewer url={birRegistration.authorityToPrintUrl} label="Authority to Print" /></Descriptions.Item>
-          </Descriptions>
-        </div>
-      )
-    },
-    {
-      key: 'agencies',
-      label: <span><SafetyOutlined /> Agencies</span>,
-      children: (
-        <div style={{ padding: 16, overflow: 'auto' }}>
-          <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
-            <Descriptions.Item label="Has Employees">{formatBoolean(otherAgencies.hasEmployees)}</Descriptions.Item>
-          </Descriptions>
-
-          <Text strong style={{ display: 'block', marginBottom: 12 }}>SSS Registration</Text>
-          <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
-            <Descriptions.Item label="Registered">{formatBoolean(otherAgencies.sss?.registered)}</Descriptions.Item>
-            <Descriptions.Item label="Proof Document"><DocumentViewer url={otherAgencies.sss?.proofUrl} label="SSS Proof" /></Descriptions.Item>
-          </Descriptions>
-
-          <Text strong style={{ display: 'block', marginBottom: 12 }}>PhilHealth Registration</Text>
-          <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
-            <Descriptions.Item label="Registered">{formatBoolean(otherAgencies.philhealth?.registered)}</Descriptions.Item>
-            <Descriptions.Item label="Proof Document"><DocumentViewer url={otherAgencies.philhealth?.proofUrl} label="PhilHealth Proof" /></Descriptions.Item>
-          </Descriptions>
-
-          <Text strong style={{ display: 'block', marginBottom: 12 }}>Pag-IBIG Registration</Text>
-          <Descriptions column={1} size="small" bordered>
-            <Descriptions.Item label="Registered">{formatBoolean(otherAgencies.pagibig?.registered)}</Descriptions.Item>
-            <Descriptions.Item label="Proof Document"><DocumentViewer url={otherAgencies.pagibig?.proofUrl} label="Pag-IBIG Proof" /></Descriptions.Item>
-          </Descriptions>
-        </div>
-      )
-    },
-    {
-      key: 'risk',
-      label: <span><SafetyCertificateOutlined /> Risk</span>,
-      children: (
-        <div style={{ padding: 16, overflow: 'auto' }}>
-          <Text strong style={{ display: 'block', marginBottom: 12 }}>Risk Profile</Text>
-          <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
-            <Descriptions.Item label="Risk Level">{formatRiskLevel(riskProfile.riskLevel)}</Descriptions.Item>
-            <Descriptions.Item label="Business Size">{riskProfile.businessSize || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Annual Revenue">{formatCurrency(riskProfile.annualRevenue)}</Descriptions.Item>
-            <Descriptions.Item label="Business Activities">{riskProfile.businessActivitiesDescription || 'N/A'}</Descriptions.Item>
-          </Descriptions>
-
-          <Text strong style={{ display: 'block', marginBottom: 12 }}>Requirements Checklist</Text>
-          <Descriptions column={1} size="small" bordered>
-            <Descriptions.Item label="Requirements Confirmed">{formatBoolean(requirementsChecklist.confirmed)}</Descriptions.Item>
-            <Descriptions.Item label="Confirmed At">{formatDate(requirementsChecklist.confirmedAt)}</Descriptions.Item>
-            <Descriptions.Item label="PDF Downloaded">{formatBoolean(requirementsChecklist.pdfDownloaded)}</Descriptions.Item>
-            <Descriptions.Item label="PDF Downloaded At">{formatDate(requirementsChecklist.pdfDownloadedAt)}</Descriptions.Item>
-          </Descriptions>
-        </div>
-      )
-    },
-    {
-      key: 'ai',
-      label: <span><RobotOutlined /> AI</span>,
-      children: (
-        <div style={{ padding: 16, overflow: 'auto' }}>
-          {aiValidation?.completed ? (
-            <>
-              <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
-                <Descriptions.Item label="Validated On">{formatDate(aiValidation.completedAt)}</Descriptions.Item>
-                <Descriptions.Item label="Overall Status">
-                  <Badge
-                    status={aiValidation.results?.overallStatus === 'pass' ? 'success' : aiValidation.results?.overallStatus === 'warning' ? 'warning' : 'error'}
-                    text={aiValidation.results?.overallStatus === 'pass' ? 'Pass' : aiValidation.results?.overallStatus === 'warning' ? 'Warning' : 'Fail'}
-                  />
-                </Descriptions.Item>
-              </Descriptions>
-
-              {aiValidation.results?.documentCompleteness && (
-                <>
-                  <Text strong style={{ display: 'block', marginBottom: 8 }}>Document Completeness</Text>
-                  <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
-                    <Descriptions.Item label="Score">{aiValidation.results.documentCompleteness.score || 0}%</Descriptions.Item>
-                    {aiValidation.results.documentCompleteness.issues?.length > 0 && (
-                      <Descriptions.Item label="Issues">
-                        <ul style={{ margin: 0, paddingLeft: 16 }}>
-                          {aiValidation.results.documentCompleteness.issues.map((issue, idx) => <li key={idx}>{issue}</li>)}
-                        </ul>
-                      </Descriptions.Item>
-                    )}
-                  </Descriptions>
-                </>
-              )}
-
-              {aiValidation.results?.consistency && (
-                <>
-                  <Text strong style={{ display: 'block', marginBottom: 8 }}>Consistency Check</Text>
-                  <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
-                    <Descriptions.Item label="Score">{aiValidation.results.consistency.score || 0}%</Descriptions.Item>
-                    {aiValidation.results.consistency.issues?.length > 0 && (
-                      <Descriptions.Item label="Issues">
-                        <ul style={{ margin: 0, paddingLeft: 16 }}>
-                          {aiValidation.results.consistency.issues.map((issue, idx) => <li key={idx}>{issue}</li>)}
-                        </ul>
-                      </Descriptions.Item>
-                    )}
-                  </Descriptions>
-                </>
-              )}
-
-              {aiValidation.results?.anomalies?.length > 0 && (
-                <Alert
-                  type="error"
-                  message="Anomalies Detected"
-                  description={
-                    <ul style={{ margin: 0, paddingLeft: 16 }}>
-                      {aiValidation.results.anomalies.map((a, i) => <li key={i}>{a}</li>)}
-                    </ul>
-                  }
-                  style={{ marginBottom: 16 }}
-                />
-              )}
-
-              {aiValidation.results?.riskFlags?.length > 0 && (
-                <Alert
-                  type="warning"
-                  message="Risk Flags"
-                  description={
-                    <ul style={{ margin: 0, paddingLeft: 16 }}>
-                      {aiValidation.results.riskFlags.map((f, i) => <li key={i}>{f}</li>)}
-                    </ul>
-                  }
-                />
-              )}
-            </>
-          ) : (
-            <Alert message="AI Validation Not Completed" description="This application has not been validated by AI yet." type="info" showIcon />
-          )}
-        </div>
-      )
-    },
+  const tabItems = [
+    reviewTab,
+    ownerTab,
+    ...sectionTabs
   ]
 
-  const fullAddress = [location.unitBuildingName, location.street, location.barangay, location.city || location.cityMunicipality, location.province, location.zipCode].filter(Boolean).join(', ') || 'N/A'
+  const navItems = tabItems.map((t) => ({ key: t.key, label: typeof t.label === 'string' ? t.label : t.key }))
+  const mainNavItems = navItems.slice(0, 2)
+  const formNavItems = navItems.slice(2)
+
+  const getSectionStatus = (sectionIdx) => {
+    const sectionKeys = sectionIdx === lobSectionIndex
+      ? allFieldKeys.filter((k) => k === LOB_FIELD_DESCRIPTION || k.startsWith('lob_activity_'))
+      : allFieldKeys.filter((k) => String(k).startsWith(`${sectionIdx}.`))
+    if (sectionKeys.length === 0) return null
+    const hasRejected = sectionKeys.some((k) => fieldReviewDecisions[k]?.status === 'rejected')
+    const allDecided = sectionKeys.every((k) => fieldReviewDecisions[k]?.status)
+    if (hasRejected) return 'rejected'
+    if (allDecided) return 'ok'
+    return 'pending'
+  }
+
+  const activeContent = tabItems.find((t) => t.key === activeTab)?.children
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Spin spinning={loading || startingReview}>
+    <div className="application-detail-panel-root" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }}>
+      <style>{`
+        /* Spin wraps content in .ant-spin-nested-loading and .ant-spin-container; make them pass through flex/height */
+        .application-detail-panel-root.ant-spin-nested-loading {
+          display: flex !important;
+          flex-direction: column !important;
+          flex: 1 !important;
+          min-height: 0 !important;
+          height: 100% !important;
+          overflow: hidden !important;
+        }
+        .application-detail-panel-root .ant-spin-container {
+          display: flex !important;
+          flex-direction: column !important;
+          flex: 1 !important;
+          min-height: 0 !important;
+          height: 100% !important;
+          overflow: hidden !important;
+        }
+      `}</style>
+      <Spin
+        spinning={loading || startingReview}
+        wrapperClassName="application-detail-panel-root"
+        style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', height: '100%' }}
+      >
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', height: '100%' }}>
         {/* Header */}
         <div
           style={{
@@ -796,7 +1251,7 @@ export default function ApplicationDetailPanel({
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'auto' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
           {isFinalDecision && (
             <Alert
               message={`Application has been ${application.status === 'approved' ? 'approved' : 'rejected'}`}
@@ -805,41 +1260,172 @@ export default function ApplicationDetailPanel({
               style={{ margin: 16, marginBottom: 0 }}
             />
           )}
-          <Collapse
-            defaultActiveKey={['owner-info']}
-            ghost
-            style={{ borderBottom: `1px solid ${token.colorBorderSecondary}` }}
-            items={[
-              {
-                key: 'owner-info',
-                label: (
-                  <Text strong style={{ fontSize: 13 }}>
-                    <UserOutlined style={{ marginRight: 8 }} />
-                    Business Owner Personal Information
-                  </Text>
-                ),
-                children: (
-                  <OwnerPersonalInfoSection
-                    application={application}
-                    ownerIdentity={ownerIdentity}
-                    businessReg={businessReg}
-                    ownerName={ownerName}
-                  />
-                ),
-              },
-            ]}
-          />
 
-          {/* Tabs */}
-          <Tabs
-            defaultActiveKey="review"
-            size="small"
-            style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
-            tabBarStyle={{ padding: '0 16px', marginBottom: 0, flexShrink: 0 }}
-            items={tabItems}
-          />
+        {/* Content: vertical nav + panel (Settings Security-style buttons) */}
+        <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden', alignItems: 'stretch' }}>
+          <div
+            style={{
+              width: 220,
+              flexShrink: 0,
+              alignSelf: 'stretch',
+              borderRight: `1px solid ${token.colorBorderSecondary}`,
+              padding: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+              overflowY: 'auto',
+              background: token.colorBgContainer,
+            }}
+          >
+            {mainNavItems.map((item) => {
+              const isSelected = activeTab === item.key
+              return (
+                <Button
+                  key={item.key}
+                  type={isSelected ? 'primary' : 'default'}
+                  onClick={() => setActiveTab(item.key)}
+                  style={{
+                    textAlign: 'left',
+                    justifyContent: 'flex-start',
+                    fontWeight: isSelected ? 600 : 400,
+                    whiteSpace: 'normal',
+                    height: 'auto',
+                    minHeight: 40,
+                    padding: '8px 12px',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {item.label}
+                </Button>
+              )
+            })}
+            {formNavItems.length > 0 && (
+              <>
+                <div
+                  style={{
+                    marginTop: 12,
+                    marginBottom: 4,
+                    padding: '4px 12px 0',
+                    borderTop: `1px solid ${token.colorBorderSecondary}`,
+                  }}
+                >
+                  <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Form sections
+                  </Text>
+                </div>
+                {formNavItems.map((item) => {
+                  const isSelected = activeTab === item.key
+                  const sectionIdx = parseInt(String(item.key).replace('section-', ''), 10)
+                  const status = getSectionStatus(sectionIdx)
+                  const statusIcon = status === 'ok' ? <CheckCircleOutlined style={{ color: token.colorSuccess, marginLeft: 4 }} /> : status === 'rejected' ? <CloseCircleOutlined style={{ color: token.colorError, marginLeft: 4 }} /> : status === 'pending' ? <ClockCircleOutlined style={{ color: token.colorWarning, marginLeft: 4 }} /> : null
+                  return (
+                    <Button
+                      key={item.key}
+                      type={isSelected ? 'primary' : 'default'}
+                      onClick={() => setActiveTab(item.key)}
+                      style={{
+                        textAlign: 'left',
+                        justifyContent: 'flex-start',
+                        fontWeight: isSelected ? 600 : 400,
+                        whiteSpace: 'normal',
+                        height: 'auto',
+                        minHeight: 40,
+                        padding: '8px 12px',
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      <span style={{ display: 'inline-flex', alignItems: 'center' }}>{item.label}{statusIcon}</span>
+                    </Button>
+                  )
+                })}
+              </>
+            )}
+          </div>
+          <div
+            style={{
+              flex: 1,
+              minWidth: 0,
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'auto',
+              background: token.colorBgContainer,
+            }}
+          >
+            {activeContent}
+          </div>
+        </div>
+        </div>
         </div>
       </Spin>
+      <Modal
+        title={documentModal.label}
+        open={documentModal.open}
+        onCancel={() => setDocumentModal({ open: false, url: null, label: '', type: 'other' })}
+        width={documentModal.type === 'image' ? 560 : 720}
+        footer={[
+          <Button key="close" onClick={() => setDocumentModal({ open: false, url: null, label: '', type: 'other' })}>
+            Close
+          </Button>,
+          <Button
+            key="openTab"
+            type="primary"
+            icon={<EyeOutlined />}
+            onClick={() => documentModal.url && window.open(documentModal.url, '_blank')}
+          >
+            Open in new tab
+          </Button>,
+          ...(documentModal.type === 'pdf' && documentModal.url
+            ? [
+                <Button
+                  key="download"
+                  icon={<DownloadOutlined />}
+                  href={documentModal.url}
+                  download
+                >
+                  Download
+                </Button>
+              ]
+            : [])
+        ]}
+      >
+        {documentModal.open && documentModal.url && (
+          <div style={{ minHeight: 200, display: 'flex', justifyContent: 'center', alignItems: 'stretch', overflow: 'auto', flexDirection: 'column', width: '100%' }}>
+            {documentModal.type === 'image' && (
+              <img
+                src={documentModal.url}
+                alt={documentModal.label}
+                style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
+              />
+            )}
+            {documentModal.type === 'pdf' && (
+              <iframe
+                title={documentModal.label}
+                src={documentModal.url}
+                style={{ width: '100%', height: '70vh', border: `1px solid ${token.colorBorderSecondary}`, borderRadius: token.borderRadius }}
+              />
+            )}
+            {documentModal.type === 'other' && (
+              <>
+                <iframe
+                  title={documentModal.label}
+                  src={documentModal.url}
+                  style={{
+                    width: '100%',
+                    height: '70vh',
+                    minHeight: 320,
+                    border: `1px solid ${token.colorBorderSecondary}`,
+                    borderRadius: token.borderRadius,
+                  }}
+                />
+                <Text type="secondary" style={{ marginTop: 8, fontSize: 12 }}>
+                  If the document does not appear above, use &quot;Open in new tab&quot; to view it.
+                </Text>
+              </>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

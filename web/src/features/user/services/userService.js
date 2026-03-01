@@ -15,6 +15,36 @@ export async function updateUserProfile(payload, currentUser, role) {
   })
 }
 
+/** Business owner only: PATCH /api/auth/profile/name (firstName, lastName, middleName, suffix, sex, dateOfBirth) */
+export async function updateBusinessOwnerProfileName(payload, currentUser, role) {
+  const headers = authHeaders(currentUser, role, { 'Content-Type': 'application/json' })
+  return fetchJsonWithFallback('/api/auth/profile/name', {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify(payload),
+  })
+}
+
+/** Business owner only: PATCH /api/auth/profile/contact (phoneNumber) */
+export async function updateBusinessOwnerProfileContact(payload, currentUser, role) {
+  const headers = authHeaders(currentUser, role, { 'Content-Type': 'application/json' })
+  return fetchJsonWithFallback('/api/auth/profile/contact', {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify(payload),
+  })
+}
+
+/** Business owner only: PATCH /api/auth/profile/pis (address, maritalStatus, placeOfBirth, nationality, etc.) */
+export async function updateBusinessOwnerProfilePis(payload, currentUser, role) {
+  const headers = authHeaders(currentUser, role, { 'Content-Type': 'application/json' })
+  return fetchJsonWithFallback('/api/auth/profile/pis', {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function uploadUserAvatar(file, currentUser, role) {
   const headers = authHeaders(currentUser, role)
   const formData = new FormData()

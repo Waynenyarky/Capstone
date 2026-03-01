@@ -14,10 +14,14 @@ const respond = require('../middleware/respond')
 const logger = require('../lib/logger')
 const { validateBody, Joi } = require('../middleware/validation')
 const { perEmailRateLimit } = require('../middleware/rateLimit')
+const { checkLockout, incrementFailedAttempts, clearFailedAttempts } = require('../lib/accountLockout')
 const { decryptWithHash } = require('../lib/secretCipher')
 const Session = require('../models/Session')
 const { trackIP } = require('../lib/ipTracker')
-const { isPasswordExpired } = require('../lib/passwordExpiry')
+const inAppNotificationService = require('../services/notificationService')
+const { isPasswordExpired, isPasswordExpiredByPolicy } = require('../lib/passwordExpiry')
+const { verifyTurnstileToken, isCaptchaEnabled } = require('../lib/turnstile')
+const { createAuditLog } = require('../lib/auditLogger')
 let OAuth2Client = null
 try { ({ OAuth2Client } = require('google-auth-library')) } catch (_) { OAuth2Client = null }
 
@@ -34,7 +38,7 @@ function normalizeLoginIdentifier(raw) {
 }
 
 function isEmailIdentifier(identifier) {
-  if (identifier === '1') return true
+  if (process.env.NODE_ENV === 'development' && identifier === '1') return true
   return identifier.includes('@')
 }
 
@@ -54,8 +58,13 @@ const loginCredentialsSchema = Joi.object({
   email: Joi.string().trim().min(1).max(200).required(),
   password: Joi.string()
     .max(200)
-    .when('email', { is: '1', then: Joi.string().min(1), otherwise: Joi.string().min(6) })
+    .when('email', {
+      is: '1',
+      then: process.env.NODE_ENV === 'development' ? Joi.string().min(1) : Joi.string().min(6),
+      otherwise: Joi.string().min(6),
+    })
     .required(),
+  captchaToken: Joi.string().allow('', null).optional(),
 })
 
 const verifyCodeSchema = Joi.object({
@@ -84,7 +93,10 @@ const googleLoginSchema = Joi.object({
 }).or('idToken', 'email')
 
 const resendCodeSchema = Joi.object({
-  email: Joi.alternatives().try(Joi.string().email(), Joi.string().valid('1')).required(),
+  email: process.env.NODE_ENV === 'development'
+    ? Joi.alternatives().try(Joi.string().email(), Joi.string().valid('1')).required()
+    : Joi.string().email().required(),
+  captchaToken: Joi.string().allow('', null).optional(),
 })
 
 // Allow disabling rate limits only when explicitly set (e.g. load tests or local debugging)
@@ -139,14 +151,26 @@ async function createSessionForUser(doc, roleSlug, req) {
 // Also handles '1' shorthand for dev admin
 router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSchema), async (req, res) => {
   try {
+    // CAPTCHA (IAS-2: Rate + CAPTCHA): verify when Turnstile is configured
+    if (isCaptchaEnabled()) {
+      const token = (req.body.captchaToken || '').trim()
+      if (!token) {
+        return respond.error(res, 400, 'captcha_failed', 'Verification failed. Please try again.')
+      }
+      const result = await verifyTurnstileToken(token, req.ip)
+      if (!result.success) {
+        return respond.error(res, 400, 'captcha_failed', 'Verification failed. Please try again.')
+      }
+    }
+
     let { email, password } = req.body || {}
     const bypass = String(req.headers['x-bypass-fingerprint'] || '').toLowerCase() === 'true'
     // already validated
 
     const identifier = normalizeLoginIdentifier(email)
 
-    // Ensure admin seed for testing if email is "1"
-    if (String(identifier) === '1') {
+    // Ensure admin seed for testing if email is "1" (dev only)
+    if (process.env.NODE_ENV === 'development' && String(identifier) === '1') {
       let adminDoc = await User.findOne({ email: '1' }).lean()
       if (!adminDoc) {
         const passwordHash = await bcrypt.hash('1', 10)
@@ -186,6 +210,17 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       securityMonitor.trackFailedLogin(req.ip || req.connection.remoteAddress, null)
       return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password') // REQUIREMENT IAS-1.3: generic login errors
     }
+
+    // Account lockout: reject if account is locked due to too many failed attempts
+    const lockoutCheck = await checkLockout(doc._id)
+    if (lockoutCheck.locked) {
+      const lockedUntilMs = lockoutCheck.lockedUntil ? new Date(lockoutCheck.lockedUntil).getTime() : Date.now() + 15 * 60 * 1000
+      return respond.error(res, 423, 'account_locked', 'Account temporarily locked due to too many failed attempts. Try again later.', undefined, {
+        lockedUntil: lockedUntilMs,
+        remainingMinutes: lockoutCheck.remainingMinutes,
+      })
+    }
+
     let match = false
     const isBcrypt = /^\$2[aby]\$/.test(String(doc.passwordHash))
     if (isBcrypt) {
@@ -205,11 +240,21 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       }
     }
     if (!match) {
-      // Track failed login attempt
+      // Track failed login attempt and enforce account lockout after threshold
       const securityMonitor = require('../middleware/securityMonitor')
       securityMonitor.trackFailedLogin(req.ip || req.connection.remoteAddress, doc._id ? String(doc._id) : null)
+      const lockResult = await incrementFailedAttempts(doc._id)
+      if (lockResult.locked && lockResult.lockedUntil) {
+        const lockedUntilMs = new Date(lockResult.lockedUntil).getTime()
+        return respond.error(res, 423, 'account_locked', 'Account temporarily locked due to too many failed attempts. Try again later.', undefined, {
+          lockedUntil: lockedUntilMs,
+        })
+      }
       return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password')
     }
+
+    // Successful password check: clear any failed-attempt count so future failures start from zero
+    await clearFailedAttempts(doc._id)
 
     // emailKey already set above from normalized request email
 
@@ -234,7 +279,7 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       return respond.error(res, 500, 'role_not_found', 'User role not found. Please contact support.')
     }
     // Dev mode: bypass MFA entirely when BYPASS_MFA_DEV=true and not in production
-    const bypassMfaDev = process.env.BYPASS_MFA_DEV === 'true' && process.env.NODE_ENV !== 'production'
+    const bypassMfaDev = process.env.BYPASS_MFA_DEV === 'true' && process.env.NODE_ENV === 'development'
     const requiresMfa = bypassMfaDev ? false : (doc.isStaff === true || roleSlug === 'admin')
     // Re-fetch MFA fields so we use latest persisted state (e.g. after onboarding)
     try {
@@ -260,8 +305,10 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     const isSeededBusinessOwner = roleSlug === 'business_owner' && emailKey === 'business@example.com'
     
     // Dev mode: bypass all MFA, email OTP, and onboarding for any seeded user when BYPASS_MFA_DEV=true
+    // For staff and admin we never bypass so they are always required to complete onboarding (change password + MFA).
     const isSeededUser = emailKey.endsWith('@example.com') || emailKey.endsWith('@mailslurp.biz')
-    if (bypassMfaDev && isSeededUser) {
+    const isStaffOrAdmin = doc.isStaff === true || roleSlug === 'admin'
+    if (bypassMfaDev && isSeededUser && !isStaffOrAdmin) {
       try {
         const dbDoc = await User.findById(doc._id)
         if (dbDoc) {
@@ -276,6 +323,7 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
         const { token, expiresAtMs } = signAccessToken(doc)
         await createSessionForUser(doc, roleSlug, req)
         logger.info('Login: dev mode MFA bypass', { email: emailKey, role: roleSlug })
+        inAppNotificationService.createNotification(doc._id, 'auth_login', 'Welcome back', 'You have signed in successfully.').catch((err) => console.error('Failed to create auth notification:', err))
         return res.json({
           id: String(doc._id),
           role: roleSlug,
@@ -318,6 +366,7 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       try {
         const { token, expiresAtMs } = signAccessToken(doc)
         await createSessionForUser(doc, roleSlug, req)
+        inAppNotificationService.createNotification(doc._id, 'auth_login', 'Welcome back', 'You have signed in successfully.').catch((err) => console.error('Failed to create auth notification:', err))
         return res.json({
           id: String(doc._id),
           role: roleSlug,
@@ -355,10 +404,9 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       }
     } catch (_) {}
 
-    // Special handling for LGU Officer: Fixed OTP, no email
     const isLguOfficer = doc.role && doc.role.slug === 'lgu_officer'
-    const code = isLguOfficer ? '123456' : generateCode()
-    
+    const code = generateCode()
+
     const expiresAtMs = Date.now() + 10 * 60 * 1000 // 10 minutes
     const loginToken = generateToken()
 
@@ -402,10 +450,11 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       if (hasScheduledDeletion) {
         // Account deletion is scheduled - ALWAYS send OTP via email
         // This ensures users can log in to see deletion status and potentially undo it
-        const emailResult = await sendOtp({ 
-          to: email, 
-          code, 
-          subject: 'Your Login Verification Code - Account Deletion Scheduled' 
+        const emailResult = await sendOtp({
+          to: email,
+          code,
+          subject: 'Your Login Verification Code - Account Deletion Scheduled',
+          purpose: 'login',
         })
         if (!emailResult || !emailResult.success) {
           logger.error('Login OTP email failed (scheduled deletion)', { email, error: emailResult?.error || 'Unknown error' })
@@ -413,10 +462,10 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
         }
         logger.info('Login: sent email OTP (scheduled deletion)', { email })
       } else if (forceEmailOtpInDev || (!totpMfaEnabled && !isLguOfficer)) {
-        const emailResult = await sendOtp({ to: email, code, subject: 'Your Login Verification Code' })
+        const emailResult = await sendOtp({ to: email, code, subject: 'Your Login Verification Code', purpose: 'login' })
         if (!emailResult || !emailResult.success) {
           logger.error('Login OTP email failed', { email, error: emailResult?.error || 'Unknown error' })
-          return respond.error(res, 500, 'email_send_failed', `Failed to send verification email. ${emailResult?.error || 'Check email configuration (e.g. SendGrid sender verification).'}`)
+          return respond.error(res, 500, 'email_send_failed', `Failed to send verification email. ${emailResult?.error || 'Check email configuration (e.g. sender verification in your provider).'}`)
         }
         if (forceEmailOtpInDev) {
           logger.info('Login: sent email OTP (dev, admin/staff)', { email })
@@ -462,6 +511,17 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
 // Resend verification code for an existing login request
 router.post('/login/resend', loginStartLimiter, validateBody(resendCodeSchema), async (req, res) => {
   try {
+    if (isCaptchaEnabled()) {
+      const token = (req.body.captchaToken || '').trim()
+      if (!token) {
+        return respond.error(res, 400, 'captcha_failed', 'Verification failed. Please try again.')
+      }
+      const result = await verifyTurnstileToken(token, req.ip)
+      if (!result.success) {
+        return respond.error(res, 400, 'captcha_failed', 'Verification failed. Please try again.')
+      }
+    }
+
     const { email } = req.body || {}
     const emailKey = String(email).toLowerCase().trim()
     const useDB = mongoose.connection && mongoose.connection.readyState === 1
@@ -508,7 +568,7 @@ router.post('/login/resend', loginStartLimiter, validateBody(resendCodeSchema), 
       const subject = hasScheduledDeletion 
         ? 'Your Login Verification Code (Resend) - Account Deletion Scheduled'
         : 'Your Login Verification Code (Resend)'
-      const emailResult = await sendOtp({ to: email, code, subject })
+      const emailResult = await sendOtp({ to: email, code, subject, purpose: 'login' })
       if (!emailResult || !emailResult.success) {
         console.error(`[Login Resend] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
         return respond.error(res, 500, 'email_failed', `Failed to send email: ${emailResult?.error || 'Please check your email configuration'}`)
@@ -643,6 +703,7 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
 
     // 90-day password expiry: if expired, force password change on next use
     let mustChangeCredentials = !!doc.mustChangeCredentials
+    const passwordExpiredByPolicy = isPasswordExpiredByPolicy(doc.passwordChangedAt)
     const passwordExpired = isPasswordExpired(doc.passwordChangedAt)
     if (passwordExpired) {
       mustChangeCredentials = true
@@ -674,7 +735,7 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
       isStaff: !!doc.isStaff,
       mustChangeCredentials,
       mustSetupMfa: !!doc.mustSetupMfa,
-      ...(passwordExpired ? { passwordExpired: true } : {}),
+      ...(passwordExpiredByPolicy ? { passwordExpired: true } : {}),
     }
     try {
       const { token, expiresAtMs } = signAccessToken(doc)
@@ -718,6 +779,9 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
     // Cleanup login state
     if (useDB) await LoginRequest.deleteOne({ email: emailKey })
     else loginRequests.delete(emailKey)
+
+    inAppNotificationService.createNotification(doc._id, 'auth_login', 'Welcome back', 'You have signed in successfully.').catch((err) => console.error('Failed to create auth notification:', err))
+    createAuditLog(doc._id, 'login', 'session', '', 'active', doc.role?.slug || roleSlug || 'business_owner', { method: 'email_otp', ip: req.ip }).catch(() => {})
 
     return res.json(safe)
   } catch (err) {
@@ -784,7 +848,7 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
     doc.lastLoginAt = new Date()
     await doc.save()
 
-    const passwordExpired = isPasswordExpired(doc.passwordChangedAt)
+    const passwordExpiredByPolicy = isPasswordExpiredByPolicy(doc.passwordChangedAt)
 
     // Create session for successful login
     try {
@@ -871,13 +935,20 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
       isStaff: !!doc.isStaff,
       mustChangeCredentials: !!doc.mustChangeCredentials,
       mustSetupMfa: !!doc.mustSetupMfa,
-      ...(passwordExpired ? { passwordExpired: true } : {}),
+      ...(passwordExpiredByPolicy ? { passwordExpired: true } : {}),
     }
     try {
       const { token, expiresAtMs } = signAccessToken(doc)
       safe.token = token
       safe.expiresAt = new Date(expiresAtMs).toISOString()
     } catch (_) {}
+    try {
+      await createSessionForUser(doc, roleSlug, req)
+    } catch (sessionError) {
+      console.warn('Failed to create session on TOTP login:', sessionError)
+    }
+    inAppNotificationService.createNotification(doc._id, 'auth_login', 'Welcome back', 'You have signed in successfully.').catch((err) => console.error('Failed to create auth notification:', err))
+    createAuditLog(doc._id, 'login', 'session', '', 'active', doc.role?.slug || roleSlug || 'business_owner', { method: 'totp', ip: req.ip }).catch(() => {})
     return res.json(safe)
   } catch (err) {
     console.error('POST /api/auth/login/verify-totp error:', err)
@@ -992,6 +1063,13 @@ router.post('/google', validateBody(googleLoginSchema), async (req, res) => {
       safe.token = token
       safe.expiresAt = new Date(expiresAtMs).toISOString()
     } catch (_) {}
+
+    try {
+      await createSessionForUser(doc, roleSlug, req)
+    } catch (sessionError) {
+      console.warn('Failed to create session on Google login:', sessionError)
+    }
+    inAppNotificationService.createNotification(doc._id, 'auth_login', 'Welcome back', 'You have signed in successfully.').catch((err) => console.error('Failed to create auth notification:', err))
 
     return res.json(safe)
   } catch (err) {

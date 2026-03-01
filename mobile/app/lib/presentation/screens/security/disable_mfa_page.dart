@@ -203,13 +203,13 @@ class _DisableMfaPageState extends State<DisableMfaPage> {
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
+                        color: BizClearColors.surfaceLight,
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         Icons.shield_outlined,
                         size: 80,
-                        color: Colors.grey.shade400,
+                        color: BizClearColors.textHint,
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -218,7 +218,7 @@ class _DisableMfaPageState extends State<DisableMfaPage> {
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: Colors.grey.shade800,
+                        color: BizClearColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -226,7 +226,7 @@ class _DisableMfaPageState extends State<DisableMfaPage> {
                       'Your two-factor authentication is currently active and protected.',
                       style: TextStyle(
                         fontSize: 15,
-                        color: Colors.grey.shade600,
+                        color: BizClearColors.textSecondary,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -280,25 +280,25 @@ class _DisableMfaPageState extends State<DisableMfaPage> {
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Colors.red.shade50, Colors.orange.shade50],
+                    colors: [BizClearColors.error.withValues(alpha: 0.08), BizClearColors.warning.withValues(alpha: 0.08)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.red.shade100),
+                  border: Border.all(color: BizClearColors.error.withValues(alpha: 0.2)),
                 ),
                 child: Column(
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.access_time, color: Colors.red.shade700, size: 22),
+                        Icon(Icons.access_time, color: BizClearColors.error, size: 22),
                         const SizedBox(width: 8),
                         Text(
                           'Time Remaining',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: Colors.red.shade900,
+                            color: BizClearColors.webPrimaryTintText,
                           ),
                         ),
                       ],
@@ -307,9 +307,9 @@ class _DisableMfaPageState extends State<DisableMfaPage> {
                     Text(
                       _fmt(_remaining),
                       style: TextStyle(
-                        fontSize: 48,
+                        fontSize: 32,
                         fontWeight: FontWeight.bold,
-                        color: Colors.red.shade700,
+                        color: BizClearColors.error,
                         letterSpacing: 2,
                         fontFeatures: const [FontFeature.tabularFigures()],
                       ),
@@ -326,7 +326,7 @@ class _DisableMfaPageState extends State<DisableMfaPage> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
-                          color: Colors.grey.shade700,
+                          color: BizClearColors.textSecondary,
                         ),
                       ),
                     ),
@@ -341,7 +341,7 @@ class _DisableMfaPageState extends State<DisableMfaPage> {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade900,
+                  color: BizClearColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -349,7 +349,7 @@ class _DisableMfaPageState extends State<DisableMfaPage> {
                 'Enter the 6-digit code from your TOTP authenticator to cancel this request and keep your account protected.',
                 style: TextStyle(
                   fontSize: 15,
-                  color: Colors.grey.shade600,
+                  color: BizClearColors.textSecondary,
                   height: 1.4,
                 ),
               ),
@@ -441,14 +441,14 @@ class _DisableMfaPageState extends State<DisableMfaPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                  color: BizClearColors.webPrimaryTintLight,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.shade100),
+                  border: Border.all(color: BizClearColors.webPrimaryTintBorder),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                    Icon(Icons.info_outline, color: BizClearColors.webPrimaryTintIcon, size: 20),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -459,7 +459,7 @@ class _DisableMfaPageState extends State<DisableMfaPage> {
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: Colors.blue.shade900,
+                              color: BizClearColors.webPrimaryTintText,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -483,18 +483,22 @@ class _DisableMfaPageState extends State<DisableMfaPage> {
               // Undo Button
               SizedBox(
                 width: double.infinity,
-                height: 56,
+                height: 40,
                 child: ElevatedButton(
                   onPressed: _loading || !_isOtpComplete ? null : _undo,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.grey.shade300,
-                    disabledForegroundColor: Colors.grey.shade500,
+                    disabledBackgroundColor: BizClearColors.border,
+                    disabledForegroundColor: BizClearColors.textSecondary,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
+                    padding: BizClearColors.primaryButtonPadding,
+                    minimumSize: BizClearColors.primaryButtonMinimumSize,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    textStyle: BizClearColors.primaryButtonTextStyle,
                   ),
                   child: _loading
                       ? const SizedBox(
@@ -521,20 +525,20 @@ class _DisableMfaPageState extends State<DisableMfaPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: BizClearColors.surfaceLight,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(color: BizClearColors.divider),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.shield_outlined, color: Colors.grey.shade600, size: 20),
+                    Icon(Icons.shield_outlined, color: BizClearColors.textSecondary, size: 20),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         'Keeping 2FA enabled protects your account from unauthorized access',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.grey.shade700,
+                          color: BizClearColors.textSecondary,
                           height: 1.3,
                         ),
                       ),

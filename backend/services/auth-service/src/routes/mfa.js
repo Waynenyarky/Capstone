@@ -5,10 +5,17 @@ const respond = require('../middleware/respond')
 const { validateBody, Joi } = require('../middleware/validation')
 const { otpauthUri, generateSecret, verifyTotpWithCounter } = require('../lib/totp')
 const { sendOtp } = require('../lib/mailer')
+const { sendMfaEnabledNotification, sendMfaDisableRequestedNotification, sendMfaDisabledNotification } = require('../lib/notificationService')
+const inAppNotificationService = require('../services/notificationService')
 const { mfaRequests } = require('../lib/authRequestsStore')
 const { encryptWithHash, decryptWithHash } = require('../lib/secretCipher')
 const { generateToken } = require('../lib/codes')
 const { requireJwt } = require('../middleware/auth')
+const webauthnServer = require('@simplewebauthn/server')
+const webauthnRouter = require('./webauthn')
+const authenticationChallenges = webauthnRouter.authenticationChallenges || new Map()
+const { consumeDisableRequestVerified, consumeDisableUndoVerified } = require('../lib/mfaStepUpVerify')
+const { createAuditLog } = require('../lib/auditLogger')
 
 const router = express.Router()
 
@@ -45,14 +52,71 @@ router.post('/mfa/setup', requireJwt, validateBody(setupSchema), async (req, res
   }
 })
 
+// POST /api/auth/mfa/disable-request/start — for passkey-only users: get WebAuthn options; frontend then does getAssertion and calls webauthn/authenticate/complete with purpose mfa_disable
+router.post('/mfa/disable-request/start', requireJwt, async (req, res) => {
+  try {
+    const userId = req._userId
+    const doc = await User.findById(userId)
+    if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+    const hasPasskeys = Array.isArray(doc.webauthnCredentials) && doc.webauthnCredentials.length > 0
+    if (!hasPasskeys) return respond.error(res, 400, 'no_passkeys', 'No passkeys to verify')
+    const allowCredentials = (doc.webauthnCredentials || []).map((c) => {
+      const credId = String(c.credId || '').trim()
+      if (!credId) return null
+      return { id: credId, type: 'public-key', transports: c.transports || [] }
+    }).filter(Boolean)
+    const rpID = process.env.WEBAUTHN_RPID || 'localhost'
+    const options = await webauthnServer.generateAuthenticationOptions({
+      rpID,
+      timeout: 60000,
+      allowCredentials: allowCredentials.length > 0 ? allowCredentials : undefined,
+      userVerification: 'preferred',
+    })
+    let challengeToStore = options.challenge
+    if (Buffer.isBuffer(challengeToStore)) challengeToStore = challengeToStore.toString('base64url')
+    else if (challengeToStore instanceof Uint8Array) challengeToStore = Buffer.from(challengeToStore).toString('base64url')
+    else if (typeof challengeToStore !== 'string') challengeToStore = Buffer.from(challengeToStore).toString('base64url')
+    authenticationChallenges.set('mfa_disable_' + String(userId), challengeToStore)
+    return res.json({ publicKey: options })
+  } catch (err) {
+    console.error('POST /api/auth/mfa/disable-request/start error:', err)
+    return respond.error(res, 500, 'mfa_disable_start_failed', 'Failed to start verification')
+  }
+})
+
 // POST /api/auth/mfa/disable-request
 router.post('/mfa/disable-request', requireJwt, async (req, res) => {
   try {
     const userId = req._userId
     const doc = await User.findById(userId)
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
-    if (doc.mfaEnabled !== true || !doc.mfaSecret) {
+    const hasTotp = !!doc.mfaSecret
+    const hasPasskeys = Array.isArray(doc.webauthnCredentials) && doc.webauthnCredentials.length > 0
+    const hasMfa = (doc.mfaEnabled && hasTotp) || hasPasskeys
+    if (!hasMfa) {
       return respond.error(res, 400, 'mfa_not_enabled', 'MFA not enabled')
+    }
+    if (hasPasskeys && !hasTotp) {
+      if (!consumeDisableRequestVerified(userId)) {
+        return respond.error(res, 403, 'verification_required', 'Verify with your passkey first')
+      }
+    } else if (hasTotp) {
+      const { code } = req.body || {}
+      if (!code) {
+        return respond.error(res, 400, 'totp_required', 'TOTP code is required to disable MFA')
+      }
+      let secret
+      try {
+        secret = doc.mfaSecret.startsWith('enc:') ? decryptWithHash(doc.mfaSecret) : doc.mfaSecret
+      } catch { secret = doc.mfaSecret }
+      const counter = doc.mfaCounter ?? 0
+      const verified = verifyTotpWithCounter(secret, String(code), counter)
+      if (!verified.valid) {
+        return respond.error(res, 403, 'invalid_totp', 'Invalid TOTP code')
+      }
+      if (verified.counter != null) {
+        doc.mfaCounter = verified.counter
+      }
     }
     if (doc.mfaDisablePending) {
       return res.json({ disablePending: true, scheduledFor: doc.mfaDisableScheduledFor })
@@ -62,6 +126,9 @@ router.post('/mfa/disable-request', requireJwt, async (req, res) => {
     doc.mfaDisableRequestedAt = new Date(now)
     doc.mfaDisableScheduledFor = new Date(now + oneDayMs)
     await doc.save()
+    sendMfaDisableRequestedNotification(doc._id, { scheduledFor: doc.mfaDisableScheduledFor }).catch((err) => {
+      console.error('Failed to send MFA disable requested notification:', err)
+    })
     return res.json({ disablePending: true, scheduledFor: doc.mfaDisableScheduledFor })
   } catch (err) {
     console.error('POST /api/auth/mfa/disable-request error:', err)
@@ -69,27 +136,65 @@ router.post('/mfa/disable-request', requireJwt, async (req, res) => {
   }
 })
 
-// POST /api/auth/mfa/disable-undo
-router.post('/mfa/disable-undo', requireJwt, validateBody(verifySchema), async (req, res) => {
+// POST /api/auth/mfa/disable-undo/start — for passkey-only: get WebAuthn options; then authenticate/complete with purpose mfa_disable_undo
+router.post('/mfa/disable-undo/start', requireJwt, async (req, res) => {
   try {
     const userId = req._userId
-  const { code } = req.body || {}
+    const doc = await User.findById(userId)
+    if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+    const hasPasskeys = Array.isArray(doc.webauthnCredentials) && doc.webauthnCredentials.length > 0
+    if (!hasPasskeys) return respond.error(res, 400, 'no_passkeys', 'No passkeys to verify')
+    const allowCredentials = (doc.webauthnCredentials || []).map((c) => {
+      const credId = String(c.credId || '').trim()
+      if (!credId) return null
+      return { id: credId, type: 'public-key', transports: c.transports || [] }
+    }).filter(Boolean)
+    const rpID = process.env.WEBAUTHN_RPID || 'localhost'
+    const options = await webauthnServer.generateAuthenticationOptions({
+      rpID,
+      timeout: 60000,
+      allowCredentials: allowCredentials.length > 0 ? allowCredentials : undefined,
+      userVerification: 'preferred',
+    })
+    let challengeToStore = options.challenge
+    if (Buffer.isBuffer(challengeToStore)) challengeToStore = challengeToStore.toString('base64url')
+    else if (challengeToStore instanceof Uint8Array) challengeToStore = Buffer.from(challengeToStore).toString('base64url')
+    else if (typeof challengeToStore !== 'string') challengeToStore = Buffer.from(challengeToStore).toString('base64url')
+    authenticationChallenges.set('mfa_undo_' + String(userId), challengeToStore)
+    return res.json({ publicKey: options })
+  } catch (err) {
+    console.error('POST /api/auth/mfa/disable-undo/start error:', err)
+    return respond.error(res, 500, 'mfa_disable_undo_start_failed', 'Failed to start verification')
+  }
+})
+
+// POST /api/auth/mfa/disable-undo — for TOTP users requires code; for passkey-only requires prior passkey verify
+router.post('/mfa/disable-undo', requireJwt, async (req, res) => {
+  try {
+    const userId = req._userId
+    const { code } = req.body || {}
     const doc = await User.findById(userId)
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
     if (!doc.mfaDisablePending) return res.json({ canceled: false, message: 'No pending disable' })
-    if (!doc.mfaSecret) return respond.error(res, 400, 'mfa_not_setup', 'MFA not set up')
-    const secretPlain = decryptWithHash(doc.passwordHash, doc.mfaSecret)
-    const resVerify = verifyTotpWithCounter({ secret: secretPlain, token: String(code), window: 1, period: 30, digits: 6 })
-    if (!resVerify.ok) return respond.error(res, 401, 'invalid_mfa_code', 'Invalid verification code')
-    if (typeof doc.mfaLastUsedTotpCounter === 'number' && doc.mfaLastUsedTotpCounter === resVerify.counter) {
-      return respond.error(res, 401, 'totp_replayed', 'Verification code already used')
+    if (!doc.mfaSecret) {
+      if (!consumeDisableUndoVerified(userId)) {
+        return respond.error(res, 403, 'verification_required', 'Verify with your passkey first')
+      }
+    } else {
+      const codeStr = String(code || '').replace(/\D/g, '').slice(0, 6)
+      if (codeStr.length !== 6) return respond.error(res, 400, 'invalid_code', 'Verification code required')
+      const secretPlain = decryptWithHash(doc.passwordHash, doc.mfaSecret)
+      const resVerify = verifyTotpWithCounter({ secret: secretPlain, token: codeStr, window: 1, period: 30, digits: 6 })
+      if (!resVerify.ok) return respond.error(res, 401, 'invalid_mfa_code', 'Invalid verification code')
+      if (typeof doc.mfaLastUsedTotpCounter === 'number' && doc.mfaLastUsedTotpCounter === resVerify.counter) {
+        return respond.error(res, 401, 'totp_replayed', 'Verification code already used')
+      }
+      doc.mfaLastUsedTotpCounter = resVerify.counter
+      doc.mfaLastUsedTotpAt = new Date()
     }
-
     doc.mfaDisablePending = false
     doc.mfaDisableRequestedAt = null
     doc.mfaDisableScheduledFor = null
-    doc.mfaLastUsedTotpCounter = resVerify.counter
-    doc.mfaLastUsedTotpAt = new Date()
     await doc.save()
     return res.json({ canceled: true })
   } catch (err) {
@@ -112,6 +217,7 @@ router.post('/mfa/verify', requireJwt, validateBody(verifySchema), async (req, r
     if (!resVerify.ok) return respond.error(res, 401, 'invalid_mfa_code', 'Invalid verification code')
 
     doc.mfaEnabled = true
+    doc.mfaReEnrollmentRequired = false
 
     const roleSlug = doc.role && doc.role.slug ? doc.role.slug : (doc.role && doc.role.toString ? doc.role.toString() : '')
     // Admin: only one super-auth method allowed. Enabling TOTP disables passkeys.
@@ -134,6 +240,11 @@ router.post('/mfa/verify', requireJwt, validateBody(verifySchema), async (req, r
       doc.isActive = !(doc.mustChangeCredentials || doc.mustSetupMfa)
     }
     await doc.save()
+    createAuditLog(doc._id, 'mfa_verified', 'mfa', 'disabled', 'enabled', roleSlug || doc.role?.slug || 'business_owner', { method: 'totp' }).catch(() => {})
+    sendMfaEnabledNotification(doc._id, { method: 'authenticator' }).catch((err) => {
+      console.error('Failed to send MFA enabled notification:', err)
+    })
+    inAppNotificationService.createNotification(doc._id, 'auth_mfa_enabled', 'MFA enabled', 'Multi-factor authentication has been enabled for your account.').catch((err) => console.error('Failed to create auth notification:', err))
     return res.json({
       enabled: true,
       user: {
@@ -167,8 +278,14 @@ router.post('/mfa/disable', requireJwt, async (req, res) => {
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
     doc.mfaEnabled = false
     doc.mfaSecret = ''
+    doc.mfaMethod = ''
     doc.fprintEnabled = false
+    doc.webauthnCredentials = []
     await doc.save()
+    sendMfaDisabledNotification(doc._id).catch((err) => {
+      console.error('Failed to send MFA disabled notification:', err)
+    })
+    inAppNotificationService.createNotification(doc._id, 'auth_mfa_disabled', 'MFA disabled', 'Multi-factor authentication has been disabled.').catch((err) => console.error('Failed to create auth notification:', err))
     return res.json({ disabled: true })
   } catch (err) {
     console.error('POST /api/auth/mfa/disable error:', err)
@@ -185,11 +302,17 @@ router.post('/mfa/disable', requireJwt, async (req, res) => {
       if (doc.mfaDisablePending && doc.mfaDisableScheduledFor && Date.now() >= new Date(doc.mfaDisableScheduledFor).getTime()) {
         doc.mfaEnabled = false
         doc.mfaSecret = ''
+        doc.mfaMethod = ''
         doc.mfaDisablePending = false
         doc.mfaDisableRequestedAt = null
         doc.mfaDisableScheduledFor = null
         doc.fprintEnabled = false
+        doc.webauthnCredentials = []
         await doc.save()
+        sendMfaDisabledNotification(doc._id).catch((err) => {
+          console.error('Failed to send MFA disabled notification:', err)
+        })
+        inAppNotificationService.createNotification(doc._id, 'auth_mfa_disabled', 'MFA disabled', 'Multi-factor authentication has been disabled.').catch((err) => console.error('Failed to create auth notification:', err))
       }
       const hasTotp = !!doc.mfaSecret
       let method = String(doc.mfaMethod || '').toLowerCase()
@@ -232,7 +355,7 @@ router.post('/mfa/fingerprint/start', requireJwt, async (req, res) => {
     const key = String(email).toLowerCase()
     mfaRequests.set(key, { code, expiresAt, verified: false, method: 'fingerprint' })
 
-    await sendOtp({ to: email, code, subject: 'Enable fingerprint verification' })
+    await sendOtp({ to: email, code, subject: 'Enable fingerprint verification', purpose: 'mfa_setup' })
     return res.json({ sent: true })
   } catch (err) {
     console.error('POST /api/auth/mfa/fingerprint/start error:', err)
@@ -272,6 +395,8 @@ router.post('/mfa/fingerprint/verify', requireJwt, validateBody(verifySchema), a
     }
     await doc.save()
     mfaRequests.delete(key)
+    const roleSlug = doc.role && doc.role.slug ? doc.role.slug : (doc.role && doc.role.toString ? doc.role.toString() : 'business_owner')
+    createAuditLog(doc._id, 'mfa_verified', 'mfa', 'disabled', 'enabled', roleSlug, { method: 'fingerprint' }).catch(() => {})
     return res.json({
       enabled: true,
       user: {

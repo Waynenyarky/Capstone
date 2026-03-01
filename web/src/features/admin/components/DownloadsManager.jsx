@@ -153,7 +153,7 @@ export default function DownloadsManager({
                     title="Remove file"
                     description="This will remove the file from this form definition."
                     onConfirm={() => handleRemove(index)}
-                    okText="Remove"
+                    okText="Remove File"
                     okButtonProps={{ danger: true }}
                   >
                     <Button size="small" danger icon={<DeleteOutlined />} />

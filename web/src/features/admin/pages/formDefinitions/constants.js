@@ -156,6 +156,7 @@ export const FIELD_TYPES = [
   { value: 'download', label: 'Downloadable Form' },
   { value: 'checkbox', label: 'Checkbox' },
   { value: 'address', label: 'Philippine Address (PSGC)' },
+  { value: 'address_alaminos', label: 'Alaminos Address (Barangay + Street)' },
   { value: 'repeatable_group', label: 'Repeatable Row Group' },
 ]
 
@@ -220,6 +221,12 @@ export const FIELD_TYPE_DEFAULTS = {
     dropdownOptions: [],
   },
   address: {
+    placeholder: '',
+    validation: {},
+    dropdownSource: 'static',
+    dropdownOptions: [],
+  },
+  address_alaminos: {
     placeholder: '',
     validation: {},
     dropdownSource: 'static',

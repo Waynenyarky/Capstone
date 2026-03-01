@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Form } from 'antd'
+import { Form } from '@/shared/components/AppForm'
 import { useNavigate } from 'react-router-dom'
 import { useAuthSession } from '@/features/authentication'
 import { firstLoginChangeCredentials, getProfile } from '@/features/authentication/services/authService.js'
@@ -34,11 +34,14 @@ export function useStaffOnboarding(opts = {}) {
   const handleCredentialsFinish = async (values) => {
     try {
       setSubmitting(true)
-      await firstLoginChangeCredentials({
+      const derivedUsername = currentUser?.username || (currentUser?.email ? currentUser.email.split('@')[0] : '') || 'staff'
+      const newUsername = derivedUsername.length >= 3 ? derivedUsername : 'staff'
+      const res = await firstLoginChangeCredentials({
         newPassword: values.password,
-        newUsername: currentUser?.username || (currentUser?.email ? currentUser.email.split('@')[0] : 'staff'),
+        newUsername,
       })
-      const fresh = await getProfile()
+      // Use the user returned by the API so we don't depend on a second getProfile() call (avoids 401/network and ensures UI advances)
+      const fresh = res?.user ? { ...res.user } : await getProfile()
       const raw = localStorage.getItem('auth__currentUser')
       const remember = !!raw
       const merged = { ...currentUser, ...fresh, token: currentUser?.token }

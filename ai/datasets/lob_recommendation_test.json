@@ -1,0 +1,3489 @@
+[
+  {
+    "businessDescription": "Nagtitinda ako ng mga de-lata, softdrinks, at mga basic na gamit sa bahay sa maliit kong tindahan",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Sari-sari store",
+        "psicCode": "4711"
+      }
+    ]
+  },
+  {
+    "businessDescription": "May minimart ako na bukas 24/7, nagbebenta ng mga pagkain, inumin, at toiletries",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Convenience store",
+        "psicCode": "4719"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagbebenta kami ng iba't ibang produkto — mga grocery, gamit sa bahay, at school supplies",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "General merchandise",
+        "psicCode": "4721"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagbebenta kami ng damit, sapatos, at mga accessories",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Clothing & apparel",
+        "psicCode": "4751"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I sell smartphones, laptops, and electronic gadgets",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Electronics & gadgets",
+        "psicCode": "4752"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-susuply kami ng bigas at mais sa malalaking tindahan at supermarkets",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Agricultural raw materials",
+        "psicCode": "4610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We supply chemical products and fertilizers to farms and agricultural businesses",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Chemicals & fertilizers",
+        "psicCode": "4649"
+      }
+    ]
+  },
+  {
+    "businessDescription": "May panaderia ako, nagluluto ng pandesal, ensaymada, at mga cake",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Bakery / pastry shop",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I operate a canteen inside a school that serves meals to students and staff",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Canteen / commissary",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Gumagawa kami ng mga gate, grill, at steel na istraktura",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Metal fabrication",
+        "psicCode": "1410"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-piprint kami ng mga libro, brochure, calling cards, at tarpaulin",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Printing & publishing",
+        "psicCode": "1811"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagbabarbero ako, gumugupit ng buhok ng mga lalaki at bata",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Salon / barbershop",
+        "psicCode": "9602"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I repair cellphones, laptops, and home appliances",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Repair shop (electronics, appliances)",
+        "psicCode": "9521"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagkukumpuni ako ng mga cellphone, TV, at washing machine",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Repair shop (electronics, appliances)",
+        "psicCode": "9521"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I operate a microfinance institution providing small loans to low-income communities",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "lineOfBusiness": "financial",
+        "detailedLine": "Microfinance institution",
+        "psicCode": "6492"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We develop residential subdivisions and sell house-and-lot packages",
+    "recommendations": [
+      {
+        "taxCode": "RES",
+        "lineOfBusiness": "real_estate",
+        "detailedLine": "Subdivision developer",
+        "psicCode": "4100"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I rent out apartments and condominium units on a monthly basis",
+    "recommendations": [
+      {
+        "taxCode": "RES",
+        "lineOfBusiness": "real_estate",
+        "detailedLine": "Apartment / condominium rental",
+        "psicCode": "5510"
+      }
+    ]
+  },
+  {
+    "businessDescription": "May delivery service kami, naghahatid ng mga package at dokumento",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Delivery / courier service",
+        "psicCode": "5320"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I manage a freight forwarding company that ships cargo domestically and internationally",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Freight forwarding",
+        "psicCode": "5229"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I manage a fishpond raising bangus and tilapia for the local market",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "lineOfBusiness": "agriculture",
+        "detailedLine": "Aquaculture / fishpond",
+        "psicCode": "0321"
+      }
+    ]
+  },
+  {
+    "businessDescription": "May gilingan kami ng palay — ginagawang bigas para ibenta",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "lineOfBusiness": "agriculture",
+        "detailedLine": "Rice / corn milling",
+        "psicCode": "1061"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Contractor kami, nagpapatayo ng bahay, building, at kalsada",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "General contractor",
+        "psicCode": "4100"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I specialize in tile installation, flooring, and finishing work for buildings",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Specialty trade contractor",
+        "psicCode": "4290"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I do electrical installation and wiring for houses and commercial buildings",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Electrical installation",
+        "psicCode": "4321"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-iinstall kami ng mga electrical wiring at ilaw sa mga bahay at gusali",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Electrical installation",
+        "psicCode": "4321"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I quarry sand and gravel for construction use",
+    "recommendations": [
+      {
+        "taxCode": "MIN",
+        "lineOfBusiness": "mining",
+        "detailedLine": "Sand & gravel quarrying",
+        "psicCode": "0810"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We are an electric power distributor serving rural communities through solar power",
+    "recommendations": [
+      {
+        "taxCode": "UTL",
+        "lineOfBusiness": "utilities",
+        "detailedLine": "Electric power distribution",
+        "psicCode": "3510"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a waste collection and junk shop business",
+    "recommendations": [
+      {
+        "taxCode": "UTL",
+        "lineOfBusiness": "utilities",
+        "detailedLine": "Waste collection & disposal",
+        "psicCode": "3811"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I operate a convenience store that is open 24 hours, selling snacks, drinks, and basic necessities.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Convenience store",
+        "psicCode": "4719"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagbebenta kami ng iba't ibang produkto — mga grocery, gamit sa bahay, at school supplies.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "General merchandise",
+        "psicCode": "4721"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We sell clothing, shoes, bags, and fashion accessories.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Clothing & apparel",
+        "psicCode": "4751"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagbebenta kami ng damit, sapatos, at mga accessories.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Clothing & apparel",
+        "psicCode": "4751"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I sell smartphones, laptops, and electronic gadgets.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Electronics & gadgets",
+        "psicCode": "4752"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I sell car parts, tires, batteries, and auto accessories.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Auto parts & accessories",
+        "psicCode": "4761"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We are a wholesale supplier of rice, corn, and other agricultural raw materials.",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Agricultural raw materials",
+        "psicCode": "4610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I distribute household goods like kitchenware and cleaning supplies to retailers in bulk.",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Household goods (wholesale)",
+        "psicCode": "4631"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I distribute household goods like kitchenware and cleaning supplies to retailers in bulk.",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Household goods (wholesale)",
+        "psicCode": "4631"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We provide catering services for events like weddings, birthdays, and corporate functions.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Catering services",
+        "psicCode": "5621"
+      }
+    ]
+  },
+  {
+    "businessDescription": "May food cart ako na nagbebenta ng fishball, kikiam, at hotdog.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Food cart / food stall",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a bar and nightclub that serves alcoholic beverages with live entertainment.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Bar / nightclub",
+        "psicCode": "5630"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I operate a canteen inside a school that serves meals to students and staff.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Canteen / commissary",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I operate a canteen inside a school that serves meals to students and staff.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Canteen / commissary",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I process and package food products like dried fish, chips, and canned goods.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Food processing",
+        "psicCode": "1010"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I make custom furniture — tables, chairs, cabinets — from wood.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Furniture & woodworks",
+        "psicCode": "1621"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I make custom furniture — tables, chairs, cabinets — from wood.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Furniture & woodworks",
+        "psicCode": "1621"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We fabricate metal products like gates, fences, grills, and steel structures.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Metal fabrication",
+        "psicCode": "1410"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We manufacture plastic bags, containers, and rubber products.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Plastics & rubber products",
+        "psicCode": "2211"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-piprint kami ng mga libro, brochure, calling cards, at tarpaulin.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Printing & publishing",
+        "psicCode": "1811"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We assemble electronic components and circuit boards for export.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Electronics assembly",
+        "psicCode": "2610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I repair cellphones, laptops, and home appliances.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Repair shop (electronics, appliances)",
+        "psicCode": "9521"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagkukumpuni ako ng mga cellphone, TV, at washing machine.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Repair shop (electronics, appliances)",
+        "psicCode": "9521"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a tutorial and review center for students preparing for board exams.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Tutorial / review center",
+        "psicCode": "8549"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I provide IT services — web development, software, and tech support.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "IT / BPO services",
+        "psicCode": "6201"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I am a lawyer and I offer legal consultation and notarization services.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Legal services",
+        "psicCode": "6910"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I own a recruitment agency that deploys workers locally and overseas.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Manpower / recruitment agency",
+        "psicCode": "7810"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a lending company that offers personal and business loans.",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "lineOfBusiness": "financial",
+        "detailedLine": "Lending / financing company",
+        "psicCode": "6419"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a money changer and remittance center for OFW families.",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "lineOfBusiness": "financial",
+        "detailedLine": "Money changer / remittance",
+        "psicCode": "6612"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We are a credit cooperative offering savings accounts and loans to members.",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "lineOfBusiness": "financial",
+        "detailedLine": "Cooperative (credit)",
+        "psicCode": "6430"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I am a licensed real estate broker helping people buy and sell properties.",
+    "recommendations": [
+      {
+        "taxCode": "RES",
+        "lineOfBusiness": "real_estate",
+        "detailedLine": "Real estate brokerage",
+        "psicCode": "6810"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I rent out apartments and condominium units on a monthly basis.",
+    "recommendations": [
+      {
+        "taxCode": "RES",
+        "lineOfBusiness": "real_estate",
+        "detailedLine": "Apartment / condominium rental",
+        "psicCode": "5510"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I operate a trucking company that hauls goods for construction firms and suppliers.",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Trucking / hauling",
+        "psicCode": "4923"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I operate a trucking company that hauls goods for construction firms and suppliers.",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Trucking / hauling",
+        "psicCode": "4923"
+      }
+    ]
+  },
+  {
+    "businessDescription": "May delivery service kami, naghahatid ng mga package at dokumento.",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Delivery / courier service",
+        "psicCode": "5320"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a plant nursery selling ornamental plants, seedlings, and garden supplies.",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "lineOfBusiness": "agriculture",
+        "detailedLine": "Plant nursery",
+        "psicCode": "0130"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I offer agricultural services like crop spraying and mechanical harvesting.",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "lineOfBusiness": "agriculture",
+        "detailedLine": "Agricultural services (spraying, harvesting)",
+        "psicCode": "0161"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I offer agricultural services like crop spraying and mechanical harvesting.",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "lineOfBusiness": "agriculture",
+        "detailedLine": "Agricultural services (spraying, harvesting)",
+        "psicCode": "0161"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I specialize in tile installation, flooring, and finishing work for buildings.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Specialty trade contractor",
+        "psicCode": "4290"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I do electrical installation and wiring for houses and commercial buildings.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Electrical installation",
+        "psicCode": "4321"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-iinstall kami ng mga electrical wiring at ilaw sa mga bahay at gusali.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Electrical installation",
+        "psicCode": "4321"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I provide plumbing and HVAC installation services.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Plumbing & HVAC",
+        "psicCode": "4322"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We do painting and finishing work for residential and commercial buildings.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Painting & finishing",
+        "psicCode": "4330"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We do painting and finishing work for residential and commercial buildings.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Painting & finishing",
+        "psicCode": "4330"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a demolition company that tears down old buildings and structures.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Demolition services",
+        "psicCode": "4311"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a demolition company that tears down old buildings and structures.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Demolition services",
+        "psicCode": "4311"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a demolition company that tears down old buildings and structures.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Demolition services",
+        "psicCode": "4311"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I mine non-metallic minerals used in industrial applications.",
+    "recommendations": [
+      {
+        "taxCode": "MIN",
+        "lineOfBusiness": "mining",
+        "detailedLine": "Non-metallic mineral mining",
+        "psicCode": "0899"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We operate a septic tank cleaning and sewerage service company.",
+    "recommendations": [
+      {
+        "taxCode": "UTL",
+        "lineOfBusiness": "utilities",
+        "detailedLine": "Sewerage services",
+        "psicCode": "3700"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagbebenta kami ng iba't ibang produkto — mga grocery, gamit sa bahay, at school supplies.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "General merchandise",
+        "psicCode": "4721"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagbebenta kami ng damit, sapatos, at mga accessories.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Clothing & apparel",
+        "psicCode": "4751"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I sell smartphones, laptops, and electronic gadgets.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Electronics & gadgets",
+        "psicCode": "4752"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagbebenta kami ng cellphone, laptop, at mga accessories nito.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Electronics & gadgets",
+        "psicCode": "4752"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I sell smartphones, laptops, and electronic gadgets.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Electronics & gadgets",
+        "psicCode": "4752"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I sell fertilizers, seeds, animal feeds, and other farm supplies.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Agricultural supplies",
+        "psicCode": "4789"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-susuply kami ng bigas at mais sa malalaking tindahan at supermarkets.",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Agricultural raw materials",
+        "psicCode": "4610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I sell construction materials in bulk — hollow blocks, gravel, sand — to contractors.",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Construction materials (wholesale)",
+        "psicCode": "4641"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I sell construction materials in bulk — hollow blocks, gravel, sand — to contractors.",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Construction materials (wholesale)",
+        "psicCode": "4641"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We supply chemical products and fertilizers to farms and agricultural businesses.",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Chemicals & fertilizers",
+        "psicCode": "4649"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We supply chemical products and fertilizers to farms and agricultural businesses.",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Chemicals & fertilizers",
+        "psicCode": "4649"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We supply chemical products and fertilizers to farms and agricultural businesses.",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Chemicals & fertilizers",
+        "psicCode": "4649"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a small eatery that serves rice meals and Filipino dishes.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Restaurant / eatery",
+        "psicCode": "5610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I own a restaurant serving Filipino food — adobo, sinigang, lechon kawali.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Restaurant / eatery",
+        "psicCode": "5610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-cacater kami sa mga handaan, kasalan, at mga party.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Catering services",
+        "psicCode": "5621"
+      }
+    ]
+  },
+  {
+    "businessDescription": "May food cart ako na nagbebenta ng fishball, kikiam, at hotdog.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Food cart / food stall",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "May food cart ako na nagbebenta ng fishball, kikiam, at hotdog.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Food cart / food stall",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I own a bakery that bakes and sells pandesal, cakes, and pastries.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Bakery / pastry shop",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "May milk tea at coffee shop ako, nagbebenta din ng pastries at snacks.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Coffee shop / milk tea",
+        "psicCode": "5630"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a bar and nightclub that serves alcoholic beverages with live entertainment.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Bar / nightclub",
+        "psicCode": "5630"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I operate a canteen inside a school that serves meals to students and staff.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Canteen / commissary",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I operate a canteen inside a school that serves meals to students and staff.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Canteen / commissary",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I operate a canteen inside a school that serves meals to students and staff.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Canteen / commissary",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-poproseso kami ng mga pagkain tulad ng tuyo, danggit, at chicharon para ibenta.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Food processing",
+        "psicCode": "1010"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I manufacture garments and textiles — t-shirts, uniforms, and fabric.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Garments & textiles",
+        "psicCode": "1311"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We fabricate metal products like gates, fences, grills, and steel structures.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Metal fabrication",
+        "psicCode": "1410"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We Gumagawa kami ng mga gate, grill, at steel na istraktura.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Metal fabrication",
+        "psicCode": "1410"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We manufacture plastic bags, containers, and rubber products.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Plastics & rubber products",
+        "psicCode": "2211"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We manufacture plastic bags, containers, and rubber products.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Plastics & rubber products",
+        "psicCode": "2211"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-piprint kami ng mga libro, brochure, calling cards, at tarpaulin.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Printing & publishing",
+        "psicCode": "1811"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We manufacture soap, detergent, and other chemical cleaning products.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Chemical products",
+        "psicCode": "2220"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We assemble electronic components and circuit boards for export.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Electronics assembly",
+        "psicCode": "2610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We assemble electronic components and circuit boards for export.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Electronics assembly",
+        "psicCode": "2610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I Gumagawa kami ng paputok at nagbebenta ng wholesale sa mga retailer at events.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Fireworks / pyrotechnics",
+        "psicCode": "2040"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I Our business: Gumagawa kami ng paputok at nagbebenta ng wholesale sa mga retailer at events.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Fireworks / pyrotechnics",
+        "psicCode": "2040"
+      }
+    ]
+  },
+  {
+    "businessDescription": "May parlor ako — gugupit, kulot, rebond, at nail art.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Salon / barbershop",
+        "psicCode": "9602"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I am a lawyer and I offer legal consultation and notarization services.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Legal services",
+        "psicCode": "6910"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I provide bookkeeping and accounting services for small businesses.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Accounting / bookkeeping",
+        "psicCode": "6920"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I provide bookkeeping and accounting services for small businesses.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Accounting / bookkeeping",
+        "psicCode": "6920"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-aalok kami ng bookkeeping at accounting services sa mga negosyo.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Accounting / bookkeeping",
+        "psicCode": "6920"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I operate a medical clinic that provides consultations, check-ups, and minor procedures.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Medical / dental clinic",
+        "psicCode": "8610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a veterinary clinic for pet check-ups, vaccinations, and surgery.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Veterinary clinic",
+        "psicCode": "7500"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a veterinary clinic for pet check-ups, vaccinations, and surgery.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Veterinary clinic",
+        "psicCode": "7500"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I manage a security agency that provides guards and security services to buildings and events.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Security agency",
+        "psicCode": "8010"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We provide advertising services — billboards, digital ads, and print media.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Advertising services",
+        "psicCode": "7310"
+      }
+    ]
+  },
+  {
+    "businessDescription": "May lending business kami, nagpapautang sa mga tao at negosyo.",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "lineOfBusiness": "financial",
+        "detailedLine": "Lending / financing company",
+        "psicCode": "6419"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a lending company that offers personal and business loans.",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "lineOfBusiness": "financial",
+        "detailedLine": "Lending / financing company",
+        "psicCode": "6419"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We are a credit cooperative offering savings accounts and loans to members.",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "lineOfBusiness": "financial",
+        "detailedLine": "Cooperative (credit)",
+        "psicCode": "6430"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I am a licensed real estate broker helping people buy and sell properties.",
+    "recommendations": [
+      {
+        "taxCode": "RES",
+        "lineOfBusiness": "real_estate",
+        "detailedLine": "Real estate brokerage",
+        "psicCode": "6810"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagpapaupa kami ng mga commercial space at apartment.",
+    "recommendations": [
+      {
+        "taxCode": "RES",
+        "lineOfBusiness": "real_estate",
+        "detailedLine": "Property leasing / rental",
+        "psicCode": "6820"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I earn from renting out commercial spaces and residential properties.",
+    "recommendations": [
+      {
+        "taxCode": "RES",
+        "lineOfBusiness": "real_estate",
+        "detailedLine": "Property leasing / rental",
+        "psicCode": "6820"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a boarding house for students and workers near the town center.",
+    "recommendations": [
+      {
+        "taxCode": "RES",
+        "lineOfBusiness": "real_estate",
+        "detailedLine": "Boarding house / dormitory",
+        "psicCode": "5510"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a boarding house for students and workers near the town center.",
+    "recommendations": [
+      {
+        "taxCode": "RES",
+        "lineOfBusiness": "real_estate",
+        "detailedLine": "Boarding house / dormitory",
+        "psicCode": "5510"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I manage a freight forwarding company that ships cargo domestically and internationally.",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Freight forwarding",
+        "psicCode": "5229"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I operate a paid parking lot in the city center.",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Parking lot operation",
+        "psicCode": "5221"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I am a farmer growing rice, vegetables, and corn on my land.",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "lineOfBusiness": "agriculture",
+        "detailedLine": "Crop farming",
+        "psicCode": "0111"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I am a farmer growing rice, vegetables, and corn on my land.",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "lineOfBusiness": "agriculture",
+        "detailedLine": "Crop farming",
+        "psicCode": "0111"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I raise chickens, pigs, and cattle for meat production.",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "lineOfBusiness": "agriculture",
+        "detailedLine": "Livestock / poultry raising",
+        "psicCode": "0141"
+      }
+    ]
+  },
+  {
+    "businessDescription": "May gilingan kami ng palay — ginagawang bigas para ibenta.",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "lineOfBusiness": "agriculture",
+        "detailedLine": "Rice / corn milling",
+        "psicCode": "1061"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I offer agricultural services like crop spraying and mechanical harvesting.",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "lineOfBusiness": "agriculture",
+        "detailedLine": "Agricultural services (spraying, harvesting)",
+        "psicCode": "0161"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I specialize in tile installation, flooring, and finishing work for buildings.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Specialty trade contractor",
+        "psicCode": "4290"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We do painting and finishing work for residential and commercial buildings.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Painting & finishing",
+        "psicCode": "4330"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We do painting and finishing work for residential and commercial buildings.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Painting & finishing",
+        "psicCode": "4330"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a demolition company that tears down old buildings and structures.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Demolition services",
+        "psicCode": "4311"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a demolition company that tears down old buildings and structures.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Demolition services",
+        "psicCode": "4311"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We operate a stone quarry extracting rocks for road construction and building foundations.",
+    "recommendations": [
+      {
+        "taxCode": "MIN",
+        "lineOfBusiness": "mining",
+        "detailedLine": "Stone quarrying",
+        "psicCode": "0810"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a waste collection and junk shop business.",
+    "recommendations": [
+      {
+        "taxCode": "UTL",
+        "lineOfBusiness": "utilities",
+        "detailedLine": "Waste collection & disposal",
+        "psicCode": "3811"
+      }
+    ]
+  },
+  {
+    "businessDescription": "I run a waste collection and junk shop business.",
+    "recommendations": [
+      {
+        "taxCode": "UTL",
+        "lineOfBusiness": "utilities",
+        "detailedLine": "Waste collection & disposal",
+        "psicCode": "3811"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Tindahan sa residential area na nagbebenta ng noodles, candies, shampoo sachet, at basic grocery.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Sari-sari store",
+        "psicCode": "4711"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Convenience store inside a gas station selling chips, coffee, and ready-to-eat meals.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Convenience store",
+        "psicCode": "4719"
+      }
+    ]
+  },
+  {
+    "businessDescription": "24/7 store near the hospital for night-shift workers and visitors needing snacks and drinks.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Convenience store",
+        "psicCode": "4719"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Tindahan ng mga gamit sa bahay, school supplies, at grocery items para sa mga pamilya sa barangay.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "General merchandise",
+        "psicCode": "4721"
+      }
+    ]
+  },
+  {
+    "businessDescription": "General merchandise retail: household items, stationery, and basic apparel in one store.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "General merchandise",
+        "psicCode": "4721"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Boutique selling casual and formal wear for men and women.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Clothing & apparel",
+        "psicCode": "4751"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We sell tires, batteries, engine oil, and spare parts for cars and motorcycles.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Auto parts & accessories",
+        "psicCode": "4761"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Auto supply store for replacement parts, fluids, and car care products.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Auto parts & accessories",
+        "psicCode": "4761"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Farm supply retail — animal feeds, veterinary products, and farm equipment.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Agricultural supplies",
+        "psicCode": "4789"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Wholesale supplier of palay, corn, and other grains to rice mills and supermarkets.",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Agricultural raw materials",
+        "psicCode": "4610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-su-supply kami ng palay, mais, at iba pang grains sa mga rice mill at palengke.",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Agricultural raw materials",
+        "psicCode": "4610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We supply rice, corn, and grains in bulk to processors and distributors.",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Agricultural raw materials",
+        "psicCode": "4610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-su-supply kami ng mga pagkain at inumin sa mga restaurant, hotel, at grocery sa bulk.",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Food & beverages (wholesale)",
+        "psicCode": "4620"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagdi-distribute kami ng mga gamit sa bahay sa mga retailers at sari-sari stores.",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Household goods (wholesale)",
+        "psicCode": "4631"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Wholesale distributor of fertilizers and agrochemicals to farmers and cooperatives.",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Chemicals & fertilizers",
+        "psicCode": "4649"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Food stall sa tabi ng eskuwelahan na nagbebenta ng fishball, kikiam, at juice.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Food cart / food stall",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Coffee shop na nagbebenta ng kapé, milk tea, at light meals; may WiFi para sa mga nag-aaral at nagtratrabaho.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Coffee shop / milk tea",
+        "psicCode": "5630"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Bar na may live band at nagbebenta ng beer, cocktails, at pulutan.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Bar / nightclub",
+        "psicCode": "5630"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Beer house na nagbebenta ng bottled beer at pulutan para sa barkada.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Bar / nightclub",
+        "psicCode": "5630"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Small factory processing fruits into jams and bottled drinks.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Food processing",
+        "psicCode": "1010"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Gumagawa kami ng uniforms, t-shirts, at workwear para sa mga kumpanya at school.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Garments & textiles",
+        "psicCode": "1311"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagfa-fabricate kami ng wooden furniture at office fixtures.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Furniture & woodworks",
+        "psicCode": "1621"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We manufacture soap, detergent, and cleaning chemicals for household and industrial use.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Chemical products",
+        "psicCode": "2220"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Electronics assembly: wiring harnesses and simple electronic devices.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Electronics assembly",
+        "psicCode": "2610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-a-assemble kami ng small appliances at electronic gadgets.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Electronics assembly",
+        "psicCode": "2610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Assembly of LED lights, power supplies, and electronic modules.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Electronics assembly",
+        "psicCode": "2610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Contract assembly for local brands — chargers, cables, and small devices.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Electronics assembly",
+        "psicCode": "2610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-ooffer kami ng haircut, coloring, at nail services.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Salon / barbershop",
+        "psicCode": "9602"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Self-service laundry with optional wash-dry-fold service.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Laundry services",
+        "psicCode": "9601"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Tutorial center for grade school and high school subjects.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Tutorial / review center",
+        "psicCode": "8549"
+      }
+    ]
+  },
+  {
+    "businessDescription": "BPO and call center services for overseas and local clients.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "IT / BPO services",
+        "psicCode": "6201"
+      }
+    ]
+  },
+  {
+    "businessDescription": "CPA firm offering audit, tax, and business advisory.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Accounting / bookkeeping",
+        "psicCode": "6920"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We provide security guards and security systems for buildings, events, and establishments.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Security agency",
+        "psicCode": "8010"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Security agency na nagde-deploy ng guards sa buildings, events, at establishments.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Security agency",
+        "psicCode": "8010"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We deploy workers locally and overseas; placement fee applies.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Manpower / recruitment agency",
+        "psicCode": "7810"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Advertising agency na gumagawa ng billboards, print ads, at digital marketing campaigns.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Advertising services",
+        "psicCode": "7310"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We create billboards, print ads, and digital marketing campaigns.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Advertising services",
+        "psicCode": "7310"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-ooffer kami ng print ads, tarpaulin, at digital marketing.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Advertising services",
+        "psicCode": "7310"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We accept jewelry, gadgets, and valuables as collateral; monthly interest applies.",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "lineOfBusiness": "financial",
+        "detailedLine": "Pawnshop",
+        "psicCode": "6492"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Pawnshop with multiple branches for quick loans against items.",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "lineOfBusiness": "financial",
+        "detailedLine": "Pawnshop",
+        "psicCode": "6492"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-ooffer kami ng remittance at currency exchange services.",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "lineOfBusiness": "financial",
+        "detailedLine": "Money changer / remittance",
+        "psicCode": "6612"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Remittance partner of major international money transfer companies.",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "lineOfBusiness": "financial",
+        "detailedLine": "Money changer / remittance",
+        "psicCode": "6612"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-ooffer kami ng savings, loan, at burial assistance sa mga miyembro.",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "lineOfBusiness": "financial",
+        "detailedLine": "Cooperative (credit)",
+        "psicCode": "6430"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Microfinance na nagpapautang sa mga nanay at maliliit na negosyante sa barangay.",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "lineOfBusiness": "financial",
+        "detailedLine": "Microfinance institution",
+        "psicCode": "6492"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We lease commercial and residential spaces to tenants; may monthly at yearly contract.",
+    "recommendations": [
+      {
+        "taxCode": "RES",
+        "lineOfBusiness": "real_estate",
+        "detailedLine": "Property leasing / rental",
+        "psicCode": "6820"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Developer ng subdivision — nagbebenta ng house-and-lot at lot only sa mga buyers.",
+    "recommendations": [
+      {
+        "taxCode": "RES",
+        "lineOfBusiness": "real_estate",
+        "detailedLine": "Subdivision developer",
+        "psicCode": "4100"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Apartment rental for families and professionals; flexible terms.",
+    "recommendations": [
+      {
+        "taxCode": "RES",
+        "lineOfBusiness": "real_estate",
+        "detailedLine": "Apartment / condominium rental",
+        "psicCode": "5510"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Jeepney and UV express operator on city and provincial routes.",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Passenger transport (jeepney, bus, UV express)",
+        "psicCode": "4922"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-ooperate kami ng jeepney at UV express sa mga fixed routes.",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Passenger transport (jeepney, bus, UV express)",
+        "psicCode": "4922"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Bus company serving provincial routes and city terminals.",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Passenger transport (jeepney, bus, UV express)",
+        "psicCode": "4922"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Same-day and next-day delivery for online sellers and businesses.",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Delivery / courier service",
+        "psicCode": "5320"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Cold storage and dry warehouse for food and goods.",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Warehouse / storage",
+        "psicCode": "5210"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Organic vegetable and rice farming for direct and market sale.",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "lineOfBusiness": "agriculture",
+        "detailedLine": "Crop farming",
+        "psicCode": "0111"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-aalaga kami ng manok para sa eggs at meat; may small piggery din.",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "lineOfBusiness": "agriculture",
+        "detailedLine": "Livestock / poultry raising",
+        "psicCode": "0141"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We run a plant nursery selling ornamental plants, seedlings, and garden supplies.",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "lineOfBusiness": "agriculture",
+        "detailedLine": "Plant nursery",
+        "psicCode": "0130"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We operate a rice mill — palay to bigas; wholesale and retail.",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "lineOfBusiness": "agriculture",
+        "detailedLine": "Rice / corn milling",
+        "psicCode": "1061"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-ooffer kami ng spraying, harvesting, at land preparation services sa mga farmers.",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "lineOfBusiness": "agriculture",
+        "detailedLine": "Agricultural services (spraying, harvesting)",
+        "psicCode": "0161"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Licensed contractor for building and civil works.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "General contractor",
+        "psicCode": "4100"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We install wiring, panel, and lighting for houses and buildings.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Electrical installation",
+        "psicCode": "4321"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Sand and gravel extraction and supply for construction.",
+    "recommendations": [
+      {
+        "taxCode": "MIN",
+        "lineOfBusiness": "mining",
+        "detailedLine": "Sand & gravel quarrying",
+        "psicCode": "0810"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We extract and sell stone and rocks for building foundations and road construction.",
+    "recommendations": [
+      {
+        "taxCode": "MIN",
+        "lineOfBusiness": "mining",
+        "detailedLine": "Stone quarrying",
+        "psicCode": "0810"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Quarry of dimension stone and crushed stone for infrastructure.",
+    "recommendations": [
+      {
+        "taxCode": "MIN",
+        "lineOfBusiness": "mining",
+        "detailedLine": "Stone quarrying",
+        "psicCode": "0810"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Extraction of limestone, clay, and other non-metallic minerals.",
+    "recommendations": [
+      {
+        "taxCode": "MIN",
+        "lineOfBusiness": "mining",
+        "detailedLine": "Non-metallic mineral mining",
+        "psicCode": "0899"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Water refilling station na nagbebenta ng purified drinking water sa mga container at bottles.",
+    "recommendations": [
+      {
+        "taxCode": "UTL",
+        "lineOfBusiness": "utilities",
+        "detailedLine": "Water distribution",
+        "psicCode": "3600"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We distribute electric power to households and small businesses in the barangay.",
+    "recommendations": [
+      {
+        "taxCode": "UTL",
+        "lineOfBusiness": "utilities",
+        "detailedLine": "Electric power distribution",
+        "psicCode": "3510"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Electric power distribution to households and small businesses.",
+    "recommendations": [
+      {
+        "taxCode": "UTL",
+        "lineOfBusiness": "utilities",
+        "detailedLine": "Electric power distribution",
+        "psicCode": "3510"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Waste collection at recycling — nagko-collect kami ng basura at nagbebenta ng recyclables.",
+    "recommendations": [
+      {
+        "taxCode": "UTL",
+        "lineOfBusiness": "utilities",
+        "detailedLine": "Waste collection & disposal",
+        "psicCode": "3811"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We collect waste and sell recyclables; waste collection and disposal.",
+    "recommendations": [
+      {
+        "taxCode": "UTL",
+        "lineOfBusiness": "utilities",
+        "detailedLine": "Waste collection & disposal",
+        "psicCode": "3811"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Solid waste collection and materials recovery facility.",
+    "recommendations": [
+      {
+        "taxCode": "UTL",
+        "lineOfBusiness": "utilities",
+        "detailedLine": "Waste collection & disposal",
+        "psicCode": "3811"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Septic and sewer cleaning with vacuum trucks.",
+    "recommendations": [
+      {
+        "taxCode": "UTL",
+        "lineOfBusiness": "utilities",
+        "detailedLine": "Sewerage services",
+        "psicCode": "3700"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Petrol station with convenience store and car wash services.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Fuel / gasoline station",
+        "psicCode": "4773"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Loan company na tumatanggap ng application para sa personal at business loan.",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "lineOfBusiness": "financial",
+        "detailedLine": "Lending / financing company",
+        "psicCode": "6419"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Trucking and hauling services — we deliver goods and materials to construction sites and warehouses.",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Trucking / hauling",
+        "psicCode": "4923"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We operate a fleet of trucks for cargo delivery to provinces and cities.",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Trucking / hauling",
+        "psicCode": "4923"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Pharmacy selling prescription and over-the-counter medicines, vitamins, and first-aid supplies.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Pharmacy / drugstore",
+        "psicCode": "4741"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Botika na may licensed pharmacist; nagbebenta ng gamot at medical supplies.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Pharmacy / drugstore",
+        "psicCode": "4741"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Community pharmacy serving barangay with affordable generic medicines.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Pharmacy / drugstore",
+        "psicCode": "4741"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Small neighborhood store selling rice, canned goods, soap, and snacks.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Sari-sari store",
+        "psicCode": "4711"
+      }
+    ]
+  },
+  {
+    "businessDescription": "May kainan kami na nagse-serve ng Filipino comfort food at daily specials.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Restaurant / eatery",
+        "psicCode": "5610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We operate a rice and corn mill for local farmers and traders.",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "lineOfBusiness": "agriculture",
+        "detailedLine": "Rice / corn milling",
+        "psicCode": "1061"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We rent out office and retail spaces in our building; flexible terms.",
+    "recommendations": [
+      {
+        "taxCode": "RES",
+        "lineOfBusiness": "real_estate",
+        "detailedLine": "Property leasing / rental",
+        "psicCode": "6820"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Courier service that delivers packages and documents same-day within the city.",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Delivery / courier service",
+        "psicCode": "5320"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We do last-mile delivery for online sellers and food orders.",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Delivery / courier service",
+        "psicCode": "5320"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Pawnshop offering quick loans against jewelry and gadgets; monthly interest.",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "lineOfBusiness": "financial",
+        "detailedLine": "Pawnshop",
+        "psicCode": "6492"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Beauty salon: haircut, facial, manicure, pedicure.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Salon / barbershop",
+        "psicCode": "9602"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Food processing: chicharon, danggit, at bottled condiments.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Food processing",
+        "psicCode": "1010"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Plumbing installation and repair for homes and buildings.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Plumbing & HVAC",
+        "psicCode": "4322"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-i-install kami ng water lines, septic, at aircon.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Plumbing & HVAC",
+        "psicCode": "4322"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Plumbing and HVAC contractor for new construction and renovation.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Plumbing & HVAC",
+        "psicCode": "4322"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Company canteen with breakfast, lunch, and afternoon snacks.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Canteen / commissary",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We distribute frozen food, dairy, and dry goods to restaurants.",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Food & beverages (wholesale)",
+        "psicCode": "4620"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Wholesale of industrial machinery and equipment to factories.",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Industrial machinery & equipment",
+        "psicCode": "4632"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Tindahan sa kanto na nagtitinda ng bigas, noodles, at shampoo sachet.",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "lineOfBusiness": "retail",
+        "detailedLine": "Sari-sari store",
+        "psicCode": "4711"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Bulk delivery by truck to warehouses and factories.",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Trucking / hauling",
+        "psicCode": "4923"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We distribute frozen meat, dairy, and dry goods to food businesses.",
+    "recommendations": [
+      {
+        "taxCode": "WHL",
+        "lineOfBusiness": "wholesale",
+        "detailedLine": "Food & beverages (wholesale)",
+        "psicCode": "4620"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Licensed electrician for residential and commercial wiring.",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "lineOfBusiness": "construction",
+        "detailedLine": "Electrical installation",
+        "psicCode": "4321"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagde-deliver kami ng packages at food orders.",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Delivery / courier service",
+        "psicCode": "5320"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Kapé at milk tea shop malapit sa school; may WiFi.",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Coffee shop / milk tea",
+        "psicCode": "5630"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Trucking business delivering goods and materials to construction and factories.",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Trucking / hauling",
+        "psicCode": "4923"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Delivery service for parcels, documents, and food orders in the city.",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "lineOfBusiness": "transportation",
+        "detailedLine": "Delivery / courier service",
+        "psicCode": "5320"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Beauty salon for haircut, manicure, pedicure, and rebond.",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "lineOfBusiness": "services",
+        "detailedLine": "Salon / barbershop",
+        "psicCode": "9602"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Food processing: chicharon, danggit, at packed snacks.",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "lineOfBusiness": "manufacturing",
+        "detailedLine": "Food processing",
+        "psicCode": "1010"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Neighborhood sari-sari store with snacks, drinks, cigarettes, and basic groceries",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Sari-sari store",
+        "psicCode": "4711"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Sari-sari store lang po ito, nagbebenta ng mga pang-araw-araw na gamit tulad ng sabon, toothpaste, at pagkain",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Sari-sari store",
+        "psicCode": "4711"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Small neighborhood variety store — we sell sachets of shampoo, detergent, and instant noodles",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Sari-sari store",
+        "psicCode": "4711"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagtitinda po ako sa sari-sari store ng mga paninda tulad ng bigas, itlog, softdrinks, at junk food",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Sari-sari store",
+        "psicCode": "4711"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Our sari-sari store sells everyday essentials like soap, rice, canned goods, and cold beverages",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Sari-sari store",
+        "psicCode": "4711"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Milk tea shop with over 20 flavors, also serving frappe, smoothies, and cookies",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "detailedLine": "Coffee shop / milk tea",
+        "psicCode": "5610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Milk tea and coffee stand in a mall food court",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "detailedLine": "Coffee shop / milk tea",
+        "psicCode": "5610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Cafe na nagse-serve ng iced coffee, hot chocolate, milk tea, at mga pastry",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "detailedLine": "Coffee shop / milk tea",
+        "psicCode": "5610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We farm rice paddies and sell our harvest to local traders and rice mills",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "detailedLine": "Crop farming",
+        "psicCode": "0111"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Rice and corn farming on family-owned agricultural land in Pangasinan",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "detailedLine": "Crop farming",
+        "psicCode": "0111"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We do crop farming — mainly rice and corn — and sell our harvest seasonally",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "detailedLine": "Crop farming",
+        "psicCode": "0111"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Pawnshop na tumatanggap ng alahas, cellphone, at laptop bilang sangla",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "detailedLine": "Pawnshop",
+        "psicCode": "6492"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Sanglaan ng alahas at gadgets — nagpapautang ng pera kapalit ng gamit",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "detailedLine": "Pawnshop",
+        "psicCode": "6492"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Quick cash pawnshop for jewelry and gadgets with competitive interest rates",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "detailedLine": "Pawnshop",
+        "psicCode": "6492"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We operate a neighborhood pawnshop providing small loans secured by personal items",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "detailedLine": "Pawnshop",
+        "psicCode": "6492"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Sanglaan sa bayan — tumatanggap kami ng ginto, cellphone, at laptop",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "detailedLine": "Pawnshop",
+        "psicCode": "6492"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Naghahatid kami ng mga package at dokumento sa buong Pangasinan",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "detailedLine": "Delivery / courier service",
+        "psicCode": "5320"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Parcel delivery and courier business serving Alaminos and nearby towns",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "detailedLine": "Delivery / courier service",
+        "psicCode": "5320"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Local courier and delivery service for small parcels and letters",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "detailedLine": "Delivery / courier service",
+        "psicCode": "5320"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We offer pick-up and delivery of packages for online shops in the area",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "detailedLine": "Delivery / courier service",
+        "psicCode": "5320"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Drugstore selling prescription medicines, vitamins, and medical supplies",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Pharmacy / drugstore",
+        "psicCode": "4772"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Small drugstore in the barangay selling medicine, first aid supplies, and vitamins",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Pharmacy / drugstore",
+        "psicCode": "4772"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Retail pharmacy selling branded and generic medicines to the community",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Pharmacy / drugstore",
+        "psicCode": "4772"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Our pharmacy sells prescription drugs, supplements, and personal care products",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Pharmacy / drugstore",
+        "psicCode": "4772"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagbebenta kami ng gamot — paracetamol, amoxicillin, vitamins, at iba pang OTC medicines",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Pharmacy / drugstore",
+        "psicCode": "4772"
+      }
+    ]
+  },
+  {
+    "businessDescription": "May babuyan at manukan kami, nag-aalaga ng baboy at manok para ibenta",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "detailedLine": "Livestock / poultry raising",
+        "psicCode": "0145"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nag-aalaga po kami ng mga baboy at manok para ibenta sa palengke at katayan",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "detailedLine": "Livestock / poultry raising",
+        "psicCode": "0145"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Backyard poultry and piggery farm — nag-aalaga ng manok at baboy",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "detailedLine": "Livestock / poultry raising",
+        "psicCode": "0145"
+      }
+    ]
+  },
+  {
+    "businessDescription": "May manukan at babuyan kami — nag-aalaga ng manok panabong, broiler, at baboy",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "detailedLine": "Livestock / poultry raising",
+        "psicCode": "0145"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Sari-sari store sa kalsada, benta ay yosi, kape sachet, de-lata, at softdrinks sa bote",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Sari-sari store",
+        "psicCode": "4711"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Neighborhood sari-sari selling sachets, candy, cigarettes, canned goods, and cold soft drinks",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Sari-sari store",
+        "psicCode": "4711"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Retail sari-sari selling daily essentials: matches, candles, canned fish, instant coffee, and soap",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Sari-sari store",
+        "psicCode": "4711"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Our agricultural land is planted with rice during wet season and corn during dry season",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "detailedLine": "Crop farming",
+        "psicCode": "0111"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We are crop farmers producing rice, corn, and various vegetables for sale to buyers",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "detailedLine": "Crop farming",
+        "psicCode": "0111"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Pharmacy na may licensed pharmacist, nagbebenta ng reseta at OTC na gamot",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Pharmacy / drugstore",
+        "psicCode": "4772"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Retail drugstore selling pain relievers, cold medicine, vitamins, and first aid supplies",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Pharmacy / drugstore",
+        "psicCode": "4772"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Botika naming nagbebenta ng lahat ng uri ng gamot, vitamins, at medical supplies",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Pharmacy / drugstore",
+        "psicCode": "4772"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Courier service specializing in same-day document and parcel delivery",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "detailedLine": "Delivery / courier service",
+        "psicCode": "5320"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Express parcel delivery service using motorcycles for fast local deliveries",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "detailedLine": "Delivery / courier service",
+        "psicCode": "5320"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Our courier business handles pick-up and drop-off of packages for e-commerce sellers",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "detailedLine": "Delivery / courier service",
+        "psicCode": "5320"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagde-deliver po kami ng mga package at sulat sa mga bahay at opisina sa lungsod",
+    "recommendations": [
+      {
+        "taxCode": "TRN",
+        "detailedLine": "Delivery / courier service",
+        "psicCode": "5320"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Pawnshop business — ang serbisyo namin ay pagpapautang kapalit ng mga sangla",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "detailedLine": "Pawnshop",
+        "psicCode": "6492"
+      }
+    ]
+  },
+  {
+    "businessDescription": "May pawnshop kami — pangunahing negosyo ay pagpapautang laban sa mga sangla",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "detailedLine": "Pawnshop",
+        "psicCode": "6492"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We raise pigs for fattening and sell them to local meat buyers and butchers",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "detailedLine": "Livestock / poultry raising",
+        "psicCode": "0145"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Manukan at babuyan — nag-aalaga kami ng manok at baboy sa aming farm",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "detailedLine": "Livestock / poultry raising",
+        "psicCode": "0145"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Our farm raises ducks, chickens, and pigs for meat and egg production",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "detailedLine": "Livestock / poultry raising",
+        "psicCode": "0145"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Backyard piggery at manukan — nag-aalaga ng baboy at manok na ibinebenta sa bayan",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "detailedLine": "Livestock / poultry raising",
+        "psicCode": "0145"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Livestock raising business — pigs and chickens are our main products for sale",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "detailedLine": "Livestock / poultry raising",
+        "psicCode": "0145"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Community pharmacy na nagdi-dispense ng reseta at nagbebenta ng branded at generic na gamot",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Pharmacy / drugstore",
+        "psicCode": "4772"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagtatanim ng gulay at palay sa irrigated farmland — tatlong ektarya ang sakahan namin",
+    "recommendations": [
+      {
+        "taxCode": "AGR",
+        "detailedLine": "Crop farming",
+        "psicCode": "0111"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Convenience store namin bukas 24 oras — benta ay pagkain, inumin, yosi, at basic necessities",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Convenience store",
+        "psicCode": "4711"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Retail convenience store with refrigerated drinks, hot food section, and personal care aisle",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Convenience store",
+        "psicCode": "4711"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Convenience store namin ay open 18 hours, nagbebenta ng instant food, drinks, at toiletries",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "Convenience store",
+        "psicCode": "4711"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Self-service laundromat with coin-operated washing machines and dryers",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "detailedLine": "Laundry services",
+        "psicCode": "9601"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Our business is a print shop — we produce tarpaulins, IDs, calling cards, and invitations",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "detailedLine": "Printing & publishing",
+        "psicCode": "1811"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Our printing press manufactures newspapers, flyers, and advertising materials for local businesses",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "detailedLine": "Printing & publishing",
+        "psicCode": "1811"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Printing company na nagpo-produce ng product labels, packaging boxes, at promotional prints",
+    "recommendations": [
+      {
+        "taxCode": "MFG",
+        "detailedLine": "Printing & publishing",
+        "psicCode": "1811"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Tindahan ng general merchandise — meron kaming hardware, school supplies, kitchenware, at damit",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "General merchandise",
+        "psicCode": "4719"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagbebenta kami ng iba't ibang products — office supplies, kitchenware, bags, shoes, at damit",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "General merchandise",
+        "psicCode": "4719"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We sell a wide range of products in our general merchandise store — from pots to bags to shoes",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "General merchandise",
+        "psicCode": "4719"
+      }
+    ]
+  },
+  {
+    "businessDescription": "General merchandise retail business offering housewares, garments, bags, and accessories",
+    "recommendations": [
+      {
+        "taxCode": "RET",
+        "detailedLine": "General merchandise",
+        "psicCode": "4719"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Our pawnshop specializes in jewelry pawning — customers bring their gold for quick cash",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "detailedLine": "Pawnshop",
+        "psicCode": "6492"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Pawnshop na tumatanggap ng cellphone, laptop, at tablet bilang sangla para sa short-term loan",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "detailedLine": "Pawnshop",
+        "psicCode": "6492"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Pawnshop offering appraisal and loan services for gold, jewelry, watches, and electronics",
+    "recommendations": [
+      {
+        "taxCode": "FIN",
+        "detailedLine": "Pawnshop",
+        "psicCode": "6492"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Palaundahan na nagse-serbisyo ng wash-dry-fold sa mga tao sa aming barangay",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "detailedLine": "Laundry services",
+        "psicCode": "9601"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Licensed general contractor handling house construction, building projects, and structural renovations",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "detailedLine": "General contractor",
+        "psicCode": "4100"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Our general contracting company builds houses, office buildings, and does major renovations",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "detailedLine": "General contractor",
+        "psicCode": "4100"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Construction firm specializing in residential and commercial building — general contractor po kami",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "detailedLine": "General contractor",
+        "psicCode": "4100"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Our company is a licensed general contractor for building houses and commercial structures",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "detailedLine": "General contractor",
+        "psicCode": "4100"
+      }
+    ]
+  },
+  {
+    "businessDescription": "General construction contractor building residential subdivisions and commercial projects",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "detailedLine": "General contractor",
+        "psicCode": "4100"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Licensed general contractor offering turnkey construction services for homes and offices",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "detailedLine": "General contractor",
+        "psicCode": "4100"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Nagtatatayo kami ng mga gusali — bahay, apartment, at opisina — bilang isang general contractor",
+    "recommendations": [
+      {
+        "taxCode": "CON",
+        "detailedLine": "General contractor",
+        "psicCode": "4100"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We offer IT support, network setup, and managed IT services for small businesses",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "detailedLine": "IT / BPO services",
+        "psicCode": "6201"
+      }
+    ]
+  },
+  {
+    "businessDescription": "IT consulting firm helping businesses with digital transformation, cloud migration, and cybersecurity",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "detailedLine": "IT / BPO services",
+        "psicCode": "6201"
+      }
+    ]
+  },
+  {
+    "businessDescription": "We provide managed IT services, helpdesk support, and network administration for offices",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "detailedLine": "IT / BPO services",
+        "psicCode": "6201"
+      }
+    ]
+  },
+  {
+    "businessDescription": "IT outsourcing firm providing software engineering, QA testing, and technical support",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "detailedLine": "IT / BPO services",
+        "psicCode": "6201"
+      }
+    ]
+  },
+  {
+    "businessDescription": "Business process outsourcing company handling data entry, transcription, and customer support",
+    "recommendations": [
+      {
+        "taxCode": "SVC",
+        "detailedLine": "IT / BPO services",
+        "psicCode": "6201"
+      }
+    ]
+  }
+]

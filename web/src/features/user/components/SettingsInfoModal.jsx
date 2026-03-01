@@ -14,7 +14,7 @@ export default function SettingsInfoModal({ open, onClose }) {
         Settings lets you manage your account, security, and preferences.
       </Typography.Paragraph>
       <Typography.Paragraph>
-        <strong>General</strong> — Profile details, avatar, and display name.
+        <strong>General</strong> — Profile details and display name.
       </Typography.Paragraph>
       <Typography.Paragraph>
         <strong>Security</strong> — Password, MFA, passkeys, and active sessions.

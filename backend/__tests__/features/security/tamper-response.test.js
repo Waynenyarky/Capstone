@@ -12,7 +12,7 @@ jest.mock('../../../services/audit-service/src/lib/auditVerifier', () => ({
   verifyAuditLog: jest.fn(),
 }))
 
-const { signAccessToken } = require('../../../services/auth-service/src/middleware/auth')
+const { signAccessToken, signStepUpToken } = require('../../../services/auth-service/src/middleware/auth')
 const calculateAuditHash = require('../../../services/auth-service/src/lib/auditLogger').calculateAuditHash
 const AuditLog = require('../../../services/audit-service/src/models/AuditLog')
 const TamperIncident = require('../../../services/admin-service/src/models/TamperIncident')
@@ -112,7 +112,7 @@ describe('Tamper response flow', () => {
     })
 
     test('records tamper incident when hash mismatch is detected', async () => {
-      await createAuditLog({ tamper: true })
+      const log = await createAuditLog({ tamper: true })
 
       auditVerifier.verifyAuditLog.mockResolvedValue({
         verified: false,
@@ -128,6 +128,18 @@ describe('Tamper response flow', () => {
       expect(incident.verificationStatus).toBe('tamper_detected')
       expect(incident.containmentActive).toBe(true)
       expect(incident.status).toBe('new')
+
+      // Plan: every tamper finding is also logged as security_event in the audit log
+      const securityEvents = await AuditLog.find({
+        eventType: 'security_event',
+        'metadata.reason': 'audit_tamper_detected',
+      }).lean()
+      expect(securityEvents.length).toBeGreaterThanOrEqual(1)
+      const tamperEvent = securityEvents.find((e) => String(e.metadata?.auditLogId) === String(log._id))
+      expect(tamperEvent).toBeTruthy()
+      expect(tamperEvent.fieldChanged).toBe('security')
+      expect(tamperEvent.newValue).toContain('audit_tamper_detected')
+      expect(tamperEvent.metadata?.verificationStatus).toBe('tamper_detected')
     })
 
     test('classifies missing on-chain tx as not_logged (no containment)', async () => {
@@ -151,6 +163,47 @@ describe('Tamper response flow', () => {
   })
 
   describe('Tamper incidents admin API', () => {
+    test('POST /incidents with eventType audit_tamper_detected creates incident and dedupes', async () => {
+      const auditLogId = new mongoose.Types.ObjectId()
+      const userId = adminUser._id
+
+      const payload = {
+        eventType: 'audit_tamper_detected',
+        auditLogId: String(auditLogId),
+        userId: String(userId),
+        verificationStatus: 'tamper_detected',
+        message: 'Hash does not match current data',
+        severity: 'high',
+        verification: { error: 'Hash does not match current data (data may have been tampered)' },
+      }
+
+      const res1 = await request(app)
+        .post('/api/admin/tamper/incidents')
+        .set('Content-Type', 'application/json')
+        .send(payload)
+        .expect(201)
+      expect(res1.body.success).toBe(true)
+      expect(res1.body.incident).toBeTruthy()
+      expect(res1.body.incident.verificationStatus).toBe('tamper_detected')
+      expect(res1.body.incident.severity).toBe('high')
+      const incidentId = res1.body.incident.id
+
+      const incident = await TamperIncident.findById(incidentId)
+      expect(incident).toBeTruthy()
+      expect(incident.auditLogIds.map(String)).toContain(String(auditLogId))
+      expect(incident.affectedUserIds.map(String)).toContain(String(userId))
+
+      // Dedupe: same auditLogId again should update existing incident, not create second
+      const res2 = await request(app)
+        .post('/api/admin/tamper/incidents')
+        .set('Content-Type', 'application/json')
+        .send(payload)
+        .expect(201)
+      expect(res2.body.incident.id).toBe(incidentId)
+      const count = await TamperIncident.countDocuments({ auditLogIds: { $in: [auditLogId] }, status: { $ne: 'resolved' } })
+      expect(count).toBe(1)
+    })
+
     test('lists and updates incident lifecycle with auth', async () => {
       const incident = await TamperIncident.create({
         status: 'new',
@@ -163,6 +216,8 @@ describe('Tamper response flow', () => {
       })
 
       const authHeader = { Authorization: `Bearer ${adminToken}` }
+      const stepUpToken = signStepUpToken(adminUser._id).token
+      const stepUpHeader = { ...authHeader, 'X-Step-Up-Token': stepUpToken }
 
       const listRes = await request(app)
         .get('/api/admin/tamper/incidents')
@@ -173,20 +228,20 @@ describe('Tamper response flow', () => {
 
       const ackRes = await request(app)
         .post(`/api/admin/tamper/incidents/${incident._id}/ack`)
-        .set(authHeader)
+        .set(stepUpHeader)
         .expect(200)
       expect(ackRes.body.incident.status).toBe('acknowledged')
 
       const containRes = await request(app)
         .post(`/api/admin/tamper/incidents/${incident._id}/contain`)
-        .set(authHeader)
+        .set(stepUpHeader)
         .send({ containmentActive: false })
         .expect(200)
       expect(containRes.body.incident.containmentActive).toBe(false)
 
       const resolveRes = await request(app)
         .post(`/api/admin/tamper/incidents/${incident._id}/resolve`)
-        .set(authHeader)
+        .set(stepUpHeader)
         .send({ resolutionNotes: 'fixed' })
         .expect(200)
       expect(resolveRes.body.incident.status).toBe('resolved')

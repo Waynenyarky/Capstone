@@ -8,9 +8,11 @@ import {
   KeyOutlined,
   CameraOutlined,
   VerifiedOutlined,
+  LogoutOutlined,
 } from '@ant-design/icons'
 import QrDisplay from '@/features/authentication/components/QrDisplay.jsx'
-import { useAuthSession, useMfaSetup } from '@/features/authentication/hooks'
+import ConfirmLogoutModal from '@/features/authentication/components/ConfirmLogoutModal.jsx'
+import { useAuthSession, useMfaSetup, useConfirmLogoutModal } from '@/features/authentication/hooks'
 import { usePasskeyManager } from '@/features/authentication/presentation/passkey/hooks/usePasskeyManager'
 import { getProfile } from '@/features/authentication/services/authService'
 import { useNavigate } from 'react-router-dom'
@@ -24,7 +26,7 @@ const { Title, Paragraph, Text } = Typography
  */
 export default function MfaSetup({ embedded = false, onComplete }) {
   const { token } = theme.useToken()
-  const { currentUser, role, login } = useAuthSession()
+  const { currentUser, role, login, logout } = useAuthSession()
   const {
     loading, qrDataUrl, secret, code, setCode, enabled,
     handleSetup, handleVerify,
@@ -33,6 +35,12 @@ export default function MfaSetup({ embedded = false, onComplete }) {
   } = useMfaSetup()
   const { handleRegister: registerPasskey, registering: passkeyRegistering } = usePasskeyManager()
   const navigate = useNavigate()
+  const { open, show, hide, confirming, handleConfirm } = useConfirmLogoutModal({
+    onConfirm: async () => {
+      navigate('/login', { replace: true })
+      if (logout) logout()
+    },
+  })
   const [currentStep, setCurrentStep] = useState(0)
 
   // When embedded, no redirect; parent handles next step via onComplete
@@ -52,6 +60,10 @@ export default function MfaSetup({ embedded = false, onComplete }) {
     try {
       const fresh = await getProfile()
       const merged = { ...currentUser, ...fresh, token: currentUser?.token }
+      if (merged.mfaEnabled === true) {
+        merged.mfaReenrollmentRequired = false
+        merged.mfaReEnrollmentRequired = false
+      }
       const remember = !!localStorage.getItem('auth__currentUser')
       login(merged, { remember })
       if (embedded && typeof onComplete === 'function') {
@@ -97,6 +109,10 @@ export default function MfaSetup({ embedded = false, onComplete }) {
       const raw = localStorage.getItem('auth__currentUser')
       const remember = !!raw
       const merged = { ...currentUser, ...fresh, token: currentUser?.token }
+      if (merged.mfaEnabled === true) {
+        merged.mfaReenrollmentRequired = false
+        merged.mfaReEnrollmentRequired = false
+      }
       login(merged, { remember })
       markMfaComplete()
       goToPostMfa()
@@ -135,8 +151,8 @@ export default function MfaSetup({ embedded = false, onComplete }) {
       return (
         <div style={{ padding: '24px 0' }}>
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <SafetyCertificateOutlined style={{ fontSize: 48, color: token.colorPrimary }} />
-            <Title level={4} style={{ color: token.colorPrimary, marginTop: 16 }}>Secure Your Account</Title>
+            {!embedded && <SafetyCertificateOutlined style={{ fontSize: 48, color: token.colorPrimary }} />}
+            <Title level={4} style={{ color: token.colorPrimary, marginTop: embedded ? 0 : 16 }}>Secure Your Account</Title>
             <Paragraph type="secondary" style={{ fontSize: 16, maxWidth: 420, margin: '0 auto' }}>
               Choose how you want to sign in securely: use an authenticator app (e.g. Google Authenticator) or a passkey (e.g. Windows Hello, Face ID).
             </Paragraph>
@@ -152,6 +168,7 @@ export default function MfaSetup({ embedded = false, onComplete }) {
               Use authenticator app
             </Button>
             <Button 
+              type="default"
               onClick={onPasskeySetup} 
               loading={passkeyRegistering} 
               icon={<KeyOutlined />}
@@ -169,8 +186,8 @@ export default function MfaSetup({ embedded = false, onComplete }) {
       return (
         <div style={{ padding: '0 12px' }}>
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <CameraOutlined style={{ fontSize: 48, color: token.colorPrimary, marginBottom: 24  }} />
-            <Title level={4} style={{ color: token.colorPrimary }}>Scan QR Code</Title>
+            {!embedded && <CameraOutlined style={{ fontSize: 48, color: token.colorPrimary, marginBottom: 24 }} />}
+            <Title level={4} style={{ color: token.colorPrimary, marginTop: embedded ? 0 : undefined }}>Scan QR Code</Title>
             <Paragraph type="secondary">
               Open your authenticator app and scan the code below.
             </Paragraph>
@@ -226,8 +243,8 @@ export default function MfaSetup({ embedded = false, onComplete }) {
       return (
         <div style={{ padding: '0 12px' }}>
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <VerifiedOutlined style={{ fontSize: 48, color: token.colorPrimary, marginBottom: 24  }} />
-            <Title level={4} style={{ color: token.colorPrimary }}>Verify Code</Title>
+            {!embedded && <VerifiedOutlined style={{ fontSize: 48, color: token.colorPrimary, marginBottom: 24 }} />}
+            <Title level={4} style={{ color: token.colorPrimary, marginTop: embedded ? 0 : undefined }}>Verify Code</Title>
             <Paragraph type="secondary">
               Enter the 6-digit code generated by your authenticator app.
             </Paragraph>
@@ -262,7 +279,6 @@ export default function MfaSetup({ embedded = false, onComplete }) {
                     const numericValue = val.replace(/[^0-9]/g, '').slice(0, 6)
                     setCode(numericValue)
                   }} 
-                  size="large"
                   autoFocus
                   inputType="numeric"
                   mask={false}
@@ -272,15 +288,13 @@ export default function MfaSetup({ embedded = false, onComplete }) {
             </div>
           </div>
 
-          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Space direction="vertical" style={{ width: '100%' }}>
             <Button 
               type="primary" 
               block 
-              size="large" 
               onClick={handleVerifyAndContinue} 
               disabled={code.length !== 6 || loading}
               loading={loading}
-              style={{ height: 48 }}
             >
               Verify & Enable
             </Button>
@@ -322,7 +336,7 @@ export default function MfaSetup({ embedded = false, onComplete }) {
 
   return (
     <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
-      <Layout.Header style={{ background: token.colorBgContainer, padding: '0 24px', display: 'flex', alignItems: 'center', height: 80, borderBottom: `1px solid ${token.colorBorder}` }}>
+      <Layout.Header style={{ background: token.colorBgContainer, padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 80, borderBottom: `1px solid ${token.colorBorder}` }}>
         <Button 
           icon={<ArrowLeftOutlined />} 
           onClick={() => navigate(-1)} 
@@ -331,10 +345,20 @@ export default function MfaSetup({ embedded = false, onComplete }) {
         >
           Back
         </Button>
+        <Button 
+          icon={<LogoutOutlined />} 
+          onClick={show}
+          type="text"
+          danger
+          style={{ fontSize: 16 }}
+        >
+          Logout
+        </Button>
       </Layout.Header>
       <Layout.Content style={{ padding: '0 24px 40px', display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column', background: token.colorBgLayout }}>
         {cardContent}
       </Layout.Content>
+      <ConfirmLogoutModal open={open} onConfirm={handleConfirm} onCancel={hide} confirmLoading={confirming} />
     </Layout>
   )
 }

@@ -53,7 +53,7 @@ export default function AdminLayout({
               viewNotificationsPath="/notifications"
               showPageHeader={showPageHeader}
             />
-            <div style={{ flex: 1, minHeight: 0 }}>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {children}
             </div>
           </div>

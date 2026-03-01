@@ -1,5 +1,5 @@
-import { Form, Input, Button, Card, Flex, Typography, theme, Grid } from 'antd'
-import { MailOutlined } from '@ant-design/icons'
+import { Form } from '@/shared/components/AppForm'
+import { Input, Button, Flex, Typography, Grid } from 'antd'
 import { useSignUpVerificationForm, useResendSignupCode } from "@/features/authentication/hooks"
 import React, { useState } from 'react'
 import { useNotifier } from '@/shared/notifications.js'
@@ -11,11 +11,10 @@ export default function SignUpVerificationForm({ email, onSubmit, title, devCode
   const { form, handleFinish, isSubmitting, attempts, setAttempts } = useSignUpVerificationForm({ email, onSubmit })
   const screens = useBreakpoint()
   const isMobile = !screens.md
-  // Displayed dev code: initial from signup/start (prop), updated when resend returns the new code
   const [devCodeDisplay, setDevCodeDisplay] = useState(devCode)
 
-  const { isSending: isResending, handleResend, isCooling, remaining } = useResendSignupCode({ 
-    email, 
+  const { isSending: isResending, handleResend, isCooling, remaining } = useResendSignupCode({
+    email,
     cooldownSec: 60,
     onSent: ({ devCode: newDevCode }) => {
       setAttempts(5)
@@ -24,7 +23,6 @@ export default function SignUpVerificationForm({ email, onSubmit, title, devCode
     }
   })
   const { success } = useNotifier()
-  const { token } = theme.useToken()
 
   const handlePrefillCode = React.useCallback(() => {
     if (!devCodeDisplay) return
@@ -33,39 +31,16 @@ export default function SignUpVerificationForm({ email, onSubmit, title, devCode
   }, [form, devCodeDisplay, success])
 
   return (
-    <Card 
-      style={{ 
-        maxWidth: 480, 
-        margin: '0 auto', 
-        width: '100%',
-        borderRadius: 12,
-      }}
-      styles={{ body: { padding: isMobile ? 24 : 40 } }}
-    >
+    <div style={{ width: '100%', maxWidth: 480, margin: '0 auto' }}>
       <div style={{ textAlign: 'center', marginBottom: isMobile ? 24 : 32 }}>
-        <div style={{ 
-          display: 'inline-flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          width: isMobile ? 48 : 64, 
-          height: isMobile ? 48 : 64, 
-          borderRadius: '50%', 
-          backgroundColor: token.colorPrimaryBg,
-          color: 'white',
-          fontSize: isMobile ? 24 : 32,
-          marginBottom: isMobile ? 16 : 24
-        }}>
-          <MailOutlined />
-        </div>
-        
         <Title level={isMobile ? 4 : 3} style={{ marginBottom: isMobile ? 6 : 8 }}>{title || 'Verify Your Email'}</Title>
         <Paragraph type="secondary" style={{ marginBottom: 0 }}>
           Please enter the 6-digit code sent to <br/>
-          <Text strong style={{ color: token.colorText }}>{email || 'your email address'}</Text>
+          <Text strong>{email || 'your email address'}</Text>
         </Paragraph>
       </div>
 
-      <Form name="signUpVerification" form={form} layout="vertical" onFinish={handleFinish} size="large">
+      <Form name="signUpVerification" form={form} layout="vertical" onFinish={handleFinish}>
         <Form.Item 
           name="verificationCode" 
           rules={[
@@ -74,7 +49,6 @@ export default function SignUpVerificationForm({ email, onSubmit, title, devCode
           style={{ marginBottom: 32 }}
         >
           <Input.OTP 
-            size="large" 
             length={6} 
             disabled={attempts <= 0} 
             style={{ width: '100%', justifyContent: 'center' }}
@@ -121,8 +95,9 @@ export default function SignUpVerificationForm({ email, onSubmit, title, devCode
               Prefill Code (Dev: {devCodeDisplay})
             </Button>
           )}
+          
         </Flex>
       </Form>
-    </Card>
+    </div>
   )
 }

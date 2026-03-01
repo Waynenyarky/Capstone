@@ -1,4 +1,5 @@
-import { Form, App } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { App } from 'antd'
 import { useState } from 'react'
 import { verifyLoginTotp } from '@/features/authentication/services/authService'
 import { useNotifier } from '@/shared/notifications.js'

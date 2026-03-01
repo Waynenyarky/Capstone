@@ -1,7 +1,6 @@
 export { default as AuditHistory } from './AuditHistory.jsx'
 export { default as DeletionCountdown } from './DeletionCountdown.jsx'
 export { default as DeletionScheduledInfo } from './DeletionScheduledInfo.jsx'
-export { default as DeletionWarningMessage } from './DeletionWarningMessage.jsx'
 export { default as EditUserProfileForm } from './EditUserProfileForm.jsx'
 export { default as LegalAcknowledgmentCheckbox } from './LegalAcknowledgmentCheckbox.jsx'
 export { default as NotificationHistory } from './NotificationHistory.jsx'

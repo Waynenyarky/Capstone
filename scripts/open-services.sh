@@ -7,10 +7,23 @@
 #
 # Usage:
 #   ./scripts/open-services.sh
+#   ./scripts/open-services.sh --web-only   # Only open the web app tab
 #   # Or after docker-compose up:
 #   docker-compose up -d && ./scripts/open-services.sh
 
 set -e
+
+# Optional: only open the web app tab (no IPFS, API health, Dozzle, MongoDB info)
+# GANACHE_GUI=1: blockchain is Ganache GUI on host port 7545 (no capstone-ganache container)
+OPEN_WEB_ONLY=0
+GANACHE_GUI=0
+for a in "$@"; do
+  case "$a" in
+    --web-only) OPEN_WEB_ONLY=1 ;;
+  esac
+done
+[ "${OPEN_WEB_ONLY:-0}" = "1" ] && OPEN_WEB_ONLY=1
+[ "${GANACHE_GUI:-0}" = "1" ] && GANACHE_GUI=1
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -21,6 +34,10 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 echo -e "${CYAN}🚀 Waiting for services to be ready...${NC}"
+
+if [ "$OPEN_WEB_ONLY" = "1" ]; then
+  echo -e "${CYAN}   (--web-only: only the web app tab will be opened)${NC}"
+fi
 
 # Function to check if a service is ready
 # Usage: check_service <container_name> <port> [max_attempts] [curl_path]
@@ -111,6 +128,43 @@ open_browser() {
 # Wait for services
 echo -e "${BLUE}📦 Checking Docker services...${NC}"
 
+# --web-only: skip all waits and extra tabs, just open the web app
+if [ "$OPEN_WEB_ONLY" = "1" ]; then
+  echo -e "${CYAN}⏳ Waiting a moment for web server...${NC}"
+  sleep 3
+  WEB_APP_PORT="${WEB_APP_PORT:-5173}"
+  if [ "${PRODUCTION_DEMO:-0}" = "1" ] && [ "$WEB_APP_PORT" = "5173" ]; then
+    WEB_APP_PORT=4173
+  fi
+  WEB_RUNNING=false
+  if command -v nc >/dev/null 2>&1 && nc -z localhost "$WEB_APP_PORT" 2>/dev/null; then
+    WEB_RUNNING=true
+  elif command -v curl >/dev/null 2>&1 && curl -s --max-time 1 "http://localhost:$WEB_APP_PORT" >/dev/null 2>&1; then
+    WEB_RUNNING=true
+  fi
+  echo -e "\n${GREEN}🌐 Opening web app tab...${NC}\n"
+  if [ "$WEB_RUNNING" = true ]; then
+    open_browser "http://localhost:$WEB_APP_PORT" "Web App"
+  else
+    echo -e "${YELLOW}   ℹ️  Web frontend may not be ready yet; opening anyway.${NC}"
+    open_browser "http://localhost:$WEB_APP_PORT" "Web App"
+  fi
+  echo -e "\n${GREEN}✅ Done! Only the web app tab was opened.${NC}\n"
+  echo -e "${CYAN}💡 Other URLs (open manually if needed):${NC}"
+  echo -e "   Dozzle (live logs): http://localhost:9999"
+  echo -e "   IPFS Gateway: http://localhost:8080/ipfs/{CID}"
+  echo -e "   IPFS Web UI: http://localhost:5001/webui"
+  echo -e "   Auth API: http://localhost:3001/api/health"
+  echo -e "   Business API: http://localhost:3002/api/health"
+  echo -e "   Admin API: http://localhost:3003/api/health"
+  echo -e "   Audit API: http://localhost:3004/api/health"
+  if [ "${ATLAS_MODE:-0}" != "1" ] && [ "${SKIP_MONGO:-0}" != "1" ]; then
+    echo -e "   MongoDB: mongodb://localhost:27017/capstone_project"
+  fi
+  echo ""
+  exit 0
+fi
+
 # Check MongoDB (skip when using Atlas: ATLAS_MODE=1 or SKIP_MONGO=1)
 if [ "${ATLAS_MODE:-0}" = "1" ] || [ "${SKIP_MONGO:-0}" = "1" ]; then
     echo -e "${YELLOW}   ℹ️  MongoDB skipped (using Atlas or SKIP_MONGO)${NC}"
@@ -132,10 +186,18 @@ else
 fi
 
 # Check Ganache
-if check_service "capstone-ganache" 7545; then
-    echo -e "${GREEN}✅ Ganache is ready${NC}"
+if [ "${GANACHE_GUI}" = "1" ]; then
+  if command -v nc >/dev/null 2>&1 && nc -z 127.0.0.1 7545 2>/dev/null; then
+    echo -e "${GREEN}✅ Ganache GUI is ready (port 7545)${NC}"
+  elif command -v curl >/dev/null 2>&1 && curl -s --max-time 2 -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' http://127.0.0.1:7545 >/dev/null 2>&1; then
+    echo -e "${GREEN}✅ Ganache GUI is ready (port 7545)${NC}"
+  else
+    echo -e "${YELLOW}⚠️  Ganache not detected on port 7545 (start Ganache GUI)${NC}"
+  fi
+elif check_service "capstone-ganache" 7545; then
+  echo -e "${GREEN}✅ Ganache is ready${NC}"
 else
-    echo -e "${YELLOW}⚠️  Ganache not ready (may still be starting)${NC}"
+  echo -e "${YELLOW}⚠️  Ganache not ready (may still be starting)${NC}"
 fi
 
 # Wait a bit more for services to fully initialize

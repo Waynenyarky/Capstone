@@ -170,4 +170,69 @@ router.post('/:applicationId/review', requireJwt, requireRole(['lgu_officer', 's
   }
 })
 
+/**
+ * PATCH /api/lgu-officer/permit-applications/:applicationId/field-decisions
+ * Update field-level review decision(s) (accept/reject per field)
+ */
+router.patch('/:applicationId/field-decisions', requireJwt, requireRole(['lgu_officer', 'staff', 'lgu_manager']), async (req, res) => {
+  try {
+    const { applicationId } = req.params
+    const { businessId, fieldKey, status, reasonCode, reasonOther, decisions } = req.body
+    const officerId = req._userId
+
+    const payload = decisions && Array.isArray(decisions)
+      ? decisions
+      : (fieldKey && status ? [{ fieldKey, status, reasonCode, reasonOther }] : null)
+    if (!payload || payload.length === 0) {
+      return respond.error(res, 400, 'missing_data', 'fieldKey and status, or decisions array, required')
+    }
+
+    const updatedApplication = await permitApplicationService.updateFieldDecisions(
+      applicationId,
+      businessId,
+      officerId,
+      payload
+    )
+    return res.json(updatedApplication)
+  } catch (err) {
+    console.error('PATCH /api/lgu-officer/permit-applications/:applicationId/field-decisions error:', err)
+    if (err.message === 'Application not found') {
+      return respond.error(res, 404, 'not_found', err.message)
+    }
+    if (err.message === 'Application is not in a reviewable status') {
+      return respond.error(res, 400, 'invalid_data', err.message)
+    }
+    return respond.error(res, 500, 'update_error', err.message || 'Failed to update field decisions')
+  }
+})
+
+/**
+ * PATCH /api/lgu-officer/permit-applications/:applicationId/form-data
+ * Update LOB formData (businessDescriptionText, businessActivities) for officer edit
+ */
+router.patch('/:applicationId/form-data', requireJwt, requireRole(['lgu_officer', 'staff', 'lgu_manager']), async (req, res) => {
+  try {
+    const { applicationId } = req.params
+    const { businessId, businessDescriptionText, businessActivities } = req.body
+    const officerId = req._userId
+
+    const updatedApplication = await permitApplicationService.updateLobFormData(
+      applicationId,
+      businessId,
+      officerId,
+      { businessDescriptionText, businessActivities }
+    )
+    return res.json(updatedApplication)
+  } catch (err) {
+    console.error('PATCH /api/lgu-officer/permit-applications/:applicationId/form-data error:', err)
+    if (err.message === 'Application not found') {
+      return respond.error(res, 404, 'not_found', err.message)
+    }
+    if (err.message === 'Application is not in a reviewable status') {
+      return respond.error(res, 400, 'invalid_data', err.message)
+    }
+    return respond.error(res, 500, 'update_error', err.message || 'Failed to update form data')
+  }
+})
+
 module.exports = router

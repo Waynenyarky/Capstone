@@ -20,6 +20,12 @@ const { Text } = Typography
 
 const statusColors = { new: 'red', acknowledged: 'gold', resolved: 'green' }
 const severityColors = { high: 'red', medium: 'orange', low: 'blue' }
+const verificationStatusLabels = {
+  tamper_detected: 'Tamper detected',
+  verification_error: 'Verification error',
+  not_logged: 'Not logged',
+  security_event: 'Security event',
+}
 
 const STATUS_ORDER = { new: 0, acknowledged: 1, resolved: 2 }
 const PAGE_SIZE = 20
@@ -136,7 +142,7 @@ export default function AuditTamperIncidentsTab({ onRefresh, initialIncidentId }
       dataIndex: 'verificationStatus',
       key: 'verificationStatus',
       width: 120,
-      render: (v) => <Tag>{v || 'unknown'}</Tag>,
+      render: (v) => <Tag>{verificationStatusLabels[v] || v || 'unknown'}</Tag>,
     },
     {
       title: 'Containment',

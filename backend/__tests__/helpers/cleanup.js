@@ -28,10 +28,8 @@ async function cleanupTestUsers() {
  */
 async function cleanupTestData() {
   try {
-    // Ensure mongoose connection is ready before cleanup operations
     const mongoose = require('mongoose')
     if (mongoose.connection.readyState !== 1) {
-      // Wait for connection to be ready (max 5 seconds)
       let retries = 0
       while (mongoose.connection.readyState !== 1 && retries < 50) {
         await new Promise(resolve => setTimeout(resolve, 100))
@@ -85,7 +83,6 @@ async function cleanupDatabase() {
   try {
     const collections = mongoose.connection.collections
     for (const key in collections) {
-      // Skip roles collection as it's seeded
       if (key !== 'roles') {
         await collections[key].deleteMany({})
       }

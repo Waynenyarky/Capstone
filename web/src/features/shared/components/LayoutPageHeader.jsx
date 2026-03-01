@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Grid, Space, Typography, Button, Dropdown, Avatar, Badge, Spin, theme } from 'antd'
+import { Grid, Space, Typography, Button, Dropdown, Badge, Spin, theme } from 'antd'
 import {
   EllipsisOutlined,
   SettingOutlined,
@@ -17,6 +17,7 @@ import { useAuthSession } from '@/features/authentication'
 import { useConfirmLogoutModal } from '@/features/authentication/hooks/useConfirmLogoutModal'
 import ConfirmLogoutModal from '@/features/authentication/components/ConfirmLogoutModal'
 import { getNotifications, getUnreadCount, markAsRead } from '@/features/user/services/notificationService'
+import { useNotificationStream } from '@/features/user/hooks/useNotificationStream'
 
 dayjs.extend(relativeTime)
 
@@ -78,6 +79,7 @@ function getNotificationIcon(type, token) {
 export default function LayoutPageHeader({
   pageTitle,
   pageIcon,
+  leftContent,
   headerActions,
   viewNotificationsPath,
   hideNotifications = false,
@@ -140,6 +142,11 @@ export default function LayoutPageHeader({
     }
   }, [currentUser, hideNotifications])
 
+  useNotificationStream({
+    enabled: !!currentUser && !hideNotifications,
+    onNewNotification: fetchNotifications,
+  })
+
   useEffect(() => {
     if (!currentUser || hideNotifications) return
     fetchNotifications()
@@ -161,6 +168,21 @@ export default function LayoutPageHeader({
       console.error('Failed to mark notification as read:', err)
     }
   }
+
+  const handleNotificationsOpenChange = useCallback((open) => {
+    if (open && notifications.length > 0) {
+      const unread = notifications.filter((n) => !n.read)
+      if (unread.length > 0) {
+        Promise.all(unread.map((n) => markAsRead(n._id)))
+          .then(() => {
+            setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+            setUnreadCount((prev) => Math.max(0, prev - unread.length))
+          })
+          .catch((err) => console.error('Failed to mark notifications as read', err))
+      }
+    }
+    setNotificationsOpen(open)
+  }, [notifications])
 
   const notificationPanelContent = (
     <div
@@ -243,7 +265,7 @@ export default function LayoutPageHeader({
     </div>
   )
 
-  if (!showPageHeader || (!pageTitle && !headerActions && !currentUser)) {
+  if (!showPageHeader || (!pageTitle && !leftContent && !headerActions && !currentUser)) {
     return null
   }
 
@@ -260,31 +282,33 @@ export default function LayoutPageHeader({
           borderBottom: `1px solid ${token.colorBorder}`,
         }}
       >
-        <Space size={10} align="center">
-          {pageIcon && (
-            <span
-              style={{
-                fontSize: 16,
-                color: '#fff',
-                background: token.colorPrimary,
-                padding: 6,
-                height: 32,
-                width: 32,
-                borderRadius: 8,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {pageIcon}
-            </span>
-          )}
-          {pageTitle && (
-            <Text strong style={{ fontSize: isMobile ? 16 : 18 }}>
-              {pageTitle}
-            </Text>
-          )}
-        </Space>
+        {leftContent || (
+          <Space size={10} align="center">
+            {pageIcon && (
+              <span
+                style={{
+                  fontSize: 16,
+                  color: '#fff',
+                  background: token.colorPrimary,
+                  padding: 6,
+                  height: 32,
+                  width: 32,
+                  borderRadius: 8,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {pageIcon}
+              </span>
+            )}
+            {pageTitle && (
+              <Text strong style={{ fontSize: isMobile ? 16 : 18 }}>
+                {pageTitle}
+              </Text>
+            )}
+          </Space>
+        )}
 
         <Space size="middle" wrap>
           {headerActions &&
@@ -335,7 +359,7 @@ export default function LayoutPageHeader({
           {currentUser && !hideNotifications && (
             <Dropdown
               open={notificationsOpen}
-              onOpenChange={setNotificationsOpen}
+              onOpenChange={handleNotificationsOpenChange}
               trigger={['click']}
               placement="bottomRight"
               popupRender={() => notificationPanelContent}
@@ -364,9 +388,22 @@ export default function LayoutPageHeader({
                   justifyContent: 'center',
                 }}
               >
-                <Avatar src={currentUser.avatar} style={{ backgroundColor: token.colorPrimary }}>
-                  {!currentUser.avatar ? getAvatarInitials(currentUser) : null}
-                </Avatar>
+                <span
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: token.colorPrimary,
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                >
+                  {getAvatarInitials(currentUser)}
+                </span>
               </button>
             </Dropdown>
           )}

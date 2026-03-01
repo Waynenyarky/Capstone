@@ -40,7 +40,7 @@ export default function OwnerPersonalInfoSection({ application, ownerIdentity, b
         <Descriptions.Item label="Nationality">
           {application?.businessOwner?.nationality || ownerIdentity?.nationality || businessReg?.ownerNationality || 'N/A'}
         </Descriptions.Item>
-        <Descriptions.Item label="Education">
+        <Descriptions.Item label="Education" span={2}>
           {application?.businessOwner?.highestEducationalAttainment || ownerIdentity?.highestEducationalAttainment || 'N/A'}
         </Descriptions.Item>
         <Descriptions.Item label="Address" span={2}>
@@ -58,13 +58,8 @@ export default function OwnerPersonalInfoSection({ application, ownerIdentity, b
         <Descriptions.Item label="Mother's Name">
           {application?.businessOwner?.motherName || ownerIdentity?.motherName || 'N/A'}
         </Descriptions.Item>
-        {maritalStatus === 'married' && (
-          <Descriptions.Item label="Spouse Name">
-            {application?.businessOwner?.spouseName || ownerIdentity?.spouseName || 'N/A'}
-          </Descriptions.Item>
-        )}
         {(application?.businessOwner?.distinctiveMark || ownerIdentity?.distinctiveMark) && (
-          <Descriptions.Item label="Distinctive Mark">
+          <Descriptions.Item label="Distinctive Mark" span={2}>
             {application?.businessOwner?.distinctiveMark || ownerIdentity?.distinctiveMark}
           </Descriptions.Item>
         )}

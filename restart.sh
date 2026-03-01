@@ -7,6 +7,7 @@
 # Usage:
 #   ./restart.sh          # Production mode
 #   ./restart.sh --dev    # Development mode
+#   ./restart.sh --web-only   # Only open the web app tab (no other tabs)
 
 set -e
 
@@ -16,10 +17,16 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Check if dev mode is requested
+# Check if dev mode or web-only is requested
 DEV_MODE=false
-if [ "$1" = "--dev" ] || [ "$1" = "-d" ]; then
-  DEV_MODE=true
+OPEN_WEB_ONLY=false
+for a in "$@"; do
+  case "$a" in
+    --dev|-d) DEV_MODE=true ;;
+    --web-only) OPEN_WEB_ONLY=true ;;
+  esac
+done
+if [ "$DEV_MODE" = true ]; then
   echo -e "${CYAN}🔄 Restarting services in DEVELOPMENT mode...${NC}\n"
 else
   echo -e "${CYAN}🔄 Restarting services...${NC}\n"
@@ -70,6 +77,10 @@ sleep 5
 
 # Open browser tabs
 echo -e "\n${GREEN}🌐 Opening browser tabs...${NC}\n"
-./scripts/open-services.sh
+if [ "$OPEN_WEB_ONLY" = true ]; then
+  OPEN_WEB_ONLY=1 ./scripts/open-services.sh --web-only
+else
+  ./scripts/open-services.sh
+fi
 
 echo -e "\n${GREEN}✅ Done! Services restarted and browser tabs opened.${NC}\n"

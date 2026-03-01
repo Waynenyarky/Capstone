@@ -245,7 +245,6 @@ export default function AppealsOverviewPage() {
                       value={timeRange}
                       onChange={setTimeRange}
                       style={{ width: '100%' }}
-                      size="large"
                     >
                       <Option value="day">Daily</Option>
                       <Option value="month">Monthly</Option>
@@ -259,7 +258,7 @@ export default function AppealsOverviewPage() {
                       <Text strong style={{ fontSize: 12, color: token.colorTextSecondary }}>
                         Select Dates
                       </Text>
-                      <RangePicker style={{ width: '100%' }} size="large" />
+                      <RangePicker style={{ width: '100%' }} />
                     </Space>
                   </Col>
                 )}
@@ -273,7 +272,6 @@ export default function AppealsOverviewPage() {
                       value={appealStatus}
                       onChange={setAppealStatus}
                       style={{ width: '100%' }}
-                      size="large"
                     >
                       <Option value="all">All Status</Option>
                       <Option value="pending">Pending</Option>
@@ -293,7 +291,6 @@ export default function AppealsOverviewPage() {
                       value={appealType}
                       onChange={setAppealType}
                       style={{ width: '100%' }}
-                      size="large"
                     >
                       <Option value="all">All Types</Option>
                       <Option value="permit">Permit</Option>
@@ -313,7 +310,6 @@ export default function AppealsOverviewPage() {
                         value={exportFormat}
                         onChange={setExportFormat}
                         style={{ flex: 1 }}
-                        size="large"
                       >
                         <Option value="pdf">PDF</Option>
                         <Option value="csv">CSV</Option>
@@ -322,7 +318,6 @@ export default function AppealsOverviewPage() {
                         type="primary"
                         icon={<DownloadOutlined />}
                         onClick={handleExport}
-                        size="large"
                       >
                         Export
                       </Button>

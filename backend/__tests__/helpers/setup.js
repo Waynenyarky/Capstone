@@ -3,6 +3,7 @@ const { MongoMemoryServer } = require('mongodb-memory-server')
 const authConnectDB = require('../../services/auth-service/src/config/db')
 const businessConnectDB = require('../../services/business-service/src/config/db')
 const adminConnectDB = require('../../services/admin-service/src/config/db')
+const auditConnectDB = require('../../services/audit-service/src/config/db')
 
 let mongoServer = null
 
@@ -20,6 +21,8 @@ function setupTestEnvironment() {
   process.env.AUTH_SERVICE_PORT = '3001'
   process.env.AUDIT_CONTRACT_ADDRESS = '' // Disable blockchain for tests
   process.env.DISABLE_RATE_LIMIT = 'false' // Enable rate limiting for security tests
+  // Disable Turnstile CAPTCHA in tests (login/signup/password-reset would otherwise require it)
+  delete process.env.TURNSTILE_SECRET_KEY
 }
 
 /**
@@ -35,10 +38,16 @@ async function setupMongoDB() {
   const uri = mongoServer.getUri()
   process.env.MONGO_URI = uri
 
-  // Connect service mongoose instances (shared mongoose singleton)
+  // Each service has its own node_modules/mongoose (separate singletons).
+  // Connect the root mongoose so tests using `require('mongoose')` also work,
+  // then connect each service's mongoose via their connectDB helpers.
+  if (mongoose.connection.readyState === 0) {
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000 })
+  }
   await authConnectDB(uri)
   await businessConnectDB(uri)
   await adminConnectDB(uri)
+  await auditConnectDB(uri)
   
   // Seed dev data if seedDev exists (optional - may not be needed for all tests)
   try {
@@ -48,7 +57,7 @@ async function setupMongoDB() {
     // seedDev may not exist, that's okay
   }
   
-  // Ensure mongoose connection is ready
+  // Verify the root mongoose connection
   let retries = 0
   while (mongoose.connection.readyState !== 1 && retries < 50) {
     await new Promise(resolve => setTimeout(resolve, 100))
@@ -59,9 +68,6 @@ async function setupMongoDB() {
     throw new Error('Mongoose connection not ready after setup')
   }
   
-  // Wait a bit more to ensure connection is fully established
-  await new Promise(resolve => setTimeout(resolve, 200))
-  
   return mongoServer
 }
 
@@ -70,7 +76,22 @@ async function setupMongoDB() {
  */
 async function teardownMongoDB() {
   try {
-    await mongoose.disconnect().catch(() => {})
+    // Disconnect all mongoose singletons (root + each service's own copy)
+    const disconnects = [mongoose.disconnect().catch(() => {})]
+    for (const svcPath of [
+      '../../services/auth-service/src/models/User',
+      '../../services/business-service/src/models/BusinessProfile',
+      '../../services/admin-service/src/models/User',
+      '../../services/audit-service/src/models/AuditLog',
+    ]) {
+      try {
+        const svcMongoose = require(svcPath).base
+        if (svcMongoose && svcMongoose !== mongoose) {
+          disconnects.push(svcMongoose.disconnect().catch(() => {}))
+        }
+      } catch { /* ignore */ }
+    }
+    await Promise.all(disconnects)
   } catch (error) {
     console.error('Error disconnecting MongoDB:', error)
   } finally {

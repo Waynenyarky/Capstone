@@ -11,6 +11,7 @@ const { validateBody, Joi } = require('../middleware/validation')
 const { perEmailRateLimit } = require('../middleware/rateLimit')
 const { requireJwt } = require('../middleware/auth')
 const { createAuditLog } = require('../lib/auditLogger')
+const inAppNotificationService = require('../services/notificationService')
 const { trackIP, isUnusualIP } = require('../lib/ipTracker')
 const { checkLockout, incrementFailedAttempts } = require('../lib/accountLockout')
 const securityMonitor = require('../middleware/securityMonitor')
@@ -129,7 +130,7 @@ router.post('/delete-account/send-code', requireJwt, sendCodeLimiter, validateBo
       deleteRequests.set(emailKey, { code, expiresAt: expiresAtMs, verified: false, deleteToken: null })
     }
 
-    await sendOtp({ to: doc.email, code, subject: 'Confirm account deletion' })
+    await sendOtp({ to: doc.email, code, subject: 'Confirm account deletion', purpose: 'account_deletion' })
     const payload = { sent: true }
     if (process.env.NODE_ENV !== 'production') payload.devCode = code
     return res.json(payload)
@@ -273,6 +274,9 @@ router.post('/delete-account/confirm', validateBody(confirmDeleteSchema), async 
       undoExpiresAt: undoExpiresAt.toISOString(),
     }
 
+    const deletionDateStr = doc.deletionScheduledFor ? new Date(doc.deletionScheduledFor).toLocaleDateString() : 'the scheduled date'
+    inAppNotificationService.createNotification(doc._id, 'auth_account_deletion_scheduled', 'Account deletion scheduled', `Your account will be deleted on ${deletionDateStr}. You can undo within 7 days.`).catch((err) => console.error('Failed to create auth notification:', err))
+
     return res.json({ 
       scheduled: true, 
       user: userSafe,
@@ -381,6 +385,8 @@ router.post('/delete-account/cancel', requireJwtOptional, validateBody(cancelDel
       deletionRequestedAt: null,
       deletionScheduledFor: null,
     }
+
+    inAppNotificationService.createNotification(doc._id, 'auth_account_deletion_cancelled', 'Account deletion cancelled', 'Your account is no longer scheduled for deletion.').catch((err) => console.error('Failed to create auth notification:', err))
 
     return res.json({ cancelled: true, user: userSafe })
   } catch (err) {

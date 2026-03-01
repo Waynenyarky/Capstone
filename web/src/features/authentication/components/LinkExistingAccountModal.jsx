@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react'
-import { Modal, Form, Input, Button, Typography, Steps, Result, Spin } from 'antd'
-import { useNotifier } from '@/shared/notifications.js'
+import { Form } from '@/shared/components/AppForm'
+import { Modal, Input, Button, Typography, Steps, Result, Spin } from 'antd'
+import { useAuthNotification, useNotifier } from '@/shared/notifications.js'
 import { post } from '@/lib/http.js'
 
 const { Text, Paragraph } = Typography
@@ -13,6 +14,7 @@ export default function LinkExistingAccountModal({ open, onClose }) {
   const [linkEmail, setLinkEmail] = useState('')
   const [linkBp, setLinkBp] = useState('')
   const { success, error } = useNotifier()
+  const { notificationSuccess } = useAuthNotification()
 
   const handleClose = useCallback(() => {
     setStep(0)
@@ -50,7 +52,7 @@ export default function LinkExistingAccountModal({ open, onClose }) {
         code: values.code,
       })
       setStep(2)
-      success('Account linked successfully!')
+      notificationSuccess('Account linked', 'Your account has been linked successfully.')
     } catch (err) {
       error(err, 'Failed to verify code')
     } finally {

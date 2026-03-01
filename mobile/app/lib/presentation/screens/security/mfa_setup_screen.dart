@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:app/core/theme/bizclear_colors.dart';
 import '../../../domain/usecases/enable_mfa.dart';
 import '../../../domain/usecases/verify_mfa.dart';
-import '../../../data/services/mongodb_service.dart';
-import 'fingerprint_otp_verify_screen.dart';
 import 'mfa_verify_screen.dart';
-import 'widgets/biometric_setup_section.dart';
 import 'widgets/authenticator_setup_section.dart';
-import 'package:local_auth/local_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class MfaSetupScreen extends StatefulWidget {
   final EnableMfa enableMfa;
@@ -35,9 +31,6 @@ class _MfaSetupScreenState extends State<MfaSetupScreen> {
   String? _otpauthUri;
   String? _secret;
   String? _issuer;
-  bool _biometricActivated = false;
-  final LocalAuthentication _localAuth = LocalAuthentication();
-  bool _sendingFingerprintOtp = false;
 
   String? _buildOtpauthUri() {
     if (_secret == null || _secret!.isEmpty) return null;
@@ -72,97 +65,9 @@ class _MfaSetupScreenState extends State<MfaSetupScreen> {
   @override
   void initState() {
     super.initState();
-    _method = widget.initialMethod;
+    _method = widget.initialMethod == 'fingerprint' ? 'authenticator' : widget.initialMethod;
     if (_method == 'authenticator') {
       WidgetsBinding.instance.addPostFrameCallback((_) => _fetchSetup());
-    }
-  }
-
-  Future<void> _onBiometricToggle(bool v) async {
-    if (!v) {
-      setState(() => _biometricActivated = false);
-      return;
-    }
-    try {
-      setState(() => _sendingFingerprintOtp = true);
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final saved = (prefs.getString('fingerprintEmail') ?? '').trim().toLowerCase();
-        if (saved.isNotEmpty && saved != widget.email.toLowerCase()) {
-          bool stillEnabled = true;
-          try {
-            final s = await MongoDBService.getMfaStatusDetail(email: saved);
-            stillEnabled = s['success'] == true && s['isFingerprintEnabled'] == true;
-          } catch (_) {}
-          if (!stillEnabled) {
-            try { await prefs.remove('fingerprintEmail'); } catch (_) {}
-          } else {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  backgroundColor: Colors.red,
-                  content: Text(
-                    'You cannot use biometrics to log in to multiple accounts on the same device.',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              );
-            }
-            setState(() {
-              _biometricActivated = false;
-              _sendingFingerprintOtp = false;
-            });
-            return;
-          }
-        }
-      } catch (_) {}
-      final supported = await _localAuth.isDeviceSupported();
-      final canCheck = await _localAuth.canCheckBiometrics;
-      final types = await _localAuth.getAvailableBiometrics();
-      final hasFingerprint = types.contains(BiometricType.fingerprint) || types.contains(BiometricType.strong) || types.contains(BiometricType.weak);
-      if (!(supported && canCheck && hasFingerprint)) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometrics not supported on this device')));
-        setState(() {
-          _biometricActivated = false;
-          _sendingFingerprintOtp = false;
-        });
-        return;
-      }
-      setState(() => _biometricActivated = true);
-      final send = await MongoDBService.mfaFingerprintStart(email: widget.email);
-      if (!mounted) return;
-      if (send['success'] == true) {
-        final nav = Navigator.of(context);
-        Navigator.push<bool>(
-          context,
-          MaterialPageRoute(
-            builder: (_) => FingerprintOtpVerifyScreen(email: widget.email),
-          ),
-        ).then((ok) {
-          if (ok == true) {
-            if (!mounted) return;
-            nav.pop('fingerprint');
-          }
-          if (mounted) {
-            setState(() => _sendingFingerprintOtp = false);
-          }
-        });
-      } else {
-        final msg = (send['message'] is String) ? (send['message'] as String) : 'Failed to send email';
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-        setState(() {
-          _biometricActivated = false;
-          _sendingFingerprintOtp = false;
-        });
-      }
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to check device support')));
-      setState(() {
-        _biometricActivated = false;
-        _sendingFingerprintOtp = false;
-      });
     }
   }
 
@@ -188,28 +93,29 @@ class _MfaSetupScreenState extends State<MfaSetupScreen> {
                 children: [
                   if (widget.allowSelection) ...[
                     const Text(
-                      'Choose a verification method',
+                      'Verification method',
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      initialValue: _method,
+                      value: 'authenticator',
+                      decoration: InputDecoration(
+                        border: const OutlineInputBorder(),
+                        contentPadding: BizClearColors.inputFieldContentPadding,
+                      ),
                       items: const [
-                        DropdownMenuItem(value: 'authenticator', child: Text('TOTP authenticator')),
-                        DropdownMenuItem(value: 'fingerprint', child: Text('Biometrics')),
+                        DropdownMenuItem(value: 'authenticator', child: Text('Authenticator app')),
                       ],
-                  onChanged: (v) => setState(() => _method = v ?? 'authenticator'),
-                ),
-                const SizedBox(height: 12),
-              ] else ...[
-                Text(
-                  _method == 'authenticator'
-                      ? 'TOTP Authenticator'
-                      : 'Biometrics',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
+                      onChanged: (_) {},
+                    ),
+                    const SizedBox(height: 16),
+                  ] else ...[
+                    const Text(
+                      'Authenticator app',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 16),
                   ],
-                  const SizedBox(height: 16),
                   if (_method == 'authenticator') ...[
                     AuthenticatorSetupSection(
                       otpauthUri: _otpauthUri ?? _buildOtpauthUri(),
@@ -218,86 +124,34 @@ class _MfaSetupScreenState extends State<MfaSetupScreen> {
                       qrSize: qrSize,
                     ),
                   ],
-                  if (_method == 'fingerprint') ...[
-                    Stack(
-                      children: [
-                        BiometricSetupSection(
-                          activated: _biometricActivated,
-                          onChanged: _onBiometricToggle,
-                        ),
-                        if (_sendingFingerprintOtp)
-                          Positioned.fill(
-                            child: IgnorePointer(
-                              ignoring: true,
-                              child: Container(
-                                color: Colors.black.withValues(alpha: 0.06),
-                                child: const Center(
-                                  child: SizedBox(
-                                    height: 40,
-                                    width: 40,
-                                    child: CircularProgressIndicator(strokeWidth: 3),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
                   const SizedBox(height: 24),
-                  if (_method != 'fingerprint') ...[
-                    if (isSmall) ...[
-                      ElevatedButton(
-                        onPressed: _loading ? null : () {
-                          final nav = Navigator.of(context);
-                          Navigator.push<bool>(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => MfaVerifyScreen(verifyMfa: widget.verifyMfa, method: _method),
-                            ),
-                          ).then((ok) {
-                            if (ok == true) {
-                              if (!mounted) return;
-                              nav.pop(_method);
-                            }
-                          });
-                        },
-                        child: _loading
-                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Text('Verify Code'),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _loading ? null : () {
+                            final nav = Navigator.of(context);
+                            Navigator.push<bool>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => MfaVerifyScreen(verifyMfa: widget.verifyMfa, method: _method),
+                              ),
+                            ).then((ok) {
+                              if (ok == true && mounted) nav.pop(_method);
+                            });
+                          },
+                          child: _loading
+                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Text('Verify code'),
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                      OutlinedButton(onPressed: _loading ? null : _fetchSetup, child: const Text('Regenerate')),
-                    ] else ...[
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: _loading ? null : () {
-                                final nav = Navigator.of(context);
-                                Navigator.push<bool>(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => MfaVerifyScreen(verifyMfa: widget.verifyMfa, method: _method),
-                                  ),
-                                ).then((ok) {
-                                  if (ok == true) {
-                                    if (!mounted) return;
-                                    nav.pop(_method);
-                                  }
-                                });
-                              },
-                              child: _loading
-                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                                  : const Text('Verify Code'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          OutlinedButton(onPressed: _loading ? null : _fetchSetup, child: const Text('Regenerate')),
-                        ],
+                      const SizedBox(width: 12),
+                      OutlinedButton(
+                        onPressed: _loading ? null : _fetchSetup,
+                        child: const Text('Regenerate'),
                       ),
                     ],
-                  ],
+                  ),
                 ],
               ),
             ),

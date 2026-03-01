@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Tabs, Empty, Select, Button, Space, Spin, App, Typography, Form, Dropdown } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Tabs, Empty, Select, Button, Space, Spin, App, Typography, Dropdown } from 'antd'
 import { PlusOutlined, StopOutlined, PauseCircleOutlined, PlayCircleOutlined, DownOutlined, EditOutlined } from '@ant-design/icons'
 import { getFormGroup, createFormGroupVersion, retireFormGroup, deactivateFormGroup, reactivateFormGroup } from '../services'
 import FormDefinitionEditorPanel from './FormDefinitionEditorPanel'

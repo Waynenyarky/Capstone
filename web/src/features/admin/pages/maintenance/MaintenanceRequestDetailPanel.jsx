@@ -187,10 +187,10 @@ export default function MaintenanceRequestDetailPanel({ approval, onApprove, onR
         {canVote && (
           <Space style={{ marginTop: 16 }}>
             <Button type="primary" icon={<CheckCircleOutlined />} onClick={handleApproveClick}>
-              Approve
+              Approve Request
             </Button>
             <Button danger icon={<CloseCircleOutlined />} onClick={handleDenyClick}>
-              Reject
+              Reject Request
             </Button>
           </Space>
         )}
@@ -202,7 +202,7 @@ export default function MaintenanceRequestDetailPanel({ approval, onApprove, onR
         onCancel={() => !submitting && setActionModalOpen(false)}
         onOk={handleActionSubmit}
         confirmLoading={submitting}
-        okText={actionApproved ? 'Approve' : 'Reject'}
+        okText={actionApproved ? 'Approve Request' : 'Reject Request'}
         okButtonProps={actionApproved ? {} : { danger: true }}
       >
         <div style={{ marginBottom: 8 }}>

@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { Form } from 'antd'
+import { Form } from '@/shared/components/AppForm'
 import { MemoryRouter } from 'react-router-dom'
 import { App as AntdApp } from 'antd'
 import { fireEvent } from '@testing-library/react'

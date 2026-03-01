@@ -4,18 +4,19 @@ import { ArrowLeftOutlined } from '@ant-design/icons'
 import useWebAuthn from '../hooks/useWebAuthn.js'
 import { useAuthSession } from '../hooks'
 import { useNotifier } from '@/shared/notifications.js'
+import { isDevLoggingEnabled } from '@/lib/utils.js'
 
 const { Text } = Typography
 
 export default function PlatformPasskeyAuth({ form, onAuthenticated, onCancel } = {}) {
   const { authenticateWithPlatform, register } = useWebAuthn()
   const { login } = useAuthSession()
-  const { success, error: notifyError, info } = useNotifier()
+  const { error: notifyError, info } = useNotifier()
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState(null)
   const [needsRegistration, setNeedsRegistration] = React.useState(false)
 
-  const handleAuthenticate = async () => {
+  const handleAuthenticate = async (abortSignal) => {
     try {
       setLoading(true)
       setError(null)
@@ -26,14 +27,14 @@ export default function PlatformPasskeyAuth({ form, onAuthenticated, onCancel } 
       const email = form?.getFieldValue('email') ? String(form.getFieldValue('email')).trim() : undefined
 
       // Use platform authenticator (Windows Hello, Touch ID, external security keys, etc.)
-      // This will prompt for any FIDO2-compatible authenticator
-      const res = await authenticateWithPlatform({ email })
+      // Pass abortSignal so React Strict Mode cleanup can cancel the first run and avoid challenge mismatch
+      const res = await authenticateWithPlatform({ email, signal: abortSignal })
       
       // Expect server to return user object on successful authentication
       if (res && typeof res === 'object') {
         const remember = !!form?.getFieldValue('rememberMe')
         login(res, { remember })
-        success('Logged in with passkey')
+        // Login success shown on destination via navigate state (Option A)
         
         if (typeof onAuthenticated === 'function') {
           onAuthenticated(res)
@@ -44,7 +45,11 @@ export default function PlatformPasskeyAuth({ form, onAuthenticated, onCancel } 
         notifyError(errMsg)
       }
     } catch (e) {
-      console.error('Platform passkey authentication failed', e)
+      // AbortError: component unmounted (e.g. Strict Mode remount) — don't show error
+      if (e?.name === 'AbortError') {
+        return
+      }
+      if (isDevLoggingEnabled) console.error('Platform passkey authentication failed', e)
       let errMsg = e?.message || 'Passkey authentication failed. Please try again.'
       
       // Check for specific error types
@@ -67,6 +72,14 @@ export default function PlatformPasskeyAuth({ form, onAuthenticated, onCancel } 
         errMsg = 'No passkeys found for this account. Please sign in with your email and password first, then register a passkey.'
       }
       
+      if (!isDevLoggingEnabled) {
+        // Keep only short, user-friendly messages in production/demo
+        const generic = 'Passkey authentication failed. Please try again.'
+        if (errMsg.length > 80 || errorMsgLower.includes('challenge') || errorMsgLower.includes('abortsignal') || errorMsgLower.includes('credential')) {
+          errMsg = generic
+        }
+      }
+      
       setError(errMsg)
       notifyError(errMsg)
     } finally {
@@ -85,8 +98,7 @@ export default function PlatformPasskeyAuth({ form, onAuthenticated, onCancel } 
 
       // Register a new passkey using platform authenticator
       await register({ email })
-      success('Passkey registered successfully! Logging you in...')
-      
+      // Login success shown on destination via navigate state (Option A)
       // After registration, authenticate the user
       const res = await authenticateWithPlatform({ email })
       
@@ -111,13 +123,15 @@ export default function PlatformPasskeyAuth({ form, onAuthenticated, onCancel } 
       
       if (e?.name === 'NotAllowedError' || errorCode === 'user_cancelled') {
         // User cancelled - this is expected behavior, show friendly info message
-        console.log('[PlatformPasskeyAuth] User cancelled passkey registration')
+        if (isDevLoggingEnabled) console.log('[PlatformPasskeyAuth] User cancelled passkey registration')
         info('Registration was cancelled. No worries! You can try again whenever you\'re ready.')
         return
       }
       
-      console.error('Platform passkey registration failed', e)
-      const errMsg = e?.message || 'Failed to register passkey. Please try again.'
+      if (isDevLoggingEnabled) console.error('Platform passkey registration failed', e)
+      const errMsg = !isDevLoggingEnabled
+        ? 'Failed to register passkey. Please try again.'
+        : (e?.message || 'Failed to register passkey. Please try again.')
       setError(errMsg)
       notifyError(errMsg)
     } finally {
@@ -126,8 +140,16 @@ export default function PlatformPasskeyAuth({ form, onAuthenticated, onCancel } 
   }
 
   React.useEffect(() => {
-    // Automatically trigger authentication when component mounts
-    handleAuthenticate()
+    const controller = new AbortController()
+    // Delay so that when we land here after password submit (verify-passkey step), the parent
+    // can abort any conditional UI get() first and avoid "A request is already pending".
+    const t = setTimeout(() => {
+      handleAuthenticate(controller.signal)
+    }, 200)
+    return () => {
+      clearTimeout(t)
+      controller.abort()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -230,7 +252,7 @@ export default function PlatformPasskeyAuth({ form, onAuthenticated, onCancel } 
         ) : (
           <Button
             type="primary"
-            onClick={handleAuthenticate}
+            onClick={() => handleAuthenticate()}
             loading={loading}
             disabled={loading}
           >

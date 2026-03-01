@@ -229,7 +229,6 @@ export default function PermitApplicationsOverviewPage() {
                       value={timeRange}
                       onChange={setTimeRange}
                       style={{ width: '100%' }}
-                      size="large"
                     >
                       <Option value="today">Today</Option>
                       <Option value="week">This Week</Option>
@@ -244,7 +243,7 @@ export default function PermitApplicationsOverviewPage() {
                       <Text strong style={{ fontSize: 12, color: token.colorTextSecondary }}>
                         Select Dates
                       </Text>
-                      <RangePicker style={{ width: '100%' }} size="large" />
+                      <RangePicker style={{ width: '100%' }} />
                     </Space>
                   </Col>
                 )}
@@ -258,7 +257,6 @@ export default function PermitApplicationsOverviewPage() {
                       value={permitType}
                       onChange={setPermitType}
                       style={{ width: '100%' }}
-                      size="large"
                     >
                       <Option value="all">All Types</Option>
                       <Option value="new">New</Option>
@@ -275,7 +273,6 @@ export default function PermitApplicationsOverviewPage() {
                       value={status}
                       onChange={setStatus}
                       style={{ width: '100%' }}
-                      size="large"
                     >
                       <Option value="all">All Status</Option>
                       <Option value="pending">Pending Review</Option>
@@ -296,7 +293,6 @@ export default function PermitApplicationsOverviewPage() {
                         value={exportFormat}
                         onChange={setExportFormat}
                         style={{ flex: 1 }}
-                        size="large"
                       >
                         <Option value="pdf">PDF</Option>
                         <Option value="csv">CSV</Option>
@@ -305,7 +301,6 @@ export default function PermitApplicationsOverviewPage() {
                         type="primary"
                         icon={<DownloadOutlined />}
                         onClick={handleExport}
-                        size="large"
                       >
                         Export
                       </Button>

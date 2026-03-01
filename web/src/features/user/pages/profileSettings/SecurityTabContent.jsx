@@ -1,178 +1,236 @@
 import React, { useState, useEffect } from 'react'
-import { Typography, Grid, Select, Alert } from 'antd'
+import { Typography, Grid, Select, Alert, Button } from 'antd'
 import { theme } from 'antd'
-import { TabletOutlined, KeyOutlined, LockOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { InfoCircleOutlined, LockOutlined, MailOutlined, DeleteOutlined } from '@ant-design/icons'
 import LoggedInMfaManager from '@/features/authentication/components/LoggedInMfaManager.jsx'
-import PasskeyManager from '@/features/authentication/components/PasskeyManager.jsx'
+import MfaSetup from '@/features/authentication/components/MfaSetup.jsx'
 import LoggedInPasswordChangeFlow from '@/features/authentication/flows/LoggedInPasswordChangeFlow.jsx'
+import LoggedInEmailChangeFlow from '@/features/authentication/flows/LoggedInEmailChangeFlow.jsx'
+import EmailChangeGracePeriod from '@/features/authentication/components/EmailChangeGracePeriod.jsx'
 import MfaReenrollmentAlert from '@/features/authentication/components/MfaReenrollmentAlert.jsx'
+import ActiveSessions from '@/features/user/components/ActiveSessions.jsx'
 import { usePasskeyManager } from '@/features/authentication/presentation/passkey/hooks/usePasskeyManager'
 import { useLoggedInMfaManager } from '@/features/authentication/hooks'
+import { DeleteAccountFlow, DeletionScheduledBanner, useAuthSession } from '@/features/authentication'
 import { SECURITY_SECTIONS } from './constants'
 
-const { Title, Text } = Typography
+const { Title, Paragraph } = Typography
 
-const SIDEBAR_WIDTH = 240
+const SECTION_PANEL_WIDTH = 220
+/** Centered content width for section detail (login-style consistency) */
+const CENTERED_CONTENT_MAX_WIDTH = 420
 
-/** Sections to show in Security tab. Password is only for business owner. */
-function getSecuritySections(showPasswordSection) {
-  if (showPasswordSection) return SECURITY_SECTIONS
-  return SECURITY_SECTIONS.filter((s) => s.key !== 'password')
+function getSecuritySections(showPasswordSection, showDeleteAccountSection, showEmailSection = true, showSessionsSection = true, showMfaSection = true) {
+  return SECURITY_SECTIONS.filter((s) => {
+    if (s.key === 'password' && !showPasswordSection) return false
+    if (s.key === 'deleteAccount' && !showDeleteAccountSection) return false
+    if (s.key === 'email' && !showEmailSection) return false
+    if (s.key === 'sessions' && !showSessionsSection) return false
+    if (s.key === 'mfa' && !showMfaSection) return false
+    return true
+  })
 }
 
-function DetailHeader({ icon: Icon, title, tag }) {
-  const { token } = theme.useToken()
-  return (
-    <div
-      style={{
-        padding: '16px 16px',
-        borderBottom: `1px solid ${token.colorBorderSecondary}`,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-      }}
-    >
-      <div
-        style={{
-          width: 32,
-          height: 32,
-          borderRadius: token.borderRadius,
-          background: token.colorFillAlter,
-          color: token.colorPrimary,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-        }}
-      >
-        {Icon ? <Icon style={{ fontSize: 16 }} /> : null}
-      </div>
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <Title level={5} style={{ margin: 0, lineHeight: 1.3 }}>
-          {title}
-        </Title>
-      </div>
-    </div>
-  )
-}
-
-export default function SecurityTabContent({ showPasswordSection = false }) {
+export default function SecurityTabContent({ showPasswordSection = false, showDeleteAccountSection = false, showEmailSection = true, showSessionsSection = true, showMfaSection = true }) {
   const { token } = theme.useToken()
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md
-  const sections = getSecuritySections(showPasswordSection)
+  const sections = getSecuritySections(showPasswordSection, showDeleteAccountSection, showEmailSection, showSessionsSection, showMfaSection)
   const [selectedKey, setSelectedKey] = useState('mfa')
+  const [passwordShowingFlow, setPasswordShowingFlow] = useState(false)
+  const [emailShowingFlow, setEmailShowingFlow] = useState(false)
+  const [mfaShowingSetupForm, setMfaShowingSetupForm] = useState(false)
+  const [deleteAccountShowingFlow, setDeleteAccountShowingFlow] = useState(false)
   const { isAdmin, hasPasskeys } = usePasskeyManager()
-  const { enabled: mfaEnabled, refetchMfaStatus } = useLoggedInMfaManager()
+  const { refetchMfaStatus } = useLoggedInMfaManager()
+  const { currentUser } = useAuthSession()
 
   useEffect(() => {
     if (!showPasswordSection && selectedKey === 'password') setSelectedKey('mfa')
   }, [showPasswordSection, selectedKey])
 
-  const renderSectionItem = ({ key: itemKey, label, icon: Icon }, isSelected) => (
-    <div
-      key={itemKey}
-      role="button"
-      tabIndex={0}
-      onClick={() => setSelectedKey(itemKey)}
-      onKeyDown={(e) => e.key === 'Enter' && setSelectedKey(itemKey)}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '10px 12px',
-        borderRadius: token.borderRadius,
-        cursor: 'pointer',
-        background: isSelected ? token.colorBgContainer : 'transparent',
-        border: 'none',
-        transition: 'all 0.15s ease',
-      }}
-      onMouseEnter={(e) => {
-        if (!isSelected) e.currentTarget.style.background = token.colorFillTertiary
-      }}
-      onMouseLeave={(e) => {
-        if (!isSelected) e.currentTarget.style.background = 'transparent'
-      }}
-    >
-      {Icon && (
-        <span
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: token.borderRadius,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: isSelected ? token.colorFillTertiary : token.colorFillQuaternary,
-            color: isSelected ? token.colorPrimary : token.colorTextSecondary,
-            flexShrink: 0,
-          }}
-        >
-          <Icon style={{ fontSize: 16 }} />
-        </span>
-      )}
-      <Text
-        strong={isSelected}
-        type={isSelected ? undefined : 'secondary'}
-        style={{ fontSize: 13, flex: 1, lineHeight: 1.4 }}
-      >
-        {label}
-      </Text>
-    </div>
-  )
+  useEffect(() => {
+    if (selectedKey === 'deleteAccount' && !showDeleteAccountSection) setSelectedKey('mfa')
+  }, [selectedKey, showDeleteAccountSection])
+
+  // Refetch MFA status when user opens the MFA section (e.g. after onboarding so Settings shows correct state)
+  useEffect(() => {
+    if (selectedKey === 'mfa') {
+      refetchMfaStatus()
+    }
+  }, [selectedKey, refetchMfaStatus])
+
+  useEffect(() => {
+    setPasswordShowingFlow(false)
+    setEmailShowingFlow(false)
+    setMfaShowingSetupForm(false)
+    setDeleteAccountShowingFlow(false)
+  }, [selectedKey])
+
+  /** Intro card style for Password and Email (matches MFA/Passkey alert style) */
+  const introCardStyle = (t) => ({
+    padding: 24,
+    background: t.colorFillAlter,
+    border: `1px solid ${t.colorBorderSecondary}`,
+    borderRadius: t.borderRadiusLG,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    textAlign: 'center',
+    gap: 20,
+  })
 
   const renderDetail = () => {
-    if (selectedKey === 'mfa') {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-          <DetailHeader icon={TabletOutlined} title="Two-Factor Authentication" tag={{ color: 'blue', label: 'TOTP' }} />
-          <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '16px 20px' }}>
-            {isAdmin && (
-              <Alert
-                type="info"
-                showIcon
-                icon={<InfoCircleOutlined />}
-                message="Admin: one super-authentication method"
-                description="You can use only one method at a time: either Passkey or Two-Factor Authentication. Enabling one will disable the other."
-                style={{ marginBottom: 16 }}
-              />
-            )}
-            <MfaReenrollmentAlert />
-            <LoggedInMfaManager isAdmin={isAdmin} hasPasskeys={hasPasskeys} />
-          </div>
-        </div>
-      )
+    const centeredWrapperStyle = {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      width: '100%',
+      flex: 1,
+      minHeight: 0,
+      overflow: 'auto',
+      padding: '0 16px 24px',
     }
-    if (selectedKey === 'passkey') {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-          <DetailHeader icon={KeyOutlined} title="Passkey" tag={{ color: 'green', label: 'Passwordless' }} />
-          <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '16px 20px' }}>
-            {isAdmin && (
-              <Alert
-                type="info"
-                showIcon
-                icon={<InfoCircleOutlined />}
-                message="Admin: one super-authentication method"
-                description="You can use only one method at a time: either Passkey or Two-Factor Authentication. Enabling one will disable the other."
-                style={{ marginBottom: 16 }}
+    const centeredContentStyle = {
+      maxWidth: CENTERED_CONTENT_MAX_WIDTH,
+      width: '100%',
+    }
+    if (selectedKey === 'mfa') {
+      if (mfaShowingSetupForm) {
+        return (
+          <div style={{ ...centeredWrapperStyle }}>
+            <div style={centeredContentStyle}>
+              <Button type="text" onClick={() => setMfaShowingSetupForm(false)} style={{ marginBottom: 16, paddingLeft: 0 }}>
+                ← Back
+              </Button>
+              <MfaSetup
+                embedded
+                onComplete={() => {
+                  setMfaShowingSetupForm(false)
+                  refetchMfaStatus()
+                }}
               />
-            )}
-            <PasskeyManager
+            </div>
+          </div>
+        )
+      }
+      return (
+        <div style={{ ...centeredWrapperStyle }}>
+          <div style={centeredContentStyle}>
+            
+            <MfaReenrollmentAlert onSetupClick={() => setMfaShowingSetupForm(true)} />
+            <LoggedInMfaManager
               isAdmin={isAdmin}
-              mfaEnabled={mfaEnabled}
-              onRegistrationSuccess={refetchMfaStatus}
+              hasPasskeys={hasPasskeys}
+              onOpenSetupForm={() => setMfaShowingSetupForm(true)}
             />
           </div>
         </div>
       )
     }
     if (selectedKey === 'password' && showPasswordSection) {
+      if (passwordShowingFlow) {
+        return (
+          <div style={{ ...centeredWrapperStyle }}>
+            <div style={centeredContentStyle}>
+              <LoggedInPasswordChangeFlow onBackToStart={() => setPasswordShowingFlow(false)} />
+            </div>
+          </div>
+        )
+      }
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-          <DetailHeader icon={LockOutlined} title="Password" />
-          <div style={{ flex: 1, minHeight: 0, overflow: 'auto', height: '100%', display: 'flex', marginTop: 48 }}>
-            <LoggedInPasswordChangeFlow />
+        <div style={{ ...centeredWrapperStyle }}>
+          <div style={centeredContentStyle}>
+            <div style={introCardStyle(token)}>
+              <LockOutlined style={{ fontSize: 32, color: token.colorPrimary }} />
+              <div>
+                <Title level={5} style={{ margin: 0, marginBottom: 4 }}>Password</Title>
+                <Paragraph type="secondary" style={{ margin: 0 }}>
+                  Change your password to keep your account secure. We'll send a verification code to your email first.
+                </Paragraph>
+              </div>
+              <Button type="primary" onClick={() => setPasswordShowingFlow(true)} icon={<LockOutlined />}>
+                Change password
+              </Button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+    if (selectedKey === 'email') {
+      if (emailShowingFlow) {
+        return (
+          <div style={{ ...centeredWrapperStyle }}>
+            <div style={centeredContentStyle}>
+              <EmailChangeGracePeriod />
+              <LoggedInEmailChangeFlow onBackToStart={() => setEmailShowingFlow(false)} />
+            </div>
+          </div>
+        )
+      }
+      return (
+        <div style={{ ...centeredWrapperStyle }}>
+          <div style={centeredContentStyle}>
+            <EmailChangeGracePeriod />
+            <div style={introCardStyle(token)}>
+              <MailOutlined style={{ fontSize: 32, color: token.colorPrimary }} />
+              <div>
+                <Title level={5} style={{ margin: 0, marginBottom: 4 }}>Email Address</Title>
+                <Paragraph type="secondary" style={{ margin: 0 }}>
+                  Update the email address used for sign-in and account notifications. We'll verify your current email first.
+                </Paragraph>
+              </div>
+              <Button type="primary" onClick={() => setEmailShowingFlow(true)} icon={<MailOutlined />}>
+                Update email address
+              </Button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+    if (selectedKey === 'sessions') {
+      return (
+        <div style={{ ...centeredWrapperStyle }}>
+          <div style={centeredContentStyle}>
+            <ActiveSessions />
+          </div>
+        </div>
+      )
+    }
+    if (selectedKey === 'deleteAccount' && showDeleteAccountSection) {
+      if (currentUser?.deletionPending) {
+        return (
+          <div style={{ ...centeredWrapperStyle }}>
+            <div style={centeredContentStyle}>
+              <DeletionScheduledBanner />
+            </div>
+          </div>
+        )
+      }
+      if (!deleteAccountShowingFlow) {
+        return (
+          <div style={{ ...centeredWrapperStyle }}>
+            <div style={centeredContentStyle}>
+              <div style={introCardStyle(token)}>
+                <DeleteOutlined style={{ fontSize: 32, color: token.colorError }} />
+                <div>
+                  <Title level={5} style={{ margin: 0, marginBottom: 4 }}>Delete account</Title>
+                  <Paragraph type="secondary" style={{ margin: 0 }}>
+                    Permanently close your account. We'll verify your identity by email first.
+                  </Paragraph>
+                </div>
+                <Button type="primary" danger onClick={() => setDeleteAccountShowingFlow(true)} icon={<DeleteOutlined />}>
+                  Request account deletion
+                </Button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+      return (
+        <div style={{ ...centeredWrapperStyle }}>
+          <div style={centeredContentStyle}>
+            <DeleteAccountFlow onBackToStart={() => setDeleteAccountShowingFlow(false)} />
           </div>
         </div>
       )
@@ -182,38 +240,76 @@ export default function SecurityTabContent({ showPasswordSection = false }) {
 
   if (isMobile) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+        <div style={{ flexShrink: 0, marginBottom: 24 }}>
+          <Title level={4} style={{ marginBottom: 4 }}>Security</Title>
+          <Paragraph type="secondary" style={{ margin: 0 }}>
+            Manage password, two-factor authentication, email, and active sessions.
+          </Paragraph>
+        </div>
         <Select
-          size="large"
           value={selectedKey}
           onChange={setSelectedKey}
           options={sections.map((s) => ({ value: s.key, label: s.label }))}
-          style={{ width: '100%' }}
+          style={{ width: '100%', maxWidth: CENTERED_CONTENT_MAX_WIDTH, margin: '0 auto 16px', display: 'block' }}
         />
-        {renderDetail()}
+        <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+          {renderDetail()}
+        </div>
       </div>
     )
   }
 
   return (
-    <div style={{ display: 'flex', height: '100%', minHeight: 400 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: 0 }}>
+      <div style={{ flexShrink: 0, marginBottom: 24 }}>
+        <Title level={4} style={{ marginBottom: 4 }}>Security</Title>
+        <Paragraph type="secondary" style={{ margin: 0 }}>
+          Manage password, two-factor authentication, email, and active sessions.
+        </Paragraph>
+      </div>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
       <div
         style={{
-          width: SIDEBAR_WIDTH,
           flexShrink: 0,
-          padding: 12,
+          width: SECTION_PANEL_WIDTH,
+          minWidth: SECTION_PANEL_WIDTH,
+          borderRight: `1px solid ${token.colorBorderSecondary}`,
+          paddingRight: 24,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4,
           overflowY: 'auto',
-          background: token.colorBgLayout,
-          borderRight: `1px solid ${token.colorBorder}`,
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {sections.map((item) => renderSectionItem(item, selectedKey === item.key))}
-        </div>
+        {sections.map((section) => {
+          const IconComponent = section.icon
+          return (
+          <Button
+            key={section.key}
+            type={selectedKey === section.key ? 'primary' : 'default'}
+            icon={IconComponent ? <IconComponent /> : undefined}
+            onClick={() => setSelectedKey(section.key)}
+            style={{
+              textAlign: 'left',
+              justifyContent: 'flex-start',
+              fontWeight: selectedKey === section.key ? 600 : 400,
+              whiteSpace: 'normal',
+              height: 'auto',
+              minHeight: 40,
+              padding: '8px 12px',
+              lineHeight: 1.4,
+            }}
+          >
+            {section.label}
+          </Button>
+          )
+        })}
       </div>
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: token.colorBgContainer }}>
         {renderDetail()}
       </div>
+    </div>
     </div>
   )
 }

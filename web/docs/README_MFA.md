@@ -43,7 +43,7 @@ Below is a high-level summary and developer notes.
 The frontend relies on the backend for secure operations. Backend responsibilities include:
 
 - Generate 6-digit OTPs, enforce TTL (3–5 minutes), store single-use OTPs and delete/mark consumed on verify.
-- Send email OTPs via a secure provider (SendGrid, SES, Mailgun) — API keys must never be placed in the frontend.
+- Send email OTPs via a secure provider (Resend, SendGrid, SES, Mailgun) — API keys must never be placed in the frontend.
 - Rate-limit OTP send and verify endpoints per email and per IP to prevent brute-force attacks.
 - Generate and persist TOTP shared secrets securely (server-side) and verify TOTP tokens — ideally store encrypted with a server-side key.
 - Enforce MFA during login when enabled (return `mfa_required` from `/login` and validate the second step before issuing session tokens).

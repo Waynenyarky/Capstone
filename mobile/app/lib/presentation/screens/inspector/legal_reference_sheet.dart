@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:app/core/theme/bizclear_colors.dart';
 import 'package:app/data/services/mongodb_service.dart';
 
 /// Bottom sheet for legal reference: ordinances and violations catalog
@@ -95,7 +96,6 @@ class _LegalReferenceSheetState extends State<LegalReferenceSheet> {
                 controller: _searchCtrl,
                 decoration: const InputDecoration(
                   hintText: 'Search violations...',
-                  prefixIcon: Icon(Icons.search),
                 ),
                 onChanged: (v) => _searchViolations(v),
               ),
@@ -120,7 +120,7 @@ class _LegalReferenceSheetState extends State<LegalReferenceSheet> {
                             ),
                             subtitle: Text(
                               'Ordinance: ${v['ordinanceRef'] ?? '—'} • Severity: ${v['severity'] ?? '—'}',
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                              style: TextStyle(fontSize: 12, color: BizClearColors.textSecondary),
                             ),
                           ),
                         );
@@ -135,7 +135,7 @@ class _LegalReferenceSheetState extends State<LegalReferenceSheet> {
                             ),
                             subtitle: Text(
                               '${o['reference'] ?? '—'} • ${o['category'] ?? '—'}',
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                              style: TextStyle(fontSize: 12, color: BizClearColors.textSecondary),
                             ),
                           ),
                         );

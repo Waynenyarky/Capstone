@@ -1,15 +1,16 @@
 import React from 'react'
-import { Form, Input, Button, Flex, Checkbox, Dropdown, Typography, Grid, Alert, AutoComplete } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Input, Button, Flex, Checkbox, Dropdown, Typography, Grid, Alert, Modal } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { loginEmailRules, loginPasswordRules } from "@/features/authentication/validations"
-import { useLoginFlow, useRememberedEmail, useAuthSession } from "@/features/authentication/hooks"
+import { useLoginFlow, useAuthSession } from "@/features/authentication/hooks"
 import useWebAuthn from '@/features/authentication/hooks/useWebAuthn.js'
-import { useNotifier } from '@/shared/notifications.js'
 import { LoginVerificationForm } from "@/features/authentication"
 import TotpVerificationForm from '@/features/authentication/components/TotpVerificationForm.jsx'
 import PlatformPasskeyAuth from '@/features/authentication/components/PlatformPasskeyAuth.jsx'
-import LockoutBanner from '@/features/authentication/components/LockoutBanner.jsx'
+import useOtpCountdown from '@/features/authentication/hooks/useOtpCountdown.js'
 import PasskeySignInOptions from './PasskeySignInOptions.jsx'
+import TurnstileWidget from './TurnstileWidget.jsx'
 
 const { Title, Text } = Typography
 const { useBreakpoint } = Grid
@@ -18,6 +19,10 @@ export default function LoginForm({ onSubmit } = {}) {
   const navigate = useNavigate()
   const screens = useBreakpoint()
   const isMobile = !screens.md
+  const passwordInputRef = React.useRef(null)
+  const turnstileRef = React.useRef(null)
+  const turnstileSiteKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_TURNSTILE_SITE_KEY) || ''
+
   const {
     step,
     form,
@@ -31,61 +36,87 @@ export default function LoginForm({ onSubmit } = {}) {
     prefillLguManager,
     prefillInspector,
     prefillCso,
+    prefillInvalid,
     verificationProps,
     serverLockedUntil,
     mfaRequired,
     initialValues,
-  } = useLoginFlow({ onSubmit })
+  } = useLoginFlow({
+    onSubmit,
+    getCaptchaToken: turnstileSiteKey ? () => turnstileRef.current?.getToken?.() ?? '' : undefined,
+  })
 
-  const { getRememberedEmails } = useRememberedEmail()
-  const [emailOptions, setEmailOptions] = React.useState([])
   const { login } = useAuthSession()
   const { authenticateConditional } = useWebAuthn()
-  const { success } = useNotifier()
-
-  // Remembered emails are shown only when user types (onSearch), not on focus
 
   // State to manage readOnly hack for autofill prevention
   const [fieldsReadOnly, setFieldsReadOnly] = React.useState(true)
   // State to force form remounting (defeats browser bfcache/restoration)
   const [formKey, setFormKey] = React.useState(Date.now())
+  // When user dismisses the lockout modal we hide it until next lockout
+  const [lockoutAlertDismissed, setLockoutAlertDismissed] = React.useState(false)
+  const lockoutCountdown = useOtpCountdown(serverLockedUntil)
 
-  // Aggressive clearing mechanism for back/forward navigation and refresh
+  const watchedEmail = Form.useWatch('email', form) ?? ''
+  const watchedPassword = Form.useWatch('password', form) ?? ''
+
+  // On initial load only set email/rememberMe (never password) so browser can autofill password.
+  // Do NOT remount the form (setFormKey) here: when [form, initialValues] re-run the effect,
+  // remounting wipes the entire form including browser-autofilled password (see debug logs).
+  // Remount only on bfcache (back/forward) to clear stale credentials.
   React.useEffect(() => {
-    // Generate a new key to force React to discard the old DOM nodes
-    // This is the most effective way to prevent browser restoration of old values
-    setFormKey(Date.now())
-    
-    const clearFields = () => {
-      setFieldsReadOnly(false) // Enable editing
-      // Preserve rememberMe state if there's a remembered email, otherwise reset to false
+    const onInitialMount = () => {
+      setFieldsReadOnly(false)
       const preserveRememberMe = initialValues?.rememberMe === true
-      form.resetFields()
-      form.setFieldsValue({ 
-        email: initialValues?.email || '', 
-        password: '', 
-        rememberMe: preserveRememberMe ? true : false 
+      form.setFieldsValue({
+        email: initialValues?.email || '',
+        rememberMe: preserveRememberMe ? true : false
       })
+      // Intentionally do not set password here so browser can autofill when user selects remembered email
     }
 
-    // Run on mount
-    const timer = setTimeout(clearFields, 50)
+    const clearFieldsForBfcache = () => {
+      setFieldsReadOnly(false)
+      form.resetFields()
+      form.setFieldsValue({ email: '', password: '', rememberMe: false })
+    }
 
-    // Run on page show (bfcache restoration)
+    const timer = setTimeout(onInitialMount, 50)
+
     const handlePageShow = (event) => {
-        if (event.persisted) {
-            setFormKey(Date.now()) // Remount form
-            setTimeout(clearFields, 50)
-        }
+      if (event.persisted) {
+        setFormKey(Date.now())
+        setTimeout(clearFieldsForBfcache, 50)
+      }
     }
 
     window.addEventListener('pageshow', handlePageShow)
 
     return () => {
-        clearTimeout(timer)
-        window.removeEventListener('pageshow', handlePageShow)
+      clearTimeout(timer)
+      window.removeEventListener('pageshow', handlePageShow)
     }
   }, [form, initialValues])
+
+  // Sync browser-autofilled password into form state. Browsers often don't fire input/change for
+  // autofill, so the controlled input stays "" and React overwrites the DOM.
+  const syncAutofillPassword = React.useCallback(() => {
+    const el = passwordInputRef.current
+    if (!el) return
+    const input = (typeof el.input === 'object' && el.input) ? el.input : el
+    const domValue = input?.value ?? ''
+    if (domValue.length > 0 && (form.getFieldValue('password') ?? '').length === 0) {
+      form.setFieldsValue({ password: domValue })
+    }
+  }, [form])
+
+  // After email is set, check for autofilled password (browser may fill both when user picks email).
+  React.useEffect(() => {
+    if (!watchedEmail?.trim() || (watchedPassword ?? '').length > 0) return
+    const t1 = setTimeout(syncAutofillPassword, 350)
+    const t2 = setTimeout(syncAutofillPassword, 800)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
+  }, [form, watchedEmail, watchedPassword, syncAutofillPassword])
 
   // Conditional UI: start passkey autofill only when email field is focused (avoids
   // "A request is already pending" when user clicks "Sign in with Passkey").
@@ -102,7 +133,7 @@ export default function LoginForm({ onSubmit } = {}) {
         if (!user) return
         const remember = !!form.getFieldValue('rememberMe')
         login(user, { remember })
-        success('Logged in with passkey')
+        // Login success shown on destination via navigate state (Option A)
         if (typeof onSubmit === 'function') onSubmit(user)
       })
       .catch((err) => {
@@ -114,7 +145,7 @@ export default function LoginForm({ onSubmit } = {}) {
           console.error('[LoginForm] Conditional passkey error', err)
         }
       })
-  }, [step, form, login, success, onSubmit, authenticateConditional])
+  }, [step, form, login, onSubmit, authenticateConditional])
 
   const getReadyForModalPasskey = React.useCallback(async () => {
     const ref = conditionalPasskeyRef.current
@@ -142,6 +173,7 @@ export default function LoginForm({ onSubmit } = {}) {
         manager: prefillLguManager,
         inspector: prefillInspector,
         cso: prefillCso,
+        invalid: prefillInvalid,
       }
       const fn = map[preset]
       if (fn) {
@@ -151,7 +183,25 @@ export default function LoginForm({ onSubmit } = {}) {
     }
     window.addEventListener('devtools:login-prefill', handler)
     return () => window.removeEventListener('devtools:login-prefill', handler)
-  }, [prefillAdmin, prefillAdmin2, prefillAdmin3, prefillUser, prefillLguOfficer, prefillLguManager, prefillInspector, prefillCso])
+  }, [prefillAdmin, prefillAdmin2, prefillAdmin3, prefillUser, prefillLguOfficer, prefillLguManager, prefillInspector, prefillCso, prefillInvalid])
+
+  // Reset lockout modal dismissed when lockout clears so next lockout shows the alert again
+  React.useEffect(() => {
+    if (!serverLockedUntil) setLockoutAlertDismissed(false)
+  }, [serverLockedUntil])
+
+  const lockoutMessage = serverLockedUntil
+    ? (lockoutCountdown.isExpired
+        ? 'Account lock has expired — you may try again.'
+        : `Account locked. Try again in ${Math.floor(lockoutCountdown.remaining / 60)}:${String(lockoutCountdown.remaining % 60).padStart(2, '0')}`)
+    : null
+
+  // When switching to passkey verification step (e.g. after password submit with passkey MFA),
+  // abort any conditional UI get() so PlatformPasskeyAuth can start its own get() without "already pending".
+  React.useEffect(() => {
+    if (step !== 'verify-passkey') return
+    getReadyForModalPasskey()
+  }, [step, getReadyForModalPasskey])
 
   if (step === 'verify' || step === 'verify-totp') {
     const VerificationComponent = step === 'verify' ? LoginVerificationForm : TotpVerificationForm
@@ -168,8 +218,8 @@ export default function LoginForm({ onSubmit } = {}) {
     )
   }
 
-  // Show lockout banner above login form when server indicates account is locked
-  const banner = serverLockedUntil ? <LockoutBanner lockedUntil={serverLockedUntil} /> : null
+  // Show lockout as a modal alert instead of inline banner
+  const showLockoutAlert = !!serverLockedUntil && !lockoutAlertDismissed
   const mfaBanner = mfaRequired ? (
     <Alert
       type="warning"
@@ -182,59 +232,57 @@ export default function LoginForm({ onSubmit } = {}) {
 
   return (
     <>
-      {banner}
+      <Modal
+        title="Account locked"
+        open={showLockoutAlert}
+        onCancel={() => setLockoutAlertDismissed(true)}
+        footer={[
+          <Button key="close" type="primary" onClick={() => setLockoutAlertDismissed(true)}>
+            Close
+          </Button>,
+        ]}
+        closable
+      >
+        {lockoutMessage}
+      </Modal>
       {mfaBanner}
       <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <Form key={formKey} name="login" form={form} layout="vertical" onFinish={handleFinish} initialValues={initialValues || { email: '', password: '', rememberMe: false }} size="default" requiredMark={false} autoComplete="off" style={{ maxWidth: '300px', width: '100%' }}>
-          <Title level={isMobile ? 4 : 3} style={{ marginBottom: 20, textAlign: 'center' }}>Sign In with BizClear</Title>
+        <Form
+          key={formKey}
+          name="login"
+          form={form}
+          layout="vertical"
+          onFinish={async (values) => {
+            try {
+              await handleFinish(values)
+            } finally {
+              turnstileRef.current?.reset?.()
+            }
+          }}
+          initialValues={initialValues || { email: '', password: '', rememberMe: false }}
+          size="default"
+          requiredMark={false}
+          style={{ maxWidth: '300px', width: '100%' }}
+        >
+          <Title level={isMobile ? 4 : 3} style={{ marginBottom: 48, textAlign: 'center' }}>Sign In with BizClear</Title>
           <Form.Item
             name="email"
             label="Email"
             rules={loginEmailRules}
             style={{ marginBottom: isMobile ? 20 : 24 }}
           >
-            <AutoComplete
+            <Input
               placeholder="Enter your email"
-              options={emailOptions}
-              filterOption={(inputValue, option) => {
-                if (!inputValue || !option) return true
-                const value = String(option.value || '').toLowerCase()
-                const input = String(inputValue).toLowerCase()
-                return value.includes(input)
-              }}
-              onSearch={(value) => {
-                if (!value || value.trim() === '') {
-                  setEmailOptions([])
-                  return
-                }
-                const allEmails = getRememberedEmails()
-                const filtered = allEmails.filter(email =>
-                  String(email).toLowerCase().includes(String(value).toLowerCase())
-                )
-                setEmailOptions(filtered.slice(0, 10).map(email => ({ value: email, label: email })))
-              }}
-              onSelect={(value) => {
-                form.setFieldsValue({ email: value })
-              }}
+              variant="filled"
+              autoComplete="username webauthn"
+              readOnly={fieldsReadOnly}
               onFocus={() => {
                 setFieldsReadOnly(false)
                 handleEmailFocusForPasskey()
               }}
-              notFoundContent={null}
               data-test="login-email"
               data-testid="login-email"
-            >
-              <Input
-                placeholder="Enter your email"
-                variant="filled"
-                autoComplete="username webauthn"
-                readOnly={fieldsReadOnly}
-                onFocus={() => {
-                  setFieldsReadOnly(false)
-                  handleEmailFocusForPasskey()
-                }}
-              />
-            </AutoComplete>
+            />
           </Form.Item>
           <Form.Item
             name="password"
@@ -242,12 +290,16 @@ export default function LoginForm({ onSubmit } = {}) {
             rules={loginPasswordRules}
             style={{ marginBottom: isMobile ? 20 : 24 }}
           >
-            <Input.Password 
-              placeholder="Enter your password" 
-              variant="filled" 
-              autoComplete="new-password"
+            <Input.Password
+              ref={passwordInputRef}
+              placeholder="Enter your password"
+              variant="filled"
+              autoComplete="current-password"
               readOnly={fieldsReadOnly}
-              onFocus={() => setFieldsReadOnly(false)}
+              onFocus={() => {
+                setFieldsReadOnly(false)
+                ;[100, 300, 600].forEach((ms) => setTimeout(syncAutofillPassword, ms))
+              }}
               data-test="login-password"
               data-testid="login-password"
             />
@@ -262,6 +314,12 @@ export default function LoginForm({ onSubmit } = {}) {
             </Button>
           </Flex>
 
+          {turnstileSiteKey ? (
+            <Form.Item style={{ marginBottom: isMobile ? 20 : 24 }}>
+              <TurnstileWidget ref={turnstileRef} siteKey={turnstileSiteKey} />
+            </Form.Item>
+          ) : null}
+
           <Form.Item style={{ marginBottom: isMobile ? 20 : 24 }}>
             <Button
               type="primary"
@@ -273,7 +331,7 @@ export default function LoginForm({ onSubmit } = {}) {
               data-test="login-submit"
               data-testid="login-submit"
             >
-              Sign in
+              Sign In
             </Button>
           </Form.Item>
 
@@ -297,10 +355,12 @@ export default function LoginForm({ onSubmit } = {}) {
               { key: 'manager', label: env.VITE_DEV_EMAIL_MANAGER || 'manager@example.com', role: 'Manager' },
               { key: 'inspector', label: env.VITE_DEV_EMAIL_INSPECTOR || 'inspector@example.com', role: 'Inspector' },
               { key: 'cso', label: env.VITE_DEV_EMAIL_CSO || 'cso@example.com', role: 'CSO' },
+              { key: 'invalid', label: 'wrong@example.com', role: 'Invalid credentials' },
             ]
             return (
-             <div style={{ marginTop: 24, textAlign: 'center', opacity: 0.5 }}>
-                <Dropdown
+              <>
+                <div style={{ marginTop: 24, textAlign: 'center', opacity: 0.5 }}>
+                  <Dropdown
                   menu={{
                     items: devPrefillItems.map(({ key, label, role }) => ({
                       key,
@@ -315,12 +375,14 @@ export default function LoginForm({ onSubmit } = {}) {
                       else if (key === 'manager') prefillLguManager()
                       else if (key === 'inspector') prefillInspector()
                       else if (key === 'cso') prefillCso()
+                      else if (key === 'invalid') prefillInvalid()
                     },
                   }}
                 >
                   <Button type="text" size="small">Dev Tools</Button>
                 </Dropdown>
-             </div>
+              </div>
+            </>
             )
           })()}
         </Form>

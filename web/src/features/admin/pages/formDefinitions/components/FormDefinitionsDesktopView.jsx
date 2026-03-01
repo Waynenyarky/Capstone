@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Select, Button, Typography, theme, Space, Badge, Empty, Modal, Spin, message, Form, Alert, Tag, Row, Col, Card, Table } from 'antd' // Select still used for version dropdown
+import { Form } from '@/shared/components/AppForm'
+import { Select, Button, Typography, theme, Space, Badge, Empty, Modal, Spin, message, Alert, Tag, Row, Col, Card, Table } from 'antd' // Select still used for version dropdown
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import {
@@ -325,7 +326,7 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
     Modal.confirm({
       title: 'Delete draft',
       content: 'Are you sure you want to delete this draft? This action cannot be undone.',
-      okText: 'Delete',
+      okText: 'Delete Draft',
       cancelText: 'Cancel',
       okButtonProps: { danger: true },
       onOk: async () => {
@@ -349,7 +350,7 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
     Modal.confirm({
       title: 'Submit for approval',
       content: 'This form will be submitted for approval. It will only be published once other admins have approved it.',
-      okText: 'Submit',
+      okText: 'Submit for Approval',
       cancelText: 'Cancel',
       onOk: async () => {
         try {
@@ -678,7 +679,7 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
                   </Button>
                 </Badge>
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddVersionModalOpen(true)}>
-                  Add version
+                  Add Version
                 </Button>
               </Space>
             </div>
@@ -698,9 +699,9 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
                 >
                   {isPreviewMode ? 'Editor' : 'Preview'}
                 </Button>
-                <Button icon={<SaveOutlined />} onClick={handleSave} loading={saving} disabled={isPreviewMode}>Save</Button>
-                <Button icon={<DeleteOutlined />} danger onClick={handleDelete} disabled={isPreviewMode}>Delete</Button>
-                <Button type="primary" icon={<SendOutlined />} onClick={handlePublish} disabled={isPreviewMode}>Publish</Button>
+                <Button icon={<SaveOutlined />} onClick={handleSave} loading={saving} disabled={isPreviewMode}>Save Draft</Button>
+                <Button icon={<DeleteOutlined />} danger onClick={handleDelete} disabled={isPreviewMode}>Delete Draft</Button>
+                <Button type="primary" icon={<SendOutlined />} onClick={handlePublish} disabled={isPreviewMode}>Submit for Approval</Button>
               </Space>
             </div>
           )}
@@ -853,7 +854,7 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
                   message={`This form group is deactivated until ${formatDraftDate(formGroup.deactivatedUntil)}`}
                   description={formGroup.deactivateReason || undefined}
                   action={
-                    <Button size="small" onClick={handleReactivate}>Reactivate</Button>
+                    <Button size="small" onClick={handleReactivate}>Reactivate Form</Button>
                   }
                   style={{ marginBottom: 16 }}
                 />
@@ -904,7 +905,7 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
                     </div>
                     <Space>
                       {formGroup && !groupDeactivated && versions.some((v) => v.status === 'published') && (
-                        <Button danger onClick={() => setDeactivateModalOpen(true)}>Deactivate</Button>
+                        <Button danger onClick={() => setDeactivateModalOpen(true)}>Deactivate Form</Button>
                       )}
                     </Space>
                   </div>

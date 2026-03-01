@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:app/core/theme/bizclear_colors.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -211,7 +212,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                 filterQuality: FilterQuality.high,
                               ),
                             )
-                          : Icon(Icons.person, size: 64, color: Colors.grey.shade400),
+                          : Icon(Icons.person, size: 64, color: BizClearColors.textHint),
                     ),
                   ),
                 ),
@@ -272,7 +273,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       uiSettings: [
         AndroidUiSettings(
           toolbarTitle: 'Edit Photo',
-          toolbarColor: Colors.blue,
+          toolbarColor: BizClearColors.webPrimary,
           toolbarWidgetColor: Colors.white,
           initAspectRatio: CropAspectRatioPreset.square,
           lockAspectRatio: false,
@@ -322,7 +323,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               Text('Profile photo updated'),
             ],
           ),
-          backgroundColor: Colors.green,
+          backgroundColor: BizClearColors.success,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
@@ -338,7 +339,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               Expanded(child: Text(msg)),
             ],
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: BizClearColors.error,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
@@ -350,32 +351,32 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return InputDecoration(
       labelText: label,
       hintText: hint,
-      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 15),
+      hintStyle: TextStyle(color: BizClearColors.textHint, fontSize: 15),
       labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
       errorMaxLines: 2,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      contentPadding: BizClearColors.inputFieldContentPadding,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderSide: BorderSide(color: BizClearColors.inputBorder),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderSide: BorderSide(color: BizClearColors.inputBorder),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.blue, width: 2),
+        borderSide: const BorderSide(color: BizClearColors.webPrimary, width: 2),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.red, width: 1),
+        borderSide: const BorderSide(color: BizClearColors.error, width: 1),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.red, width: 2),
+        borderSide: const BorderSide(color: BizClearColors.error, width: 2),
       ),
       filled: true,
-      fillColor: Colors.grey.shade50,
+      fillColor: BizClearColors.surfaceLight,
     );
   }
 
@@ -408,7 +409,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
           ],
         ),
-        backgroundColor: Colors.green,
+        backgroundColor: BizClearColors.success,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ));
@@ -428,7 +429,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             Expanded(child: Text((res['message'] is String) ? res['message'] as String : 'Update failed')),
           ],
         ),
-        backgroundColor: Colors.red,
+        backgroundColor: BizClearColors.error,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ));
@@ -479,7 +480,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         Navigator.of(context).pop(payload);
       },
       child: Scaffold(
-        backgroundColor: Colors.grey.shade50,
+        backgroundColor: BizClearColors.surfaceLight,
         appBar: AppBar(
           elevation: 0,
           backgroundColor: Colors.white,
@@ -546,15 +547,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                       padding: const EdgeInsets.all(2),
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        border: Border.all(color: Colors.blue, width: 2),
+                                        border: Border.all(color: BizClearColors.webPrimary, width: 2),
                                         gradient: LinearGradient(
-                                          colors: [Colors.blue.shade200, Colors.blue.shade400],
+                                          colors: [BizClearColors.webPrimaryTintBorder, BizClearColors.webPrimary],
                                           begin: Alignment.topLeft,
                                           end: Alignment.bottomRight,
                                         ),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.blue.withValues(alpha: 0.2),
+                                            color: BizClearColors.webPrimary.withValues(alpha: 0.2),
                                             blurRadius: 10,
                                             offset: const Offset(0, 4),
                                           ),
@@ -563,7 +564,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                       child: Container(
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
-                                          color: Colors.grey.shade100,
+                                          color: BizClearColors.divider,
                                         ),
                                         child: ClipOval(
                                           child: Builder(
@@ -585,7 +586,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                                   height: double.infinity,
                                                 );
                                               }
-                                              return Center(child: Icon(Icons.person, size: avatarSize * 0.5, color: Colors.grey.shade400));
+                                              return Center(child: Icon(Icons.person, size: avatarSize * 0.5, color: BizClearColors.textHint));
                                             },
                                           ),
                                         ),
@@ -615,7 +616,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                       child: Container(
                                         padding: const EdgeInsets.all(8),
                                         decoration: BoxDecoration(
-                                          color: Colors.blue,
+                                          color: BizClearColors.webPrimary,
                                           shape: BoxShape.circle,
                                           border: Border.all(color: Colors.white, width: 3),
                                           boxShadow: [
@@ -642,7 +643,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                 style: TextStyle(
                                   fontSize: isSmall ? 14 : 15,
                                   fontWeight: FontWeight.w500,
-                                  color: _uploadingAvatar ? Colors.grey : Colors.blue,
+                                  color: _uploadingAvatar ? BizClearColors.textHint : BizClearColors.webPrimary,
                                 ),
                               ),
                             ],
@@ -674,7 +675,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   'Update your personal details here',
                                   style: TextStyle(
                                     fontSize: isSmall ? 13 : 14,
-                                    color: Colors.grey.shade600,
+                                    color: BizClearColors.textSecondary,
                                   ),
                                 ),
                                 const SizedBox(height: 24),
@@ -747,16 +748,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           child: Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
+                              color: BizClearColors.webPrimaryTintLight,
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.blue.shade100),
+                              border: Border.all(color: BizClearColors.webPrimaryTintBorder),
                             ),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Icon(
                                   Icons.info_outline,
-                                  color: Colors.blue.shade700,
+                                  color: BizClearColors.webPrimaryTintIcon,
                                   size: 20,
                                 ),
                                 const SizedBox(width: 12),
@@ -765,7 +766,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                     'Your information is private and secure. Only you can see and edit these details.',
                                     style: TextStyle(
                                       fontSize: isSmall ? 13 : 14,
-                                      color: Colors.blue.shade900,
+                                      color: BizClearColors.webPrimaryTintText,
                                       height: 1.4,
                                     ),
                                   ),
@@ -782,17 +783,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           padding: EdgeInsets.symmetric(horizontal: hPad),
                           child: SizedBox(
                             width: double.infinity,
-                            height: 50,
+                            height: 40,
                             child: ElevatedButton(
                               onPressed: _saving ? null : _save,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
+                                backgroundColor: BizClearColors.webPrimary,
                                 foregroundColor: Colors.white,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                disabledBackgroundColor: Colors.grey.shade300,
+                                disabledBackgroundColor: BizClearColors.border,
+                                padding: BizClearColors.primaryButtonPadding,
+                                minimumSize: BizClearColors.primaryButtonMinimumSize,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                textStyle: BizClearColors.primaryButtonTextStyle,
                               ),
                               child: _saving
                                   ? const SizedBox(

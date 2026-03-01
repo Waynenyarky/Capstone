@@ -1,5 +1,5 @@
 import React from 'react'
-import { Table, Tag, Typography, Select, Pagination, theme } from 'antd'
+import { Table, Tag, Typography, Select, Pagination, theme, Empty } from 'antd'
 import { getRequestTypeLabel } from '@/features/admin/services/approvalService'
 
 const { Text } = Typography
@@ -100,6 +100,7 @@ export default function RequestsTable({
           dataSource={approvals}
           loading={loading}
           pagination={false}
+          locale={{ emptyText: <Empty description="No approval requests" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
           scroll={{ x: 'max-content' }}
           rowClassName={(rec) =>
             (selectedApproval?.approvalId || selectedApproval?._id) === rowKey(rec)

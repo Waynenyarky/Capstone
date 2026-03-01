@@ -8,7 +8,6 @@ export default function ProfileSettings() {
     contextHolder,
     selectedTab,
     setSelectedTab,
-    uploading,
     passkeyEnabled,
     passkeyLoading,
     officeLabel,
@@ -19,22 +18,22 @@ export default function ProfileSettings() {
     setSettingsLastUpdated,
     settingsInfoOpen,
     setSettingsInfoOpen,
-    initials,
-    brandColor,
-    handleAvatarUpload,
     themeSettings,
   } = useProfileSettings()
 
   if (isAdmin) {
     return (
-      <AdminSettingsView
+      <UserSettingsView
         contextHolder={contextHolder}
+        user={user}
         selectedTab={selectedTab}
         setSelectedTab={setSelectedTab}
-        settingsLastUpdated={settingsLastUpdated}
-        setSettingsLastUpdated={setSettingsLastUpdated}
-        settingsInfoOpen={settingsInfoOpen}
-        setSettingsInfoOpen={setSettingsInfoOpen}
+        passkeyEnabled={passkeyEnabled}
+        passkeyLoading={passkeyLoading}
+        officeLabel={officeLabel}
+        isStaffRole={false}
+        isBusinessOwner={false}
+        isAdmin={true}
         themeSettings={themeSettings}
       />
     )
@@ -46,10 +45,6 @@ export default function ProfileSettings() {
       user={user}
       selectedTab={selectedTab}
       setSelectedTab={setSelectedTab}
-      brandColor={brandColor}
-      initials={initials}
-      uploading={uploading}
-      handleAvatarUpload={handleAvatarUpload}
       passkeyEnabled={passkeyEnabled}
       passkeyLoading={passkeyLoading}
       officeLabel={officeLabel}

@@ -47,14 +47,13 @@ export async function uploadFile(businessId, file, fieldName = 'file') {
   formData.append('file', file)
   formData.append('fieldName', fieldName)
 
-  const response = await fetch(`${BASE_PATH}/${businessId}/documents/upload-file`, {
+  const response = await fetchWithFallback(`${BASE_PATH}/${businessId}/documents/upload-file`, {
     method: 'POST',
     body: formData,
-    credentials: 'include'
   })
 
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}))
+  if (!response || !response.ok) {
+    const err = await response?.json().catch(() => ({}))
     throw new Error(err?.error?.message || 'Failed to upload file')
   }
 

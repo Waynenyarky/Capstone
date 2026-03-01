@@ -182,6 +182,12 @@ const BusinessProfileSchema = new mongoose.Schema(
       submittedAt: { type: Date },
       submittedToLguOfficer: { type: Boolean, default: false },
       isSubmitted: { type: Boolean, default: false },
+      // Permit / form application (driven by form definitions)
+      formType: { type: String, default: '' },
+      formDefinitionId: { type: mongoose.Schema.Types.Mixed, default: null },
+      formData: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
+      // Per-field accept/reject by officer (key: sectionIdx.itemKey or sectionIdx.itemKey.rowIdx, value: { status, reasonCode?, reasonOther?, decidedAt? })
+      fieldReviewDecisions: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
       reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
       reviewedAt: { type: Date },
       reviewComments: { type: String, default: '' },

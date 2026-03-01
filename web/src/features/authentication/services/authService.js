@@ -116,6 +116,14 @@ export async function getMe() {
   return await fetchJsonWithFallback('/api/auth/me', { method: 'GET' })
 }
 
+/** Call server to record logout in notification history. Does not clear local session. */
+export async function logoutApi() {
+  return await fetchJsonWithFallback('/api/auth/logout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
 // Password reset
 export async function sendForgotPassword(payload) {
   return await fetchJsonWithFallback('/api/auth/forgot-password', {
@@ -267,6 +275,16 @@ export async function confirmAccountDeletion(payload) {
   return await fetchJsonWithFallback('/api/auth/delete-account/confirm', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function deleteAccountAuthenticated(payload) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  return await fetchJsonWithFallback('/api/auth/delete-account/authenticated', {
+    method: 'POST',
+    headers,
     body: JSON.stringify(payload),
   })
 }

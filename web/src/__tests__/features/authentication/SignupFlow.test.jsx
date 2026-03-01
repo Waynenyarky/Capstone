@@ -1,10 +1,11 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { Form } from 'antd'
+import { Form } from '@/shared/components/AppForm'
 import { MemoryRouter } from 'react-router-dom'
 import { App as AntdApp } from 'antd'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders, screen, waitFor, renderHook } from '@/test/utils/renderWithProviders.jsx'
+import { act } from '@testing-library/react'
 import { ThemeProvider } from '@/shared/theme/ThemeProvider.jsx'
 import UserSignUpForm from '@/features/authentication/components/UserSignUpForm.jsx'
 
@@ -33,33 +34,42 @@ vi.mock('@/features/authentication/components/SignUpVerificationForm.jsx', () =>
   default: ({ email }) => <div data-testid="verification-form">Verify {email}</div>,
 }))
 
-// Mock validations
-vi.mock('@/features/authentication/validations', () => ({
-  emailRules: [],
-  firstNameRules: [],
-  lastNameRules: [],
-  phoneNumberRules: [],
-  signUpPasswordRules: [],
-  signUpConfirmPasswordRules: [],
-  termsRules: [],
-}))
+// Mock validations (use importOriginal to avoid missing exports like middleNameRules)
+vi.mock('@/features/authentication/validations', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    emailRules: [],
+    firstNameRules: [],
+    lastNameRules: [],
+    middleNameRules: [],
+    phoneNumberRules: [],
+    signUpPasswordRules: [],
+    signUpConfirmPasswordRules: [],
+    termsRules: [],
+  }
+})
 
-// Mock PIS rules to avoid loading heavy validation logic
-vi.mock('@/features/authentication/utils/validations/pisRules', () => ({
-  pisMaritalStatusRules: [],
-  pisDateOfBirthRules: [],
-  pisPlaceOfBirthRules: [],
-  pisNationalityRules: [],
-  pisFatherNameRules: [],
-  pisMotherNameRules: [],
-  pisEducationRules: [],
-  pisStreetRules: [],
-  pisBarangayRules: [],
-  pisCityRules: [],
-  pisProvinceRules: [],
-  pisZipCodeRules: [],
-  pisSpouseNameRules: [],
-}))
+// Mock PIS rules to avoid loading heavy validation logic (use importOriginal to avoid missing exports)
+vi.mock('@/features/authentication/utils/validations/pisRules', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    pisMaritalStatusRules: [],
+    pisDateOfBirthRules: [],
+    pisPlaceOfBirthRules: [],
+    pisNationalityRules: [],
+    pisFatherNameRules: [],
+    pisMotherNameRules: [],
+    pisEducationRules: [],
+    pisStreetRules: [],
+    pisBarangayRules: [],
+    pisCityRules: [],
+    pisProvinceRules: [],
+    pisZipCodeRules: [],
+    pisSexRules: [],
+  }
+})
 
 // Mock LinkExistingAccountModal to avoid modal/async complexity
 vi.mock('@/features/authentication/components/LinkExistingAccountModal.jsx', () => ({
@@ -109,8 +119,7 @@ describe('Signup Flow', { timeout: 15000 }, () => {
     expect(screen.getByPlaceholderText('Mobile number')).toBeVisible()
   })
 
-  it('should submit form when rules are mocked', async () => {
-    const handleFinish = vi.fn()
+  it('should navigate to step 2 and show Create Account button', async () => {
     mockUseUserSignUpFlow.mockReturnValue({
       step: 'form',
       emailForVerify: '',
@@ -120,25 +129,32 @@ describe('Signup Flow', { timeout: 15000 }, () => {
     })
     mockUseUserSignUp.mockReturnValue({
       form,
-      handleFinish,
+      handleFinish: vi.fn(),
       isSubmitting: false,
     })
 
     renderWithProviders(<UserSignUpForm />)
 
+    // Fill step 1 fields (rules are mocked as empty, so any values work)
+    await act(async () => {
+      form.setFieldsValue({
+        firstName: 'Test',
+        lastName: 'User',
+        email: 'test@example.com',
+        phoneNumber: '09171234567',
+        password: 'StrongP@ssw0rd',
+        confirmPassword: 'StrongP@ssw0rd',
+        termsAndConditions: true,
+      })
+    })
+
     // Step 1: Click "Next: Personal Information" to go to step 2
     const nextButton = screen.getByRole('button', { name: /next: personal information/i })
     await user.click(nextButton)
 
-    // Step 2: Click "Skip for now" to submit (bypasses PIS validation)
+    // Step 2: Verify Create Account button is visible (form flow updated; no "Skip for now")
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /skip for now/i })).toBeInTheDocument()
-    })
-    const skipButton = screen.getByRole('button', { name: /skip for now/i })
-    await user.click(skipButton)
-
-    await waitFor(() => {
-      expect(handleFinish).toHaveBeenCalled()
+      expect(screen.getByRole('button', { name: /create account/i })).toBeInTheDocument()
     })
   })
 

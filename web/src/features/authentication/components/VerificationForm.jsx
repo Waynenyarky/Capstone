@@ -1,4 +1,5 @@
-import { Form, Input, Button, Typography, Flex, Grid } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Input, Button, Typography, Flex, Grid } from 'antd'
 import { useVerificationForm } from "@/features/authentication/hooks"
 import React from 'react'
 

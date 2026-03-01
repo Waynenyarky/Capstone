@@ -1,15 +1,16 @@
 import React from 'react'
 import { Button, Popconfirm } from 'antd'
 import { invalidateAllSessions } from '@/features/authentication/services/sessionService.js'
-import { useNotifier } from '@/shared/notifications.js'
+import { useAuthNotification, useNotifier } from '@/shared/notifications.js'
 
 export default function InvalidateSessionsButton({ onDone }) {
-  const { success, error } = useNotifier()
+  const { notificationSuccess } = useAuthNotification()
+  const { error } = useNotifier()
 
   const handleInvalidateAll = async () => {
     try {
       await invalidateAllSessions()
-      success('Other sessions invalidated')
+      notificationSuccess('Other sessions invalidated', 'All other devices have been signed out.')
       onDone?.()
     } catch (err) {
       console.error('invalidate all failed', err)

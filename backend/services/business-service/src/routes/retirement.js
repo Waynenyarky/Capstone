@@ -5,6 +5,8 @@ const { requireJwt, requireRole } = require('../middleware/auth')
 const router = express.Router()
 
 const Violation = require('../models/Violation')
+const Inspection = require('../models/Inspection')
+const { logAuditEvent } = require('../lib/auditClient')
 
 /**
  * POST /api/business/:businessId/retire
@@ -32,21 +34,23 @@ router.post('/:businessId/retire', requireJwt, async (req, res) => {
       })
     }
 
-    // Edge case UC-2F-4: Check for open violations
-    if (Violation) {
-      const openViolations = await Violation.countDocuments({
-        businessId,
-        status: { $in: ['open', 'pending'] },
+    // Edge case UC-2F-4: Check for open violations (resolve via Inspection → Violation)
+    const inspections = await Inspection.find({
+      businessProfileId: profile._id,
+      businessId,
+    }).select('_id').lean()
+    const inspectionIds = inspections.map(i => i._id)
+    const openViolations = inspectionIds.length > 0
+      ? await Violation.countDocuments({ inspectionId: { $in: inspectionIds }, status: 'open' })
+      : 0
+    if (openViolations > 0) {
+      return res.status(400).json({
+        error: {
+          code: 'OPEN_VIOLATIONS',
+          message: `Cannot retire business with ${openViolations} open violation(s). Resolve violations first.`,
+          count: openViolations,
+        },
       })
-      if (openViolations > 0) {
-        return res.status(400).json({
-          error: {
-            code: 'OPEN_VIOLATIONS',
-            message: `Cannot retire business with ${openViolations} open violation(s). Resolve violations first.`,
-            count: openViolations,
-          },
-        })
-      }
     }
 
     // Edge case UC-2F-5: Check for unpaid fees (simplified — check if business has pending payments)
@@ -73,6 +77,7 @@ router.post('/:businessId/retire', requireJwt, async (req, res) => {
     }
 
     await profile.save()
+    logAuditEvent('business_retired', req._userId, 'BusinessProfile', profile._id.toString(), { businessId, status: 'requested' })
     return res.json({ data: { businessId, retirementStatus: 'requested', message: 'Retirement application submitted' } })
   } catch (err) {
     console.error('POST /retire error:', err)

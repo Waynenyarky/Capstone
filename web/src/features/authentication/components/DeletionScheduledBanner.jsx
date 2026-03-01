@@ -1,115 +1,73 @@
 import React, { useState, useEffect } from 'react'
-import { Card, Typography, Flex, Button, Space, Statistic } from 'antd'
-import { 
-  WarningOutlined, 
-  ClockCircleOutlined, 
-  CalendarOutlined,
-  UndoOutlined
-} from '@ant-design/icons'
-import { useAuthSession } from "@/features/authentication"
-import { useCancelDeleteAccount } from "@/features/authentication/hooks"
+import { Typography, Flex, Button } from 'antd'
+import { theme } from 'antd'
+import { ClockCircleOutlined, CalendarOutlined, UndoOutlined } from '@ant-design/icons'
+import { useAuthSession } from '@/features/authentication'
+import { useCancelDeleteAccount } from '@/features/authentication/hooks'
 
-const { Title, Text, Paragraph } = Typography
+const { Text, Paragraph } = Typography
 
 export default function DeletionScheduledBanner() {
   const { currentUser } = useAuthSession()
   const { cancel, isLoading } = useCancelDeleteAccount()
+  const { token } = theme.useToken()
   const [daysRemaining, setDaysRemaining] = useState(0)
 
   useEffect(() => {
     if (currentUser?.deletionScheduledFor) {
       const scheduledDate = new Date(currentUser.deletionScheduledFor)
       const now = new Date()
-      const diffTime = Math.abs(scheduledDate - now)
+      const diffTime = Math.max(0, scheduledDate - now)
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
       setDaysRemaining(diffDays)
     }
-  }, [currentUser])
+  }, [currentUser?.deletionScheduledFor])
 
   if (!currentUser?.deletionPending) return null
 
   const date = currentUser?.deletionScheduledFor ? new Date(currentUser.deletionScheduledFor) : null
-  const dateStr = date ? date.toLocaleString(undefined, { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }) : 'soon'
+  const dateStr = date
+    ? date.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '—'
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      {/* Warning Banner - Matches Mobile's Orange Container */}
-      <div style={{
-        padding: '24px',
-        backgroundColor: '#fff7e6',
-        borderRadius: '16px',
-        border: '2px solid #ffcc80',
-        textAlign: 'center'
-      }}>
-        <WarningOutlined style={{ fontSize: '48px', color: '#fa8c16', marginBottom: '16px' }} />
-        <Title level={3} style={{ margin: '0 0 8px 0', color: '#d46b08' }}>
-          Deletion Scheduled
-        </Title>
-        <Text style={{ fontSize: '16px', color: '#d46b08' }}>
-          Your account is scheduled to be deleted
+    <div
+      style={{
+        padding: 20,
+        backgroundColor: token.colorErrorBg,
+        borderRadius: token.borderRadiusLG,
+        border: `1px solid ${token.colorErrorBorder}`,
+        marginBottom: 24,
+      }}
+    >
+      <Flex align="center" gap="small" style={{ marginBottom: 12 }}>
+        <ClockCircleOutlined style={{ color: token.colorError }} />
+        <Text strong style={{ color: token.colorError }}>
+          {daysRemaining} days remaining
         </Text>
-      </div>
-
-      {/* Countdown Card - Matches Mobile's Gradient Card */}
-      <div style={{
-        padding: '24px',
-        background: 'linear-gradient(135deg, #fff1f0 0%, #fff7e6 100%)',
-        borderRadius: '16px',
-        border: '1px solid #ffccc7',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-      }}>
-        <Flex vertical align="center" gap="middle">
-          <Flex align="center" gap="small">
-            <ClockCircleOutlined style={{ fontSize: '24px', color: '#cf1322' }} />
-            <Text strong style={{ fontSize: '24px', color: '#cf1322' }}>
-              {daysRemaining} days remaining
-            </Text>
-          </Flex>
-
-          <div style={{
-            padding: '12px 24px',
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            display: 'inline-block'
-          }}>
-            <Flex vertical align="center">
-              <Text type="secondary" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Deletion Date
-              </Text>
-              <Space style={{ marginTop: 4 }}>
-                <CalendarOutlined style={{ color: '#cf1322' }} />
-                <Text strong style={{ color: '#820014' }}>{dateStr}</Text>
-              </Space>
-            </Flex>
-          </div>
-        </Flex>
-      </div>
-
-      {/* Action Area */}
-      <Card variant="borderless" style={{ background: 'transparent' }}>
-        <Flex vertical gap="small">
-          <Button 
-            type="primary" 
-            size="large" 
-            onClick={cancel} 
-            loading={isLoading}
-            icon={<UndoOutlined />}
-            block
-            style={{ height: '48px', fontSize: '16px' }}
-          >
-            Undo Deletion & Restore Access
-          </Button>
-          <Text type="secondary" style={{ textAlign: 'center', fontSize: '13px' }}>
-            Restoring access will immediately cancel the scheduled deletion.
-          </Text>
-        </Flex>
-      </Card>
-    </Space>
+      </Flex>
+      <Flex align="center" gap="small" style={{ marginBottom: 16 }}>
+        <CalendarOutlined style={{ color: token.colorTextSecondary }} />
+        <Text type="secondary">Deletion date: {dateStr}</Text>
+      </Flex>
+      <Button
+        type="primary"
+        onClick={cancel}
+        loading={isLoading}
+        icon={<UndoOutlined />}
+        block
+      >
+        Undo deletion & restore access
+      </Button>
+      <Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0, fontSize: 13 }}>
+        Restoring will cancel the scheduled deletion immediately.
+      </Paragraph>
+    </div>
   )
 }

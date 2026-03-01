@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:app/core/theme/bizclear_colors.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:app/data/services/mongodb_service.dart';
-import 'package:app/data/mock/inspector_mock_data.dart';
 import 'inspection_detail_screen.dart';
 
 class ScheduleScreen extends StatefulWidget {
@@ -77,41 +77,24 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       if (res['success'] == true) {
         final list = List<dynamic>.from(res['inspections'] ?? []);
         if (list.isEmpty && dateFrom != null && dateTo != null) {
-          try {
-            final start = DateTime.parse('$dateFrom');
-            final end = DateTime.parse('$dateTo');
-            final mockList = InspectorMockData.getInspectionsInRange(start, end);
-            _applyInspectionsToList(mockList);
-            return;
-          } catch (_) {}
+          _applyInspectionsToList([]);
+          return;
         }
         _applyInspectionsToList(list);
       } else {
-        if (dateFrom != null && dateTo != null) {
-          try {
-            final start = DateTime.parse('$dateFrom');
-            final end = DateTime.parse('$dateTo');
-            _applyInspectionsToList(InspectorMockData.getInspectionsInRange(start, end));
-            return;
-          } catch (_) {}
-        }
         setState(() {
+          _inspections = [];
+          _events = {};
           _loading = false;
           _error = res['message'] ?? 'Failed to load inspections';
         });
       }
     } catch (e) {
-      if (dateFrom != null && dateTo != null) {
-        try {
-          final start = DateTime.parse('$dateFrom');
-          final end = DateTime.parse('$dateTo');
-          _applyInspectionsToList(InspectorMockData.getInspectionsInRange(start, end));
-          return;
-        } catch (_) {}
-      }
       setState(() {
+        _inspections = [];
+        _events = {};
         _loading = false;
-        _error = e.toString();
+        _error = 'Failed to load. Pull to refresh.';
       });
     }
   }
@@ -124,9 +107,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   Color _statusColor(String status) {
     switch (status) {
       case 'completed':
-        return Colors.green;
+        return BizClearColors.success;
       case 'in_progress':
-        return Colors.blue;
+        return BizClearColors.webPrimary;
       case 'pending':
       default:
         return Colors.amber;
@@ -197,11 +180,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 eventLoader: _getEventsForDay,
                 calendarStyle: CalendarStyle(
                   markerDecoration: BoxDecoration(
-                    color: Colors.blue.shade400,
+                    color: BizClearColors.webPrimary,
                     shape: BoxShape.circle,
                   ),
                   todayDecoration: BoxDecoration(
-                    color: Colors.blue.shade200,
+                    color: BizClearColors.webPrimaryTintBorder,
                     shape: BoxShape.circle,
                   ),
                   selectedDecoration: const BoxDecoration(
@@ -224,9 +207,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     children: [
-                      Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
+                      Icon(Icons.error_outline, size: 48, color: BizClearColors.error),
                       const SizedBox(height: 12),
-                      Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: Colors.red.shade700)),
+                      Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: BizClearColors.error)),
                     ],
                   ),
                 ),
@@ -239,7 +222,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade800,
+                  color: BizClearColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 12),
@@ -253,7 +236,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         child: Center(
                           child: Text(
                             'No inspections scheduled',
-                            style: TextStyle(color: Colors.grey.shade600),
+                            style: TextStyle(color: BizClearColors.textSecondary),
                           ),
                         ),
                       ),

@@ -1,4 +1,5 @@
-import { Form, Modal, DatePicker, Select, Input, Typography } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Modal, DatePicker, Select, Input, Typography } from 'antd'
 import dayjs from 'dayjs'
 import { DEACTIVATE_REASON_TEMPLATES } from '../constants'
 
@@ -17,7 +18,7 @@ export default function DeactivateFormModal({
       open={open}
       onCancel={onCancel}
       onOk={onOk}
-      okText="Deactivate"
+      okText="Deactivate Form"
       okButtonProps={{ danger: true }}
       confirmLoading={confirmLoading}
     >

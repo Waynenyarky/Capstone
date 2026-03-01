@@ -1,10 +1,24 @@
-export const firstNameRules = [{ required: true, message: 'Please enter your first name' }]
+import { namePatternRule } from './namePattern.js'
 
-export const lastNameRules = [{ required: true, message: 'Please enter your last name' }]
+export const firstNameRules = [
+  { required: true, message: 'Please enter your first name' },
+  namePatternRule,
+]
 
-export const middleNameRules = [{ max: 100, message: 'Middle name must be at most 100 characters' }]
+export const lastNameRules = [
+  { required: true, message: 'Please enter your last name' },
+  namePatternRule,
+]
 
-export const suffixRules = [{ max: 20, message: 'Suffix must be at most 20 characters (e.g. Jr., Sr., III)' }]
+export const middleNameRules = [
+  { max: 100, message: 'Middle name must be at most 100 characters' },
+  namePatternRule,
+]
+
+export const suffixRules = [
+  { max: 20, message: 'Suffix must be at most 20 characters (e.g. Jr., Sr., III)' },
+  namePatternRule,
+]
 
 export const phoneNumberRules = [
   { required: true, message: 'Please enter your phone number' },
@@ -23,9 +37,19 @@ export const phoneNumberRules = [
   })
 ]
 
-// Strength/requirements feedback is shown by PasswordStrengthIndicator only (no duplicate validation text)
 export const passwordRules = [
   { required: true, message: 'Please enter your password' },
+  () => ({
+    validator(_, value) {
+      if (!value) return Promise.resolve()
+      if (value.length < 8) return Promise.reject(new Error('Password must be at least 8 characters'))
+      if (!/[a-z]/.test(value)) return Promise.reject(new Error('Password must contain a lowercase letter'))
+      if (!/[A-Z]/.test(value)) return Promise.reject(new Error('Password must contain an uppercase letter'))
+      if (!/\d/.test(value)) return Promise.reject(new Error('Password must contain a number'))
+      if (!/[^A-Za-z0-9]/.test(value)) return Promise.reject(new Error('Password must contain a special character'))
+      return Promise.resolve()
+    },
+  }),
 ]
 
 export const confirmPasswordRules = [
@@ -42,7 +66,7 @@ export const confirmPasswordRules = [
 
 export const emailRules = [
   { required: true, message: 'Please enter your email' },
-  { type: 'email', message: 'The is not a valid email' },
+  { type: 'email', message: 'Please enter a valid email address' },
 ]
 
 export const serviceCategoriesRules = [{ required: true, message: 'Please select at least one service category' }]

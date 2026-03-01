@@ -1,6 +1,7 @@
 const express = require('express')
 const EditRequest = require('../models/EditRequest')
 const { requireJwt } = require('../middleware/auth')
+const { logAuditEvent } = require('../lib/auditClient')
 
 const router = express.Router()
 
@@ -47,6 +48,13 @@ router.post('/', requireJwt, async (req, res) => {
       })
     }
 
+    // Reject if new value is identical to current value
+    if (currentValue !== undefined && String(requestedValue).trim() === String(currentValue).trim()) {
+      return res.status(400).json({
+        error: { code: 'IDENTICAL_VALUE', message: 'The requested value is the same as the current value' },
+      })
+    }
+
     // Edge case UC-2N-3: Validate allowed fields
     if (!ALLOWED_EDIT_FIELDS.includes(fieldName)) {
       return res.status(400).json({
@@ -82,6 +90,7 @@ router.post('/', requireJwt, async (req, res) => {
       supportingDocuments: supportingDocuments || [],
       status: 'pending',
     })
+    logAuditEvent('edit_request_submitted', req._userId, 'EditRequest', editRequest._id.toString(), { businessId })
     return res.status(201).json({ data: editRequest })
   } catch (err) {
     console.error('POST /edit-requests error:', err)

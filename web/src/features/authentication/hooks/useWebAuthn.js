@@ -8,7 +8,28 @@ import {
   crossDeviceStatus,
   crossDeviceComplete
 } from '@/features/authentication/services/webauthnService'
-import { useNotifier } from '@/shared/notifications'
+import { useAuthNotification } from '@/shared/notifications'
+import { isDevLoggingEnabled } from '@/lib/utils'
+
+// Only one navigator.credentials.get() can be in progress at a time (browser limitation).
+// Shared across all hook instances to avoid "A request is already pending" when e.g.
+// conditional UI is still active and PlatformPasskeyAuth starts another get().
+let credentialsGetPending = null
+
+async function withCredentialsGetMutex(fn) {
+  while (credentialsGetPending) {
+    await credentialsGetPending.catch(() => {})
+    credentialsGetPending = null
+    await new Promise((r) => setTimeout(r, 150))
+  }
+  const p = Promise.resolve().then(fn)
+  credentialsGetPending = p
+  try {
+    return await p
+  } finally {
+    if (credentialsGetPending === p) credentialsGetPending = null
+  }
+}
 
 // Helpers to convert between base64url and ArrayBuffer
 function base64ToBuffer(b64) {
@@ -30,7 +51,7 @@ function bufferToBase64(buffer) {
 }
 
 export default function useWebAuthn() {
-  const { success } = useNotifier()
+  const { notificationSuccess } = useAuthNotification()
 
   const register = React.useCallback(async ({ email } = {}) => {
     if (!('credentials' in navigator)) throw new Error('WebAuthn not supported')
@@ -50,21 +71,24 @@ export default function useWebAuthn() {
       const publicKey = { ...pub }
       
       // Handle challenge - simplewebauthn returns it as a base64url string
-      // Log the full structure to debug
-      console.log('Full registration response:', JSON.stringify({ start, pub }, null, 2))
-      console.log('pub.challenge:', pub.challenge, 'type:', typeof pub.challenge)
-      console.log('pub keys:', Object.keys(pub))
-      console.log('pub.user:', pub.user)
+      if (isDevLoggingEnabled) {
+        console.log('Full registration response:', JSON.stringify({ start, pub }, null, 2))
+        console.log('pub.challenge:', pub.challenge, 'type:', typeof pub.challenge)
+        console.log('pub keys:', Object.keys(pub))
+        console.log('pub.user:', pub.user)
+      }
       
       if (!pub.challenge) {
-        console.error('Registration response structure:', { start, pub })
-        console.error('Full start object:', start)
+        if (isDevLoggingEnabled) {
+          console.error('Registration response structure:', { start, pub })
+          console.error('Full start object:', start)
+        }
         throw new Error('Invalid registration response: missing challenge field. Available keys: ' + Object.keys(pub).join(', '))
       }
       
       // Challenge should be a base64url string from simplewebauthn
       if (typeof pub.challenge !== 'string') {
-        console.error('Unexpected challenge type:', typeof pub.challenge, pub.challenge)
+        if (isDevLoggingEnabled) console.error('Unexpected challenge type:', typeof pub.challenge, pub.challenge)
         throw new Error(`Invalid challenge format: expected string, got ${typeof pub.challenge}`)
       }
       
@@ -77,7 +101,7 @@ export default function useWebAuthn() {
         }
         
         if (typeof pub.user.id !== 'string') {
-          console.error('Unexpected user.id type:', typeof pub.user.id, pub.user.id)
+          if (isDevLoggingEnabled) console.error('Unexpected user.id type:', typeof pub.user.id, pub.user.id)
           throw new Error(`Invalid user.id format: expected string, got ${typeof pub.user.id}`)
         }
         
@@ -100,7 +124,7 @@ export default function useWebAuthn() {
       } catch (webauthnErr) {
         // If user cancelled (NotAllowedError), this is expected behavior - show friendly message
         if (webauthnErr.name === 'NotAllowedError') {
-          console.log('[useWebAuthn] User cancelled or timed out WebAuthn registration prompt')
+          if (isDevLoggingEnabled) console.log('[useWebAuthn] User cancelled or timed out WebAuthn registration prompt')
           const error = new Error('Registration was cancelled. No worries! You can try again whenever you\'re ready.')
           error.name = webauthnErr.name
           error.originalError = webauthnErr
@@ -109,7 +133,7 @@ export default function useWebAuthn() {
         }
         
         // Preserve WebAuthn error details for better error handling
-        console.error('[useWebAuthn] WebAuthn create() failed:', webauthnErr)
+        if (isDevLoggingEnabled) console.error('[useWebAuthn] WebAuthn create() failed:', webauthnErr)
         // Re-throw with preserved error name and message
         const error = new Error(webauthnErr.message || 'WebAuthn registration failed')
         error.name = webauthnErr.name
@@ -130,7 +154,7 @@ export default function useWebAuthn() {
       }
       // Email is optional - pass empty object if email is not provided
       const res = await registerComplete(email ? { email, credential: payload } : { credential: payload })
-      success('Passkey registered')
+      notificationSuccess('Passkey registered', 'Your passkey has been added successfully.')
       return res
     } catch (error) {
       // Re-throw with more context if it's not already a well-formed error
@@ -139,9 +163,9 @@ export default function useWebAuthn() {
       }
       throw new Error(`Passkey registration failed: ${String(error)}`)
     }
-  }, [success])
+  }, [notificationSuccess])
 
-  const authenticate = React.useCallback(async ({ email, publicKeyOptions = {} } = {}) => {
+  const authenticate = React.useCallback(async ({ email, publicKeyOptions = {}, signal } = {}) => {
     if (!('credentials' in navigator)) throw new Error('WebAuthn not supported')
     
     let start
@@ -149,6 +173,8 @@ export default function useWebAuthn() {
       // Email is optional - pass empty object if email is not provided
       start = await authenticateStart(email ? { email } : {})
     } catch (startError) {
+      // Abort before start: don't surface as user error
+      if (signal?.aborted) return
       // Handle "no_passkeys" error from authenticateStart
       const errorCode = startError?.code || 
                        startError?.originalError?.error?.code || 
@@ -164,6 +190,8 @@ export default function useWebAuthn() {
       // Re-throw other errors
       throw startError
     }
+    
+    if (signal?.aborted) return
     
     const pub = start.publicKey
     if (!pub) {
@@ -182,13 +210,19 @@ export default function useWebAuthn() {
         return { ...c, id: base64ToBuffer(c.id) }
       })
     }
+    const getOptions = { publicKey }
+    if (signal != null && typeof AbortSignal !== 'undefined' && signal instanceof AbortSignal) getOptions.signal = signal
     let cred
     try {
-      cred = await navigator.credentials.get({ publicKey })
+      cred = await withCredentialsGetMutex(() => navigator.credentials.get(getOptions))
     } catch (webauthnErr) {
+      // AbortError from cleanup (e.g. React Strict Mode remount) - don't surface as user error
+      if (webauthnErr.name === 'AbortError') {
+        throw webauthnErr
+      }
       // If user cancelled (NotAllowedError), this is expected behavior - log as info, not error
       if (webauthnErr.name === 'NotAllowedError') {
-        console.log('[useWebAuthn] User cancelled or timed out WebAuthn prompt')
+        if (isDevLoggingEnabled) console.log('[useWebAuthn] User cancelled or timed out WebAuthn prompt')
         const error = new Error('Authentication was cancelled or timed out. Please try again and approve the prompt when it appears.')
         error.name = webauthnErr.name
         error.originalError = webauthnErr
@@ -196,8 +230,8 @@ export default function useWebAuthn() {
         throw error
       }
       
-      // For other errors, log as error
-      console.error('[useWebAuthn] WebAuthn get() failed:', webauthnErr)
+      // For other errors, log as error (dev only)
+      if (isDevLoggingEnabled) console.error('[useWebAuthn] WebAuthn get() failed:', webauthnErr)
       
       // For other errors, re-throw with preserved error name and message
       const error = new Error(webauthnErr.message || 'WebAuthn authentication failed')
@@ -205,6 +239,8 @@ export default function useWebAuthn() {
       error.originalError = webauthnErr
       throw error
     }
+    
+    if (signal?.aborted) return
     
     // Only proceed if we got a credential (user didn't cancel)
     if (!cred || !cred.response) {
@@ -227,11 +263,11 @@ export default function useWebAuthn() {
     try {
       // Email is optional - pass empty object if email is not provided
       const result = await authenticateComplete(email ? { email, credential: payload } : { credential: payload })
-      success('Passkey authentication succeeded')
+      // Login success shown on destination via navigate state (Option A)
       return result
     } catch (completeError) {
-      // Handle backend errors from authenticateComplete
-      console.error('[useWebAuthn] authenticateComplete failed:', completeError)
+      // Handle backend errors from authenticateComplete (log in dev only)
+      if (isDevLoggingEnabled) console.error('[useWebAuthn] authenticateComplete failed:', completeError)
       
       // Extract error code and message
       const errorCode = completeError?.code || 
@@ -257,7 +293,7 @@ export default function useWebAuthn() {
       // Re-throw the error as-is (it should already have a good message)
       throw completeError
     }
-  }, [success])
+  }, [])
 
   // Detect available authenticator types
   const detectAuthenticatorTypes = React.useCallback(async () => {
@@ -285,15 +321,16 @@ export default function useWebAuthn() {
         conditional: conditionalAvailable
       }
     } catch (e) {
-      console.error('Error detecting authenticator types', e)
+      if (isDevLoggingEnabled) console.error('Error detecting authenticator types', e)
       return { supported: true, platform: true, crossDevice: true, conditional: false }
     }
   }, [])
 
   // Authenticate with platform authenticator (Windows Hello, Touch ID, etc.)
-  const authenticateWithPlatform = React.useCallback(async ({ email } = {}) => {
+  const authenticateWithPlatform = React.useCallback(async ({ email, signal } = {}) => {
     return authenticate({
       email,
+      signal,
       publicKeyOptions: {
         authenticatorSelection: {
           authenticatorAttachment: 'platform',
@@ -338,11 +375,11 @@ export default function useWebAuthn() {
     }
 
     const getOptions = { publicKey, mediation: 'conditional' }
-    if (signal) getOptions.signal = signal
+    if (signal != null && typeof AbortSignal !== 'undefined' && signal instanceof AbortSignal) getOptions.signal = signal
 
     let cred
     try {
-      cred = await navigator.credentials.get(getOptions)
+      cred = await withCredentialsGetMutex(() => navigator.credentials.get(getOptions))
     } catch (webauthnErr) {
       if (webauthnErr.name === 'NotAllowedError' || webauthnErr.name === 'AbortError') return null
       throw webauthnErr
@@ -364,13 +401,13 @@ export default function useWebAuthn() {
 
     try {
       const result = await authenticateComplete({ credential: payload })
-      success('Passkey authentication succeeded')
+      // Login success shown on destination via navigate state (Option A)
       return result
     } catch (completeErr) {
-      console.error('[useWebAuthn] authenticateConditional complete failed', completeErr)
+      if (isDevLoggingEnabled) console.error('[useWebAuthn] authenticateConditional complete failed', completeErr)
       throw completeErr
     }
-  }, [success])
+  }, [])
 
   // Start cross-device authentication
   const authenticateCrossDevice = React.useCallback(async ({ email, allowRegistration = false } = {}) => {

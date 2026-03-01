@@ -34,28 +34,28 @@ export default function PasskeyStatusCard({
           : (isDarkTheme ? '#d48806' : '#ffe58f')}`,
       borderRadius: token.borderRadiusLG,
       display: 'flex',
+      flexDirection: 'column',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      flexWrap: 'wrap',
-      gap: 16,
+      textAlign: 'center',
+      gap: 20,
       marginBottom: 24
     }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, maxWidth: '70%' }}>
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
         {hasPasskeys ? (
-          <SafetyCertificateOutlined style={{ fontSize: 32, color: '#52c41a', marginTop: 4 }} />
+          <SafetyCertificateOutlined style={{ fontSize: 32, color: '#52c41a' }} />
         ) : (
-          <SecurityScanOutlined style={{ fontSize: 32, color: '#faad14', marginTop: 4 }} />
+          <SecurityScanOutlined style={{ fontSize: 32, color: '#faad14' }} />
         )}
-        <div>
-          <Title level={5} style={{ margin: 0, marginBottom: 4 }}>
-            {hasPasskeys ? 'Passkey Authentication is active' : 'Passkey Authentication is not enabled'}
-          </Title>
-          <Text type="secondary">
-            {hasPasskeys 
-              ? `You have ${credentialsCount} passkey${credentialsCount > 1 ? 's' : ''} registered. You can use them to sign in.` 
-              : 'Enable passwordless authentication using Windows Hello, Touch ID, Face ID, or security keys.'}
-          </Text>
-        </div>
+      </div>
+      <div>
+        <Title level={5} style={{ margin: 0, marginBottom: 4 }}>
+          {hasPasskeys ? 'Passkey Authentication is active' : 'Passkey Authentication is not enabled'}
+        </Title>
+        <Text type="secondary" style={{ display: 'block' }}>
+          {hasPasskeys 
+            ? `You have ${credentialsCount} passkey${credentialsCount > 1 ? 's' : ''} registered. You can use them to sign in.` 
+            : 'Enable passwordless authentication using Windows Hello, Touch ID, Face ID, or security keys.'}
+        </Text>
       </div>
       
       <div>

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:app/data/services/mongodb_service.dart';
-import 'package:app/data/mock/inspector_mock_data.dart';
 import 'package:app/core/theme/bizclear_colors.dart';
 import 'inspector_shell.dart';
 
@@ -34,36 +33,29 @@ class _InspectorDashboardScreenState extends State<InspectorDashboardScreen> {
     try {
       final res = await MongoDBService.getInspectorInspectionCounts();
       if (res['success'] == true) {
-        final todayCount = res['today'] as int? ?? 0;
-        final pendingCount = res['pending'] as int? ?? 0;
-        final completedCount = res['completed'] as int? ?? 0;
-        final useMock = todayCount == 0 && pendingCount == 0 && completedCount == 0;
-        final data = useMock ? InspectorMockData.getCounts() : res;
         setState(() {
-          _today = data['today'] as int? ?? 0;
-          _pending = data['pending'] as int? ?? 0;
-          _completed = data['completed'] as int? ?? 0;
+          _today = res['today'] as int? ?? 0;
+          _pending = res['pending'] as int? ?? 0;
+          _completed = res['completed'] as int? ?? 0;
           _loading = false;
           _error = null;
         });
       } else {
-        final mock = InspectorMockData.getCounts();
         setState(() {
-          _today = mock['today'] as int? ?? 0;
-          _pending = mock['pending'] as int? ?? 0;
-          _completed = mock['completed'] as int? ?? 0;
+          _today = 0;
+          _pending = 0;
+          _completed = 0;
           _loading = false;
-          _error = null;
+          _error = res['message'] ?? 'Failed to load';
         });
       }
     } catch (e) {
-      final mock = InspectorMockData.getCounts();
       setState(() {
-        _today = mock['today'] as int? ?? 0;
-        _pending = mock['pending'] as int? ?? 0;
-        _completed = mock['completed'] as int? ?? 0;
+        _today = 0;
+        _pending = 0;
+        _completed = 0;
         _loading = false;
-        _error = null;
+        _error = 'Failed to load. Pull to refresh.';
       });
     }
   }
@@ -280,7 +272,7 @@ class _CountCard extends StatelessWidget {
             Text(
               '$count',
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 20,
                 fontWeight: FontWeight.w700,
                 color: color,
               ),

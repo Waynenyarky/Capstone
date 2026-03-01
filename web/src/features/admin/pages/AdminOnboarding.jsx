@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Row, Col, Form, theme } from 'antd'
+import { Form } from '@/shared/components/AppForm'
+import { Row, Col, theme } from 'antd'
 import { useLocation } from 'react-router-dom'
 import { SecurityScanOutlined } from '@ant-design/icons'
 import { useAuthSession } from '@/features/authentication'
@@ -9,8 +10,8 @@ import { useNotifier } from '@/shared/notifications'
 import AdminLayout from '../components/AdminLayout'
 import { OnboardingStepContent } from '@/features/shared'
 
-// Dev mode: bypass MFA setup when VITE_BYPASS_MFA_DEV=true
-const bypassMfaDev = import.meta.env.VITE_BYPASS_MFA_DEV === 'true'
+// MFA always required for admin when backend sets mustSetupMfa (no dev bypass)
+const bypassMfaDev = false
 
 export default function AdminOnboarding() {
   const { currentUser, login } = useAuthSession()
@@ -20,22 +21,15 @@ export default function AdminOnboarding() {
   const [form] = Form.useForm()
 
   const mustChange = !!currentUser?.mustChangeCredentials
-  // Override mustMfa in dev mode
-  const mustMfa = bypassMfaDev ? false : !!currentUser?.mustSetupMfa
+  const mustMfa = !!currentUser?.mustSetupMfa
   const passwordExpired = !!currentUser?.passwordExpired
 
   const [currentStep, setCurrentStep] = useState(0)
-  const [mfaEnabled, setMfaEnabled] = useState(bypassMfaDev ? true : false)
+  const [mfaEnabled, setMfaEnabled] = useState(false)
   const [checkingMfa, setCheckingMfa] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    // Dev mode: skip MFA check entirely
-    if (bypassMfaDev) {
-      setMfaEnabled(true)
-      if (currentStep === 0 && !mustChange) setCurrentStep(3)
-      return
-    }
     const checkMfaStatus = async () => {
       if (!currentUser?.email) return
       setCheckingMfa(true)

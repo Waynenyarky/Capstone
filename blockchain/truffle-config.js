@@ -78,7 +78,8 @@ module.exports = {
           enabled: true,
           runs: 200
         },
-        // evmVersion: "byzantium"
+        // Use Berlin EVM for max compatibility with Ganache GUI (avoids Shanghai/London opcodes)
+        evmVersion: "berlin"
       }
     }
   },

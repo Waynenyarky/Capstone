@@ -2,7 +2,7 @@ const mongoose = require('mongoose')
 const { INDUSTRY_SCOPE_VALUES, BUSINESS_TYPE_VALUES } = require('../../../../shared/constants')
 
 // Valid field types for form builder items
-const FIELD_TYPES = ['text', 'textarea', 'number', 'date', 'select', 'multiselect', 'file', 'download', 'checkbox', 'address', 'repeatable_group']
+const FIELD_TYPES = ['text', 'textarea', 'number', 'date', 'select', 'multiselect', 'file', 'download', 'checkbox', 'address', 'address_alaminos', 'repeatable_group', 'ai_lob_recommendation']
 
 // Sub-field schema for repeatable_group columns (simplified version of RequirementItemSchema)
 const GroupFieldSchema = new mongoose.Schema(

@@ -50,8 +50,20 @@ const InspectionSchema = new mongoose.Schema(
     },
     inspectionType: {
       type: String,
-      enum: ['initial', 'renewal', 'follow_up', 'joint', 'compliance', 'complaint'],
+      enum: ['initial', 'renewal', 'follow_up', 'joint', 'compliance', 'complaint', 'surprise', 'routine'],
       required: true
+    },
+    isSurprise: { type: Boolean, default: false },
+    compliancePeriodEnd: { type: Date, default: null },
+    permitRevoked: { type: Boolean, default: false },
+    revokedAt: { type: Date, default: null },
+    revokedReason: { type: String, default: '' },
+    reinspectionDeadline: { type: Date, default: null },
+    notes: { type: String, default: '' },
+    complianceStatus: {
+      type: String,
+      enum: ['compliant', 'non_compliant', 'pending_reinspection', null],
+      default: null,
     },
     // Phase 2: Additional fields for joint/compliance/complaint inspections
     complaintDetails: { type: String, default: '' },

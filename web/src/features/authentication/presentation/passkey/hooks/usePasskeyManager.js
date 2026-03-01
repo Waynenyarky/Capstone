@@ -9,11 +9,12 @@ import { WebAuthnRepository, UserRepository } from '@/features/authentication/ap
 import * as webauthnService from '@/features/authentication/services/webauthnService'
 import { getProfile } from '@/features/authentication/services/authService'
 import { useAuthSession } from '@/features/authentication/hooks'
-import { useNotifier } from '@/shared/notifications'
+import { useAuthNotification, useNotifier } from '@/shared/notifications'
 
 export function usePasskeyManager() {
   const { currentUser, login } = useAuthSession()
   const { success, error: notifyError, info } = useNotifier()
+  const { notificationSuccess } = useAuthNotification()
   
   const [credentials, setCredentials] = useState([])
   const [loading, setLoading] = useState(true)
@@ -78,7 +79,7 @@ export function usePasskeyManager() {
       const result = await registerUseCase.execute({ email })
       
       if (result.success) {
-        success('Passkey registered successfully!')
+        notificationSuccess('Passkey registered', 'Your passkey has been added successfully.')
         await fetchCredentials()
         return true
       }
@@ -95,7 +96,7 @@ export function usePasskeyManager() {
     } finally {
       setRegistering(false)
     }
-  }, [email, registerUseCase, fetchCredentials, success, notifyError, info])
+  }, [email, registerUseCase, fetchCredentials, notificationSuccess, notifyError, info])
 
   // Delete single passkey using use case
   const handleDelete = useCallback(async (credId) => {
@@ -106,7 +107,7 @@ export function usePasskeyManager() {
       const result = await deleteUseCase.execute({ credId })
       
       if (result.success) {
-        success('Passkey deleted successfully')
+        notificationSuccess('Passkey deleted', 'The passkey has been removed from your account.')
         await fetchCredentials()
       } else {
         notifyError(result.error || 'Failed to delete passkey')
@@ -117,7 +118,7 @@ export function usePasskeyManager() {
     } finally {
       setDeleting(false)
     }
-  }, [deleteUseCase, fetchCredentials, success, notifyError])
+  }, [deleteUseCase, fetchCredentials, notificationSuccess, notifyError])
 
   // Delete all passkeys using use case
   const handleDeleteAll = useCallback(async () => {
@@ -126,7 +127,7 @@ export function usePasskeyManager() {
       const result = await deleteAllUseCase.execute()
       
       if (result.success) {
-        success('Passkey authentication disabled successfully')
+        notificationSuccess('Passkey authentication disabled', 'All passkeys have been removed from your account.')
         await fetchCredentials()
       } else {
         notifyError(result.error || 'Failed to disable passkeys')
@@ -137,7 +138,7 @@ export function usePasskeyManager() {
     } finally {
       setDeleting(false)
     }
-  }, [deleteAllUseCase, fetchCredentials, success, notifyError])
+  }, [deleteAllUseCase, fetchCredentials, notificationSuccess, notifyError])
 
   const roleSlug = (currentUser?.role?.slug ?? currentUser?.role ?? '').toString()
   const isAdmin = roleSlug === 'admin'

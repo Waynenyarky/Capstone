@@ -2,13 +2,11 @@ import React from 'react'
 import { useLogin } from './useLogin.js'
 import { useAuthSession } from './useAuthSession.js'
 import { useRememberedEmail } from './useRememberedEmail.js'
-import { useNotifier } from '@/shared/notifications.js'
 import { loginPost } from '@/features/authentication/services'
 
 // Orchestrates the login UI flow (login -> verify) and keeps
 // business logic out of the component.
-export function useLoginFlow({ onSubmit } = {}) {
-  const { success } = useNotifier()
+export function useLoginFlow({ onSubmit, getCaptchaToken } = {}) {
   const { login } = useAuthSession()
   const { initialEmail, rememberEmail, clearRememberedEmail } = useRememberedEmail()
   const isDemoUi = import.meta.env.VITE_DEMO_UI === 'true'
@@ -27,6 +25,7 @@ export function useLoginFlow({ onSubmit } = {}) {
   const [mfaRequired, setMfaRequired] = React.useState(null)
 
   const { form, handleFinish, isSubmitting } = useLogin({
+    getCaptchaToken,
     onBegin: async ({ email, rememberMe: rm, serverData } = {}) => {
       setMfaRequired(null)
       setEmailForVerify(email || '')
@@ -41,7 +40,7 @@ export function useLoginFlow({ onSubmit } = {}) {
         try {
           const remember = rm === true
           login(serverData, { remember })
-          success('Logged in successfully')
+          // Login success notification shown on destination via navigate state (Option A)
           if (remember && email) rememberEmail(email)
           else clearRememberedEmail()
           setStep('login')
@@ -98,14 +97,20 @@ export function useLoginFlow({ onSubmit } = {}) {
       // Try to parse structured lock info from the error object
       try {
         const maybe = err?.body || err?.response || err?.data || err?.originalError || err
-        const locked = maybe?.lockedUntil || maybe?.adminLockedUntil || maybe?.locked_until || maybe?.locked_at || maybe?.lockedUntilMs || maybe?.lockedUntilMs || maybe?.locked_until_ms
+        const locked = maybe?.lockedUntil || maybe?.error?.lockedUntil || maybe?.adminLockedUntil || maybe?.locked_until || maybe?.locked_at || maybe?.lockedUntilMs || maybe?.lockedUntilMs || maybe?.locked_until_ms
         if (locked) {
           const lu = Number(locked) || Date.parse(locked)
           if (!Number.isNaN(lu)) setServerLockedUntil(Number(lu))
         }
-        // Rate limit (429): derive lockout end from retryAfterSec so LockoutBanner shows
+        // Rate limit (429) or account locked (423): show lockout
         const status = err?.status || maybe?.status
         const code = maybe?.error?.code || maybe?.code || err?.code
+        if (status === 423 || code === 'account_locked') {
+          const lockedUntil = maybe?.error?.lockedUntil ?? locked
+          const lu = Number(lockedUntil) || Date.parse(lockedUntil)
+          if (!Number.isNaN(lu)) setServerLockedUntil(Number(lu))
+          return true
+        }
         if (status === 429 || code === 'login_code_rate_limited' || code === 'login_verify_rate_limited') {
           const retrySec = maybe?.error?.retryAfterSec ?? err?.retryAfterSec
           const sec = Number(retrySec)
@@ -163,8 +168,7 @@ export function useLoginFlow({ onSubmit } = {}) {
           // Complete login centrally only after a successful server response
           const remember = values?.rememberMe === true
           login(serverUser, { remember })
-          // Show success toast on final login completion
-          success('Logged in successfully')
+          // Login success notification shown on destination via navigate state (Option A)
           const emailToRemember = values?.email
           if (remember) rememberEmail(emailToRemember)
           else clearRememberedEmail()
@@ -179,8 +183,7 @@ export function useLoginFlow({ onSubmit } = {}) {
       // Normal path: caller provided a full server-validated `user` object.
       const remember = values?.rememberMe === true
       login(user, { remember })
-      // Show success toast on final login completion
-      success('Logged in successfully')
+      // Login success notification shown on destination via navigate state (Option A)
       const emailToRemember = values?.email
       if (remember) rememberEmail(emailToRemember)
       else clearRememberedEmail()
@@ -191,15 +194,14 @@ export function useLoginFlow({ onSubmit } = {}) {
   const handleVerificationSubmit = React.useCallback((user) => {
     // Complete login after verification
     login(user, { remember: rememberMe })
-    // Show success toast on final login completion
-    success('Logged in successfully')
+    // Login success notification shown on destination via navigate state (Option A)
     if (rememberMe) rememberEmail(emailForVerify)
     else clearRememberedEmail()
     if (typeof onSubmit === 'function') onSubmit(user)
     // Reset step for next time
     setStep('login')
     setDevCode(null)
-  }, [login, rememberMe, emailForVerify, rememberEmail, clearRememberedEmail, success, onSubmit])
+  }, [login, rememberMe, emailForVerify, rememberEmail, clearRememberedEmail, onSubmit])
 
   // Start with empty email so we never pre-fill with last remembered (e.g. admin) account
   const initialValues = React.useMemo(() => ({ rememberMe: false, email: '' }), [])
@@ -217,6 +219,8 @@ export function useLoginFlow({ onSubmit } = {}) {
   const prefillLguManager = () => prefill(env.VITE_DEV_EMAIL_MANAGER || 'manager@example.com', devPassword)
   const prefillInspector = () => prefill(env.VITE_DEV_EMAIL_INSPECTOR || 'inspector@example.com', devPassword)
   const prefillCso = () => prefill(env.VITE_DEV_EMAIL_CSO || 'cso@example.com', devPassword)
+
+  const prefillInvalid = () => prefill('wrong@example.com', 'WrongPassword123!')
 
   const goBackToLogin = React.useCallback(() => {
     setStep('login')
@@ -250,5 +254,6 @@ export function useLoginFlow({ onSubmit } = {}) {
     prefillCso,
     prefillAdmin2,
     prefillAdmin3,
+    prefillInvalid,
   }
 }
