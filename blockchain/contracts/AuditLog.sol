@@ -76,6 +76,10 @@ contract AuditLog {
 
     // Mapping for quick hash lookup
     mapping(bytes32 => bool) public hashExists;
+    
+    // OPTIMIZATION: Direct hash-to-timestamp mapping for O(1) lookup
+    // Eliminates O(n) loop in verifyHash function
+    mapping(bytes32 => uint256) public hashTimestamp;
 
     modifier onlyAuditor() {
         require(
@@ -101,6 +105,7 @@ contract AuditLog {
         require(!hashExists[hash], "Hash already exists");
 
         hashExists[hash] = true;
+        hashTimestamp[hash] = block.timestamp;  // OPTIMIZATION: Store timestamp in mapping
         
         auditHashEntries.push(AuditHashEntry({
             hash: hash,
@@ -191,13 +196,10 @@ contract AuditLog {
     function verifyHash(bytes32 hash) public view returns (bool exists, uint256 timestamp) {
         exists = hashExists[hash];
         if (exists) {
-            // Find the entry
-            for (uint256 i = 0; i < auditHashEntries.length; i++) {
-                if (auditHashEntries[i].hash == hash) {
-                    timestamp = auditHashEntries[i].timestamp;
-                    break;
-                }
-            }
+            // OPTIMIZATION: O(1) lookup instead of O(n) loop
+            // Before: iterated through entire auditHashEntries array
+            // After: direct mapping lookup - constant time regardless of array size
+            timestamp = hashTimestamp[hash];
         }
     }
 
@@ -223,5 +225,121 @@ contract AuditLog {
      */
     function getAdminApprovalCount() public view returns (uint256) {
         return adminApprovalEntries.length;
+    }
+
+    // =========================================================================
+    // SPRINT 2 FEATURE: Audit History Retrieval
+    // =========================================================================
+
+    /**
+     * @dev Get audit hash entries within a time range (paginated)
+     * SPRINT 2 FEATURE: Allows retrieving historical audit data
+     * @param startTime Unix timestamp for range start
+     * @param endTime Unix timestamp for range end
+     * @param offset Starting index for pagination
+     * @param limit Maximum entries to return
+     * @return hashes Array of hashes in range
+     * @return timestamps Array of corresponding timestamps
+     * @return eventTypes Array of event types
+     * @return totalInRange Total count of entries in the time range
+     */
+    function getAuditHistory(
+        uint256 startTime,
+        uint256 endTime,
+        uint256 offset,
+        uint256 limit
+    ) public view returns (
+        bytes32[] memory hashes,
+        uint256[] memory timestamps,
+        string[] memory eventTypes,
+        uint256 totalInRange
+    ) {
+        // First pass: count entries in range
+        uint256 count = 0;
+        for (uint256 i = 0; i < auditHashEntries.length; i++) {
+            if (auditHashEntries[i].timestamp >= startTime && 
+                auditHashEntries[i].timestamp <= endTime) {
+                count++;
+            }
+        }
+        totalInRange = count;
+
+        // Calculate actual return size
+        uint256 returnSize = count > offset ? count - offset : 0;
+        if (returnSize > limit) {
+            returnSize = limit;
+        }
+
+        // Allocate arrays
+        hashes = new bytes32[](returnSize);
+        timestamps = new uint256[](returnSize);
+        eventTypes = new string[](returnSize);
+
+        // Second pass: populate arrays
+        uint256 found = 0;
+        uint256 added = 0;
+        for (uint256 i = 0; i < auditHashEntries.length && added < returnSize; i++) {
+            if (auditHashEntries[i].timestamp >= startTime && 
+                auditHashEntries[i].timestamp <= endTime) {
+                if (found >= offset) {
+                    hashes[added] = auditHashEntries[i].hash;
+                    timestamps[added] = auditHashEntries[i].timestamp;
+                    eventTypes[added] = auditHashEntries[i].eventType;
+                    added++;
+                }
+                found++;
+            }
+        }
+    }
+
+    /**
+     * @dev Get the most recent N audit entries
+     * SPRINT 2 FEATURE: Quick access to recent audit activity
+     * @param count Number of recent entries to retrieve
+     * @return hashes Array of recent hashes
+     * @return timestamps Array of timestamps
+     * @return eventTypes Array of event types
+     */
+    function getRecentAudits(uint256 count) public view returns (
+        bytes32[] memory hashes,
+        uint256[] memory timestamps,
+        string[] memory eventTypes
+    ) {
+        uint256 total = auditHashEntries.length;
+        uint256 returnSize = count > total ? total : count;
+
+        hashes = new bytes32[](returnSize);
+        timestamps = new uint256[](returnSize);
+        eventTypes = new string[](returnSize);
+
+        for (uint256 i = 0; i < returnSize; i++) {
+            uint256 idx = total - returnSize + i;
+            hashes[i] = auditHashEntries[idx].hash;
+            timestamps[i] = auditHashEntries[idx].timestamp;
+            eventTypes[i] = auditHashEntries[idx].eventType;
+        }
+    }
+
+    /**
+     * @dev Get audit statistics
+     * SPRINT 2 FEATURE: Dashboard statistics for audit overview
+     * @return totalHashes Total number of audit hashes
+     * @return totalCriticalEvents Total critical events
+     * @return totalApprovals Total admin approvals
+     * @return latestTimestamp Timestamp of most recent entry
+     */
+    function getAuditStats() public view returns (
+        uint256 totalHashes,
+        uint256 totalCriticalEvents,
+        uint256 totalApprovals,
+        uint256 latestTimestamp
+    ) {
+        totalHashes = auditHashEntries.length;
+        totalCriticalEvents = criticalEventEntries.length;
+        totalApprovals = adminApprovalEntries.length;
+        
+        if (auditHashEntries.length > 0) {
+            latestTimestamp = auditHashEntries[auditHashEntries.length - 1].timestamp;
+        }
     }
 }

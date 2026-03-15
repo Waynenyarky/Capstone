@@ -367,39 +367,60 @@ router.get('/overview/cessations', async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 20, 100)
     const status = req.query.status
 
-    const matchStage = { 'businesses.retirementStatus': { $exists: true, $ne: '' } }
-    if (status && status !== 'all') {
-      matchStage['businesses.retirementStatus'] = status
+    const retirementSignalMatch = {
+      $or: [
+        { 'businesses.retirementStatus': { $exists: true, $ne: '' } },
+        { 'businesses.retirementRequestedAt': { $ne: null } },
+        { 'businesses.retirementConfirmedAt': { $ne: null } },
+        { 'businesses.inspectorVerifiedAt': { $ne: null } },
+        { 'businesses.businessStatus': 'closed' },
+      ],
+    }
+
+    const normalizedProjection = {
+      businessProfileId: '$_id',
+      businessId: '$businesses.businessId',
+      businessName: { $ifNull: ['$businesses.registeredBusinessName', '$businesses.businessName'] },
+      retirementStatus: {
+        $cond: [
+          {
+            $or: [
+              { $eq: ['$businesses.retirementStatus', null] },
+              { $eq: ['$businesses.retirementStatus', ''] },
+            ],
+          },
+          {
+            $cond: [{ $eq: ['$businesses.businessStatus', 'closed'] }, 'confirmed', ''],
+          },
+          '$businesses.retirementStatus',
+        ],
+      },
+      retirementRequestedAt: '$businesses.retirementRequestedAt',
+      retirementConfirmedAt: '$businesses.retirementConfirmedAt',
+      updatedAt: '$businesses.updatedAt',
     }
 
     const pipeline = [
       { $unwind: '$businesses' },
-      { $match: matchStage },
-      { $sort: { 'businesses.retirementRequestedAt': -1 } },
+      { $match: retirementSignalMatch },
+      { $project: normalizedProjection },
+      ...(status && status !== 'all' ? [{ $match: { retirementStatus: status } }] : []),
+      { $sort: { retirementRequestedAt: -1, updatedAt: -1 } },
     ]
 
     const [countResult, kpiResult, itemsResult] = await Promise.all([
       BusinessProfile.aggregate([...pipeline, { $count: 'total' }]),
       BusinessProfile.aggregate([
         { $unwind: '$businesses' },
-        { $match: { 'businesses.retirementStatus': { $exists: true, $ne: '' } } },
-        { $group: { _id: '$businesses.retirementStatus', count: { $sum: 1 } } },
+        { $match: retirementSignalMatch },
+        { $project: normalizedProjection },
+        { $match: { retirementStatus: { $ne: '' } } },
+        { $group: { _id: '$retirementStatus', count: { $sum: 1 } } },
       ]),
       BusinessProfile.aggregate([
         ...pipeline,
         { $skip: (page - 1) * limit },
         { $limit: limit },
-        {
-          $project: {
-            businessProfileId: '$_id',
-            businessId: '$businesses.businessId',
-            businessName: { $ifNull: ['$businesses.registeredBusinessName', '$businesses.businessName'] },
-            retirementStatus: '$businesses.retirementStatus',
-            retirementRequestedAt: '$businesses.retirementRequestedAt',
-            retirementConfirmedAt: '$businesses.retirementConfirmedAt',
-            updatedAt: '$businesses.updatedAt',
-          },
-        },
       ]),
     ])
 
@@ -619,6 +640,244 @@ router.post('/reports/generate', async (req, res) => {
   } catch (err) {
     console.error('POST /api/lgu-manager/reports/generate error:', err)
     return respond.error(res, 500, 'report_error', err.message || 'Failed to generate report')
+  }
+})
+
+/**
+ * GET /api/lgu-manager/payments/pending
+ * Get pending payments that need verification
+ */
+router.get('/payments/pending', async (req, res) => {
+  try {
+    const Payment = require('../models/Payment')
+    
+    const pendingPayments = await Payment.find({
+      status: 'paid',
+      verificationStatus: { $in: ['pending', null] }
+    })
+      .populate('businessId', 'businessName')
+      .sort({ createdAt: -1 })
+      .lean()
+    
+    return respond.success(res, 200, { payments: pendingPayments })
+  } catch (err) {
+    console.error('GET /api/lgu-manager/payments/pending error:', err)
+    return respond.error(res, 500, 'fetch_error', 'Failed to fetch pending payments')
+  }
+})
+
+/**
+ * PUT /api/lgu-manager/payments/:paymentId/verify
+ * Verify a payment
+ */
+router.put('/payments/:paymentId/verify', async (req, res) => {
+  try {
+    const Payment = require('../models/Payment')
+    const { verificationNotes, officialReceiptNumber } = req.body
+    
+    const payment = await Payment.findByIdAndUpdate(
+      req.params.paymentId,
+      {
+        verificationStatus: 'verified',
+        verifiedBy: req._userId,
+        verifiedAt: new Date(),
+        verificationNotes,
+        officialReceiptNumber
+      },
+      { new: true }
+    )
+    
+    if (!payment) {
+      return respond.error(res, 404, 'not_found', 'Payment not found')
+    }
+    
+    return respond.success(res, 200, { payment })
+  } catch (err) {
+    console.error('PUT /api/lgu-manager/payments/:paymentId/verify error:', err)
+    return respond.error(res, 500, 'verification_error', 'Failed to verify payment')
+  }
+})
+
+/**
+ * PUT /api/lgu-manager/payments/:paymentId/reject
+ * Reject a payment
+ */
+router.put('/payments/:paymentId/reject', async (req, res) => {
+  try {
+    const Payment = require('../models/Payment')
+    const { rejectionReason } = req.body
+    
+    if (!rejectionReason) {
+      return respond.error(res, 400, 'missing_reason', 'Rejection reason is required')
+    }
+    
+    const payment = await Payment.findByIdAndUpdate(
+      req.params.paymentId,
+      {
+        verificationStatus: 'rejected',
+        rejectedBy: req._userId,
+        rejectedAt: new Date(),
+        rejectionReason,
+        status: 'cancelled'
+      },
+      { new: true }
+    )
+    
+    if (!payment) {
+      return respond.error(res, 404, 'not_found', 'Payment not found')
+    }
+    
+    return respond.success(res, 200, { payment })
+  } catch (err) {
+    console.error('PUT /api/lgu-manager/payments/:paymentId/reject error:', err)
+    return respond.error(res, 500, 'rejection_error', 'Failed to reject payment')
+  }
+})
+
+/**
+ * GET /api/lgu-manager/payments/reports/daily
+ * Get daily collection report
+ */
+router.get('/payments/reports/daily', async (req, res) => {
+  try {
+    const Payment = require('../models/Payment')
+    const { date } = req.query
+    
+    const targetDate = date ? new Date(date) : new Date()
+    const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0))
+    const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999))
+    
+    const payments = await Payment.find({
+      createdAt: { $gte: startOfDay, $lte: endOfDay }
+    }).lean()
+    
+    const totalCollections = payments
+      .filter(p => p.verificationStatus === 'verified')
+      .reduce((sum, p) => sum + (p.amount || 0), 0)
+    
+    const verifiedPayments = payments.filter(p => p.verificationStatus === 'verified').length
+    const pendingPayments = payments.filter(p => !p.verificationStatus || p.verificationStatus === 'pending').length
+    
+    return respond.success(res, 200, {
+      date: targetDate.toISOString(),
+      totalCollections,
+      verifiedPayments,
+      pendingPayments,
+      totalPayments: payments.length
+    })
+  } catch (err) {
+    console.error('GET /api/lgu-manager/payments/reports/daily error:', err)
+    return respond.error(res, 500, 'report_error', 'Failed to generate daily report')
+  }
+})
+
+/**
+ * GET /api/lgu-manager/inspections/pending
+ * Get pending inspections that need assignment
+ */
+router.get('/inspections/pending', async (req, res) => {
+  try {
+    const pendingInspections = await Inspection.find({
+      status: { $in: ['pending', 'unassigned'] }
+    })
+      .populate('businessProfileId', 'ownerName firstName lastName')
+      .sort({ createdAt: 1 })
+      .lean()
+    
+    return respond.success(res, 200, { inspections: pendingInspections })
+  } catch (err) {
+    console.error('GET /api/lgu-manager/inspections/pending error:', err)
+    return respond.error(res, 500, 'fetch_error', 'Failed to fetch pending inspections')
+  }
+})
+
+/**
+ * GET /api/lgu-manager/inspectors
+ * Get list of available inspectors
+ */
+router.get('/inspectors', async (req, res) => {
+  try {
+    const User = require('../models/User')
+    const Role = require('../models/Role')
+    
+    const inspectorRole = await Role.findOne({ slug: 'inspector' })
+    if (!inspectorRole) {
+      return respond.success(res, 200, { inspectors: [] })
+    }
+    
+    const inspectors = await User.find({ role: inspectorRole._id })
+      .select('firstName lastName email phoneNumber')
+      .lean()
+    
+    return respond.success(res, 200, { inspectors })
+  } catch (err) {
+    console.error('GET /api/lgu-manager/inspectors error:', err)
+    return respond.error(res, 500, 'fetch_error', 'Failed to fetch inspectors')
+  }
+})
+
+/**
+ * GET /api/lgu-manager/inspectors/:inspectorId/workload
+ * Get inspector workload statistics
+ */
+router.get('/inspectors/:inspectorId/workload', async (req, res) => {
+  try {
+    const { inspectorId } = req.params
+    
+    const activeInspections = await Inspection.countDocuments({
+      inspectorId,
+      status: { $in: ['assigned', 'scheduled', 'in_progress'] }
+    })
+    
+    const completedInspections = await Inspection.countDocuments({
+      inspectorId,
+      status: 'completed'
+    })
+    
+    const pendingInspections = await Inspection.countDocuments({
+      inspectorId,
+      status: 'pending'
+    })
+    
+    return respond.success(res, 200, {
+      activeInspections,
+      completedInspections,
+      pendingInspections,
+      totalInspections: activeInspections + completedInspections + pendingInspections
+    })
+  } catch (err) {
+    console.error('GET /api/lgu-manager/inspectors/:inspectorId/workload error:', err)
+    return respond.error(res, 500, 'fetch_error', 'Failed to fetch inspector workload')
+  }
+})
+
+/**
+ * GET /api/lgu-manager/inspectors/:inspectorId/schedule
+ * Get inspector schedule
+ */
+router.get('/inspectors/:inspectorId/schedule', async (req, res) => {
+  try {
+    const { inspectorId } = req.params
+    const { startDate, endDate } = req.query
+    
+    const query = { inspectorId }
+    
+    if (startDate && endDate) {
+      query.scheduledDate = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      }
+    }
+    
+    const schedule = await Inspection.find(query)
+      .populate('businessProfileId', 'ownerName')
+      .sort({ scheduledDate: 1 })
+      .lean()
+    
+    return respond.success(res, 200, { schedule })
+  } catch (err) {
+    console.error('GET /api/lgu-manager/inspectors/:inspectorId/schedule error:', err)
+    return respond.error(res, 500, 'fetch_error', 'Failed to fetch inspector schedule')
   }
 })
 

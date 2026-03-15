@@ -126,6 +126,7 @@ async function seedDevDataIfEmpty() {
         return;
       }
       const passwordHash = overrides.passwordHash || tempPasswordHash;
+      const overwriteSensitiveFields = overrides.overwriteSensitiveFields === true;
       const existing = await User.findOne({ email }).lean();
       if (!existing) {
         await User.findOneAndUpdate(
@@ -152,17 +153,29 @@ async function seedDevDataIfEmpty() {
         );
       } else {
         // Only sync role and profile metadata; preserve password, onboarding, and MFA state
+        const update = {
+          role: roleDoc._id,
+          firstName,
+          lastName,
+          phoneNumber: phoneNumber || '',
+          isStaff: overrides.isStaff ?? existing.isStaff ?? false,
+          office: overrides.office ?? existing.office ?? '',
+          createdBy: 'seeder',
+        };
+        if (overwriteSensitiveFields) {
+          update.passwordHash = passwordHash;
+          update.termsAccepted = overrides.termsAccepted ?? true;
+          update.isActive = overrides.isActive ?? true;
+          update.mustChangeCredentials = overrides.mustChangeCredentials ?? false;
+          update.mustSetupMfa = overrides.mustSetupMfa ?? false;
+          update.mfaEnabled = overrides.mfaEnabled ?? false;
+          update.mfaMethod = overrides.mfaMethod || '';
+          update.mfaSecret = overrides.mfaSecret || '';
+          update.passwordChangedAt = null;
+        }
         await User.findOneAndUpdate(
           { email },
-          {
-            role: roleDoc._id,
-            firstName,
-            lastName,
-            phoneNumber: phoneNumber || '',
-            isStaff: overrides.isStaff ?? existing.isStaff ?? false,
-            office: overrides.office ?? existing.office ?? '',
-            createdBy: 'seeder',
-          },
+          update,
           { new: true, runValidators: false }
         );
       }
@@ -197,10 +210,14 @@ async function seedDevDataIfEmpty() {
       office: 'CTO',
     });
     await ensureUser(devEmails.inspector, 'inspector', 'Ian', 'Inspector', '+1-555-0505', {
-      mustChangeCredentials: true,
-      mustSetupMfa: true,
+      mustChangeCredentials: false,
+      mustSetupMfa: false,
+      mfaEnabled: false,
+      mfaMethod: '',
+      mfaSecret: '',
       isStaff: true,
       office: 'BFP',
+      overwriteSensitiveFields: true,
     });
     await ensureUser(devEmails.cso, 'cso', 'Charlie', 'Support', '+1-555-0606', {
       mustChangeCredentials: true,

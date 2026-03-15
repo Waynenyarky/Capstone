@@ -83,6 +83,15 @@ const EditRequestSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+EditRequestSchema.plugin(encryptionPlugin, {
+  fields: ['reason', 'reviewNotes', 'comment'],
+  deterministicFields: ['businessId', 'fieldName'],
+  nestedPaths: [],
+  arrayPaths: ['fieldsToChange', 'supportingDocuments'],
+  mixedPaths: ['currentValue', 'requestedValue'],
+})
+
 module.exports =
   mongoose.models.EditRequest ||
   mongoose.model('EditRequest', EditRequestSchema)

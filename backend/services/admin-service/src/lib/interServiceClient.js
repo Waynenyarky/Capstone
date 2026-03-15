@@ -83,6 +83,43 @@ async function callAuditService(endpoint, method = 'POST', data = null, token = 
 }
 
 /**
+ * Call Business Service
+ */
+async function callBusinessService(endpoint, method = 'GET', data = null, token = null) {
+  const businessServiceUrl = process.env.BUSINESS_SERVICE_URL || 'http://localhost:5001';
+  const url = `${businessServiceUrl}${endpoint}`;
+  
+  try {
+    const config = {
+      method,
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    };
+    
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+      config.data = data;
+    }
+    
+    const response = await axios(config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    logger.error('Business Service call failed', { 
+      endpoint, 
+      method, 
+      error: error.message,
+      status: error.response?.status 
+    });
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Apply approved change
  * Uses auth service's implementation when in test (shared DB) for correct User model;
  * otherwise uses local admin implementation
@@ -114,6 +151,7 @@ async function logToBlockchain(operation, params, auditLogId = null) {
 module.exports = {
   callAuthService,
   callAuditService,
+  callBusinessService,
   applyApprovedChange,
   logToBlockchain,
 };

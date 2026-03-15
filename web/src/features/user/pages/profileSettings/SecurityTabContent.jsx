@@ -216,7 +216,7 @@ export default function SecurityTabContent({ showPasswordSection = false, showDe
                 <div>
                   <Title level={5} style={{ margin: 0, marginBottom: 4 }}>Delete account</Title>
                   <Paragraph type="secondary" style={{ margin: 0 }}>
-                    Permanently close your account. We'll verify your identity by email first.
+                    Remove your account access after identity verification. Some records may be retained where required for BPLO, legal, audit, or government record-keeping purposes.
                   </Paragraph>
                 </div>
                 <Button type="primary" danger onClick={() => setDeleteAccountShowingFlow(true)} icon={<DeleteOutlined />}>
@@ -241,7 +241,7 @@ export default function SecurityTabContent({ showPasswordSection = false, showDe
   if (isMobile) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-        <div style={{ flexShrink: 0, marginBottom: 24 }}>
+        <div style={{ flexShrink: 0, marginBottom: 24, textAlign: 'center' }}>
           <Title level={4} style={{ marginBottom: 4 }}>Security</Title>
           <Paragraph type="secondary" style={{ margin: 0 }}>
             Manage password, two-factor authentication, email, and active sessions.
@@ -262,7 +262,7 @@ export default function SecurityTabContent({ showPasswordSection = false, showDe
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: 0 }}>
-      <div style={{ flexShrink: 0, marginBottom: 24 }}>
+      <div style={{ flexShrink: 0, marginBottom: 24, textAlign: 'center' }}>
         <Title level={4} style={{ marginBottom: 4 }}>Security</Title>
         <Paragraph type="secondary" style={{ margin: 0 }}>
           Manage password, two-factor authentication, email, and active sessions.

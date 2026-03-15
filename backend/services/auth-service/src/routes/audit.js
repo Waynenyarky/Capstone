@@ -55,6 +55,136 @@ async function logAuditView(viewerId, viewedUserId, auditLogId = null) {
   }
 }
 
+// GET /api/auth/audit/my-actions
+// Get current user's work-related action history (excludes security events)
+// Uses raw MongoDB collection to bypass Mongoose enum restrictions, since officer work
+// events (application_claimed, permit_review, etc.) are written by admin-service
+// and the auth-service AuditLog model's enum doesn't include them.
+// Also decrypts metadata in application code since metadata is encrypted at rest.
+router.get('/my-actions', requireJwt, async (req, res) => {
+  try {
+    const mongoose = require('mongoose')
+    const viewerId = req._userId
+    const viewerIdStr = String(viewerId)
+    const limit = Math.min(Number(req.query.limit) || 100, 200)
+    const skip = Number(req.query.skip) || 0
+    const eventType = req.query.eventType
+
+    // Import decryption utility
+    let decrypt
+    try {
+      decrypt = require('../../../../shared/lib/fieldCipher').decrypt
+    } catch (e) {
+      decrypt = (v) => v
+    }
+
+    // Security events to exclude
+    const securityEvents = [
+      'login', 'logout', 'login_failed', 'signup',
+      'password_change', 'email_change', 'phone_change',
+      'mfa_enabled', 'mfa_disabled', 'mfa_verified', 'mfa_setup_started',
+      'mfa_fingerprint_registered', 'mfa_fingerprint_removed',
+      'webauthn_registered', 'webauthn_removed',
+      'session_invalidated', 'session_timeout',
+      'account_lock', 'account_unlock',
+      'first_login_credentials_changed',
+      'avatar_uploaded', 'avatar_deleted',
+      'profile_update', 'contact_update', 'name_update',
+    ]
+
+    // Query raw collection directly to bypass Mongoose enum validation
+    const collection = mongoose.connection.db.collection('auditlogs')
+
+    // Step 1: Get logs where officer is the direct userId (non-security events)
+    const directQuery = {
+      userId: new mongoose.Types.ObjectId(viewerIdStr),
+      eventType: { $nin: securityEvents },
+    }
+    if (eventType) directQuery.eventType = eventType
+
+    const directLogs = await collection
+      .find(directQuery)
+      .sort({ createdAt: -1 })
+      .limit(limit * 2) // fetch extra since we'll merge
+      .toArray()
+
+    // Step 2: Get ALL recent work-event logs (non-security) and filter by decrypted metadata.officerId
+    // We can't query encrypted metadata directly, so we fetch work events and filter in JS
+    const workEventTypes = [
+      'permit_review', 'permit_review_started',
+      'application_claimed', 'application_released', 'application_transferred',
+    ]
+    const workQuery = {
+      eventType: { $in: workEventTypes },
+    }
+    if (eventType) workQuery.eventType = eventType
+
+    const workLogs = await collection
+      .find(workQuery)
+      .sort({ createdAt: -1 })
+      .limit(500) // reasonable window
+      .toArray()
+
+    // Decrypt metadata and filter by officerId
+    const officerWorkLogs = workLogs.filter(log => {
+      let meta = log.metadata
+      if (typeof meta === 'string') {
+        try { meta = JSON.parse(decrypt(meta) || meta) } catch { return false }
+      }
+      if (!meta || typeof meta !== 'object') return false
+      const officerId = meta.officerId
+      return officerId && String(officerId) === viewerIdStr
+    })
+
+    // Merge and deduplicate by _id
+    const seen = new Set()
+    const merged = []
+    for (const log of [...directLogs, ...officerWorkLogs]) {
+      const id = String(log._id)
+      if (seen.has(id)) continue
+      seen.add(id)
+      merged.push(log)
+    }
+
+    // Sort by createdAt desc, apply pagination
+    merged.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    const paginated = merged.slice(skip, skip + limit)
+
+    // Decrypt fields and format response
+    const safeLogs = paginated.map((log) => {
+      let meta = log.metadata
+      if (typeof meta === 'string') {
+        try { meta = JSON.parse(decrypt(meta) || meta) } catch { meta = {} }
+      }
+      return {
+        _id: String(log._id),
+        eventType: log.eventType,
+        fieldChanged: log.fieldChanged || null,
+        oldValue: decrypt(log.oldValue) || log.oldValue || '',
+        newValue: decrypt(log.newValue) || log.newValue || '',
+        role: decrypt(log.role) || log.role || '',
+        createdAt: log.createdAt,
+        verified: log.verified || false,
+        txHash: log.txHash || '',
+        blockNumber: log.blockNumber || null,
+        metadata: meta,
+      }
+    })
+
+    return res.json({
+      success: true,
+      logs: safeLogs,
+      total: merged.length,
+      limit,
+      skip,
+      hasMore: skip + limit < merged.length,
+    })
+  } catch (err) {
+    console.error('GET /api/auth/audit/my-actions error:', err)
+    return respond.error(res, 500, 'my_actions_failed', 'Failed to retrieve action history')
+  }
+})
+
 // GET /api/auth/audit/history
 // Get user's audit history
 router.get('/history', requireJwt, async (req, res) => {
@@ -563,6 +693,140 @@ router.get('/admin/recent', requireJwt, requireRole(['admin']), async (req, res)
   } catch (err) {
     console.error('GET /api/auth/admin/audit/recent error:', err)
     return respond.error(res, 500, 'recent_audit_failed', 'Failed to retrieve recent audit activity')
+  }
+})
+
+// GET /api/auth/audit/staff/all
+// Get all audit logs for staff users (lgu_officer, lgu_manager, etc.)
+// Shows system-wide logs relevant to staff operations
+router.get('/staff/all', requireJwt, async (req, res) => {
+  try {
+    const viewerRole = req._userRole
+    const { isStaffRole } = require('../lib/roleHelpers')
+    
+    // Only staff and admin can access this endpoint
+    if (!isStaffRole(viewerRole) && viewerRole !== 'admin') {
+      return respond.error(res, 403, 'forbidden', 'Staff access required')
+    }
+
+    const limit = Math.min(Number(req.query.limit) || 100, 200)
+    const skip = Number(req.query.skip) || 0
+    const eventType = req.query.eventType
+    const startDate = req.query.startDate ? new Date(req.query.startDate) : null
+    const endDate = req.query.endDate ? new Date(req.query.endDate) : null
+    const search = req.query.search ? String(req.query.search).trim() : ''
+
+    // Build query - show all logs (not filtered by userId)
+    const query = {}
+    if (eventType) query.eventType = eventType
+    if (startDate || endDate) {
+      query.createdAt = {}
+      if (startDate) query.createdAt.$gte = startDate
+      if (endDate) query.createdAt.$lte = endDate
+    }
+
+    // If search is provided, find matching users first
+    if (search) {
+      const searchRegex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+      const matchingUsers = await User.find({
+        $or: [
+          { firstName: searchRegex },
+          { lastName: searchRegex },
+          { email: searchRegex },
+        ],
+      }).select('_id').lean()
+      if (matchingUsers.length > 0) {
+        query.userId = { $in: matchingUsers.map((u) => u._id) }
+      } else {
+        // Also search by eventType
+        query.$or = [
+          { eventType: searchRegex },
+        ]
+      }
+    }
+
+    const [auditLogs, total] = await Promise.all([
+      AuditLog.find(query).sort({ createdAt: -1 }).limit(limit).skip(skip).lean(),
+      AuditLog.countDocuments(query),
+    ])
+
+    // Collect unique userIds to resolve names
+    const userIds = [...new Set(auditLogs.map((l) => String(l.userId)))]
+    const users = await User.find({ _id: { $in: userIds } })
+      .select('_id firstName lastName email office role')
+      .populate('role')
+      .lean()
+    const userMap = new Map(users.map((u) => [String(u._id), u]))
+
+    // Resolve "performed by" (actor) from metadata
+    const performerIdKeys = ['changedBy', 'resetBy', 'issuedBy', 'approvedBy', 'deniedBy', 'reviewedBy', 'claimedBy', 'releasedBy', 'transferredBy']
+    const performerIds = new Set()
+    auditLogs.forEach((log) => {
+      const meta = log.metadata || {}
+      for (const key of performerIdKeys) {
+        const val = meta[key]
+        if (val != null) {
+          const ids = Array.isArray(val) ? val : [val]
+          ids.forEach((id) => {
+            const sid = String(id)
+            if (sid && /^[0-9a-fA-F]{24}$/.test(sid)) performerIds.add(sid)
+          })
+        }
+      }
+    })
+    const performerUsers = performerIds.size > 0 
+      ? await User.find({ _id: { $in: [...performerIds] } }).select('_id firstName lastName email').lean()
+      : []
+    const performerMap = new Map(performerUsers.map((u) => [String(u._id), u]))
+
+    const safeLogs = auditLogs.map((log) => {
+      const masked = maskAuditLogData(log)
+      const user = userMap.get(String(masked.userId))
+      let performedBy = null
+      const meta = masked.metadata || {}
+      for (const key of performerIdKeys) {
+        const val = meta[key]
+        if (val != null) {
+          const id = Array.isArray(val) ? val[0] : val
+          const sid = String(id)
+          if (sid && /^[0-9a-fA-F]{24}$/.test(sid)) {
+            const performer = performerMap.get(sid)
+            performedBy = performer ? [performer.firstName, performer.lastName].filter(Boolean).join(' ') || performer.email : null
+          }
+          break
+        }
+      }
+      return {
+        _id: String(masked._id),
+        userId: String(masked.userId),
+        eventType: masked.eventType,
+        fieldChanged: masked.fieldChanged,
+        oldValue: masked.oldValue,
+        newValue: masked.newValue,
+        role: masked.role,
+        performedBy: performedBy || undefined,
+        user: user ? [user.firstName, user.lastName].filter(Boolean).join(' ') : '—',
+        userEmail: user?.email || '—',
+        userRole: user?.role?.slug || '—',
+        office: user?.office || '—',
+        createdAt: masked.createdAt,
+        metadata: masked.metadata,
+        verified: masked.verified,
+        txHash: masked.txHash,
+      }
+    })
+
+    return res.json({
+      success: true,
+      logs: safeLogs,
+      total,
+      limit,
+      skip,
+      hasMore: skip + limit < total,
+    })
+  } catch (err) {
+    console.error('GET /api/auth/audit/staff/all error:', err)
+    return respond.error(res, 500, 'staff_audit_failed', 'Failed to retrieve staff audit logs')
   }
 })
 

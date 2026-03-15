@@ -28,7 +28,7 @@ export default function ThemeTabContent({
       <div style={{ flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
           <div>
-            <Title level={4} style={{ marginBottom: 4 }}>Theme</Title>
+            <Title level={4} style={{ marginBottom: 4, textAlign: 'center' }}>Theme</Title>
             <Paragraph type="secondary" style={{ margin: 0 }}>
               Personalize your application appearance. Choose a base theme and primary color, then apply changes.
             </Paragraph>

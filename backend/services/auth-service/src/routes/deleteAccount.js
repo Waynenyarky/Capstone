@@ -16,6 +16,10 @@ const { trackIP, isUnusualIP } = require('../lib/ipTracker')
 const { checkLockout, incrementFailedAttempts } = require('../lib/accountLockout')
 const securityMonitor = require('../middleware/securityMonitor')
 const { isBusinessOwnerRole } = require('../lib/roleHelpers')
+const webauthnServer = require('@simplewebauthn/server')
+const webauthnRouter = require('./webauthn')
+const authenticationChallenges = webauthnRouter.authenticationChallenges || new Map()
+const { consumeDeleteAccountVerified } = require('../lib/mfaStepUpVerify')
 
 const router = express.Router()
 
@@ -25,7 +29,11 @@ const optionalEmailSchema = Joi.object({
 
 const verifyCodeSchema = Joi.object({
   email: Joi.string().email().required(),
-  code: Joi.string().pattern(/^[0-9]{6}$/).required(),
+  code: Joi.alternatives().try(
+    Joi.string().pattern(/^[0-9]{6}$/),
+    Joi.string().valid('TOTP_VERIFIED'),
+    Joi.string().valid('PASSKEY_BYPASS')
+  ).required(),
 })
 
 const confirmDeleteSchema = Joi.object({
@@ -54,7 +62,51 @@ const verifyLimiter = perEmailRateLimit({
   message: 'Too many verification attempts; try again later.',
 })
 
+async function requireJwtForBypass(req, res, next) {
+  const code = String(req.body?.code || '')
+  if (code === 'TOTP_VERIFIED' || code === 'PASSKEY_BYPASS') {
+    return requireJwt(req, res, next)
+  }
+  return next()
+}
+
 // --- Delete Account (30-day waiting period) ---
+
+router.post('/delete-account/passkey/start', requireJwt, async (req, res) => {
+  try {
+    const userId = req._userId
+    const user = await User.findById(userId)
+    if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
+
+    const hasPasskeys = Array.isArray(user.webauthnCredentials) && user.webauthnCredentials.length > 0
+    if (!hasPasskeys) return respond.error(res, 400, 'no_passkeys', 'No passkeys registered')
+
+    const allowCredentials = (user.webauthnCredentials || []).map((c) => {
+      const credId = String(c.credId || '').trim()
+      if (!credId) return null
+      return { id: credId, type: 'public-key', transports: c.transports || [] }
+    }).filter(Boolean)
+
+    const rpID = process.env.WEBAUTHN_RPID || 'localhost'
+    const options = await webauthnServer.generateAuthenticationOptions({
+      rpID,
+      timeout: 60000,
+      allowCredentials: allowCredentials.length > 0 ? allowCredentials : undefined,
+      userVerification: 'preferred',
+    })
+
+    let challengeToStore = options.challenge
+    if (Buffer.isBuffer(challengeToStore)) challengeToStore = challengeToStore.toString('base64url')
+    else if (challengeToStore instanceof Uint8Array) challengeToStore = Buffer.from(challengeToStore).toString('base64url')
+    else if (typeof challengeToStore !== 'string') challengeToStore = Buffer.from(challengeToStore).toString('base64url')
+
+    authenticationChallenges.set('delete_account_' + String(userId), challengeToStore)
+    return res.json({ publicKey: options })
+  } catch (err) {
+    console.error('POST /api/auth/delete-account/passkey/start error:', err)
+    return respond.error(res, 500, 'passkey_start_failed', 'Failed to start passkey verification')
+  }
+})
 
 router.post('/delete-account/authenticated', requireJwt, validateBody(passwordOnlySchema), async (req, res) => {
   try {
@@ -116,6 +168,19 @@ router.post('/delete-account/send-code', requireJwt, sendCodeLimiter, validateBo
     }
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
 
+    const mfaMethod = String(doc.mfaMethod || '').toLowerCase()
+    const hasTotpSecret = !!doc.mfaSecret
+    const isAuthenticatorMethod = mfaMethod.includes('authenticator') || mfaMethod.includes('fingerprint')
+    const totpEnabled = hasTotpSecret && (doc.mfaEnabled === true || isAuthenticatorMethod)
+    const hasPasskeys = Array.isArray(doc.webauthnCredentials) && doc.webauthnCredentials.length > 0
+
+    if (totpEnabled) {
+      return res.json({ sent: false, mfaRequired: true, method: 'totp' })
+    }
+    if (!totpEnabled && hasPasskeys) {
+      return res.json({ sent: false, passkeyBypass: true, method: 'passkey' })
+    }
+
     const emailKey = String(doc.email).toLowerCase()
     const code = generateCode()
     const expiresAtMs = Date.now() + 10 * 60 * 1000 // 10 minutes
@@ -142,10 +207,42 @@ router.post('/delete-account/send-code', requireJwt, sendCodeLimiter, validateBo
 
 // POST /api/auth/delete-account/verify-code
 // Verifies the code and returns a deleteToken usable to confirm deletion
-router.post('/delete-account/verify-code', verifyLimiter, validateBody(verifyCodeSchema), async (req, res) => {
+router.post('/delete-account/verify-code', requireJwtForBypass, verifyLimiter, validateBody(verifyCodeSchema), async (req, res) => {
   try {
     const { email, code } = req.body || {}
     const emailKey = String(email).toLowerCase()
+    if (code === 'TOTP_VERIFIED' || code === 'PASSKEY_BYPASS') {
+      const userId = req._userId
+      if (!userId) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+      const doc = await User.findById(userId)
+      if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+      if (String(doc.email || '').toLowerCase() !== emailKey) {
+        return respond.error(res, 401, 'unauthorized', 'Unauthorized: user mismatch')
+      }
+
+      if (code === 'PASSKEY_BYPASS') {
+        if (!consumeDeleteAccountVerified(doc._id)) {
+          return respond.error(res, 403, 'verification_required', 'Verify with your passkey first')
+        }
+      } else if (!doc.mfaSecret) {
+        return respond.error(res, 400, 'mfa_not_setup', 'MFA not set up')
+      }
+
+      const token = generateToken()
+      const expiresAtMs = Date.now() + 10 * 60 * 1000
+      const useDB = mongoose.connection && mongoose.connection.readyState === 1
+      if (useDB) {
+        await DeleteRequest.findOneAndUpdate(
+          { email: emailKey },
+          { code: '', expiresAt: new Date(expiresAtMs), verified: true, deleteToken: token },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        )
+      } else {
+        deleteRequests.set(emailKey, { code: '', expiresAt: expiresAtMs, verified: true, deleteToken: token })
+      }
+      return res.json({ verified: true, deleteToken: token })
+    }
+
     const useDB = mongoose.connection && mongoose.connection.readyState === 1
     if (useDB) {
       const reqDoc = await DeleteRequest.findOne({ email: emailKey })

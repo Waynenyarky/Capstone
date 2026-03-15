@@ -67,3 +67,7 @@ services:
       - GANACHE_RPC_URL=http://ganache:8545
       - CONTRACT_ABI_PATH=/app/contract-addresses
       - ADMIN_SERVICE_URL=${DOCKER_ADMIN_SERVICE_URL}
+      - NODE_ENV=development
+      - SEED_DEV=true
+      - EMAIL_DEV_REDIRECT_TO=${EMAIL_DEV_REDIRECT_TO:-}
+    env_file: .env

@@ -48,7 +48,7 @@ const PaymentSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ['cash', 'bank_transfer', 'gcash', 'maya', 'credit_card', 'debit_card', 'online_banking', 'other'],
+      enum: ['cash', 'bank_transfer', 'gcash', 'maya', 'credit_card', 'debit_card', 'online_banking', 'demo_auto', 'other'],
       default: null
     },
     transactionId: { type: String, default: '' },
@@ -76,10 +76,47 @@ const PaymentSchema = new mongoose.Schema(
     },
     metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
     notes: { type: String, default: '' },
-    failureReason: { type: String, default: '' }
+    failureReason: { type: String, default: '' },
+    verificationStatus: {
+      type: String,
+      enum: ['pending', 'verified', 'rejected'],
+      default: 'pending',
+      index: true
+    },
+    verifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    verifiedAt: { type: Date, default: null },
+    verificationNotes: { type: String, default: '' },
+    officialReceiptNumber: { type: String, default: '' },
+    rejectedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    rejectedAt: { type: Date, default: null },
+    rejectionReason: { type: String, default: '' },
+    webhookData: { type: mongoose.Schema.Types.Mixed, default: null },
+    webhookReceivedAt: { type: Date, default: null },
+    proofOfPayment: { type: String, default: '' }
   },
   { timestamps: true }
 )
+
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+PaymentSchema.plugin(encryptionPlugin, {
+  fields: [
+    'description', 'currency', 'transactionId', 'referenceNumber',
+    'receiptNumber', 'relatedEntityId', 'notes', 'failureReason',
+    'verificationNotes', 'officialReceiptNumber', 'rejectionReason', 'proofOfPayment',
+  ],
+  deterministicFields: ['paymentId', 'businessId'],
+  nestedPaths: ['breakdown'],
+  arrayPaths: [],
+  mixedPaths: ['metadata', 'webhookData'],
+})
 
 PaymentSchema.index({ userId: 1, status: 1 })
 PaymentSchema.index({ businessId: 1, status: 1 })

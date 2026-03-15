@@ -137,6 +137,18 @@ const InspectionSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+InspectionSchema.plugin(encryptionPlugin, {
+  fields: [
+    'notes', 'complaintDetails', 'revokedReason',
+    'gpsMismatchReason', 'blockchainHash',
+  ],
+  deterministicFields: ['businessId'],
+  nestedPaths: ['gpsAtStart', 'inspectorSignature', 'ownerAcknowledgment', 'scheduledTimeWindow'],
+  arrayPaths: ['checklist', 'evidence', 'violationsFound', 'editHistory'],
+  mixedPaths: [],
+})
+
 InspectionSchema.index({ inspectorId: 1, status: 1, scheduledDate: 1 })
 InspectionSchema.index({ businessProfileId: 1, businessId: 1 })
 InspectionSchema.index({ parentInspectionId: 1 })

@@ -1,0 +1,1092 @@
+import React, { useState, useEffect, useMemo, forwardRef, useImperativeHandle, useRef, useCallback } from 'react'
+import { Form } from '@/shared/components/AppForm'
+import { Typography, Button, Space, Spin, Alert, Result, Grid, theme, Modal, App, Empty } from 'antd'
+import { BugOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
+import { getActiveFormDefinition } from '@/features/admin/services/formDefinitionService'
+import { addBusiness, updateBusiness } from '../services/businessProfileService'
+import DynamicFormRenderer, { filterSectionsByFormValues } from './DynamicFormRenderer'
+import RegistrationTypeSelector from './RegistrationTypeSelector'
+import GeneralPermitCategorySelector from './GeneralPermitCategorySelector'
+import { generateTestDataForDefinition } from '../utils/businessFormUtils'
+import useDraftInitialization from '../hooks/useDraftInitialization'
+
+const { Title, Text, Paragraph } = Typography
+const { useBreakpoint } = Grid
+
+const DRAFT_STORAGE_KEY = 'addBusinessFormDraft'
+
+export default forwardRef(function AddBusinessForm({
+  onBack,
+  editingBusiness,
+  onDraftCreated,
+  embedded = false,
+  onSubmittingChange,
+  readOnly: readOnlyProp = false,
+  onSubmitted,
+  initialRegistrationType = null
+}, ref) {
+  const { token } = theme.useToken()
+  const { message } = App.useApp()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
+  const [form] = Form.useForm()
+
+  const isEditing = !!editingBusiness
+  const [step, setStep] = useState(isEditing ? 'form' : (initialRegistrationType ? 'form' : 'type_selection'))
+  const [registrationType, setRegistrationType] = useState(editingBusiness?.formType || initialRegistrationType || null)
+  const [generalPermitCategory, setGeneralPermitCategory] = useState(editingBusiness?.category || null)
+  const [formDefinition, setFormDefinition] = useState(null)
+  const [loading, setLoading] = useState(isEditing)
+  const [error, setError] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [formValues, setFormValues] = useState(editingBusiness?.formData || {})
+  const [activeSectionIndex, setActiveSectionIndex] = useState(0)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [showLeaveConfirmModal, setShowLeaveConfirmModal] = useState(false)
+  const [hasInitializedDraft, setHasInitializedDraft] = useState(false) // Prevent multiple draft creations
+  const [documentCids, setDocumentCids] = useState({})
+  const [draftBusinessId, setDraftBusinessId] = useState(null)
+  const currentApplicationStatus = (editingBusiness?.applicationStatus || '').toLowerCase()
+  const isRevisionMode = isEditing && currentApplicationStatus === 'needs_revision' && !readOnlyProp
+  const isResubmissionMode = isEditing && (currentApplicationStatus === 'needs_revision' || currentApplicationStatus === 'resubmit') && !readOnlyProp
+  const revisionFieldKeys = useMemo(() => {
+    if (!isRevisionMode || !editingBusiness?.fieldReviewDecisions) return new Set()
+    const normalized = new Set()
+
+    Object.entries(editingBusiness.fieldReviewDecisions)
+      .filter(([, decision]) => decision?.status === 'rejected')
+      .forEach(([fieldKey]) => {
+        if (!fieldKey || typeof fieldKey !== 'string') return
+
+        // Preserve raw key as fallback
+        normalized.add(fieldKey)
+
+        // Legacy owner format: section_2_businessName -> businessName
+        const legacy = fieldKey.match(/^section_\d+_(.+)$/i)
+        if (legacy?.[1]) normalized.add(legacy[1])
+
+        // Officer review format: "{sectionIdx}.{itemKey}" or "{sectionIdx}.{groupKey}.{rowIdx}"
+        const parts = fieldKey.split('.')
+        if (parts.length >= 2 && /^\d+$/.test(parts[0])) {
+          normalized.add(parts[1])
+        }
+
+        // LOB virtual keys from officer panel
+        if (fieldKey === 'lob_description') {
+          normalized.add('businessDescriptionText')
+          normalized.add('aiLobRecommendation')
+        }
+        if (/^lob_activity_\d+$/i.test(fieldKey)) {
+          normalized.add('businessActivities')
+          normalized.add('aiLobRecommendation')
+        }
+      })
+
+    return normalized
+  }, [isRevisionMode, editingBusiness?.fieldReviewDecisions])
+
+  // Visible sections for step-by-step tabs (depends on form definition + form values)
+  const visibleSections = useMemo(() => {
+    if (!formDefinition?.sections) return []
+    return filterSectionsByFormValues(formDefinition.sections, formValues)
+  }, [formDefinition, formValues])
+
+  // Section completion: true if all required fields in that section have a value;
+  // if a section has no required fields, true only when at least one field has a value
+  // LOB (AI) section: complete only when user has clicked Analyze and has at least one line of business
+  const sectionCompleteMap = useMemo(() => {
+    const hasValue = (val) => {
+      if (val === undefined || val === null) return false
+      if (typeof val === 'string') return val.trim() !== ''
+      if (Array.isArray(val)) return val.length > 0
+      if (typeof val === 'object') return Object.keys(val).length > 0 && Object.values(val).some((v) => v !== undefined && v !== null && v !== '')
+      return true
+    }
+    const map = {}
+    visibleSections.forEach((section, idx) => {
+      const items = section.items || []
+      const isLobSection = items.some((f) => f.type === 'ai_lob_recommendation' || f.key === 'aiLobRecommendation')
+      if (isLobSection) {
+        map[idx] =
+          Array.isArray(formValues.businessActivities) &&
+          formValues.businessActivities.length > 0
+        return
+      }
+      const requiredFields = items.filter((f) => f.required)
+      if (requiredFields.length > 0) {
+        const allFilled = requiredFields.every((field) => {
+          const key = field.key || field.label
+          const val = formValues[key]
+          return hasValue(val)
+        })
+        map[idx] = allFilled
+        return
+      }
+      // No required fields: complete only if at least one field in this section has a value
+      const atLeastOneFilled = items.some((field) => {
+        const key = field.key || field.label
+        const val = formValues[key]
+        return hasValue(val)
+      })
+      map[idx] = atLeastOneFilled
+    })
+    return map
+  }, [visibleSections, formValues])
+
+  // Map field name (or first part of nested name) to section index for scrolling to first error on validation fail
+  const fieldToSectionIndex = useMemo(() => {
+    const map = {}
+    visibleSections.forEach((section, idx) => {
+      ;(section.items || []).forEach((item) => {
+        const name = item.key || item.label
+        if (name) map[name] = idx
+      })
+      // LOB (AI) section uses these internal field names
+      const isLobSection = (section.items || []).some(
+        (f) => f.type === 'ai_lob_recommendation' || f.key === 'aiLobRecommendation'
+      )
+      if (isLobSection) {
+        map.businessDescriptionText = idx
+        map.hasAnalyzedBusinessDescription = idx
+        map.businessActivities = idx
+      }
+    })
+    return map
+  }, [visibleSections])
+
+  // Keep active tab in range when visible sections change
+  useEffect(() => {
+    if (visibleSections.length > 0 && activeSectionIndex >= visibleSections.length) {
+      setActiveSectionIndex(0)
+    }
+  }, [visibleSections.length, activeSectionIndex])
+
+  // Restore draft from localStorage on initial mount (non-editing only)
+  const draftRestoredRef = useRef(false)
+  useEffect(() => {
+    if (isEditing || draftRestoredRef.current) return
+    draftRestoredRef.current = true
+    try {
+      const raw = localStorage.getItem(DRAFT_STORAGE_KEY)
+      if (!raw) return
+      const draft = JSON.parse(raw)
+      if (draft?.registrationType) setRegistrationType(draft.registrationType)
+      if (draft?.generalPermitCategory) setGeneralPermitCategory(draft.generalPermitCategory)
+      if (draft?.formValues && Object.keys(draft.formValues).length > 0) {
+        setFormValues(draft.formValues)
+      }
+    } catch { /* ignore */ }
+  }, [isEditing])
+
+  // Persist draft to localStorage on form value changes
+  useEffect(() => {
+    if (isEditing || !hasUnsavedChanges) return
+    try {
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({ registrationType, generalPermitCategory, formValues }))
+    } catch { /* ignore */ }
+  }, [formValues, hasUnsavedChanges, registrationType, generalPermitCategory, isEditing])
+
+  // When switching to "Add" (editingBusiness becomes null), reset to type selection
+  useEffect(() => {
+    if (!editingBusiness) {
+      setStep('type_selection')
+      setRegistrationType(null)
+      setGeneralPermitCategory(null)
+      setFormDefinition(null)
+      setFormValues({})
+      setDocumentCids({})
+      setDraftBusinessId(null)
+      setError(null)
+      setLoading(false)
+      setActiveSectionIndex(0)
+      setHasUnsavedChanges(false)
+      form.resetFields()
+    }
+  }, [editingBusiness])
+
+  // Load form definition when editing
+  useEffect(() => {
+    if (isEditing && editingBusiness?.formType) {
+      fetchFormDefinition(editingBusiness.formType, editingBusiness.category)
+    }
+  }, [isEditing, editingBusiness?.formType, editingBusiness?.category, editingBusiness?.businessId, editingBusiness?._id])
+
+  // Set form values when editing and form definition is loaded
+  useEffect(() => {
+    if (isEditing && formDefinition && editingBusiness?.formData) {
+      const values = formDataWithDayjs(editingBusiness.formData, formDefinition)
+      form.setFieldsValue(values)
+      setFormValues(values)
+      setHasUnsavedChanges(false)
+    }
+  }, [isEditing, formDefinition, editingBusiness?.formData, form])
+
+  useEffect(() => {
+    onSubmittingChange?.(submitting)
+  }, [submitting, onSubmittingChange])
+
+  const fetchFormDefinition = async (type, category = null) => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await getActiveFormDefinition(type)
+
+      if (response.success && response.definition) {
+        setFormDefinition(response.definition)
+        setActiveSectionIndex(0)
+
+        if (category && !isEditing) {
+          setFormValues({ category })
+          form.setFieldValue('category', category)
+        }
+
+        setStep('form')
+      } else {
+        setError(response.error || 'No active form definition found for this type.')
+      }
+    } catch (err) {
+      console.error('Failed to fetch form definition:', err)
+      setError(err.message || 'Failed to load form. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleTypeSelect = useCallback(async (type) => {
+    setRegistrationType(type)
+
+    if (type === 'general_permit') {
+      setStep('category_selection')
+      return
+    }
+
+    // type === 'permit': create draft when onDraftCreated provided (dashboard flow), else load form in-place
+    if (type === 'permit' && onDraftCreated && !isEditing) {
+      setLoading(true)
+      setError(null)
+      try {
+        const payload = {
+          businessName: 'New Business Application',
+          applicationStatus: 'draft',
+          formType: 'permit',
+          formData: {},
+        }
+        const response = await addBusiness(payload)
+        const businessId = response.businessId
+        const newBusiness = (response.businesses || []).find(b => (b.businessId || b._id) === businessId)
+        if (newBusiness && onDraftCreated) {
+          onDraftCreated(newBusiness)
+        } else {
+          message.error('Draft created but could not load. Please select it from the list.')
+        }
+      } catch (err) {
+        console.error('Failed to create draft:', err)
+        message.error(err.message || 'Failed to create draft.')
+        setError(err.message || 'Failed to create draft.')
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
+    fetchFormDefinition(type)
+  }, [onDraftCreated, isEditing, message])
+
+  // Load form definition when initialRegistrationType is provided (for welcome modal flow)
+  useEffect(() => {
+    if (!isEditing && initialRegistrationType && !formDefinition && !loading && !hasInitializedDraft) {
+      setHasInitializedDraft(true) // Prevent multiple initializations
+      // For welcome modal flow, we need to create a draft first if onDraftCreated is provided
+      if (initialRegistrationType === 'permit' && onDraftCreated) {
+        handleTypeSelect(initialRegistrationType)
+      } else if (initialRegistrationType === 'general_permit' && onDraftCreated) {
+        // For general permits, we need to go to category selection first
+        setRegistrationType(initialRegistrationType)
+        setStep('category_selection')
+      } else {
+        fetchFormDefinition(initialRegistrationType)
+      }
+    }
+  }, [isEditing, initialRegistrationType, formDefinition, loading, hasInitializedDraft, onDraftCreated, handleTypeSelect])
+
+  const handleCategorySelect = async (category) => {
+    setGeneralPermitCategory(category)
+
+    const categoryLabel = GENERAL_PERMIT_CATEGORIES.find(c => c.value === category)?.label || category
+
+    if (onDraftCreated && !isEditing) {
+      setLoading(true)
+      setError(null)
+      try {
+        const payload = {
+          businessName: `General Permit - ${categoryLabel}`,
+          applicationStatus: 'draft',
+          formType: 'general_permit',
+          category,
+          formData: { category },
+        }
+        const response = await addBusiness(payload)
+        const businessId = response.businessId
+        const newBusiness = (response.businesses || []).find(b => (b.businessId || b._id) === businessId)
+        if (newBusiness && onDraftCreated) {
+          onDraftCreated(newBusiness)
+        } else {
+          message.error('Draft created but could not load. Please select it from the list.')
+        }
+      } catch (err) {
+        console.error('Failed to create draft:', err)
+        message.error(err.message || 'Failed to create draft.')
+        setError(err.message || 'Failed to create draft.')
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
+    fetchFormDefinition('general_permit', category)
+  }
+
+  const handleBackToTypeSelection = () => {
+    setStep('type_selection')
+    setRegistrationType(null)
+    setGeneralPermitCategory(null)
+    setFormDefinition(null)
+    setError(null)
+    form.resetFields()
+    setFormValues({})
+    setActiveSectionIndex(0)
+  }
+
+  const handleBackToCategorySelection = () => {
+    setStep('category_selection')
+    setFormDefinition(null)
+    setError(null)
+    form.resetFields()
+    setFormValues({ category: generalPermitCategory })
+    setActiveSectionIndex(0)
+  }
+
+  const handleFormValuesChange = (changedValues, allValues) => {
+    setFormValues(allValues)
+    setHasUnsavedChanges(true)
+  }
+
+  const handleSubmit = async (values, shouldSubmit = true, onSuccess) => {
+    setSubmitting(true)
+
+    try {
+      // When editing, always merge with existing formData so disabled/untouched fields are preserved
+      const existingFormData = isEditing && editingBusiness?.formData && typeof editingBusiness.formData === 'object'
+        ? editingBusiness.formData
+        : {}
+      const mergedValues = { ...existingFormData }
+      Object.entries(values || {}).forEach(([k, v]) => {
+        if (v !== undefined) mergedValues[k] = v
+      })
+
+      const processedValues = { ...mergedValues }
+      Object.keys(processedValues).forEach(key => {
+        const val = processedValues[key]
+        if (Array.isArray(val) && val.length > 0 && val[0]?.originFileObj) {
+          processedValues[key] = val.map(f => ({
+            name: f.name,
+            type: f.type,
+            size: f.size,
+            status: 'pending_upload',
+          }))
+        }
+        // Keep file fields that have cid (uploaded to IPFS) as metadata only for formData
+        if (Array.isArray(val) && val.length > 0 && val[0]?.cid) {
+          processedValues[key] = val.map(f => ({ name: f.name, status: 'done', cid: f.cid }))
+        }
+      })
+
+      // Build documentCids from state (set by upload callback) and from form values (file fields with cid)
+      const cidsFromForm = {}
+      ;(formDefinition?.sections || []).forEach(section => {
+        (section.items || []).forEach(item => {
+          if (item.type === 'file') {
+            const key = item.documentKey || item.key || item.label
+            if (!key) return
+            const val = values[key]
+            if (Array.isArray(val) && val.length > 0 && val[0]?.cid) {
+              cidsFromForm[key] = val[0].cid
+            }
+          }
+        })
+      })
+      const payloadDocumentCids = { ...documentCids, ...cidsFromForm }
+
+      const extractedBusinessType = processedValues['Industry'] ||
+        processedValues['industry'] ||
+        processedValues['Industry Classification'] ||
+        processedValues['industryClassification'] ||
+        processedValues['PSIC Section'] ||
+        null
+
+      const primaryFromForm = processedValues['Business Type'] || processedValues['businessType'] || processedValues['Line of Business'] || processedValues['lineOfBusiness']
+      const primaryFromActivities = Array.isArray(processedValues.businessActivities) && processedValues.businessActivities.length > 0
+        ? processedValues.businessActivities[0].lineOfBusiness
+        : null
+      const primaryLineOfBusiness = primaryFromForm || primaryFromActivities || null
+
+      const payload = {
+        formType: registrationType,
+        formDefinitionId: formDefinition?._id,
+        applicationStatus: shouldSubmit ? 'submitted' : 'draft',
+        ...(shouldSubmit && { submittedAt: new Date().toISOString() }),
+        ...(generalPermitCategory && { category: generalPermitCategory }),
+        formData: processedValues,
+        ...(Object.keys(payloadDocumentCids).length > 0 && { documentCids: payloadDocumentCids }),
+        businessName: processedValues['Business Name'] || processedValues['businessName'] || processedValues['Trade Name'] || processedValues['tradeName'] || 'New Business Application',
+        ...(extractedBusinessType && { businessType: extractedBusinessType }),
+        primaryLineOfBusiness,
+        tinNumber: processedValues['TIN'] || processedValues['tin'] || processedValues['TIN Number'] || null,
+        contactNumber: processedValues['Contact Number'] || processedValues['contactNumber'] || processedValues['Phone'] || processedValues['phone'] || null,
+        email: processedValues['Email'] || processedValues['email'] || processedValues['Business Email'] || null,
+        capitalInvestment: processedValues['Capital Investment'] || processedValues['capitalInvestment'] || null,
+        numberOfEmployees: processedValues['Number of Employees'] || processedValues['numberOfEmployees'] || processedValues['Employee Count'] || null,
+      }
+
+      let response
+      if (isEditing) {
+        const businessId = editingBusiness.businessId || editingBusiness._id
+
+        if (shouldSubmit && Object.keys(payloadDocumentCids).length === 0) {
+          const fileFieldsWithFiles = []
+          ;(formDefinition?.sections || []).forEach(section => {
+            (section.items || []).forEach(item => {
+              if (item.type === 'file') {
+                const key = item.documentKey || item.key || item.label
+                if (!key) return
+                const val = values[key]
+                if (!Array.isArray(val) || val.length === 0) return
+                const first = val[0]
+                const file = first?.originFileObj ?? first?.file ?? (typeof first === 'object' && first && 'size' in first && 'name' in first ? first : null)
+                if (file && typeof file === 'object' && file.name && file instanceof File) {
+                  fileFieldsWithFiles.push({ key, file })
+                }
+              }
+            })
+          })
+
+          if (fileFieldsWithFiles.length > 0) {
+            const uploadedCids = {}
+            for (const { key, file } of fileFieldsWithFiles) {
+              try {
+                const res = await uploadFileToIpfs(businessId, file, key)
+                const cid = res?.cid || res?.ipfsCid
+                if (cid) uploadedCids[key] = cid
+              } catch (uploadErr) {
+                console.error('IPFS upload failed for', key, uploadErr)
+                message.warning(`Upload failed for ${key}; submitting without this document.`)
+              }
+            }
+            if (Object.keys(uploadedCids).length > 0) {
+              payload.documentCids = { ...payloadDocumentCids, ...uploadedCids }
+            }
+          }
+        }
+
+        response = await updateBusiness(businessId, payload)
+        message.success(shouldSubmit ? 'Application updated and submitted!' : 'Application saved as draft!')
+        if (shouldSubmit) {
+          setSubmitted(true)
+          setHasUnsavedChanges(false)
+          try { localStorage.removeItem(DRAFT_STORAGE_KEY) } catch { /* ignore */ }
+          onSuccess?.()
+          onSubmitted?.(response)
+        }
+      } else {
+        // New application: if user submitted with file(s) but no draft (no businessId), create draft first, upload files, then submit
+        const fileFieldsWithFiles = []
+        ;(formDefinition?.sections || []).forEach(section => {
+          (section.items || []).forEach(item => {
+            if (item.type === 'file') {
+              const key = item.documentKey || item.key || item.label
+              if (!key) return
+              const val = values[key]
+              if (!Array.isArray(val) || val.length === 0) return
+              const first = val[0]
+              const file = first?.originFileObj ?? first?.file ?? (typeof first === 'object' && first && 'size' in first && 'name' in first ? first : null)
+              if (file && typeof file === 'object' && file.name) {
+                fileFieldsWithFiles.push({ key, file })
+              }
+            }
+          })
+        })
+
+        if (shouldSubmit && fileFieldsWithFiles.length > 0 && Object.keys(payloadDocumentCids).length === 0) {
+          const draftPayload = { ...payload, applicationStatus: 'draft' }
+          delete draftPayload.submittedAt
+          delete draftPayload.documentCids
+          response = await addBusiness(draftPayload)
+          if (!response.businessId) throw new Error('Failed to create application')
+          const businessId = response.businessId
+          const uploadedCids = {}
+          for (const { key, file } of fileFieldsWithFiles) {
+            try {
+              const res = await uploadFileToIpfs(businessId, file, key)
+              const cid = res?.cid || res?.ipfsCid
+              if (cid) uploadedCids[key] = cid
+            } catch (uploadErr) {
+              console.error('IPFS upload failed for', key, uploadErr)
+              message.warning(`Upload failed for ${key}; submitting without this document.`)
+            }
+          }
+          const finalPayload = {
+            ...payload,
+            ...(Object.keys(uploadedCids).length > 0 && { documentCids: { ...payloadDocumentCids, ...uploadedCids } }),
+          }
+          response = await updateBusiness(businessId, finalPayload)
+          message.success('Application submitted successfully!')
+          setSubmitted(true)
+          setHasUnsavedChanges(false)
+          onSuccess?.()
+          onSubmitted?.(response)
+        } else {
+          response = await addBusiness(payload)
+          if (response.businessId) {
+            if (!shouldSubmit) {
+              setDraftBusinessId(response.businessId)
+            }
+            message.success(shouldSubmit ? 'Application submitted successfully!' : 'Application saved as draft!')
+            if (shouldSubmit) {
+              setSubmitted(true)
+              setHasUnsavedChanges(false)
+              onSuccess?.()
+              onSubmitted?.(response)
+            }
+          } else {
+            throw new Error('Failed to create business application')
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to submit application:', err)
+      message.error(err.message || 'Failed to submit application. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const doFillTestData = () => {
+    if (!formDefinition) return
+    const testData = generateTestDataForDefinition(formDefinition, generalPermitCategory)
+    const processedTestData = formDataWithDayjs(testData, formDefinition)
+    form.setFieldsValue(processedTestData)
+    setFormValues(prev => ({ ...prev, ...processedTestData }))
+    message.success('Form filled with test data')
+  }
+
+  useImperativeHandle(ref, () => ({
+    submitApplication: () => form.submit(),
+    saveDraft: async () => {
+      try {
+        const values = form.getFieldsValue(true)
+        await handleSubmit(values, false)
+      } catch (err) {
+        message.error(err?.message || 'Failed to save draft')
+      }
+    },
+    fillTestData: doFillTestData,
+  }), [formDefinition, generalPermitCategory, form, handleSubmit])
+
+  const handleStartNew = () => {
+    setStep('type_selection')
+    setRegistrationType(null)
+    setGeneralPermitCategory(null)
+    setFormDefinition(null)
+    setError(null)
+    setSubmitted(false)
+    form.resetFields()
+    setFormValues({})
+    setActiveSectionIndex(0)
+  }
+
+  if (submitted && !embedded) {
+    return (
+      <div style={{ padding: 24 }}>
+        <Result
+          status="success"
+          title="Application Submitted!"
+          subTitle="Your application has been submitted successfully. You will be notified once it has been reviewed."
+          extra={[
+            <Button key="new" onClick={handleStartNew}>
+              Submit Another Application
+            </Button>
+          ]}
+        />
+      </div>
+    )
+  }
+
+  const formReadOnly = readOnlyProp || (embedded && submitted)
+
+  return (
+    <>
+      {step === 'form' && formDefinition ? (
+        <div
+          style={{
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              padding: 24,
+            }}
+          >
+            {!embedded && (
+              <div style={{ flexShrink: 0, marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+                  <Space wrap style={{ marginLeft: 'auto' }}>
+                    {import.meta.env.DEV && (
+                    <Button
+                      type="dashed"
+                      icon={<BugOutlined />}
+                      onClick={doFillTestData}
+                    >
+                      Fill with Test Data
+                    </Button>
+                    )}
+                    <Button
+                      onClick={async () => {
+                        try {
+                          const values = form.getFieldsValue(true)
+                          await handleSubmit(values, false)
+                        } catch (err) {
+                          message.error(err?.message || 'Failed to save draft')
+                        }
+                      }}
+                      loading={submitting}
+                    >
+                      Save
+                    </Button>
+                    <Button
+                      type="primary"
+                      htmlType="button"
+                      loading={submitting}
+                      onClick={async (e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        try {
+                          const values = await form.validateFields()
+                          handleSubmit(values, true)
+                        } catch (err) {
+                          const errorFields = err?.errorFields || []
+                          const firstErrorName = errorFields[0]?.name
+
+                          const doSwitchAndFocus = () => {
+                            let switched = false
+                            // 1. Try DOM: find first error element
+                            const firstErrorEl = document.querySelector('.ant-form-item-has-error')
+                            if (firstErrorEl) {
+                              const sectionWrapper = firstErrorEl.closest('[data-section-index]')
+                              if (sectionWrapper != null) {
+                                const idx = parseInt(sectionWrapper.getAttribute('data-section-index'), 10)
+                                if (!Number.isNaN(idx)) {
+                                  setActiveSectionIndex(idx)
+                                  switched = true
+                                }
+                              }
+                            }
+                            // 2. Fallback: use field name from error
+                            if (!switched && firstErrorName != null) {
+                              const nameParts = Array.isArray(firstErrorName) ? firstErrorName : [firstErrorName]
+                              for (const part of nameParts) {
+                                const sectionIdx = fieldToSectionIndex[part]
+                                if (typeof sectionIdx === 'number') {
+                                  setActiveSectionIndex(sectionIdx)
+                                  break
+                                }
+                              }
+                            }
+                            // 3. Fallback: iterate sections to find which contains this field
+                            if (!switched && firstErrorName != null && visibleSections.length > 0) {
+                              const searchKey = Array.isArray(firstErrorName) ? firstErrorName[0] : firstErrorName
+                              const lobFieldNames = ['businessDescriptionText', 'hasAnalyzedBusinessDescription', 'businessActivities']
+                              for (let i = 0; i < visibleSections.length; i++) {
+                                const items = visibleSections[i].items || []
+                                const hasField =
+                                  items.some(
+                                    (it) =>
+                                      (it.key || it.label) === searchKey ||
+                                      (it.type === 'address' || it.type === 'address_alaminos') && (it.key || it.label) === searchKey
+                                  ) ||
+                                  (lobFieldNames.includes(searchKey) &&
+                                    items.some((it) => it.type === 'ai_lob_recommendation' || it.key === 'aiLobRecommendation'))
+                                if (hasField) {
+                                  setActiveSectionIndex(i)
+                                  break
+                                }
+                              }
+                            }
+                            // 3. Focus and scroll
+                            const firstErrorControl = document.querySelector(
+                              '.ant-form-item-has-error input:not([type="hidden"]), .ant-form-item-has-error select, .ant-form-item-has-error textarea, .ant-form-item-has-error .ant-picker-input input, .ant-form-item-has-error .ant-input-number-input'
+                            )
+                            if (firstErrorControl) {
+                              firstErrorControl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                              if (typeof firstErrorControl.focus === 'function') firstErrorControl.focus()
+                            }
+                          }
+
+                          // Run after React has applied Form error state to DOM
+                          setTimeout(doSwitchAndFocus, 0)
+                          setTimeout(doSwitchAndFocus, 150)
+                        }
+                      }}
+                    >
+                      Submit
+                    </Button>
+                  </Space>
+                </div>
+
+                {!isEditing && (
+                  <div>
+                    <Title level={4} style={{ marginBottom: 8 }}>
+                      {registrationType === 'general_permit'
+                        ? `General Permit - ${GENERAL_PERMIT_CATEGORIES.find(c => c.value === generalPermitCategory)?.label || 'Application'}`
+                        : 'New Business Application'
+                      }
+                    </Title>
+                    <Paragraph type="secondary" style={{ margin: 0 }}>
+                      Complete each section below.
+                    </Paragraph>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {embedded && isResubmissionMode && (
+              <div style={{ flexShrink: 0, marginBottom: 16 }}>
+                <Space wrap style={{ width: '100%', justifyContent: 'flex-end' }}>
+                <Space wrap style={{ marginLeft: 'auto' }}>
+                  {import.meta.env.DEV && (
+                  <Button
+                    type="dashed"
+                    icon={<BugOutlined />}
+                    onClick={doFillTestData}
+                  >
+                    Fill with Test Data
+                  </Button>
+                  )}
+                  <Button
+                    onClick={async () => {
+                      try {
+                        const values = form.getFieldsValue(true)
+                        await handleSubmit(values, false)
+                      } catch (err) {
+                        message.error(err?.message || 'Failed to save draft')
+                      }
+                    }}
+                    loading={submitting}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    type="primary"
+                    htmlType="button"
+                    loading={submitting}
+                    onClick={async (e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      try {
+                        const values = await form.validateFields()
+                        handleSubmit(values, true)
+                      } catch (err) {
+                        const errorFields = err?.errorFields || []
+                        const firstErrorName = errorFields[0]?.name
+
+                        const doSwitchAndFocus = () => {
+                          let switched = false
+                          // 1. Try DOM: find first error element
+                          const firstErrorEl = document.querySelector('.ant-form-item-has-error')
+                          if (firstErrorEl) {
+                            const sectionWrapper = firstErrorEl.closest('[data-section-index]')
+                            if (sectionWrapper != null) {
+                              const idx = parseInt(sectionWrapper.getAttribute('data-section-index'), 10)
+                              if (!Number.isNaN(idx)) {
+                                setActiveSectionIndex(idx)
+                                switched = true
+                              }
+                            }
+                          }
+                          // 2. Fallback: use field name from error
+                          if (!switched && firstErrorName != null) {
+                            const nameParts = Array.isArray(firstErrorName) ? firstErrorName : [firstErrorName]
+                            for (const part of nameParts) {
+                              const sectionIdx = fieldToSectionIndex[part]
+                              if (typeof sectionIdx === 'number') {
+                                setActiveSectionIndex(sectionIdx)
+                                break
+                              }
+                            }
+                          }
+                          // 3. Fallback: iterate sections to find which contains this field
+                          if (!switched && firstErrorName != null && visibleSections.length > 0) {
+                            const searchKey = Array.isArray(firstErrorName) ? firstErrorName[0] : firstErrorName
+                            const lobFieldNames = ['businessDescriptionText', 'hasAnalyzedBusinessDescription', 'businessActivities']
+                            for (let i = 0; i < visibleSections.length; i++) {
+                              const items = visibleSections[i].items || []
+                              const hasField =
+                                items.some(
+                                  (it) =>
+                                    (it.key || it.label) === searchKey ||
+                                    (it.type === 'address' || it.type === 'address_alaminos') && (it.key || it.label) === searchKey
+                                ) ||
+                                (lobFieldNames.includes(searchKey) &&
+                                  items.some((it) => it.type === 'ai_lob_recommendation' || it.key === 'aiLobRecommendation'))
+                              if (hasField) {
+                                setActiveSectionIndex(i)
+                                break
+                              }
+                            }
+                          }
+                          // 3. Focus and scroll
+                          const firstErrorControl = document.querySelector(
+                            '.ant-form-item-has-error input:not([type="hidden"]), .ant-form-item-has-error select, .ant-form-item-has-error textarea, .ant-form-item-has-error .ant-picker-input input, .ant-form-item-has-error .ant-input-number-input'
+                          )
+                          if (firstErrorControl) {
+                            firstErrorControl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                            if (typeof firstErrorControl.focus === 'function') firstErrorControl.focus()
+                          }
+                        }
+
+                        // Run after React has applied Form error state to DOM
+                        setTimeout(doSwitchAndFocus, 0)
+                        setTimeout(doSwitchAndFocus, 150)
+                      }
+                    }}
+                  >
+                    Submit
+                  </Button>
+                </Space>
+              </div>
+
+              {!isEditing && (
+                <div>
+                  <Title level={4} style={{ marginBottom: 8 }}>
+                    {registrationType === 'general_permit'
+                      ? `General Permit - ${GENERAL_PERMIT_CATEGORIES.find(c => c.value === generalPermitCategory)?.label || 'Application'}`
+                      : 'New Business Application'
+                    }
+                  </Title>
+                  <Paragraph type="secondary" style={{ margin: 0 }}>
+                    Complete each section below.
+                  </Paragraph>
+                </div>
+              )}
+            </div>
+          )}
+
+          {embedded && isResubmissionMode && (
+            <div style={{ flexShrink: 0, marginBottom: 16 }}>
+              <Space wrap style={{ width: '100%', justifyContent: 'flex-end' }}>
+                <Button
+                  onClick={async () => {
+                    try {
+                      const values = form.getFieldsValue(true)
+                      await handleSubmit(values, false)
+                    } catch (err) {
+                      message.error(err?.message || 'Failed to save draft')
+                    }
+                  }}
+                  loading={submitting}
+                >
+                  Save
+                </Button>
+                <Button
+                  type="primary"
+                  htmlType="button"
+                  loading={submitting}
+                  onClick={async (e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    try {
+                      const values = await form.validateFields()
+                      handleSubmit(values, true)
+                    } catch (err) {
+                      const errorFields = err?.errorFields || []
+                      const firstErrorName = errorFields[0]?.name
+
+                      const doSwitchAndFocus = () => {
+                        let switched = false
+                        const firstErrorEl = document.querySelector('.ant-form-item-has-error')
+                        if (firstErrorEl) {
+                          const sectionWrapper = firstErrorEl.closest('[data-section-index]')
+                          if (sectionWrapper != null) {
+                            const idx = parseInt(sectionWrapper.getAttribute('data-section-index'), 10)
+                            if (!Number.isNaN(idx)) {
+                              setActiveSectionIndex(idx)
+                              switched = true
+                            }
+                          }
+                        }
+                        if (!switched && firstErrorName != null) {
+                          const nameParts = Array.isArray(firstErrorName) ? firstErrorName : [firstErrorName]
+                          for (const part of nameParts) {
+                            const sectionIdx = fieldToSectionIndex[part]
+                            if (typeof sectionIdx === 'number') {
+                              setActiveSectionIndex(sectionIdx)
+                              break
+                            }
+                          }
+                        }
+                        if (!switched && firstErrorName != null && visibleSections.length > 0) {
+                          const searchKey = Array.isArray(firstErrorName) ? firstErrorName[0] : firstErrorName
+                          const lobFieldNames = ['businessDescriptionText', 'hasAnalyzedBusinessDescription', 'businessActivities']
+                          for (let i = 0; i < visibleSections.length; i++) {
+                            const items = visibleSections[i].items || []
+                            const hasField =
+                              items.some(
+                                (it) =>
+                                  (it.key || it.label) === searchKey ||
+                                  (it.type === 'address' || it.type === 'address_alaminos') && (it.key || it.label) === searchKey
+                              ) ||
+                              (lobFieldNames.includes(searchKey) &&
+                                items.some((it) => it.type === 'ai_lob_recommendation' || it.key === 'aiLobRecommendation'))
+                            if (hasField) {
+                              setActiveSectionIndex(i)
+                              break
+                            }
+                          }
+                        }
+                        const firstErrorControl = document.querySelector(
+                          '.ant-form-item-has-error input:not([type="hidden"]), .ant-form-item-has-error select, .ant-form-item-has-error textarea, .ant-form-item-has-error .ant-picker-input input, .ant-form-item-has-error .ant-input-number-input'
+                        )
+                        if (firstErrorControl) {
+                          firstErrorControl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                          if (typeof firstErrorControl.focus === 'function') firstErrorControl.focus()
+                        }
+                      }
+
+                      setTimeout(doSwitchAndFocus, 0)
+                      setTimeout(doSwitchAndFocus, 150)
+                    }
+                  }}
+                >
+                  {isRevisionMode ? 'Resubmit Application' : 'Submit'}
+                </Button>
+              </Space>
+            </div>
+          )}
+
+          {/* Form with two-panel layout */}
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSubmit}
+            onValuesChange={handleFormValuesChange}
+            initialValues={isEditing ? {} : formValues}
+            style={{ 
+              flex: 1,
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Two-panel: sticky section tabs (left), scrollable form content (right) */}
+            <div
+              style={{
+                display: 'flex',
+                gap: 24,
+                flex: 1,
+                minHeight: 0,
+                overflow: 'hidden',
+                flexDirection: isMobile ? 'column' : 'row',
+              }}
+            >
+              {/* Left panel: section tab buttons */}
+              <div
+                style={{
+                  flexShrink: 0,
+                  width: isMobile ? '100%' : 220,
+                  minWidth: isMobile ? undefined : 220,
+                  borderRight: isMobile ? 'none' : `1px solid ${token.colorBorderSecondary}`,
+                  paddingRight: isMobile ? 0 : 24,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                  overflowY: isMobile ? 'visible' : 'auto',
+                }}
+              >
+                {visibleSections.map((section, idx) => {
+                  const isComplete = sectionCompleteMap[idx] === true
+                  return (
+                    <Button
+                      key={idx}
+                      type={idx === activeSectionIndex ? 'primary' : 'default'}
+                      onClick={() => setActiveSectionIndex(idx)}
+                      style={{
+                        textAlign: 'left',
+                        justifyContent: 'flex-start',
+                        fontWeight: idx === activeSectionIndex ? 600 : 400,
+                        whiteSpace: 'normal',
+                        height: 'auto',
+                        minHeight: 40,
+                        padding: '8px 12px',
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {!formReadOnly && (
+                        <CheckCircleOutlined
+                          style={{
+                            marginRight: 8,
+                            color: isComplete ? token.colorSuccess : token.colorTextDisabled,
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
+                      {section.category || `Section ${idx + 1}`}
+                    </Button>
+                  )
+                })}
+              </div>
+
+              {/* Right panel: scrollable form content */}
+              <div
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  minHeight: 0,
+                  overflow: 'auto',
+                  paddingTop: isMobile ? 16 : 0,
+                  borderTop: isMobile ? `1px solid ${token.colorBorderSecondary}` : 'none',
+                }}
+              >
+                <DynamicFormRenderer
+                  definition={formDefinition}
+                  form={form}
+                  formValues={formValues}
+                  isMobile={isMobile}
+                  activeSectionIndex={activeSectionIndex}
+                  readOnly={formReadOnly}
+                  revisionFieldKeys={isRevisionMode ? revisionFieldKeys : undefined}
+                  businessId={editingBusiness?.businessId || editingBusiness?._id || draftBusinessId || null}
+                  onDocumentCid={(key, cid) => setDocumentCids(prev => ({ ...prev, [key]: cid }))}
+                  formDataKey={editingBusiness?.businessId ?? editingBusiness?._id ?? draftBusinessId ?? 'new'}
+                />
+              </div>
+            </div>
+          </Form>
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Empty description="No form available" />
+        </div>
+      )}
+    </>
+  )
+}

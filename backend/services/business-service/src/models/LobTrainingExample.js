@@ -28,6 +28,15 @@ const LobTrainingExampleSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+LobTrainingExampleSchema.plugin(encryptionPlugin, {
+  fields: ['businessDescription', 'lineOfBusiness', 'detailedLine', 'psicCode'],
+  deterministicFields: ['taxCode'],
+  nestedPaths: [],
+  arrayPaths: [],
+  mixedPaths: [],
+})
+
 LobTrainingExampleSchema.index({ taxCode: 1, detailedLine: 1 })
 LobTrainingExampleSchema.index({ createdAt: -1 })
 

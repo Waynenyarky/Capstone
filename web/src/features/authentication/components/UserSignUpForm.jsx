@@ -1,11 +1,11 @@
 // UserSignUpForm.jsx — Two-step signup: Account info → PIS fields
 import React, { useState, useCallback } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Input, Button, Checkbox, Typography, Row, Col, Grid, Steps, Select, DatePicker, Divider } from 'antd'
+import { Input, Button, Checkbox, Typography, Row, Col, Grid, Steps, Select, DatePicker, Divider, message } from 'antd'
 import { useNavigate, Link } from 'react-router-dom'
 import dayjs from 'dayjs'
 
-import { useUserSignUp, useUserSignUpFlow } from '@/features/authentication/hooks'
+import { useUserSignUp, useUserSignUpFlow, useMaintenanceStatus } from '@/features/authentication/hooks'
 import PasswordStrengthIndicator from './PasswordStrengthIndicator.jsx'
 import { SignUpVerificationForm } from '@/features/authentication'
 import {
@@ -154,6 +154,7 @@ export default function UserSignUpForm({ extraContent }) {
   const [currentStep, setCurrentStep] = useState(0)
   const turnstileRef = React.useRef(null)
   const turnstileSiteKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_TURNSTILE_SITE_KEY) || ''
+  const maintenance = useMaintenanceStatus()
 
   const { step, emailForVerify, devCodeForVerify, verifyEmail, handleVerificationSubmit } = useUserSignUpFlow()
   const { form, handleFinish, isSubmitting } = useUserSignUp({
@@ -224,6 +225,12 @@ export default function UserSignUpForm({ extraContent }) {
         form={form}
         layout="vertical"
         onFinish={async (values) => {
+          // Check maintenance mode before proceeding with registration
+          if (maintenance.active) {
+            message.warning('Registration is temporarily unavailable due to maintenance. Please try again later.')
+            return
+          }
+          
           try {
             await handleFinish(values)
           } finally {

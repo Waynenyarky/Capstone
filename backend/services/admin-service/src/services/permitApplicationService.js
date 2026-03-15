@@ -1,3 +1,4 @@
+const mongoose = require('mongoose')
 const BusinessProfile = require('../models/BusinessProfile')
 const User = require('../models/User')
 const AuditLog = require('../models/AuditLog')
@@ -6,6 +7,105 @@ const blockchainService = require('../lib/blockchainService')
 const { logAuditEvent } = require('../lib/auditClient')
 const crypto = require('crypto')
 const sendEmail = require('../lib/mailer').sendEmail
+
+// Import decryption utility for aggregation results (aggregation bypasses Mongoose hooks)
+let decrypt
+try {
+  decrypt = require('../../../../shared/lib/fieldCipher').decrypt
+} catch (e) {
+  decrypt = (v) => v // fallback if not available
+}
+
+/**
+ * Convert MongoDB Binary/Buffer to hex string (for ObjectId fields from aggregation)
+ */
+function bufferToHex(buf) {
+  if (!buf) return null
+  if (buf.buffer && typeof buf.buffer === 'object') {
+    // It's a Binary type with buffer property
+    const bytes = Object.values(buf.buffer)
+    return bytes.map(b => b.toString(16).padStart(2, '0')).join('')
+  }
+  if (Buffer.isBuffer(buf)) {
+    return buf.toString('hex')
+  }
+  return buf
+}
+
+/**
+ * Decrypt string fields in an object recursively
+ */
+function decryptObject(obj) {
+  if (!obj || typeof obj !== 'object') return obj
+  if (Array.isArray(obj)) {
+    return obj.map(item => decryptObject(item))
+  }
+  const result = {}
+  for (const [key, value] of Object.entries(obj)) {
+    // Handle ObjectId fields that come as Binary/Buffer from aggregation
+    if (key === 'userId' || key === '_id' || key === 'reviewedBy' || key === '_businessId') {
+      result[key] = bufferToHex(value) || value
+    } else if (typeof value === 'string') {
+      result[key] = decrypt(value)
+    } else if (value && typeof value === 'object') {
+      result[key] = decryptObject(value)
+    } else {
+      result[key] = value
+    }
+  }
+  return result
+}
+
+/**
+ * Find a BusinessProfile by business subdocument ID (tries _id first, then businessId)
+ * Note: _id is not encrypted, businessId may be encrypted
+ */
+async function findProfileByBusinessId(targetId) {
+  const mongoose = require('mongoose')
+  // Try _id first (not encrypted, more reliable)
+  let profile = null
+  if (mongoose.Types.ObjectId.isValid(targetId)) {
+    profile = await BusinessProfile.findOne({ 'businesses._id': new mongoose.Types.ObjectId(targetId) })
+  }
+  if (!profile) {
+    // Fallback to businessId (may be encrypted)
+    profile = await BusinessProfile.findOne({ 'businesses.businessId': targetId })
+  }
+  return profile
+}
+
+/**
+ * Find business index within a profile by targetId (matches businessId or _id)
+ */
+function findBusinessIndex(profile, targetId) {
+  return profile.businesses.findIndex(b =>
+    String(b.businessId) === String(targetId) || String(b._id) === String(targetId)
+  )
+}
+
+/**
+ * Verify officer role - decrypt slug if needed since .lean() returns encrypted values
+ * @returns {{ officer: object, roleSlug: string }}
+ */
+async function verifyOfficerRole(officerId) {
+  let officer
+  try {
+    officer = await User.findById(officerId).populate('role').lean()
+  } catch (_) {
+    officer = await User.findById(officerId).lean()
+    if (officer && officer.role) {
+      const role = await Role.findById(officer.role).lean()
+      officer.role = role
+    }
+  }
+  if (!officer) throw new Error('Officer not found')
+  const rawSlug = officer.role?.slug || ''
+  const roleSlug = decrypt(rawSlug) || rawSlug
+  if (!['lgu_officer', 'staff', 'lgu_manager'].includes(roleSlug)) {
+    throw new Error('Unauthorized: Only LGU officers can review applications')
+  }
+  return { officer, roleSlug }
+}
 
 /** Build a simple application history for timeline (reverse chronological) */
 function buildApplicationHistory(business) {
@@ -55,30 +155,33 @@ class PermitApplicationService {
       applicationType,
       dateFrom,
       dateTo,
-      applicationReferenceNumber
+      applicationReferenceNumber,
+      ownerId,
+      reviewedBy,
     } = filters
 
     const page = parseInt(pagination.page) || 1
     const limit = parseInt(pagination.limit) || 10
     const skip = (page - 1) * limit
 
+    // Parse status filter for post-decryption filtering
+    const statusList = status ? status.split(',').map(s => s.trim()) : null
+
     // Build aggregation pipeline
+    // NOTE: We cannot filter by encrypted fields (applicationStatus, businessName) in aggregation
+    // because aggregation bypasses Mongoose decryption hooks. We filter after decryption instead.
     const pipeline = [
       // First match documents that have businesses array
-      { $match: { businesses: { $exists: true, $ne: [] } } },
+      { $match: {
+        businesses: { $exists: true, $ne: [] },
+        ...(ownerId && { userId: ownerId }),
+      } },
       // Unwind the businesses array
       { $unwind: '$businesses' },
-      // Match on business fields after unwind
+      // Only filter by non-encrypted fields (dates)
       {
         $match: {
           'businesses.applicationStatus': { $exists: true, $ne: null },
-          ...(status && { 'businesses.applicationStatus': status }),
-          ...(businessName && {
-            'businesses.businessName': { $regex: businessName, $options: 'i' }
-          }),
-          ...(applicationReferenceNumber && {
-            'businesses.applicationReferenceNumber': applicationReferenceNumber
-          }),
           ...(dateFrom || dateTo ? {
             'businesses.submittedAt': {
               ...(dateFrom && { $gte: new Date(dateFrom) }),
@@ -90,6 +193,7 @@ class PermitApplicationService {
       {
         $project: {
           userId: 1,
+          _businessId: '$businesses._id', // MongoDB subdocument _id (not encrypted)
           businessId: '$businesses.businessId',
           businessName: '$businesses.businessName',
           applicationStatus: '$businesses.applicationStatus',
@@ -104,28 +208,55 @@ class PermitApplicationService {
             ] 
           },
           aiValidation: '$businesses.aiValidation',
+          reviewedBy: '$businesses.reviewedBy',
+          reviewedAt: '$businesses.reviewedAt',
           createdAt: '$businesses.createdAt',
           updatedAt: '$businesses.updatedAt'
         }
       },
       { $sort: { submittedAt: -1, createdAt: -1 } },
-      {
-        $facet: {
-          data: [{ $skip: skip }, { $limit: limit }],
-          total: [{ $count: 'count' }]
-        }
-      }
     ]
 
-    const result = await BusinessProfile.aggregate(pipeline)
-    const data = result[0]?.data || []
-    const total = result[0]?.total[0]?.count || 0
+    const rawResults = await BusinessProfile.aggregate(pipeline)
+    // Decrypt aggregation results (aggregation bypasses Mongoose decryption hooks)
+    let allData = rawResults.map(doc => decryptObject(doc))
+
+    // Post-decryption filtering by status (encrypted fields can't be filtered in aggregation)
+    if (statusList && statusList.length > 0) {
+      allData = allData.filter(app => statusList.includes(app.applicationStatus))
+    }
+
+    // Post-decryption filtering by reviewedBy (stored as string or ObjectId, compare as strings)
+    if (reviewedBy) {
+      allData = allData.filter(app => app.reviewedBy && String(app.reviewedBy) === String(reviewedBy))
+    }
+
+    // Post-decryption filtering by businessName (encrypted field)
+    if (businessName) {
+      const searchLower = businessName.toLowerCase()
+      allData = allData.filter(app => 
+        app.businessName && app.businessName.toLowerCase().includes(searchLower)
+      )
+    }
+
+    // Post-decryption filtering by applicationReferenceNumber (encrypted field)
+    if (applicationReferenceNumber) {
+      allData = allData.filter(app => app.applicationReferenceNumber === applicationReferenceNumber)
+    }
+
+    // Apply pagination after filtering
+    const total = allData.length
+    const data = allData.slice(skip, skip + limit)
 
     // Populate user information for each application
     const applications = await Promise.all(
       data.map(async (app) => {
         try {
-          const user = await User.findById(app.userId).select('email firstName lastName').lean()
+          // Convert userId to string if it's a buffer/ObjectId
+          const userIdStr = app.userId?._id?.toString?.() || app.userId?.toString?.() || String(app.userId)
+          const rawUser = await User.findById(userIdStr).select('email firstName lastName').lean()
+          // Decrypt user fields (User model may have encrypted fields)
+          const user = rawUser ? decryptObject(rawUser) : null
           
           // Get business owner full name with priority:
           // 1. ownerFullName from business registration (already in app data)
@@ -137,39 +268,51 @@ class PermitApplicationService {
             (user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '') ||
             (user?.email || 'N/A')
           
+          // Use _businessId (subdocument _id) as primary identifier since businessId may be encrypted
+          const appId = app._businessId || app.businessId
           return {
-            applicationId: app.businessId,
-            businessId: app.businessId,
+            applicationId: appId,
+            businessId: appId,
             userId: app.userId,
             businessName: app.businessName,
-            applicationReferenceNumber: app.applicationReferenceNumber || `APP-${String(app.businessId).slice(-8)}`,
+            applicationReferenceNumber: app.applicationReferenceNumber || `APP-${String(appId).slice(-8)}`,
             status: app.applicationStatus || 'draft',
             applicationType: app.applicationType,
             submittedAt: app.submittedAt,
             aiValidation: app.aiValidation || { completed: false },
+            hasActiveAppeal: app.hasActiveAppeal || false,
+            appealExhausted: app.appealExhausted || false,
             businessOwner: user ? {
               email: user.email,
               name: ownerFullName,
               firstName: user.firstName,
               lastName: user.lastName
             } : null,
+            reviewedBy: app.reviewedBy || null,
+            reviewedAt: app.reviewedAt || null,
             createdAt: app.createdAt,
             updatedAt: app.updatedAt
           }
         } catch (err) {
-          console.error(`Error processing application ${app.businessId}:`, err)
+          // Use _businessId (subdocument _id) as primary identifier since businessId may be encrypted
+          const appId = app._businessId || app.businessId
+          console.error(`Error processing application ${appId}:`, err)
           // Return basic info even if user lookup fails
           return {
-            applicationId: app.businessId,
-            businessId: app.businessId,
+            applicationId: appId,
+            businessId: appId,
             userId: app.userId,
             businessName: app.businessName,
-            applicationReferenceNumber: app.applicationReferenceNumber || `APP-${String(app.businessId).slice(-8)}`,
+            applicationReferenceNumber: app.applicationReferenceNumber || `APP-${String(appId).slice(-8)}`,
             status: app.applicationStatus || 'draft',
             applicationType: app.applicationType,
             submittedAt: app.submittedAt,
             aiValidation: app.aiValidation || { completed: false },
+            hasActiveAppeal: app.hasActiveAppeal || false,
+            appealExhausted: app.appealExhausted || false,
             businessOwner: null,
+            reviewedBy: app.reviewedBy || null,
+            reviewedAt: app.reviewedAt || null,
             createdAt: app.createdAt,
             updatedAt: app.updatedAt
           }
@@ -197,29 +340,45 @@ class PermitApplicationService {
   async getApplicationById(applicationId, businessId = null) {
     const targetBusinessId = businessId || applicationId
 
-    const profile = await BusinessProfile.findOne({
+    // Search by both businessId and _id since applications may use either identifier
+    let profile = await BusinessProfile.findOne({
       'businesses.businessId': targetBusinessId
     }).lean()
+
+    // If not found by businessId, try by _id
+    if (!profile) {
+      profile = await BusinessProfile.findOne({
+        'businesses._id': targetBusinessId
+      }).lean()
+    }
 
     if (!profile) {
       throw new Error('Application not found')
     }
 
-    const business = profile.businesses.find(b => b.businessId === targetBusinessId)
+    // Decrypt profile fields (aggregation/lean bypasses Mongoose hooks)
+    const decryptedProfile = decryptObject(profile)
+
+    const business = decryptedProfile.businesses.find(b => 
+      String(b.businessId) === String(targetBusinessId) || 
+      String(b._id) === String(targetBusinessId)
+    )
     if (!business) {
       throw new Error('Application not found')
     }
 
-    const user = await User.findById(profile.userId)
+    const rawUser = await User.findById(decryptedProfile.userId)
       .select('email firstName lastName phoneNumber middleName suffix sex dateOfBirth maritalStatus placeOfBirth nationality fatherName motherName distinctiveMark highestEducationalAttainment address')
       .lean()
+    // Decrypt user fields
+    const user = rawUser ? decryptObject(rawUser) : null
 
     // Get business owner full name with priority:
     // 1. ownerIdentity.fullName (from BusinessProfile - most accurate)
     // 2. businessRegistration.ownerFullName (from business registration form)
     // 3. User's firstName + lastName (fallback)
     const ownerFullName = 
-      (profile.ownerIdentity?.fullName && profile.ownerIdentity.fullName.trim()) ||
+      (decryptedProfile.ownerIdentity?.fullName && decryptedProfile.ownerIdentity.fullName.trim()) ||
       (business.ownerFullName && business.ownerFullName.trim()) ||
       (user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '') ||
       'N/A'
@@ -238,7 +397,7 @@ class PermitApplicationService {
     const otherAgencies = business.otherAgencyRegistrations || {}
 
     // Merge owner identity: use profile.ownerIdentity and fill gaps from business/user so review UI always has owner data
-    const profileOwner = profile.ownerIdentity || {}
+    const profileOwner = decryptedProfile.ownerIdentity || {}
     const idPictureUrl = getDocumentUrl(lguDocs.idPicture, lguDocs.idPictureIpfsCid)
     const ownerIdentity = {
       fullName: (profileOwner.fullName && profileOwner.fullName.trim()) || (business.ownerFullName && business.ownerFullName.trim()) || ownerFullName,
@@ -249,10 +408,12 @@ class PermitApplicationService {
       isSubmitted: profileOwner.isSubmitted
     }
 
+    // Prefer _id (never encrypted) over businessId (may still be encrypted after decryptObject)
+    const resolvedBusinessId = (business._id && String(business._id) !== 'undefined') ? String(business._id) : (business.businessId || business._id)
     return {
-      applicationId: business.businessId,
-      businessId: business.businessId,
-      userId: profile.userId,
+      applicationId: resolvedBusinessId,
+      businessId: resolvedBusinessId,
+      userId: decryptedProfile.userId,
       businessName: business.businessName,
       applicationReferenceNumber: business.applicationReferenceNumber || `APP-${String(business.businessId).slice(-8)}`,
       status: business.applicationStatus || 'draft',
@@ -264,6 +425,10 @@ class PermitApplicationService {
       reviewedAt: business.reviewedAt,
       reviewComments: business.reviewComments,
       rejectionReason: business.rejectionReason,
+      // Appeal status fields
+      hasActiveAppeal: business.hasActiveAppeal || false,
+      appealExhausted: business.appealExhausted || false,
+      appealId: business.appealId || '',
       // Per-field review decisions (accepted/rejected with optional reason)
       fieldReviewDecisions: business.fieldReviewDecisions && typeof business.fieldReviewDecisions === 'object' ? business.fieldReviewDecisions : {},
       // Form definition–driven application (for review UI)
@@ -423,42 +588,14 @@ class PermitApplicationService {
    * @returns {Promise<object>} Updated application
    */
   async startReview(applicationId, businessId, officerId) {
-    // Get officer info - try to populate role, fallback to direct query if needed
-    let officer
-    try {
-      officer = await User.findById(officerId).populate('role').lean()
-    } catch (populateError) {
-      // If populate fails, get user and role separately
-      officer = await User.findById(officerId).lean()
-      if (officer && officer.role) {
-        const role = await Role.findById(officer.role).lean()
-        officer.role = role
-      }
-    }
-    
-    if (!officer) {
-      throw new Error('Officer not found')
-    }
+    const { officer, roleSlug } = await verifyOfficerRole(officerId)
 
-    // Check officer role
-    const roleSlug = officer.role?.slug || ''
-    if (!['lgu_officer', 'staff', 'lgu_manager'].includes(roleSlug)) {
-      throw new Error('Unauthorized: Only LGU officers can review applications')
-    }
+    const targetId = businessId || applicationId
+    const profile = await findProfileByBusinessId(targetId)
+    if (!profile) throw new Error('Application not found')
 
-    // Get current application
-    const profile = await BusinessProfile.findOne({
-      'businesses.businessId': businessId || applicationId
-    })
-
-    if (!profile) {
-      throw new Error('Application not found')
-    }
-
-    const businessIndex = profile.businesses.findIndex(b => b.businessId === (businessId || applicationId))
-    if (businessIndex === -1) {
-      throw new Error('Application not found')
-    }
+    const businessIndex = findBusinessIndex(profile, targetId)
+    if (businessIndex === -1) throw new Error('Application not found')
 
     const business = profile.businesses[businessIndex]
     const oldStatus = business.applicationStatus || 'draft'
@@ -477,20 +614,22 @@ class PermitApplicationService {
       return result
     }
 
-    // Update status to under_review
-    profile.businesses[businessIndex].applicationStatus = 'under_review'
-    profile.businesses[businessIndex].reviewedBy = officerId
-    profile.businesses[businessIndex].reviewedAt = new Date()
+    // Update status to under_review using findOneAndUpdate to bypass enum validation on encrypted fields
+    const updateQuery = {
+      $set: {
+        [`businesses.${businessIndex}.applicationStatus`]: 'under_review',
+        [`businesses.${businessIndex}.reviewedBy`]: officerId,
+        [`businesses.${businessIndex}.reviewedAt`]: new Date(),
+        [`businesses.${businessIndex}.updatedAt`]: new Date(),
+      }
+    }
 
-    // Mark the businesses array as modified so Mongoose knows to save it
-    profile.markModified('businesses')
-
-    console.log(`[startReview] Updating status from '${oldStatus}' to 'under_review' for business ${businessId || applicationId}, userId: ${profile.userId}`)
+    console.log(`[startReview] Updating status from '${oldStatus}' to 'under_review' for business ${targetId}, userId: ${profile.userId}`)
     
-    // Save the profile
+    // Save the profile using updateOne to bypass Mongoose validation (encrypted enum fields fail validation)
     try {
-      await profile.save()
-      console.log(`[startReview] Profile saved successfully`)
+      await BusinessProfile.updateOne({ _id: profile._id }, updateQuery)
+      console.log(`[startReview] Profile updated successfully`)
       
       // Create notification for business owner
       try {
@@ -512,25 +651,34 @@ class PermitApplicationService {
       throw new Error(`Failed to save status update: ${saveError.message}`)
     }
     
-    // Re-fetch to verify status was saved correctly
-    const verifyProfile = await BusinessProfile.findOne({
-      'businesses.businessId': businessId || applicationId
+    // Re-fetch to verify status was saved correctly - search by _id since businessId is encrypted
+    let verifyProfile = await BusinessProfile.findOne({
+      'businesses._id': targetId
     }).lean()
+    if (!verifyProfile) {
+      verifyProfile = await BusinessProfile.findOne({
+        'businesses.businessId': targetId
+      }).lean()
+    }
     
     if (!verifyProfile) {
       console.error(`[startReview] Verification failed: Profile not found after save`)
       throw new Error('Failed to verify status update: Profile not found')
     }
     
-    const verifyBusiness = verifyProfile.businesses?.find(b => b.businessId === (businessId || applicationId))
+    const verifyBusiness = verifyProfile.businesses?.find(b => 
+      String(b._id) === String(targetId) || String(b.businessId) === String(targetId)
+    )
     if (!verifyBusiness) {
       console.error(`[startReview] Verification failed: Business not found after save`)
       throw new Error('Failed to verify status update: Business not found')
     }
     
-    if (verifyBusiness.applicationStatus !== 'under_review') {
-      console.error(`[startReview] Status verification failed: expected 'under_review', got '${verifyBusiness.applicationStatus}'`)
-      throw new Error(`Failed to verify status update: Expected 'under_review', got '${verifyBusiness.applicationStatus}'`)
+    // Decrypt status for comparison
+    const verifyStatus = decrypt(verifyBusiness.applicationStatus) || verifyBusiness.applicationStatus
+    if (verifyStatus !== 'under_review') {
+      console.error(`[startReview] Status verification failed: expected 'under_review', got '${verifyStatus}'`)
+      throw new Error(`Failed to verify status update: Expected 'under_review', got '${verifyStatus}'`)
     }
     
     console.log(`[startReview] Status verified successfully: 'under_review' saved for business ${businessId || applicationId}, userId: ${profile.userId}`)
@@ -619,42 +767,14 @@ class PermitApplicationService {
       throw new Error('Rejection reason is required when rejecting an application')
     }
 
-    // Get officer info - try to populate role, fallback to direct query if needed
-    let officer
-    try {
-      officer = await User.findById(officerId).populate('role').lean()
-    } catch (populateError) {
-      // If populate fails, get user and role separately
-      officer = await User.findById(officerId).lean()
-      if (officer && officer.role) {
-        const role = await Role.findById(officer.role).lean()
-        officer.role = role
-      }
-    }
-    
-    if (!officer) {
-      throw new Error('Officer not found')
-    }
+    const { officer, roleSlug } = await verifyOfficerRole(officerId)
 
-    // Check officer role
-    const roleSlug = officer.role?.slug || ''
-    if (!['lgu_officer', 'staff', 'lgu_manager'].includes(roleSlug)) {
-      throw new Error('Unauthorized: Only LGU officers can review applications')
-    }
+    const targetId = businessId || applicationId
+    const profile = await findProfileByBusinessId(targetId)
+    if (!profile) throw new Error('Application not found')
 
-    // Get current application
-    const profile = await BusinessProfile.findOne({
-      'businesses.businessId': businessId || applicationId
-    })
-
-    if (!profile) {
-      throw new Error('Application not found')
-    }
-
-    const businessIndex = profile.businesses.findIndex(b => b.businessId === (businessId || applicationId))
-    if (businessIndex === -1) {
-      throw new Error('Application not found')
-    }
+    const businessIndex = findBusinessIndex(profile, targetId)
+    if (businessIndex === -1) throw new Error('Application not found')
 
     const business = profile.businesses[businessIndex]
     const oldStatus = business.applicationStatus || 'draft'
@@ -666,10 +786,11 @@ class PermitApplicationService {
 
     // Validate status transition
     const validTransitions = {
-      'submitted': ['under_review', 'approved', 'rejected', 'needs_revision'],
-      'resubmit': ['under_review', 'approved', 'rejected', 'needs_revision'],
+      'submitted': ['under_review'],
+      'resubmit': ['under_review'],
       'under_review': ['approved', 'rejected', 'needs_revision'],
-      'needs_revision': ['submitted', 'resubmit', 'under_review', 'approved', 'rejected', 'needs_revision'] // Allow updating needs_revision with new comments
+      'appeal_pending': ['approved', 'rejected', 'needs_revision', 'under_review'],
+      'needs_revision': ['resubmit', 'under_review']
     }
 
     const targetStatus = decision === 'approve' ? 'approved' :
@@ -739,7 +860,20 @@ class PermitApplicationService {
       // Status will be set to the decision status
     }
 
-    await profile.save()
+    // Use updateOne to bypass Mongoose validation on encrypted enum fields
+    const updateFields = {
+      [`businesses.${businessIndex}.applicationStatus`]: newStatus,
+      [`businesses.${businessIndex}.reviewedBy`]: officerId,
+      [`businesses.${businessIndex}.reviewedAt`]: new Date(),
+      [`businesses.${businessIndex}.updatedAt`]: new Date(),
+    }
+    if (comments !== undefined && comments !== null) {
+      updateFields[`businesses.${businessIndex}.reviewComments`] = typeof comments === 'string' ? comments.trim() : String(comments).trim()
+    }
+    if (rejectionReason !== undefined && rejectionReason !== null) {
+      updateFields[`businesses.${businessIndex}.rejectionReason`] = typeof rejectionReason === 'string' ? rejectionReason.trim() : String(rejectionReason).trim()
+    }
+    await BusinessProfile.updateOne({ _id: profile._id }, { $set: updateFields })
 
     // Create notification for business owner
     try {
@@ -761,6 +895,78 @@ class PermitApplicationService {
     } catch (notifError) {
       console.error(`[reviewApplication] Failed to create notification:`, notifError)
       // Don't throw - notification failure shouldn't break the review process
+    }
+
+    // Auto-issue permit when application is approved
+    if (newStatus === 'approved') {
+      try {
+        const mongoose = require('mongoose')
+        // Register Permit model if not already registered (shared MongoDB)
+        let Permit
+        try {
+          Permit = mongoose.model('Permit')
+        } catch (_) {
+          const permitSchema = new mongoose.Schema({
+            permitNumber: { type: String, required: true, unique: true, index: true },
+            businessId: { type: String, required: true, index: true },
+            businessName: { type: String, required: true },
+            ownerName: { type: String, required: true },
+            address: { type: String, required: true },
+            lineOfBusiness: { type: String, required: true },
+            permitType: { type: String, enum: ['initial', 'renewal'], default: 'initial' },
+            issuedDate: { type: Date, required: true, default: Date.now },
+            expiryDate: { type: Date, required: true },
+            status: { type: String, enum: ['active', 'expired', 'suspended', 'revoked'], default: 'active', index: true },
+            qrCode: { type: String },
+            issuedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+            suspendedAt: Date, suspensionReason: String,
+            suspendedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+            revokedAt: Date, revocationReason: String,
+            revokedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+            metadata: { type: mongoose.Schema.Types.Mixed, default: {} }
+          }, { timestamps: true })
+          Permit = mongoose.model('Permit', permitSchema)
+        }
+
+        const bId = businessId || applicationId
+        const year = new Date().getFullYear()
+        const ts = Date.now().toString().slice(-5)
+        const rnd = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+        const permitNumber = `MP-${year}-${ts}${rnd}`
+        const issuedDate = new Date()
+        const expiryDate = new Date(issuedDate)
+        expiryDate.setFullYear(expiryDate.getFullYear() + 1)
+
+        const permit = await Permit.create({
+          permitNumber,
+          businessId: bId,
+          businessName: business.businessName || business.registeredBusinessName || 'N/A',
+          ownerName: profile.ownerName || `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'N/A',
+          address: typeof business.businessAddress === 'string' ? business.businessAddress : (business.businessAddress?.full || [business.businessAddress?.streetAddress, business.businessAddress?.barangayName, business.businessAddress?.cityName].filter(Boolean).join(', ') || 'N/A'),
+          lineOfBusiness: business.primaryLineOfBusiness || business.lineOfBusiness || 'N/A',
+          permitType: 'initial',
+          issuedDate,
+          expiryDate,
+          status: 'active',
+          issuedBy: officerId
+        })
+
+        // Update business profile with permit reference using updateOne
+        await BusinessProfile.updateOne(
+          { _id: profile._id },
+          { $set: {
+            [`businesses.${businessIndex}.permitNumber`]: permitNumber,
+            [`businesses.${businessIndex}.permitIssuedDate`]: issuedDate,
+            [`businesses.${businessIndex}.permitExpiryDate`]: expiryDate,
+            [`businesses.${businessIndex}.permitStatus`]: 'active',
+          }}
+        )
+
+        console.log(`[reviewApplication] Auto-issued permit ${permitNumber} for business ${bId}`)
+      } catch (permitError) {
+        console.error(`[reviewApplication] Permit auto-issuance error:`, permitError)
+        // Don't throw - permit issuance failure shouldn't break the review process
+      }
     }
 
     // Create audit log
@@ -1044,16 +1250,15 @@ class PermitApplicationService {
    * @returns {Promise<object>} Updated application with fieldReviewDecisions
    */
   async updateFieldDecisions(applicationId, businessId, officerId, payload) {
-    const profile = await BusinessProfile.findOne({
-      'businesses.businessId': businessId || applicationId
-    })
+    const targetId = businessId || applicationId
+    const profile = await findProfileByBusinessId(targetId)
     if (!profile) throw new Error('Application not found')
-    const idx = profile.businesses.findIndex(b => b.businessId === (businessId || applicationId))
+    const idx = findBusinessIndex(profile, targetId)
     if (idx === -1) throw new Error('Application not found')
     const business = profile.businesses[idx]
     const status = business.applicationStatus || 'draft'
-    if (!['submitted', 'resubmit', 'needs_revision', 'under_review'].includes(status)) {
-      throw new Error('Application is not in a reviewable status')
+    if (status !== 'under_review') {
+      throw new Error('Application is not in an active review state')
     }
     const decisions = business.fieldReviewDecisions && typeof business.fieldReviewDecisions === 'object'
       ? { ...business.fieldReviewDecisions }
@@ -1070,9 +1275,11 @@ class PermitApplicationService {
         decidedAt: new Date()
       }
     }
-    profile.businesses[idx].fieldReviewDecisions = decisions
-    profile.markModified('businesses')
-    await profile.save()
+    // Use updateOne to bypass Mongoose validation on encrypted enum fields
+    await BusinessProfile.updateOne(
+      { _id: profile._id },
+      { $set: { [`businesses.${idx}.fieldReviewDecisions`]: decisions, [`businesses.${idx}.updatedAt`]: new Date() } }
+    )
     return this.getApplicationById(applicationId, businessId)
   }
 
@@ -1085,16 +1292,15 @@ class PermitApplicationService {
    * @returns {Promise<object>} Updated application
    */
   async updateLobFormData(applicationId, businessId, officerId, payload) {
-    const profile = await BusinessProfile.findOne({
-      'businesses.businessId': businessId || applicationId
-    })
+    const targetId = businessId || applicationId
+    const profile = await findProfileByBusinessId(targetId)
     if (!profile) throw new Error('Application not found')
-    const idx = profile.businesses.findIndex(b => b.businessId === (businessId || applicationId))
+    const idx = findBusinessIndex(profile, targetId)
     if (idx === -1) throw new Error('Application not found')
     const business = profile.businesses[idx]
     const status = business.applicationStatus || 'draft'
-    if (!['submitted', 'resubmit', 'needs_revision', 'under_review'].includes(status)) {
-      throw new Error('Application is not in a reviewable status')
+    if (status !== 'under_review') {
+      throw new Error('Application is not in an active review state')
     }
     const formData = business.formData && typeof business.formData === 'object' ? { ...business.formData } : {}
     if (payload.businessDescriptionText !== undefined) {
@@ -1103,10 +1309,11 @@ class PermitApplicationService {
     if (payload.businessActivities !== undefined && Array.isArray(payload.businessActivities)) {
       formData.businessActivities = payload.businessActivities
     }
-    profile.businesses[idx].formData = formData
-    profile.businesses[idx].updatedAt = new Date()
-    profile.markModified('businesses')
-    await profile.save()
+    // Use updateOne to bypass Mongoose validation on encrypted enum fields
+    await BusinessProfile.updateOne(
+      { _id: profile._id },
+      { $set: { [`businesses.${idx}.formData`]: formData, [`businesses.${idx}.updatedAt`]: new Date() } }
+    )
     return this.getApplicationById(applicationId, businessId)
   }
 }

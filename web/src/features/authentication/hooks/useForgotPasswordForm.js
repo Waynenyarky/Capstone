@@ -9,12 +9,16 @@ export function useForgotPasswordForm({ onSubmit } = {}) {
   const { error } = useNotifier()
 
   const handleFinish = async (values) => {
-    const payload = { email: values.email }
+    const payload = { email: values.email, captchaToken: values.captchaToken }
     try {
       setSubmitting(true)
-      await sendForgotPassword(payload)
+      const result = await sendForgotPassword(payload)
       form.resetFields()
-      if (typeof onSubmit === 'function') onSubmit({ email: payload.email })
+      if (typeof onSubmit === 'function') onSubmit({ 
+        email: payload.email, 
+        requiresMfa: result.requiresMfa || false,
+        warning: result.warning 
+      })
     } catch (err) {
       console.error('Forgot password error:', err)
       const message = err?.message || 'Failed to send reset code'

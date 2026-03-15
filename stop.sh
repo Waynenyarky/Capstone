@@ -56,18 +56,76 @@ if pgrep -f "vite.*5173" > /dev/null || pgrep -f "vite preview" > /dev/null || p
   pkill -f "vite.*5173" 2>/dev/null || true
   pkill -f "vite preview" 2>/dev/null || true
   pkill -f "vite.*4173" 2>/dev/null || true
+  # More aggressive cleanup - kill all npm run dev processes too
+  pkill -f "npm run dev" 2>/dev/null || true
+  pkill -f "node.*vite" 2>/dev/null || true
   echo -e "${GREEN}✅ All web servers stopped${NC}\n"
 fi
 
-# Optional: Ask if user wants to remove volumes (clean slate)
-read -p "$(echo -e ${YELLOW}Do you want to remove volumes? This will delete all data. [y/N]: ${NC})" -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo -e "${YELLOW}🗑️  Removing volumes...${NC}"
-    docker-compose down -v 2>/dev/null || docker-compose -f docker-compose.yml -f docker-compose.dev.yml down -v 2>/dev/null || true
-    echo -e "${GREEN}✅ Volumes removed!${NC}\n"
+# Detect if using MongoDB Atlas
+USING_ATLAS=false
+if [ -f ".env" ]; then
+    if grep -q "^MONGO_URI=mongodb+srv://" .env 2>/dev/null || grep -q "^MONGO_URI=mongodb://.*mongodb.net" .env 2>/dev/null; then
+        USING_ATLAS=true
+    fi
+fi
+
+# Ask user if they want to preserve data before removing volumes
+if [ "$USING_ATLAS" = true ]; then
+    echo -e "${CYAN}ℹ️  Using MongoDB Atlas (cloud database)${NC}"
+    
+    # Ask about database clearing
+    echo -e "${YELLOW}⚠️  WARNING: This will permanently delete ALL data in your Atlas database!${NC}"
+    echo -ne "${RED}Clear Atlas database? [y/N]: ${NC}"
+    read -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo -e "${RED}🗑️  Clearing Atlas database...${NC}"
+        if [ -f ".env" ]; then
+            # Load .env and run clear script
+            export $(grep -v '^#' .env | xargs)
+            if command -v node &> /dev/null; then
+                node backend/scripts/clear-database.js
+                if [ $? -eq 0 ]; then
+                    echo -e "${GREEN}✅ Atlas database cleared!${NC}\n"
+                else
+                    echo -e "${RED}❌ Failed to clear Atlas database${NC}\n"
+                fi
+            else
+                echo -e "${RED}❌ Node.js not found - cannot clear database${NC}\n"
+            fi
+        else
+            echo -e "${RED}❌ .env file not found - cannot clear database${NC}\n"
+        fi
+    else
+        echo -e "${CYAN}💡 Atlas database data preserved${NC}\n"
+    fi
+    
+    # Ask about local volumes
+    echo -ne "${YELLOW}Remove local Docker volumes (IPFS, contracts)? [y/N]: ${NC}"
+    read -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo -e "${YELLOW}�️  Removing local volumes...${NC}"
+        docker-compose down -v 2>/dev/null || docker-compose -f docker-compose.yml -f docker-compose.dev.yml down -v 2>/dev/null || true
+        echo -e "${GREEN}✅ Local volumes removed!${NC}\n"
+    else
+        echo -e "${CYAN}💡 Local volumes kept${NC}\n"
+    fi
 else
-    echo -e "${CYAN}💡 Data preserved. Volumes not removed.${NC}\n"
+    echo -e "${CYAN}ℹ️  Using local MongoDB${NC}"
+    echo -ne "${YELLOW}Keep data for next start? [y/N]: ${NC}"
+    read -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo -e "${CYAN}💡 Data preservation requested. Volumes will be kept.${NC}\n"
+        echo -e "${GREEN}✅ Data preserved!${NC}\n"
+    else
+        echo -e "${YELLOW}🗑️  Removing volumes (clean slate)...${NC}"
+        docker-compose down -v 2>/dev/null || docker-compose -f docker-compose.yml -f docker-compose.dev.yml down -v 2>/dev/null || true
+        echo -e "${GREEN}✅ All volumes removed!${NC}\n"
+        echo -e "${CYAN}🧹 Complete clean - fresh start next time!${NC}\n"
+    fi
 fi
 
 echo -e "${GREEN}Done!${NC}"

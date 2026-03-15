@@ -311,6 +311,11 @@ async function sendApprovalNotification(adminId, approvalId, status, options = {
 const SYSTEM_ALERT_COOLDOWN_MS = 15 * 60 * 1000
 const lastSystemAlertByType = new Map()
 
+/** Rate limit for tamper incidents: max 5 per hour in development */
+const TAMPER_INCIDENT_RATE_LIMIT = 5
+const TAMPER_INCIDENT_WINDOW_MS = 60 * 60 * 1000
+const tamperIncidentTimestamps = []
+
 /**
  * Notify all admins of a system/error-tracking alert (email + in-app). Rate-limited per alert type.
  * @param {string} alertType - e.g. 'high_error_rate', 'high_critical_errors'
@@ -370,6 +375,55 @@ async function notifyAdminsOfSystemAlert(alertType, details = {}) {
  * @returns {Promise<{notified: boolean, error?: string}>}
  */
 async function notifyAdminsOfTamperIncident(incident) {
+  // Emergency fix: Disable email notifications in development mode
+  if (process.env.NODE_ENV === 'development' && process.env.DISABLE_EMAIL_NOTIFICATIONS === 'true') {
+    console.log('🚫 Email notifications disabled in development mode - skipping tamper incident email', {
+      incidentId: String(incident._id),
+      severity: incident.severity,
+      verificationStatus: incident.verificationStatus,
+    })
+    // Still create in-app notifications for visibility
+    try {
+      await createInAppNotificationsForAdmins(
+        'tamper_incident',
+        'Audit tamper incident (DEV MODE)',
+        `Development mode: ${(incident.message || 'Audit integrity issue detected').slice(0, 150)} (Email notifications disabled)`,
+        'tamper_incident',
+        String(incident._id),
+        { severity: incident.severity, verificationStatus: incident.verificationStatus, developmentMode: true }
+      )
+      return { notified: false, reason: 'development_mode_email_disabled' }
+    } catch (err) {
+      console.error('Failed to create in-app notification in development mode:', err.message)
+      return { notified: false, error: err.message }
+    }
+  }
+
+  // Rate limiting: max 5 tamper incidents per hour in development
+  if (process.env.NODE_ENV === 'development') {
+    const now = Date.now()
+    const windowStart = now - TAMPER_INCIDENT_WINDOW_MS
+    
+    // Clean old timestamps
+    const recentTimestamps = tamperIncidentTimestamps.filter(timestamp => timestamp > windowStart)
+    tamperIncidentTimestamps.length = 0
+    tamperIncidentTimestamps.push(...recentTimestamps)
+    
+    // Check rate limit
+    if (tamperIncidentTimestamps.length >= TAMPER_INCIDENT_RATE_LIMIT) {
+      console.log('🚫 Tamper incident rate limit exceeded in development', {
+        incidentId: String(incident._id),
+        currentCount: tamperIncidentTimestamps.length,
+        limit: TAMPER_INCIDENT_RATE_LIMIT,
+        windowMs: TAMPER_INCIDENT_WINDOW_MS
+      })
+      return { notified: false, reason: 'rate_limit_exceeded' }
+    }
+    
+    // Add current timestamp
+    tamperIncidentTimestamps.push(now)
+  }
+
   try {
     const UserModel = getUserModel()
     const RoleModel = getRoleModel()

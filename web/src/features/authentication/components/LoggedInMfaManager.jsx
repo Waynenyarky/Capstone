@@ -52,7 +52,9 @@ export default function LoggedInMfaManager({ isAdmin = false, hasPasskeys = fals
 
   const roleKey = String(role?.slug ?? role ?? '').toLowerCase()
   const canDisableMfa = roleKey === 'business_owner'
-  const passkeyOnly = hasPasskeys && !enabled
+  // Use the hasPasskeys prop if provided, otherwise fall back to internal detection
+  const actualHasPasskeys = hasPasskeys !== undefined ? hasPasskeys : enabled
+  const passkeyOnly = actualHasPasskeys && !enabled
 
   const openSetup = () => {
     if (typeof onOpenSetupForm === 'function') {
@@ -78,11 +80,13 @@ export default function LoggedInMfaManager({ isAdmin = false, hasPasskeys = fals
   if (!currentUser) return null
 
   // User has 2FA if they have TOTP/authenticator enabled OR at least one passkey
-  const effectiveEnabled = enabled || hasPasskeys
+  // Prioritize session data (currentUser.mfaEnabled) over API call when available
+  const sessionMfaEnabled = currentUser?.mfaEnabled === true
+  const effectiveEnabled = sessionMfaEnabled || enabled || actualHasPasskeys
 
   return (
     <div>
-      {statusFetchFailed && (
+      {statusFetchFailed && !disablePending && (
         <Alert 
           type="warning" 
           showIcon 
@@ -93,38 +97,67 @@ export default function LoggedInMfaManager({ isAdmin = false, hasPasskeys = fals
       )}
 
       {canDisableMfa && disablePending && scheduledFor && (
-        <Alert
-          type="error"
-          showIcon
-          icon={<ClockCircleOutlined />}
-          message="MFA Disable Requested"
-          description={
-            <div style={{ marginTop: 4 }}>
-               <Paragraph style={{ marginBottom: 0 }}>
-                 Your request to disable MFA is pending. It will be disabled on <strong>{new Date(scheduledFor).toLocaleString()}</strong>.
-               </Paragraph>
-               <div style={{ marginTop: 8, fontWeight: 600, color: token.colorError }}>
-                 Time remaining: {countdown}
-               </div>
-            </div>
-          }
-          style={{ marginBottom: 24, border: `1px solid ${token.colorErrorBorder}` }}
-          action={
-            <Button 
-              size="small" 
-              type="primary" 
-              danger 
-              ghost 
-              icon={<UndoOutlined />} 
-              onClick={() => setUndoModalVisible(true)}
-            >
-              Undo Request
-            </Button>
-          }
-        />
+        <div style={{ 
+          padding: 24, 
+          background: token.colorFillAlter,
+          border: `1px solid ${token.colorBorderSecondary}`,
+          borderRadius: token.borderRadiusLG,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textAlign: 'center',
+          gap: 16,
+          marginBottom: 24,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <ClockCircleOutlined style={{ fontSize: 32, color: token.colorError }} />
+          </div>
+          <div>
+            <Title level={5} style={{ margin: 0, marginBottom: 8, color: token.colorError }}>
+              MFA Disable Requested
+            </Title>
+            <Paragraph type="secondary" style={{ margin: 0, color: isDarkTheme ? 'rgba(255, 255, 255, 0.65)' : undefined }}>
+              Your request to disable MFA is pending. It will be disabled on:
+            </Paragraph>
+          </div>
+          
+          <div style={{ 
+            fontSize: '15px', 
+            fontWeight: 600, 
+            color: token.colorError,
+            padding: '12px 16px',
+            backgroundColor: isDarkTheme ? 'rgba(255, 77, 79, 0.1)' : 'rgba(255, 77, 79, 0.05)',
+            borderRadius: '8px',
+            border: `1px solid ${token.colorErrorBorder}`,
+            textAlign: 'center',
+            width: '100%',
+            maxWidth: '280px'
+          }}>
+            {new Date(scheduledFor).toLocaleString()}
+          </div>
+          
+          <div style={{ 
+            fontSize: '14px', 
+            fontWeight: 500, 
+            color: token.colorError,
+            marginBottom: 8
+          }}>
+            Time remaining: {countdown}
+          </div>
+          
+          <Button 
+            type="primary" 
+            danger 
+            icon={<UndoOutlined />} 
+            onClick={() => setUndoModalVisible(true)}
+          >
+            Undo Request
+          </Button>
+        </div>
       )}
       
-      {/* Status Card - centered, login-style */}
+      {/* Status Card - centered, login-style - HIDE when disable request is active */}
+      {!disablePending && (
       <div style={{ 
         padding: 24, 
         background: effectiveEnabled 
@@ -148,28 +181,28 @@ export default function LoggedInMfaManager({ isAdmin = false, hasPasskeys = fals
           )}
         </div>
         <div>
-          <Title level={5} style={{ margin: 0, marginBottom: 4, color: isDarkTheme ? '#fff' : undefined }}>
-            {effectiveEnabled ? 'Two-Factor Authentication is active' : 'Two-Factor Authentication is not enabled'}
-          </Title>
+          <Title level={5} style={{ margin: 0, marginBottom: 16 }}>
+          Multi-Factor Authentication
+        </Title>
           <Paragraph type="secondary" style={{ margin: 0, color: isDarkTheme ? 'rgba(255, 255, 255, 0.65)' : undefined }}>
             {effectiveEnabled 
-              ? (hasPasskeys && !enabled 
+              ? (actualHasPasskeys && !enabled 
                   ? 'Your account is protected with passkey sign-in.' 
-                  : 'Your account is protected with an extra layer of security.')
+                  : 'Your account is protected with multi-factor authentication. Manage your security settings below.')
               : 'Protect your account by requiring a verification code or passkey when signing in.'}
           </Paragraph>
         </div>
         
         <div>
           {effectiveEnabled ? (
-            <Space wrap>
+            <Space wrap style={{ justifyContent: 'center' }}>
               <Button 
                 type="primary" 
                 onClick={handleSetupClick} 
                 disabled={loading}
                 icon={<SafetyCertificateOutlined />}
               >
-                Set up again
+                Manage MFA
               </Button>
               {canDisableMfa && (
                 <Button 
@@ -194,7 +227,8 @@ export default function LoggedInMfaManager({ isAdmin = false, hasPasskeys = fals
           )}
         </div>
       </div>
-
+      )}
+      
       {/* Confirm Disable Modal — passkey-only: no code; TOTP: require 6-digit code */}
       <Modal
         title={
@@ -308,11 +342,10 @@ export default function LoggedInMfaManager({ isAdmin = false, hasPasskeys = fals
         okText="Keep MFA Enabled"
         okButtonProps={{
           type: 'primary',
-          size: 'large',
           loading,
           disabled: !passkeyOnly && undoCode.replace(/\D/g, '').length !== 6
         }}
-        cancelButtonProps={{ size: 'large', disabled: loading }}
+        cancelButtonProps={{ disabled: loading }}
         width={480}
         centered
       >

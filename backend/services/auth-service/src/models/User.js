@@ -116,6 +116,21 @@ const UserSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+UserSchema.plugin(encryptionPlugin, {
+  fields: [
+    'firstName', 'lastName', 'middleName', 'suffix', 'phoneNumber',
+    'office', 'mfaSecret', 'authProvider', 'providerId',
+    'tokenFprint', 'placeOfBirth', 'nationality', 'fatherName', 'motherName',
+    'distinctiveMark', 'profileHash', 'profileIpfsCid', 'userEthereumAddress',
+    'avatarUrl', 'avatarIpfsCid', 'deletionUndoToken',
+  ],
+  deterministicFields: ['email', 'username'],
+  nestedPaths: ['address'],
+  arrayPaths: ['recentLoginIPs', 'webauthnCredentials'],
+  mixedPaths: [],
+})
+
 UserSchema.set('toJSON', {
   transform: (doc, ret) => {
     // If role is populated, return the slug as the role string for backward compatibility

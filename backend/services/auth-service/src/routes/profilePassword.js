@@ -14,6 +14,10 @@ const { sanitizeString } = require('../lib/sanitizer')
 const { createAuditLog } = require('../lib/auditLogger')
 const { sendPasswordChangeNotification } = require('../lib/notificationService')
 const inAppNotificationService = require('../services/notificationService')
+const webauthnServer = require('@simplewebauthn/server')
+const webauthnRouter = require('./webauthn')
+const authenticationChallenges = webauthnRouter.authenticationChallenges || new Map()
+const { consumePasswordChangeVerified } = require('../lib/mfaStepUpVerify')
 
 const router = express.Router()
 
@@ -23,11 +27,53 @@ const changePasswordAuthenticatedSchema = Joi.object({
 })
 
 const changePasswordStartSchema = Joi.object({
-  newPassword: Joi.string().min(12).max(200).required(),
+  // No fields required - just needs JWT auth to identify user
 })
 
 const changePasswordVerifySchema = Joi.object({
-  code: Joi.string().pattern(/^[0-9]{6}$/).required(),
+  code: Joi.alternatives().try(
+    Joi.string().pattern(/^[0-9]{6}$/),
+    Joi.string().valid('PASSKEY_BYPASS')
+  ).required(),
+  newPassword: Joi.string().min(12).max(200).required(),
+})
+
+// POST /api/auth/change-password/passkey/start
+// Step-up start for passkey-only users before allowing password change bypass
+router.post('/change-password/passkey/start', requireJwt, async (req, res) => {
+  try {
+    const userId = req._userId
+    const user = await User.findById(userId)
+    if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
+
+    const hasPasskeys = Array.isArray(user.webauthnCredentials) && user.webauthnCredentials.length > 0
+    if (!hasPasskeys) return respond.error(res, 400, 'no_passkeys', 'No passkeys registered')
+
+    const allowCredentials = (user.webauthnCredentials || []).map((c) => {
+      const credId = String(c.credId || '').trim()
+      if (!credId) return null
+      return { id: credId, type: 'public-key', transports: c.transports || [] }
+    }).filter(Boolean)
+
+    const rpID = process.env.WEBAUTHN_RPID || 'localhost'
+    const options = await webauthnServer.generateAuthenticationOptions({
+      rpID,
+      timeout: 60000,
+      allowCredentials: allowCredentials.length > 0 ? allowCredentials : undefined,
+      userVerification: 'preferred',
+    })
+
+    let challengeToStore = options.challenge
+    if (Buffer.isBuffer(challengeToStore)) challengeToStore = challengeToStore.toString('base64url')
+    else if (challengeToStore instanceof Uint8Array) challengeToStore = Buffer.from(challengeToStore).toString('base64url')
+    else if (typeof challengeToStore !== 'string') challengeToStore = Buffer.from(challengeToStore).toString('base64url')
+
+    authenticationChallenges.set('pwd_change_' + String(userId), challengeToStore)
+    return res.json({ publicKey: options })
+  } catch (err) {
+    console.error('POST /api/auth/change-password/passkey/start error:', err)
+    return respond.error(res, 500, 'passkey_start_failed', 'Failed to start passkey verification')
+  }
 })
 
 // POST /api/auth/change-password-authenticated
@@ -69,8 +115,11 @@ router.post('/change-password-authenticated', requireJwt, validateBody(changePas
     }
 
     const oldHash = String(doc.passwordHash)
+    const hadMfaSecret = !!doc.mfaSecret
+    const priorMfaEnabled = !!doc.mfaEnabled
+    const priorMfaMethod = String(doc.mfaMethod || '')
     let mfaPlain = ''
-    try { if (doc.mfaSecret) mfaPlain = decryptWithHash(oldHash, doc.mfaSecret) } catch (_) { mfaPlain = '' }
+    try { if (hadMfaSecret) mfaPlain = decryptWithHash(oldHash, doc.mfaSecret) } catch (_) { mfaPlain = '' }
 
     // Hash new password
     const newPasswordHash = await bcrypt.hash(sanitizedNewPassword, 10)
@@ -83,18 +132,31 @@ router.post('/change-password-authenticated', requireJwt, validateBody(changePas
     doc.passwordChangedAt = new Date()
     doc.passwordHistory = updatedHistory
     doc.tokenVersion = (doc.tokenVersion || 0) + 1 // Invalidate all sessions
-    doc.mfaReEnrollmentRequired = true // Require MFA re-enrollment
-    doc.mfaEnabled = false
-    doc.mfaSecret = ''
-    doc.fprintEnabled = false
-    doc.mfaMethod = ''
+    doc.mfaReEnrollmentRequired = false
     doc.mfaDisablePending = false
     doc.mfaDisableRequestedAt = null
     doc.mfaDisableScheduledFor = null
     doc.tokenFprint = ''
 
-    if (mfaPlain) {
-      try { doc.mfaSecret = encryptWithHash(doc.passwordHash, mfaPlain) } catch (_) {}
+    if (hadMfaSecret) {
+      if (!mfaPlain) {
+        // Secret could not be decrypted with old password hash: enforce re-enrollment
+        doc.mfaReEnrollmentRequired = true
+        doc.mfaEnabled = false
+        doc.mfaSecret = ''
+        doc.mfaMethod = ''
+      } else {
+        try {
+          doc.mfaSecret = encryptWithHash(doc.passwordHash, mfaPlain)
+          doc.mfaEnabled = true
+          doc.mfaMethod = priorMfaMethod || 'authenticator'
+        } catch (_) {
+          doc.mfaReEnrollmentRequired = true
+          doc.mfaEnabled = false
+          doc.mfaSecret = ''
+          doc.mfaMethod = ''
+        }
+      }
     }
     await doc.save()
 
@@ -114,7 +176,7 @@ router.post('/change-password-authenticated', requireJwt, validateBody(changePas
         ip,
         userAgent,
         tokenVersion: doc.tokenVersion,
-        mfaReEnrollmentRequired: true,
+        mfaReEnrollmentRequired: !!doc.mfaReEnrollmentRequired,
       }
     )
 
@@ -159,8 +221,6 @@ router.post('/change-password-authenticated', requireJwt, validateBody(changePas
 // Step 1: send OTP to email to confirm password change
 router.post('/change-password/start', requireJwt, validateBody(changePasswordStartSchema), async (req, res) => {
   try {
-    const { newPassword } = req.body || {}
-    
     // Use userId from JWT token (already validated by requireJwt middleware)
     const userId = req._userId
     if (!userId) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
@@ -173,30 +233,61 @@ router.post('/change-password/start', requireJwt, validateBody(changePasswordSta
     }
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
-    // Validate new password strength
-    const sanitizedNewPassword = sanitizeString(newPassword || '')
-    const passwordValidation = validatePasswordStrength(sanitizedNewPassword)
-    if (!passwordValidation.valid) {
-      return respond.error(res, 400, 'weak_password', 'Password does not meet requirements', passwordValidation.errors)
-    }
-
-    // Check if new password is in history
-    const historyCheck = await checkPasswordHistory(sanitizedNewPassword, doc.passwordHistory || [])
-    if (historyCheck.inHistory) {
-      return respond.error(res, 400, 'password_reused', 'You cannot reuse a recently used password. Please choose a different password.')
-    }
-
     const email = String(doc.email || '').toLowerCase()
+    
+    const mfaMethod = String(doc.mfaMethod || '').toLowerCase()
+    const hasTotpSecret = !!doc.mfaSecret
+    const isAuthenticatorMethod = mfaMethod.includes('authenticator') || mfaMethod.includes('fingerprint')
+    // Require TOTP step only when authenticator MFA is actually configured
+    const hasMfa = hasTotpSecret && (doc.mfaEnabled === true || isAuthenticatorMethod)
+    const hasPasskeys = doc.webauthnCredentials && doc.webauthnCredentials.length > 0
+    
+    // Debug logging - detailed
+    console.log('[Password Change Debug] ==========================================')
+    console.log('[Password Change Debug] User:', email)
+    console.log('[Password Change Debug] mfaEnabled:', doc.mfaEnabled)
+    console.log('[Password Change Debug] mfaSecret exists:', !!doc.mfaSecret)
+    console.log('[Password Change Debug] mfaMethods:', doc.mfaMethods)
+    console.log('[Password Change Debug] webauthnCredentials count:', doc.webauthnCredentials?.length || 0)
+    console.log('[Password Change Debug] hasMfa (TOTP):', hasMfa)
+    console.log('[Password Change Debug] hasPasskeys:', hasPasskeys)
+    console.log('[Password Change Debug] ==========================================')
+    
+    // If TOTP MFA is enabled, require authenticator verification first
+    if (hasMfa) {
+      console.log('[Password Change Debug] -> TOTP MFA REQUIRED (hasMfa=true)')
+      return res.json({ 
+        mfaRequired: true,
+        mfaEnabled: true,
+        hasPasskeys: hasPasskeys,
+        method: 'mfa',
+        message: 'Multi-factor authentication required'
+      })
+    }
+
+    // Passkey-only users can proceed directly (session is already authenticated)
+    if (hasPasskeys) {
+      console.log('[Password Change Debug] -> PASSKEY BYPASS (passkey-only user)')
+      return res.json({
+        sent: false,
+        mfaRequired: false,
+        passkeyBypass: true,
+        hasPasskeys: true,
+        method: 'passkey',
+      })
+    }
+    
+    console.log('[Password Change Debug] -> SKIP MFA, sending email OTP (passkey-only or no MFA)')
+    // No TOTP and no passkey - proceed with email OTP
     const code = generateCode()
     const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10)
     const expiresAtMs = Date.now() + ttlMin * 60 * 1000
     const key = email
     
-    // Store the request with the new password (will be hashed after OTP verification)
+    // Store the request (password will be provided during verification)
     changePasswordRequests.set(key, { 
       code, 
       expiresAt: expiresAtMs, 
-      newPassword: sanitizedNewPassword,
       verified: false 
     })
 
@@ -218,7 +309,7 @@ router.post('/change-password/start', requireJwt, validateBody(changePasswordSta
 // Step 2: verify OTP and change password
 router.post('/change-password/verify', requireJwt, validateBody(changePasswordVerifySchema), async (req, res) => {
   try {
-    const { code } = req.body || {}
+    const { code, newPassword } = req.body || {}
     
     // Use userId from JWT token (already validated by requireJwt middleware)
     const userId = req._userId
@@ -235,20 +326,25 @@ router.post('/change-password/verify', requireJwt, validateBody(changePasswordVe
     const email = String(doc.email || '').toLowerCase()
     const reqObj = changePasswordRequests.get(email)
     
-    if (!reqObj) return respond.error(res, 404, 'request_not_found', 'No password change request found. Please start again.')
-    if (Date.now() > reqObj.expiresAt) {
-      changePasswordRequests.delete(email)
-      return respond.error(res, 410, 'code_expired', 'Verification code expired. Please request a new one.')
-    }
-    if (String(reqObj.code) !== String(code)) {
-      return respond.error(res, 401, 'invalid_code', 'Invalid verification code')
-    }
-    if (!reqObj.verified) {
-      reqObj.verified = true
-      changePasswordRequests.set(email, reqObj)
+    // Handle passkey bypass
+    if (code === 'PASSKEY_BYPASS') {
+      console.log('[Password Change] Passkey bypass used for user:', email)
+      if (!consumePasswordChangeVerified(userId)) {
+        return respond.error(res, 403, 'verification_required', 'Verify with your passkey first')
+      }
+    } else {
+      // Regular OTP verification
+      if (!reqObj) return respond.error(res, 404, 'request_not_found', 'No password change request found. Please start again.')
+      if (Date.now() > reqObj.expiresAt) {
+        changePasswordRequests.delete(email)
+        return respond.error(res, 410, 'code_expired', 'Verification code expired. Please request a new one.')
+      }
+      if (String(reqObj.code) !== String(code)) {
+        return respond.error(res, 401, 'invalid_code', 'Invalid verification code')
+      }
     }
 
-    const sanitizedNewPassword = reqObj.newPassword
+    const sanitizedNewPassword = sanitizeString(newPassword || '')
 
     // Validate new password strength again (safety check)
     const passwordValidation = validatePasswordStrength(sanitizedNewPassword)
@@ -265,8 +361,10 @@ router.post('/change-password/verify', requireJwt, validateBody(changePasswordVe
     }
 
     const oldHash = String(doc.passwordHash)
+    const hadMfaSecret = !!doc.mfaSecret
+    const priorMfaMethod = String(doc.mfaMethod || '')
     let mfaPlain = ''
-    try { if (doc.mfaSecret) mfaPlain = decryptWithHash(oldHash, doc.mfaSecret) } catch (_) { mfaPlain = '' }
+    try { if (hadMfaSecret) mfaPlain = decryptWithHash(oldHash, doc.mfaSecret) } catch (_) { mfaPlain = '' }
 
     // Hash new password
     const newPasswordHash = await bcrypt.hash(sanitizedNewPassword, 10)
@@ -279,18 +377,31 @@ router.post('/change-password/verify', requireJwt, validateBody(changePasswordVe
     doc.passwordChangedAt = new Date()
     doc.passwordHistory = updatedHistory
     doc.tokenVersion = (doc.tokenVersion || 0) + 1 // Invalidate all sessions
-    doc.mfaReEnrollmentRequired = true // Require MFA re-enrollment
-    doc.mfaEnabled = false
-    doc.mfaSecret = ''
-    doc.fprintEnabled = false
-    doc.mfaMethod = ''
+    doc.mfaReEnrollmentRequired = false
     doc.mfaDisablePending = false
     doc.mfaDisableRequestedAt = null
     doc.mfaDisableScheduledFor = null
     doc.tokenFprint = ''
 
-    if (mfaPlain) {
-      try { doc.mfaSecret = encryptWithHash(doc.passwordHash, mfaPlain) } catch (_) {}
+    if (hadMfaSecret) {
+      if (!mfaPlain) {
+        // Secret could not be decrypted with old password hash: enforce re-enrollment
+        doc.mfaReEnrollmentRequired = true
+        doc.mfaEnabled = false
+        doc.mfaSecret = ''
+        doc.mfaMethod = ''
+      } else {
+        try {
+          doc.mfaSecret = encryptWithHash(doc.passwordHash, mfaPlain)
+          doc.mfaEnabled = true
+          doc.mfaMethod = priorMfaMethod || 'authenticator'
+        } catch (_) {
+          doc.mfaReEnrollmentRequired = true
+          doc.mfaEnabled = false
+          doc.mfaSecret = ''
+          doc.mfaMethod = ''
+        }
+      }
     }
     await doc.save()
 
@@ -313,7 +424,7 @@ router.post('/change-password/verify', requireJwt, validateBody(changePasswordVe
         ip,
         userAgent,
         tokenVersion: doc.tokenVersion,
-        mfaReEnrollmentRequired: true,
+        mfaReEnrollmentRequired: !!doc.mfaReEnrollmentRequired,
         method: 'otp_verification',
       }
     )

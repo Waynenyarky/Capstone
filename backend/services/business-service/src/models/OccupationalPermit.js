@@ -122,6 +122,18 @@ const OccupationalPermitSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+OccupationalPermitSchema.plugin(encryptionPlugin, {
+  fields: [
+    'firstName', 'lastName', 'education', 'businessPlateNo',
+    'employer', 'company', 'position', 'rejectionReason',
+  ],
+  deterministicFields: [],
+  nestedPaths: ['address', 'preRequirements'],
+  arrayPaths: [],
+  mixedPaths: [],
+})
+
 module.exports =
   mongoose.models.OccupationalPermit ||
   mongoose.model('OccupationalPermit', OccupationalPermitSchema)

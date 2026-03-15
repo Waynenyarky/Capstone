@@ -1,5 +1,6 @@
 import React from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
+import { Spin } from 'antd'
 import { useAuthSession, useMaintenanceStatus } from '@/features/authentication'
 import { getIsLoggingOut } from '@/features/authentication/lib/authEvents.js'
 import DeletionPendingScreen from './DeletionPendingScreen.jsx'
@@ -8,28 +9,42 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
   const { currentUser, role, isLoading } = useAuthSession()
   const location = useLocation()
   const maintenance = useMaintenanceStatus()
+  const isLoggingOut = getIsLoggingOut()
 
   const roleKey = String(role?.slug || role || '').toLowerCase()
   const allowed = allowedRoles.map((r) => String(r || '').toLowerCase())
   const isUnauthorized = !isLoading && currentUser && allowed.length > 0 && !allowed.includes(roleKey)
 
   if (isLoading || maintenance.loading) {
-    // You might want a spinner here, but for now we'll just return null or a simple div
-    return null 
+    return (
+      <div style={{ 
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        flexDirection: 'column',
+        gap: 16,
+        background: '#fff',
+        zIndex: 9999
+      }}>
+        <Spin size="large" />
+        <div style={{ color: '#666', fontSize: 14 }}>Loading...</div>
+      </div>
+    )
   }
 
-  if (maintenance.active && roleKey !== 'admin') {
+  if (maintenance.active && currentUser?.token && roleKey !== 'admin' && !isLoggingOut) {
     return <Navigate to="/maintenance" replace state={{ from: location }} />
   }
 
   // If not authenticated, redirect to login
   if (!currentUser || !currentUser.token) {
-    // Check if we are in the process of logging out. 
-    // If so, suppress the "Restricted Access" warning.
-    const isLoggingOut = getIsLoggingOut()
-    
     if (isLoggingOut) {
-      return <Navigate to="/login" replace />
+      return <Navigate to="/" replace />
     }
 
     // Only show "Access Denied" if we were trying to access a specific page (location.pathname !== '/')

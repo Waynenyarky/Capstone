@@ -1,5 +1,7 @@
 import { ForgotPasswordForm, VerificationForm, ChangePasswordForm } from "@/features/authentication"
 import { usePasswordResetFlow, useResendForgotPasswordCode } from "@/features/authentication/hooks"
+import MfaVerificationForm from "@/features/authentication/components/MfaVerificationForm"
+import PasswordResetTotpVerificationForm from "@/features/authentication/components/PasswordResetTotpVerificationForm.jsx"
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Typography } from 'antd'
@@ -31,7 +33,7 @@ function redirectByRole(navigate, user) {
 }
 
 export default function PasswordResetFlow() {
-  const { step, forgotProps, verifyProps, changeProps, goBack } = usePasswordResetFlow()
+  const { step, forgotProps, verifyProps, mfaProps, totpProps, changeProps, goBack } = usePasswordResetFlow()
   const navigate = useNavigate()
   const { notificationSuccess } = useAuthNotification()
   const resend = useResendForgotPasswordCode({ email: verifyProps.email, cooldownSec: 60 })
@@ -52,6 +54,21 @@ export default function PasswordResetFlow() {
   return (
     <>
       {step === 'forgot' && <ForgotPasswordForm onSubmit={forgotProps.onSubmit} />}
+      {step === 'verify-totp' && (
+        <PasswordResetTotpVerificationForm
+          email={totpProps.email}
+          onSubmit={totpProps.onSubmit}
+          onBack={goBack}
+        />
+      )}
+      {step === 'verify-mfa' && (
+        <MfaVerificationForm
+          email={mfaProps.email}
+          onSubmit={mfaProps.onSubmit}
+          warning={mfaProps.warning}
+          onBack={goBack}
+        />
+      )}
       {step === 'verify' && (
         <VerificationForm
           email={verifyProps.email}

@@ -66,7 +66,8 @@ async function connectDB(uri) {
     logger.warn('MONGO_URI not set. Skipping MongoDB connection.');
     return;
   }
-
+  
+  
   const maxRetries = 10;
   const retryDelayMs = 2000;
 

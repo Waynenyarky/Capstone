@@ -17,7 +17,6 @@ const SERVICE_URLS = [
   { key: 'business', name: 'Business Service', url: process.env.BUSINESS_SERVICE_URL || 'http://localhost:3002' },
   { key: 'admin', name: 'Admin Service', url: process.env.ADMIN_SERVICE_URL || 'http://localhost:3003' },
   { key: 'audit', name: 'Audit Service', url: process.env.AUDIT_SERVICE_URL || 'http://localhost:3004' },
-  { key: 'ai', name: 'AI Service', url: process.env.AI_SERVICE_URL || 'http://localhost:3005' },
 ];
 
 async function checkServiceHealth({ key, name, url }) {
@@ -40,12 +39,43 @@ async function checkServiceHealth({ key, name, url }) {
 }
 
 /**
+ * Check AI service health (LOB model)
+ */
+async function checkAiServiceHealth() {
+  const aiUrl = process.env.AI_SERVICE_URL || process.env.LOB_MODEL_SERVICE_URL || 'http://localhost:5050';
+  try {
+    const res = await axios.get(`${aiUrl}/health`, { timeout: 5000 });
+    return {
+      key: 'ai',
+      name: 'AI Service',
+      status: res.status === 200 && res.data && res.data.status === 'ok' ? 'up' : 'degraded',
+      ok: res.status === 200 && res.data && res.data.status === 'ok',
+      model_loaded: res.data && res.data.model_loaded,
+      num_labels: res.data && res.data.num_labels,
+    };
+  } catch (err) {
+    logger.warn('AI Service health check failed', { url: aiUrl, error: err.message });
+    return { key: 'ai', name: 'AI Service', status: 'down', ok: false, error: err.message || 'Unreachable' };
+  }
+}
+
+/**
  * Get IPFS availability (admin service uses IPFS for uploads).
  */
-function getIpfsStatus() {
+async function getIpfsStatus() {
   try {
     const ipfsService = require('../lib/ipfsService');
-    return typeof ipfsService.isAvailable === 'function' && ipfsService.isAvailable();
+    const isAvailable = typeof ipfsService.isAvailable === 'function' && ipfsService.isAvailable();
+    
+    if (!isAvailable) {
+      // Try to initialize if not already initialized
+      if (typeof ipfsService.initialize === 'function') {
+        await ipfsService.initialize();
+        return ipfsService.isAvailable();
+      }
+    }
+    
+    return isAvailable;
   } catch (e) {
     logger.warn('Could not get IPFS status', { error: e.message });
     return false;
@@ -59,7 +89,14 @@ function getIpfsStatus() {
  */
 router.get('/services-health', requireJwt, requireRole(['admin']), async (req, res) => {
   try {
-    const results = await Promise.all(SERVICE_URLS.map(checkServiceHealth));
+    const [serviceResults, aiResult, ipfsStatus] = await Promise.all([
+      Promise.all(SERVICE_URLS.map(checkServiceHealth)),
+      checkAiServiceHealth(),
+      getIpfsStatus(),
+    ]);
+    
+    const results = [...serviceResults, aiResult];
+    
     const adminIndex = results.findIndex((r) => r.key === 'admin');
     if (adminIndex >= 0) {
       results[adminIndex].ok = true;
@@ -70,7 +107,7 @@ router.get('/services-health', requireJwt, requireRole(['admin']), async (req, r
     const mongodbConnected = mongoose.connection.readyState === 1;
     const dependencies = {
       mongodb: mongodbConnected ? 'connected' : 'disconnected',
-      ipfs: getIpfsStatus(),
+      ipfs: ipfsStatus ? 'connected' : 'disconnected',
     };
 
     return respond.ok(res, 200, {

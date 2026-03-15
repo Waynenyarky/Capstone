@@ -20,6 +20,9 @@ const VERIFY_GRACE_MINUTES = Number(process.env.AUDIT_VERIFY_GRACE_MINUTES || 15
 
 const lastAlertMap = new Map()
 
+// Incident deduplication: track recent incidents by error type
+const recentIncidentTypes = new Map() // errorType -> timestamp
+
 function buildWindowDate() {
   const now = Date.now()
   return new Date(now - WINDOW_HOURS * 60 * 60 * 1000)
@@ -126,8 +129,35 @@ async function createIncidentViaAdminApi(auditLog, verification) {
 }
 
 async function recordIncident(auditLog, verification) {
+  const verificationStatus = classifyVerificationStatus(verification)
+  const errorType = `${verificationStatus}:${verification.error?.substring(0, 50) || 'unknown'}`
+  
+  // Incident deduplication: skip if same error type was recently reported (in development)
+  if (process.env.NODE_ENV === 'development') {
+    const now = Date.now()
+    const lastIncidentTime = recentIncidentTypes.get(errorType) || 0
+    if (now - lastIncidentTime < ALERT_COOLDOWN_MS) {
+      logger.debug('Skipping duplicate incident type in development', {
+        errorType,
+        auditLogId: String(auditLog._id),
+        timeSinceLast: now - lastIncidentTime,
+      })
+      return null
+    }
+    recentIncidentTypes.set(errorType, now)
+    
+    // Clean old entries periodically
+    if (recentIncidentTypes.size > 50) {
+      const cutoff = now - (2 * ALERT_COOLDOWN_MS)
+      for (const [type, timestamp] of recentIncidentTypes.entries()) {
+        if (timestamp < cutoff) {
+          recentIncidentTypes.delete(type)
+        }
+      }
+    }
+  }
+
   if (!TamperIncident) {
-    const verificationStatus = classifyVerificationStatus(verification)
     const incident = await createIncidentViaAdminApi(auditLog, verification)
     if (!incident) {
       logger.warn('Audit tamper/integrity issue (could not create incident via admin-service)', {
@@ -140,7 +170,6 @@ async function recordIncident(auditLog, verification) {
     return incident ? { _id: incident.id } : null
   }
 
-  const verificationStatus = classifyVerificationStatus(verification)
   const severity = verificationStatus === 'tamper_detected' ? 'high' : 'medium'
   const message =
     verification.error ||
@@ -226,6 +255,16 @@ async function handleResult(auditLog, verification) {
   }
 
   const verificationStatus = classifyVerificationStatus(verification)
+
+  // Emergency fix: Skip incident creation for infrastructure issues in development
+  if (process.env.NODE_ENV === 'development' && process.env.DISABLE_TAMPER_INCIDENTS === 'true') {
+    logger.debug('Tamper incident creation disabled in development mode', {
+      auditLogId: String(auditLog._id),
+      verificationStatus,
+      error: verification.error,
+    })
+    return null
+  }
 
   // Only create incidents and send emails for actual tampering (hash mismatch).
   // Do NOT create incidents for "not_logged" (pending tx) or "verification_error" (e.g. chain down/reset)

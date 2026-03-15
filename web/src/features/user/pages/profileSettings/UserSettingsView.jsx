@@ -1,239 +1,285 @@
-import React, { useEffect } from 'react'
-import { Layout, Typography, Grid, Button } from 'antd'
+import React, { useEffect, useState } from 'react'
+import { Layout, Typography, Grid, Button, Space } from 'antd'
 import { theme } from 'antd'
-import { ArrowLeftOutlined, SettingOutlined } from '@ant-design/icons'
-import { Link } from 'react-router-dom'
+import { ArrowLeftOutlined, SettingOutlined, ShopOutlined, PlusOutlined, LogoutOutlined } from '@ant-design/icons'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AppSidebar as Sidebar } from '@/features/authentication'
 import { LayoutPageHeader } from '@/features/shared'
 import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
 import AdminLayout from '@/features/admin/components/AdminLayout'
-import ProfileNav from './ProfileNav'
-import GeneralTabContent from './GeneralTabContent'
-import SecurityTabContent from './SecurityTabContent'
-import ThemeTabContent from './ThemeTabContent'
-import NotificationsTabContent from './NotificationsTabContent'
-import { PROFILE_NAV_ITEMS, PROFILE_NAV_ITEMS_OWNER, PROFILE_NAV_ITEMS_STAFF } from './constants'
+import ConsolidatedProfileNav from './ConsolidatedProfileNav'
+import ConsolidatedContentRenderer from './ConsolidatedContentRenderer'
+import { CONSOLIDATED_NAV_ITEMS, PROFILE_NAV_ITEMS_OWNER, PROFILE_NAV_ITEMS_STAFF } from './constants'
+import BusinessListPanel from '@/features/business-owner/components/dashboard/BusinessListPanel'
+import OfficerLeftPanel from '@/features/staffs/lgu-officer/components/OfficerLeftPanel'
+import { getBusinesses } from '@/features/business-owner/services/businessProfileService'
+import { useAuthSession } from '@/features/authentication'
+import { App as AntApp } from 'antd'
 
 const { Title } = Typography
 
+const SECTION_PANEL_WIDTH = 260
 
-function getTabContent(selectedTab, themeSettings, isBusinessOwner, isStaffOrAdmin) {
-  if (isBusinessOwner && selectedTab === 'notifications') {
-    return <GeneralTabContent />
-  }
-  if (isStaffOrAdmin) {
-    switch (selectedTab) {
-      case 'account':
-        return <SecurityTabContent showPasswordSection={false} showDeleteAccountSection={false} showEmailSection={true} showSessionsSection={true} showMfaSection={false} />
-      case 'security':
-        return <SecurityTabContent showPasswordSection={true} showDeleteAccountSection={false} />
-      case 'theme':
-        return (
-          <ThemeTabContent
-            themeOptions={themeSettings.themeOptions}
-            presetColors={themeSettings.presetColors}
-            pendingTheme={themeSettings.pendingTheme}
-            hoveredTheme={themeSettings.hoveredTheme}
-            currentPrimaryColor={themeSettings.currentPrimaryColor}
-            onSelectTheme={themeSettings.handleSelectTheme}
-            onMouseEnterTheme={themeSettings.handleMouseEnter}
-            onMouseLeaveTheme={themeSettings.handleMouseLeave}
-            onApplyTheme={themeSettings.handleApplyTheme}
-            onColorChange={themeSettings.handleColorChange}
-            onColorMouseEnter={themeSettings.handleColorMouseEnter}
-            onColorMouseLeave={themeSettings.handleColorMouseLeave}
-          />
-        )
-      default:
-        return <SecurityTabContent showPasswordSection={true} showDeleteAccountSection={false} />
+// Business sidebar component for settings page - uses actual BusinessListPanel
+function BusinessSidebarContent() {
+  const { token } = theme.useToken()
+  const navigate = useNavigate()
+  const { modal, message } = AntApp.useApp()
+  const [businesses, setBusinesses] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [selectedBusinessId, setSelectedBusinessId] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const location = useLocation()
+
+  // Get business ID from URL
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const businessId = params.get('business')
+    if (businessId) {
+      setSelectedBusinessId(businessId)
     }
-  }
-  switch (selectedTab) {
-    case 'general':
-      return <GeneralTabContent />
-    case 'account':
-      return <SecurityTabContent showPasswordSection={false} showDeleteAccountSection={false} showEmailSection={true} showSessionsSection={true} showMfaSection={false} />
-    case 'security':
-      return <SecurityTabContent showPasswordSection={isBusinessOwner} showDeleteAccountSection={isBusinessOwner} />
-    case 'theme':
-      return (
-        <ThemeTabContent
-          themeOptions={themeSettings.themeOptions}
-          presetColors={themeSettings.presetColors}
-          pendingTheme={themeSettings.pendingTheme}
-          hoveredTheme={themeSettings.hoveredTheme}
-          currentPrimaryColor={themeSettings.currentPrimaryColor}
-          onSelectTheme={themeSettings.handleSelectTheme}
-          onMouseEnterTheme={themeSettings.handleMouseEnter}
-          onMouseLeaveTheme={themeSettings.handleMouseLeave}
-          onApplyTheme={themeSettings.handleApplyTheme}
-          onColorChange={themeSettings.handleColorChange}
-          onColorMouseEnter={themeSettings.handleColorMouseEnter}
-          onColorMouseLeave={themeSettings.handleColorMouseLeave}
-        />
-      )
-    case 'notifications':
-      return <NotificationsTabContent />
-    default:
-      return <GeneralTabContent />
-  }
-}
+  }, [location])
 
-function SettingsTwoPanel({ token, isMobile, backTo, navItems, selectedTab, setSelectedTab, tabContent }) {
+  // Fetch businesses
+  useEffect(() => {
+    const fetchBusinesses = async () => {
+      try {
+        setLoading(true)
+        const response = await getBusinesses()
+        setBusinesses(response.businesses || [])
+      } catch (error) {
+        console.error('Error fetching businesses:', error)
+        message.error('Failed to load businesses')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchBusinesses()
+  }, [message])
+
+  const handleBusinessSelect = (businessId) => {
+    setSelectedBusinessId(businessId)
+    // Update URL with new business ID
+    navigate(`/settings-profile?business=${businessId}`)
+  }
+
   return (
-    <div
-      style={{
-        display: 'flex',
-        width: '100%',
-        height: '100%',
-        minHeight: 400,
-        borderRadius: token.borderRadiusLG,
-        overflow: 'hidden',
-      }}
-    >
-      {/* Left panel - fixed width like UserManagementDesktopView */}
-      <div
-        style={{
-          width: 240,
-          flexShrink: 0,
-          borderRight: `1px solid ${token.colorBorder}`,
-          padding: 12,
-          overflowY: 'auto',
-          background: token.colorBgLayout,
-        }}
-      >
-        {backTo && (
-          <Link to={backTo}>
-            <Button type="text" icon={<ArrowLeftOutlined />} style={{ marginBottom: 12, paddingLeft: 0 }}>
-              Back to dashboard
-            </Button>
-          </Link>
-        )}
-        <ProfileNav selectedTab={selectedTab} onSelectTab={setSelectedTab} navItems={navItems} />
-      </div>
-      <div
-        style={{
-          flex: 1,
-          minWidth: 0,
-          minHeight: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          background: token.colorBgContainer,
-          overflow: 'hidden',
-        }}
-      >
-        <div style={{ flex: 1, minHeight: 0, overflow: 'auto', background: token.colorBgContainer }}>
-          <div
-            style={{
-              padding: isMobile ? 16 : 24,
-              width: '100%',
-              minWidth: 0,
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: 0,
-              background: token.colorBgContainer,
-              boxSizing: 'border-box',
-            }}
-          >
-            {tabContent}
-          </div>
-        </div>
-      </div>
-    </div>
+    <>
+      {/* Actual Business List Panel */}
+      <BusinessListPanel
+        businesses={businesses}
+        loading={loading}
+        selectedBusinessId={selectedBusinessId}
+        currentPage={currentPage}
+        onPageChange={(page) => setCurrentPage(page)}
+        onBusinessSelect={handleBusinessSelect}
+        onAddBusiness={() => navigate('/owner')}
+      />
+    </>
   )
 }
 
 export default function UserSettingsView({
-  contextHolder,
-  user,
-  selectedTab,
-  setSelectedTab,
-  brandColor,
-  passkeyEnabled,
-  passkeyLoading,
-  officeLabel,
-  isStaffRole,
-  isBusinessOwner,
-  isAdmin = false,
-  themeSettings,
+  themeSettings = {},
+  showBackButton = true,
+  backButtonTo = '/dashboard',
+  forceLayout = null, // New prop to force specific layout
+  embedded = false, // New prop to indicate embedded mode
+  preserveOfficerLayout = false, // New prop to preserve LGU officer layout
 }) {
+  const { currentUser } = useAuthSession()
   const { token } = theme.useToken()
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md
-  const isStaffOrAdmin = isAdmin || (isStaffRole && !isBusinessOwner)
+  const [selectedKey, setSelectedKey] = useState('basicInfo')
+  const location = useLocation()
 
-  const navItems = isBusinessOwner
-    ? PROFILE_NAV_ITEMS_OWNER
-    : isStaffOrAdmin
-      ? PROFILE_NAV_ITEMS_STAFF
-      : PROFILE_NAV_ITEMS
-
-  const effectiveTab = navItems.some((n) => n.key === selectedTab) ? selectedTab : (navItems[0]?.key || 'security')
+  // Check URL parameters for layout override and business context
+  const searchParams = new URLSearchParams(location.search)
+  const layoutParam = searchParams.get('layout')
+  const businessIdParam = searchParams.get('business')
+  const shouldShowBusinessSidebar = layoutParam === 'business-owner' || businessIdParam
+  
   useEffect(() => {
-    if (effectiveTab !== selectedTab) setSelectedTab(effectiveTab)
-  }, [effectiveTab, selectedTab, setSelectedTab])
+    if (shouldShowBusinessSidebar) {
+      // Force business owner layout
+      window.forceBusinessOwnerLayout = true
+    }
+    return () => {
+      window.forceBusinessOwnerLayout = false
+    }
+  }, [shouldShowBusinessSidebar])
 
-  const tabContent = getTabContent(effectiveTab, themeSettings, isBusinessOwner, isStaffOrAdmin)
-  const backTo = isBusinessOwner ? '/owner' : null
+  // Determine user role and filter navigation items
+  const userRole = typeof currentUser?.role === 'string' ? currentUser?.role : currentUser?.role?.slug || 'user'
+  const isBusinessOwner = userRole === 'business_owner'
+  const isStaffOrAdmin = userRole === 'staff' || userRole === 'admin'
+  const isLguOfficer = userRole === 'lgu_officer'
 
-  const twoPanel = (
-    <SettingsTwoPanel
-      token={token}
-      isMobile={isMobile}
-      backTo={backTo}
-      navItems={navItems}
-      selectedTab={effectiveTab}
-      setSelectedTab={setSelectedTab}
-      tabContent={tabContent}
-    />
-  )
-
-  if (isBusinessOwner) {
-    return (
-      <BusinessOwnerLayout>
-        {contextHolder}
-        {twoPanel}
-      </BusinessOwnerLayout>
-    )
+  // Filter navigation items based on user role
+  const getFilteredNavItems = () => {
+    let items = [...CONSOLIDATED_NAV_ITEMS]
+    
+    if (isStaffOrAdmin) {
+      // Staff and admin: only security and theme sections
+      items = items.filter(item => item.section === 'security' || item.section === 'theme')
+    } else if (isBusinessOwner) {
+      // Business owner: all sections except notifications
+      items = items.filter(item => item.section !== 'notifications')
+    } else {
+      // Regular users: all sections except address and personal info
+      items = items.filter(item => item.key !== 'address' && item.key !== 'personalInfo')
+    }
+    
+    return items
   }
 
-  if (isAdmin) {
-    return (
-      <>
-        {contextHolder}
-        <AdminLayout pageTitle="Settings" pageIcon={<SettingOutlined />} showPageHeader={true}>
-          {twoPanel}
-        </AdminLayout>
-      </>
-    )
-  }
+  const filteredNavItems = getFilteredNavItems()
 
-  return (
-    <Layout style={{ minHeight: '100vh' }}>
-      {contextHolder}
-      <Sidebar />
-      <Layout style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <LayoutPageHeader
-          pageTitle="Settings"
-          pageIcon={<SettingOutlined />}
-          viewNotificationsPath="/notifications"
-          showPageHeader={true}
-        />
-        <Layout.Content
-          style={{
-            padding: 0,
-            background: token.colorBgLayout,
-            flex: 1,
-            minHeight: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
-          {twoPanel}
+  // Set default selected key based on available items
+  useEffect(() => {
+    if (!filteredNavItems.find(item => item.key === selectedKey)) {
+      setSelectedKey(filteredNavItems[0]?.key || 'basicInfo')
+    }
+  }, [selectedKey, filteredNavItems])
+
+  const renderLayout = () => {
+    const content = (
+      <Layout style={{ background: token.colorBgContainer }}>
+        {!embedded && !preserveOfficerLayout && showBackButton && (
+          <LayoutPageHeader
+            title={
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <SettingOutlined />
+                Settings
+              </span>
+            }
+            extra={
+              <Link to={backButtonTo}>
+                <Button icon={<ArrowLeftOutlined />}>Back</Button>
+              </Link>
+            }
+          />
+        )}
+        
+        <Layout.Content style={{ padding: isMobile ? 16 : 24, height: '100%' }}>
+          <div style={{ 
+            display: 'flex', 
+            height: preserveOfficerLayout ? 'calc(100vh - 64px)' : 'calc(100vh - 160px)', 
+            minHeight: 600,
+            overflow: 'hidden'
+          }}>
+            {/* Left navigation panel - show for LGU officers too */}
+            {!preserveOfficerLayout && (
+              <div
+                style={{
+                  flexShrink: 0,
+                  width: SECTION_PANEL_WIDTH,
+                  minWidth: SECTION_PANEL_WIDTH,
+                  borderRight: `1px solid ${token.colorBorderSecondary}`,
+                  paddingRight: 24,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflowY: 'auto',
+                }}
+              >
+                <ConsolidatedProfileNav 
+                  selectedKey={selectedKey}
+                  onSelectKey={setSelectedKey}
+                  navItems={filteredNavItems}
+                />
+              </div>
+            )}
+            
+            {/* Right content panel */}
+            <div style={{ 
+              flex: 1, 
+              minWidth: 0, 
+              display: 'flex', 
+              flexDirection: 'column', 
+              overflow: 'hidden',
+              background: token.colorBgContainer 
+            }}>
+              <ConsolidatedContentRenderer 
+                selectedKey={selectedKey}
+                themeSettings={themeSettings}
+                isBusinessOwner={isBusinessOwner}
+                isStaffOrAdmin={isStaffOrAdmin}
+              />
+            </div>
+          </div>
         </Layout.Content>
       </Layout>
-    </Layout>
-  )
+    )
+
+    // Check for forced layout or URL parameter override
+    if (forceLayout === 'business-owner' || window.forceBusinessOwnerLayout || shouldShowBusinessSidebar) {
+      return (
+        <BusinessOwnerLayout
+          showBusinessSidebar={embedded ? false : true}
+          sidebarContent={embedded ? null : <BusinessSidebarContent />}
+        >
+          {content}
+        </BusinessOwnerLayout>
+      )
+    }
+
+    // Preserve LGU officer layout when requested
+    if (preserveOfficerLayout || isLguOfficer) {
+      return (
+        <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          {/* Use the same header as OfficerDashboard */}
+          <LayoutPageHeader
+            pageTitle="Settings"
+            pageIcon={<SettingOutlined />}
+            headerActions={
+              <Link to="/staff">
+                <Button icon={<ArrowLeftOutlined />}>Back to Dashboard</Button>
+              </Link>
+            }
+            showPageHeader
+          />
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: token.colorBgContainer }}>
+            {/* Left Panel - Officer Sidebar */}
+            <div style={{
+              width: 240, minWidth: 240, maxWidth: 240,
+              flexShrink: 0,
+              borderRight: `1px solid ${token.colorBorderSecondary}`,
+              display: 'flex', flexDirection: 'column',
+              overflow: 'hidden',
+              background: token.colorBgContainer,
+            }}>
+              <OfficerLeftPanel
+                activeTab="settings" // Keep active tab as settings
+                onTabChange={() => {}} // Disable tab changes in settings mode
+                counts={{}}
+              />
+            </div>
+
+            {/* Right Panel - Settings Content */}
+            <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              {content}
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    if (isStaffOrAdmin) {
+      return (
+        <AdminLayout>
+          {content}
+        </AdminLayout>
+      )
+    }
+
+    return (
+      <Layout style={{ minHeight: '100vh' }}>
+        {!embedded && <Sidebar />}
+        {content}
+      </Layout>
+    )
+  }
+
+  return renderLayout()
 }

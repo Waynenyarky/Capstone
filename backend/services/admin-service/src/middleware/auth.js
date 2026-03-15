@@ -52,6 +52,43 @@ async function requireJwt(req, res, next) {
   }
 }
 
+async function optionalJwt(req, res, next) {
+  try {
+    const auth = String(req.headers['authorization'] || '')
+    const m = auth.match(/^Bearer\s+(.+)$/i)
+    const token = m ? m[1] : ''
+    if (!token) {
+      // No token provided, continue as anonymous user
+      return next()
+    }
+    const secret = process.env.JWT_SECRET || 'dev_secret_change_me'
+    const decoded = jwt.verify(token, secret)
+
+    // Skip user lookup in test mode to avoid cross-service model conflicts
+    if (process.env.NODE_ENV !== 'test') {
+      const User = require('../models/User')
+      const user = await User.findById(decoded.sub).select('tokenVersion').lean()
+      if (!user) {
+        return res.status(401).json({ error: { code: 'user_not_found', message: 'Unauthorized: user not found' } })
+      }
+
+      const tokenVersion = Number(decoded.tokenVersion || 0)
+      const currentTokenVersion = Number(user.tokenVersion || 0)
+      if (tokenVersion !== currentTokenVersion) {
+        return res.status(401).json({ error: { code: 'token_invalidated', message: 'Unauthorized: session has been invalidated. Please log in again.' } })
+      }
+    }
+
+    req._userId = String(decoded.sub || '')
+    req._userEmail = String(decoded.email || '')
+    req._userRole = String(decoded.role || '')
+    req._tokenVersion = Number(decoded.tokenVersion || 0)
+    next()
+  } catch (err) {
+    return res.status(401).json({ error: { code: 'invalid_token', message: 'Unauthorized: invalid or expired token' } })
+  }
+}
+
 function requireRole(allowedRoles) {
   return (req, res, next) => {
     // Ensure requireJwt has run or user info is available
@@ -103,4 +140,4 @@ function requireAdminStepUp(req, res, next) {
   }
 }
 
-module.exports = { signAccessToken, requireJwt, requireRole, requireAdminStepUp }
+module.exports = { signAccessToken, requireJwt, optionalJwt, requireRole, requireAdminStepUp }

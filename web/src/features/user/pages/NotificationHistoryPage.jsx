@@ -123,6 +123,9 @@ export default function NotificationHistoryPage() {
       case 'walkin_application_created':
       case 'appeal_submitted':
         return <FileTextOutlined style={{ color: token.colorInfo, ...style }} />
+      case 'inspection_assigned':
+      case 'inspection_scheduled':
+        return <CalendarOutlined style={{ color: token.colorPrimary, ...style }} />
       case 'inspection_completed':
       case 'reinspection_required':
         return <SolutionOutlined style={{ color: token.colorInfo, ...style }} />

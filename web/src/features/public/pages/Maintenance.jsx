@@ -78,7 +78,10 @@ export default function Maintenance() {
             {isLoggedIn && (
               <Button 
                 icon={<LogoutOutlined />} 
-                onClick={() => logout()}
+                onClick={() => {
+                  logout()
+                  navigate('/', { replace: true })
+                }}
                 style={{ 
                   height: '48px', 
                   padding: '0 32px', 
@@ -87,7 +90,7 @@ export default function Maintenance() {
                   fontWeight: 600,
                 }}
               >
-                Log Out
+                Logout and Go Back to the Home Page
               </Button>
             )}
           </div>

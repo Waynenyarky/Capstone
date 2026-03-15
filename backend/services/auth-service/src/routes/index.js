@@ -24,13 +24,21 @@ const adminDeletionRouter = require('./adminDeletion')
 const adminStepUpRouter = require('./adminStepUp')
 const sessionRouter = require('./session')
 const adminUsersRouter = require('./adminUsers')
+const registerWalkInRouter = require('./registerWalkIn')
 
 const router = express.Router()
 
 // REQUIREMENT IAS-2.7: CSRF token endpoint (double-submit cookie); SPA sends token in X-CSRF-Token header on mutating requests
 const csrfDisabled = process.env.DISABLE_CSRF === 'true' || process.env.NODE_ENV === 'test'
-router.get('/csrf-token', getCsrfTokenHandler({ sameSite: 'lax' }))
-router.use(createCsrfMiddleware({ skipPaths: ['/api/auth/csrf-token'], disabled: csrfDisabled }))
+router.get('/csrf-token', getCsrfTokenHandler({ cookieName: 'csrf-token-auth', sameSite: 'lax' }))
+router.use(createCsrfMiddleware({ 
+  cookieName: 'csrf-token-auth',
+  skipPaths: [
+    '/api/auth/csrf-token', 
+    '/api/auth/login/verify-totp'  // TOTP verification is a public auth endpoint, exempt from CSRF
+  ], 
+  disabled: csrfDisabled 
+}))
 
 // Compose feature routers under /api/auth
 router.use('/', signupRouter)
@@ -56,5 +64,6 @@ router.use('/', adminDeletionRouter)
 router.use('/', adminStepUpRouter)
 router.use('/', sessionRouter)
 router.use('/', adminUsersRouter)
+router.use('/', registerWalkInRouter)
 
 module.exports = router

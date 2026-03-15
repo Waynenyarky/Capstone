@@ -8,14 +8,29 @@ const { Title } = Typography
 const { useBreakpoint } = Grid
 
 function BrandHeader() {
-  const screens = useBreakpoint()
   const { token } = theme.useToken()
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <BizClearLogo width={screens.sm ? 36 : 28} />
-      <Title level={4} style={{ margin: 0, lineHeight: 1.2, color: token.colorPrimary, fontSize: screens.sm ? '18px' : '16px' }}>
-        BizClear
-      </Title>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{
+        width: 32,
+        height: 32,
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        borderRadius: 8
+      }}>
+        <BizClearLogo width={24} />
+      </div>
+      <span style={{
+        fontWeight: 700,
+        fontSize: 16,
+        color: token.colorTextBase,
+        whiteSpace: 'nowrap'
+      }}>
+        {import.meta.env.VITE_APP_BRAND_NAME || 'BizClear'}
+      </span>
     </div>
   )
 }
@@ -26,55 +41,55 @@ export default function BusinessOwnerLayout({
   pageIcon,
   headerActions,
   showPageHeader = true,
+  showBusinessSidebar = false, // New prop to control business sidebar
+  sidebarContent = null, // Custom sidebar content
+  onSettingsClick, // Pass through to LayoutPageHeader
 }) {
   const { token } = theme.useToken()
-  const leftContent = pageTitle || pageIcon ? (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-      <BrandHeader />
-      {(pageIcon || pageTitle) && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingLeft: 16, borderLeft: `1px solid ${token.colorBorder}` }}>
-          {pageIcon}
-          {pageTitle && <span style={{ fontWeight: 600, fontSize: 16 }}>{pageTitle}</span>}
-        </div>
-      )}
-    </div>
-  ) : (
-    <BrandHeader />
-  )
+  const leftContent = <BrandHeader />
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Layout>
-        <Content
-          style={{
-            background: token.colorBgLayout,
-            overflow: 'hidden',
-            height: '100vh',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <div
-            style={{
-              flex: 1,
-              minHeight: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-            }}
-          >
-            <LayoutPageHeader
-              leftContent={leftContent}
-              headerActions={headerActions}
-              viewNotificationsPath="/notifications"
-              showPageHeader={showPageHeader}
-            />
-            <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', margin: 0, padding: 0, overflow: 'hidden' }}>
+      <LayoutPageHeader
+        pageTitle={pageTitle}
+        pageIcon={pageIcon}
+        headerActions={headerActions}
+        viewNotificationsPath="/notifications"
+        showPageHeader={showPageHeader}
+        onSettingsClick={onSettingsClick}
+        leftContent={leftContent}
+      />
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: token.colorBgContainer }}>
+        {showBusinessSidebar ? (
+          <>
+            {/* Business Sidebar */}
+            <div
+              style={{
+                width: '30%',
+                minWidth: 280,
+                maxWidth: 400,
+                flexShrink: 0,
+                borderRight: `1px solid ${token.colorBorderSecondary}`,
+                paddingRight: 24,
+                display: 'flex',
+                flexDirection: 'column',
+                overflowY: 'auto',
+                background: token.colorBgContainer,
+                padding: '24px 24px 24px 16px',
+              }}
+            >
+              {sidebarContent}
+            </div>
+            
+            {/* Main Content */}
+            <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
               {children}
             </div>
-          </div>
-        </Content>
-      </Layout>
-    </Layout>
+          </>
+        ) : (
+          children
+        )}
+      </div>
+    </div>
   )
 }

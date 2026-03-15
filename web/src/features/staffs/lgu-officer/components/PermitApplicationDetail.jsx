@@ -48,6 +48,7 @@ import { PermitApplicationService } from '@/features/lgu-officer/infrastructure/
 import { resolveIpfsUrl } from '@/lib/ipfsUtils'
 import { getBusinessTypeLabel } from '@/constants/businessTypes'
 import dayjs from 'dayjs'
+import { generatePaymentsForApprovedBusiness, hasPaymentsGenerated } from '@/features/business-owner/services/paymentGenerationService'
 
 const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
@@ -91,7 +92,7 @@ export default function PermitApplicationDetail({
     if (visible && application) {
       const canReviewApp = application?.status === 'submitted' || 
                            application?.status === 'under_review' || 
-                           application?.status === 'needs_revision'
+                           application?.status === 'resubmit'
       if (canReviewApp) {
         // Use setTimeout to ensure Form component is mounted before resetting fields
         const timer = setTimeout(() => {
@@ -111,8 +112,8 @@ export default function PermitApplicationDetail({
   const handleStartReview = async () => {
     if (!initialApplication?.applicationId) return
     
-    // Only auto-start if status is 'submitted', 'resubmit' or 'needs_revision'
-    if (!['submitted', 'resubmit', 'needs_revision'].includes(initialApplication?.status)) return
+    // Only auto-start if status is 'submitted' or 'resubmit'
+    if (!['submitted', 'resubmit'].includes(initialApplication?.status)) return
 
     setStartingReview(true)
     try {
@@ -173,27 +174,14 @@ export default function PermitApplicationDetail({
       return
     }
 
-    if (!values.comments || values.comments.trim() === '') {
-      message.error('Comments are required')
-      return
-    }
-
     if (decision === 'reject' && (!values.rejectionReason || values.rejectionReason.trim() === '')) {
       message.error('Rejection reason is required when rejecting an application')
       return
     }
 
-    if (decision === 'request_changes' && (!values.requestChangesMessage || values.requestChangesMessage.trim() === '')) {
-      message.error('Please specify what changes are needed')
-      return
-    }
-
     setReviewing(true)
     try {
-      // For request_changes, combine comments and requestChangesMessage
-      const reviewComments = decision === 'request_changes' && values.requestChangesMessage
-        ? `${values.comments}\n\nRequired Changes:\n${values.requestChangesMessage}`
-        : values.comments
+      const reviewComments = values.comments?.trim() || ''
 
       const result = await onReview({
         applicationId: application.applicationId,
@@ -202,6 +190,26 @@ export default function PermitApplicationDetail({
         rejectionReason: values.rejectionReason,
         businessId: application.businessId
       })
+
+      // If approved, generate payment records for the business owner
+      if (decision === 'approve' && application?.businessId) {
+        try {
+          const alreadyGenerated = await hasPaymentsGenerated(application.businessId)
+          if (!alreadyGenerated) {
+            const paymentResult = await generatePaymentsForApprovedBusiness(application.businessId, application)
+            if (paymentResult.success) {
+              message.success(`Application approved — ${paymentResult.payments.length} payment record(s) generated.`)
+            } else {
+              message.warning(`Application approved but payment generation failed: ${paymentResult.errors.join(', ')}`)
+            }
+          } else {
+            message.success('Application approved successfully.')
+          }
+        } catch (paymentError) {
+          console.error('Failed to generate payments:', paymentError)
+          message.success('Application approved. Payments could not be auto-generated — please create them manually.')
+        }
+      }
 
       // Update application state with the returned result
       if (result?.application) {
@@ -307,11 +315,11 @@ export default function PermitApplicationDetail({
     const statusConfig = {
       'draft': { color: 'default', text: 'Draft' },
       'submitted': { color: 'processing', text: 'Pending Review' },
-      'resubmit': { color: 'processing', text: 'Resubmit' },
+      'resubmit': { color: 'gold', text: 'Resubmitted' },
       'under_review': { color: 'processing', text: 'Under Review' },
       'approved': { color: 'success', text: 'Approved' },
       'rejected': { color: 'error', text: 'Rejected' },
-      'needs_revision': { color: 'warning', text: 'Needs Revision' }
+      'needs_revision': { color: 'warning', text: 'Waiting for Applicant' }
     }
     const config = statusConfig[status] || { color: 'default', text: status }
     return <Tag color={config.color}>{config.text}</Tag>
@@ -471,9 +479,9 @@ export default function PermitApplicationDetail({
 
   const canReview = application?.status === 'submitted' ||
     application?.status === 'resubmit' ||
-    application?.status === 'under_review' ||
-    application?.status === 'needs_revision'
+    application?.status === 'under_review'
   const isFinalDecision = application?.status === 'approved' || application?.status === 'rejected'
+  const isWaitingForApplicant = application?.status === 'needs_revision'
 
   const ownerIdentity = application?.ownerIdentity || {}
   const businessReg = application?.businessRegistration || {}
@@ -627,12 +635,46 @@ export default function PermitApplicationDetail({
 
         {/* Review Form */}
         {!canReview ? (
-          <Alert
-            message={`Application is ${application?.status}`}
-            description="This application cannot be reviewed as it has already reached a final decision."
-            type="info"
-            showIcon
-          />
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Alert
+              message={`Application is ${application?.status}`}
+              description={
+                isFinalDecision
+                  ? 'This application cannot be reviewed as it has already reached a final decision.'
+                  : isWaitingForApplicant
+                    ? 'The review decision has already been submitted. This application is waiting for the applicant to correct the requirements and resubmit before it can be reviewed again.'
+                    : 'This application is not currently available for review.'
+              }
+              type={isFinalDecision ? 'success' : isWaitingForApplicant ? 'info' : 'warning'}
+              showIcon
+            />
+            {isWaitingForApplicant && (
+              <Card
+                size="small"
+                style={{
+                  background: token.colorInfoBg,
+                  border: `1px solid ${token.colorInfoBorder}`,
+                  borderRadius: token.borderRadius,
+                }}
+              >
+                <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                  <Text strong style={{ fontSize: 13 }}>Decision submitted</Text>
+                  {application?.reviewComments ? (
+                    <Text style={{ fontSize: 13 }}>{application.reviewComments}</Text>
+                  ) : (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      No applicant-facing review comments were included with this decision.
+                    </Text>
+                  )}
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {application?.reviewedAt
+                      ? `Submitted ${formatDate(application.reviewedAt)} · Waiting for applicant resubmission`
+                      : 'Waiting for applicant resubmission'}
+                  </Text>
+                </Space>
+              </Card>
+            )}
+          </Space>
         ) : (
           <Form
             form={form}
@@ -725,11 +767,10 @@ export default function PermitApplicationDetail({
             <Form.Item
               label={<Text strong style={{ fontSize: 14 }}>Comments</Text>}
               name="comments"
-              rules={[{ required: true, message: 'Comments are required' }]}
             >
               <TextArea
                 rows={4}
-                placeholder="Enter your review comments..."
+                placeholder={decision === 'request_changes' ? 'Summarize the corrections or guidance for the applicant...' : 'Add optional review notes...'}
                 style={{ fontSize: 13 }}
               />
             </Form.Item>

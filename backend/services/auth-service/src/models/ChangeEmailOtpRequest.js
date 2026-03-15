@@ -37,6 +37,15 @@ const ChangeEmailOtpRequestSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+ChangeEmailOtpRequestSchema.plugin(encryptionPlugin, {
+  fields: ['code'],
+  deterministicFields: ['currentEmail', 'newEmail'],
+  nestedPaths: [],
+  arrayPaths: [],
+  mixedPaths: [],
+})
+
 ChangeEmailOtpRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }) // TTL: remove when expired
 
 module.exports = mongoose.models.ChangeEmailOtpRequest || mongoose.model('ChangeEmailOtpRequest', ChangeEmailOtpRequestSchema)

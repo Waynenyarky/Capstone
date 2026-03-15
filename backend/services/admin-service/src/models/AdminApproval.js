@@ -119,4 +119,13 @@ AdminApprovalSchema.statics.generateApprovalId = function () {
   return `APPROVAL-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 };
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+AdminApprovalSchema.plugin(encryptionPlugin, {
+  fields: ['txHash'],
+  deterministicFields: ['approvalId'],
+  nestedPaths: [],
+  arrayPaths: ['approvals'],
+  mixedPaths: ['requestDetails', 'metadata'],
+})
+
 module.exports = mongoose.models.AdminApproval || mongoose.model('AdminApproval', AdminApprovalSchema);

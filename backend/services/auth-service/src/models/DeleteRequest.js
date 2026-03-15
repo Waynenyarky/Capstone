@@ -11,6 +11,15 @@ const DeleteRequestSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+DeleteRequestSchema.plugin(encryptionPlugin, {
+  fields: ['code', 'deleteToken'],
+  deterministicFields: ['email'],
+  nestedPaths: [],
+  arrayPaths: [],
+  mixedPaths: [],
+})
+
 DeleteRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
 
 module.exports = mongoose.models.DeleteRequest || mongoose.model('DeleteRequest', DeleteRequestSchema)

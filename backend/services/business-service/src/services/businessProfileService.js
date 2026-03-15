@@ -45,7 +45,7 @@ function getNotificationService() {
 
 class BusinessProfileService {
   async getProfile(userId) {
-    let profile = await BusinessProfile.findOne({ userId })
+    let profile = await BusinessProfile.findOne({ userId }).lean()
     if (!profile) {
       // Create default structure if not exists
       return {
@@ -61,6 +61,36 @@ class BusinessProfileService {
         status: 'draft'
       }
     }
+
+    // Populate reviewedBy field with officer details for each business
+    if (profile.businesses && profile.businesses.length > 0) {
+      const AuthUser = getAuthUserModel()
+      
+      for (let i = 0; i < profile.businesses.length; i++) {
+        const business = profile.businesses[i]
+        if (business.reviewedBy) {
+          try {
+            const officer = await AuthUser.findById(business.reviewedBy)
+              .select('firstName lastName email fullName')
+              .lean()
+            
+            if (officer) {
+              // Create a plain object with officer details
+              profile.businesses[i].reviewedBy = {
+                _id: officer._id,
+                name: officer.fullName || `${officer.firstName || ''} ${officer.lastName || ''}`.trim() || 'LGU Officer',
+                email: officer.email,
+                firstName: officer.firstName,
+                lastName: officer.lastName
+              }
+            }
+          } catch (err) {
+            console.error(`Failed to populate reviewedBy for business ${i}:`, err)
+          }
+        }
+      }
+    }
+
     return profile
   }
 
@@ -316,11 +346,11 @@ class BusinessProfileService {
         businessActivitiesDescription: businessData.riskProfile?.businessActivitiesDescription || '',
         riskLevel
       },
-      applicationStatus: hasExistingPermit ? 'submitted' : 'draft',
+      applicationStatus: businessData.applicationStatus || (hasExistingPermit ? 'submitted' : 'draft'),
       applicationReferenceNumber: hasExistingPermit ? existingPermitRef : '',
-      submittedAt: hasExistingPermit ? new Date() : null,
-      submittedToLguOfficer: hasExistingPermit,
-      isSubmitted: hasExistingPermit,
+      submittedAt: businessData.submittedAt ? new Date(businessData.submittedAt) : (hasExistingPermit ? new Date() : null),
+      submittedToLguOfficer: businessData.applicationStatus === 'submitted' || hasExistingPermit,
+      isSubmitted: businessData.applicationStatus === 'submitted' || hasExistingPermit,
       formType: businessData.formType || '',
       category: businessData.category || '',
       formDefinitionId: businessData.formDefinitionId ?? null,
@@ -503,7 +533,7 @@ class BusinessProfileService {
       throw new Error('Business profile not found')
     }
 
-    const businessIndex = profile.businesses?.findIndex(b => b.businessId === businessId)
+    const businessIndex = profile.businesses?.findIndex(b => b.businessId === businessId || String(b._id) === businessId)
     if (businessIndex === -1 || businessIndex === undefined) {
       throw new Error('Business not found')
     }
@@ -560,12 +590,26 @@ class BusinessProfileService {
     // Convert mongoose document to plain object if needed
     const existingBusinessObj = existingBusiness.toObject ? existingBusiness.toObject() : existingBusiness
     
+    // Extract business name from formData if not provided in businessData
+    const extractedBusinessName = businessData.businessName || 
+                                  (businessData.formData && (
+                                    businessData.formData.businessName || 
+                                    businessData.formData.registeredBusinessName ||
+                                    businessData.formData['Business / trade name'] ||
+                                    businessData.formData.businessTradeName
+                                  ))
+    
     const updatedBusiness = {
       ...existingBusinessObj,
       ...businessData,
       businessId: existingBusinessObj.businessId, // Don't allow changing ID
       isPrimary: existingBusinessObj.isPrimary, // Don't allow changing primary here (use setPrimaryBusiness)
       updatedAt: new Date()
+    }
+    
+    // Update business name if extracted from formData
+    if (extractedBusinessName && !businessData.businessName) {
+      updatedBusiness.businessName = extractedBusinessName
     }
     
     // Handle nested location update properly
@@ -744,7 +788,7 @@ class BusinessProfileService {
       throw new Error('No businesses found')
     }
 
-    const businessIndex = profile.businesses.findIndex(b => b.businessId === businessId)
+    const businessIndex = profile.businesses.findIndex(b => b.businessId === businessId || String(b._id) === businessId)
     if (businessIndex === -1) {
       throw new Error('Business not found')
     }
@@ -770,7 +814,51 @@ class BusinessProfileService {
     profile.markModified('businesses')
     await profile.save()
 
-    // Audit log
+    // If profile has no businesses left, delete the entire profile
+    if (profile.businesses.length === 0) {
+      try {
+        // Create audit log before deleting profile
+        const user = await User.findById(userId).populate('role').lean()
+        const roleSlug = (user && user.role && user.role.slug) ? user.role.slug : 'business_owner'
+        
+        await AuditLog.create({
+          userId,
+          eventType: 'profile_deleted',
+          fieldChanged: 'businessProfile',
+          oldValue: JSON.stringify({
+            profileId: profile._id,
+            lastBusiness: businessToDelete.businessName
+          }),
+          newValue: '',
+          role: roleSlug,
+          metadata: {
+            profileId: profile._id,
+            reason: 'No businesses remaining after draft deletion',
+            deletedBusinessName: businessToDelete.businessName
+          }
+        })
+
+        // Delete the empty profile
+        await BusinessProfile.deleteOne({ _id: profile._id })
+        
+        return { 
+          deleted: true, 
+          message: 'Profile deleted as no businesses remain',
+          deletedProfileId: profile._id
+        }
+      } catch (auditError) {
+        console.error('Error creating audit log for profile deletion:', auditError)
+        // Continue with profile deletion even if audit fails
+        await BusinessProfile.deleteOne({ _id: profile._id })
+        return { 
+          deleted: true, 
+          message: 'Profile deleted as no businesses remain',
+          deletedProfileId: profile._id
+        }
+      }
+    }
+
+    // Audit log (only if profile wasn't deleted)
     try {
       const user = await User.findById(userId).populate('role').lean()
       const roleSlug = (user && user.role && user.role.slug) ? user.role.slug : 'business_owner'
@@ -808,7 +896,7 @@ class BusinessProfileService {
       throw new Error('Business profile not found')
     }
 
-    const business = profile.businesses?.find(b => b.businessId === businessId)
+    const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
     if (!business) {
       throw new Error('Business not found')
     }
@@ -869,7 +957,7 @@ class BusinessProfileService {
       throw new Error('Business profile not found')
     }
 
-    const business = profile.businesses?.find(b => b.businessId === businessId)
+    const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
     if (!business) {
       throw new Error('Business not found')
     }
@@ -949,7 +1037,7 @@ class BusinessProfileService {
     if (!profile) {
       throw new Error('Business profile not found')
     }
-    const business = profile.businesses?.find(b => b.businessId === businessId)
+    const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
     return business || null
   }
 
@@ -965,7 +1053,7 @@ class BusinessProfileService {
     if (!profile) {
       throw new Error('Business profile not found')
     }
-    const business = profile.businesses?.find(b => b.businessId === businessId)
+    const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
     if (!business) {
       throw new Error('Business not found')
     }
@@ -991,7 +1079,7 @@ class BusinessProfileService {
       throw new Error('Business profile not found')
     }
 
-    const business = profile.businesses?.find(b => b.businessId === businessId)
+    const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
     if (!business) {
       throw new Error('Business not found')
     }
@@ -1026,7 +1114,7 @@ class BusinessProfileService {
       throw new Error('Business profile not found')
     }
 
-    const business = profile.businesses?.find(b => b.businessId === businessId)
+    const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
     if (!business) {
       throw new Error('Business not found')
     }
@@ -1054,7 +1142,7 @@ class BusinessProfileService {
       throw new Error('Business profile not found')
     }
 
-    const business = profile.businesses?.find(b => b.businessId === businessId)
+    const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
     if (!business) {
       throw new Error('Business not found')
     }
@@ -1088,7 +1176,7 @@ class BusinessProfileService {
       throw new Error('Business profile not found')
     }
 
-    const business = profile.businesses?.find(b => b.businessId === businessId)
+    const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
     if (!business) {
       throw new Error('Business not found')
     }
@@ -1129,7 +1217,7 @@ class BusinessProfileService {
       throw new Error('Business profile not found')
     }
 
-    const business = profile.businesses?.find(b => b.businessId === businessId)
+    const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
     if (!business) {
       throw new Error('Business not found')
     }
@@ -1164,7 +1252,7 @@ class BusinessProfileService {
       throw new Error('Business profile not found')
     }
 
-    const business = profile.businesses?.find(b => b.businessId === businessId)
+    const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
     if (!business) {
       throw new Error('Business not found')
     }
@@ -1271,9 +1359,28 @@ class BusinessProfileService {
       throw new Error('Business profile not found')
     }
 
-    const business = profile.businesses?.find(b => b.businessId === businessId)
+    const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
     if (!business) {
       throw new Error('Business not found')
+    }
+
+    // Fetch officer details if reviewedBy exists
+    let reviewingOfficer = null
+    if (business.reviewedBy) {
+      try {
+        const mongoose = require('mongoose')
+        const User = mongoose.model('User')
+        const officer = await User.findById(business.reviewedBy).select('firstName lastName email phoneNumber').lean()
+        if (officer) {
+          reviewingOfficer = {
+            name: `${officer.firstName} ${officer.lastName}`.trim(),
+            email: officer.email,
+            phone: officer.phoneNumber
+          }
+        }
+      } catch (err) {
+        console.log('Error fetching officer details:', err.message)
+      }
     }
 
     return {
@@ -1283,7 +1390,7 @@ class BusinessProfileService {
       applicationReferenceNumber: business.applicationReferenceNumber,
       submittedAt: business.submittedAt,
       submittedToLguOfficer: business.submittedToLguOfficer,
-      reviewedBy: business.reviewedBy,
+      reviewedBy: reviewingOfficer || business.reviewedBy,
       reviewedAt: business.reviewedAt,
       reviewComments: business.reviewComments,
       rejectionReason: business.rejectionReason,
@@ -1373,7 +1480,7 @@ class BusinessProfileService {
       throw new Error('Business profile not found')
     }
 
-    const business = profile.businesses?.find(b => b.businessId === businessId)
+    const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
     if (!business) {
       throw new Error('Business not found')
     }
@@ -1455,7 +1562,7 @@ class BusinessProfileService {
     }
 
     // Find the updated business to return
-    const updatedBusiness = updatedProfile.businesses?.find(b => b.businessId === businessId)
+    const updatedBusiness = updatedProfile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
     if (!updatedBusiness) {
       throw new Error('Business not found after update')
     }
@@ -1508,7 +1615,7 @@ class BusinessProfileService {
         throw new Error('Business profile not found')
       }
 
-      const business = profile.businesses?.find(b => b.businessId === businessId)
+      const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
       if (!business) {
         throw new Error(`Business not found: ${businessId}`)
       }
@@ -1544,7 +1651,7 @@ class BusinessProfileService {
       throw new Error('Business profile not found')
     }
 
-    const business = profile.businesses?.find(b => b.businessId === businessId)
+    const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
     if (!business) {
       throw new Error('Business not found')
     }
@@ -1682,7 +1789,7 @@ class BusinessProfileService {
         throw new Error('Business profile not found')
       }
 
-      const business = profile.businesses?.find(b => b.businessId === businessId)
+      const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
       if (!business) {
         throw new Error(`Business not found: ${businessId}`)
       }
@@ -1697,7 +1804,7 @@ class BusinessProfileService {
 
     // Verify the data was saved correctly
     const savedRenewal = updatedProfile.businesses
-      ?.find(b => b.businessId === businessId)
+      ?.find(b => b.businessId === businessId || String(b._id) === businessId)
       ?.renewals?.find(r => r.renewalId === renewalId)
     
     if (!savedRenewal) {
@@ -1778,7 +1885,7 @@ class BusinessProfileService {
     }).lean()
     
     const finalRenewal = finalCheck?.businesses
-      ?.find(b => b.businessId === businessId)
+      ?.find(b => b.businessId === businessId || String(b._id) === businessId)
       ?.renewals?.find(r => r.renewalId === renewalId)
     
     const finalAmount = finalRenewal?.grossReceipts?.amount || finalRenewal?.grossReceipts?.cy2025
@@ -1846,7 +1953,7 @@ class BusinessProfileService {
 
     let existingDocuments = {}
     if (profile) {
-      const business = profile.businesses?.find(b => b.businessId === businessId)
+      const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
       const renewal = business?.renewals?.find(r => r.renewalId === renewalId)
       if (renewal?.renewalDocuments) {
         existingDocuments = renewal.renewalDocuments
@@ -1897,7 +2004,7 @@ class BusinessProfileService {
         throw new Error('Business profile not found')
       }
 
-      const business = profile.businesses?.find(b => b.businessId === businessId)
+      const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
       if (!business) {
         throw new Error(`Business not found: ${businessId}`)
       }
@@ -1932,7 +2039,7 @@ class BusinessProfileService {
       throw new Error('Business profile not found')
     }
 
-    const business = profile.businesses?.find(b => b.businessId === businessId)
+    const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
     if (!business) {
       throw new Error('Business not found')
     }
@@ -2135,7 +2242,7 @@ class BusinessProfileService {
       throw new Error('Business profile not found')
     }
 
-    const business = profile.businesses?.find(b => b.businessId === businessId)
+    const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
     if (!business) {
       throw new Error('Business not found')
     }
@@ -2232,7 +2339,7 @@ class BusinessProfileService {
       throw new Error('Business profile not found')
     }
 
-    const business = profile.businesses?.find(b => b.businessId === businessId)
+    const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
     if (!business) {
       throw new Error('Business not found')
     }
@@ -2334,7 +2441,7 @@ class BusinessProfileService {
       throw new Error('Business profile not found')
     }
 
-    const business = profile.businesses?.find(b => b.businessId === businessId)
+    const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
     if (!business) {
       throw new Error('Business not found')
     }
@@ -2356,6 +2463,101 @@ class BusinessProfileService {
       assessmentCalculated: renewal.assessment?.total > 0,
       paymentStatus: renewal.payment?.status || 'pending',
       assessment: renewal.assessment
+    }
+  }
+
+  /**
+   * Delete entire business profile
+   * @param {string} userId - User ID
+   * @returns {Promise<object>} Deletion result
+   */
+  async deleteProfile(userId) {
+    const profile = await BusinessProfile.findOne({ userId })
+    if (!profile) {
+      throw new Error('Business profile not found')
+    }
+
+    // Check if any businesses are not in draft status
+    const nonDraftBusinesses = profile.businesses.filter(business => 
+      (business.applicationStatus || '').toLowerCase() !== 'draft'
+    )
+
+    if (nonDraftBusinesses.length > 0) {
+      throw new Error('Cannot delete profile with submitted applications. Only draft profiles can be deleted.')
+    }
+
+    // Collect all IPFS CIDs from all businesses for cleanup
+    const ipfsCids = []
+    profile.businesses.forEach(business => {
+      // Collect CIDs from lguDocuments
+      if (business.lguDocuments) {
+        Object.values(business.lguDocuments).forEach(doc => {
+          if (doc && doc.includes && doc.includes('Qm')) {
+            // Extract CID from URL or direct CID string
+            const cidMatch = doc.match(/Qm[a-zA-Z0-9]{44,}/)
+            if (cidMatch) {
+              ipfsCids.push(cidMatch[0])
+            }
+          }
+        })
+      }
+    })
+
+    // Create audit log before deletion
+    try {
+      const user = await User.findById(userId).populate('role').lean()
+      const roleSlug = (user && user.role && user.role.slug) ? user.role.slug : 'business_owner'
+      
+      await AuditLog.create({
+        userId,
+        eventType: 'profile_deleted',
+        fieldChanged: 'businessProfile',
+        oldValue: JSON.stringify({
+          profileId: profile._id,
+          businessCount: profile.businesses.length,
+          businessNames: profile.businesses.map(b => b.businessName)
+        }),
+        newValue: '',
+        role: roleSlug,
+        metadata: {
+          profileId: profile._id,
+          reason: 'User initiated profile deletion',
+          businessCount: profile.businesses.length,
+          ipfsCidsCollected: ipfsCids.length
+        }
+      })
+    } catch (auditError) {
+      console.error('Error creating audit log for profile deletion:', auditError)
+    }
+
+    // Delete the profile
+    await BusinessProfile.deleteOne({ _id: profile._id })
+
+    // Attempt to clean up IPFS files (fire and forget)
+    if (ipfsCids.length > 0) {
+      setImmediate(async () => {
+        try {
+          const ipfsService = require('../lib/ipfsService')
+          for (const cid of ipfsCids) {
+            try {
+              await ipfsService.unpinFile(cid)
+              console.log(`Successfully unpinned IPFS file: ${cid}`)
+            } catch (ipfsError) {
+              console.error(`Failed to unpin IPFS file ${cid}:`, ipfsError)
+            }
+          }
+        } catch (error) {
+          console.error('Error during IPFS cleanup:', error)
+        }
+      })
+    }
+
+    return {
+      success: true,
+      message: 'Business profile deleted successfully',
+      deletedProfileId: profile._id,
+      deletedBusinesses: profile.businesses.length,
+      ipfsFilesCleaned: ipfsCids.length
     }
   }
 }

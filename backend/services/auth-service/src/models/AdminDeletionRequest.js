@@ -77,6 +77,15 @@ const AdminDeletionRequestSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+AdminDeletionRequestSchema.plugin(encryptionPlugin, {
+  fields: ['highPrivilegeTasksDetails', 'denialReason'],
+  deterministicFields: [],
+  nestedPaths: ['metadata'],
+  arrayPaths: [],
+  mixedPaths: [],
+})
+
 // Indexes for efficient querying (approvingAdminId has index: true on field)
 AdminDeletionRequestSchema.index({ requestingAdminId: 1, status: 1 })
 AdminDeletionRequestSchema.index({ status: 1, createdAt: -1 })

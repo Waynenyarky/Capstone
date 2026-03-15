@@ -128,4 +128,13 @@ const AuditLogSchema = new mongoose.Schema(
 AuditLogSchema.index({ userId: 1, createdAt: -1 })
 AuditLogSchema.index({ eventType: 1, createdAt: -1 })
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+AuditLogSchema.plugin(encryptionPlugin, {
+  fields: ['oldValue', 'newValue', 'role', 'blockchainError'],
+  deterministicFields: ['hash'],
+  nestedPaths: [],
+  arrayPaths: [],
+  mixedPaths: ['metadata'],
+})
+
 module.exports = mongoose.models.AuditLog || mongoose.model('AuditLog', AuditLogSchema)

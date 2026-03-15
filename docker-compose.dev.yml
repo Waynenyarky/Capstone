@@ -18,8 +18,15 @@ services:
       - EMAIL_DEV_REDIRECT_TO=${EMAIL_DEV_REDIRECT_TO:-}
     volumes:
       - ./backend/services/auth-service/src:/app/src
+      - ./backend/shared:/shared:ro
       - ./.env:/app/.env
     command: npm run dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # Business Service - Development Mode (nodemon for hot-reload)
   business-service:
@@ -48,6 +55,7 @@ services:
   audit-service:
     volumes:
       - ./backend/services/audit-service/src:/app/src
+      - ./backend/shared:/shared:ro
       - ./.env:/app/.env
     command: npm run dev
 

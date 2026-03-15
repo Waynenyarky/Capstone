@@ -13,14 +13,11 @@ export default function TotpVerificationForm({ email, onSubmit, title } = {}) {
   const isMobile = !screens.md
   
   return (
-    <Card 
-      variant="borderless"
+    <div 
       style={{ 
         maxWidth: 480, 
         margin: '0 auto', 
         width: '100%',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-        borderRadius: 16
       }}
       styles={{ body: { padding: isMobile ? 24 : 40 } }}
     >
@@ -31,12 +28,11 @@ export default function TotpVerificationForm({ email, onSubmit, title } = {}) {
         </Text>
       </div>
 
-      <Form name="totpVerification" form={form} layout="vertical" onFinish={handleFinish}>
+      <Form name="totpVerification" form={form} layout="vertical" onFinish={handleFinish} validateTrigger="onSubmit">
         <Form.Item 
           name="verificationCode" 
-          label={<Text strong>Authenticator Code</Text>}
           rules={[
-            { required: true, message: 'Please enter the code' }
+            { required: true, message: 'Please enter the code' },
           ]}
           style={{ marginBottom: 32 }}
         >
@@ -47,8 +43,8 @@ export default function TotpVerificationForm({ email, onSubmit, title } = {}) {
               inputType="numeric"
             mask={false}
             onChange={(value) => {
-              // Input.OTP already handles numeric input, just ensure it's set in form
-              form.setFieldsValue({ verificationCode: value })
+              const normalized = String(value ?? '').replace(/\D/g, '').slice(0, 6)
+              form.setFieldsValue({ verificationCode: normalized })
             }}
             onKeyDown={(e) => {
               const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
@@ -64,7 +60,7 @@ export default function TotpVerificationForm({ email, onSubmit, title } = {}) {
         </Form.Item>
 
         <Flex vertical gap="middle">
-          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block style={{ height: 48, fontSize: 16 }}>
+          <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block >
             Verify
           </Button>
 
@@ -75,6 +71,6 @@ export default function TotpVerificationForm({ email, onSubmit, title } = {}) {
           </div>
         </Flex>
       </Form>
-    </Card>
+    </div>
   )
 }

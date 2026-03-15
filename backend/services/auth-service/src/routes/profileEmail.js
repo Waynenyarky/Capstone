@@ -18,6 +18,10 @@ const { profileUpdateRateLimit, adminApprovalRateLimit } = require('../middlewar
 const { requireFieldPermission, requireVerification } = require('../middleware/fieldPermissions')
 const { verifyCode, checkVerificationStatus, clearVerificationRequest } = require('../lib/verificationService')
 const AdminApproval = require('../models/AdminApproval')
+const webauthnServer = require('@simplewebauthn/server')
+const webauthnRouter = require('./webauthn')
+const authenticationChallenges = webauthnRouter.authenticationChallenges || new Map()
+const { consumeEmailChangeVerified } = require('../lib/mfaStepUpVerify')
 
 const router = express.Router()
 
@@ -32,14 +36,64 @@ const changeEmailStartSchema = Joi.object({
 
 const changeEmailVerifySchema = Joi.object({
   code: Joi.string().pattern(/^[0-9]{6}$/).required(),
+  currentEmail: Joi.string().email().optional(),
+  email: Joi.string().email().optional(),
 })
+
+async function requireJwtOptional(req, res, next) {
+  const auth = String(req.headers['authorization'] || '')
+  const hasBearerToken = /^Bearer\s+.+$/i.test(auth)
+  if (!hasBearerToken) return next()
+  return requireJwt(req, res, next)
+}
 
 const changeEmailConfirmStartSchema = Joi.object({
   email: Joi.string().email().optional(),
 })
 
 const changeEmailConfirmVerifySchema = Joi.object({
-  code: Joi.string().pattern(/^[0-9]{6}$/).required(),
+  code: Joi.alternatives().try(
+    Joi.string().pattern(/^[0-9]{6}$/),
+    Joi.string().valid('PASSKEY_BYPASS')
+  ).required(),
+})
+
+// POST /api/auth/change-email/confirm/passkey/start
+// Step-up start for passkey-only users before allowing email confirm bypass
+router.post('/change-email/confirm/passkey/start', requireJwt, async (req, res) => {
+  try {
+    const userId = req._userId
+    const user = await User.findById(userId)
+    if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
+
+    const hasPasskeys = Array.isArray(user.webauthnCredentials) && user.webauthnCredentials.length > 0
+    if (!hasPasskeys) return respond.error(res, 400, 'no_passkeys', 'No passkeys registered')
+
+    const allowCredentials = (user.webauthnCredentials || []).map((c) => {
+      const credId = String(c.credId || '').trim()
+      if (!credId) return null
+      return { id: credId, type: 'public-key', transports: c.transports || [] }
+    }).filter(Boolean)
+
+    const rpID = process.env.WEBAUTHN_RPID || 'localhost'
+    const options = await webauthnServer.generateAuthenticationOptions({
+      rpID,
+      timeout: 60000,
+      allowCredentials: allowCredentials.length > 0 ? allowCredentials : undefined,
+      userVerification: 'preferred',
+    })
+
+    let challengeToStore = options.challenge
+    if (Buffer.isBuffer(challengeToStore)) challengeToStore = challengeToStore.toString('base64url')
+    else if (challengeToStore instanceof Uint8Array) challengeToStore = Buffer.from(challengeToStore).toString('base64url')
+    else if (typeof challengeToStore !== 'string') challengeToStore = Buffer.from(challengeToStore).toString('base64url')
+
+    authenticationChallenges.set('email_change_' + String(userId), challengeToStore)
+    return res.json({ publicKey: options })
+  } catch (err) {
+    console.error('POST /api/auth/change-email/confirm/passkey/start error:', err)
+    return respond.error(res, 500, 'passkey_start_failed', 'Failed to start passkey verification')
+  }
 })
 
 const updateEmailSchema = Joi.object({
@@ -151,32 +205,53 @@ router.post('/change-email/start', requireJwt, validateBody(changeEmailStartSche
 
 // POST /api/auth/change-email/verify
 // Step 2: verify OTP and update user's email
-router.post('/change-email/verify', requireJwt, validateBody(changeEmailVerifySchema), async (req, res) => {
+router.post('/change-email/verify', requireJwtOptional, validateBody(changeEmailVerifySchema), async (req, res) => {
   try {
-    // Use userId from JWT token (already validated by requireJwt middleware)
-    const userId = req._userId
-    if (!userId) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+    const requestedCurrentEmail = String(req.body?.currentEmail || '').trim().toLowerCase()
+    const requestedNewEmail = String(req.body?.email || '').trim().toLowerCase()
 
     let doc = null
-    try {
-      doc = await User.findById(userId)
-    } catch (_) {
-      doc = null
+    if (req._userId) {
+      try {
+        doc = await User.findById(req._userId)
+      } catch (_) {
+        doc = null
+      }
     }
-    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
 
-    const key = String(doc.email || '').toLowerCase()
-    let reqObj = changeEmailRequests.get(key)
+    let key = String(doc?.email || '').toLowerCase()
+    if (!key && requestedCurrentEmail) key = requestedCurrentEmail
+
+    let reqObj = key ? changeEmailRequests.get(key) : null
+    let persisted = null
     if (!reqObj) {
-      const persisted = await ChangeEmailOtpRequest.findOne({ userId: doc._id }).lean()
+      if (doc?._id) {
+        persisted = await ChangeEmailOtpRequest.findOne({ userId: doc._id }).lean()
+      } else if (requestedCurrentEmail) {
+        const query = { currentEmail: requestedCurrentEmail }
+        if (requestedNewEmail) query.newEmail = requestedNewEmail
+        persisted = await ChangeEmailOtpRequest.findOne(query).lean()
+      }
       if (persisted && new Date(persisted.expiresAt).getTime() > Date.now()) {
         reqObj = {
           code: persisted.code,
           expiresAt: new Date(persisted.expiresAt).getTime(),
           newEmail: persisted.newEmail,
         }
+        if (!key) key = String(persisted.currentEmail || '').toLowerCase()
+        if (!doc && persisted.userId) {
+          try {
+            doc = await User.findById(persisted.userId)
+          } catch (_) {
+            doc = null
+          }
+        }
       }
     }
+    if (!doc && key) {
+      doc = await User.findOne({ email: key })
+    }
+    if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
     if (!reqObj) return respond.error(res, 404, 'change_email_request_not_found', 'No change email request found. Please start the process again from the first step.')
     if (Date.now() > reqObj.expiresAt) {
       changeEmailRequests.delete(key)
@@ -228,6 +303,17 @@ router.post('/change-email/confirm/start', requireJwt, validateBody(changeEmailC
       doc = await User.findOne({ email: emailHeader })
     }
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
+
+    const mfaMethod = String(doc.mfaMethod || '').toLowerCase()
+    const hasTotpSecret = !!doc.mfaSecret
+    const isAuthenticatorMethod = mfaMethod.includes('authenticator') || mfaMethod.includes('fingerprint')
+    const totpEnabled = hasTotpSecret && (doc.mfaEnabled === true || isAuthenticatorMethod)
+    const hasPasskeys = Array.isArray(doc.webauthnCredentials) && doc.webauthnCredentials.length > 0
+
+    if (!totpEnabled && hasPasskeys) {
+      return res.json({ sent: false, passkeyBypass: true, method: 'passkey' })
+    }
+
     const currentEmail = String(doc.email || '').toLowerCase()
     const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10)
     const expiresAtMs = Date.now() + ttlMin * 60 * 1000
@@ -256,9 +342,16 @@ router.post('/change-email/confirm/verify', requireJwt, validateBody(changeEmail
     if (!doc) return respond.error(res, 401, 'unauthorized', 'Unauthorized: user not found')
     const key = String(doc.email || '').toLowerCase()
     const reqObj = changeEmailRequests.get(key)
+    const { code } = req.body || {}
+    if (code === 'PASSKEY_BYPASS') {
+      if (!consumeEmailChangeVerified(doc._id)) {
+        return respond.error(res, 403, 'verification_required', 'Verify with your passkey first')
+      }
+      return res.json({ verified: true })
+    }
+
     if (!reqObj) return respond.error(res, 404, 'change_email_confirm_not_found', 'No confirmation request found')
     if (Date.now() > reqObj.expiresAt) return respond.error(res, 410, 'code_expired', 'Code expired')
-    const { code } = req.body || {}
     if (String(reqObj.code) !== String(code)) return respond.error(res, 401, 'invalid_code', 'Invalid code')
     changeEmailRequests.delete(key)
     return res.json({ verified: true })

@@ -1,7 +1,7 @@
 import React from 'react'
 import { useAuthSession } from '@/features/authentication'
 import { Navigate } from 'react-router-dom'
-import LGUOfficerDashboard from '../lgu-officer/pages/LGUOfficerDashboard'
+import OfficerDashboard from '../lgu-officer/pages/OfficerDashboard'
 import LGUManagerDashboard from '../lgu-manager/pages/LGUManagerDashboard'
 import InspectorDashboard from '../inspector/pages/InspectorDashboard'
 import CSODashboard from '../cso/pages/CSODashboard'
@@ -18,7 +18,7 @@ export default function StaffDashboard() {
 
   switch (role) {
     case 'lgu_officer':
-      return <LGUOfficerDashboard />
+      return <OfficerDashboard />
     case 'lgu_manager':
       return <LGUManagerDashboard />
     case 'inspector':

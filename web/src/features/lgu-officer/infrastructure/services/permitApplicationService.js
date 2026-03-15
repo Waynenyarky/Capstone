@@ -41,7 +41,7 @@ export class PermitApplicationService extends PermitApplicationRepository {
    * @param {object} params - Review parameters
    * @param {string} params.applicationId - Application ID
    * @param {string} params.decision - Decision: 'approve', 'reject', 'request_changes'
-   * @param {string} params.comments - Review comments (required)
+   * @param {string} params.comments - Review comments (optional)
    * @param {string} params.rejectionReason - Rejection reason (required if decision is 'reject')
    * @param {string} params.businessId - Business ID (optional)
    * @returns {Promise<object>} Review result
@@ -52,9 +52,6 @@ export class PermitApplicationService extends PermitApplicationRepository {
     }
     if (!decision) {
       throw new Error('Decision is required')
-    }
-    if (!comments) {
-      throw new Error('Comments are required')
     }
     if (decision === 'reject' && !rejectionReason) {
       throw new Error('Rejection reason is required when rejecting an application')

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Form } from '@/shared/components/AppForm'
 import { Input, Button, Typography, Spin, Alert, theme } from 'antd'
 import {
@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons'
 import { passwordRules, confirmPasswordRules } from '@/features/authentication/validations/changePasswordRules.js'
 import MfaSetup from '@/features/authentication/components/MfaSetup.jsx'
+import PasswordStrengthIndicator from '@/features/authentication/components/PasswordStrengthIndicator.jsx'
 
 const { Title, Paragraph } = Typography
 
@@ -47,6 +48,7 @@ export default function OnboardingStepContent({
   passwordExpired = false,
 }) {
   const { token } = theme.useToken()
+  const [passwordValue, setPasswordValue] = useState('')
   const labels = LABELS[variant] || LABELS.admin
 
   // STEP 0: Welcome
@@ -85,8 +87,12 @@ export default function OnboardingStepContent({
         </Paragraph>
         <Form form={form} layout="vertical" onFinish={handleCredentialsFinish} autoComplete="off">
           <Form.Item name="password" label="New Password" rules={passwordRules}>
-            <Input.Password placeholder="Enter new password" />
+            <Input.Password 
+              placeholder="Enter new password" 
+              onChange={(e) => setPasswordValue(e?.target?.value ?? '')}
+            />
           </Form.Item>
+          <PasswordStrengthIndicator value={passwordValue} />
           <Form.Item
             name="confirmPassword"
             label="Confirm New Password"

@@ -12,6 +12,7 @@ import {
 import { authenticateComplete } from '@/features/authentication/services/webauthnService'
 import { base64ToBuffer, bufferToBase64 } from '@/features/authentication/lib/webauthnBuffers'
 import { useAuthNotification, useNotifier } from '@/shared/notifications'
+import { usePasskeyManager } from '@/features/authentication/presentation/passkey/hooks/usePasskeyManager'
 
 async function verifyWithPasskeyForDisable() {
   const start = await mfaDisableRequestStart()
@@ -73,6 +74,8 @@ export function useLoggedInMfaManager() {
   const { success, error } = useNotifier()
   const { notificationSuccess } = useAuthNotification()
   const email = currentUser?.email
+  const { credentials: passkeys } = usePasskeyManager()
+  const hasPasskeys = Array.isArray(passkeys) && passkeys.length > 0
 
   const [loading, setLoading] = useState(false)
   const [enabled, setEnabled] = useState(false)
@@ -236,11 +239,17 @@ export function useLoggedInMfaManager() {
     }
   }
 
+  // effectiveEnabled includes both TOTP MFA and passkeys
+  const sessionMfaEnabled = currentUser?.mfaEnabled === true
+  const effectiveEnabled = sessionMfaEnabled || enabled || hasPasskeys
+
   return {
     currentUser,
     role,
     loading,
     enabled,
+    effectiveEnabled,
+    hasPasskeys,
     statusFetchFailed,
     disablePending,
     scheduledFor,

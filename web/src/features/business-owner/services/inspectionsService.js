@@ -2,6 +2,42 @@ import { get, post } from '@/lib/http.js'
 
 const BASE_PATH = '/api/business/inspections'
 
+function normalizeInspection(item = {}) {
+  const id = item._id || item.id || item.inspectionId || null
+  const inspectorName = item.inspectorName || item.inspector || item.inspector?.name || null
+  const acknowledged = Boolean(item.ownerAcknowledgment?.acknowledged)
+  const acknowledgedAt = item.ownerAcknowledgment?.timestamp || item.acknowledgedAt || null
+  return {
+    ...item,
+    _id: id,
+    id,
+    inspectionId: item.inspectionId || id,
+    result: item.result || item.overallResult || null,
+    overallResult: item.overallResult || item.result || null,
+    inspectorName,
+    ownerAcknowledged: acknowledged,
+    acknowledgedAt,
+  }
+}
+
+function normalizeInspectionListResponse(res = {}) {
+  const rawItems = Array.isArray(res)
+    ? res
+    : Array.isArray(res?.data)
+      ? res.data
+      : Array.isArray(res?.inspections)
+        ? res.inspections
+        : []
+  const inspections = rawItems.map(normalizeInspection)
+  const meta = res?.meta || res?.pagination || {}
+  return {
+    inspections,
+    data: inspections,
+    meta,
+    pagination: meta,
+  }
+}
+
 /**
  * Get inspections for the current user's businesses
  * @param {object} params - Query parameters
@@ -21,7 +57,8 @@ export async function getInspections({ page = 1, limit = 20, status, businessId,
   if (dateFrom) qs.set('dateFrom', dateFrom)
   if (dateTo) qs.set('dateTo', dateTo)
 
-  return get(`${BASE_PATH}?${qs.toString()}`)
+  const res = await get(`${BASE_PATH}?${qs.toString()}`)
+  return normalizeInspectionListResponse(res)
 }
 
 /**
@@ -33,7 +70,12 @@ export async function getUpcomingInspections({ limit = 10 } = {}) {
   const qs = new URLSearchParams()
   qs.set('limit', String(limit))
 
-  return get(`${BASE_PATH}/upcoming?${qs.toString()}`)
+  const res = await get(`${BASE_PATH}/upcoming?${qs.toString()}`)
+  const normalized = normalizeInspectionListResponse(res)
+  return {
+    ...normalized,
+    upcoming: normalized.inspections,
+  }
 }
 
 /**
@@ -41,7 +83,9 @@ export async function getUpcomingInspections({ limit = 10 } = {}) {
  * @param {string} inspectionId - Inspection ID
  */
 export async function getInspection(inspectionId) {
-  return get(`${BASE_PATH}/${inspectionId}`)
+  const res = await get(`${BASE_PATH}/${inspectionId}`)
+  const payload = res?.data || res
+  return normalizeInspection(payload)
 }
 
 /**
@@ -49,7 +93,18 @@ export async function getInspection(inspectionId) {
  * @param {string} inspectionId - Inspection ID
  */
 export async function getInspectionViolations(inspectionId) {
-  return get(`${BASE_PATH}/${inspectionId}/violations`)
+  const res = await get(`${BASE_PATH}/${inspectionId}/violations`)
+  const violations = Array.isArray(res)
+    ? res
+    : Array.isArray(res?.data)
+      ? res.data
+      : Array.isArray(res?.violations)
+        ? res.violations
+        : []
+  return {
+    violations,
+    data: violations,
+  }
 }
 
 /**

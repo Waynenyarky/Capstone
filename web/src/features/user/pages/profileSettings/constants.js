@@ -2,44 +2,64 @@ import {
   UserOutlined,
   SafetyCertificateOutlined,
   BgColorsOutlined,
-  BellOutlined,
   TabletOutlined,
   LockOutlined,
   MailOutlined,
   DesktopOutlined,
   DeleteOutlined,
   SettingOutlined,
+  HomeOutlined,
+  IdcardOutlined,
 } from '@ant-design/icons'
 
 export const PROFILE_NAV_ITEMS = [
   { key: 'general', label: 'General', icon: UserOutlined },
-  { key: 'account', label: 'Account', icon: SettingOutlined },
   { key: 'security', label: 'Security', icon: SafetyCertificateOutlined },
-  { key: 'theme', label: 'Theme', icon: BgColorsOutlined },
-  { key: 'notifications', label: 'Notifications', icon: BellOutlined },
 ]
 
-/** Business owner: General, Account, Security, Theme (no Notifications). */
-export const PROFILE_NAV_ITEMS_OWNER = PROFILE_NAV_ITEMS.filter((n) => n.key !== 'notifications')
+/** Business owner: General, Security, Theme (Account removed - merged into Security). */
+export const PROFILE_NAV_ITEMS_OWNER = PROFILE_NAV_ITEMS
 
-/** Staff and admin: Account, Security, Theme only (no General, no Notifications). */
+/** Staff and admin: Security, Theme only (no General, no Account). */
 export const PROFILE_NAV_ITEMS_STAFF = PROFILE_NAV_ITEMS.filter(
-  (n) => n.key !== 'general' && n.key !== 'notifications'
+  (n) => n.key !== 'general'
 )
 
 /** @deprecated Use PROFILE_NAV_ITEMS_STAFF for both staff and admin. */
 export const PROFILE_NAV_ITEMS_STAFF_ADMIN = PROFILE_NAV_ITEMS_STAFF
 
-/** Combined security + account sections (password and delete account only for business owner; passkey is part of MFA setup) */
+/** Consolidated navigation items for all settings sections */
+export const CONSOLIDATED_NAV_ITEMS = [
+  // General section
+  { key: 'basicInfo', label: 'Basic Information', icon: UserOutlined, section: 'general' },
+  { key: 'address', label: 'Address', icon: HomeOutlined, section: 'general' },
+  { key: 'personalInfo', label: 'Personal Information', icon: IdcardOutlined, section: 'general' },
+  
+  // Security section  
+  { key: 'mfa', label: 'Multi-Factor Authentication', icon: TabletOutlined, section: 'security' },
+  { key: 'password', label: 'Password', icon: LockOutlined, section: 'security' },
+  { key: 'email', label: 'Email Address', icon: MailOutlined, section: 'security' },
+  { key: 'sessions', label: 'Active Sessions', icon: DesktopOutlined, section: 'security' },
+  { key: 'deleteAccount', label: 'Delete Account', icon: DeleteOutlined, section: 'security' },
+]
+
+/** General sections for profile information */
+export const GENERAL_SECTIONS = [
+  { key: 'basicInfo', label: 'Basic Information', icon: UserOutlined },
+  { key: 'address', label: 'Address', icon: HomeOutlined },
+  { key: 'personalInfo', label: 'Personal Information', icon: IdcardOutlined },
+]
+
+/** Security sections (includes email and sessions from former Account tab) */
 export const SECURITY_SECTIONS = [
-  { key: 'mfa', label: 'Two-Factor Authentication (MFA)', icon: TabletOutlined },
+  { key: 'mfa', label: 'Multi-Factor Authentication (MFA)', icon: TabletOutlined },
   { key: 'password', label: 'Password', icon: LockOutlined },
   { key: 'email', label: 'Email Address', icon: MailOutlined },
   { key: 'sessions', label: 'Active Sessions', icon: DesktopOutlined },
   { key: 'deleteAccount', label: 'Delete Account', icon: DeleteOutlined },
 ]
 
-/** Subset for legacy Account tab (email + sessions); Security tab now includes these. */
+/** @deprecated - Account sections moved to Security tab */
 export const ACCOUNT_SECTIONS = SECURITY_SECTIONS.filter((s) => s.key === 'email' || s.key === 'sessions')
 
 export const THEME_OPTIONS = [

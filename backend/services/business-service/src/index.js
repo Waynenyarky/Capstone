@@ -47,20 +47,36 @@ app.use(cors({
   origin: process.env.CORS_ORIGIN || '*',
   credentials: true
 }));
+
+// Session middleware required for CSRF tokens
+try {
+  const session = require('express-session');
+  const cookieParser = require('cookie-parser');
+  app.use(cookieParser());
+  const sessSecret = process.env.SESSION_SECRET || 'dev-session-secret';
+  app.use(
+    session({
+      secret: sessSecret,
+      resave: false,
+      saveUninitialized: false,
+      cookie: { secure: process.env.NODE_ENV === 'production', sameSite: 'lax' },
+    })
+  );
+} catch (err) {
+  console.warn('Session middleware not available', { error: err });
+}
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
-// CSRF (IAS-2.7): cookie-parser for double-submit cookie; token endpoint and middleware for /api/business and /api/inspector, /api/lgu-officer
-let cookieParser;
-try { cookieParser = require('cookie-parser'); app.use(cookieParser()); } catch (_) { /* optional */ }
+// CSRF (IAS-2.7): token endpoint and middleware for /api/business and /api/inspector, /api/lgu-officer
 const csrfDisabled = process.env.DISABLE_CSRF === 'true' || process.env.NODE_ENV === 'test';
 const { createCsrfMiddleware, getCsrfTokenHandler } = require('../../../shared/csrf');
-app.get('/api/business/csrf-token', getCsrfTokenHandler({ sameSite: 'lax' }));
-app.get('/api/inspector/csrf-token', getCsrfTokenHandler({ sameSite: 'lax' }));
-app.get('/api/lgu-officer/csrf-token', getCsrfTokenHandler({ sameSite: 'lax' }));
-app.use('/api/business', createCsrfMiddleware({ skipPaths: ['/api/business/csrf-token'], disabled: csrfDisabled }));
-app.use('/api/inspector', createCsrfMiddleware({ skipPaths: ['/api/inspector/csrf-token'], disabled: csrfDisabled }));
-app.use('/api/lgu-officer', createCsrfMiddleware({ skipPaths: ['/api/lgu-officer/csrf-token'], disabled: csrfDisabled }));
+app.get('/api/business/csrf-token', getCsrfTokenHandler({ cookieName: 'csrf-token-business', sameSite: 'lax' }));
+app.get('/api/inspector/csrf-token', getCsrfTokenHandler({ cookieName: 'csrf-token-inspector', sameSite: 'lax' }));
+app.get('/api/lgu-officer/csrf-token', getCsrfTokenHandler({ cookieName: 'csrf-token-lgu-officer', sameSite: 'lax' }));
+app.use('/api/business', createCsrfMiddleware({ cookieName: 'csrf-token-business', skipPaths: ['/api/business/csrf-token'], disabled: csrfDisabled }));
+app.use('/api/inspector', createCsrfMiddleware({ cookieName: 'csrf-token-inspector', skipPaths: ['/api/inspector/csrf-token'], disabled: csrfDisabled }));
+app.use('/api/lgu-officer', createCsrfMiddleware({ cookieName: 'csrf-token-lgu-officer', skipPaths: ['/api/lgu-officer/csrf-token'], disabled: csrfDisabled }));
 
 if (process.env.NODE_ENV !== 'production') {
   let morgan
@@ -116,6 +132,10 @@ const ownerViolationsRouter = require('./routes/ownerViolations');
 const aiRouter = require('./routes/ai');
 const lobTrainerRouter = require('./routes/lobTrainer');
 const feesRouter = require('./routes/fees');
+const clearanceRouter = require('./routes/clearances');
+const treasuryRouter = require('./routes/treasury');
+const inspectionSchedulingRouter = require('./routes/inspectionScheduling');
+const permitsRouter = require('./routes/permits');
 
 app.use('/api/business/admin/fee-configuration', feeConfigurationRouter);
 app.use('/api/business/admin/regulatory-fee-config', regulatoryFeeConfigRouter);
@@ -134,6 +154,11 @@ app.use('/api/business/violations', ownerViolationsRouter);
 app.use('/api/business/ai', aiRouter);
 app.use('/api/business/admin/lob-trainer', lobTrainerRouter);
 app.use('/api/business', feesRouter);
+app.use('/api/business/fees', feesRouter);
+app.use('/api/business/clearances', clearanceRouter);
+app.use('/api/business/permits', permitsRouter);
+app.use('/api/treasury', treasuryRouter);
+app.use('/api/inspections', inspectionSchedulingRouter);
 
 const adminStatsRouter = require('./routes/adminStats');
 app.use('/api/business/admin', adminStatsRouter);
@@ -216,6 +241,13 @@ async function start() {
       const { detectAbandonedBusinesses } = require('./cron/abandonedDetection')
       const { markOverduePostRequirements } = require('./cron/postRequirementOverdue')
       const { checkPostRequirementDue, checkOverduePostRequirements } = require('./cron/notificationReminders')
+      const {
+        escalateOverdueViolations,
+        sendViolationReminders,
+        flagCriticalViolators,
+        sendInspectionReminders,
+        cancelExpiredBookings
+      } = require('./cron/complianceEnforcement')
 
       const cronLocks = new Set()
       async function withCronMutex(name, fn) {
@@ -268,9 +300,70 @@ async function start() {
       }))
 
       logger.info('Cron jobs scheduled: renewalAutoFlag, monthlyInterest, abandonedDetection, postRequirementOverdue, notificationReminders')
+
+      // Phase 4: Compliance Enforcement Cron Jobs
+      cron.schedule('0 9 * * *', () => withCronMutex('escalateViolations', async () => {
+        logger.info('[CRON] Escalating overdue violations...')
+        try {
+          const result = await escalateOverdueViolations()
+          logger.info(`[CRON] Escalated ${result.escalated} violations`)
+        }
+        catch (err) { logger.error('[CRON] escalateViolations error:', { error: err.message }) }
+      }))
+
+      cron.schedule('0 8 * * *', () => withCronMutex('violationReminders', async () => {
+        logger.info('[CRON] Sending violation reminders...')
+        try {
+          const result = await sendViolationReminders()
+          logger.info(`[CRON] Sent ${result.remindersSent} violation reminders`)
+        }
+        catch (err) { logger.error('[CRON] violationReminders error:', { error: err.message }) }
+      }))
+
+      cron.schedule('0 10 * * *', () => withCronMutex('flagCriticalViolators', async () => {
+        logger.info('[CRON] Flagging critical violators...')
+        try {
+          const result = await flagCriticalViolators()
+          logger.info(`[CRON] Flagged ${result.flagged} businesses as high risk`)
+        }
+        catch (err) { logger.error('[CRON] flagCriticalViolators error:', { error: err.message }) }
+      }))
+
+      cron.schedule('0 * * * *', () => withCronMutex('inspectionReminders', async () => {
+        try {
+          const result = await sendInspectionReminders()
+          if (result.remindersSent > 0) {
+            logger.info(`[CRON] Sent ${result.remindersSent} inspection reminders`)
+          }
+        }
+        catch (err) { logger.error('[CRON] inspectionReminders error:', { error: err.message }) }
+      }))
+
+      cron.schedule('0 0 * * *', () => withCronMutex('cancelExpiredBookings', async () => {
+        logger.info('[CRON] Cancelling expired inspection bookings...')
+        try {
+          const result = await cancelExpiredBookings()
+          logger.info(`[CRON] Cancelled ${result.cancelled} expired bookings`)
+        }
+        catch (err) { logger.error('[CRON] cancelExpiredBookings error:', { error: err.message }) }
+      }))
+
+      logger.info('Phase 4 cron jobs scheduled: escalateViolations, violationReminders, flagCriticalViolators, inspectionReminders, cancelExpiredBookings')
     }
 
     const server = http.createServer(app);
+
+    // Initialize Socket.io for realtime updates
+    try {
+      const { initializeSocket } = require('../../../shared/lib/socketService');
+      const { Server: SocketIOServer } = require('socket.io');
+      const jwtModule = require('jsonwebtoken');
+      initializeSocket(server, { SocketIO: SocketIOServer, jwt: jwtModule });
+      logger.info('Socket.io initialized for realtime updates');
+    } catch (err) {
+      logger.warn('Socket.io initialization failed (non-critical)', { error: err.message });
+    }
+
     server.listen(PORT, () => {
       logger.info(`Business Service listening on http://localhost:${PORT}`);
       logger.info('AI LOB recommendation config', {

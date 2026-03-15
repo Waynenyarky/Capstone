@@ -34,7 +34,6 @@ export default function AdminStepUpModal({ open, onCancel, onVerified, mfaMethod
       const data = await stepUpWithTotp(trimmed)
       if (data?.stepUpToken) {
         onVerified?.(data.stepUpToken)
-        onCancel?.()
       } else {
         setError('Verification failed. Please try again.')
       }
@@ -54,7 +53,6 @@ export default function AdminStepUpModal({ open, onCancel, onVerified, mfaMethod
       const data = await stepUpWithPasskey()
       if (data?.stepUpToken) {
         onVerified?.(data.stepUpToken)
-        onCancel?.()
       } else {
         setError('Verification failed. Please try again.')
       }

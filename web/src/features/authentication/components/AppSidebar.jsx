@@ -76,12 +76,9 @@ export default function AppSidebar({ hiddenKeys = [], renamedKeys = {}, itemOver
 
   const { open, show, hide, confirming, handleConfirm } = useConfirmLogoutModal({
     onConfirm: async () => {
-      // perform logout and navigate
       try {
-        // Navigate for immediate feedback, but logout() will also trigger a redirect
-        // handled gracefully by ProtectedRoute's isLoggingOut check.
-        navigate('/login')
         logout()
+        navigate('/', { replace: true })
       } catch (err) {
         void err
       }

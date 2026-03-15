@@ -46,6 +46,15 @@ const AuditViewLogSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+AuditViewLogSchema.plugin(encryptionPlugin, {
+  fields: ['ip', 'userAgent'],
+  deterministicFields: [],
+  nestedPaths: [],
+  arrayPaths: [],
+  mixedPaths: ['metadata'],
+})
+
 // Indexes for efficient querying (auditLogId has index: true on field)
 AuditViewLogSchema.index({ viewerId: 1, viewedAt: -1 })
 AuditViewLogSchema.index({ viewedUserId: 1, viewedAt: -1 })

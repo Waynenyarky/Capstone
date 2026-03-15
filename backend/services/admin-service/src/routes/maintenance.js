@@ -13,42 +13,69 @@ async function ensureActiveMaintenanceFromApprovals() {
     .sort({ updatedAt: -1 })
     .lean()
   const active = await MaintenanceWindow.findOne({ isActive: true }).sort({ createdAt: -1 })
+  if (active) return active
 
-  if (!latestApproved) return active || null
-
-  const { action, message, expectedResumeAt } = latestApproved.requestDetails || {}
-  if (action === 'disable') {
-    if (active) {
-      await MaintenanceWindow.updateMany(
-        { isActive: true },
-        { isActive: false, status: 'ended', deactivatedAt: new Date() }
-      )
+  const pending = await MaintenanceWindow.findOne({ status: 'pending' }).sort({ createdAt: -1 })
+  if (pending) {
+    const pendingScheduledStart = pending?.metadata?.scheduledStartAt ? new Date(pending.metadata.scheduledStartAt) : null
+    const hasPendingSchedule = !!(pendingScheduledStart && !Number.isNaN(pendingScheduledStart.getTime()))
+    const shouldActivatePending = !hasPendingSchedule || pendingScheduledStart <= new Date()
+    if (shouldActivatePending) {
+      pending.status = 'active'
+      pending.isActive = true
+      pending.activatedAt = pending.activatedAt || new Date()
+      await pending.save()
+      return pending
     }
+  }
+
+  if (!latestApproved) return null
+
+  const { action, message, expectedResumeAt, scheduledStartAt } = latestApproved.requestDetails || {}
+  if (action === 'disable') {
+    await MaintenanceWindow.updateMany(
+      {
+        $or: [
+          { isActive: true },
+          { status: 'pending' },
+        ],
+      },
+      { isActive: false, status: 'ended', deactivatedAt: new Date() }
+    )
     return null
   }
 
-  if (action !== 'enable') return active || null
-  if (active) return active
+  if (action !== 'enable') return null
 
   const existing = await MaintenanceWindow.findOne({ 'metadata.approvalId': latestApproved.approvalId })
     .sort({ createdAt: -1 })
     .lean()
-  if (existing) return existing
+  if (existing) {
+    return existing.isActive ? existing : null
+  }
 
   const now = new Date()
+  const scheduledDate = scheduledStartAt ? new Date(scheduledStartAt) : null
+  const hasValidSchedule = !!(scheduledDate && !Number.isNaN(scheduledDate.getTime()))
+  const shouldActivateNow = !hasValidSchedule || scheduledDate <= now
+
   const approvedBy = (latestApproved.approvals || []).map((a) => a.adminId).filter(Boolean)
   const created = await MaintenanceWindow.create({
-    status: 'active',
-    isActive: true,
+    status: shouldActivateNow ? 'active' : 'pending',
+    isActive: shouldActivateNow,
     message: message || '',
     expectedResumeAt: expectedResumeAt ? new Date(expectedResumeAt) : null,
     requestedBy: latestApproved.requestedBy,
     approvedBy,
-    activatedAt: now,
-    metadata: { approvalId: latestApproved.approvalId, recovered: true },
+    activatedAt: shouldActivateNow ? now : null,
+    metadata: {
+      approvalId: latestApproved.approvalId,
+      recovered: true,
+      scheduledStartAt: hasValidSchedule ? scheduledDate : null,
+    },
   })
 
-  return created
+  return shouldActivateNow ? created : null
 }
 
 const requestSchema = Joi.object({
@@ -131,14 +158,30 @@ router.get('/current', requireJwt, requireRole(['admin']), async (_req, res) => 
 router.get('/status', async (_req, res) => {
   try {
     const active = await ensureActiveMaintenanceFromApprovals()
-    if (!active) return res.json({ active: false })
+    if (active) {
+      return res.json({
+        active: true,
+        message: active.message || '',
+        expectedResumeAt: active.expectedResumeAt,
+        activatedAt: active.activatedAt,
+      })
+    }
 
-    return res.json({
-      active: true,
-      message: active.message || '',
-      expectedResumeAt: active.expectedResumeAt,
-      activatedAt: active.activatedAt,
-    })
+    const pending = await MaintenanceWindow.findOne({ status: 'pending' })
+      .sort({ createdAt: -1 })
+      .lean()
+    const scheduledStartAt = pending?.metadata?.scheduledStartAt || null
+    if (pending && scheduledStartAt) {
+      return res.json({
+        active: false,
+        scheduled: true,
+        message: pending.message || '',
+        expectedResumeAt: pending.expectedResumeAt,
+        scheduledStartAt,
+      })
+    }
+
+    return res.json({ active: false })
   } catch (err) {
     console.error('GET /api/maintenance/status error:', err)
     return res.status(500).json({ active: false, error: 'status_unavailable' })

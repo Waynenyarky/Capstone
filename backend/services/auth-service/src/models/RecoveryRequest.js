@@ -67,6 +67,15 @@ const RecoveryRequestSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+RecoveryRequestSchema.plugin(encryptionPlugin, {
+  fields: ['office', 'role', 'reviewNotes', 'denialReason'],
+  deterministicFields: [],
+  nestedPaths: ['metadata'],
+  arrayPaths: [],
+  mixedPaths: [],
+})
+
 // Indexes for efficient querying
 RecoveryRequestSchema.index({ userId: 1, status: 1 })
 RecoveryRequestSchema.index({ status: 1, createdAt: -1 })

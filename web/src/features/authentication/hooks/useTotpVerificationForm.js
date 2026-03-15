@@ -4,14 +4,26 @@ import { useState } from 'react'
 import { verifyLoginTotp } from '@/features/authentication/services/authService'
 import { useNotifier } from '@/shared/notifications.js'
 
-export function useTotpVerificationForm({ onSubmit, email } = {}) {
+export function useTotpVerificationForm({ onSubmit, email, onSessionExpired } = {}) {
   const [form] = Form.useForm()
   const [isSubmitting, setSubmitting] = useState(false)
   const { success, error } = useNotifier()
   const { notification } = App.useApp()
 
   const handleFinish = async (values) => {
-    const payload = { email, code: values.verificationCode }
+    if (!email) {
+      error('Your login verification session expired. Please sign in again.', 'Session expired')
+      if (typeof onSessionExpired === 'function') onSessionExpired()
+      return
+    }
+
+    const normalizedCode = String(values?.verificationCode || '').replace(/\D/g, '').slice(0, 6)
+    if (normalizedCode.length !== 6) {
+      form.setFields([{ name: 'verificationCode', errors: ['Code must be exactly 6 digits'] }])
+      return
+    }
+
+    const payload = { email, code: normalizedCode }
     try {
       setSubmitting(true)
       const user = await verifyLoginTotp(payload)
@@ -71,6 +83,13 @@ export function useTotpVerificationForm({ onSubmit, email } = {}) {
           key: `totp-expired-${Date.now()}`,
         })
         form.setFields([{ name: 'verificationCode', errors: [expiredMsg] }])
+      } else if (errCode === 'mfa_not_enabled' || errCode === 'request_not_found' || errCode === 'user_not_found') {
+        error('Your verification session is no longer valid. Please sign in again.', 'Session expired')
+        if (typeof onSessionExpired === 'function') onSessionExpired()
+      } else if (err?.status === 401) {
+        const invalidMsg = 'The authenticator code is incorrect. Please try again.'
+        form.setFields([{ name: 'verificationCode', errors: [invalidMsg] }])
+        error(invalidMsg, 'Incorrect Code')
       } else {
         error(err, 'Failed to verify code')
       }

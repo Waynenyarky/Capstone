@@ -1,7 +1,7 @@
 import { Form } from '@/shared/components/AppForm'
 import { App } from 'antd'
 import { useState } from 'react'
-import { fetchWithFallback } from "@/lib/http.js"
+import { deleteAccountVerifyCode } from '@/features/authentication/services'
 import { useNotifier } from '@/shared/notifications.js'
 
 export function useVerifyDeleteAccountCode({ onSubmit, email } = {}) {
@@ -14,15 +14,14 @@ export function useVerifyDeleteAccountCode({ onSubmit, email } = {}) {
     const payload = { email, code: values.verificationCode }
     try {
       setSubmitting(true)
-      const res = await fetchWithFallback('/api/auth/delete-account/verify-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (!res || !res.ok) {
-        const err = await res?.json().catch(() => ({}))
-        const msg = err?.error || ''
-        const status = res?.status
+      const data = await deleteAccountVerifyCode(payload)
+      success('Code verified')
+      form.resetFields()
+      if (typeof onSubmit === 'function') onSubmit({ email, deleteToken: data?.deleteToken })
+    } catch (err) {
+      console.error('Verify delete code error:', err)
+      const msg = err?.message || ''
+      const status = err?.status
         const lower = String(msg).toLowerCase()
 
         if (status === 401 || lower.includes('invalid code')) {
@@ -88,14 +87,6 @@ export function useVerifyDeleteAccountCode({ onSubmit, email } = {}) {
           form.setFields([{ name: 'verificationCode', errors: [notFoundMsg] }])
           return
         }
-        throw new Error(msg || `Verification failed: ${status || 'unknown'}`)
-      }
-      const data = await res.json()
-      success('Code verified')
-      form.resetFields()
-      if (typeof onSubmit === 'function') onSubmit({ email, deleteToken: data?.deleteToken })
-    } catch (err) {
-      console.error('Verify delete code error:', err)
       error(err, 'Failed to verify delete code')
     } finally {
       setSubmitting(false)

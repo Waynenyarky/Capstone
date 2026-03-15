@@ -6,9 +6,24 @@ const router = express.Router()
 const { requireJwt, requireRole } = require('../middleware/auth')
 const respond = require('../middleware/respond')
 const businessProfileService = require('../services/businessProfileService')
+const statusTransitionService = require('../services/statusTransitionService')
 const pdfService = require('../lib/pdfService')
 const logger = require('../lib/logger')
 const { scanFile } = require('../../../../shared/fileScan')
+const BusinessProfile = require('../models/BusinessProfile')
+
+// Socket service for realtime updates (lazy-loaded to avoid startup issues)
+let socketService = null
+function getSocketService() {
+  if (!socketService) {
+    try {
+      socketService = require('../../../../shared/lib/socketService')
+    } catch (err) {
+      logger.warn('Socket service not available:', err.message)
+    }
+  }
+  return socketService
+}
 
 const businessUploadsRoot = path.join(__dirname, '..', '..', '..', 'uploads', 'business-registration')
 const renewalUploadsRoot = path.join(__dirname, '..', '..', '..', 'uploads', 'business-renewal')
@@ -171,15 +186,229 @@ router.post('/profile', requireJwt, requireRole(['business_owner']), async (req,
   }
 })
 
-// GET /api/business/businesses - Get all businesses
+// GET /api/business/businesses - Get all businesses (with pagination and filtering)
 router.get('/businesses', requireJwt, requireRole(['business_owner']), async (req, res) => {
   try {
+    const {
+      page = 1,
+      limit = 10,
+      search = '',
+      status = '',
+      sort = 'updatedAt',
+      order = 'desc'
+    } = req.query
+
     const profile = await businessProfileService.getProfile(req._userId)
-    const businesses = profile.businesses || []
-    res.json({ businesses })
+    let businesses = profile.businesses || []
+
+    // Apply search filter
+    if (search) {
+      const searchLower = search.toLowerCase()
+      businesses = businesses.filter(business => 
+        (business.businessName && business.businessName.toLowerCase().includes(searchLower)) ||
+        (business.tradeName && business.tradeName.toLowerCase().includes(searchLower)) ||
+        (business.primaryLineOfBusiness && business.primaryLineOfBusiness.toLowerCase().includes(searchLower)) ||
+        (business.lineOfBusiness && business.lineOfBusiness.toLowerCase().includes(searchLower))
+      )
+    }
+
+    // Apply status filter
+    if (status) {
+      businesses = businesses.filter(business => {
+        const businessStatus = (business.applicationStatus || business.permitStatus || '').toLowerCase()
+        return businessStatus === status.toLowerCase()
+      })
+    }
+
+    // Apply sorting
+    businesses.sort((a, b) => {
+      let aValue, bValue
+      
+      switch (sort) {
+        case 'businessName':
+          aValue = a.businessName || a.tradeName || ''
+          bValue = b.businessName || b.tradeName || ''
+          break
+        case 'createdAt':
+          aValue = a.createdAt || new Date(0)
+          bValue = b.createdAt || new Date(0)
+          break
+        case 'applicationStatus':
+          aValue = a.applicationStatus || a.permitStatus || ''
+          bValue = b.applicationStatus || b.permitStatus || ''
+          break
+        case 'updatedAt':
+        default:
+          aValue = a.updatedAt || new Date(0)
+          bValue = b.updatedAt || new Date(0)
+          break
+      }
+
+      if (typeof aValue === 'string') {
+        return order === 'desc' 
+          ? bValue.localeCompare(aValue)
+          : aValue.localeCompare(bValue)
+      } else {
+        return order === 'desc'
+          ? new Date(bValue) - new Date(aValue)
+          : new Date(aValue) - new Date(bValue)
+      }
+    })
+
+    // Calculate pagination
+    const totalItems = businesses.length
+    const totalPages = Math.ceil(totalItems / parseInt(limit))
+    const startIndex = (parseInt(page) - 1) * parseInt(limit)
+    const endIndex = startIndex + parseInt(limit)
+    const paginatedBusinesses = businesses.slice(startIndex, endIndex)
+
+    res.json({
+      businesses: paginatedBusinesses,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages,
+        totalItems,
+        hasNext: parseInt(page) < totalPages,
+        hasPrev: parseInt(page) > 1
+      }
+    })
   } catch (err) {
     console.error('GET /api/business/businesses error:', err)
     return respond.error(res, 500, 'fetch_error', 'Failed to fetch businesses')
+  }
+})
+
+// GET /api/business/businesses/:businessId - Get specific business by ID
+router.get('/businesses/:businessId', requireJwt, requireRole(['business_owner', 'lgu_officer', 'lgu_manager']), async (req, res) => {
+  try {
+    const { businessId } = req.params
+    const userId = req._userId
+    const mongoose = require('mongoose')
+
+    // Find business profile containing the requested business (by businessId OR subdoc _id)
+    let profile = await BusinessProfile.findOne({
+      'businesses.businessId': businessId
+    }).lean()
+
+    // Fallback: try matching by subdocument _id if businessId didn't match
+    if (!profile && mongoose.Types.ObjectId.isValid(businessId)) {
+      profile = await BusinessProfile.findOne({
+        'businesses._id': new mongoose.Types.ObjectId(businessId)
+      }).lean()
+    }
+
+    if (!profile) {
+      return respond.error(res, 404, 'not_found', 'Business profile not found')
+    }
+
+    // Find the specific business (by businessId OR subdoc _id)
+    const business = profile.businesses.find(b => 
+      b.businessId === businessId || String(b._id) === businessId
+    )
+    if (!business) {
+      return respond.error(res, 404, 'not_found', 'Business not found')
+    }
+
+    // Return the business with profile context
+    return respond.success(res, 200, {
+      business,
+      profile: {
+        userId: profile.userId,
+        ownerName: profile.ownerName,
+        firstName: profile.firstName,
+        lastName: profile.lastName
+      }
+    })
+  } catch (err) {
+    console.error('GET /api/business/businesses/:businessId error:', err)
+    return respond.error(res, 500, 'fetch_error', err.message || 'Failed to fetch business')
+  }
+})
+
+// PUT /api/business/businesses/:businessId/payment-generation-status - Update payment generation status
+router.put('/businesses/:businessId/payment-generation-status', requireJwt, requireRole(['business_owner', 'lgu_officer', 'lgu_manager']), async (req, res) => {
+  try {
+    const { businessId } = req.params
+    const statusData = req.body
+    const mongoose = require('mongoose')
+
+    // Find business profile containing the requested business (by businessId OR subdoc _id)
+    let profile = await BusinessProfile.findOne({
+      'businesses.businessId': businessId
+    })
+
+    // Fallback: try matching by subdocument _id if businessId didn't match
+    if (!profile && mongoose.Types.ObjectId.isValid(businessId)) {
+      profile = await BusinessProfile.findOne({
+        'businesses._id': new mongoose.Types.ObjectId(businessId)
+      })
+    }
+
+    if (!profile) {
+      return respond.error(res, 404, 'not_found', 'Business profile not found')
+    }
+
+    // Find the specific business and update payment generation status (by businessId OR subdoc _id)
+    const businessIndex = profile.businesses.findIndex(b => 
+      b.businessId === businessId || String(b._id) === businessId
+    )
+    if (businessIndex === -1) {
+      return respond.error(res, 404, 'not_found', 'Business not found')
+    }
+
+    // Update payment generation status
+    profile.businesses[businessIndex].paymentGenerationStatus = {
+      ...profile.businesses[businessIndex].paymentGenerationStatus,
+      ...statusData,
+      updatedAt: new Date()
+    }
+
+    await profile.save()
+
+    return respond.success(res, 200, {
+      message: 'Payment generation status updated successfully',
+      paymentGenerationStatus: profile.businesses[businessIndex].paymentGenerationStatus
+    })
+  } catch (err) {
+    console.error('PUT /api/business/businesses/:businessId/payment-generation-status error:', err)
+    return respond.error(res, 500, 'update_error', err.message || 'Failed to update payment generation status')
+  }
+})
+
+// GET /api/business/businesses/:businessId/payment-generation-status - Get payment generation status
+router.get('/businesses/:businessId/payment-generation-status', requireJwt, requireRole(['business_owner', 'lgu_officer', 'lgu_manager']), async (req, res) => {
+  try {
+    const { businessId } = req.params
+    const mongoose = require('mongoose')
+
+    // Find business profile containing the requested business (by businessId OR subdoc _id)
+    let profile = await BusinessProfile.findOne({
+      'businesses.businessId': businessId
+    }).lean()
+
+    // Fallback: try matching by subdocument _id if businessId didn't match
+    if (!profile && mongoose.Types.ObjectId.isValid(businessId)) {
+      profile = await BusinessProfile.findOne({
+        'businesses._id': new mongoose.Types.ObjectId(businessId)
+      }).lean()
+    }
+
+    if (!profile) {
+      return respond.error(res, 404, 'not_found', 'Business profile not found')
+    }
+
+    // Find the specific business (by businessId OR subdoc _id)
+    const business = profile.businesses.find(b => 
+      b.businessId === businessId || String(b._id) === businessId
+    )
+    if (!business) {
+      return respond.error(res, 404, 'not_found', 'Business not found')
+    }
+
+    return respond.success(res, 200, business.paymentGenerationStatus || { enabled: false })
+  } catch (err) {
+    console.error('GET /api/business/businesses/:businessId/payment-generation-status error:', err)
+    return respond.error(res, 500, 'fetch_error', err.message || 'Failed to fetch payment generation status')
   }
 })
 
@@ -248,11 +477,123 @@ router.delete('/businesses/:businessId', requireJwt, requireRole(['business_owne
     const userId = req._userId
     const { businessId } = req.params
 
-    const profile = await businessProfileService.deleteBusiness(userId, businessId)
-    res.json(profile)
+    const result = await businessProfileService.deleteBusiness(userId, businessId)
+    
+    // If profile was deleted, return different response
+    if (result && result.deleted) {
+      return res.json({ 
+        success: true, 
+        profileDeleted: true,
+        message: result.message,
+        deletedProfileId: result.deletedProfileId
+      })
+    }
+    
+    res.json({ success: true })
   } catch (err) {
     console.error('DELETE /api/business/businesses/:businessId error:', err)
     return respond.error(res, 400, 'delete_error', err.message || 'Failed to delete business')
+  }
+})
+
+// DELETE /api/business/profile - Delete entire business profile
+router.delete('/profile', requireJwt, requireRole(['business_owner']), async (req, res) => {
+  try {
+    const userId = req._userId
+
+    const result = await businessProfileService.deleteProfile(userId)
+    res.json(result)
+  } catch (err) {
+    console.error('DELETE /api/business/profile error:', err)
+    return respond.error(res, 400, 'delete_error', err.message || 'Failed to delete profile')
+  }
+})
+
+// GET /api/business/businesses/:businessId/status/transitions - Get valid status transitions
+router.get('/businesses/:businessId/status/transitions', requireJwt, requireRole(['business_owner', 'lgu_officer', 'lgu_manager']), async (req, res) => {
+  try {
+    const userId = req._userId
+    const { businessId } = req.params
+
+    const transitions = await statusTransitionService.getValidTransitions(userId, businessId)
+    res.json(transitions)
+  } catch (err) {
+    console.error('GET /api/business/businesses/:businessId/status/transitions error:', err)
+    return respond.error(res, 400, 'fetch_error', err.message || 'Failed to get valid transitions')
+  }
+})
+
+// POST /api/business/businesses/:businessId/status/validate - Validate status transition
+router.post('/businesses/:businessId/status/validate', requireJwt, requireRole(['business_owner', 'lgu_officer', 'lgu_manager']), async (req, res) => {
+  try {
+    const userId = req._userId
+    const { businessId } = req.params
+    const { newStatus, reason } = req.body
+
+    if (!newStatus) {
+      return respond.error(res, 400, 'validation_error', 'New status is required')
+    }
+
+    const validation = await statusTransitionService.validateStatusTransition(
+      userId, 
+      businessId, 
+      newStatus, 
+      reason,
+      userId
+    )
+    
+    res.json(validation)
+  } catch (err) {
+    console.error('POST /api/business/businesses/:businessId/status/validate error:', err)
+    return respond.error(res, 400, 'validation_error', err.message || 'Status transition validation failed')
+  }
+})
+
+// POST /api/business/businesses/:businessId/status/transition - Execute status transition
+router.post('/businesses/:businessId/status/transition', requireJwt, requireRole(['lgu_officer', 'lgu_manager']), async (req, res) => {
+  try {
+    const userId = req._userId
+    const { businessId } = req.params
+    const { newStatus, reason, reviewedBy, reviewComments, rejectionReason } = req.body
+
+    if (!newStatus) {
+      return respond.error(res, 400, 'transition_error', 'New status is required')
+    }
+
+    const result = await statusTransitionService.executeStatusTransition(
+      userId,
+      businessId,
+      newStatus,
+      {
+        reason,
+        actorId: userId,
+        reviewedBy,
+        reviewComments,
+        rejectionReason
+      }
+    )
+    
+    res.json(result)
+  } catch (err) {
+    console.error('POST /api/business/businesses/:businessId/status/transition error:', err)
+    
+    // Handle specific validation errors
+    if (err.name === 'InvalidStatusTransitionError') {
+      return respond.error(res, 400, 'invalid_transition', err.message, err.details)
+    }
+    
+    return respond.error(res, 400, 'transition_error', err.message || 'Status transition failed')
+  }
+})
+
+// GET /api/business/status/matrix - Get status transition matrix (for reference)
+router.get('/status/matrix', requireJwt, async (req, res) => {
+  try {
+    const matrix = statusTransitionService.getStatusTransitionMatrix()
+    res.json(matrix)
+  } catch (err) {
+    console.error('GET /api/business/status/matrix error:', err)
+    return respond.error(res, 500, 'fetch_error', 'Failed to get status transition matrix')
   }
 })
 
@@ -266,7 +607,7 @@ router.post('/businesses/:businessId/primary', requireJwt, requireRole(['busines
     res.json(profile)
   } catch (err) {
     console.error('POST /api/business/businesses/:businessId/primary error:', err)
-    return respond.error(res, 400, 'update_error', err.message || 'Failed to set primary business')
+    return respond.error(res, 400, 'set_primary_error', err.message || 'Failed to set primary business')
   }
 })
 
@@ -530,7 +871,13 @@ router.post('/business-registration/:businessId/submit', requireJwt, requireRole
     const { businessId } = req.params
 
     const profile = await businessProfileService.submitBusinessApplication(userId, businessId)
-    const business = profile.businesses?.find(b => b.businessId === businessId)
+    const business = profile.businesses?.find(b => b.businessId === businessId || String(b._id) === businessId)
+    
+    // Emit realtime event for new application submission
+    const socket = getSocketService()
+    if (socket && business) {
+      socket.emitApplicationCreated(business, userId)
+    }
     
     res.json({
       profile,

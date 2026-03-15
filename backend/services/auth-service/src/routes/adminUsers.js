@@ -892,24 +892,38 @@ router.get('/users/count', requireJwt, requireRole(['admin']), async (req, res) 
 router.get('/users/search', requireJwt, requireRole(['admin', 'staff', 'lgu_officer', 'lgu_manager']), async (req, res) => {
   try {
     const { q, role } = req.query
-    if (!q || q.length < 2) {
-      return respond.error(res, 400, 'invalid_query', 'Search term must be at least 2 characters')
-    }
-
+    
     const roleDoc = role ? await Role.findOne({ slug: role }) : null
-    const filter = {
-      $or: [
-        { email: { $regex: q, $options: 'i' } },
-        { firstName: { $regex: q, $options: 'i' } },
-        { lastName: { $regex: q, $options: 'i' } },
-      ],
-    }
+    
+    // Build filter - only filter by role if specified
+    // NOTE: firstName/lastName are encrypted with randomized encryption, so regex won't work
+    // We fetch all users with the role and filter after Mongoose decryption hooks run
+    const filter = {}
     if (roleDoc) filter.role = roleDoc._id
 
-    const users = await User.find(filter)
-      .select('firstName lastName email _id')
-      .limit(20)
-      .lean()
+    // Fetch users WITHOUT .lean() so Mongoose decryption hooks run
+    const allUserDocs = await User.find(filter)
+      .select('firstName lastName email phoneNumber isActive _id')
+      .limit(200)
+
+    // Convert to plain objects after decryption
+    const allUsers = allUserDocs.map(doc => doc.toObject())
+
+    // If no search query, return all (up to limit)
+    if (!q || q.length < 2) {
+      return respond.success(res, 200, allUsers.slice(0, 50))
+    }
+
+    // Filter by search term after decryption
+    const searchLower = q.toLowerCase()
+    const users = allUsers.filter(u => {
+      const firstName = (u.firstName || '').toLowerCase()
+      const lastName = (u.lastName || '').toLowerCase()
+      const email = (u.email || '').toLowerCase()
+      return firstName.includes(searchLower) || 
+             lastName.includes(searchLower) || 
+             email.includes(searchLower)
+    }).slice(0, 50) // Limit final results
 
     return respond.success(res, 200, users)
   } catch (err) {

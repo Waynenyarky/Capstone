@@ -68,6 +68,15 @@ const OfficeHoursSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+OfficeHoursSchema.plugin(encryptionPlugin, {
+  fields: ['timezone'],
+  deterministicFields: ['office'],
+  nestedPaths: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+  arrayPaths: ['exceptions'],
+  mixedPaths: [],
+})
+
 // office is unique so already indexed
 
 module.exports = mongoose.models.OfficeHours || mongoose.model('OfficeHours', OfficeHoursSchema)

@@ -56,6 +56,15 @@ const FeeConfigurationSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+FeeConfigurationSchema.plugin(encryptionPlugin, {
+  fields: ['lineOfBusiness', 'businessTaxCategory'],
+  deterministicFields: ['taxCode'],
+  nestedPaths: [],
+  arrayPaths: [],
+  mixedPaths: [],
+})
+
 // Unique constraint: one active config per (tax code, line of business) — Charter categories 1–12, LOB is sentence text
 FeeConfigurationSchema.index(
   { taxCode: 1, lineOfBusiness: 1 },

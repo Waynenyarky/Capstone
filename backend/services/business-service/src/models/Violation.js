@@ -47,6 +47,15 @@ const ViolationSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+ViolationSchema.plugin(encryptionPlugin, {
+  fields: ['violationType', 'description', 'legalBasis', 'blockchainHash'],
+  deterministicFields: ['violationId'],
+  nestedPaths: [],
+  arrayPaths: [],
+  mixedPaths: [],
+})
+
 ViolationSchema.index({ inspectorId: 1, status: 1 })
 
 module.exports = mongoose.models.Violation || mongoose.model('Violation', ViolationSchema)

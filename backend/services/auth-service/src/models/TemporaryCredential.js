@@ -61,6 +61,15 @@ const TemporaryCredentialSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+TemporaryCredentialSchema.plugin(encryptionPlugin, {
+  fields: ['username'],
+  deterministicFields: [],
+  nestedPaths: ['metadata'],
+  arrayPaths: [],
+  mixedPaths: [],
+})
+
 // Indexes for efficient querying
 TemporaryCredentialSchema.index({ userId: 1, isExpired: 1 })
 TemporaryCredentialSchema.index({ expiresAt: 1 })

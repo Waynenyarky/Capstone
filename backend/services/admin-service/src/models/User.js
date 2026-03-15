@@ -104,4 +104,18 @@ UserSchema.set('toJSON', {
   },
 })
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+UserSchema.plugin(encryptionPlugin, {
+  fields: [
+    'firstName', 'lastName', 'middleName', 'suffix', 'phoneNumber',
+    'office', 'mfaSecret', 'authProvider', 'providerId',
+    'tokenFprint', 'placeOfBirth', 'nationality', 'fatherName', 'motherName',
+    'distinctiveMark', 'avatarUrl', 'deletionUndoToken',
+  ],
+  deterministicFields: ['email', 'username'],
+  nestedPaths: ['address'],
+  arrayPaths: ['recentLoginIPs', 'webauthnCredentials'],
+  mixedPaths: [],
+})
+
 module.exports = mongoose.models.User || mongoose.model('User', UserSchema)

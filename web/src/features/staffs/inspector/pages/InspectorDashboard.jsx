@@ -1,54 +1,25 @@
 import React from 'react'
-import { Row, Col, Card, Button, Typography, Space } from 'antd'
-import { Link } from 'react-router-dom'
-import { StaffLayout } from '../../components'
+import { Result, Typography } from 'antd'
+import { MobileOutlined } from '@ant-design/icons'
+import StaffLayout from '../../components/StaffLayout'
 
-const { Title, Paragraph } = Typography
+const { Paragraph } = Typography
 
 export default function InspectorDashboard() {
   return (
-    <StaffLayout 
-      title="Inspector" 
-      description="Quick links for Inspector workspace."
-      roleLabel="Inspector"
-    >
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} md={8}>
-          <Card hoverable styles={{ body: { padding: 12 } }}>
-            <Space direction="vertical">
-              <Title level={5} style={{ margin: 0 }}>Dashboard</Title>
-              <Paragraph type="secondary" style={{ margin: 0 }}>Overview and stats</Paragraph>
-              <div style={{ marginTop: 8 }}>
-                <Link to="/dashboard"><Button type="primary">Open</Button></Link>
-              </div>
-            </Space>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} md={8}>
-          <Card hoverable styles={{ body: { padding: 12 } }}>
-            <Space direction="vertical">
-              <Title level={5} style={{ margin: 0 }}>Violations / Inspections</Title>
-              <Paragraph type="secondary" style={{ margin: 0 }}>Log or upload inspection reports</Paragraph>
-              <div style={{ marginTop: 8 }}>
-                <Button>Open</Button>
-              </div>
-            </Space>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} md={8}>
-          <Card hoverable styles={{ body: { padding: 12 } }}>
-            <Space direction="vertical">
-              <Title level={5} style={{ margin: 0 }}>Profile / Settings</Title>
-              <Paragraph type="secondary" style={{ margin: 0 }}>Manage profile and MFA</Paragraph>
-              <div style={{ marginTop: 8 }}>
-                <Button>Open</Button>
-              </div>
-            </Space>
-          </Card>
-        </Col>
-      </Row>
+    <StaffLayout pageTitle="Inspector" pageIcon={<MobileOutlined />}>
+      <div style={{ padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+        <Result
+          icon={<MobileOutlined style={{ color: '#1890ff' }} />}
+          title="Inspector Portal"
+          subTitle="Inspections are managed through the BizClear mobile app."
+        >
+          <Paragraph type="secondary" style={{ textAlign: 'center', maxWidth: 400, margin: '0 auto' }}>
+            Download the BizClear mobile app to view assigned inspections, conduct on-site inspections,
+            complete checklists, record violations, capture evidence, and submit inspection reports.
+          </Paragraph>
+        </Result>
+      </div>
     </StaffLayout>
   )
 }

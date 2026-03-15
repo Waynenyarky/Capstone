@@ -227,9 +227,12 @@ async function applyApprovedChange(approval) {
       }
 
       case 'maintenance_mode': {
-        const { action, message, expectedResumeAt } = approval.requestDetails || {};
+        const { action, message, expectedResumeAt, scheduledStartAt } = approval.requestDetails || {};
         const approvedBy = approval.approvals.map((a) => String(a.adminId));
         const now = new Date();
+        const scheduledDate = scheduledStartAt ? new Date(scheduledStartAt) : null;
+        const hasValidScheduledDate = !!(scheduledDate && !Number.isNaN(scheduledDate.getTime()));
+        const shouldActivateNow = !hasValidScheduledDate || scheduledDate <= now;
 
         if (action === 'enable') {
           await MaintenanceWindow.updateMany(
@@ -237,20 +240,27 @@ async function applyApprovedChange(approval) {
             { isActive: false, status: 'ended', deactivatedAt: now }
           );
           await MaintenanceWindow.create({
-            status: 'active',
-            isActive: true,
+            status: shouldActivateNow ? 'active' : 'pending',
+            isActive: shouldActivateNow,
             message: message || '',
             expectedResumeAt: expectedResumeAt ? new Date(expectedResumeAt) : null,
             requestedBy: approval.requestedBy,
             approvedBy,
-            activatedAt: now,
-            metadata: { approvalId: approval.approvalId },
+            activatedAt: shouldActivateNow ? now : null,
+            metadata: {
+              approvalId: approval.approvalId,
+              scheduledStartAt: hasValidScheduledDate ? scheduledDate : null,
+            },
           });
         } else if (action === 'disable') {
-          await MaintenanceWindow.findOneAndUpdate(
-            { isActive: true },
-            { isActive: false, status: 'ended', deactivatedAt: now },
-            { sort: { createdAt: -1 } }
+          await MaintenanceWindow.updateMany(
+            {
+              $or: [
+                { isActive: true },
+                { status: 'pending' },
+              ],
+            },
+            { isActive: false, status: 'ended', deactivatedAt: now }
           );
         }
 
@@ -265,6 +275,7 @@ async function applyApprovedChange(approval) {
             approvalId: approval.approvalId,
             message: message || '',
             expectedResumeAt: expectedResumeAt || null,
+            scheduledStartAt: hasValidScheduledDate ? scheduledDate : null,
             approvedBy,
           }
         );

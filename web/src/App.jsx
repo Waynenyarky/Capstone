@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { ProtectedRoute, PublicRoute } from "@/features/authentication"
-import { useNavigationNotifications } from "@/features/authentication/hooks"
+import { useNavigationNotifications, useSessionActivity } from "@/features/authentication/hooks"
 
 // Eager-load only the homepage (LCP) and auth shell - everything else is lazy
 import Home from "@/features/public/pages/Home"
@@ -11,6 +11,7 @@ import { Login, SignUp, SignUpMfaSetup, ForgotPassword, DeletionPendingScreen } 
 const TermsOfService = lazy(() => import("@/features/public").then(m => ({ default: m.TermsOfService })))
 const PrivacyPolicy = lazy(() => import("@/features/public").then(m => ({ default: m.PrivacyPolicy })))
 const Maintenance = lazy(() => import("@/features/public").then(m => ({ default: m.Maintenance })))
+const VerifyPermitPage = lazy(() => import("@/features/public/pages/VerifyPermitPage.jsx"))
 const PasskeyMobileAuth = lazy(() => import("@/features/authentication/pages/PasskeyMobileAuth.jsx"))
 const MfaSetup = lazy(() => import("@/features/authentication/components/MfaSetup.jsx"))
 const Dashboard = lazy(() => import("@/features/user").then(m => ({ default: m.Dashboard })))
@@ -31,16 +32,27 @@ const AdminAnnouncements = lazy(() => import("@/features/admin/pages/AdminAnnoun
 // Phase 2 admin pages
 const AdminFeeConfiguration = lazy(() => import("@/features/admin/pages/AdminFeeConfiguration.jsx"))
 const BusinessOwnerDashboard = lazy(() => import("@/features/business-owner").then(m => ({ default: m.BusinessOwnerDashboard })))
+
+// Phase 2 Business Owner Routes - Portfolio, Payments, Renewals, Compliance
+const PortfolioDashboard = lazy(() => import("@/features/business-owner/components/portfolio/PortfolioDashboard.jsx"))
+const AdvancedPaymentDashboard = lazy(() => import("@/features/business-owner/components/payments/AdvancedPaymentDashboard.jsx"))
+const RenewalWorkflowUI = lazy(() => import("@/features/business-owner/components/renewal-workflow/RenewalWorkflowUI.jsx"))
+const ComplianceDashboard = lazy(() => import("@/features/business-owner/components/compliance/ComplianceDashboard.jsx"))
+const MobileDashboard = lazy(() => import("@/features/business-owner/components/mobile/MobileDashboard.jsx"))
+const ApplicationNewPage = lazy(() => import("@/features/business-owner/pages/ApplicationNewPage.jsx"))
+const ClearanceTracker = lazy(() => import("@/features/business-owner/components/clearance/ClearanceTracker.jsx"))
+const InspectionCalendar = lazy(() => import("@/features/business-owner/components/inspections/InspectionCalendar.jsx"))
+
 const StaffDashboard = lazy(() => import("@/features/staffs").then(m => ({ default: m.StaffDashboard })))
 const StaffOnboarding = lazy(() => import("@/features/staffs").then(m => ({ default: m.StaffOnboarding })))
 const PermitReviewPage = lazy(() => import("@/features/staffs/lgu-officer/pages/PermitReviewPage.jsx"))
 const InspectionManagementPage = lazy(() => import("@/features/staffs/lgu-officer/pages/InspectionManagementPage.jsx"))
-const CessationReviewPage = lazy(() => import("@/features/staffs/lgu-officer/pages/CessationReviewPage.jsx"))
-const AppealsPage = lazy(() => import("@/features/staffs/lgu-officer/pages/StaffAppealsPage.jsx"))
-const StaffReportsPage = lazy(() => import("@/features/staffs/lgu-officer/pages/StaffReportsPage.jsx"))
+const EditRequestReviewPage = lazy(() => import("@/features/staffs/lgu-officer/pages/EditRequestReviewPage.jsx"))
 const PlaceholderPage = lazy(() => import("@/features/shared/pages/PlaceholderPage.jsx"))
-const LGUManagerDashboard = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.LGUManagerDashboard })))
+const AgencyDashboard = lazy(() => import("@/features/staffs/lgu-officer/pages/AgencyDashboard.jsx"))
+const TreasuryDashboard = lazy(() => import("@/features/treasury/components/TreasuryDashboard.jsx"))
 const ReportsAnalyticsPage = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.ReportsAnalyticsPage })))
+const LGUManagerDashboard = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.LGUManagerDashboard })))
 const PermitApplicationsOverviewPage = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.PermitApplicationsOverviewPage })))
 const CessationOverviewPage = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.CessationOverviewPage })))
 const ViolationsInspectionsOverviewPage = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.ViolationsInspectionsOverviewPage })))
@@ -57,6 +69,7 @@ function PageFallback() {
 
 function App() {
   useNavigationNotifications()
+  useSessionActivity()
 
   return (
     <Suspense fallback={<PageFallback />}>
@@ -65,6 +78,7 @@ function App() {
       <Route path="/terms" element={<PublicRoute><TermsOfService /></PublicRoute>} />
       <Route path="/privacy" element={<PublicRoute><PrivacyPolicy /></PublicRoute>} />
       <Route path="/maintenance" element={<PublicRoute><Maintenance /></PublicRoute>} />
+      <Route path="/verify-permit/:permitNumber" element={<VerifyPermitPage />} />
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
       <Route path="/sign-up" element={<PublicRoute><SignUp /></PublicRoute>} />
@@ -97,17 +111,27 @@ function App() {
       <Route path="/owner" element={<ProtectedRoute allowedRoles={['business_owner']}><BusinessOwnerDashboard /></ProtectedRoute>} />
       <Route path="/owner/notifications" element={<Navigate to="/notifications" replace />} />
       
+      {/* Phase 2: Business Owner Sub-Routes */}
+      <Route path="/portfolio" element={<ProtectedRoute allowedRoles={['business_owner']}><PortfolioDashboard /></ProtectedRoute>} />
+      <Route path="/payments" element={<ProtectedRoute allowedRoles={['business_owner']}><AdvancedPaymentDashboard /></ProtectedRoute>} />
+      <Route path="/renewals" element={<ProtectedRoute allowedRoles={['business_owner']}><RenewalWorkflowUI /></ProtectedRoute>} />
+      <Route path="/renewals/:businessId" element={<ProtectedRoute allowedRoles={['business_owner']}><RenewalWorkflowUI /></ProtectedRoute>} />
+      <Route path="/compliance" element={<ProtectedRoute allowedRoles={['business_owner']}><ComplianceDashboard /></ProtectedRoute>} />
+      <Route path="/mobile-dashboard" element={<ProtectedRoute allowedRoles={['business_owner']}><MobileDashboard /></ProtectedRoute>} />
+      <Route path="/application/new" element={<ProtectedRoute allowedRoles={['business_owner']}><ApplicationNewPage /></ProtectedRoute>} />
+      <Route path="/applications" element={<ProtectedRoute allowedRoles={['business_owner']}><Navigate to="/owner" replace /></ProtectedRoute>} />
+      <Route path="/clearance" element={<ProtectedRoute allowedRoles={['business_owner']}><ClearanceTracker /></ProtectedRoute>} />
+      <Route path="/inspections/schedule" element={<ProtectedRoute allowedRoles={['business_owner']}><InspectionCalendar /></ProtectedRoute>} />
+      
       {/* Staff Routes */}
       <Route path="/staff" element={<ProtectedRoute allowedRoles={['staff', 'lgu_officer', 'lgu_manager', 'inspector', 'cso']}><Outlet /></ProtectedRoute>}>
         <Route index element={<StaffDashboard />} />
         <Route path="onboarding" element={<StaffOnboarding />} />
         <Route path="applications" element={<PermitReviewPage />} />
         <Route path="inspections" element={<InspectionManagementPage />} />
-        <Route path="cessation" element={<CessationReviewPage />} />
-        <Route path="appeals" element={<AppealsPage />} />
-        <Route path="reports" element={<StaffReportsPage />} />
-        <Route path="support" element={<PlaceholderPage title="Customer Support" />} />
-        <Route path="recovery-request" element={<PlaceholderPage title="Account Recovery Requests" />} />
+        <Route path="edit-requests" element={<EditRequestReviewPage />} />
+        <Route path="agency/:agency" element={<AgencyDashboard />} />
+        <Route path="treasury" element={<TreasuryDashboard />} />
       </Route>
 
       {/* LGU Manager Routes */}

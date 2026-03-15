@@ -18,6 +18,13 @@ const NOTIFICATION_ICONS = {
   application_rejected: <CloseCircleOutlined />,
   application_needs_revision: <CloseCircleOutlined />,
   application_review_started: <InfoCircleOutlined />,
+  inspection_assigned: <ClockCircleOutlined />,
+  inspection_scheduled: <ClockCircleOutlined />,
+  inspection_completed: <CheckCircleOutlined />,
+  reinspection_required: <InfoCircleOutlined />,
+  payment_received: <CheckCircleOutlined />,
+  violation_issued: <CloseCircleOutlined />,
+  renewal_period_started: <ClockCircleOutlined />,
   default: <BellOutlined />,
 }
 
@@ -30,6 +37,13 @@ const NOTIFICATION_COLORS = {
   application_rejected: '#ff4d4f',
   application_needs_revision: '#faad14',
   application_review_started: '#1890ff',
+  inspection_assigned: '#1890ff',
+  inspection_scheduled: '#1890ff',
+  inspection_completed: '#52c41a',
+  reinspection_required: '#faad14',
+  payment_received: '#52c41a',
+  violation_issued: '#ff4d4f',
+  renewal_period_started: '#faad14',
   default: '#8c8c8c',
 }
 
@@ -42,6 +56,13 @@ const NOTIFICATION_TAGS = {
   application_rejected: { color: 'error', text: 'Rejected' },
   application_needs_revision: { color: 'warning', text: 'Needs Revision' },
   application_review_started: { color: 'processing', text: 'Under Review' },
+  inspection_assigned: { color: 'blue', text: 'Inspection' },
+  inspection_scheduled: { color: 'blue', text: 'Inspection' },
+  inspection_completed: { color: 'success', text: 'Inspection' },
+  reinspection_required: { color: 'warning', text: 'Reinspection' },
+  payment_received: { color: 'success', text: 'Payment' },
+  violation_issued: { color: 'error', text: 'Violation' },
+  renewal_period_started: { color: 'warning', text: 'Renewal' },
   default: { color: 'default', text: 'General' },
 }
 

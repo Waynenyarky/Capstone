@@ -50,18 +50,41 @@ app.use(cors({
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
-// CSRF (IAS-2.7): cookie-parser required for double-submit cookie; token endpoint and middleware for /api/admin
-let cookieParser;
-try { cookieParser = require('cookie-parser'); app.use(cookieParser()); } catch (_) { /* optional */ }
+// Session middleware required for CSRF tokens
+try {
+  const session = require('express-session');
+  const cookieParser = require('cookie-parser');
+  app.use(cookieParser());
+  const sessSecret = process.env.SESSION_SECRET || 'dev-session-secret';
+  app.use(
+    session({
+      secret: sessSecret,
+      resave: false,
+      saveUninitialized: false,
+      cookie: { secure: process.env.NODE_ENV === 'production', sameSite: 'lax' },
+    })
+  );
+} catch (err) {
+  logger.warn('Session middleware not available', { error: err });
+}
+
+// CSRF (IAS-2.7): token endpoint and middleware for /api/admin
 const csrfDisabled = process.env.DISABLE_CSRF === 'true' || process.env.NODE_ENV === 'test';
 const { createCsrfMiddleware, getCsrfTokenHandler } = require('../../../shared/csrf');
-app.get('/api/admin/csrf-token', getCsrfTokenHandler({ sameSite: 'lax' }));
+app.get('/api/admin/csrf-token', getCsrfTokenHandler({ cookieName: 'csrf-token-admin', sameSite: 'lax' }));
+app.get('/api/lgu-officer/csrf-token', getCsrfTokenHandler({ cookieName: 'csrf-token-lgu-officer', sameSite: 'lax' }));
 app.use('/api/admin', createCsrfMiddleware({
+  cookieName: 'csrf-token-admin',
   skipPaths: [
     '/api/admin/csrf-token',
     '/api/admin/tamper/incidents', // server-to-server: audit-service creates incidents via X-Internal-API-Key
   ],
   disabled: csrfDisabled
+}));
+app.use('/api/lgu-officer', createCsrfMiddleware({
+  cookieName: 'csrf-token-lgu-officer',
+  skipPaths: ['/api/lgu-officer/csrf-token'],
+  disabled: csrfDisabled,
 }));
 
 if (process.env.NODE_ENV !== 'production') {
@@ -258,8 +281,8 @@ async function start() {
     }
 
     const server = http.createServer(app);
-    server.listen(PORT, () => {
-      logger.info(`Admin Service listening on http://localhost:${PORT}`);
+    server.listen(PORT, '0.0.0.0', () => {
+      logger.info(`Admin Service listening on http://0.0.0.0:${PORT}`);
     });
 
     return server;

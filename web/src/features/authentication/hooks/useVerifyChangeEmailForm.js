@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react'
 import { changeEmailVerify, getProfile } from '@/features/authentication/services'
 import { useAuthNotification, useNotifier } from '@/shared/notifications.js'
 import { useAuthSession } from '@/features/authentication/hooks'
+import { getCurrentUser } from '@/features/authentication/lib/authEvents.js'
 
 export function useVerifyChangeEmailForm({ onSubmit, email, currentEmail } = {}) {
   const [form] = Form.useForm()

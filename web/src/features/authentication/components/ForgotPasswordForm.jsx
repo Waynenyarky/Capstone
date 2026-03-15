@@ -3,6 +3,8 @@ import { Input, Button, Typography, Alert, Grid } from 'antd'
 import { useForgotPasswordForm } from "@/features/authentication/hooks"
 import { forgotPasswordEmailRules } from "@/features/authentication/validations"
 import { useNavigate } from 'react-router-dom'
+import React from 'react'
+import TurnstileWidget from './TurnstileWidget.jsx'
 
 const { Title, Text } = Typography
 const { useBreakpoint } = Grid
@@ -12,6 +14,8 @@ export default function ForgotPasswordForm({ onSubmit } = {}) {
   const navigate = useNavigate()
   const screens = useBreakpoint()
   const isMobile = !screens.md
+  const turnstileRef = React.useRef(null)
+  const turnstileSiteKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_TURNSTILE_SITE_KEY) || ''
 
   return (
     <div style={{ maxWidth: 300, margin: '0 auto', width: '100%' }}>
@@ -22,7 +26,15 @@ export default function ForgotPasswordForm({ onSubmit } = {}) {
         </Text>
       </div>
 
-      <Form name="forgotPassword" form={form} size="default" layout="vertical" onFinish={handleFinish} requiredMark={false}>
+      <Form name="forgotPassword" form={form} size="default" layout="vertical" onFinish={async (values) => {
+          const captchaToken = turnstileRef.current?.getToken?.() || ''
+          const payload = { email: values.email, captchaToken }
+          try {
+            await handleFinish(payload)
+          } finally {
+            turnstileRef.current?.reset?.()
+          }
+        }} requiredMark={false}>
         <Form.Item
           name="email"
           label="Email Address"
@@ -30,10 +42,16 @@ export default function ForgotPasswordForm({ onSubmit } = {}) {
         >
           <Input placeholder="name@example.com" variant="filled" />
         </Form.Item>
+
+        {turnstileSiteKey ? (
+          <Form.Item style={{ marginBottom: 16 }}>
+            <TurnstileWidget ref={turnstileRef} siteKey={turnstileSiteKey} />
+          </Form.Item>
+        ) : null}
         
         <Form.Item style={{ marginBottom: 16 }}>
           <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} block>
-            Send Reset Link
+            Continue
           </Button>
         </Form.Item>
 

@@ -1069,6 +1069,25 @@ router.delete('/:id/downloads/:index', requireJwt, requireRole(['admin']), requi
 
     await definition.save()
 
+    // If downloads array is empty, consider deleting the form definition
+    if (definition.downloads.length === 0) {
+      // Only auto-delete if it's a draft and has no other critical data
+      if (definition.status === 'draft' && !definition.hasActiveUsage()) {
+        try {
+          await FormDefinition.deleteOne({ _id: definition._id })
+          return res.json({ 
+            success: true, 
+            removed, 
+            formDeleted: true,
+            message: 'Download removed and empty form definition deleted'
+          })
+        } catch (deleteError) {
+          console.error('Failed to delete empty form definition:', deleteError)
+          // Continue with normal response if deletion fails
+        }
+      }
+    }
+
     return res.json({ success: true, removed, definition })
   } catch (err) {
     console.error('DELETE /api/admin/forms/:id/downloads/:index error:', err)

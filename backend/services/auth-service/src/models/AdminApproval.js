@@ -89,6 +89,15 @@ const AdminApprovalSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+AdminApprovalSchema.plugin(encryptionPlugin, {
+  fields: ['txHash'],
+  deterministicFields: ['approvalId'],
+  nestedPaths: [],
+  arrayPaths: ['approvals'],
+  mixedPaths: ['requestDetails', 'metadata'],
+})
+
 // Indexes for efficient querying
 AdminApprovalSchema.index({ userId: 1, createdAt: -1 });
 AdminApprovalSchema.index({ status: 1, createdAt: -1 });

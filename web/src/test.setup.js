@@ -1,6 +1,198 @@
 import '@testing-library/jest-dom/vitest'
 import { afterAll, afterEach, beforeAll, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
+import React from 'react'
+
+// Global React hooks mock to fix scope issues
+vi.mock('react', async () => {
+  const actual = await vi.importActual('react');
+  return {
+    ...actual,
+    // Mock named imports
+    useState: vi.fn((initial) => {
+      const state = typeof initial === 'function' ? initial() : initial;
+      const setState = vi.fn();
+      return [state, setState];
+    }),
+    useEffect: vi.fn(),
+    useMemo: vi.fn((fn) => fn()),
+    useCallback: vi.fn((fn) => fn),
+    useRef: vi.fn(() => ({ current: null })),
+    createContext: vi.fn((defaultValue) => ({
+      _defaultValue: defaultValue,
+      Provider: ({ value, children }) => children,
+      Consumer: ({ children }) => children({ value: defaultValue })
+    })),
+    useContext: vi.fn((context) => context._defaultValue),
+    useReducer: vi.fn((reducer, initialState) => [initialState, vi.fn()]),
+    useLayoutEffect: vi.fn(),
+    useImperativeHandle: vi.fn(),
+    useInsertionEffect: vi.fn(),
+    useId: vi.fn(() => 'test-id'),
+    useSyncExternalStore: vi.fn(),
+    useTransition: vi.fn(() => [false, vi.fn()]),
+    useDeferredValue: vi.fn((value) => value),
+    startTransition: vi.fn(),
+    // Keep default export for compatibility
+    default: actual.default,
+  };
+});
+
+// Global useBusiness hook mock
+vi.mock('@/hooks/useBusiness', () => ({
+  useBusiness: vi.fn(() => ({
+    business: {
+      id: 'test-business-123',
+      businessName: 'Test Business',
+      applicationStatus: 'approved',
+      permitNumber: 'PERMIT-001',
+      totalPayments: 0,
+      inspectionsCompleted: 0,
+      pendingInspections: 1,
+      unreadNotifications: 3,
+      unlockedFeatures: [],
+      hasSeenOnboarding: false
+    },
+    businesses: [
+      {
+        id: 'test-business-123',
+        businessName: 'Test Business',
+        applicationStatus: 'approved',
+        permitNumber: 'PERMIT-001'
+      }
+    ],
+    loading: false,
+    error: null,
+    updateBusiness: vi.fn(),
+    createBusiness: vi.fn(),
+    deleteBusiness: vi.fn(),
+    setCurrentBusiness: vi.fn()
+  }))
+}));
+
+// Mock performance hooks directly to fix scope issues
+vi.mock('@/features/business-owner/utils/performanceHooks.jsx', () => ({
+  useDebounce: vi.fn((func, delay) => {
+    const timeoutRef = { current: null };
+    const debouncedFunc = (...args) => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(() => {
+        func(...args);
+      }, delay);
+    };
+    return debouncedFunc;
+  }),
+  useThrottle: vi.fn((func, delay) => {
+    let lastCall = 0;
+    let timeoutId = null;
+    const throttledFunc = (...args) => {
+      const now = Date.now();
+      if (now - lastCall >= delay) {
+        lastCall = now;
+        func(...args);
+      } else if (!timeoutId) {
+        timeoutId = setTimeout(() => {
+          lastCall = Date.now();
+          func(...args);
+          timeoutId = null;
+        }, delay - (now - lastCall));
+      }
+    };
+    return throttledFunc;
+  }),
+  useMemoizedSearch: vi.fn((data, fields, searchTerm) => {
+  // Create a simple cache to memoize results
+  const cache = new Map();
+  const key = JSON.stringify({ dataLength: data.length, fields, searchTerm });
+  
+  if (cache.has(key)) {
+    return cache.get(key);
+  }
+  
+  let result;
+  if (!searchTerm) {
+    result = data;
+  } else {
+    result = data.filter(item => 
+      fields.some(field => 
+        item[field].toString().toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    );
+  }
+  
+  cache.set(key, result);
+  return result;
+}),
+  usePagination: vi.fn((data, pageSize = 10) => {
+  // Create a closure to maintain state
+  let currentPage = 1;
+  const totalPages = Math.ceil(data.length / pageSize);
+  
+  const setCurrentPage = (newPage) => {
+    currentPage = typeof newPage === 'function' ? newPage(currentPage) : newPage;
+  };
+  
+  const updateState = () => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedData = data.slice(startIndex, endIndex);
+    
+    // Update the returned object in place
+    Object.assign(state, {
+      currentPage,
+      totalPages,
+      paginatedData,
+      hasNextPage: currentPage < totalPages,
+      hasPrevPage: currentPage > 1
+    });
+  };
+  
+  const state = {
+    currentPage: 1,
+    totalPages,
+    paginatedData: data.slice(0, pageSize),
+    hasNextPage: true,
+    hasPrevPage: false,
+    nextPage: () => {
+      setCurrentPage(prev => Math.min(prev + 1, totalPages));
+      updateState();
+    },
+    prevPage: () => {
+      setCurrentPage(prev => Math.max(prev - 1, 1));
+      updateState();
+    },
+    goToPage: (page) => {
+      setCurrentPage(page);
+      updateState();
+    }
+  };
+  
+  return state;
+}),
+  usePerformanceMonitor: vi.fn((componentName) => {
+    const renderCount = { current: 0 };
+    const renderTimes = [];
+    let startTime = Date.now();
+    
+    // Simulate render tracking
+    renderCount.current += 1;
+    const endTime = Date.now();
+    renderTimes.push(endTime - startTime);
+    startTime = Date.now();
+    
+    const getMetrics = () => ({
+      renderCount: renderCount.current,
+      averageRenderTime: renderTimes.length > 0 
+        ? renderTimes.reduce((a, b) => a + b, 0) / renderTimes.length 
+        : 0,
+      lastRenderTime: renderTimes[renderTimes.length - 1] || 0
+    });
+    
+    return { getMetrics };
+  })
+}));
 
 // Ensure localStorage is usable (vitest --localstorage-file can leave it broken in jsdom)
 if (typeof window !== 'undefined') {

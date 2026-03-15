@@ -136,8 +136,8 @@ services:
   # Auth Service
   auth-service:
     build:
-      context: ./backend/services/auth-service
-      dockerfile: Dockerfile
+      context: ./backend
+      dockerfile: services/auth-service/Dockerfile
     container_name: capstone-auth-service
     ports:
       - "3001:3001"
@@ -179,9 +179,12 @@ services:
     ports:
       - "3002:3002"
     depends_on:
-      - mongodb
-      - ipfs
-      - deploy-contracts
+      mongodb:
+        condition: service_healthy
+      ipfs:
+        condition: service_healthy
+      deploy-contracts:
+        condition: service_completed_successfully
     env_file: .env
     environment:
       - MONGO_URI=mongodb://${MONGO_APP_USER:-capstone_app}:${MONGO_APP_PASSWORD:-devapppass}@mongodb:27017/capstone_project?authSource=admin
@@ -216,6 +219,7 @@ services:
       - AUTH_SERVICE_URL=${DOCKER_AUTH_SERVICE_URL}
       - AUDIT_SERVICE_URL=${DOCKER_AUDIT_SERVICE_URL}
       - BUSINESS_SERVICE_URL=${DOCKER_BUSINESS_SERVICE_URL}
+      - AI_SERVICE_URL=http://lob-model:5050
       - SEED_FORM_DEFINITIONS=true
     volumes:
       - contract_addresses:/app/contract-addresses:ro
@@ -224,8 +228,8 @@ services:
   # Audit Service
   audit-service:
     build:
-      context: ./backend/services/audit-service
-      dockerfile: Dockerfile
+      context: ./backend
+      dockerfile: services/audit-service/Dockerfile
     container_name: capstone-audit-service
     ports:
       - "3004:3004"
@@ -234,7 +238,6 @@ services:
       - deploy-contracts
     env_file: .env
     environment:
-      - MONGO_URI=mongodb://${MONGO_APP_USER:-capstone_app}:${MONGO_APP_PASSWORD:-devapppass}@mongodb:27017/capstone_project?authSource=admin
       - GANACHE_RPC_URL=http://ganache:8545
       - CONTRACT_ABI_PATH=/app/contract-addresses
       - ADMIN_SERVICE_URL=${DOCKER_ADMIN_SERVICE_URL}

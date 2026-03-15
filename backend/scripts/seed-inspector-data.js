@@ -15,14 +15,15 @@
 const path = require('path')
 const fs = require('fs')
 
-// Load .env from backend or root
 const backendEnv = path.join(__dirname, '..', '.env')
 const rootEnv = path.join(__dirname, '..', '..', '.env')
-if (fs.existsSync(backendEnv)) {
-  require('dotenv').config({ path: backendEnv })
-} else if (fs.existsSync(rootEnv)) {
+if (!process.env.MONGO_URI && !process.env.MONGODB_URI && fs.existsSync(rootEnv)) {
   require('dotenv').config({ path: rootEnv })
-} else {
+}
+if (!process.env.MONGO_URI && !process.env.MONGODB_URI && fs.existsSync(backendEnv)) {
+  require('dotenv').config({ path: backendEnv })
+}
+if (!process.env.MONGO_URI && !process.env.MONGODB_URI) {
   require('dotenv').config()
 }
 
@@ -68,10 +69,10 @@ async function main() {
       console.log('Created inspector role')
     }
 
-    const inspectorEmail = 'waynenrq@gmail.com'
-    const inspectorPassword = 'TempPass123!'
+    const inspectorEmail = process.env.DEV_EMAIL_INSPECTOR || 'inspector@example.com'
+    const inspectorPassword = process.env.SEED_TEMP_PASSWORD || 'TempPass123!'
 
-    // Prevent duplicate test accounts: keep exactly one waynenrq@gmail.com
+    // Prevent duplicate test accounts: keep exactly one configured inspector account
     const allWithEmail = await User.find({ email: inspectorEmail }).populate('role').sort({ _id: 1 }).lean()
     if (allWithEmail.length > 1) {
       const duplicateIds = allWithEmail.slice(1).map((u) => u._id)
@@ -83,7 +84,7 @@ async function main() {
       console.log('  Cleared duplicates and their inspector data.')
     }
 
-    // Ensure waynenrq@gmail.com exists and is corrected for inspector testing (single account)
+    // Ensure the configured inspector account exists and is corrected for inspector testing
     let inspector = await User.findOne({ email: inspectorEmail }).populate('role')
     if (!inspector) {
       const passwordHash = await bcrypt.hash(inspectorPassword, 10)
@@ -101,7 +102,7 @@ async function main() {
         mustSetupMfa: false,
       })
       await inspector.populate('role')
-      console.log('Created inspector account: waynenrq@gmail.com')
+      console.log(`Created inspector account: ${inspectorEmail}`)
     } else {
       // Always correct existing account so login uses this _id and seeded data matches
       inspector.role = inspectorRole._id
@@ -112,7 +113,7 @@ async function main() {
       inspector.mustSetupMfa = false
       await inspector.save()
       await inspector.populate('role')
-      console.log('Corrected waynenrq@gmail.com: inspector role, isStaff=true, password=TempPass123!')
+      console.log(`Corrected ${inspectorEmail}: inspector role, isStaff=true, password=${inspectorPassword}`)
     }
 
     // Ensure officer and business_owner roles exist; create stub users if missing (so seed runs without SEED_DEV)

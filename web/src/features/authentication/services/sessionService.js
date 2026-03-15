@@ -7,6 +7,12 @@ export async function getActiveSessions() {
   return fetchJsonWithFallback('/api/auth/session/active', { method: 'GET', headers })
 }
 
+export async function getSessionHistory() {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null)
+  return fetchJsonWithFallback('/api/auth/session/history', { method: 'GET', headers })
+}
+
 export async function invalidateSession(sessionId) {
   const current = getCurrentUser()
   const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })

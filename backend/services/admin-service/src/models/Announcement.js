@@ -1,9 +1,10 @@
 const mongoose = require('mongoose')
 
 const AnnouncementSchema = new mongoose.Schema({
-  title: { type: String, required: true, trim: true },
-  body: { type: String, required: true },
+  title: { type: String, trim: true, default: '' },
+  body: { type: String, default: '' },
   priority: { type: String, enum: ['low', 'normal', 'high', 'urgent'], default: 'normal' },
+  status: { type: String, enum: ['draft', 'published'], default: 'draft' },
   isActive: { type: Boolean, default: true },
   expiresAt: { type: Date, default: null },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

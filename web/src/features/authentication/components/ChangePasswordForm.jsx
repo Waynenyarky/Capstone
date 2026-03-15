@@ -1,3 +1,4 @@
+import React from 'react'
 import { Form } from '@/shared/components/AppForm'
 import { Input, Button, Typography, Space, Alert, Grid } from 'antd'
 import { MailOutlined } from '@ant-design/icons'

@@ -13583,8 +13583,8 @@
         }
       },
       "links": {},
-      "address": "0xCbE15ef2D3202879D2D00dCAe20471839EFe8E0D",
-      "transactionHash": "0xe9ae2525d27d4d0194452d23ad96ad9641359f75f7f69717bb963c930215f5a4"
+      "address": "0x96429198CE228897D44779aabC30E195AcD0C2bA",
+      "transactionHash": "0xc9c2366e727e89c5fadb2d8574b7210ae991d8e65650ba8f1aac5228fb84f2dd"
     },
     "1768839189326": {
       "events": {},
@@ -13670,7 +13670,7 @@
     }
   },
   "schemaVersion": "3.3.4",
-  "updatedAt": "2026-03-01T09:11:59.833Z",
+  "updatedAt": "2026-03-15T21:17:43.126Z",
   "networkType": "ethereum",
   "devdoc": {
     "details": "Role-based access control contract for managing permissions Supports multiple roles: ADMIN, AUDITOR, USER_REGISTRAR, DOCUMENT_MANAGER",

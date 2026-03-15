@@ -35,6 +35,7 @@ export default function ProfileSettings() {
         isBusinessOwner={false}
         isAdmin={true}
         themeSettings={themeSettings}
+        showBackButton={false}
       />
     )
   }
@@ -51,6 +52,7 @@ export default function ProfileSettings() {
       isStaffRole={isStaffRole}
       isBusinessOwner={isBusinessOwner}
       themeSettings={themeSettings}
+      showBackButton={false}
     />
   )
 }

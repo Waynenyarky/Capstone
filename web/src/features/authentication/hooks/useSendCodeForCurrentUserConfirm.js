@@ -9,16 +9,23 @@ export function useSendCodeForCurrentUserConfirm({ email, onSent } = {}) {
   const handleSend = async () => {
     if (!email) {
       error('Missing email')
-      return
+      return { success: false, passkeyBypass: false }
     }
     try {
       setSending(true)
-      await changeEmailConfirmStart({ currentEmail: email })
+      const res = await changeEmailConfirmStart({ currentEmail: email })
+
+      if (res?.passkeyBypass) {
+        return { success: true, passkeyBypass: true }
+      }
+
       success('Verification code sent to current email')
       if (typeof onSent === 'function') onSent({ email })
+      return { success: true, passkeyBypass: false }
     } catch (err) {
       console.error('Send confirm code error:', err)
       error(err, 'Failed to send verification code')
+      return { success: false, passkeyBypass: false }
     } finally {
       setSending(false)
     }

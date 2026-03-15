@@ -1,4 +1,4 @@
-import { get, post, put, patch, del } from '@/lib/http.js'
+import { get, post, put, patch, del, fetchWithFallback } from '@/lib/http.js'
 
 const BASE_PATH = '/api/business'
 
@@ -28,7 +28,7 @@ export async function uploadOwnerId(file, side = 'front') {
   formData.append('file', file)
   formData.append('side', side)
 
-  const response = await fetch(`${BASE_PATH}/profile/owner-id/upload`, {
+  const response = await fetchWithFallback(`${BASE_PATH}/profile/owner-id/upload`, {
     method: 'POST',
     body: formData,
     credentials: 'include'
@@ -48,6 +48,48 @@ export async function uploadOwnerId(file, side = 'front') {
 export async function getBusinesses() {
   const data = await get(`${BASE_PATH}/businesses`)
   return data?.businesses || []
+}
+
+/**
+ * Get businesses with pagination and filtering
+ * @param {object} options - Query options
+ * @param {number} options.page - Page number (default: 1)
+ * @param {number} options.limit - Items per page (default: 10)
+ * @param {string} options.search - Search term
+ * @param {string} options.status - Filter by status
+ * @param {string} options.sort - Sort field
+ * @param {string} options.order - Sort order (asc/desc)
+ */
+export async function getBusinessesPaginated(options = {}) {
+  const {
+    page = 1,
+    limit = 10,
+    search = '',
+    status = '',
+    sort = 'updatedAt',
+    order = 'desc'
+  } = options
+
+  const params = new URLSearchParams({
+    page: page.toString(),
+    limit: limit.toString(),
+    ...(search && { search }),
+    ...(status && { status }),
+    sort,
+    order
+  })
+
+  const data = await get(`${BASE_PATH}/businesses?${params}`)
+  return {
+    businesses: data?.businesses || [],
+    pagination: {
+      currentPage: data?.pagination?.currentPage || page,
+      totalPages: data?.pagination?.totalPages || 1,
+      totalItems: data?.pagination?.totalItems || 0,
+      hasNext: data?.pagination?.hasNext || false,
+      hasPrev: data?.pagination?.hasPrev || false
+    }
+  }
 }
 
 /**
@@ -111,4 +153,29 @@ export async function updateRiskProfile(businessId, riskProfileData) {
 
 export async function createWalkInApplication(ownerId, businessData) {
   return post(`${BASE_PATH}/staff/walk-in`, { ownerId, businessData })
+}
+
+/**
+ * Submit a business application
+ * @param {string} businessId - Business ID
+ */
+export async function submitBusinessApplication(businessId) {
+  return post(`${BASE_PATH}/businesses/${businessId}/submit`)
+}
+
+/**
+ * Update payment generation status for a business
+ * @param {string} businessId - Business ID
+ * @param {object} status - Payment generation status
+ */
+export async function updatePaymentGenerationStatus(businessId, status) {
+  return put(`${BASE_PATH}/businesses/${businessId}/payment-generation-status`, status)
+}
+
+/**
+ * Get payment generation status for a business
+ * @param {string} businessId - Business ID
+ */
+export async function getPaymentGenerationStatus(businessId) {
+  return get(`${BASE_PATH}/businesses/${businessId}/payment-generation-status`)
 }

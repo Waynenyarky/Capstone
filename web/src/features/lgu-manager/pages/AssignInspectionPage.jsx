@@ -1,257 +1,230 @@
 /**
  * Assign Inspection Page
  * LGU Manager assigns inspections to inspectors
+ * Two-panel layout matching Admin User Management design
  */
-import React, { useState, useEffect } from 'react'
+import React, { useState, useCallback } from 'react'
+import { Typography, Button, Grid, Tabs, theme, Spin } from 'antd'
 import {
-  Card,
-  Form,
-  Select,
-  DatePicker,
-  Button,
-  message,
-  Spin,
-  Alert,
-  Space,
-  Typography,
-  Table,
-  Tag,
-  Empty,
-} from 'antd'
-import { AuditOutlined, PlusOutlined, WarningOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
+  SafetyCertificateOutlined, ReloadOutlined,
+  CalendarOutlined, ScheduleOutlined, ClockCircleOutlined, CheckCircleOutlined,
+} from '@ant-design/icons'
 import LGUManagerLayout from '../components/LGUManagerLayout'
-import {
-  getInspectors,
-  getBusinessesForInspection,
-  createInspection,
-} from '../infrastructure/services/inspectionAssignmentService'
+import useAssignInspectionPage from './inspections/useAssignInspectionPage'
+import CalendarTab from './inspections/CalendarTab'
+import AppointmentsTab from './inspections/AppointmentsTab'
+import PendingInspectionsTab from './inspections/PendingInspectionsTab'
+import CompletedInspectionsTab from './inspections/CompletedInspectionsTab'
 
-const { Title, Text } = Typography
+const { Text } = Typography
+
+const TAB_ITEMS = [
+  { key: 'calendar', label: 'Calendar', icon: CalendarOutlined },
+  { key: 'appointments', label: 'Appointments', icon: ScheduleOutlined },
+  { key: 'pending', label: 'Pending Inspections', icon: ClockCircleOutlined },
+  { key: 'completed', label: 'Completed', icon: CheckCircleOutlined },
+]
 
 export default function AssignInspectionPage() {
-  const [form] = Form.useForm()
-  const [inspectors, setInspectors] = useState([])
-  const [businesses, setBusinesses] = useState([])
-  const [pendingInspections, setPendingInspections] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState(null)
+  const screens = Grid.useBreakpoint()
+  const isMobile = !screens.md
+  const { token } = theme.useToken()
 
-  useEffect(() => {
-    loadData()
-  }, [])
+  const api = useAssignInspectionPage()
+  const {
+    tabKey, setTabKey, loading, lastUpdated, loadData,
+    inspectors, allInspections, appointments,
+    unassignedBusinesses, completedInspections,
+    handleCreateInspection, handleReschedule,
+  } = api
 
-  async function loadData() {
-    setLoading(true)
-    setError(null)
-    try {
-      const [inspList, bizList] = await Promise.all([
-        getInspectors(),
-        getBusinessesForInspection(),
-      ])
-      setInspectors(inspList)
-      setBusinesses(bizList)
-      const unassigned = bizList.filter(b => !b.inspectorAssigned)
-      setPendingInspections(unassigned)
-    } catch (e) {
-      setError(e?.message || 'Failed to load data')
-      message.error(e?.message || 'Failed to load data')
-    } finally {
-      setLoading(false)
-    }
+  // For calendar → appointments navigation
+  const [highlightId, setHighlightId] = useState(null)
+  const onNavigateToAppointment = useCallback((id) => {
+    setHighlightId(id)
+    setTabKey('appointments')
+  }, [setTabKey])
+  const clearHighlightId = useCallback(() => setHighlightId(null), [])
+
+  const tabChildren = {
+    calendar: (
+      <CalendarTab
+        allInspections={allInspections}
+        onNavigateToAppointment={onNavigateToAppointment}
+      />
+    ),
+    appointments: (
+      <AppointmentsTab
+        appointments={appointments}
+        inspectors={inspectors}
+        loading={loading}
+        onReschedule={handleReschedule}
+        highlightId={highlightId}
+        clearHighlightId={clearHighlightId}
+      />
+    ),
+    pending: (
+      <PendingInspectionsTab
+        unassignedBusinesses={unassignedBusinesses}
+        inspectors={inspectors}
+        loading={loading}
+        onCreateInspection={handleCreateInspection}
+      />
+    ),
+    completed: (
+      <CompletedInspectionsTab
+        completedInspections={completedInspections}
+        loading={loading}
+      />
+    ),
   }
 
-  async function handleSubmit(values) {
-    setSubmitting(true)
-    setError(null)
-    try {
-      const { inspectorId, business, permitType, inspectionType, scheduledDate } = values
-      if (!business) {
-        message.error('Please select a business')
-        return
-      }
-      const [businessProfileId, businessId] = String(business).split('::')
-      if (!businessProfileId || !businessId) {
-        message.error('Invalid business selection')
-        return
-      }
-      await createInspection({
-        inspectorId,
-        businessProfileId,
-        businessId,
-        permitType,
-        inspectionType,
-        scheduledDate: scheduledDate?.toISOString?.() || scheduledDate,
-      })
-      message.success('Inspection assigned successfully')
-      form.resetFields()
-    } catch (e) {
-      setError(e?.message || 'Failed to assign inspection')
-      message.error(e?.message || 'Failed to assign inspection')
-    } finally {
-      setSubmitting(false)
-    }
-  }
+  /* ── Desktop: two-panel layout (matching UserManagementDesktopView) ── */
+  const renderNavItem = ({ key, label, icon: Icon }, isSelected) => (
+    <div
+      key={key}
+      role="button"
+      tabIndex={0}
+      onClick={() => setTabKey(key)}
+      onKeyDown={(e) => e.key === 'Enter' && setTabKey(key)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 12, padding: '6px',
+        borderRadius: token.borderRadius, cursor: 'pointer',
+        background: isSelected ? token.colorBgContainer : 'transparent',
+        border: 'none', transition: 'all 0.15s ease',
+      }}
+      onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = token.colorFillTertiary }}
+      onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
+    >
+      {Icon && (
+        <span
+          style={{
+            width: 32, height: 32, borderRadius: token.borderRadius,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: isSelected ? token.colorFillTertiary : token.colorFillQuaternary,
+            color: isSelected ? token.colorPrimary : token.colorTextSecondary,
+            flexShrink: 0,
+          }}
+        >
+          <Icon style={{ fontSize: 16 }} />
+        </span>
+      )}
+      <Text
+        strong={isSelected}
+        type={isSelected ? undefined : 'secondary'}
+        style={{ fontSize: 13, flex: 1, lineHeight: 1.4 }}
+      >
+        {label}
+      </Text>
+    </div>
+  )
 
-  const businessOptions = businesses.map((b) => ({
-    value: `${b.businessProfileId}::${b.businessId}`,
-    label: `${b.businessName || 'Unknown'} (${b.businessId})`,
-  }))
+  const selectedMeta = TAB_ITEMS.find((i) => i.key === tabKey) || TAB_ITEMS[0]
+  const SelectedIcon = selectedMeta.icon
 
-  const MAX_INSPECTOR_CAPACITY = 10
-  const inspectorOptions = inspectors.map((i) => {
-    const assignmentCount = i.activeInspections ?? i.assignmentCount ?? 0
-    const isOverloaded = assignmentCount >= MAX_INSPECTOR_CAPACITY
-    return {
-      value: i._id,
-      label: `${i.name || i.email} (${i.email}) — ${assignmentCount} active${isOverloaded ? ' [OVERLOADED]' : ''}`,
-      disabled: isOverloaded,
-    }
-  })
+  const desktopContent = (
+    <div
+      style={{
+        display: 'flex', height: '100%', minHeight: 400,
+        borderRadius: token.borderRadiusLG, overflow: 'hidden',
+      }}
+    >
+      {/* Left nav panel */}
+      <div
+        style={{
+          width: 240, flexShrink: 0,
+          borderRight: `1px solid ${token.colorBorder}`,
+          padding: 12, overflowY: 'auto',
+          background: token.colorBgLayout,
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {TAB_ITEMS.map((item) => renderNavItem(item, tabKey === item.key))}
+        </div>
+      </div>
+
+      {/* Right content panel */}
+      <div
+        style={{
+          flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column',
+          background: token.colorBgContainer, overflow: 'hidden',
+        }}
+      >
+        {/* Sticky header */}
+        <div
+          style={{
+            flexShrink: 0, padding: '16px 16px',
+            borderBottom: `1px solid ${token.colorBorderSecondary}`,
+            background: token.colorBgContainer, zIndex: 1,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {SelectedIcon && (
+                <span
+                  style={{
+                    width: 32, height: 32, borderRadius: token.borderRadius,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: token.colorFillTertiary, color: token.colorPrimary,
+                  }}
+                >
+                  <SelectedIcon style={{ fontSize: 18 }} />
+                </span>
+              )}
+              <Text strong style={{ fontSize: 16 }}>{selectedMeta.label}</Text>
+            </div>
+          </div>
+        </div>
+
+        {/* Tab content */}
+        <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {loading && allInspections.length === 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+              <Spin size="large" />
+            </div>
+          ) : (
+            tabChildren[tabKey]
+          )}
+        </div>
+      </div>
+    </div>
+  )
+
+  const mobileContent = (
+    <div style={{ overflow: 'auto' }}>
+      <Tabs
+        activeKey={tabKey}
+        onChange={setTabKey}
+        items={TAB_ITEMS.map(({ key, label }) => ({
+          key,
+          label,
+          children: loading && allInspections.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>
+          ) : (
+            tabChildren[key]
+          ),
+        }))}
+      />
+    </div>
+  )
 
   return (
-    <LGUManagerLayout pageTitle="Assign Inspection">
-      <div style={{ maxWidth: 900, margin: '0 auto', paddingBottom: 24, paddingLeft: 16, paddingRight: 16 }}>
-        {pendingInspections.length > 0 && (
-          <Card style={{ marginBottom: 16 }}>
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-              <Space>
-                <WarningOutlined style={{ color: '#faad14' }} />
-                <Title level={5} style={{ margin: 0 }}>Unassigned Businesses ({pendingInspections.length})</Title>
-              </Space>
-              <Table
-                size="small"
-                rowKey={(r) => `${r.businessProfileId}::${r.businessId}`}
-                dataSource={pendingInspections}
-                pagination={{ pageSize: 5 }}
-                columns={[
-                  { title: 'Business', dataIndex: 'businessName', key: 'name', render: (v) => v || 'Unknown' },
-                  { title: 'Business ID', dataIndex: 'businessId', key: 'id', render: (v) => <Tag>{v}</Tag> },
-                  {
-                    title: 'Action',
-                    key: 'action',
-                    render: (_, record) => (
-                      <Button
-                        size="small"
-                        type="link"
-                        onClick={() => {
-                          form.setFieldsValue({ business: `${record.businessProfileId}::${record.businessId}` })
-                          window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
-                        }}
-                      >
-                        Assign
-                      </Button>
-                    ),
-                  },
-                ]}
-                locale={{ emptyText: <Empty description="All businesses have inspectors assigned" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
-              />
-            </Space>
-          </Card>
-        )}
-        <Card>
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            <Title level={4}>
-              <AuditOutlined /> Assign Inspection
-            </Title>
-            <Text type="secondary">
-              Select a business, assign an inspector, and set the inspection schedule.
+    <LGUManagerLayout
+      pageTitle="Inspection Management"
+      pageIcon={<SafetyCertificateOutlined />}
+      headerActions={
+        <>
+          {lastUpdated && (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Last updated: {lastUpdated.toLocaleTimeString()}
             </Text>
-            {error && (
-              <Alert
-                type="error"
-                message={error}
-                closable
-                onClose={() => setError(null)}
-              />
-            )}
-            {loading ? (
-              <div style={{ textAlign: 'center', padding: 48 }}>
-                <Spin size="large" />
-              </div>
-            ) : (
-              <Form
-                form={form}
-                layout="vertical"
-                onFinish={handleSubmit}
-              >
-                <Form.Item
-                  name="business"
-                  label="Business"
-                  rules={[{ required: true, message: 'Select a business' }]}
-                >
-                  <Select
-                    placeholder="Select business"
-                    options={businessOptions}
-                    showSearch
-                    filterOption={(input, opt) =>
-                      (opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                    }
-                  />
-                </Form.Item>
-                <Form.Item
-                  name="inspectorId"
-                  label="Inspector"
-                  rules={[{ required: true, message: 'Select an inspector' }]}
-                >
-                  <Select
-                    placeholder="Select inspector"
-                    options={inspectorOptions}
-                    showSearch
-                    filterOption={(input, opt) =>
-                      (opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                    }
-                  />
-                </Form.Item>
-                <Form.Item
-                  name="permitType"
-                  label="Permit Type"
-                  rules={[{ required: true }]}
-                  initialValue="initial"
-                >
-                  <Select
-                    options={[
-                      { value: 'initial', label: 'Initial' },
-                      { value: 'renewal', label: 'Renewal' },
-                    ]}
-                  />
-                </Form.Item>
-                <Form.Item
-                  name="inspectionType"
-                  label="Inspection Type"
-                  rules={[{ required: true }]}
-                  initialValue="initial"
-                >
-                  <Select
-                    options={[
-                      { value: 'initial', label: 'Initial' },
-                      { value: 'renewal', label: 'Renewal' },
-                      { value: 'follow_up', label: 'Follow-up' },
-                    ]}
-                  />
-                </Form.Item>
-                <Form.Item
-                  name="scheduledDate"
-                  label="Scheduled Date"
-                  rules={[{ required: true, message: 'Select scheduled date' }]}
-                >
-                  <DatePicker style={{ width: '100%' }} />
-                </Form.Item>
-                <Form.Item>
-                  <Button
-                    type="primary"
-                    htmlType="submit"
-                    icon={<PlusOutlined />}
-                    loading={submitting}
-                  >
-                    Assign Inspection
-                  </Button>
-                </Form.Item>
-              </Form>
-            )}
-          </Space>
-        </Card>
+          )}
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading} aria-label="Refresh" />
+        </>
+      }
+    >
+      <div style={isMobile ? { overflow: 'auto' } : { height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {isMobile ? mobileContent : desktopContent}
       </div>
     </LGUManagerLayout>
   )

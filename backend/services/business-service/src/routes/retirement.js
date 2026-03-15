@@ -1,4 +1,5 @@
 const express = require('express')
+const mongoose = require('mongoose')
 const BusinessProfile = require('../models/BusinessProfile')
 const { requireJwt, requireRole } = require('../middleware/auth')
 
@@ -7,6 +8,23 @@ const router = express.Router()
 const Violation = require('../models/Violation')
 const Inspection = require('../models/Inspection')
 const { logAuditEvent } = require('../lib/auditClient')
+
+function isBusinessMatch(business, identifier) {
+  if (!business || !identifier) return false
+  const businessId = String(business.businessId || '')
+  const subdocId = String(business._id || '')
+  const target = String(identifier)
+  return businessId === target || subdocId === target
+}
+
+function buildBusinessLookupQuery(identifier) {
+  const target = String(identifier || '')
+  const clauses = [{ 'businesses.businessId': target }]
+  if (mongoose.Types.ObjectId.isValid(target)) {
+    clauses.push({ 'businesses._id': target })
+  }
+  return clauses.length === 1 ? clauses[0] : { $or: clauses }
+}
 
 /**
  * POST /api/business/:businessId/retire
@@ -20,7 +38,7 @@ router.post('/:businessId/retire', requireJwt, async (req, res) => {
     const profile = await BusinessProfile.findOne({ userId: req._userId })
     if (!profile) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Profile not found' } })
 
-    const business = profile.businesses.find((b) => b.businessId === businessId)
+    const business = profile.businesses.find((b) => isBusinessMatch(b, businessId))
     if (!business) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Business not found' } })
 
     // Edge case UC-2F-8: Check for existing retirement request
@@ -95,10 +113,10 @@ router.post('/:businessId/retire/verify', requireJwt, requireRole(['lgu_officer'
     const { verified, rejectionReason } = req.body
 
     // Find the profile containing this business
-    const profile = await BusinessProfile.findOne({ 'businesses.businessId': businessId })
+    const profile = await BusinessProfile.findOne(buildBusinessLookupQuery(businessId))
     if (!profile) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Business not found' } })
 
-    const business = profile.businesses.find((b) => b.businessId === businessId)
+    const business = profile.businesses.find((b) => isBusinessMatch(b, businessId))
     if (!business) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Business not found' } })
 
     if (business.retirementStatus !== 'requested') {
@@ -133,10 +151,10 @@ router.post('/:businessId/retire/confirm', requireJwt, requireRole(['lgu_officer
   try {
     const { businessId } = req.params
 
-    const profile = await BusinessProfile.findOne({ 'businesses.businessId': businessId })
+    const profile = await BusinessProfile.findOne(buildBusinessLookupQuery(businessId))
     if (!profile) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Business not found' } })
 
-    const business = profile.businesses.find((b) => b.businessId === businessId)
+    const business = profile.businesses.find((b) => isBusinessMatch(b, businessId))
     if (!business) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Business not found' } })
 
     if (business.retirementStatus !== 'inspector_verified') {
@@ -162,28 +180,31 @@ router.post('/:businessId/retire/confirm', requireJwt, requireRole(['lgu_officer
 router.get('/', requireJwt, async (req, res) => {
   try {
     const { status } = req.query
-    const filter = { 'businesses.retirementStatus': { $ne: '' } }
-    if (status) {
-      filter['businesses.retirementStatus'] = status
-    }
-
-    const profiles = await BusinessProfile.find(filter).lean()
+    const profiles = await BusinessProfile.find({ businesses: { $exists: true, $ne: [] } }).lean()
     const retirements = []
     for (const profile of profiles) {
       for (const business of profile.businesses || []) {
-        if (business.retirementStatus && business.retirementStatus !== '') {
+        const retirementStatus = business.retirementStatus || (business.businessStatus === 'closed' ? 'confirmed' : '')
+        const hasRetirementSignal = Boolean(
+          retirementStatus ||
+          business.retirementRequestedAt ||
+          business.retirementConfirmedAt ||
+          business.inspectorVerifiedAt
+        )
+        if (!hasRetirementSignal) continue
+        if (status && retirementStatus !== status) continue
+
           retirements.push({
             userId: profile.userId,
-            businessId: business.businessId,
+            businessId: business.businessId || String(business._id || ''),
             businessName: business.businessName || business.registeredBusinessName || 'N/A',
-            retirementStatus: business.retirementStatus,
+            retirementStatus,
             retirementRequestedAt: business.retirementRequestedAt,
             yearsActive: business.yearsActive,
             swornStatementGrossSales: business.swornStatementGrossSales,
             inspectorVerifiedClosed: business.inspectorVerifiedClosed,
             retirementConfirmedAt: business.retirementConfirmedAt,
           })
-        }
       }
     }
 

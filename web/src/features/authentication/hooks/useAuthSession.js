@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
-import { getCurrentUser, setCurrentUser, subscribeAuth, setIsLoggingOut } from "@/features/authentication/lib/authEvents.js"
+import {
+  setIsLoggingOut,
+  setCurrentUser as setAuthEventCurrentUser,
+  getCurrentUser as getAuthEventCurrentUser,
+  subscribeAuth,
+} from "@/features/authentication/lib/authEvents.js"
 import { getMe } from "@/features/authentication/services/authService.js"
 
 const LOCAL_KEY = 'auth__currentUser'
@@ -18,7 +23,6 @@ function readStored() {
       const user = parsed?.user ?? parsed // backward compat if plain user is stored
       const expiresAt = parsed?.expiresAt ?? 0
       if (!expiresAt || Date.now() < expiresAt) {
-        console.log('[Auth] Loaded user from localStorage:', { email: user?.email, mustSetupMfa: user?.mustSetupMfa, mfaEnabled: user?.mfaEnabled })
         return user
       }
       localStorage.removeItem(LOCAL_KEY)
@@ -32,7 +36,6 @@ function readStored() {
       const user = parsed?.user ?? parsed
       const expiresAt = parsed?.expiresAt ?? 0
       if (!expiresAt || Date.now() < expiresAt) {
-        console.log('[Auth] Loaded user from sessionStorage:', { email: user?.email, mustSetupMfa: user?.mustSetupMfa, mfaEnabled: user?.mfaEnabled })
         return user
       }
       sessionStorage.removeItem(SESSION_KEY)
@@ -63,12 +66,34 @@ function updateStoredUser(nextUser) {
 }
 
 export function useAuthSession() {
-  const [currentUser, setUserState] = useState(getCurrentUser() || readStored())
+  const [currentUser, setCurrentUserState] = useState(() => {
+    const fromAuthEvents = getAuthEventCurrentUser()
+    if (fromAuthEvents) return fromAuthEvents
+    // Initialize from storage on mount
+    const fromStorage = readStored()
+    return fromStorage
+  })
+  const [isLoading, setIsLoading] = useState(true)
   const validationIntervalRef = useRef(null)
+  const currentUserRef = useRef(null)
+
+  // Update ref when currentUser changes
+  useEffect(() => {
+    currentUserRef.current = currentUser
+    setAuthEventCurrentUser(currentUser || null)
+  }, [currentUser])
+
+  // Keep all useAuthSession hook instances in sync (e.g., onboarding page and ProtectedRoute)
+  useEffect(() => {
+    const unsubscribe = subscribeAuth((user) => {
+      setCurrentUserState(user || null)
+    })
+    return unsubscribe
+  }, [])
 
   // Validate token with backend
   const validateToken = useCallback(async () => {
-    const user = getCurrentUser() || readStored()
+    const user = currentUserRef.current || readStored()
     if (!user?.token) return false
 
     try {
@@ -76,23 +101,25 @@ export function useAuthSession() {
       const freshUser = await getMe()
       if (freshUser) {
         const nextUser = { ...freshUser }
+        // Preserve token if backend doesn't return one
         if (user?.token && !nextUser.token) {
           nextUser.token = user.token
         }
-        setCurrentUser(nextUser)
+        setCurrentUserState(nextUser)
         updateStoredUser(nextUser)
+        setAuthEventCurrentUser(nextUser)
       }
       return true
     } catch (err) {
       // Token is invalid (401) or other error
       if (err?.status === 401 || err?.code === 'unauthorized') {
         // Clear invalid token
-        setCurrentUser(null)
+        setCurrentUserState(null)
+        setAuthEventCurrentUser(null)
         try {
           localStorage.removeItem(LOCAL_KEY)
           sessionStorage.removeItem(SESSION_KEY)
         } catch { /* ignore */ }
-        setUserState(null)
         return false
       }
       // Other errors (network, etc.) - don't clear token
@@ -102,7 +129,7 @@ export function useAuthSession() {
 
   // Check if token needs refresh (expiring soon)
   const checkTokenExpiration = useCallback(() => {
-    const user = getCurrentUser() || readStored()
+    const user = currentUserRef.current || readStored()
     if (!user?.token) return false
 
     try {
@@ -131,31 +158,23 @@ export function useAuthSession() {
         }
       }
     } catch { /* ignore */ }
-  }, [validateToken])
+  }, [])
 
   useEffect(() => {
-    // If we loaded from storage but event bus wasn't set, sync it
-    const existing = getCurrentUser()
-    if (!existing) {
-      const fromStorage = readStored()
-      if (fromStorage) setCurrentUser(fromStorage)
-    }
-
-    const unsubscribe = subscribeAuth(setUserState)
-
     // Validate token on app load
     const initialValidation = async () => {
-      const user = getCurrentUser() || readStored()
+      const user = currentUserRef.current || readStored()
       if (user?.token) {
         await validateToken()
         checkTokenExpiration()
       }
+      setIsLoading(false)
     }
     initialValidation()
 
     // Set up periodic token validation
     validationIntervalRef.current = setInterval(() => {
-      const user = getCurrentUser() || readStored()
+      const user = currentUserRef.current || readStored()
       if (user?.token) {
         checkTokenExpiration()
         // Periodically validate token (less frequent than expiration check)
@@ -166,18 +185,18 @@ export function useAuthSession() {
     }, TOKEN_VALIDATION_INTERVAL_MS)
 
     return () => {
-      unsubscribe()
       if (validationIntervalRef.current) {
         clearInterval(validationIntervalRef.current)
       }
     }
-  }, [validateToken, checkTokenExpiration])
+  }, [])
 
   const login = useCallback((user, options = {}) => {
     const remember = options.remember === true
     const ttl = remember ? REMEMBER_TTL_MS : DEFAULT_TTL_MS
     const expiresAt = Date.now() + ttl
-    setCurrentUser(user)
+    setCurrentUserState(user)
+    setAuthEventCurrentUser(user || null)
     try {
       if (remember) {
         localStorage.setItem(LOCAL_KEY, JSON.stringify({ user, expiresAt }))
@@ -191,7 +210,8 @@ export function useAuthSession() {
 
   const logout = useCallback(() => {
     setIsLoggingOut(true)
-    setCurrentUser(null)
+    setCurrentUserState(null)
+    setAuthEventCurrentUser(null)
     try {
       localStorage.removeItem(LOCAL_KEY)
       sessionStorage.removeItem(SESSION_KEY)
@@ -200,6 +220,7 @@ export function useAuthSession() {
   }, [])
 
   const role = currentUser?.role
+  const roleSlug = String(role?.slug || role || '').toLowerCase()
 
-  return { currentUser, role, login, logout }
+  return { currentUser, role, roleSlug, login, logout, isLoading }
 }

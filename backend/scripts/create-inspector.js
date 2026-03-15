@@ -10,14 +10,15 @@
 const path = require('path')
 const fs = require('fs')
 
-// Load .env from backend or root
 const backendEnv = path.join(__dirname, '..', '.env')
 const rootEnv = path.join(__dirname, '..', '..', '.env')
-if (fs.existsSync(backendEnv)) {
-  require('dotenv').config({ path: backendEnv })
-} else if (fs.existsSync(rootEnv)) {
+if (!process.env.MONGO_URI && !process.env.MONGODB_URI && fs.existsSync(rootEnv)) {
   require('dotenv').config({ path: rootEnv })
-} else {
+}
+if (!process.env.MONGO_URI && !process.env.MONGODB_URI && fs.existsSync(backendEnv)) {
+  require('dotenv').config({ path: backendEnv })
+}
+if (!process.env.MONGO_URI && !process.env.MONGODB_URI) {
   require('dotenv').config()
 }
 

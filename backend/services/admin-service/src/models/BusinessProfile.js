@@ -207,4 +207,13 @@ const BusinessProfileSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+BusinessProfileSchema.plugin(encryptionPlugin, {
+  fields: [],
+  deterministicFields: [],
+  nestedPaths: ['ownerIdentity', 'consent'],
+  arrayPaths: ['businesses'],
+  mixedPaths: ['businessRegistration', 'location', 'compliance', 'profileDetails', 'notifications'],
+})
+
 module.exports = mongoose.models.BusinessProfile || mongoose.model('BusinessProfile', BusinessProfileSchema)

@@ -170,15 +170,16 @@ export default function PermitReviewPage() {
     setOwnerSearch('')
   }
 
-  const getStatusTag = (status) => {
+  const getStatusTag = (status, hasActiveAppeal) => {
     const statusConfig = {
       'draft': { color: 'default', text: 'Draft' },
-      'submitted': { color: 'processing', text: 'Pending' },
-      'resubmit': { color: 'processing', text: 'Resubmit' },
+      'submitted': { color: 'processing', text: 'Pending Review' },
+      'resubmit': { color: 'gold', text: 'Resubmitted' },
       'under_review': { color: 'processing', text: 'Under Review' },
       'approved': { color: 'success', text: 'Approved' },
       'rejected': { color: 'error', text: 'Rejected' },
-      'needs_revision': { color: 'warning', text: 'Revision' }
+      'needs_revision': { color: 'warning', text: 'Waiting for Applicant' },
+      'appeal_pending': { color: 'orange', text: 'Appeal Pending' }
     }
     const config = statusConfig[status] || { color: 'default', text: status }
     return <Tag color={config.color}>{config.text}</Tag>
@@ -200,8 +201,8 @@ export default function PermitReviewPage() {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      width: 100,
-      render: (status) => getStatusTag(status)
+      width: 140,
+      render: (status, record) => getStatusTag(status, record?.hasActiveAppeal)
     },
     {
       title: 'Business Name',
@@ -210,15 +211,18 @@ export default function PermitReviewPage() {
       render: (text) => <Text ellipsis={{ tooltip: text }}>{text || 'N/A'}</Text>
     },
     {
-      title: 'Type',
-      dataIndex: 'applicationType',
-      key: 'applicationType',
-      width: 80,
-      render: (type) => (
-        <Tag color={type === 'new_registration' ? 'blue' : 'cyan'}>
-          {type === 'new_registration' ? 'New' : 'Renewal'}
-        </Tag>
-      )
+      title: 'Business Type',
+      dataIndex: 'businessRegistration',
+      key: 'businessType',
+      width: 100,
+      render: (businessReg) => {
+        const businessType = businessReg?.businessType
+        return (
+          <Tag color={businessType === 'temporary' ? 'orange' : 'green'}>
+            {businessType === 'temporary' ? 'Temporary' : 'Regular'}
+          </Tag>
+        )
+      }
     },
     {
       title: 'Submitted',
@@ -289,11 +293,12 @@ export default function PermitReviewPage() {
                     style={{ width: '100%' }}
                     options={[
                       { value: 'submitted', label: 'Pending Review' },
-                      { value: 'resubmit', label: 'Resubmit' },
+                      { value: 'resubmit', label: 'Resubmitted' },
                       { value: 'under_review', label: 'Under Review' },
                       { value: 'approved', label: 'Approved' },
                       { value: 'rejected', label: 'Rejected' },
-                      { value: 'needs_revision', label: 'Needs Revision' },
+                      { value: 'appeal_pending', label: 'Appeal Pending' },
+                      { value: 'needs_revision', label: 'Waiting for Applicant' },
                       { value: 'draft', label: 'Draft' },
                     ]}
                   />
@@ -396,7 +401,7 @@ export default function PermitReviewPage() {
       width={520}
       open={walkInOpen}
       onClose={closeWalkIn}
-      destroyOnClose
+      destroyOnHidden
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         <div>

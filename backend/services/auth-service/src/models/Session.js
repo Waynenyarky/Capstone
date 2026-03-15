@@ -62,6 +62,15 @@ const SessionSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+SessionSchema.plugin(encryptionPlugin, {
+  fields: ['ipAddress', 'userAgent', 'deviceInfo', 'invalidationReason'],
+  deterministicFields: [],
+  nestedPaths: [],
+  arrayPaths: [],
+  mixedPaths: [],
+})
+
 // Indexes for efficient querying
 SessionSchema.index({ userId: 1, isActive: 1 })
 SessionSchema.index({ expiresAt: 1 })

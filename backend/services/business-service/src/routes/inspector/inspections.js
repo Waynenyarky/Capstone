@@ -15,6 +15,7 @@ const blockchainQueue = require('../../lib/blockchainQueue')
 const crypto = require('crypto')
 const { scanFile } = require('../../../../../shared/fileScan')
 const { logAuditEvent } = require('../../lib/auditClient')
+const notificationService = require('../../services/notificationService')
 
 const GPS_MISMATCH_THRESHOLD_METERS = Number(process.env.GPS_MISMATCH_THRESHOLD_METERS || 500)
 
@@ -452,10 +453,6 @@ router.post('/:id/submit', requireJwt, requireRole(['inspector']), async (req, r
     if (!overallResult || !['passed', 'failed', 'needs_reinspection'].includes(overallResult)) {
       return respond.error(res, 400, 'invalid_result', 'overallResult must be passed, failed, or needs_reinspection')
     }
-    if (!inspectorSignature || typeof inspectorSignature.dataUrl !== 'string' || !inspectorSignature.dataUrl) {
-      return respond.error(res, 400, 'signature_required', 'inspectorSignature with dataUrl is required to submit')
-    }
-
     const inspection = await Inspection.findOne({ _id: id, inspectorId })
     if (!inspection) return respond.error(res, 404, 'not_found', 'Inspection not found')
     if (inspection.status !== 'in_progress') return respond.error(res, 400, 'invalid_state', 'Only in-progress inspections can be submitted')
@@ -466,9 +463,11 @@ router.post('/:id/submit', requireJwt, requireRole(['inspector']), async (req, r
     inspection.status = 'completed'
     inspection.completedAt = now
     inspection.submittedAt = now
-    inspection.inspectorSignature = {
-      dataUrl: inspectorSignature.dataUrl,
-      timestamp: inspectorSignature.timestamp ? new Date(inspectorSignature.timestamp) : now
+    if (inspectorSignature && typeof inspectorSignature.dataUrl === 'string' && inspectorSignature.dataUrl) {
+      inspection.inspectorSignature = {
+        dataUrl: inspectorSignature.dataUrl,
+        timestamp: inspectorSignature.timestamp ? new Date(inspectorSignature.timestamp) : now
+      }
     }
     inspection.isImmutable = true
 
@@ -478,11 +477,38 @@ router.post('/:id/submit', requireJwt, requireRole(['inspector']), async (req, r
       completedAt: inspection.completedAt,
       checklist: inspection.checklist,
       evidenceCount: (inspection.evidence || []).length,
-      inspectorSignature: inspection.inspectorSignature.dataUrl.substring(0, 64)
+      inspectorSignature: inspection.inspectorSignature?.dataUrl ? inspection.inspectorSignature.dataUrl.substring(0, 64) : ''
     })
     const hash = crypto.createHash('sha256').update(hashPayload).digest('hex')
     inspection.blockchainHash = hash
     await inspection.save()
+
+    try {
+      const businessProfile = await BusinessProfile.findById(inspection.businessProfileId)
+        .select('userId businesses')
+        .lean()
+      const business = (businessProfile?.businesses || []).find((b) => b.businessId === inspection.businessId)
+      const businessName = business?.businessName || business?.registeredBusinessName || inspection.businessId
+      if (businessProfile?.userId) {
+        await notificationService.createNotification(
+          businessProfile.userId,
+          'general',
+          'Inspection Completed',
+          `Inspection for ${businessName} has been completed with result: ${overallResult}.`,
+          'inspection',
+          String(inspection._id),
+          {
+            inspectionId: String(inspection._id),
+            businessId: inspection.businessId,
+            businessName,
+            overallResult,
+            completedAt: inspection.completedAt,
+          }
+        )
+      }
+    } catch (notificationErr) {
+      console.warn('Failed to notify business owner about completed inspection:', notificationErr)
+    }
 
     blockchainQueue.queueBlockchainOperation('logAuditHash', [hash, 'inspection_submitted'])
     logAuditEvent('inspection_completed', req._userId, 'Inspection', inspection._id.toString(), { overallResult, businessId: inspection.businessId })

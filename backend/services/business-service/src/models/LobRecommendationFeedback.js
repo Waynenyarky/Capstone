@@ -37,6 +37,15 @@ const LobRecommendationFeedbackSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+LobRecommendationFeedbackSchema.plugin(encryptionPlugin, {
+  fields: ['businessDescription'],
+  deterministicFields: [],
+  nestedPaths: [],
+  arrayPaths: ['recommendations'],
+  mixedPaths: [],
+})
+
 LobRecommendationFeedbackSchema.index({ createdAt: -1 })
 LobRecommendationFeedbackSchema.index({ userId: 1, createdAt: -1 })
 

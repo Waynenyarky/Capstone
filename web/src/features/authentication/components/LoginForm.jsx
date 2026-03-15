@@ -350,11 +350,9 @@ export default function LoginForm({ onSubmit } = {}) {
               { key: 'admin', label: env.VITE_DEV_EMAIL_ADMIN || 'admin@example.com', role: 'Admin' },
               { key: 'admin2', label: env.VITE_DEV_EMAIL_ADMIN2 || 'admin2@example.com', role: 'Admin 2' },
               { key: 'admin3', label: env.VITE_DEV_EMAIL_ADMIN3 || 'admin3@example.com', role: 'Admin 3' },
-              { key: 'business', label: env.VITE_DEV_EMAIL_BUSINESS || 'business@example.com', role: 'Business Owner' },
               { key: 'officer', label: env.VITE_DEV_EMAIL_OFFICER || 'officer@example.com', role: 'LGU Officer' },
               { key: 'manager', label: env.VITE_DEV_EMAIL_MANAGER || 'manager@example.com', role: 'Manager' },
               { key: 'inspector', label: env.VITE_DEV_EMAIL_INSPECTOR || 'inspector@example.com', role: 'Inspector' },
-              { key: 'cso', label: env.VITE_DEV_EMAIL_CSO || 'cso@example.com', role: 'CSO' },
               { key: 'invalid', label: 'wrong@example.com', role: 'Invalid credentials' },
             ]
             return (
@@ -370,11 +368,9 @@ export default function LoginForm({ onSubmit } = {}) {
                       if (key === 'admin') prefillAdmin()
                       else if (key === 'admin2') prefillAdmin2()
                       else if (key === 'admin3') prefillAdmin3()
-                      else if (key === 'business') prefillUser()
                       else if (key === 'officer') prefillLguOfficer()
                       else if (key === 'manager') prefillLguManager()
                       else if (key === 'inspector') prefillInspector()
-                      else if (key === 'cso') prefillCso()
                       else if (key === 'invalid') prefillInvalid()
                     },
                   }}

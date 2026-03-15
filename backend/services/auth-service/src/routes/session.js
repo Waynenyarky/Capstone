@@ -84,6 +84,8 @@ router.get('/session/active', requireJwt, async (req, res) => {
     const userId = req._userId
     const currentTokenVersion = req._tokenVersion || 0
 
+    console.log(`[Session Active] User: ${userId}, Current token version: ${currentTokenVersion}`)
+
     const sessions = await Session.find({
       userId,
       isActive: true,
@@ -91,22 +93,84 @@ router.get('/session/active', requireJwt, async (req, res) => {
       .sort({ lastActivityAt: -1 })
       .lean()
 
-    const sessionsList = sessions.map((session) => ({
-      id: String(session._id),
-      ipAddress: session.ipAddress,
-      userAgent: session.userAgent,
-      deviceInfo: session.deviceInfo,
-      lastActivityAt: session.lastActivityAt,
-      createdAt: session.createdAt,
-      expiresAt: session.expiresAt,
-      isCurrentSession: session.tokenVersion === currentTokenVersion,
-      isExpired: Date.now() > session.expiresAt.getTime(),
-    }))
+    console.log(`[Session Active] Found ${sessions.length} sessions for user ${userId}`)
+
+    // Filter out expired sessions and mark them appropriately
+    const now = Date.now()
+    const sessionsList = sessions.map((session) => {
+      const isExpired = now > session.expiresAt.getTime()
+      return {
+        id: String(session._id),
+        ipAddress: session.ipAddress,
+        userAgent: session.userAgent,
+        deviceInfo: session.deviceInfo,
+        lastActivityAt: session.lastActivityAt,
+        createdAt: session.createdAt,
+        expiresAt: session.expiresAt,
+        isCurrentSession: session.tokenVersion === currentTokenVersion,
+        isExpired: isExpired,
+      }
+    }).filter(session => !session.isExpired) // Only include non-expired sessions
+
+    const currentSession = sessionsList.find(s => s.isCurrentSession)
+    console.log(`[Session Active] Current session found: ${!!currentSession}, active sessions after filtering: ${sessionsList.length}`)
 
     return res.json({ sessions: sessionsList })
   } catch (err) {
     console.error('GET /api/auth/session/active error:', err)
     return respond.error(res, 500, 'fetch_failed', 'Failed to fetch active sessions')
+  }
+})
+
+// GET /api/auth/session/history
+// Get session history including expired/inactive sessions for current user
+router.get('/session/history', requireJwt, async (req, res) => {
+  try {
+    const userId = req._userId
+    const currentTokenVersion = req._tokenVersion || 0
+
+    console.log(`[Session History] User: ${userId}, Current token version: ${currentTokenVersion}`)
+
+    // Get all sessions (both active and inactive) for the user
+    const allSessions = await Session.find({
+      userId,
+    })
+      .sort({ lastActivityAt: -1 })
+      .limit(50) // Limit to last 50 sessions for performance
+      .lean()
+
+    console.log(`[Session History] Found ${allSessions.length} total sessions for user ${userId}`)
+
+    const now = Date.now()
+    const sessionsList = allSessions.map((session) => {
+      const isExpired = now > session.expiresAt.getTime()
+      const isInactive = !session.isActive
+      const shouldIncludeInHistory = isExpired || isInactive
+
+      if (!shouldIncludeInHistory) return null
+
+      return {
+        id: String(session._id),
+        ipAddress: session.ipAddress,
+        userAgent: session.userAgent,
+        deviceInfo: session.deviceInfo,
+        lastActivityAt: session.lastActivityAt,
+        createdAt: session.createdAt,
+        expiresAt: session.expiresAt,
+        isCurrentSession: false, // Historical sessions are never current
+        isExpired: isExpired,
+        isInactive: isInactive,
+        invalidationReason: session.invalidationReason,
+        invalidatedAt: session.invalidatedAt,
+      }
+    }).filter(session => session !== null) // Remove null entries
+
+    console.log(`[Session History] Returning ${sessionsList.length} historical sessions`)
+
+    return res.json({ sessions: sessionsList })
+  } catch (err) {
+    console.error('GET /api/auth/session/history error:', err)
+    return respond.error(res, 500, 'fetch_failed', 'Failed to fetch session history')
   }
 })
 

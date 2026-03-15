@@ -11,6 +11,17 @@ export default function PublicRoute({ children }) {
     return null
   }
 
+  // If maintenance mode is active, redirect to maintenance page (except for admin users and allowed public pages)
+  if (maintenance.active && location.pathname !== '/maintenance') {
+    const roleKey = String(role?.slug || role || '').toLowerCase()
+    const allowedPublicPages = ['/', '/login', '/forgot-password', '/sign-up', '/terms', '/privacy']
+    
+    // Allow admin users and specific public pages during maintenance
+    if (roleKey !== 'admin' && !allowedPublicPages.includes(location.pathname)) {
+      return <Navigate to="/maintenance" replace state={{ from: location }} />
+    }
+  }
+
   if (location.pathname === '/maintenance' && maintenance.active) {
     return children
   }

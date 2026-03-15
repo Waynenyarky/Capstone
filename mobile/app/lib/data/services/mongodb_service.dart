@@ -117,6 +117,10 @@ class MongoDBService {
           body: payload,
         )
             .timeout(timeout);
+        if (res.statusCode == 404 || res.statusCode == 405) {
+          debugPrint('${res.statusCode} on $uri, trying next candidate');
+          continue;
+        }
         return res;
       } on TimeoutException catch (_) {
         continue;
@@ -164,6 +168,10 @@ class MongoDBService {
           body: payload,
         )
             .timeout(timeout);
+        if (res.statusCode == 404 || res.statusCode == 405) {
+          debugPrint('${res.statusCode} on $uri, trying next candidate');
+          continue;
+        }
         return res;
       } on TimeoutException catch (_) {
         continue;
@@ -211,6 +219,10 @@ class MongoDBService {
           body: payload,
         )
             .timeout(timeout);
+        if (res.statusCode == 404 || res.statusCode == 405) {
+          debugPrint('${res.statusCode} on $uri, trying next candidate');
+          continue;
+        }
         return res;
       } on TimeoutException catch (_) {
         continue;
@@ -451,7 +463,9 @@ class MongoDBService {
 
       debugPrint('Sending login request: $body');
 
-      final headers = <String, String>{};
+      final headers = <String, String>{
+        'x-client-type': 'mobile',
+      };
       if (bypassFingerprint) headers['x-bypass-fingerprint'] = 'true';
 
       final response = headers.isNotEmpty
@@ -2362,6 +2376,7 @@ class MongoDBService {
       if (gpsAtStart != null) body['gpsAtStart'] = gpsAtStart;
       if (gpsMismatchReason != null) body['gpsMismatchReason'] = gpsMismatchReason;
       final res = await _postJsonWithFallbackH('/api/inspector/inspections/$inspectionId/start', body);
+      debugPrint('startInspection HTTP ${res.statusCode} body: ${res.body}');
       final ct = (res.headers['content-type'] ?? '').toLowerCase();
       final data = ct.contains('application/json') ? json.decode(res.body) : {};
       if (res.statusCode == 200 && data is Map && data['success'] == true) {

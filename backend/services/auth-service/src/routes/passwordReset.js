@@ -1,6 +1,7 @@
 const express = require('express')
 const bcrypt = require('bcryptjs')
 const mongoose = require('mongoose')
+const speakeasy = require('speakeasy')
 const User = require('../models/User')
 const { generateCode, generateToken } = require('../lib/codes')
 const { resetRequests } = require('../lib/authRequestsStore')
@@ -17,7 +18,7 @@ const { checkPasswordHistory, addToPasswordHistory } = require('../lib/passwordH
 const { validatePasswordStrength } = require('../lib/passwordValidator')
 const { createAuditLog } = require('../lib/auditLogger')
 const { isBusinessOwnerRole, isAdminRole } = require('../lib/roleHelpers')
-const { verifyTurnstileToken, isCaptchaEnabled } = require('../lib/turnstile')
+const { verifyTurnstileToken, shouldRequireCaptcha } = require('../lib/turnstile')
 const { sendAdminAlert } = require('../lib/notificationService')
 
 /**
@@ -94,7 +95,7 @@ const verifyLimiter = perEmailRateLimit({
 // POST /api/auth/forgot-password
 router.post('/forgot-password', sendCodeLimiter, validateBody(emailOnlySchema), async (req, res) => {
   try {
-    if (isCaptchaEnabled()) {
+    if (shouldRequireCaptcha(req)) {
       const captchaResult = await verifyTurnstileToken(req.body.captchaToken, req.ip)
       if (!captchaResult.success) {
         return respond.error(res, 400, 'captcha_failed', 'CAPTCHA verification failed')
@@ -107,10 +108,14 @@ router.post('/forgot-password', sendCodeLimiter, validateBody(emailOnlySchema), 
     const userAgent = req.headers['user-agent'] || 'unknown'
 
     // Check existence — always return generic response to prevent email enumeration
-    const user = await User.findOne({ email: emailKey }).populate('role').lean()
+    const user = await User.findOne({ email: emailKey }).populate('role').select('+mfaSecret').lean()
     if (!user) return res.json({ sent: true })
 
     const roleSlug = user.role?.slug || 'user'
+    const hasMfa = user.mfaEnabled && user.mfaSecret && user.mfaSecret.trim() !== ''
+    
+    console.log(`[Forgot Password] User: ${emailKey}, MFA Enabled: ${user.mfaEnabled}, Has Secret: ${!!user.mfaSecret}, Secret Length: ${user.mfaSecret?.length || 0}, hasMfa: ${hasMfa}`)
+    
     if (!isBusinessOwnerRole(roleSlug)) {
       // Admin/staff: send "not available" email (no code), alert admins, return resetNotAvailable so UI skips verify step
       await createAuditLog(
@@ -150,7 +155,7 @@ router.post('/forgot-password', sendCodeLimiter, validateBody(emailOnlySchema), 
       return res.json({ sent: true })
     }
 
-    // Business owner: full recovery flow with lockout, IP tracking, and normal OTP email
+    // Business owner: check MFA status and handle accordingly
     const lockoutCheck = await checkLockout(user._id)
     if (lockoutCheck.locked) {
       return respond.error(res, 423, 'account_locked', `Account is temporarily locked. Try again in ${lockoutCheck.remainingMinutes} minutes.`)
@@ -172,7 +177,6 @@ router.post('/forgot-password', sendCodeLimiter, validateBody(emailOnlySchema), 
       await incrementFailedAttempts(user._id)
       
       // Log to audit trail
-      const roleSlug = user.role?.slug || 'user'
       await createAuditLog(
         user._id,
         'security_event',
@@ -188,6 +192,32 @@ router.post('/forgot-password', sendCodeLimiter, validateBody(emailOnlySchema), 
       )
     }
 
+    // If user has MFA enabled, don't send email OTP - require MFA verification
+    if (hasMfa) {
+      // Create audit log for MFA-based recovery
+      await createAuditLog(
+        user._id,
+        'account_recovery_initiated',
+        'password',
+        '',
+        'mfa_verification_required',
+        roleSlug,
+        {
+          ip: ipAddress,
+          userAgent,
+          suspiciousActivityDetected: suspiciousActivity,
+          recoveryMethod: 'mfa_first',
+        }
+      )
+
+      const payload = { sent: true, requiresMfa: true }
+      if (suspiciousActivity) {
+        payload.warning = 'Unusual login location detected. If this wasn\'t you, please contact support immediately.'
+      }
+      return res.json(payload)
+    }
+
+    // No MFA - send email OTP (existing flow)
     const code = generateCode()
     const expiresAtMs = Date.now() + 10 * 60 * 1000 // 10 minutes
     const useDB = mongoose.connection && mongoose.connection.readyState === 1
@@ -239,10 +269,11 @@ router.post('/forgot-password', sendCodeLimiter, validateBody(emailOnlySchema), 
         ip: ipAddress,
         userAgent,
         suspiciousActivityDetected: suspiciousActivity,
+        recoveryMethod: 'email_otp',
       }
     )
 
-    const payload = { sent: true }
+    const payload = { sent: true, requiresMfa: false }
     if (suspiciousActivity) {
       payload.warning = 'Unusual login location detected. If this wasn\'t you, please contact support immediately.'
     }
@@ -251,6 +282,76 @@ router.post('/forgot-password', sendCodeLimiter, validateBody(emailOnlySchema), 
   } catch (err) {
     console.error('POST /api/auth/forgot-password error:', err)
     return respond.error(res, 500, 'reset_start_failed', 'Failed to send reset code')
+  }
+})
+
+// POST /api/auth/forgot-password/resend
+// Resend verification code for an existing forgot password request
+router.post('/forgot-password/resend', sendCodeLimiter, validateBody(emailOnlySchema), async (req, res) => {
+  try {
+    // No CAPTCHA required for resend - user already verified once
+    let { email } = req.body || {}
+    const emailKey = String(email).toLowerCase().trim()
+    const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+    const userAgent = req.headers['user-agent'] || 'unknown'
+
+    // Check existence — always return generic response to prevent email enumeration
+    const user = await User.findOne({ email: emailKey }).populate('role').lean()
+    if (!user) return res.json({ sent: true })
+
+    const roleSlug = user.role?.slug || 'user'
+    if (!isBusinessOwnerRole(roleSlug)) {
+      // Admin/staff: send "not available" email (no code), alert admins, return resetNotAvailable so UI skips verify step
+      await createAuditLog(
+        user._id,
+        'security_event',
+        'recovery',
+        '',
+        '',
+        roleSlug,
+        { ip: ipAddress, userAgent, reason: 'recovery_not_available_for_role' }
+      )
+      await createSecurityIncidentForForgotPasswordAttempt({ userId: user._id, userEmail: emailKey, roleSlug, ipAddress, userAgent })
+      await sendStaffOrAdminForgotPasswordAlertEmail({ to: process.env.DEFAULT_FROM_EMAIL, adminName: 'Admin', userId: user._id, userEmail: emailKey, roleSlug, ipAddress, userAgent })
+      return res.json({ resetNotAvailable: true })
+    }
+
+    // Business owner: generate and send reset code
+    const code = generateSecureOtp()
+    const hashedCode = await bcrypt.hash(code, 10)
+
+    // Store hashed code with expiration (15 minutes)
+    await storeResetCode(emailKey, hashedCode, 15 * 60 * 1000)
+
+    // Create audit log
+    await createAuditLog(
+      user._id,
+      'password_reset',
+      'code_sent',
+      '',
+      '',
+      roleSlug,
+      { ip: ipAddress, userAgent, method: 'resend' }
+    )
+
+    // Send email
+    try {
+      const emailResult = await sendOtp({ to: emailKey, code, subject: 'Password Reset Code (Resend)', purpose: 'password_reset' })
+      if (!emailResult || !emailResult.success) {
+        console.error(`[Forgot Password Resend] Failed to send OTP email to ${emailKey}:`, emailResult?.error || 'Unknown error')
+        return respond.error(res, 500, 'email_send_failed', `Failed to send reset email: ${emailResult?.error || 'Please check your email configuration'}`)
+      }
+    } catch (mailErr) {
+      console.error('Failed to resend forgot password email:', mailErr)
+      return respond.error(res, 500, 'email_failed', `Failed to send email: ${mailErr.message}`)
+    }
+
+    const payload = { sent: true }
+    if (process.env.NODE_ENV !== 'production') payload.devCode = code
+    return res.json(payload)
+  } catch (err) {
+    console.error('POST /api/auth/forgot-password/resend error:', err)
+    return respond.error(res, 500, 'resend_failed', 'Failed to resend reset code')
   }
 })
 
@@ -292,6 +393,115 @@ router.post('/verify-code', verifyLimiter, validateBody(verifyCodeSchema), async
   }
 })
 
+// POST /api/auth/forgot-password/verify-mfa
+// Verify MFA for forgot password (MFA-enabled accounts)
+router.post('/forgot-password/verify-mfa', validateBody(Joi.object({ 
+  email: Joi.string().email().required(), 
+  code: Joi.string().required() 
+})), async (req, res) => {
+  try {
+    const { email, code } = req.body || {}
+    const emailKey = String(email).toLowerCase().trim()
+    const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+    const userAgent = req.headers['user-agent'] || 'unknown'
+
+    // Find user
+    const user = await User.findOne({ email: emailKey }).populate('role').lean()
+    if (!user) return respond.error(res, 404, 'user_not_found', 'User not found')
+
+    const roleSlug = user.role?.slug || 'user'
+    if (!isBusinessOwnerRole(roleSlug)) {
+      return respond.error(res, 403, 'not_allowed', 'Password reset not allowed for this account type')
+    }
+
+    // Check if MFA is enabled
+    if (!user.mfaEnabled || !user.mfaSecret) {
+      return respond.error(res, 400, 'mfa_not_enabled', 'MFA is not enabled for this account')
+    }
+
+    // Verify TOTP code
+    let decryptedSecret = ''
+    try {
+      decryptedSecret = decryptWithHash(user.passwordHash, user.mfaSecret)
+    } catch (err) {
+      console.error('Failed to decrypt MFA secret:', err)
+      return respond.error(res, 500, 'mfa_error', 'Failed to verify MFA')
+    }
+
+    const verified = speakeasy.totp.verify({
+      secret: decryptedSecret,
+      encoding: 'base32',
+      token: code,
+      window: 1, // Allow 1 step tolerance (30 seconds before/after)
+    })
+
+    if (!verified) {
+      // Track failed MFA attempt
+      await incrementFailedAttempts(user._id)
+      return respond.error(res, 401, 'invalid_mfa_code', 'Invalid MFA code')
+    }
+
+    // Generate reset token
+    const resetToken = generateToken()
+    const expiresAtMs = Date.now() + 10 * 60 * 1000 // 10 minutes
+
+    // Store reset request
+    const useDB = mongoose.connection && mongoose.connection.readyState === 1
+    if (useDB) {
+      await ResetRequest.findOneAndUpdate(
+        { email: emailKey },
+        { 
+          verified: true, 
+          resetToken, 
+          expiresAt: new Date(expiresAtMs),
+          metadata: {
+            ipAddress,
+            userAgent,
+            verificationMethod: 'mfa',
+          },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      )
+    } else {
+      resetRequests.set(emailKey, {
+        verified: true,
+        resetToken,
+        expiresAt: expiresAtMs,
+        metadata: {
+          ipAddress,
+          userAgent,
+          verificationMethod: 'mfa',
+        },
+      })
+    }
+
+    // Create audit log
+    await createAuditLog(
+      user._id,
+      'account_recovery_verified',
+      'password',
+      '',
+      'mfa_verified',
+      roleSlug,
+      {
+        ip: ipAddress,
+        userAgent,
+        recoveryMethod: 'mfa_verified',
+      }
+    )
+
+    return res.json({ 
+      verified: true, 
+      resetToken,
+      allowedToReset: true,
+      message: 'MFA verified. You can now reset your password.'
+    })
+  } catch (err) {
+    console.error('POST /api/auth/forgot-password/verify-mfa error:', err)
+    return respond.error(res, 500, 'mfa_verify_failed', 'Failed to verify MFA')
+  }
+})
+
 // POST /api/auth/change-password
 router.post('/change-password', validateBody(changePasswordSchema), async (req, res) => {
   try {
@@ -302,12 +512,19 @@ router.post('/change-password', validateBody(changePasswordSchema), async (req, 
 
     const useDB = mongoose.connection && mongoose.connection.readyState === 1
     let valid = false
+    let verificationMethod = 'email' // default
     if (useDB) {
       const reqDoc = await ResetRequest.findOne({ email: emailKey }).lean()
       valid = !!reqDoc && !!reqDoc.verified && String(reqDoc.resetToken) === String(resetToken)
+      if (reqDoc && reqDoc.metadata && reqDoc.metadata.verificationMethod) {
+        verificationMethod = reqDoc.metadata.verificationMethod
+      }
     } else {
       const reqObj = resetRequests.get(emailKey)
       valid = !!reqObj && !!reqObj.verified && String(reqObj.resetToken) === String(resetToken)
+      if (reqObj && reqObj.metadata && reqObj.metadata.verificationMethod) {
+        verificationMethod = reqObj.metadata.verificationMethod
+      }
     }
     if (!valid) {
       return respond.error(res, 401, 'invalid_reset_token', 'Invalid or missing reset token')
@@ -349,18 +566,34 @@ router.post('/change-password', validateBody(changePasswordSchema), async (req, 
     // Add old password to history
     const updatedHistory = addToPasswordHistory(oldHash, doc.passwordHistory || [])
 
-    // Update user: password, history, invalidate sessions, require MFA re-enrollment
+    // Update user: password, history, invalidate sessions
     doc.passwordHash = passwordHash
     doc.passwordChangedAt = new Date()
     doc.passwordHistory = updatedHistory
     doc.tokenVersion = (doc.tokenVersion || 0) + 1 // Invalidate all sessions
-    doc.mfaReEnrollmentRequired = true // Require MFA re-enrollment
-    doc.mfaEnabled = false // Disable MFA until re-enrolled
-    doc.mfaSecret = '' // Clear MFA secret
-    
-    // Preserve MFA secret if it exists (re-encrypt with new password hash)
-    if (mfaPlain) {
-      try { doc.mfaSecret = encryptWithHash(doc.passwordHash, mfaPlain) } catch (_) {}
+
+    // Handle MFA based on verification method
+    if (verificationMethod === 'mfa' && doc.mfaEnabled && mfaPlain) {
+      // User verified with MFA, preserve MFA by re-encrypting with new password
+      try {
+        doc.mfaSecret = encryptWithHash(doc.passwordHash, mfaPlain)
+        // No need to require re-enrollment since we preserved MFA
+        console.log(`[Password Change] MFA preserved for ${email} (verified via MFA)`)
+      } catch (err) {
+        console.error('Failed to re-encrypt MFA secret:', err)
+        // Fallback: disable MFA and require re-enrollment
+        doc.mfaReEnrollmentRequired = true
+        doc.mfaEnabled = false
+        doc.mfaSecret = ''
+      }
+    } else {
+      // Email verification or MFA not enabled, require MFA re-enrollment if it was enabled
+      if (doc.mfaEnabled) {
+        doc.mfaReEnrollmentRequired = true
+        doc.mfaEnabled = false
+        doc.mfaSecret = ''
+        console.log(`[Password Change] MFA disabled for ${email}, re-enrollment required (verified via email)`)
+      }
     }
     
     await doc.save()
@@ -373,7 +606,6 @@ router.post('/change-password', validateBody(changePasswordSchema), async (req, 
     await createAuditLog(
       doc._id,
       'account_recovery_completed',
-      'password',
       '[REDACTED]', // Don't log actual passwords
       '[REDACTED]',
       roleSlug,
@@ -381,8 +613,10 @@ router.post('/change-password', validateBody(changePasswordSchema), async (req, 
         ip: ipAddress,
         userAgent,
         tokenVersion: doc.tokenVersion,
-        mfaReEnrollmentRequired: true,
+        mfaReEnrollmentRequired: doc.mfaReEnrollmentRequired || false,
+        mfaPreserved: verificationMethod === 'mfa' && doc.mfaEnabled,
         recoveryMethod: 'password_reset',
+        verificationMethod,
       }
     )
 
@@ -390,11 +624,19 @@ router.post('/change-password', validateBody(changePasswordSchema), async (req, 
     if (useDB) await ResetRequest.deleteOne({ email: emailKey })
     else resetRequests.delete(emailKey)
 
-    return res.json({ 
+    const response = { 
       updated: true,
-      mfaReEnrollmentRequired: true,
-      message: 'Password changed successfully. Please re-enroll MFA on next login.',
-    })
+      mfaReEnrollmentRequired: doc.mfaReEnrollmentRequired || false,
+      message: doc.mfaReEnrollmentRequired 
+        ? 'Password changed successfully. Please re-enroll MFA on next login.'
+        : 'Password changed successfully. Your MFA settings have been preserved.',
+    }
+
+    if (verificationMethod === 'mfa' && doc.mfaEnabled) {
+      response.mfaPreserved = true
+    }
+
+    return res.json(response)
   } catch (err) {
     console.error('POST /api/auth/change-password error:', err)
     return respond.error(res, 500, 'change_password_failed', 'Failed to change password')

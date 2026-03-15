@@ -1,9 +1,21 @@
 const express = require('express')
+const mongoose = require('mongoose')
 const EditRequest = require('../models/EditRequest')
+const BusinessProfile = require('../models/BusinessProfile')
 const { requireJwt } = require('../middleware/auth')
 const { logAuditEvent } = require('../lib/auditClient')
 
 const router = express.Router()
+
+// Helper: build query that matches either businessId or subdoc _id
+function buildBusinessLookupQuery(identifier) {
+  const target = String(identifier || '')
+  const clauses = [{ 'businesses.businessId': target }]
+  if (mongoose.Types.ObjectId.isValid(target)) {
+    clauses.push({ 'businesses._id': new mongoose.Types.ObjectId(target) })
+  }
+  return clauses.length === 1 ? clauses[0] : { $or: clauses }
+}
 
 // Allowed fields per Appendix K UC-2N-3
 const ALLOWED_EDIT_FIELDS = [
@@ -121,6 +133,35 @@ router.put('/:id', requireJwt, async (req, res) => {
       editRequest.resolvedAt = new Date()
     }
     await editRequest.save()
+
+    // When approved, apply the change to the actual BusinessProfile
+    if (status === 'approved' && editRequest.fieldName && editRequest.requestedValue !== undefined) {
+      try {
+        const fieldPath = `businesses.$.${editRequest.fieldName}`
+        const updateResult = await BusinessProfile.updateOne(
+          buildBusinessLookupQuery(editRequest.businessId),
+          {
+            $set: {
+              [fieldPath]: editRequest.requestedValue,
+              'businesses.$.updatedAt': new Date(),
+            },
+          }
+        )
+        if (updateResult.modifiedCount > 0) {
+          logAuditEvent('edit_request_applied', req._userId, 'BusinessProfile', editRequest.businessId, {
+            fieldName: editRequest.fieldName,
+            previousValue: editRequest.currentValue,
+            newValue: editRequest.requestedValue,
+            editRequestId: editRequest._id.toString(),
+          })
+        } else {
+          console.warn('Edit request approved but BusinessProfile not updated — business may not exist:', editRequest.businessId)
+        }
+      } catch (applyErr) {
+        console.error('Failed to apply approved edit to BusinessProfile:', applyErr)
+      }
+    }
+
     return res.json({ data: editRequest })
   } catch (err) {
     console.error('PUT /edit-requests error:', err)

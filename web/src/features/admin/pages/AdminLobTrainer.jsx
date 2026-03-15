@@ -498,7 +498,7 @@ export default function AdminLobTrainer() {
           style={{ marginBottom: 16 }}
         >
           <Paragraph type="secondary" style={{ marginBottom: 12 }}>
-            Labels are from your training data (DB). Target: >= {auditThreshold} examples per label for better CV.
+            Labels are from your training data (DB). Target: {'>='} {auditThreshold} examples per label for better CV.
           </Paragraph>
           {audit ? (
             <>
@@ -802,7 +802,7 @@ export default function AdminLobTrainer() {
           onCancel={() => { setModalOpen(false); form.resetFields() }}
           onOk={handleSave}
           okText={editingId ? 'Update' : 'Create'}
-          destroyOnClose={false}
+          destroyOnHidden={false}
           width={600}
         >
           <Form form={form} layout="vertical" style={{ marginTop: 16 }}>

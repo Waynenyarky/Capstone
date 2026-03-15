@@ -15,7 +15,7 @@ const respond = require('../middleware/respond')
 const { validateBody, Joi } = require('../middleware/validation')
 const { perEmailRateLimit } = require('../middleware/rateLimit')
 const { signAccessToken } = require('../middleware/auth')
-const { verifyTurnstileToken, isCaptchaEnabled } = require('../lib/turnstile')
+const { verifyTurnstileToken, shouldRequireCaptcha } = require('../lib/turnstile')
 const { createAuditLog } = require('../lib/auditLogger')
 const { sanitizeName } = require('../lib/sanitizer')
 
@@ -241,7 +241,7 @@ function validatePasswordStrengthMiddleware(req, res, next) {
 // Step 1 for sign-up: collect payload, validate, send verification code
 router.post('/signup/start', validatePasswordStrengthMiddleware, validateBody(signupPayloadSchema), checkExistingEmailBeforeLimiter, signupStartLimiter, async (req, res) => {
   try {
-    if (isCaptchaEnabled()) {
+    if (shouldRequireCaptcha(req)) {
       const token = (req.body.captchaToken || '').trim()
       if (!token) {
         return respond.error(res, 400, 'captcha_failed', 'Verification failed. Please try again.')

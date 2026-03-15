@@ -4,8 +4,18 @@
  * Runs monthly to detect businesses that haven't renewed their permits.
  * Flags them as potentially abandoned and creates inspector verification tasks.
  */
+const mongoose = require('mongoose')
 const BusinessProfile = require('../models/BusinessProfile')
 const logger = require('../lib/logger')
+
+function buildBusinessLookupQuery(identifier) {
+  const target = String(identifier || '')
+  const clauses = [{ 'businesses.businessId': target }]
+  if (mongoose.Types.ObjectId.isValid(target)) {
+    clauses.push({ 'businesses._id': new mongoose.Types.ObjectId(target) })
+  }
+  return clauses.length === 1 ? clauses[0] : { $or: clauses }
+}
 
 /**
  * Detect businesses that are overdue for renewal (no renewal submitted for current year
@@ -66,10 +76,10 @@ async function detectAbandonedBusinesses() {
  */
 async function markBusinessAbandoned(businessId, inspectorId) {
   try {
-    const profile = await BusinessProfile.findOne({ 'businesses.businessId': businessId })
+    const profile = await BusinessProfile.findOne(buildBusinessLookupQuery(businessId))
     if (!profile) throw new Error('Business not found')
 
-    const business = profile.businesses.find((b) => b.businessId === businessId)
+    const business = profile.businesses.find((b) => b.businessId === businessId || String(b._id) === businessId)
     if (!business) throw new Error('Business not found')
 
     business.businessStatus = 'inactive'

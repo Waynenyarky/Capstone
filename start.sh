@@ -12,6 +12,7 @@
 #   ./start.sh --production # Full reset (containers + volumes; DB empty) then start
 #   ./start.sh --dev        # Development mode (auto-reload + FAB/prefill on 5173)
 #   ./start.sh --clean      # Clean up unused Docker resources before starting
+#   ./start.sh --rebuild    # Rebuild all Docker images (fixes missing dependencies)
 #   ./start.sh --retrain     # Retrain LOB AI model from dataset on startup, then start
 #   ./start.sh --status     # Just show status, don't start anything
 #   ./start.sh --ipfs-list  # List IPFS documents from application submissions (no start)
@@ -60,6 +61,7 @@ GANACHE_GUI=false
 SKIP_EMAIL_CHECK=false
 MOBILE_IPHONE=false
 MOBILE_ANDROID=false
+REBUILD_IMAGES=false
 
 for arg in "$@"; do
   case $arg in
@@ -80,6 +82,9 @@ for arg in "$@"; do
       ;;
     --clean)
       CLEAN_DOCKER=true
+      ;;
+    --rebuild|-r)
+      REBUILD_IMAGES=true
       ;;
     --retrain)
       RETRAIN_LOB=true
@@ -728,6 +733,22 @@ if [ "$CLEAN_DOCKER" = true ]; then
 fi
 
 # ================================
+# Rebuild Docker Images if Requested
+# ================================
+if [ "$REBUILD_IMAGES" = true ]; then
+  echo ""
+  echo -e "${CYAN}🔨 Rebuilding Docker images...${NC}"
+  echo -e "${YELLOW}   This ensures all dependencies are properly installed${NC}"
+  if [ "$DEV_MODE" = true ]; then
+    docker-compose $COMPOSE_FILES -f docker-compose.dev.yml build --no-cache
+  else
+    docker-compose $COMPOSE_FILES build --no-cache
+  fi
+  echo -e "${GREEN}   ✅ Rebuild complete!${NC}"
+  echo ""
+fi
+
+# ================================
 # Start Docker Services
 # ================================
 if [ "$GANACHE_GUI" = true ]; then
@@ -829,6 +850,26 @@ echo -e "${CYAN}🌐 Starting web frontend...${NC}"
 if [ -d "web" ]; then
   cd web
   
+  # Validate environment configuration
+  echo -e "${CYAN}   Validating web environment configuration...${NC}"
+  if [ -f .env ]; then
+    # Check for microservices vs unified backend mismatch
+    if grep -q "VITE_BACKEND_ORIGIN=http://localhost:3000" .env && \
+       ! grep -q "VITE_USE_MICROSERVICES=false" .env; then
+      echo -e "${YELLOW}   ⚠️  WARNING: web/.env points to unified backend (3000) but microservices mode is default${NC}"
+      echo -e "${YELLOW}   💡 Consider adding: VITE_USE_MICROSERVICES=true to web/.env${NC}"
+    fi
+    
+    # Check if microservices mode is properly configured
+    if grep -q "VITE_USE_MICROSERVICES=true" .env; then
+      echo -e "${GREEN}   ✅ Microservices mode configured in web/.env${NC}"
+    elif ! grep -q "VITE_USE_MICROSERVICES" .env; then
+      echo -e "${CYAN}   ℹ️  Using default microservices mode (VITE_USE_MICROSERVICES not set)${NC}"
+    fi
+  else
+    echo -e "${YELLOW}   ⚠️  web/.env not found, using default configuration${NC}"
+  fi
+  
   # Always run npm install to ensure package.json and node_modules stay in sync
   # (catches new deps from git pull, fresh clones, or corrupted node_modules)
   echo -e "${CYAN}   Ensuring web dependencies are installed...${NC}"
@@ -870,6 +911,13 @@ if [ -d "web" ]; then
         pkill -f "vite.*5173" 2>/dev/null || true
         sleep 1
       fi
+    fi
+    
+    # Always check for and kill existing Vite processes to prevent conflicts
+    if pgrep -f "vite.*5173" > /dev/null; then
+      echo -e "${YELLOW}   ⚠️  Existing Vite process found - stopping to prevent conflicts...${NC}"
+      pkill -f "vite.*5173" 2>/dev/null || true
+      sleep 2
     fi
     if ! pgrep -f "vite.*5173" > /dev/null; then
       if [ "$DEMO_UI_MODE" = true ]; then

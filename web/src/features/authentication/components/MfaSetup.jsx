@@ -37,11 +37,12 @@ export default function MfaSetup({ embedded = false, onComplete }) {
   const navigate = useNavigate()
   const { open, show, hide, confirming, handleConfirm } = useConfirmLogoutModal({
     onConfirm: async () => {
-      navigate('/login', { replace: true })
       if (logout) logout()
+      navigate('/', { replace: true })
     },
   })
   const [currentStep, setCurrentStep] = useState(0)
+  const [isReturningUser, setIsReturningUser] = useState(false)
 
   // When embedded, no redirect; parent handles next step via onComplete
   const roleKey = String(role?.slug || role || '').toLowerCase()
@@ -85,16 +86,20 @@ export default function MfaSetup({ embedded = false, onComplete }) {
 
   const goToPostMfa = refreshAndContinue
 
-  // Sync step with state
+  // Sync step with state and detect returning users
   useEffect(() => {
     if (enabled) {
-      setCurrentStep(3) // Completed/Enabled state
+      // Check if this is a returning user (MFA already enabled before this page load)
+      const wasEnabledInitially = currentUser?.mfaEnabled === true
+      setIsReturningUser(wasEnabledInitially)
+      setCurrentStep(wasEnabledInitially ? 4 : 3) // 4=management, 3=completed
     } else if (secret) {
       if (currentStep === 0) setCurrentStep(1) // Move to scan if secret exists
     } else {
       setCurrentStep(0) // Reset to start if no secret and disabled
+      setIsReturningUser(false)
     }
-  }, [enabled, secret, currentStep])
+  }, [enabled, secret, currentStep, currentUser?.mfaEnabled])
 
   const onSetupClick = async () => {
     await handleSetup()
@@ -130,7 +135,42 @@ export default function MfaSetup({ embedded = false, onComplete }) {
   }
 
   const renderContent = () => {
-    // STATE: ENABLED (Step 3)
+    // STATE: MANAGEMENT (Step 4) - For returning users who already have MFA enabled
+    if (enabled && isReturningUser) {
+      return (
+        <div style={{ padding: '24px 0' }}>
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <SafetyCertificateOutlined style={{ fontSize: 48, color: '#52c41a' }} />
+            <Title level={4} style={{ color: '#52c41a', marginTop: 16 }}>Two-Factor Authentication Active</Title>
+            <Paragraph type="secondary" style={{ fontSize: 16, maxWidth: 420, margin: '0 auto' }}>
+              Your account is already protected with two-factor authentication. You can change it again below.
+            </Paragraph>
+          </div>
+
+          <Space direction="vertical" style={{ width: '100%', justifyContent: 'center', alignItems: 'center' }} size="middle">
+            
+            <Button 
+              type="primary" 
+              onClick={onSetupClick} 
+              loading={loading} 
+              icon={<MobileOutlined />}
+            >
+              Set up New Authenticator
+            </Button>
+            <Button 
+              type="default"
+              onClick={onPasskeySetup} 
+              loading={passkeyRegistering} 
+              icon={<KeyOutlined />}
+            >
+              Add Passkey
+            </Button>
+          </Space>
+        </div>
+      )
+    }
+
+    // STATE: ENABLED (Step 3) - For first-time setup completion
     if (enabled) {
       return (
         <Result
@@ -159,6 +199,7 @@ export default function MfaSetup({ embedded = false, onComplete }) {
           </div>
 
           <Space direction="vertical" style={{ width: '100%', justifyContent: 'center', alignItems: 'center' }} size="middle">
+            
             <Button 
               type="primary" 
               onClick={onSetupClick} 

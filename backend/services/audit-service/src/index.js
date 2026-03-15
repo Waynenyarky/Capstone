@@ -78,30 +78,35 @@ async function start() {
     const uri = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URL || ''
     logger.info('Audit Service starting', { mongoUri: uri ? '<set>' : '<not-set>' });
 
+    logger.info('Attempting to connect to database...');
     await connectDB(uri);
+    logger.info('Database connected successfully!');
 
     // Initialize blockchain service and related services
     try {
-      await blockchainService.initialize();
+      // Skip blockchain initialization for now to debug Atlas connection
+      logger.info('Skipping blockchain initialization temporarily');
+      
+      // await blockchainService.initialize();
       
       // Initialize additional blockchain services
-      const accessControlService = require('./lib/accessControlService');
-      const userRegistryService = require('./lib/userRegistryService');
-      const documentStorageService = require('./lib/documentStorageService');
+      // const accessControlService = require('./lib/accessControlService');
+      // const userRegistryService = require('./lib/userRegistryService');
+      // const documentStorageService = require('./lib/documentStorageService');
       
-      await Promise.all([
-        accessControlService.initialize().catch(err => {
-          logger.warn('AccessControl service initialization failed', { error: err.message });
-        }),
-        userRegistryService.initialize().catch(err => {
-          logger.warn('UserRegistry service initialization failed', { error: err.message });
-        }),
-        documentStorageService.initialize().catch(err => {
-          logger.warn('DocumentStorage service initialization failed', { error: err.message });
-        }),
-      ]);
+      // await Promise.all([
+      //   accessControlService.initialize().catch(err => {
+      //     logger.warn('AccessControl service initialization failed', { error: err.message });
+      //   }),
+      //   userRegistryService.initialize().catch(err => {
+      //     logger.warn('UserRegistry service initialization failed', { error: err.message });
+      //   }),
+      //   documentStorageService.initialize().catch(err => {
+      //     logger.warn('DocumentStorage service initialization failed', { error: err.message });
+      //   }),
+      // ]);
       
-      logger.info('Blockchain services initialized');
+      logger.info('Blockchain services skipped (temporarily disabled)');
     } catch (error) {
       logger.warn('Blockchain service initialization failed (continuing without blockchain)', { error });
     }

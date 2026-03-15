@@ -55,6 +55,15 @@ const EmailChangeRequestSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+EmailChangeRequestSchema.plugin(encryptionPlugin, {
+  fields: [],
+  deterministicFields: ['oldEmail', 'newEmail'],
+  nestedPaths: [],
+  arrayPaths: [],
+  mixedPaths: ['metadata'],
+})
+
 // Indexes for efficient querying
 EmailChangeRequestSchema.index({ userId: 1, createdAt: -1 })
 EmailChangeRequestSchema.index({ expiresAt: 1 })

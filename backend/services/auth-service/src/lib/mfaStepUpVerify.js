@@ -1,5 +1,5 @@
 /**
- * Short-lived verification store for MFA disable / disable-undo.
+ * Short-lived verification store for MFA disable / disable-undo, password change, email change, and delete account passkey step-up.
  * After user proves identity via passkey, we set a token here; the actual
  * disable-request or disable-undo must run within TTL_MS and consume it.
  */
@@ -7,6 +7,9 @@ const TTL_MS = 2 * 60 * 1000 // 2 minutes
 
 const disableRequestVerified = new Map() // userId -> timestamp
 const disableUndoVerified = new Map()
+const passwordChangeVerified = new Map()
+const emailChangeVerified = new Map()
+const deleteAccountVerified = new Map()
 
 function getAndDelete(map, userId) {
   const t = map.get(String(userId))
@@ -24,4 +27,10 @@ module.exports = {
   consumeDisableRequestVerified: (userId) => getAndDelete(disableRequestVerified, userId),
   setDisableUndoVerified: (userId) => set(disableUndoVerified, userId),
   consumeDisableUndoVerified: (userId) => getAndDelete(disableUndoVerified, userId),
+  setPasswordChangeVerified: (userId) => set(passwordChangeVerified, userId),
+  consumePasswordChangeVerified: (userId) => getAndDelete(passwordChangeVerified, userId),
+  setEmailChangeVerified: (userId) => set(emailChangeVerified, userId),
+  consumeEmailChangeVerified: (userId) => getAndDelete(emailChangeVerified, userId),
+  setDeleteAccountVerified: (userId) => set(deleteAccountVerified, userId),
+  consumeDeleteAccountVerified: (userId) => getAndDelete(deleteAccountVerified, userId),
 }

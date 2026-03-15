@@ -55,8 +55,7 @@ function item(label, type = 'file', opts = {}) {
 const globalRenewalSections = [
   {
     category: 'Renewal Documents',
-    source: 'BPLO',
-    notes: 'Annual business permit renewal',
+        notes: 'Annual business permit renewal',
     items: [
       item('Sworn Statement of Gross Sales/Receipts (Notarized)', 'download', {
         helpText: 'Download the form, have it notarized, then upload',
@@ -94,8 +93,7 @@ const globalRenewalSections = [
 const globalCessationSections = [
   {
     category: 'Cessation / Closure Documents',
-    source: 'BPLO',
-    notes: 'Requirements for business closure or cessation',
+        notes: 'Requirements for business closure or cessation',
     items: [
       item('Affidavit of Closure (Notarized)', 'download', {
         helpText: 'Sworn statement declaring the closure of the business',
@@ -133,8 +131,7 @@ const globalCessationSections = [
 const globalAppealSections = [
   {
     category: 'Appeal Information',
-    source: 'BPLO',
-    notes: 'Requirements for appealing a permit or registration decision',
+        notes: 'Requirements for appealing a permit or registration decision',
     items: [
       item('Appeal type', 'select', {
         helpText: 'Select the type of appeal',
@@ -164,8 +161,7 @@ const globalAppealSections = [
 const globalViolationSections = [
   {
     category: 'Violation Report',
-    source: 'BPLO',
-    notes: 'Requirements for reporting or documenting violations',
+        notes: 'Requirements for reporting or documenting violations',
     items: [
       item('Violation type', 'select', {
         helpText: 'Category of violation',
@@ -194,8 +190,7 @@ const globalViolationSections = [
 const unifiedBusinessPermitSections = [
   {
     category: 'Required Documents',
-    source: 'BPLO',
-    notes: 'Supporting documents for the unified business permit application. Applicant/owner details are taken from the PIS (account registration).',
+        notes: 'Supporting documents for the unified business permit application. Applicant/owner details are taken from the PIS (account registration).',
     items: [
       item('Valid government-issued ID of the business owner', 'file', {
         key: 'ownerGovernmentId',
@@ -233,8 +228,7 @@ const unifiedBusinessPermitSections = [
   },
   {
     category: 'Business Information',
-    source: 'BPLO',
-    notes: 'Details about the business being registered or permitted',
+        notes: 'Details about the business being registered or permitted',
     items: [
       item('Business / trade name', 'text', {
         key: 'businessName',
@@ -314,8 +308,7 @@ const unifiedBusinessPermitSections = [
   },
   {
     category: 'Line of Business (AI)',
-    source: 'BPLO',
-    notes: 'Describe what your business sells or does, then click Analyze to get suggestions. You may answer in Filipino or English.',
+        notes: 'Describe what your business sells or does, then click Analyze to get suggestions. You may answer in Filipino or English.',
     items: [
       item('What does your business sell or do?', 'ai_lob_recommendation', {
         key: 'aiLobRecommendation',
@@ -327,8 +320,7 @@ const unifiedBusinessPermitSections = [
   },
   {
     category: 'Ownership / Lease Information',
-    source: 'BPLO',
-    notes: 'Whether the business owner owns or leases the property',
+        notes: 'Whether the business owner owns or leases the property',
     items: [
       item('Property ownership status', 'select', {
         key: 'propertyOwnership',
@@ -362,8 +354,7 @@ const unifiedBusinessPermitSections = [
   },
   {
     category: 'Capital (Initial)',
-    source: 'BPLO',
-    notes: 'Building and list of machineries, equipment, and delivery vehicles used in the business.',
+        notes: 'Building and list of machineries, equipment, and delivery vehicles used in the business.',
     items: [
       item('Building', 'number', {
         key: 'building',
@@ -422,8 +413,7 @@ const unifiedBusinessPermitSections = [
   },
   {
     category: 'Operating Capital',
-    source: 'BPLO',
-    notes: 'Owner must declare equity and payables for the business.',
+        notes: 'Owner must declare equity and payables for the business.',
     items: [
       item('Equity', 'number', {
         key: 'operatingCapitalEquity',
@@ -445,8 +435,7 @@ const unifiedBusinessPermitSections = [
   },
   {
     category: 'Accreditation / License',
-    source: 'BPLO',
-    notes: 'List any accreditations, licenses, or special permits held by the business from government agencies.',
+        notes: 'List any accreditations, licenses, or special permits held by the business from government agencies.',
     items: [
       item('Accreditations / licenses', 'repeatable_group', {
         key: 'accreditationsLicenses',
@@ -455,27 +444,15 @@ const unifiedBusinessPermitSections = [
         groupFields: [
           {
             label: 'Issuing agency',
-            type: 'text',
+            type: 'select',
             key: 'issuingAgency',
             required: true,
-            placeholder: 'e.g. DOH, FDA, DENR, PRC',
+            placeholder: 'Select issuing agency',
             helpText: 'Government agency that issued the accreditation or license',
             span: 8,
             validation: { minLength: 1, maxLength: 200 },
             dropdownSource: 'static',
-            dropdownOptions: [],
-          },
-          {
-            label: 'License / accreditation type',
-            type: 'text',
-            key: 'licenseType',
-            required: true,
-            placeholder: 'e.g. License to Operate, Sanitary Permit',
-            helpText: 'Type or name of the license or accreditation',
-            span: 8,
-            validation: { minLength: 1, maxLength: 200 },
-            dropdownSource: 'static',
-            dropdownOptions: [],
+            dropdownOptions: ['DTI/SEC/CDA', 'NFA', 'BFAD', 'BIR', 'TIN', 'Others'],
           },
           {
             label: 'License number',
@@ -489,6 +466,18 @@ const unifiedBusinessPermitSections = [
             dropdownSource: 'static',
             dropdownOptions: [],
           },
+          {
+            label: 'Expiry date',
+            type: 'date',
+            key: 'expiryDate',
+            required: false,
+            placeholder: 'Select expiry date',
+            helpText: 'Date when the license or accreditation expires',
+            span: 8,
+            validation: {},
+            dropdownSource: 'static',
+            dropdownOptions: [],
+          },
         ],
         minRows: 0,
         maxRows: 20,
@@ -497,8 +486,7 @@ const unifiedBusinessPermitSections = [
   },
   {
     category: 'Oath of Undertaking',
-    source: 'BPLO',
-    notes: 'The applicant must certify that all information provided is true and correct.',
+        notes: 'The applicant must certify that all information provided is true and correct.',
     items: [
       item('I hereby certify that all information stated above is true and correct to the best of my knowledge and belief. I further understand that any falsification or misrepresentation of information shall be a ground for denial or revocation of the business permit and may subject me to criminal prosecution under applicable laws.', 'checkbox', {
         key: 'oathOfUndertaking',
@@ -517,8 +505,7 @@ const unifiedBusinessPermitSections = [
 const generalPermitSections = [
   {
     category: 'General Permit Details',
-    source: 'BPLO',
-    notes: 'Type and details of the general permit being applied for',
+        notes: 'Type and details of the general permit being applied for',
     items: [
       item('General permit category', 'select', {
         key: 'generalPermitCategory',
@@ -564,8 +551,7 @@ const generalPermitSections = [
   // ─── Category-specific requirements (CBPLO-GPI-F06 per Alaminos requirements) ───
   {
     category: 'Requirements – Cooperative (New/Renewal)',
-    source: 'BPLO',
-    notes: 'Before processing: PIS, CTC, Barangay Clearance, CDA Registration (new), Certificate of Compliance from City Cooperatives Office, SPA/Authorization, Lease + Mayor\'s Permit of Lessor (if lessee). During: Application Form, Receipt of Payment.',
+        notes: 'Before processing: PIS, CTC, Barangay Clearance, CDA Registration (new), Certificate of Compliance from City Cooperatives Office, SPA/Authorization, Lease + Mayor\'s Permit of Lessor (if lessee). During: Application Form, Receipt of Payment.',
     showWhen: { field: 'generalPermitCategory', value: 'cooperative' },
     items: [
       item('Community Tax Certificate (CTC)', 'file', { key: 'ctc', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
@@ -578,8 +564,7 @@ const generalPermitSections = [
   },
   {
     category: 'Requirements – Association/Foundation (New/Renewal)',
-    source: 'BPLO',
-    notes: 'Before: PIS, CTC, Barangay Clearance, SEC/DOLE Registration, SPA/Authorization. During: Application Form, Receipt of Payment, Real Property Tax Clearance, Account Clearance (renewal).',
+        notes: 'Before: PIS, CTC, Barangay Clearance, SEC/DOLE Registration, SPA/Authorization. During: Application Form, Receipt of Payment, Real Property Tax Clearance, Account Clearance (renewal).',
     showWhen: { field: 'generalPermitCategory', value: 'association_foundation' },
     items: [
       item('Community Tax Certificate (CTC)', 'file', { key: 'ctc', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
@@ -592,8 +577,7 @@ const generalPermitSections = [
   },
   {
     category: 'Requirements – Chainsaw Permit (New/Renewal)',
-    source: 'BPLO',
-    notes: 'Before: PIS, CTC, Barangay Clearance, Certification of Chainsaw Ownership, Stencil of Chainsaw Serial No. During: Application Form, Receipt of Payment, RPT Clearance, Account Clearance (renewal).',
+        notes: 'Before: PIS, CTC, Barangay Clearance, Certification of Chainsaw Ownership, Stencil of Chainsaw Serial No. During: Application Form, Receipt of Payment, RPT Clearance, Account Clearance (renewal).',
     showWhen: { field: 'generalPermitCategory', value: 'chainsaw' },
     items: [
       item('Community Tax Certificate (CTC)', 'file', { key: 'ctc', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
@@ -606,8 +590,7 @@ const generalPermitSections = [
   },
   {
     category: 'Requirements – Firecrackers Stallholders',
-    source: 'BPLO',
-    notes: 'Before: PIS, CTC, Barangay Clearance, Letter of Approval (City Market and Cemetery Section) with assessment, Dealers/Manufacturer\'s License from Camp Crame, Authorization/Certification of Dealers, Fireworks Retailers Seminar Certificate. During: Application Form, Receipt of Payment, Fire Safety Inspection Certificate (BFP).',
+        notes: 'Before: PIS, CTC, Barangay Clearance, Letter of Approval (City Market and Cemetery Section) with assessment, Dealers/Manufacturer\'s License from Camp Crame, Authorization/Certification of Dealers, Fireworks Retailers Seminar Certificate. During: Application Form, Receipt of Payment, Fire Safety Inspection Certificate (BFP).',
     showWhen: { field: 'generalPermitCategory', value: 'firecrackers_stallholders' },
     items: [
       item('Community Tax Certificate (CTC)', 'file', { key: 'ctc', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
@@ -621,8 +604,7 @@ const generalPermitSections = [
   },
   {
     category: 'Requirements – Bazaar / Festival Vendors / Peddlers',
-    source: 'BPLO',
-    notes: 'PIS, CTC, Barangay Clearance, Certification from City Tourism Office (Lucap Wharf only), Letter of Approval by City Market and Cemetery Section Head with assessment of fees, Application Form, Receipt of Payment.',
+        notes: 'PIS, CTC, Barangay Clearance, Certification from City Tourism Office (Lucap Wharf only), Letter of Approval by City Market and Cemetery Section Head with assessment of fees, Application Form, Receipt of Payment.',
     showWhen: { field: 'generalPermitCategory', values: ['bazaar_festival_vendors', 'peddlers'] },
     items: [
       item('Community Tax Certificate (CTC)', 'file', { key: 'ctc', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
@@ -633,8 +615,7 @@ const generalPermitSections = [
   },
   {
     category: 'Requirements – Promotions & Exhibitors',
-    source: 'BPLO',
-    notes: 'PIS of requesting party, Request letter approved by City Administrator, Letter of Approval by City Market and Cemetery Section Head with assessment of fees.',
+        notes: 'PIS of requesting party, Request letter approved by City Administrator, Letter of Approval by City Market and Cemetery Section Head with assessment of fees.',
     showWhen: { field: 'generalPermitCategory', value: 'promotions_exhibitors' },
     items: [
       item('Request letter approved by City Administrator', 'file', { key: 'requestLetterApproved', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
@@ -643,8 +624,7 @@ const generalPermitSections = [
   },
   {
     category: 'Requirements – Cemetery Stallholders',
-    source: 'BPLO',
-    notes: 'PIS, CTC, Barangay Clearance, Letter of Approval (City Market and Cemetery Section) with assessment, Application Form, Receipt of Payment.',
+        notes: 'PIS, CTC, Barangay Clearance, Letter of Approval (City Market and Cemetery Section) with assessment, Application Form, Receipt of Payment.',
     showWhen: { field: 'generalPermitCategory', value: 'cemetery_stallholders' },
     items: [
       item('Community Tax Certificate (CTC)', 'file', { key: 'ctc', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
@@ -654,8 +634,7 @@ const generalPermitSections = [
   },
   {
     category: 'Requirements – Fish Trap / Fish Pen (New/Renewal)',
-    source: 'BPLO',
-    notes: 'Before: PIS, CTC, Barangay Clearance, Certification from Brgy. Captain & CFARMC Chairman, Certification from City Agriculturist, Contract of Lease (NEW), Assessment of fees. During: Application Form, Receipt of Payment, RPT Clearance, Account Clearance (renewal).',
+        notes: 'Before: PIS, CTC, Barangay Clearance, Certification from Brgy. Captain & CFARMC Chairman, Certification from City Agriculturist, Contract of Lease (NEW), Assessment of fees. During: Application Form, Receipt of Payment, RPT Clearance, Account Clearance (renewal).',
     showWhen: { field: 'generalPermitCategory', value: 'fish_trap_fish_pen' },
     items: [
       item('Community Tax Certificate (CTC)', 'file', { key: 'ctc', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
@@ -670,8 +649,7 @@ const generalPermitSections = [
   },
   {
     category: 'Requirements – Fish Pond (New/Renewal)',
-    source: 'BPLO',
-    notes: 'Before: PIS, CTC, Barangay Clearance, Tax Declaration of property (photocopy), Assessment of fees. During: Application Form, Receipt of Payment, RPT Clearance, Account Clearance (renewal).',
+        notes: 'Before: PIS, CTC, Barangay Clearance, Tax Declaration of property (photocopy), Assessment of fees. During: Application Form, Receipt of Payment, RPT Clearance, Account Clearance (renewal).',
     showWhen: { field: 'generalPermitCategory', value: 'fish_pond' },
     items: [
       item('Community Tax Certificate (CTC)', 'file', { key: 'ctc', validation: { acceptedFileTypes: 'pdf,jpg,png', maxFileSize: 10 } }),
@@ -690,8 +668,7 @@ const generalPermitSections = [
 const occupationalPermitSections = [
   {
     category: 'Personal Information',
-    source: 'BPLO',
-    notes: 'Applicant personal data for the Mayor\'s Permit for Occupation application',
+        notes: 'Applicant personal data for the Mayor\'s Permit for Occupation application',
     items: [
       item('PIN (Personal Identification Number)', 'text', {
         key: 'pin',
@@ -778,8 +755,7 @@ const occupationalPermitSections = [
   },
   {
     category: 'Occupational Permit Data',
-    source: 'BPLO',
-    notes: 'Permanent and present address, employer, and employment details',
+        notes: 'Permanent and present address, employer, and employment details',
     items: [
       item('Permanent Address – Street', 'text', {
         key: 'permanentAddressStreet',
@@ -877,8 +853,7 @@ const occupationalPermitSections = [
   },
   {
     category: 'Educational Background',
-    source: 'BPLO',
-    notes: 'Name of school, inclusive dates, and degree/course/strand per level',
+        notes: 'Name of school, inclusive dates, and degree/course/strand per level',
     items: [
       item('Educational background', 'repeatable_group', {
         key: 'educationalBackground',
@@ -947,8 +922,7 @@ const occupationalPermitSections = [
   },
   {
     category: 'Application Details',
-    source: 'BPLO',
-    notes: 'Date of application and applicant signature',
+        notes: 'Date of application and applicant signature',
     items: [
       item('Date of Application', 'date', {
         key: 'dateOfApplication',
@@ -964,8 +938,7 @@ const occupationalPermitSections = [
   },
   {
     category: 'Occupation Type',
-    source: 'BPLO',
-    notes: 'Select whether applicant is a food handler or non-food handler; this determines which laboratory exams are required.',
+        notes: 'Select whether applicant is a food handler or non-food handler; this determines which laboratory exams are required.',
     items: [
       item('Occupation type', 'select', {
         key: 'occupationType',
@@ -977,8 +950,7 @@ const occupationalPermitSections = [
   },
   {
     category: 'Required Documents',
-    source: 'BPLO',
-    notes: 'Barangay Clearance, Community Tax Certificate, PIS Registration at MIS Office',
+        notes: 'Barangay Clearance, Community Tax Certificate, PIS Registration at MIS Office',
     items: [
       item('Barangay Clearance', 'file', {
         key: 'barangayClearance',
@@ -999,8 +971,7 @@ const occupationalPermitSections = [
   },
   {
     category: 'Laboratory Examinations – Food Handler',
-    source: 'BPLO',
-    notes: 'Required for food handlers: Urinalysis, Fecalysis, Hepa B Screening Test, Chest X-Ray',
+        notes: 'Required for food handlers: Urinalysis, Fecalysis, Hepa B Screening Test, Chest X-Ray',
     showWhen: { field: 'occupationType', value: 'Food Handler' },
     items: [
       item('Urinalysis', 'file', {
@@ -1027,8 +998,7 @@ const occupationalPermitSections = [
   },
   {
     category: 'Laboratory Examinations – Non Food Handler',
-    source: 'BPLO',
-    notes: 'Required for non-food handlers: Drug Test, Chest X-Ray',
+        notes: 'Required for non-food handlers: Drug Test, Chest X-Ray',
     showWhen: { field: 'occupationType', value: 'Non-Food Handler' },
     items: [
       item('Drug Test', 'file', {

@@ -35,7 +35,19 @@ function createCsrfMiddleware(options = {}) {
     const cookieToken = req.cookies && req.cookies[cookieName];
     const headerToken = req.get && req.get(headerName);
 
+    if (!cookieToken) return next();
+
     if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+      console.warn('[CSRF] validation failed', {
+        method: req.method,
+        path: normalized,
+        cookieName,
+        headerName,
+        hasCookieToken: Boolean(cookieToken),
+        hasHeaderToken: Boolean(headerToken),
+        cookieMatchesHeader: Boolean(cookieToken && headerToken && cookieToken === headerToken),
+        availableCookies: req.cookies ? Object.keys(req.cookies) : [],
+      });
       return res.status(403).json({
         error: {
           code: 'csrf_invalid',

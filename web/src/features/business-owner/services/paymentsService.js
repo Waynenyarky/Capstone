@@ -1,4 +1,5 @@
 import { get, post, put } from '@/lib/http.js'
+import { generateReceipt } from '@/features/treasury/services/treasuryService'
 
 const BASE_PATH = '/api/business/payments'
 
@@ -90,7 +91,47 @@ export async function createPayment(paymentData) {
  * @param {string} [paymentData.referenceNumber] - Reference number
  */
 export async function processPayment(paymentId, paymentData) {
-  return post(`${BASE_PATH}/${paymentId}/pay`, paymentData)
+  let result
+  let lastError
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      result = await post(`${BASE_PATH}/${paymentId}/pay`, paymentData)
+      lastError = null
+      break
+    } catch (err) {
+      lastError = err
+      const status = err?.status
+      const transient = status === 502 || status === 503 || status == null
+      if (!transient || attempt === 2) {
+        throw err
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)))
+    }
+  }
+
+  if (!result && lastError) throw lastError
+  
+  // Auto-generate receipt after successful payment
+  if (result?.payment?.status === 'paid' || result?.status === 'paid') {
+    try {
+      const receipt = await generateReceipt(paymentId)
+      return { ...result, receipt }
+    } catch (receiptError) {
+      console.error('Failed to generate receipt:', receiptError)
+      // Return payment result even if receipt generation fails
+      return result
+    }
+  }
+  
+  return result
+}
+
+/**
+ * Generate receipt for a payment
+ * @param {string} paymentId - Payment ID
+ */
+export async function generateReceiptForPayment(paymentId) {
+  return generateReceipt(paymentId)
 }
 
 /**

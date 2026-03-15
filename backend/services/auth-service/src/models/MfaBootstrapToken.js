@@ -44,6 +44,15 @@ const MfaBootstrapTokenSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+MfaBootstrapTokenSchema.plugin(encryptionPlugin, {
+  fields: ['reason'],
+  deterministicFields: [],
+  nestedPaths: ['metadata'],
+  arrayPaths: [],
+  mixedPaths: [],
+})
+
 MfaBootstrapTokenSchema.methods.isUsable = function () {
   if (this.usedAt) return false
   if (!this.expiresAt) return false

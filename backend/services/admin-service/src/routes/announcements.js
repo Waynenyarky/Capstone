@@ -1,18 +1,19 @@
 const express = require('express')
 const router = express.Router()
-const { requireJwt, requireRole } = require('../middleware/auth')
+const { requireJwt, requireRole, optionalJwt } = require('../middleware/auth')
 const respond = require('../middleware/respond')
 const Announcement = require('../models/Announcement')
 
-router.get('/', async (req, res) => {
+router.get('/', optionalJwt, async (req, res) => {
   try {
-    const isAdmin = req.user?.role?.slug === 'admin' || req.headers['x-admin-access'] === 'true'
-    let filter = {}
-    if (!isAdmin) {
-      filter = {
-        isActive: true,
-        $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
-      }
+    const isAdmin = req._userRole === 'admin'
+    const now = new Date()
+    let filter = {
+      status: 'published',
+      $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
+    }
+    if (isAdmin) {
+      filter = {}
     }
     const announcements = await Announcement.find(filter).sort({ createdAt: -1 }).limit(50).lean()
     return respond.success(res, 200, announcements)
@@ -24,16 +25,20 @@ router.get('/', async (req, res) => {
 
 router.post('/', requireJwt, requireRole(['admin']), async (req, res) => {
   try {
-    const { title, body, priority, isActive, expiresAt } = req.body
-    if (!title || !body) return respond.error(res, 400, 'missing_fields', 'Title and body are required')
+    const { title, body, priority, isActive, expiresAt, status } = req.body
+    const isDraft = status === 'draft'
+    if (!isDraft && (!title || !body)) {
+      return respond.error(res, 400, 'missing_fields', 'Title and body are required for published announcements')
+    }
 
     const announcement = await Announcement.create({
-      title,
-      body,
+      title: title || '',
+      body: body || '',
       priority: priority || 'normal',
-      isActive: isActive !== false,
+      status: status || 'draft',
+      isActive: isDraft ? false : isActive !== false,
       expiresAt: expiresAt || null,
-      createdBy: req.user._id || req._userId,
+      createdBy: req._userId,
     })
     return respond.success(res, 201, announcement)
   } catch (err) {
@@ -44,10 +49,14 @@ router.post('/', requireJwt, requireRole(['admin']), async (req, res) => {
 
 router.put('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
   try {
-    const { title, body, priority, isActive, expiresAt } = req.body
+    const { title, body, priority, isActive, expiresAt, status } = req.body
+    const isDraft = status === 'draft'
+    if (!isDraft && (!title || !body)) {
+      return respond.error(res, 400, 'missing_fields', 'Title and body are required for published announcements')
+    }
     const announcement = await Announcement.findByIdAndUpdate(
       req.params.id,
-      { title, body, priority, isActive, expiresAt, updatedBy: req.user._id || req._userId },
+      { title, body, priority, status, isActive, expiresAt, updatedBy: req._userId },
       { new: true }
     )
     if (!announcement) return respond.error(res, 404, 'not_found', 'Announcement not found')

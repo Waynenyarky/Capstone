@@ -17,8 +17,8 @@ export function useLogoutForm() {
   const handleLogout = async () => {
     try {
       await logoutApi().catch(() => {})
-      navigate('/login')
       logout()
+      navigate('/', { replace: true })
       notificationSuccess('Logged out', 'You have been signed out successfully.')
     } catch (err) {
       console.error('Logout error:', err)

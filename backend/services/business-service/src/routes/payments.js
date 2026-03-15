@@ -1,10 +1,30 @@
 const express = require('express')
+const mongoose = require('mongoose')
 const Payment = require('../models/Payment')
 const BusinessProfile = require('../models/BusinessProfile')
 const { requireJwt, requireRole } = require('../middleware/auth')
 const { logAuditEvent } = require('../lib/auditClient')
 
 const router = express.Router()
+
+// Helper: build query that matches either businessId or subdoc _id
+function buildBusinessLookupQuery(identifier) {
+  const target = String(identifier || '')
+  const clauses = [{ 'businesses.businessId': target }]
+  if (mongoose.Types.ObjectId.isValid(target)) {
+    clauses.push({ 'businesses._id': new mongoose.Types.ObjectId(target) })
+  }
+  return clauses.length === 1 ? clauses[0] : { $or: clauses }
+}
+
+// Helper: find business in profile by either businessId or subdoc _id
+function findBusinessInProfile(profile, identifier) {
+  if (!profile?.businesses) return null
+  const target = String(identifier)
+  return profile.businesses.find(b => 
+    b.businessId === target || String(b._id) === target
+  )
+}
 
 async function generatePaymentId() {
   const year = new Date().getFullYear()
@@ -27,11 +47,12 @@ async function generatePaymentId() {
 router.get('/', requireJwt, async (req, res) => {
   try {
     const { page = 1, limit = 20, status, paymentType, businessId } = req.query
-    const filter = { userId: req._userId }
+    // If businessId is provided, search by businessId (works for LGU officers viewing business owner payments)
+    // Otherwise, filter by current user's payments
+    const filter = businessId ? { businessId } : { userId: req._userId }
 
     if (status) filter.status = status
     if (paymentType) filter.paymentType = paymentType
-    if (businessId) filter.businessId = businessId
 
     const skip = (Number(page) - 1) * Number(limit)
     const [payments, total] = await Promise.all([
@@ -195,14 +216,21 @@ router.post('/', requireJwt, async (req, res) => {
       })
     }
 
-    const profile = await BusinessProfile.findOne({ userId: req._userId })
+    // Find business profile - try by businessId/subdoc _id first (works for both owner and officer)
+    let profile = await BusinessProfile.findOne(buildBusinessLookupQuery(businessId))
+    
+    // Fallback: try by current user (business owner case where businessId doesn't match)
+    if (!profile) {
+      profile = await BusinessProfile.findOne({ userId: req._userId })
+    }
+    
     if (!profile) {
       return res.status(404).json({
         error: { code: 'PROFILE_NOT_FOUND', message: 'Business profile not found' }
       })
     }
 
-    const business = profile.businesses.find((b) => b.businessId === businessId)
+    const business = findBusinessInProfile(profile, businessId)
     if (!business) {
       return res.status(404).json({
         error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' }
@@ -212,7 +240,7 @@ router.post('/', requireJwt, async (req, res) => {
     const paymentId = await generatePaymentId()
     const payment = await Payment.create({
       paymentId,
-      userId: req._userId,
+      userId: profile.userId, // Use the business owner's userId, not the current user
       businessId,
       businessProfileId: profile._id,
       paymentType,
@@ -228,6 +256,13 @@ router.post('/', requireJwt, async (req, res) => {
 
     return res.status(201).json({ data: payment })
   } catch (err) {
+    // Handle duplicate key error (E11000) - payment already exists
+    if (err.code === 11000 || err.message?.includes('E11000')) {
+      console.warn('POST /payments duplicate:', err.keyValue || err.message)
+      return res.status(409).json({
+        error: { code: 'DUPLICATE', message: 'Payment already exists for this business and payment type' }
+      })
+    }
     console.error('POST /payments error:', err)
     return res.status(500).json({
       error: { code: 'INTERNAL', message: 'Failed to create payment' }
@@ -331,6 +366,62 @@ router.put('/:paymentId/cancel', requireJwt, async (req, res) => {
     console.error('PUT /payments/:paymentId/cancel error:', err)
     return res.status(500).json({
       error: { code: 'INTERNAL', message: 'Failed to cancel payment' }
+    })
+  }
+})
+
+/**
+ * POST /api/business/payments/:paymentId/receipt
+ * Generate receipt for a paid payment (business owner)
+ */
+router.post('/:paymentId/receipt', requireJwt, async (req, res) => {
+  try {
+    const idParam = req.params.paymentId
+    // Try to find by paymentId first, then by _id
+    let payment = await Payment.findOne({
+      paymentId: idParam,
+      userId: req._userId
+    })
+    
+    // If not found by paymentId, try by MongoDB _id
+    if (!payment && idParam.match(/^[0-9a-fA-F]{24}$/)) {
+      payment = await Payment.findOne({
+        _id: idParam,
+        userId: req._userId
+      })
+    }
+
+    if (!payment) {
+      return res.status(404).json({
+        error: { code: 'NOT_FOUND', message: 'Payment not found' }
+      })
+    }
+
+    if (payment.status !== 'paid') {
+      return res.status(400).json({
+        error: { code: 'NOT_PAID', message: 'Receipt can only be generated for paid payments' }
+      })
+    }
+
+    // Generate receipt number if not exists
+    if (!payment.receiptNumber) {
+      payment.receiptNumber = `RCP-${Date.now()}`
+      await payment.save()
+    }
+
+    return res.json({
+      receiptNumber: payment.receiptNumber,
+      paymentId: payment.paymentId,
+      amount: payment.amount,
+      paidAt: payment.paidAt,
+      businessId: payment.businessId,
+      description: payment.description,
+      paymentMethod: payment.paymentMethod
+    })
+  } catch (err) {
+    console.error('POST /payments/:paymentId/receipt error:', err)
+    return res.status(500).json({
+      error: { code: 'INTERNAL', message: 'Failed to generate receipt' }
     })
   }
 })

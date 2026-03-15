@@ -20,4 +20,13 @@ const MaintenanceWindowSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+MaintenanceWindowSchema.plugin(encryptionPlugin, {
+  fields: ['message'],
+  deterministicFields: [],
+  nestedPaths: [],
+  arrayPaths: [],
+  mixedPaths: ['metadata'],
+})
+
 module.exports = mongoose.models.MaintenanceWindow || mongoose.model('MaintenanceWindow', MaintenanceWindowSchema)

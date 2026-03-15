@@ -20,7 +20,7 @@ const Session = require('../models/Session')
 const { trackIP } = require('../lib/ipTracker')
 const inAppNotificationService = require('../services/notificationService')
 const { isPasswordExpired, isPasswordExpiredByPolicy } = require('../lib/passwordExpiry')
-const { verifyTurnstileToken, isCaptchaEnabled } = require('../lib/turnstile')
+const { verifyTurnstileToken, shouldRequireCaptcha } = require('../lib/turnstile')
 const { createAuditLog } = require('../lib/auditLogger')
 let OAuth2Client = null
 try { ({ OAuth2Client } = require('google-auth-library')) } catch (_) { OAuth2Client = null }
@@ -35,6 +35,11 @@ function displayPhoneNumber(value) {
 
 function normalizeLoginIdentifier(raw) {
   return String(raw || '').toLowerCase().trim()
+}
+
+function isMobileClientRequest(req) {
+  const headers = (req && req.headers) || {}
+  return String(headers['x-client-type'] || '').trim().toLowerCase() === 'mobile'
 }
 
 function isEmailIdentifier(identifier) {
@@ -152,7 +157,7 @@ async function createSessionForUser(doc, roleSlug, req) {
 router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSchema), async (req, res) => {
   try {
     // CAPTCHA (IAS-2: Rate + CAPTCHA): verify when Turnstile is configured
-    if (isCaptchaEnabled()) {
+    if (shouldRequireCaptcha(req)) {
       const token = (req.body.captchaToken || '').trim()
       if (!token) {
         return respond.error(res, 400, 'captcha_failed', 'Verification failed. Please try again.')
@@ -278,6 +283,14 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     if (!roleSlug) {
       return respond.error(res, 500, 'role_not_found', 'User role not found. Please contact support.')
     }
+    
+    // Reject inspector login attempts from web interface - they must use mobile app
+    if (roleSlug === 'inspector' && !isMobileClientRequest(req)) {
+      // Track failed login attempt
+      const securityMonitor = require('../middleware/securityMonitor')
+      securityMonitor.trackFailedLogin(req.ip || req.connection.remoteAddress, doc._id ? String(doc._id) : null)
+      return respond.error(res, 401, 'invalid_credentials', 'Invalid email or password') // REQUIREMENT IAS-1.3: generic login errors
+    }
     // Dev mode: bypass MFA entirely when BYPASS_MFA_DEV=true and not in production
     const bypassMfaDev = process.env.BYPASS_MFA_DEV === 'true' && process.env.NODE_ENV === 'development'
     const requiresMfa = bypassMfaDev ? false : (doc.isStaff === true || roleSlug === 'admin')
@@ -323,7 +336,8 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
         const { token, expiresAtMs } = signAccessToken(doc)
         await createSessionForUser(doc, roleSlug, req)
         logger.info('Login: dev mode MFA bypass', { email: emailKey, role: roleSlug })
-        inAppNotificationService.createNotification(doc._id, 'auth_login', 'Welcome back', 'You have signed in successfully.').catch((err) => console.error('Failed to create auth notification:', err))
+        const isFirstLogin = !doc.lastLoginAt
+        inAppNotificationService.createLoginNotification(doc._id, { isFirstLogin, userAgent: req.headers['user-agent'], ip: req.ip, method: 'dev_bypass' }).catch((err) => console.error('Failed to create auth notification:', err))
         return res.json({
           id: String(doc._id),
           role: roleSlug,
@@ -366,7 +380,8 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       try {
         const { token, expiresAtMs } = signAccessToken(doc)
         await createSessionForUser(doc, roleSlug, req)
-        inAppNotificationService.createNotification(doc._id, 'auth_login', 'Welcome back', 'You have signed in successfully.').catch((err) => console.error('Failed to create auth notification:', err))
+        const isFirstLoginBO = !doc.lastLoginAt
+        inAppNotificationService.createLoginNotification(doc._id, { isFirstLogin: isFirstLoginBO, userAgent: req.headers['user-agent'], ip: req.ip, method: 'dev_bypass' }).catch((err) => console.error('Failed to create auth notification:', err))
         return res.json({
           id: String(doc._id),
           role: roleSlug,
@@ -395,11 +410,15 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       }
     }
 
-    // Update last login timestamp
+    // Update last login timestamp and increment token version
     try {
       const dbDoc = await User.findById(doc._id)
       if (dbDoc) {
         dbDoc.lastLoginAt = new Date()
+        // Increment token version for new login to create separate session
+        const oldTokenVersion = dbDoc.tokenVersion || 0
+        dbDoc.tokenVersion = oldTokenVersion + 1
+        console.log(`[Login Verify] User: ${dbDoc.email}, Token version: ${oldTokenVersion} -> ${dbDoc.tokenVersion}`)
         await dbDoc.save()
       }
     } catch (_) {}
@@ -511,7 +530,7 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
 // Resend verification code for an existing login request
 router.post('/login/resend', loginStartLimiter, validateBody(resendCodeSchema), async (req, res) => {
   try {
-    if (isCaptchaEnabled()) {
+    if (shouldRequireCaptcha(req)) {
       const token = (req.body.captchaToken || '').trim()
       if (!token) {
         return respond.error(res, 400, 'captcha_failed', 'Verification failed. Please try again.')
@@ -780,7 +799,8 @@ router.post('/login/verify', loginVerifyLimiter, validateBody(verifyCodeSchema),
     if (useDB) await LoginRequest.deleteOne({ email: emailKey })
     else loginRequests.delete(emailKey)
 
-    inAppNotificationService.createNotification(doc._id, 'auth_login', 'Welcome back', 'You have signed in successfully.').catch((err) => console.error('Failed to create auth notification:', err))
+    const isFirstLogin = !doc.lastLoginAt
+    inAppNotificationService.createLoginNotification(doc._id, { isFirstLogin, userAgent: req.headers['user-agent'], ip: req.ip, method: 'email_otp' }).catch((err) => console.error('Failed to create auth notification:', err))
     createAuditLog(doc._id, 'login', 'session', '', 'active', doc.role?.slug || roleSlug || 'business_owner', { method: 'email_otp', ip: req.ip }).catch(() => {})
 
     return res.json(safe)
@@ -846,6 +866,10 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
     doc.mfaLastUsedTotpCounter = resVerify.counter
     doc.mfaLastUsedTotpAt = new Date()
     doc.lastLoginAt = new Date()
+    // Increment token version for new login to create separate session
+    const oldTokenVersion = doc.tokenVersion || 0
+    doc.tokenVersion = oldTokenVersion + 1
+    console.log(`[Login] User: ${doc.email}, Token version: ${oldTokenVersion} -> ${doc.tokenVersion}`)
     await doc.save()
 
     const passwordExpiredByPolicy = isPasswordExpiredByPolicy(doc.passwordChangedAt)
@@ -947,7 +971,8 @@ router.post('/login/verify-totp', validateBody(verifyTotpSchema), async (req, re
     } catch (sessionError) {
       console.warn('Failed to create session on TOTP login:', sessionError)
     }
-    inAppNotificationService.createNotification(doc._id, 'auth_login', 'Welcome back', 'You have signed in successfully.').catch((err) => console.error('Failed to create auth notification:', err))
+    const isFirstLoginTotp = !doc.lastLoginAt
+    inAppNotificationService.createLoginNotification(doc._id, { isFirstLogin: isFirstLoginTotp, userAgent: req.headers['user-agent'], ip: req.ip, method: 'totp' }).catch((err) => console.error('Failed to create auth notification:', err))
     createAuditLog(doc._id, 'login', 'session', '', 'active', doc.role?.slug || roleSlug || 'business_owner', { method: 'totp', ip: req.ip }).catch(() => {})
     return res.json(safe)
   } catch (err) {
@@ -1069,7 +1094,8 @@ router.post('/google', validateBody(googleLoginSchema), async (req, res) => {
     } catch (sessionError) {
       console.warn('Failed to create session on Google login:', sessionError)
     }
-    inAppNotificationService.createNotification(doc._id, 'auth_login', 'Welcome back', 'You have signed in successfully.').catch((err) => console.error('Failed to create auth notification:', err))
+    const isFirstLoginGoogle = !doc.lastLoginAt
+    inAppNotificationService.createLoginNotification(doc._id, { isFirstLogin: isFirstLoginGoogle, userAgent: req.headers['user-agent'], ip: req.ip, method: 'google' }).catch((err) => console.error('Failed to create auth notification:', err))
 
     return res.json(safe)
   } catch (err) {

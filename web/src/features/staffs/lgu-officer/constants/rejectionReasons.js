@@ -13,6 +13,36 @@ export const REJECTION_REASON_OPTIONS = [
 export const REASON_OTHER_CODE = 'other'
 
 /**
+ * Generic comment options for officer comments.
+ * Used in dropdown when officer adds comments; "Other" allows free-text comments.
+ */
+export const COMMENT_OPTIONS = [
+  { value: 'application_complete', label: 'Application appears complete and ready for processing' },
+  { value: 'minor_clarifications_needed', label: 'Minor clarifications needed from applicant' },
+  { value: 'documents_verified', label: 'All supporting documents have been verified' },
+  { value: 'business_information_confirmed', label: 'Business information has been confirmed' },
+  { value: 'follow_up_required', label: 'Follow-up required for additional verification' },
+  { value: 'other', label: 'Other' },
+]
+
+export const COMMENT_OTHER_CODE = 'other'
+
+/**
+ * Request options for Request Changes decision.
+ * Used when officer needs applicant to make corrections.
+ */
+export const REQUEST_OPTIONS = [
+  { value: 'update_documents', label: 'Please update or resubmit required documents' },
+  { value: 'correct_information', label: 'Please correct the information provided' },
+  { value: 'provide_additional_info', label: 'Please provide additional information' },
+  { value: 'clarify_details', label: 'Please clarify specific details' },
+  { value: 'complete_missing_fields', label: 'Please complete missing fields' },
+  { value: 'other', label: 'Other' },
+]
+
+export const REQUEST_OTHER_CODE = 'other'
+
+/**
  * Build a stable field key for field-level review decisions.
  * - Normal item: sectionIdx + '.' + (item.key || item.label)
  * - Repeatable group row: sectionIdx + '.' + itemKey + '.' + rowIndex

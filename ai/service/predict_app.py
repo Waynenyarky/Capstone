@@ -46,6 +46,9 @@ taxonomy = None
 model_lock = Lock()
 training_meta = None  # {"algorithm": str, "trainedAt": str} from training_meta.json
 
+# OPTIMIZATION: Cache the label-to-taxonomy mapping instead of rebuilding on every request
+_label_to_taxonomy_cache = None
+
 
 def load_taxonomy():
     global taxonomy
@@ -54,7 +57,19 @@ def load_taxonomy():
 
 
 def build_label_to_taxonomy_map():
-    """Build a mapping from 'taxCode|detailedLine' -> full taxonomy info."""
+    """Build a mapping from 'taxCode|detailedLine' -> full taxonomy info.
+    
+    OPTIMIZATION: Results are cached after first call since taxonomy doesn't change.
+    Before: Called on every /predict request, rebuilding the entire mapping each time.
+    After: Built once at startup, reused for all subsequent requests.
+    """
+    global _label_to_taxonomy_cache
+    
+    # Return cached mapping if available
+    if _label_to_taxonomy_cache is not None:
+        return _label_to_taxonomy_cache
+    
+    # Build the mapping (only happens once)
     mapping = {}
     for entry in taxonomy:
         tc = entry["taxCode"]
@@ -67,6 +82,9 @@ def build_label_to_taxonomy_map():
                 "detailedLine": dl,
                 "psicCode": psic,
             }
+    
+    # Cache for future calls
+    _label_to_taxonomy_cache = mapping
     return mapping
 
 
@@ -108,6 +126,12 @@ def health():
         payload["algorithm"] = training_meta.get("algorithm")
         payload["last_trained"] = training_meta.get("trainedAt")
     return jsonify(payload)
+
+
+@app.route("/api/health", methods=["GET"])
+def api_health():
+    """Compatibility endpoint for monitoring service that expects /api/health"""
+    return health()
 
 
 @app.route("/predict", methods=["POST"])

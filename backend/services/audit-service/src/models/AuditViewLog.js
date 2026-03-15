@@ -52,4 +52,13 @@ AuditViewLogSchema.index({ viewedUserId: 1, viewedAt: -1 })
 AuditViewLogSchema.index({ auditLogId: 1 })
 AuditViewLogSchema.index({ viewedAt: -1 })
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+AuditViewLogSchema.plugin(encryptionPlugin, {
+  fields: ['ip', 'userAgent'],
+  deterministicFields: [],
+  nestedPaths: [],
+  arrayPaths: [],
+  mixedPaths: ['metadata'],
+})
+
 module.exports = mongoose.models.AuditViewLog || mongoose.model('AuditViewLog', AuditViewLogSchema)

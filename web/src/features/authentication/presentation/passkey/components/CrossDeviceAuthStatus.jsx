@@ -36,10 +36,10 @@ export default function CrossDeviceAuthStatus({
           <br />
           <strong>Your browser will show a prompt</strong> - use Face ID, Touch ID, fingerprint, or your device PIN.
         </Text>
-        <Spin size="large" style={{ marginBottom: 24 }} />
+        <Spin  style={{ marginBottom: 24 }} />
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <Space size="middle">
-            <Button onClick={onDeny} danger size="large" style={{ minWidth: 120 }}>
+            <Button onClick={onDeny} danger s style={{ minWidth: 120 }}>
               Deny
             </Button>
             <Text type="secondary" style={{ fontSize: 12 }}>

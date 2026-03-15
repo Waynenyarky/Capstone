@@ -2,11 +2,17 @@ import { getCurrentUser, setCurrentUser } from '@/features/authentication/lib/au
 import { authHeaders } from './authHeaders.js'
 
 const MUTATING_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE']
-let authCsrfTokenCache = null
+const csrfTokenCache = new Map()
+
+function syncCsrfCookie(cookieName, token) {
+  if (typeof document === 'undefined' || !cookieName || !token) return
+  document.cookie = `${cookieName}=${encodeURIComponent(token)}; path=/; SameSite=Lax`
+}
 
 /** Get CSRF token for auth API (double-submit cookie). Uses cache; refetches on 403 csrf_invalid. */
 async function getAuthCsrfToken(authBaseUrl) {
-  if (authCsrfTokenCache) return authCsrfTokenCache
+  const cacheKey = 'auth'
+  if (csrfTokenCache.has(cacheKey)) return csrfTokenCache.get(cacheKey)
   const base = (authBaseUrl || '').replace(/\/$/, '')
   const url = base ? `${base}/api/auth/csrf-token` : '/api/auth/csrf-token'
   const res = await fetch(url, { method: 'GET', credentials: 'include' })
@@ -14,20 +20,20 @@ async function getAuthCsrfToken(authBaseUrl) {
   const data = await res.json()
   const token = data?.csrfToken
   if (!token) throw new Error('Invalid security token response')
-  authCsrfTokenCache = token
+  syncCsrfCookie('csrf-token', token)
+  csrfTokenCache.set(cacheKey, token)
   return token
 }
 
 /** Clear cached CSRF token (e.g. after 403 csrf_invalid so next request refetches). */
 export function clearAuthCsrfToken() {
-  authCsrfTokenCache = null
+  csrfTokenCache.delete('auth')
 }
-
-let businessCsrfTokenCache = null
 
 /** Get CSRF token for business/inspector/lgu-officer APIs. Uses cache; refetches on 403 csrf_invalid. */
 async function getBusinessCsrfToken(pathPrefix, baseUrl) {
-  if (businessCsrfTokenCache) return businessCsrfTokenCache
+  const cacheKey = `scope:${pathPrefix}`
+  if (csrfTokenCache.has(cacheKey)) return csrfTokenCache.get(cacheKey)
   const base = (baseUrl || '').replace(/\/$/, '')
   const url = base ? `${base}${pathPrefix}/csrf-token` : `${pathPrefix}/csrf-token`
   const res = await fetch(url, { method: 'GET', credentials: 'include' })
@@ -35,20 +41,33 @@ async function getBusinessCsrfToken(pathPrefix, baseUrl) {
   const data = await res.json()
   const token = data?.csrfToken
   if (!token) throw new Error('Invalid security token response')
-  businessCsrfTokenCache = token
+  const cookieName = pathPrefix === '/api/business'
+    ? 'csrf-token-business'
+    : pathPrefix === '/api/inspector'
+      ? 'csrf-token-inspector'
+      : pathPrefix === '/api/lgu-officer'
+        ? 'csrf-token-lgu-officer'
+        : 'csrf-token'
+  syncCsrfCookie(cookieName, token)
+  csrfTokenCache.set(cacheKey, token)
   return token
 }
 
 /** Clear business CSRF cache (e.g. after 403 csrf_invalid). */
-export function clearBusinessCsrfToken() {
-  businessCsrfTokenCache = null
+export function clearBusinessCsrfToken(pathPrefix) {
+  if (pathPrefix) {
+    csrfTokenCache.delete(`scope:${pathPrefix}`)
+    return
+  }
+  csrfTokenCache.delete('scope:/api/business')
+  csrfTokenCache.delete('scope:/api/inspector')
+  csrfTokenCache.delete('scope:/api/lgu-officer')
 }
-
-let adminCsrfTokenCache = null
 
 /** Get CSRF token for admin APIs. Uses cache; refetches on 403 csrf_invalid. */
 async function getAdminCsrfToken(baseUrl) {
-  if (adminCsrfTokenCache) return adminCsrfTokenCache
+  const cacheKey = 'admin'
+  if (csrfTokenCache.has(cacheKey)) return csrfTokenCache.get(cacheKey)
   const base = (baseUrl || '').replace(/\/$/, '')
   const url = base ? `${base}/api/admin/csrf-token` : '/api/admin/csrf-token'
   const res = await fetch(url, { method: 'GET', credentials: 'include' })
@@ -56,13 +75,14 @@ async function getAdminCsrfToken(baseUrl) {
   const data = await res.json()
   const token = data?.csrfToken
   if (!token) throw new Error('Invalid security token response')
-  adminCsrfTokenCache = token
+  syncCsrfCookie('csrf-token-admin', token)
+  csrfTokenCache.set(cacheKey, token)
   return token
 }
 
 /** Clear admin CSRF cache (e.g. after 403 csrf_invalid). */
 export function clearAdminCsrfToken() {
-  adminCsrfTokenCache = null
+  csrfTokenCache.delete('admin')
 }
 
 // In production build, pick the correct backend origin per path (auth=3001, business=3002, admin/maintenance=3003, audit=3004).
@@ -97,6 +117,12 @@ export async function fetchWithFallback(path, options = {}) {
 
   // Clone options so we don't mutate the caller's object
   const opts = { ...(options || {}) }
+  const retryOnCsrfInvalid = opts.retryOnCsrfInvalid !== false
+  const skipAutoLogout = opts.skipAutoLogout === true
+  const skipAuth = opts.skipAuth === true
+  delete opts.retryOnCsrfInvalid
+  delete opts.skipAutoLogout
+  delete opts.skipAuth
 
   // Merge and normalize headers
   const incomingHeaders = opts.headers || {}
@@ -105,7 +131,7 @@ export async function fetchWithFallback(path, options = {}) {
   // If no Authorization header provided, attach stored token (if any)
   const hasAuthHeader = Object.keys(headers).some((k) => k.toLowerCase() === 'authorization')
   try {
-    if (!hasAuthHeader) {
+    if (!hasAuthHeader && !skipAuth) {
       let current = getCurrentUser()
       
       // Fallback: try reading from storage if not in memory (e.g. on fresh page load)
@@ -141,6 +167,7 @@ export async function fetchWithFallback(path, options = {}) {
   const isInspectorPath = path.startsWith('/api/inspector') && !path.includes('/api/inspector/csrf-token')
   const isLguOfficerPath = path.startsWith('/api/lgu-officer') && !path.includes('/api/lgu-officer/csrf-token')
   const isAdminPath = path.startsWith('/api/admin') && !path.includes('/api/admin/csrf-token')
+  const businessPathPrefix = isBusinessPath ? '/api/business' : isInspectorPath ? '/api/inspector' : isLguOfficerPath ? '/api/lgu-officer' : null
   if (isMutating && isAuthPath) {
     opts.credentials = opts.credentials ?? 'include'
     try {
@@ -154,9 +181,8 @@ export async function fetchWithFallback(path, options = {}) {
   if (isMutating && (isBusinessPath || isInspectorPath || isLguOfficerPath)) {
     opts.credentials = opts.credentials ?? 'include'
     try {
-      const pathPrefix = isBusinessPath ? '/api/business' : isInspectorPath ? '/api/inspector' : '/api/lgu-officer'
       const businessOrigin = origin || (isProductionBuild && path.startsWith('/api') ? getProductionApiOrigin(path) : '')
-      const csrfToken = await getBusinessCsrfToken(pathPrefix, businessOrigin)
+      const csrfToken = await getBusinessCsrfToken(businessPathPrefix, businessOrigin)
       headers['X-CSRF-Token'] = csrfToken
     } catch (_) {
       // Proceed without token; backend will return 403 and we map to generic message
@@ -212,6 +238,24 @@ export async function fetchWithFallback(path, options = {}) {
 
   if (timeoutId != null) clearTimeout(timeoutId)
 
+  if (retryOnCsrfInvalid && isMutating && res?.status === 403) {
+    let errorCode = null
+    try {
+      const retryClone = res.clone()
+      const err = await retryClone.json()
+      errorCode = err?.error?.code || err?.code || null
+    } catch {
+      errorCode = null
+    }
+
+    if (errorCode === 'csrf_invalid') {
+      if (isAuthPath) clearAuthCsrfToken()
+      if (businessPathPrefix) clearBusinessCsrfToken(businessPathPrefix)
+      if (isAdminPath) clearAdminCsrfToken()
+      return fetchWithFallback(path, { ...options, retryOnCsrfInvalid: false })
+    }
+  }
+
   return res
 }
 
@@ -232,7 +276,7 @@ export async function fetchJsonWithFallback(path, options = {}) {
         // Skip auto-logout for login/signup endpoints to avoid redirect loops
         const isAuthEndpoint = path.includes('/login') || path.includes('/signup') || path.includes('/sign-up') || path.includes('/forgot-password')
         
-        if (!isAuthEndpoint) {
+        if (!isAuthEndpoint && !skipAutoLogout) {
           const isSessionInvalidation = errMsgLower.includes('session') && errMsgLower.includes('invalidated')
           const isTokenExpired = errMsgLower.includes('expired') || errMsgLower.includes('jwt') || errMsgLower.includes('token')
           if (isSessionInvalidation || isTokenExpired) {
@@ -304,7 +348,7 @@ export async function fetchJsonWithFallback(path, options = {}) {
         'invalid_code': 'Incorrect verification code. Please check the code and try again.',
         'invalid_mfa_code': 'Incorrect verification code. Please check the code from your authenticator app and try again.',
         'verification_failed': 'Verification failed. Please check your code and try again.',
-        'captcha_failed': 'Verification failed. Please try again.',
+        'captcha_failed': 'CAPTCHA verification failed. Please complete the CAPTCHA and try again.',
         'invalid_credentials': 'The email address or password you entered is incorrect. Please check your credentials and try again.',
         'webauthn_verification_failed': 'Passkey verification failed. Please try again.',
         'webauthn_verification_exception': 'Registration failed. Please try again.',
@@ -350,15 +394,19 @@ export async function fetchJsonWithFallback(path, options = {}) {
         if (codeMap[errorCode]) errMsg = codeMap[errorCode]
       }
 
-      // Login endpoints: never expose validation details (password length, email format, etc.) — show generic invalid credentials only.
+      // Login credentials endpoints: never expose validation details (password length, email format, etc.)
+      // and show generic invalid credentials only.
+      // IMPORTANT: keep verification endpoint errors intact so OTP/TOTP screens can show correct guidance.
       const isLoginPath = path.includes('/login')
-      if (isLoginPath && (statusCode === 400 || statusCode === 422 || errorCode === 'validation_error')) {
+      const isLoginVerificationPath = path.includes('/login/verify') || path.includes('/login/verify-totp')
+      const shouldMaskAsInvalidCredentials = isLoginPath && !isLoginVerificationPath
+      if (shouldMaskAsInvalidCredentials && (statusCode === 400 || statusCode === 422 || errorCode === 'validation_error') && errorCode !== 'captcha_failed') {
         errMsg = 'The email address or password you entered is incorrect. Please check your credentials and try again.'
         errorCode = 'invalid_credentials'
       }
       
       // For 401 errors on login endpoints, assume invalid credentials if not already handled
-      if (statusCode === 401 && isLoginPath) {
+      if (statusCode === 401 && shouldMaskAsInvalidCredentials) {
         // If we have an error code, use the mapped message
         if (errorCode && codeMap[errorCode]) {
           errMsg = codeMap[errorCode]
@@ -411,6 +459,14 @@ export async function fetchJsonWithFallback(path, options = {}) {
     }
   }
   return res.json()
+}
+
+export async function verifyLoginTotp(payload) {
+  return await fetchJsonWithFallback('/api/auth/login/verify-totp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
 }
 
 export const get = (path, options) => fetchJsonWithFallback(path, { ...options, method: 'GET' })

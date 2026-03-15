@@ -128,6 +128,22 @@ describe('Retirement / Cessation (2F)', () => {
       expect(res.status).toBe(200)
       expect(res.body.data.retirementStatus).toBe('requested')
     })
+
+    it('should submit retirement when business subdocument _id is used', async () => {
+      const profile = await createBusinessProfile()
+      const businessSubdocId = profile.businesses[0]._id.toString()
+
+      const res = await request(app)
+        .post(`/api/business/${businessSubdocId}/retire`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({
+          applicationLetter: 'Retire via subdocument id',
+          swornStatementGrossSales: 12345,
+        })
+
+      expect(res.status).toBe(200)
+      expect(res.body.data.retirementStatus).toBe('requested')
+    })
   })
 
   describe('UC-2F-1: Full retirement flow', () => {

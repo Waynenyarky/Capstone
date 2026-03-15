@@ -1163,6 +1163,18 @@ class BusinessProfileService {
       throw new Error('Business not found')
     }
 
+    // Fetch officer details if reviewedBy exists
+    let reviewingOfficer = null
+    if (business.reviewedBy) {
+      try {
+        const mongoose = require('mongoose')
+        const User = mongoose.model('User')
+        reviewingOfficer = await User.findById(business.reviewedBy).select('name email phone').lean()
+      } catch (err) {
+        console.log('Error fetching officer details:', err.message)
+      }
+    }
+
     const applicationStatus = business.applicationStatus || 'draft'
     console.log(`[getBusinessApplicationStatus] Retrieved status '${applicationStatus}' for businessId=${businessId}, userId=${userId}`)
 
@@ -1175,7 +1187,7 @@ class BusinessProfileService {
       applicationReferenceNumber: business.applicationReferenceNumber,
       submittedAt: business.submittedAt,
       submittedToLguOfficer: business.submittedToLguOfficer,
-      reviewedBy: business.reviewedBy,
+      reviewedBy: reviewingOfficer || business.reviewedBy, // Use populated officer details if available
       reviewedAt: business.reviewedAt,
       reviewComments: business.reviewComments,
       rejectionReason: business.rejectionReason,

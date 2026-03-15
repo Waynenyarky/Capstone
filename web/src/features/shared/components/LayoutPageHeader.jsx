@@ -10,6 +10,9 @@ import {
   CloseCircleOutlined,
   ExclamationCircleOutlined,
   InfoCircleOutlined,
+  BulbOutlined,
+  SunOutlined,
+  MoonOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -18,6 +21,8 @@ import { useConfirmLogoutModal } from '@/features/authentication/hooks/useConfir
 import ConfirmLogoutModal from '@/features/authentication/components/ConfirmLogoutModal'
 import { getNotifications, getUnreadCount, markAsRead } from '@/features/user/services/notificationService'
 import { useNotificationStream } from '@/features/user/hooks/useNotificationStream'
+import { useAppTheme, THEMES } from '@/shared/theme/ThemeProvider'
+import { logoutApi } from '@/features/authentication/services/authService'
 
 dayjs.extend(relativeTime)
 
@@ -79,14 +84,16 @@ function getNotificationIcon(type, token) {
 export default function LayoutPageHeader({
   pageTitle,
   pageIcon,
-  leftContent,
   headerActions,
   viewNotificationsPath,
   hideNotifications = false,
   hideProfileSettings = false,
   showPageHeader = true,
+  onSettingsClick,
+  leftContent,
 }) {
   const { currentUser, logout } = useAuthSession()
+  const { currentTheme, setTheme } = useAppTheme()
   const navigate = useNavigate()
   const screens = useBreakpoint()
   const { token } = theme.useToken()
@@ -99,9 +106,22 @@ export default function LayoutPageHeader({
 
   const { open, show, hide, confirming, handleConfirm } = useConfirmLogoutModal({
     onConfirm: async () => {
-      if (logout) await logout()
+      try {
+        await logoutApi().catch(() => {})
+        if (logout) await logout()
+        navigate('/', { replace: true })
+      } catch (err) {
+        console.error('Logout error:', err)
+      }
     },
   })
+
+  const isDarkMode = currentTheme === THEMES.DARK
+
+  const handleThemeToggle = () => {
+    const newTheme = isDarkMode ? THEMES.DEFAULT : THEMES.DARK
+    setTheme(newTheme)
+  }
 
   const profileMenuItems = [
     ...(hideProfileSettings
@@ -111,9 +131,21 @@ export default function LayoutPageHeader({
             key: 'settings',
             icon: <SettingOutlined />,
             label: 'View settings',
-            onClick: () => navigate('/settings-profile'),
+            onClick: () => {
+              if (onSettingsClick) {
+                onSettingsClick()
+              } else {
+                navigate('/settings-profile')
+              }
+            },
           },
         ]),
+    {
+      key: 'theme',
+      icon: isDarkMode ? <SunOutlined /> : <MoonOutlined />,
+      label: isDarkMode ? 'Light mode' : 'Dark mode',
+      onClick: handleThemeToggle,
+    },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
@@ -152,7 +184,7 @@ export default function LayoutPageHeader({
     fetchNotifications()
     const interval = setInterval(fetchNotifications, NOTIFICATIONS_POLL_MS)
     return () => clearInterval(interval)
-  }, [currentUser, hideNotifications, fetchNotifications])
+  }, [currentUser, hideNotifications]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleNotificationClick = async (notification) => {
     try {
@@ -280,6 +312,7 @@ export default function LayoutPageHeader({
           flexWrap: 'wrap',
           gap: 12,
           borderBottom: `1px solid ${token.colorBorder}`,
+          background: token.colorBgElevated, // Use proper theme token for elevated surfaces
         }}
       >
         {leftContent || (

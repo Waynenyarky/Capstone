@@ -19,13 +19,13 @@ export default function InvalidateSessionsButton({ onDone }) {
   }
 
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div style={{ marginBottom: 12, width: '100%' }}>
       <Popconfirm
         title="Invalidate all other sessions?"
         description="This will sign out your other devices."
         onConfirm={handleInvalidateAll}
       >
-        <Button danger size="small">Invalidate All Other Sessions</Button>
+        <Button danger block>Invalidate All Other Sessions</Button>
       </Popconfirm>
     </div>
   )

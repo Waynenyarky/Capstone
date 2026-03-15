@@ -15,7 +15,8 @@ const bypassMfaDev = false
 
 export default function StaffOnboarding() {
   const [currentStep, setCurrentStep] = useState(0)
-  const { login } = useAuthSession()
+  const [completingOnboarding, setCompletingOnboarding] = useState(false)
+  const { login, currentUser: authCurrentUser } = useAuthSession()
   const {
     form,
     submitting,
@@ -85,17 +86,28 @@ export default function StaffOnboarding() {
   }, [location.pathname, currentUser?.email, currentStep])
 
   const handleComplete = async () => {
+    setCompletingOnboarding(true)
     try {
+      // Fetch fresh profile to ensure mustChangeCredentials and mustSetupMfa are cleared
       const fresh = await getProfile()
       const merged = { ...currentUser, ...fresh, token: currentUser?.token }
       const remember = !!localStorage.getItem('auth__currentUser')
       login(merged, { remember })
     } catch (e) {
       console.error('[StaffOnboarding] Failed to refresh profile before dashboard', e)
+      // Fallback: navigate anyway to avoid being stuck
+      setCompletingOnboarding(false)
+      navigate(homePath, { replace: true })
     }
-    // Defer navigation so auth context can re-render with updated user; otherwise StaffDashboard may still see stale mustChangeCredentials/mustSetupMfa and redirect back
-    setTimeout(() => navigate(homePath, { replace: true }), 0)
   }
+
+  // Navigate after auth context has updated with cleared flags
+  useEffect(() => {
+    if (completingOnboarding && authCurrentUser && !authCurrentUser.mustChangeCredentials && !authCurrentUser.mustSetupMfa) {
+      // Auth context has been updated with cleared flags, safe to navigate
+      navigate(homePath, { replace: true })
+    }
+  }, [completingOnboarding, authCurrentUser, navigate, homePath])
 
   return (
     <StaffLayout
@@ -108,7 +120,7 @@ export default function StaffOnboarding() {
       <div
         style={{
           padding: '40px 24px',
-          background: token.colorBgLayout,
+          background: token.colorBgContainer,
           flex: 1,
           overflow: 'auto',
         }}

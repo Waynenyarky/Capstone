@@ -26,7 +26,8 @@
     "mongodb": "^7.0.0",
     "mongoose": "^9.0.0",
     "node-cron": "^3.0.3",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "speakeasy": "^2.0.0"
   },
   "optionalDependencies": {
     "cookie-parser": "^1.4.7",

@@ -10,4 +10,13 @@ const RoleSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+RoleSchema.plugin(encryptionPlugin, {
+  fields: ['name', 'description', 'displayName'],
+  deterministicFields: ['slug'],
+  nestedPaths: [],
+  arrayPaths: [],
+  mixedPaths: [],
+})
+
 module.exports = mongoose.models.Role || mongoose.model('Role', RoleSchema)

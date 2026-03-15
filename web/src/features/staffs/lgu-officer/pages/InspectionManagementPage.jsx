@@ -43,15 +43,36 @@ export default function InspectionManagementPage() {
   const [form] = Form.useForm()
   const { success, error: notifyError } = useNotifier()
 
+  // Searchable select data
+  const [businesses, setBusinesses] = useState([])
+  const [inspectors, setInspectors] = useState([])
+  const [lookupsLoading, setLookupsLoading] = useState(false)
+
+  const fetchLookups = useCallback(async () => {
+    setLookupsLoading(true)
+    try {
+      const [bizRes, inspRes] = await Promise.all([
+        get('/api/lgu-officer/businesses-for-inspection').catch(() => ({ businesses: [] })),
+        get('/api/lgu-officer/inspectors').catch(() => ({ inspectors: [] })),
+      ])
+      setBusinesses(bizRes?.businesses || [])
+      setInspectors(inspRes?.inspectors || [])
+    } catch {
+      setBusinesses([])
+      setInspectors([])
+    } finally {
+      setLookupsLoading(false)
+    }
+  }, [])
+
   const fetchInspections = useCallback(async () => {
     try {
       setLoading(true)
-      // Inspections may be served from a different endpoint
-      const res = await get('/api/business/inspections', {
+      const res = await get('/api/lgu-officer/inspections', {
         ...(statusFilter && { status: statusFilter }),
-        ...(typeFilter && { type: typeFilter }),
-      }).catch(() => ({ data: [] }))
-      setInspections(res?.data || [])
+        ...(typeFilter && { inspectionType: typeFilter }),
+      }).catch(() => ({ inspections: [] }))
+      setInspections(res?.inspections || res?.data || [])
     } catch (err) {
       setInspections([])
     } finally {
@@ -64,12 +85,15 @@ export default function InspectionManagementPage() {
   const handleAssign = useCallback(async (values) => {
     try {
       setSubmitting(true)
-      await post('/api/business/inspections', {
+      // Find the selected business to get businessProfileId
+      const selectedBiz = businesses.find(b => b.businessId === values.businessId)
+      await post('/api/lgu-officer/inspections', {
+        businessProfileId: selectedBiz?.businessProfileId || values.businessId,
         businessId: values.businessId,
+        permitType: values.permitType || 'initial',
         inspectionType: values.inspectionType,
         scheduledDate: values.scheduledDate?.toISOString(),
         inspectorId: values.inspectorId,
-        complaintDetails: values.complaintDetails || '',
       })
       success('Inspection assigned')
       setAssignModal(false)
@@ -80,7 +104,7 @@ export default function InspectionManagementPage() {
     } finally {
       setSubmitting(false)
     }
-  }, [form, success, notifyError, fetchInspections])
+  }, [form, success, notifyError, fetchInspections, businesses])
 
   const getStatusTag = (status) => {
     const map = {
@@ -104,27 +128,31 @@ export default function InspectionManagementPage() {
   }
 
   const columns = [
-    { title: 'Business ID', dataIndex: 'businessId', key: 'businessId', render: (v) => <Text code>{v}</Text> },
+    { title: 'Business', dataIndex: 'businessName', key: 'business', ellipsis: true, render: (v, r) => v || r.businessId || 'N/A' },
     {
       title: 'Type',
       dataIndex: 'inspectionType',
       key: 'inspectionType',
+      width: 110,
       render: (v) => {
         const t = INSPECTION_TYPES.find((t) => t.value === v)
         return <Tag>{t?.label || v}</Tag>
       },
     },
-    { title: 'Status', dataIndex: 'status', key: 'status', render: getStatusTag },
-    { title: 'Result', dataIndex: 'overallResult', key: 'result', render: getResultTag },
+    { title: 'Inspector', dataIndex: 'inspectorName', key: 'inspector', width: 140, render: (v) => v || <Text type="secondary">Unassigned</Text> },
+    { title: 'Status', dataIndex: 'status', key: 'status', width: 110, render: getStatusTag },
+    { title: 'Result', dataIndex: 'overallResult', key: 'result', width: 130, render: getResultTag },
     {
       title: 'Scheduled',
       dataIndex: 'scheduledDate',
       key: 'scheduledDate',
+      width: 110,
       render: (v) => v ? dayjs(v).format('YYYY-MM-DD') : '-',
     },
     {
-      title: 'Actions',
+      title: '',
       key: 'actions',
+      width: 80,
       render: (_, record) => (
         <Button size="small" icon={<EyeOutlined />} onClick={() => setDetailDrawer(record)}>
           Details
@@ -148,7 +176,7 @@ export default function InspectionManagementPage() {
           </div>
           <Space>
             <Button icon={<ReloadOutlined />} onClick={fetchInspections} loading={loading}>Refresh</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setAssignModal(true) }}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setAssignModal(true); fetchLookups() }}>
               Assign Inspection
             </Button>
           </Space>
@@ -195,32 +223,54 @@ export default function InspectionManagementPage() {
           destroyOnHidden
         >
           <Form form={form} layout="vertical" onFinish={handleAssign}>
-            <Form.Item name="businessId" label="Business ID" rules={[{ required: true }]}>
-              <Input placeholder="e.g. BP-2024-00001" />
+            <Form.Item name="businessId" label="Business" rules={[{ required: true, message: 'Select a business' }]}>
+              <Select
+                showSearch
+                placeholder="Search business by name or ID..."
+                loading={lookupsLoading}
+                filterOption={(input, option) =>
+                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase()) ||
+                  (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={businesses.map(b => ({
+                  value: b.businessId,
+                  label: `${b.businessName || 'Unnamed'} (${b.businessId})`,
+                }))}
+                notFoundContent={lookupsLoading ? <Spin size="small" /> : <Empty description="No approved businesses" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+              />
             </Form.Item>
-            <Form.Item name="inspectionType" label="Inspection Type" rules={[{ required: true }]}>
-              <Select placeholder="Select type" options={INSPECTION_TYPES} />
+            <Form.Item name="inspectorId" label="Inspector" rules={[{ required: true, message: 'Select an inspector' }]}>
+              <Select
+                showSearch
+                placeholder="Search inspector by name..."
+                loading={lookupsLoading}
+                filterOption={(input, option) =>
+                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={inspectors.map(i => ({
+                  value: i._id,
+                  label: `${i.name}${i.email ? ` (${i.email})` : ''}`,
+                }))}
+                notFoundContent={lookupsLoading ? <Spin size="small" /> : <Empty description="No inspectors found" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+              />
             </Form.Item>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item name="inspectionType" label="Inspection Type" rules={[{ required: true }]}>
+                  <Select placeholder="Select type" options={INSPECTION_TYPES} />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="permitType" label="Permit Type" rules={[{ required: true }]} initialValue="initial">
+                  <Select options={[{ value: 'initial', label: 'Initial' }, { value: 'renewal', label: 'Renewal' }]} />
+                </Form.Item>
+              </Col>
+            </Row>
             <Form.Item name="scheduledDate" label="Scheduled Date" rules={[{ required: true }]}>
-              <DatePicker style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item name="inspectorId" label="Inspector ID">
-              <Input placeholder="Inspector user ID (optional)" />
-            </Form.Item>
-            <Form.Item
-              noStyle
-              shouldUpdate={(prev, curr) => prev.inspectionType !== curr.inspectionType}
-            >
-              {({ getFieldValue }) =>
-                getFieldValue('inspectionType') === 'complaint' ? (
-                  <Form.Item name="complaintDetails" label="Complaint Details">
-                    <Input.TextArea rows={3} placeholder="Describe the complaint" />
-                  </Form.Item>
-                ) : null
-              }
+              <DatePicker style={{ width: '100%' }} disabledDate={(d) => d && d < dayjs().startOf('day')} />
             </Form.Item>
             <Button type="primary" htmlType="submit" loading={submitting} block>
-              Assign
+              Assign Inspection
             </Button>
           </Form>
         </Modal>

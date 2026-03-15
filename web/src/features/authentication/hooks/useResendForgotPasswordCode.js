@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { sendForgotPassword } from '@/features/authentication/services/authService'
+import { resendForgotPasswordCode } from '@/features/authentication/services/authService'
 import { useNotifier } from '@/shared/notifications'
 import useCooldown from './useCooldown'
 
@@ -13,7 +13,7 @@ export function useResendForgotPasswordCode({ email, cooldownSec = 60, onSent } 
     if (isCooling) return
     try {
       setSending(true)
-      await sendForgotPassword({ email })
+      await resendForgotPasswordCode({ email })
       success('Reset code sent to your email')
       start(cooldownSec)
       if (typeof onSent === 'function') onSent({ email })

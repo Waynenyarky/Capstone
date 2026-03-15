@@ -79,7 +79,7 @@ export async function uploadFile(businessId, renewalId, file, fieldName = 'file'
   formData.append('file', file)
   formData.append('fieldName', fieldName)
 
-  const response = await fetch(
+  const response = await fetchWithFallback(
     `${BASE_PATH}/${businessId}/${renewalId}/documents/upload-file`,
     {
       method: 'POST',

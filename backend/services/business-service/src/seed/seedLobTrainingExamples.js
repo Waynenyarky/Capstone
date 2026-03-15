@@ -70,6 +70,8 @@ async function seedIfEmpty() {
     if (!desc) continue
     for (const rec of entry.recommendations || []) {
       if (!rec.taxCode || !rec.detailedLine) continue
+      // Skip entries with empty lineOfBusiness
+      if (!rec.lineOfBusiness || rec.lineOfBusiness.trim() === '') continue
       docs.push({
         businessDescription: desc,
         taxCode: rec.taxCode,

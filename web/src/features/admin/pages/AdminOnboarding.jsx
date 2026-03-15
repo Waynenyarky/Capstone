@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Form } from '@/shared/components/AppForm'
 import { Row, Col, theme } from 'antd'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { SecurityScanOutlined } from '@ant-design/icons'
 import { useAuthSession } from '@/features/authentication'
 import { mfaStatus } from '@/features/authentication/services/mfaService'
@@ -17,6 +17,7 @@ export default function AdminOnboarding() {
   const { currentUser, login } = useAuthSession()
   const { success, error } = useNotifier()
   const location = useLocation()
+  const navigate = useNavigate()
   const { token } = theme.useToken()
   const [form] = Form.useForm()
 
@@ -28,6 +29,7 @@ export default function AdminOnboarding() {
   const [mfaEnabled, setMfaEnabled] = useState(false)
   const [checkingMfa, setCheckingMfa] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [completingOnboarding, setCompletingOnboarding] = useState(false)
 
   useEffect(() => {
     const checkMfaStatus = async () => {
@@ -96,13 +98,40 @@ export default function AdminOnboarding() {
     }
   }
 
-  const handleComplete = () => {
-    window.location.assign('/admin/dashboard')
+  const handleComplete = async () => {
+    setCompletingOnboarding(true)
+    try {
+      // Fetch fresh profile to ensure mustChangeCredentials and mustSetupMfa are cleared
+      const fresh = await getProfile()
+      const merged = { ...currentUser, ...fresh, token: currentUser?.token }
+      const remember = !!localStorage.getItem('auth__currentUser')
+      login(merged, { remember })
+    } catch (e) {
+      console.error('[AdminOnboarding] Failed to refresh profile before dashboard', e)
+      // Fallback: navigate anyway to avoid being stuck
+      setCompletingOnboarding(false)
+      navigate('/admin/dashboard', { replace: true })
+    }
   }
+
+  // Navigate after auth context has updated with cleared flags
+  useEffect(() => {
+    if (completingOnboarding && currentUser && !currentUser.mustChangeCredentials && !currentUser.mustSetupMfa) {
+      // Auth context has been updated with cleared flags, safe to navigate
+      navigate('/admin/dashboard', { replace: true })
+    }
+  }, [completingOnboarding, currentUser, navigate])
 
   return (
     <AdminLayout hideSidebar pageTitle="Onboarding" pageIcon={<SecurityScanOutlined />}>
-      <div style={{ padding: '40px 24px', background: token.colorBgLayout, flex: 1, overflow: 'auto' }}>
+      <div
+        style={{
+          padding: '40px 24px',
+          background: token.colorBgContainer,
+          flex: 1,
+          overflow: 'auto',
+        }}
+      >
         <Row justify="center">
           <Col xs={24} sm={24} md={20} lg={18} xl={16}>
             <OnboardingStepContent

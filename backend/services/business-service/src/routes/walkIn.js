@@ -1,6 +1,7 @@
 const express = require('express')
 const { requireJwt, requireRole } = require('../middleware/auth')
 const BusinessProfile = require('../models/BusinessProfile')
+const GeneralPermit = require('../models/GeneralPermit')
 const { computeApplicationFees } = require('../lib/feeCalculator')
 const { logAuditEvent } = require('../lib/auditClient')
 
@@ -14,17 +15,54 @@ router.post('/', requireJwt, requireRole(['lgu_officer', 'admin']), async (req, 
   try {
     const {
       applicantUserId,
+      ownerId,
       pisData,
       businessData,
       businessActivities,
       draft,
+      registrationType,
+      permitType, // 'permit' (regular) or 'general_permit' (temporary)
+      permitCategory, // For general_permit: food_stall, event, etc.
     } = req.body
 
-    if (!businessData) {
-      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'businessData is required' } })
+    const userId = applicantUserId || ownerId || req._userId
+    if (!userId) {
+      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'ownerId is required' } })
     }
 
-    const userId = applicantUserId || req._userId
+    // Handle Temporary (General Permit) applications
+    if (permitType === 'general_permit') {
+      const generalPermit = await GeneralPermit.create({
+        permitCategory: permitCategory || 'food_stall',
+        requirements: [],
+        businessPlateNo: '',
+        applicantId: userId,
+        status: 'draft',
+      })
+
+      logAuditEvent('walk_in_general_permit_created', req._userId, 'GeneralPermit', generalPermit._id.toString(), {
+        permitCategory: generalPermit.permitCategory,
+        ownerId: userId,
+      })
+
+      return res.status(201).json({
+        data: {
+          applicationId: generalPermit._id.toString(),
+          permitType: 'general_permit',
+          permitCategory: generalPermit.permitCategory,
+          status: generalPermit.status,
+          generalPermit: generalPermit.toObject(),
+        },
+      })
+    }
+
+    // Handle Regular (Business Permit) applications
+    // Support simplified walk-in creation (just ownerId + registrationType)
+    // or full businessData payload
+    const effectiveBusinessData = businessData || {
+      applicationType: registrationType || 'new',
+      businessName: 'Walk-in Business (Draft)',
+    }
 
     // Find or create profile
     let profile = await BusinessProfile.findOne({ userId })
@@ -41,35 +79,35 @@ router.post('/', requireJwt, requireRole(['lgu_officer', 'admin']), async (req, 
     const newBusiness = {
       businessId,
       isPrimary: profile.businesses.length === 0,
-      businessName: businessData.registeredBusinessName || businessData.businessName || 'Walk-in Business',
-      businessRegistrationNumber: businessData.businessRegistrationNumber || businessId,
+      businessName: effectiveBusinessData.registeredBusinessName || effectiveBusinessData.businessName || 'Walk-in Business',
+      businessRegistrationNumber: effectiveBusinessData.businessRegistrationNumber || businessId,
       registrationStatus: 'proposed',
       businessStatus: 'active',
       // Unified form fields
-      applicationType: businessData.applicationType || 'new',
-      organizationType: businessData.organizationType || '',
-      businessPlateNo: businessData.businessPlateNo || '',
-      yearEstablished: businessData.yearEstablished || null,
+      applicationType: effectiveBusinessData.applicationType || 'new',
+      organizationType: effectiveBusinessData.organizationType || '',
+      businessPlateNo: effectiveBusinessData.businessPlateNo || '',
+      yearEstablished: effectiveBusinessData.yearEstablished || null,
       // Address
-      houseBldgNo: businessData.houseBldgNo || '',
-      buildingName: businessData.buildingName || '',
-      street: businessData.street || '',
-      barangay: businessData.barangay || '',
-      subdivision: businessData.subdivision || '',
-      cityMunicipality: businessData.cityMunicipality || '',
-      blockCode: businessData.blockCode || '',
-      pin: businessData.pin || '',
-      buildingRegistryNo: businessData.buildingRegistryNo || '',
-      businessAreaSqm: businessData.businessAreaSqm || 0,
-      totalEmployees: businessData.totalEmployees || 0,
-      employeesResidingInLgu: businessData.employeesResidingInLgu || 0,
-      businessLocationType: businessData.businessLocationType || 'owned',
+      houseBldgNo: effectiveBusinessData.houseBldgNo || '',
+      buildingName: effectiveBusinessData.buildingName || '',
+      street: effectiveBusinessData.street || '',
+      barangay: effectiveBusinessData.barangay || '',
+      subdivision: effectiveBusinessData.subdivision || '',
+      cityMunicipality: effectiveBusinessData.cityMunicipality || '',
+      blockCode: effectiveBusinessData.blockCode || '',
+      pin: effectiveBusinessData.pin || '',
+      buildingRegistryNo: effectiveBusinessData.buildingRegistryNo || '',
+      businessAreaSqm: effectiveBusinessData.businessAreaSqm || 0,
+      totalEmployees: effectiveBusinessData.totalEmployees || 0,
+      employeesResidingInLgu: effectiveBusinessData.employeesResidingInLgu || 0,
+      businessLocationType: effectiveBusinessData.businessLocationType || 'owned',
       // Owner
-      ownerAddress: businessData.ownerAddress || {},
-      lessorInfo: businessData.lessorInfo || {},
-      emergencyContact: businessData.emergencyContact || {},
-      presidentName: businessData.presidentName || '',
-      treasurerName: businessData.treasurerName || '',
+      ownerAddress: effectiveBusinessData.ownerAddress || {},
+      lessorInfo: effectiveBusinessData.lessorInfo || {},
+      emergencyContact: effectiveBusinessData.emergencyContact || {},
+      presidentName: effectiveBusinessData.presidentName || '',
+      treasurerName: effectiveBusinessData.treasurerName || '',
       // Activities
       businessActivities: (businessActivities || []).map((a) => ({
         taxCode: a.taxCode || '',
@@ -79,21 +117,21 @@ router.post('/', requireJwt, requireRole(['lgu_officer', 'admin']), async (req, 
         grossSales: a.grossSales || 0,
       })),
       // Capital
-      capital: businessData.capital || {},
-      accreditations: businessData.accreditations || {},
-      oathOfUndertaking: businessData.oathOfUndertaking || false,
+      capital: effectiveBusinessData.capital || {},
+      accreditations: effectiveBusinessData.accreditations || {},
+      oathOfUndertaking: effectiveBusinessData.oathOfUndertaking || false,
       // Legacy fields
-      registeredBusinessName: businessData.registeredBusinessName || '',
-      businessTradeName: businessData.businessTradeName || '',
-      ownerFullName: businessData.ownerFullName || '',
-      emailAddress: businessData.emailAddress || '',
-      mobileNumber: businessData.mobileNumber || '',
-      // Status
-      applicationStatus: draft ? 'draft' : 'submitted',
+      registeredBusinessName: effectiveBusinessData.registeredBusinessName || '',
+      businessTradeName: effectiveBusinessData.businessTradeName || '',
+      ownerFullName: effectiveBusinessData.ownerFullName || '',
+      emailAddress: effectiveBusinessData.emailAddress || '',
+      mobileNumber: effectiveBusinessData.mobileNumber || '',
+      // Status - simplified walk-in always creates draft
+      applicationStatus: (businessData ? (draft ? 'draft' : 'submitted') : 'draft'),
       applicationReferenceNumber: `WI-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
-      submittedAt: draft ? undefined : new Date(),
-      submittedToLguOfficer: !draft,
-      isSubmitted: !draft,
+      submittedAt: (businessData && !draft) ? new Date() : undefined,
+      submittedToLguOfficer: businessData ? !draft : false,
+      isSubmitted: businessData ? !draft : false,
     }
 
     profile.businesses.push(newBusiness)
@@ -113,6 +151,7 @@ router.post('/', requireJwt, requireRole(['lgu_officer', 'admin']), async (req, 
       data: {
         applicationId: newBusiness.applicationReferenceNumber,
         businessId,
+        permitType: 'permit',
         computedFees,
         profile: profile.toObject(),
       },

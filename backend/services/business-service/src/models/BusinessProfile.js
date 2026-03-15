@@ -175,7 +175,7 @@ const BusinessProfileSchema = new mongoose.Schema(
       // New Business Registration Application Fields
       applicationStatus: {
         type: String,
-        enum: ['draft', 'requirements_viewed', 'form_completed', 'documents_uploaded', 'bir_registered', 'agencies_registered', 'submitted', 'resubmit', 'under_review', 'approved', 'rejected', 'needs_revision'],
+        enum: ['draft', 'requirements_viewed', 'form_completed', 'documents_uploaded', 'bir_registered', 'agencies_registered', 'submitted', 'resubmit', 'under_review', 'approved', 'rejected', 'needs_revision', 'appeal_pending'],
         default: 'draft'
       },
       applicationReferenceNumber: { type: String, default: '' },
@@ -183,6 +183,8 @@ const BusinessProfileSchema = new mongoose.Schema(
       reviewedAt: { type: Date, default: null },
       reviewComments: { type: String, default: '' },
       rejectionReason: { type: String, default: '' },
+      // Per-field accept/reject decisions from LGU review workflow
+      fieldReviewDecisions: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
       // Step 2: Online Application Form (new spec)
       registeredBusinessName: { type: String, default: '' },
       businessTradeName: { type: String, default: '' },
@@ -356,5 +358,24 @@ const BusinessProfileSchema = new mongoose.Schema(
   },
   { timestamps: true }
 )
+
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+BusinessProfileSchema.plugin(encryptionPlugin, {
+  fields: [],
+  deterministicFields: [],
+  nestedPaths: ['ownerIdentity', 'consent'],
+  arrayPaths: ['businesses'],
+  arrayPathsExclude: {
+    businesses: [
+      // These fields must remain plaintext so they can be queried/filtered in MongoDB
+      'businessId', 'applicationStatus', 'applicationReferenceNumber',
+      'businessName', 'registeredBusinessName', 'businessPlateNo',
+      'businessStatus', 'registrationStatus', 'retirementStatus',
+      'applicationId', 'applicationType', 'isSubmitted', 'submittedToLguOfficer',
+      'reviewedBy', 'claimedBy',
+    ],
+  },
+  mixedPaths: ['businessRegistration', 'location', 'compliance', 'profileDetails', 'notifications'],
+})
 
 module.exports = mongoose.model('BusinessProfile', BusinessProfileSchema)

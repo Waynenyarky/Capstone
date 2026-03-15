@@ -10,4 +10,13 @@ const OfficeSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+OfficeSchema.plugin(encryptionPlugin, {
+  fields: ['name', 'group'],
+  deterministicFields: ['code'],
+  nestedPaths: [],
+  arrayPaths: [],
+  mixedPaths: [],
+})
+
 module.exports = mongoose.models.Office || mongoose.model('Office', OfficeSchema)

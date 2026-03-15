@@ -68,4 +68,15 @@ function isCaptchaEnabled() {
   return Boolean(process.env.TURNSTILE_SECRET_KEY && process.env.TURNSTILE_SECRET_KEY.trim() !== '')
 }
 
-module.exports = { verifyTurnstileToken, isCaptchaEnabled }
+function shouldRequireCaptcha(req) {
+  if (!isCaptchaEnabled()) return false
+  const headers = (req && req.headers) || {}
+  const clientType = String(headers['x-client-type'] || '').trim().toLowerCase()
+  if (clientType === 'mobile') return false
+  const origin = String(headers.origin || '').trim()
+  const secFetchSite = String(headers['sec-fetch-site'] || '').trim()
+  const secFetchMode = String(headers['sec-fetch-mode'] || '').trim()
+  return Boolean(origin || secFetchSite || secFetchMode)
+}
+
+module.exports = { verifyTurnstileToken, isCaptchaEnabled, shouldRequireCaptcha }

@@ -35,7 +35,7 @@ export default function DeletionPendingScreen() {
       <Layout.Content
         style={{
           padding: isMobile ? 16 : 24,
-          background: token.colorBgLayout,
+          background: token.colorBgContainer,
           flex: 1,
           display: 'flex',
           flexDirection: 'column',

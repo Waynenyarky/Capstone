@@ -202,6 +202,8 @@ const CSP_CONNECT_SRC = [
   "http://127.0.0.1:3004",
   "ws://localhost:5173",
   "ws://127.0.0.1:5173",
+  "ws://localhost:3002",
+  "ws://127.0.0.1:3002",
 ].join(' ');
 
 const SECURITY_HEADERS = {
@@ -210,9 +212,9 @@ const SECURITY_HEADERS = {
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data: blob: http://localhost:8080 http://127.0.0.1:8080",
+    "img-src 'self' data: blob: http://localhost:8080 http://127.0.0.1:8080 http://*.ipfs.localhost:8080",
     `connect-src ${CSP_CONNECT_SRC}`,
-    "frame-src https://challenges.cloudflare.com http://localhost:8080 http://127.0.0.1:8080",
+    "frame-src 'self' blob: https://challenges.cloudflare.com http://challenges.cloudflare.com http://localhost:8080 http://127.0.0.1:8080 http://*.ipfs.localhost:8080",
     "frame-ancestors 'self'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -264,6 +266,11 @@ export default defineConfig({
       
       // Maintenance endpoints -> Admin Service (port 3003)
       '/api/maintenance': createProxyConfig('/api/maintenance', `http://localhost:${MICROSERVICES.admin}`),
+
+      // LGU Officer inspection-assignment endpoints -> Business Service (port 3002)
+      '/api/lgu-officer/inspectors': createProxyConfig('/api/lgu-officer/inspectors', `http://localhost:${MICROSERVICES.business}`),
+      '/api/lgu-officer/businesses-for-inspection': createProxyConfig('/api/lgu-officer/businesses-for-inspection', `http://localhost:${MICROSERVICES.business}`),
+      '/api/lgu-officer/inspections': createProxyConfig('/api/lgu-officer/inspections', `http://localhost:${MICROSERVICES.business}`),
       
       // LGU Officer endpoints -> Admin Service (port 3003) since permit applications are admin functions
       '/api/lgu-officer': createProxyConfig('/api/lgu-officer', `http://localhost:${MICROSERVICES.admin}`),

@@ -1,14 +1,11 @@
 import React from 'react'
-import { Typography, Card, Button } from 'antd'
-import { theme } from 'antd'
+import { Typography, Card, Button, theme } from 'antd'
 import { SettingOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import AdminLayout from '@/features/admin/components/AdminLayout'
 import SettingsInfoModal from '@/features/user/components/SettingsInfoModal.jsx'
-import ProfileNav from './ProfileNav'
 import SecurityTabContent from './SecurityTabContent'
 import EditUserProfileForm from '@/features/user/components/EditUserProfileForm.jsx'
 import PendingApprovalAlert from '@/features/user/components/PendingApprovalAlert.jsx'
-import AccountTabContent from './AccountTabContent'
 import ThemeTabContentCompact from './ThemeTabContentCompact'
 import { PROFILE_NAV_ITEMS } from './constants'
 
@@ -50,8 +47,6 @@ export default function AdminSettingsView({
         )
       case 'security':
         return <SecurityTabContent />
-      case 'account':
-        return <AccountTabContent />
       case 'theme':
         return (
           <div style={adminSectionStyle}>

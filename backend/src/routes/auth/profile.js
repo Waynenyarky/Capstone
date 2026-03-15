@@ -361,8 +361,10 @@ router.post('/change-password-authenticated', requireJwt, validateBody(changePas
     }
 
     const oldHash = String(doc.passwordHash)
+    const hadMfaSecret = !!doc.mfaSecret
+    const priorMfaMethod = String(doc.mfaMethod || '')
     let mfaPlain = ''
-    try { if (doc.mfaSecret) mfaPlain = decryptWithHash(oldHash, doc.mfaSecret) } catch (_) { mfaPlain = '' }
+    try { if (hadMfaSecret) mfaPlain = decryptWithHash(oldHash, doc.mfaSecret) } catch (_) { mfaPlain = '' }
 
     // Hash new password
     const newPasswordHash = await bcrypt.hash(sanitizedNewPassword, 10)
@@ -375,18 +377,30 @@ router.post('/change-password-authenticated', requireJwt, validateBody(changePas
     doc.passwordChangedAt = new Date()
     doc.passwordHistory = updatedHistory
     doc.tokenVersion = (doc.tokenVersion || 0) + 1 // Invalidate all sessions
-    doc.mfaReEnrollmentRequired = true // Require MFA re-enrollment
-    doc.mfaEnabled = false
-    doc.mfaSecret = ''
-    doc.fprintEnabled = false
-    doc.mfaMethod = ''
+    doc.mfaReEnrollmentRequired = false
     doc.mfaDisablePending = false
     doc.mfaDisableRequestedAt = null
     doc.mfaDisableScheduledFor = null
     doc.tokenFprint = ''
 
-    if (mfaPlain) {
-      try { doc.mfaSecret = encryptWithHash(doc.passwordHash, mfaPlain) } catch (_) {}
+    if (hadMfaSecret) {
+      if (!mfaPlain) {
+        doc.mfaReEnrollmentRequired = true
+        doc.mfaEnabled = false
+        doc.mfaSecret = ''
+        doc.mfaMethod = ''
+      } else {
+        try {
+          doc.mfaSecret = encryptWithHash(doc.passwordHash, mfaPlain)
+          doc.mfaEnabled = true
+          doc.mfaMethod = priorMfaMethod || 'authenticator'
+        } catch (_) {
+          doc.mfaReEnrollmentRequired = true
+          doc.mfaEnabled = false
+          doc.mfaSecret = ''
+          doc.mfaMethod = ''
+        }
+      }
     }
     await doc.save()
 
@@ -406,7 +420,7 @@ router.post('/change-password-authenticated', requireJwt, validateBody(changePas
         ip,
         userAgent,
         tokenVersion: doc.tokenVersion,
-        mfaReEnrollmentRequired: true,
+        mfaReEnrollmentRequired: !!doc.mfaReEnrollmentRequired,
       }
     )
 
@@ -559,8 +573,10 @@ router.post('/change-password/verify', requireJwt, validateBody(changePasswordVe
     }
 
     const oldHash = String(doc.passwordHash)
+    const hadMfaSecret = !!doc.mfaSecret
+    const priorMfaMethod = String(doc.mfaMethod || '')
     let mfaPlain = ''
-    try { if (doc.mfaSecret) mfaPlain = decryptWithHash(oldHash, doc.mfaSecret) } catch (_) { mfaPlain = '' }
+    try { if (hadMfaSecret) mfaPlain = decryptWithHash(oldHash, doc.mfaSecret) } catch (_) { mfaPlain = '' }
 
     // Hash new password
     const newPasswordHash = await bcrypt.hash(sanitizedNewPassword, 10)
@@ -573,18 +589,30 @@ router.post('/change-password/verify', requireJwt, validateBody(changePasswordVe
     doc.passwordChangedAt = new Date()
     doc.passwordHistory = updatedHistory
     doc.tokenVersion = (doc.tokenVersion || 0) + 1 // Invalidate all sessions
-    doc.mfaReEnrollmentRequired = true // Require MFA re-enrollment
-    doc.mfaEnabled = false
-    doc.mfaSecret = ''
-    doc.fprintEnabled = false
-    doc.mfaMethod = ''
+    doc.mfaReEnrollmentRequired = false
     doc.mfaDisablePending = false
     doc.mfaDisableRequestedAt = null
     doc.mfaDisableScheduledFor = null
     doc.tokenFprint = ''
 
-    if (mfaPlain) {
-      try { doc.mfaSecret = encryptWithHash(doc.passwordHash, mfaPlain) } catch (_) {}
+    if (hadMfaSecret) {
+      if (!mfaPlain) {
+        doc.mfaReEnrollmentRequired = true
+        doc.mfaEnabled = false
+        doc.mfaSecret = ''
+        doc.mfaMethod = ''
+      } else {
+        try {
+          doc.mfaSecret = encryptWithHash(doc.passwordHash, mfaPlain)
+          doc.mfaEnabled = true
+          doc.mfaMethod = priorMfaMethod || 'authenticator'
+        } catch (_) {
+          doc.mfaReEnrollmentRequired = true
+          doc.mfaEnabled = false
+          doc.mfaSecret = ''
+          doc.mfaMethod = ''
+        }
+      }
     }
     await doc.save()
 
@@ -607,7 +635,7 @@ router.post('/change-password/verify', requireJwt, validateBody(changePasswordVe
         ip,
         userAgent,
         tokenVersion: doc.tokenVersion,
-        mfaReEnrollmentRequired: true,
+        mfaReEnrollmentRequired: !!doc.mfaReEnrollmentRequired,
         method: 'otp_verification',
       }
     )
@@ -2864,7 +2892,7 @@ async function applyApprovedChange(approval) {
             approvalId: approval.approvalId,
             requestType: approval.requestType,
             approvedBy: approval.approvals.map((a) => String(a.adminId)),
-            mfaReEnrollmentRequired: true,
+            mfaReEnrollmentRequired: !!user.mfaReEnrollmentRequired,
           },
         })
 
@@ -2878,21 +2906,41 @@ async function applyApprovedChange(approval) {
         }
 
         const oldHash = String(user.passwordHash)
+        const hadMfaSecret = !!user.mfaSecret
+        const priorMfaMethod = String(user.mfaMethod || '')
+        let mfaPlain = ''
+        try { if (hadMfaSecret) mfaPlain = decryptWithHash(oldHash, user.mfaSecret) } catch (_) { mfaPlain = '' }
         const updatedHistory = addToPasswordHistory(oldHash, user.passwordHistory || [])
 
         user.passwordHash = newPasswordHash
         user.passwordChangedAt = new Date()
         user.passwordHistory = updatedHistory
         user.tokenVersion = (user.tokenVersion || 0) + 1 // Invalidate all sessions
-        user.mfaReEnrollmentRequired = true
-        user.mfaEnabled = false
-        user.mfaSecret = ''
-        user.fprintEnabled = false
-        user.mfaMethod = ''
+        user.mfaReEnrollmentRequired = false
         user.mfaDisablePending = false
         user.mfaDisableRequestedAt = null
         user.mfaDisableScheduledFor = null
         user.tokenFprint = ''
+
+        if (hadMfaSecret) {
+          if (!mfaPlain) {
+            user.mfaReEnrollmentRequired = true
+            user.mfaEnabled = false
+            user.mfaSecret = ''
+            user.mfaMethod = ''
+          } else {
+            try {
+              user.mfaSecret = encryptWithHash(user.passwordHash, mfaPlain)
+              user.mfaEnabled = true
+              user.mfaMethod = priorMfaMethod || 'authenticator'
+            } catch (_) {
+              user.mfaReEnrollmentRequired = true
+              user.mfaEnabled = false
+              user.mfaSecret = ''
+              user.mfaMethod = ''
+            }
+          }
+        }
         await user.save()
 
         // Clear password hash from approval metadata (security)

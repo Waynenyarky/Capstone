@@ -533,7 +533,7 @@ export default function AiLobRecommendation({ field, form, readOnly = false, for
         }}
         onOk={handleModalOk}
         okText="Add"
-        destroyOnClose
+        destroyOnHidden
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
           <div>

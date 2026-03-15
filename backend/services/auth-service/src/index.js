@@ -179,8 +179,8 @@ async function start() {
     }
 
     const server = http.createServer(app);
-    server.listen(PORT, () => {
-      logger.info(`Auth Service listening on http://localhost:${PORT}`);
+    server.listen(PORT, '0.0.0.0', () => {
+      logger.info(`Auth Service listening on http://0.0.0.0:${PORT}`);
     });
 
     return server;

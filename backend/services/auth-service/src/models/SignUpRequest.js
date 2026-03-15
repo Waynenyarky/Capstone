@@ -10,6 +10,15 @@ const SignUpRequestSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+SignUpRequestSchema.plugin(encryptionPlugin, {
+  fields: ['code'],
+  deterministicFields: ['email'],
+  nestedPaths: [],
+  arrayPaths: [],
+  mixedPaths: ['payload'],
+})
+
 SignUpRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
 
 module.exports = mongoose.models.SignUpRequest || mongoose.model('SignUpRequest', SignUpRequestSchema)

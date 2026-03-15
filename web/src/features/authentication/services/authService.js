@@ -16,6 +16,38 @@ export async function signupStart(payload) {
   })
 }
 
+// Step-up start: passkey verification challenge for email change confirmation
+export async function changeEmailConfirmPasskeyStart() {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  return await fetchJsonWithFallback('/api/auth/change-email/confirm/passkey/start', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({}),
+  })
+}
+
+export async function deleteAccountPasskeyStart() {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  return await fetchJsonWithFallback('/api/auth/delete-account/passkey/start', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({}),
+  })
+}
+
+// Step-up start: passkey verification challenge for password change
+export async function changePasswordPasskeyStart() {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  return await fetchJsonWithFallback('/api/auth/change-password/passkey/start', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({}),
+  })
+}
+
 export async function signup(payload) {
   return await fetchJsonWithFallback('/api/auth/signup', {
     method: 'POST',
@@ -133,6 +165,32 @@ export async function sendForgotPassword(payload) {
   })
 }
 
+export async function resendForgotPasswordCode(payload) {
+  return await fetchJsonWithFallback('/api/auth/forgot-password/resend', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function verifyForgotPasswordMfa(payload) {
+  return await fetchJsonWithFallback('/api/auth/forgot-password/verify-mfa', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function verifyMfa(payload) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  return await fetchJsonWithFallback('/api/auth/mfa/verify', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function verifyResetCode(payload) {
   // Return Response to allow callers to inspect status codes
   return await fetchWithFallback('/api/auth/verify-code', {
@@ -166,6 +224,17 @@ export async function changePasswordStart(payload) {
   const current = getCurrentUser()
   const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
   return await fetchJsonWithFallback('/api/auth/change-password/start', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  })
+}
+
+// Step 2: Verify TOTP and change password
+export async function changePasswordVerifyTotp(payload) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  return await fetchJsonWithFallback('/api/auth/change-password/verify-totp', {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
@@ -206,6 +275,10 @@ export async function changeEmailStart(payload) {
 export async function changeEmailVerify(payload) {
   const current = getCurrentUser()
   const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  // Add Authorization Bearer token for backend requireJwt middleware
+  if (current?.token) {
+    headers['Authorization'] = `Bearer ${current.token}`
+  }
   return await fetchJsonWithFallback('/api/auth/change-email/verify', {
     method: 'POST',
     headers,
@@ -283,6 +356,38 @@ export async function deleteAccountAuthenticated(payload) {
   const current = getCurrentUser()
   const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
   return await fetchJsonWithFallback('/api/auth/delete-account/authenticated', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  })
+}
+
+// Step 1: Send OTP to email for account deletion
+export async function deleteAccountStart(payload) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  return await fetchJsonWithFallback('/api/auth/delete-account/send-code', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function deleteAccountVerifyCode(payload) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  return await fetchJsonWithFallback('/api/auth/delete-account/verify-code', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  })
+}
+
+// Step 2: Verify OTP and delete account
+export async function deleteAccountConfirm(payload) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, null, { 'Content-Type': 'application/json' })
+  return await fetchJsonWithFallback('/api/auth/delete-account/confirm', {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),

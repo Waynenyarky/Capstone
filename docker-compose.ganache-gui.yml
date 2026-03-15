@@ -25,7 +25,6 @@ services:
 
   audit-service:
     environment:
-      - MONGO_URI=mongodb://${MONGO_APP_USER:-capstone_app}:${MONGO_APP_PASSWORD:-devapppass}@mongodb:27017/capstone_project?authSource=admin
       - GANACHE_RPC_URL=http://host.docker.internal:7545
       - CONTRACT_ABI_PATH=/app/contract-addresses
     extra_hosts:

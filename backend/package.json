@@ -79,6 +79,7 @@
     "pdfkit": "^0.15.2",
     "philippine-administrative-divisions": "^2.0.3",
     "qrcode": "^1.5.4",
+    "socket.io": "^4.7.5",
     "web3": "^4.16.0"
   },
   "optionalDependencies": {

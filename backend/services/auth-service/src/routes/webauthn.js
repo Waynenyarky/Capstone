@@ -264,8 +264,29 @@ router.post('/webauthn/register/complete', validateBody(registrationCompleteSche
       }
       // If it's already a string, use it as-is (should be base64url)
 
-      // Use frontend URL for origin validation (WebAuthn origin should match where the request comes from)
-      const expectedOrigin = process.env.WEBAUTHN_ORIGIN || process.env.FRONTEND_URL || `http://localhost:${process.env.FRONTEND_PORT || 5173}`
+      // Use frontend URL for origin validation - support multiple dev ports
+      // Vite may use 5173, 5174, 5175, 5176, etc. depending on availability
+      const defaultOrigin = `http://localhost:${process.env.FRONTEND_PORT || 5173}`
+      const expectedOrigin = process.env.WEBAUTHN_ORIGIN || process.env.FRONTEND_URL || defaultOrigin
+      
+      // Also accept common dev server ports dynamically
+      const requestOrigin = credential?.clientExtensionResults?.origin || expectedOrigin
+      const allowedOrigins = [
+        expectedOrigin,
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://localhost:5175',
+        'http://localhost:5176',
+        'http://localhost:5177',
+        'http://localhost:5178',
+        'http://localhost:5179',
+        'http://localhost:5180'
+      ].filter(Boolean)
+      
+      // Validate origin flexibly in dev mode
+      const isValidOrigin = allowedOrigins.includes(requestOrigin) || 
+                           allowedOrigins.some(origin => requestOrigin?.startsWith(origin)) ||
+                           (process.env.NODE_ENV === 'development' && requestOrigin?.includes('localhost:517'))
       const expectedRPID = process.env.WEBAUTHN_RPID || 'localhost'
 
       console.log('[WebAuthn] Register complete:', {
@@ -343,12 +364,22 @@ router.post('/webauthn/register/complete', validateBody(registrationCompleteSche
       let verification
       try {
         // In simplewebauthn v13, the parameter is 'response', not 'credential'
-        verification = await webauthnServer.verifyRegistrationResponse({
+        // Use the first allowed origin for verification, or skip strict origin check in dev
+        const verifyOptions = {
            response: credential,
            expectedChallenge,
-           expectedOrigin,
            expectedRPID,
-        })
+        }
+        
+        // In development, we may need to be more flexible with origins due to Vite port changes
+        if (process.env.NODE_ENV === 'development') {
+          // In dev mode, accept any localhost:517x origin
+          verifyOptions.expectedOrigin = allowedOrigins
+        } else {
+          verifyOptions.expectedOrigin = expectedOrigin
+        }
+        
+        verification = await webauthnServer.verifyRegistrationResponse(verifyOptions)
       } catch (verifyErr) {
         console.error('[WebAuthn] verifyRegistrationResponse threw an error:', verifyErr)
         console.error('[WebAuthn] Error stack:', verifyErr.stack)
@@ -468,6 +499,14 @@ router.post('/webauthn/register/complete', validateBody(registrationCompleteSche
       user.mfaEnabled = true
       user.mfaReEnrollmentRequired = false
 
+      // Enforce mutual exclusivity: When passkey is registered, disable TOTP
+      // This prevents both MFA types from being active simultaneously
+      if (user.mfaSecret) {
+        console.log(`[WebAuthn] User: ${user.email} - Disabling TOTP due to passkey registration`)
+        user.mfaSecret = ''
+        user.mfaEnabled = false // Will be set to true below
+      }
+
       // Resolve role for admin check and MFA activation
       let roleSlug = ''
       try {
@@ -481,22 +520,9 @@ router.post('/webauthn/register/complete', validateBody(registrationCompleteSche
         console.warn('[WebAuthn] Failed to load role for MFA activation:', roleErr.message)
       }
 
-      // Admin: only one super-auth method allowed. Enabling passkey disables TOTP.
-      if (roleSlug === 'admin') {
-        user.mfaSecret = ''
-        user.mfaDisablePending = false
-        user.mfaDisableRequestedAt = null
-        user.mfaDisableScheduledFor = null
-        user.mfaMethod = 'passkey'
-      } else {
-        // Update mfaMethod to include passkey, preserving existing methods
-        const currentMethod = String(user.mfaMethod || '').toLowerCase()
-        const methods = new Set()
-        if (currentMethod.includes('authenticator')) methods.add('authenticator')
-        if (currentMethod.includes('fingerprint')) methods.add('fingerprint')
-        methods.add('passkey')
-        user.mfaMethod = Array.from(methods).join(',')
-      }
+      // Set mfaMethod to passkey only (TOTP cleared above)
+      user.mfaMethod = 'passkey'
+      user.mfaEnabled = true // Re-enable after TOTP clear
 
       // If this user is staff/admin and was pending MFA, clear the flag and
       // activate the account unless credentials still need to be changed.
@@ -514,7 +540,7 @@ router.post('/webauthn/register/complete', validateBody(registrationCompleteSche
         console.error('Failed to send passkey added notification:', err)
       })
 
-      inAppNotificationService.createNotification(user._id, 'auth_passkey_added', 'Passkey added', 'Your passkey has been added successfully.').catch((err) => console.error('Failed to create auth notification:', err))
+      inAppNotificationService.createSecurityNotification(user._id, 'passkey_added', { userAgent: req.headers['user-agent'], ip: req.ip }).catch((err) => console.error('Failed to create auth notification:', err))
 
       // Verify it was saved correctly
       const savedUser = await User.findOne({ email: normalizedEmail })
@@ -643,14 +669,14 @@ router.post('/webauthn/authenticate/start', validateBody(authStartSchema), async
 })
 
 const authCompleteSchema = Joi.object({
-   email: Joi.string().email().optional(),
-   credential: Joi.object().required(),
-   purpose: Joi.string().valid('admin_step_up', 'mfa_disable', 'mfa_disable_undo').optional(),
+  email: Joi.string().email().optional(),
+  credential: Joi.object().required(),
+  purpose: Joi.string().valid('admin_step_up', 'mfa_disable', 'mfa_disable_undo', 'password_change', 'email_change', 'delete_account').optional(),
 })
 
 const mfaStepUpVerify = require('../lib/mfaStepUpVerify')
 
-// Helper: run step-up auth (JWT + admin role) and set req._stepUp when purpose is admin_step_up; same for mfa_disable / mfa_disable_undo
+// Helper: run step-up auth (JWT + role checks where needed) and set req._stepUp for supported purposes.
 function withStepUpIfNeeded(req, res, rest) {
   const purpose = req.body.purpose
   if (purpose === 'admin_step_up') {
@@ -687,10 +713,14 @@ function withStepUpIfNeeded(req, res, rest) {
       })
     })
   }
-  if (purpose === 'mfa_disable' || purpose === 'mfa_disable_undo') {
+  if (purpose === 'mfa_disable' || purpose === 'mfa_disable_undo' || purpose === 'password_change' || purpose === 'email_change' || purpose === 'delete_account') {
     return requireJwt(req, res, async () => {
       try {
-        const key = purpose === 'mfa_disable' ? 'mfa_disable_' + req._userId : 'mfa_undo_' + req._userId
+        let key = 'mfa_undo_' + req._userId
+        if (purpose === 'mfa_disable') key = 'mfa_disable_' + req._userId
+        if (purpose === 'password_change') key = 'pwd_change_' + req._userId
+        if (purpose === 'email_change') key = 'email_change_' + req._userId
+        if (purpose === 'delete_account') key = 'delete_account_' + req._userId
         let expectedChallenge = authenticationChallenges.get(key)
         if (!expectedChallenge) {
           return respond.error(res, 428, 'challenge_missing', 'Verification challenge expired. Please try again.')
@@ -749,7 +779,7 @@ router.post('/webauthn/authenticate/complete', validateBody(authCompleteSchema),
       let user = null
       let credRecord = null
 
-      if ((req.body.purpose === 'admin_step_up' || req.body.purpose === 'mfa_disable' || req.body.purpose === 'mfa_disable_undo') && req._stepUp) {
+      if ((req.body.purpose === 'admin_step_up' || req.body.purpose === 'mfa_disable' || req.body.purpose === 'mfa_disable_undo' || req.body.purpose === 'password_change' || req.body.purpose === 'email_change' || req.body.purpose === 'delete_account') && req._stepUp) {
         expectedChallenge = req._stepUp.expectedChallenge
         user = req._stepUp.user
         credRecord = req._stepUp.credRecord
@@ -1247,6 +1277,21 @@ router.post('/webauthn/authenticate/complete', validateBody(authCompleteSchema),
           mfaStepUpVerify.setDisableUndoVerified(req._userId)
           return res.json({ verified: true })
         }
+        if (req.body.purpose === 'password_change') {
+          authenticationChallenges.delete('pwd_change_' + req._userId)
+          mfaStepUpVerify.setPasswordChangeVerified(req._userId)
+          return res.json({ verified: true })
+        }
+        if (req.body.purpose === 'email_change') {
+          authenticationChallenges.delete('email_change_' + req._userId)
+          mfaStepUpVerify.setEmailChangeVerified(req._userId)
+          return res.json({ verified: true })
+        }
+        if (req.body.purpose === 'delete_account') {
+          authenticationChallenges.delete('delete_account_' + req._userId)
+          mfaStepUpVerify.setDeleteAccountVerified(req._userId)
+          return res.json({ verified: true })
+        }
 
         try {
            // Use the user document with populated role for token signing
@@ -1258,7 +1303,8 @@ router.post('/webauthn/authenticate/complete', validateBody(authCompleteSchema),
            console.error('[WebAuthn] Token signing error:', err)
         }
 
-        inAppNotificationService.createNotification(user._id, 'auth_login', 'Welcome back', 'You have signed in successfully.').catch((err) => console.error('Failed to create auth notification:', err))
+        const isFirstLoginPasskey = !user.lastLoginAt
+        inAppNotificationService.createLoginNotification(user._id, { isFirstLogin: isFirstLoginPasskey, userAgent: req.headers['user-agent'], ip: req.ip, method: 'passkey' }).catch((err) => console.error('Failed to create auth notification:', err))
 
         return res.json(safe)
       } catch (verifyErr) {
@@ -2055,7 +2101,8 @@ router.post('/webauthn/cross-device/complete', validateBody(crossDeviceCompleteS
         console.error('cross-device token signing error', err)
       }
 
-      inAppNotificationService.createNotification(populatedUser._id, 'auth_login', 'Welcome back', 'You have signed in successfully.').catch((err) => console.error('Failed to create auth notification:', err))
+      const isFirstLoginIdMelon = !populatedUser.lastLoginAt
+      inAppNotificationService.createLoginNotification(populatedUser._id, { isFirstLogin: isFirstLoginIdMelon, userAgent: req.headers['user-agent'], ip: req.ip, method: 'passkey' }).catch((err) => console.error('Failed to create auth notification:', err))
 
       session.authenticated = true
       session.user = safe
@@ -2334,7 +2381,8 @@ router.post('/webauthn/cross-device/complete', validateBody(crossDeviceCompleteS
         console.error('cross-device token signing error', err)
       }
 
-      inAppNotificationService.createNotification(user._id, 'auth_login', 'Welcome back', 'You have signed in successfully.').catch((err) => console.error('Failed to create auth notification:', err))
+      const isFirstLoginCrossDevice = !user.lastLoginAt
+      inAppNotificationService.createLoginNotification(user._id, { isFirstLogin: isFirstLoginCrossDevice, userAgent: req.headers['user-agent'], ip: req.ip, method: 'passkey' }).catch((err) => console.error('Failed to create auth notification:', err))
 
       // Update session
       session.authenticated = true
@@ -2464,7 +2512,7 @@ router.delete('/webauthn/credentials/:credId', requireJwt, async (req, res) => {
     sendPasskeyRemovedNotification(userId).catch((err) => {
       console.error('Failed to send passkey removed notification:', err)
     })
-    inAppNotificationService.createNotification(userId, 'auth_passkey_removed', 'Passkey removed', 'The passkey has been removed from your account.').catch((err) => console.error('Failed to create auth notification:', err))
+    inAppNotificationService.createSecurityNotification(userId, 'passkey_removed', { userAgent: req.headers['user-agent'], ip: req.ip }).catch((err) => console.error('Failed to create auth notification:', err))
     return res.json({ deleted: true, remainingCount: user.webauthnCredentials.length })
   } catch (err) {
     console.error('DELETE /api/auth/webauthn/credentials/:credId error:', err)
@@ -2499,7 +2547,7 @@ router.delete('/webauthn/credentials', requireJwt, async (req, res) => {
       sendPasskeyRemovedNotification(userId).catch((err) => {
         console.error('Failed to send passkey removed notification:', err)
       })
-      inAppNotificationService.createNotification(userId, 'auth_passkey_removed', 'Passkey removed', 'The passkey has been removed from your account.').catch((err) => console.error('Failed to create auth notification:', err))
+      inAppNotificationService.createSecurityNotification(userId, 'passkey_removed', { userAgent: req.headers['user-agent'], ip: req.ip }).catch((err) => console.error('Failed to create auth notification:', err))
     }
     return res.json({ disabled: true, hadCredentials })
   } catch (err) {

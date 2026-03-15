@@ -1,11 +1,8 @@
-import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:app/core/theme/bizclear_colors.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:signature/signature.dart';
 import 'package:app/data/services/mongodb_service.dart';
 import 'package:app/data/services/connectivity_service.dart';
 import 'package:app/data/local/inspection_local_store.dart';
@@ -127,6 +124,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
       widget.inspectionId,
       gpsAtStart: gpsAtStart,
     );
+    debugPrint('startInspection response: $res');
     if (res['success'] == true) {
       await _loadDetail();
       if (mounted && res['gpsMismatch'] == true) {
@@ -534,119 +532,72 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
       );
       if (queueOffline != true) return;
     }
-    final signCtrl = SignatureController(
-      penStrokeWidth: 2,
-      penColor: Colors.black,
-      exportBackgroundColor: Colors.white,
-    );
     if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: const Text('Sign & Submit Inspection'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                    'Sign below to confirm. Then choose the overall result.',
-                    style: TextStyle(height: 1.5),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    height: 150,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade400),
-                      borderRadius: BorderRadius.circular(8),
+      builder: (ctx) => Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('Submit Inspection', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 12),
+                const Text('Choose the overall result to submit this inspection.'),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cancel'),
                     ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Signature(
-                        controller: signCtrl,
-                        backgroundColor: Colors.white,
+                    FilledButton(
+                      onPressed: () => _submitInspection(ctx, 'passed'),
+                      child: const Text('Passed'),
+                    ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        padding: BizClearColors.primaryButtonPadding,
+                        minimumSize: BizClearColors.primaryButtonMinimumSize,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        textStyle: BizClearColors.primaryButtonTextStyle,
                       ),
+                      onPressed: () => _submitInspection(ctx, 'needs_reinspection'),
+                      child: const Text('Needs Re-inspection'),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () => signCtrl.clear(),
-                    child: const Text('Clear signature'),
-                  ),
-                ],
-              ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        padding: BizClearColors.primaryButtonPadding,
+                        minimumSize: BizClearColors.primaryButtonMinimumSize,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        textStyle: BizClearColors.primaryButtonTextStyle,
+                      ),
+                      onPressed: () => _submitInspection(ctx, 'failed'),
+                      child: const Text('Failed'),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  signCtrl.dispose();
-                  Navigator.pop(ctx);
-                },
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => _submitWithSignature(ctx, signCtrl, 'passed'),
-                child: const Text('Passed'),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  padding: BizClearColors.primaryButtonPadding,
-                  minimumSize: BizClearColors.primaryButtonMinimumSize,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  textStyle: BizClearColors.primaryButtonTextStyle,
-                ),
-                onPressed: () => _submitWithSignature(ctx, signCtrl, 'needs_reinspection'),
-                child: const Text('Needs Re-inspection'),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  padding: BizClearColors.primaryButtonPadding,
-                  minimumSize: BizClearColors.primaryButtonMinimumSize,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  textStyle: BizClearColors.primaryButtonTextStyle,
-                ),
-                onPressed: () => _submitWithSignature(ctx, signCtrl, 'failed'),
-                child: const Text('Failed'),
-              ),
-            ],
-          );
-        },
+          ),
+        ),
       ),
     );
   }
 
-  Future<void> _submitWithSignature(BuildContext ctx, SignatureController signCtrl, String overallResult) async {
-    final points = signCtrl.value;
-    if (points.isEmpty) {
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Please sign before submitting')),
-      );
-      return;
-    }
-    Uint8List? pngBytes;
-    try {
-      pngBytes = await signCtrl.toPngBytes();
-    } catch (_) {}
-    if (pngBytes == null || pngBytes.isEmpty) {
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Could not capture signature')),
-      );
-      return;
-    }
-    final dataUrl = 'data:image/png;base64,${base64Encode(pngBytes)}';
-    signCtrl.dispose();
+  Future<void> _submitInspection(BuildContext ctx, String overallResult) async {
     Navigator.pop(ctx);
 
     final payload = {
       'overallResult': overallResult,
-      'inspectorSignature': {
-        'dataUrl': dataUrl,
-        'timestamp': DateTime.now().toIso8601String(),
-      },
     };
 
     final isOnline = await ConnectivityService.instance.isOnline;
@@ -666,7 +617,6 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
     final res = await MongoDBService.submitInspection(
       widget.inspectionId,
       overallResult,
-      inspectorSignature: payload['inspectorSignature'] as Map<String, dynamic>,
     );
     if (res['success'] == true) {
       await _loadDetail();
@@ -714,6 +664,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
     final isMock = inv['_isMock'] == true;
     final status = inv['status'] as String? ?? 'pending';
     final isImmutable = inv['isImmutable'] == true || isMock;
+    final canStart = !isMock && status == 'pending' && !isImmutable;
     final canEdit = !isMock && status == 'in_progress' && !isImmutable;
     final businessProfile = inv['businessProfile'] as Map<String, dynamic>? ?? (inv['businessName'] != null ? {'businessName': inv['businessName']} : null);
     final checklist = List<dynamic>.from(inv['checklist'] ?? []);
@@ -853,35 +804,36 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
           const SizedBox(height: 24),
           _buildEvidenceSection(evidence, canEdit),
           const SizedBox(height: 24),
-          if (canEdit) ...[
-            Row(
+          if (canStart || canEdit) ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                if (status == 'pending')
+                if (canStart)
                   FilledButton(
                     onPressed: _startInspection,
                     child: const Text('Start Inspection'),
                   ),
-                const Spacer(),
-                IconButton.filled(
-                  onPressed: _uploadEvidence,
-                  icon: const Icon(Icons.camera_alt),
-                  tooltip: 'Add evidence',
-                ),
-                const SizedBox(width: 8),
-                TextButton.icon(
-                  onPressed: _showLegalReference,
-                  icon: const Icon(Icons.gavel, size: 18),
-                  label: const Text('Legal Reference'),
-                ),
-                FilledButton(
-                  onPressed: _showIssueViolation,
-                  child: const Text('Issue Violation'),
-                ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: _showSubmitDialog,
-                  child: const Text('Submit'),
-                ),
+                if (canEdit) ...[
+                  IconButton.filled(
+                    onPressed: _uploadEvidence,
+                    icon: const Icon(Icons.camera_alt),
+                    tooltip: 'Add evidence',
+                  ),
+                  TextButton.icon(
+                    onPressed: _showLegalReference,
+                    icon: const Icon(Icons.gavel, size: 18),
+                    label: const Text('Legal Reference'),
+                  ),
+                  FilledButton(
+                    onPressed: _showIssueViolation,
+                    child: const Text('Issue Violation'),
+                  ),
+                  FilledButton(
+                    onPressed: _showSubmitDialog,
+                    child: const Text('Submit'),
+                  ),
+                ],
               ],
             ),
           ],

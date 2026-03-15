@@ -2,6 +2,31 @@ import { get, post } from '@/lib/http.js'
 
 const BASE_PATH = '/api/business/violations'
 
+function normalizeViolationListResponse(res = {}) {
+  const violations = Array.isArray(res)
+    ? res
+    : Array.isArray(res?.data)
+      ? res.data
+      : Array.isArray(res?.violations)
+        ? res.violations
+        : []
+  const meta = res?.meta || res?.pagination || {}
+  return {
+    violations,
+    data: violations,
+    meta,
+    pagination: meta,
+  }
+}
+
+function normalizeSummaryResponse(res = {}) {
+  const payload = res?.data || res || {}
+  return {
+    ...payload,
+    activeViolations: payload.activeViolations ?? payload.open ?? 0,
+  }
+}
+
 /**
  * Get violations for the current user's businesses
  * @param {object} params - Query parameters
@@ -19,7 +44,8 @@ export async function getViolations({ page = 1, limit = 20, status, severity, bu
   if (severity) qs.set('severity', severity)
   if (businessId) qs.set('businessId', businessId)
 
-  return get(`${BASE_PATH}?${qs.toString()}`)
+  const res = await get(`${BASE_PATH}?${qs.toString()}`)
+  return normalizeViolationListResponse(res)
 }
 
 /**
@@ -31,14 +57,16 @@ export async function getOpenViolations({ limit = 20 } = {}) {
   const qs = new URLSearchParams()
   qs.set('limit', String(limit))
 
-  return get(`${BASE_PATH}/open?${qs.toString()}`)
+  const res = await get(`${BASE_PATH}/open?${qs.toString()}`)
+  return normalizeViolationListResponse(res)
 }
 
 /**
  * Get violation summary/counts for dashboard
  */
 export async function getViolationSummary() {
-  return get(`${BASE_PATH}/summary`)
+  const res = await get(`${BASE_PATH}/summary`)
+  return normalizeSummaryResponse(res)
 }
 
 /**
@@ -46,7 +74,8 @@ export async function getViolationSummary() {
  * @param {string} violationId - Violation ID (e.g., VIO-2024-001)
  */
 export async function getViolation(violationId) {
-  return get(`${BASE_PATH}/${violationId}`)
+  const res = await get(`${BASE_PATH}/${violationId}`)
+  return res?.data || res
 }
 
 /**

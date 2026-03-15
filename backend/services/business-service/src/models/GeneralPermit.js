@@ -53,6 +53,15 @@ const GeneralPermitSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+GeneralPermitSchema.plugin(encryptionPlugin, {
+  fields: ['businessPlateNo'],
+  deterministicFields: [],
+  nestedPaths: [],
+  arrayPaths: ['requirements'],
+  mixedPaths: [],
+})
+
 module.exports =
   mongoose.models.GeneralPermit ||
   mongoose.model('GeneralPermit', GeneralPermitSchema)

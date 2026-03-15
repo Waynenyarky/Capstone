@@ -57,6 +57,7 @@ export default function useSidebar() {
         { key: 'recovery', label: 'Request Recovery', to: '/staff/recovery-request', icon: <SafetyCertificateOutlined /> },
         { key: 'inspections', label: 'Violations / Inspections', to: '/staff/inspections', icon: <SolutionOutlined /> },
         { key: 'applications', label: 'Permit Applications (Review)', to: '/staff/applications', icon: <FileTextOutlined /> },
+        { key: 'edit-requests', label: 'Edit Requests', to: '/staff/edit-requests', icon: <EditOutlined /> },
         { key: 'cessation', label: 'Cessation (Review)', to: '/staff/cessation', icon: <StopOutlined /> },
         { key: 'appeals', label: 'Appeals', to: '/staff/appeals', icon: <AuditOutlined /> },
         { key: 'reports', label: 'Reports / Analytics', to: '/staff/reports', icon: <BarChartOutlined /> },
@@ -70,12 +71,7 @@ export default function useSidebar() {
         { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
         { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
       ],
-      lgu_officer: [
-        { key: 'dashboard', label: 'Dashboard', to: '/staff', icon: <DashboardOutlined /> },
-        { key: 'applications', label: 'Applications', to: '/staff/applications', icon: <FileTextOutlined /> },
-        { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
-        { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
-      ],
+      lgu_officer: [],
       lgu_manager: [
         { key: 'dashboard', label: 'Dashboard', to: '/lgu-manager', icon: <DashboardOutlined /> },
         { key: 'reports', label: 'Reports / Analytics', to: '/lgu-manager/reports', icon: <BarChartOutlined /> },

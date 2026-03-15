@@ -11,7 +11,7 @@ export default function VerificationConfirmForm({ email, onSubmit, title, onBack
   return (
     <div style={{ maxWidth: 400, margin: '0 auto' }}>
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
-        <Title level={3} style={{ marginBottom: 8 }}>{title || 'Verify Current Email'}</Title>
+        <Title level={4} style={{ marginBottom: 16 }}>{title || 'Verify Current Email'}</Title>
         <Text type="secondary" style={{ fontSize: 16 }}>
            Enter the 6-digit code sent to <br/>
            <Text strong style={{ color: '#003a70' }}>{email}</Text>

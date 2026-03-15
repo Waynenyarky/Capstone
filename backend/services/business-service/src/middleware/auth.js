@@ -19,9 +19,16 @@ function signAccessToken(user) {
 
 async function requireJwt(req, res, next) {
   try {
+    // Check Authorization header first
     const auth = String(req.headers['authorization'] || '')
     const m = auth.match(/^Bearer\s+(.+)$/i)
-    const token = m ? m[1] : ''
+    let token = m ? m[1] : ''
+    
+    // Fallback to cookie if no header token
+    if (!token && req.cookies) {
+      token = req.cookies.accessToken || req.cookies.access_token || ''
+    }
+    
     if (!token) return res.status(401).json({ error: { code: 'unauthorized', message: 'Unauthorized: missing token' } })
     const secret = process.env.JWT_SECRET || 'dev_secret_change_me'
     const decoded = jwt.verify(token, secret)

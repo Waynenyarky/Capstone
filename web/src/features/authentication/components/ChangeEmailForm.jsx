@@ -12,7 +12,7 @@ export default function ChangeEmailForm({ currentEmail, resetToken, onSubmit } =
   return (
     <div style={{ maxWidth: 400, margin: '0 auto' }}>
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
-        <Title level={3} style={{ marginBottom: 8 }}>Enter New Email Address</Title>
+        <Title level={4} style={{ marginBottom: 8 }}>Enter New Email Address</Title>
         <Text type="secondary" style={{ fontSize: 16 }}>
            Please enter the new email address you would like to associate with your account.
         </Text>

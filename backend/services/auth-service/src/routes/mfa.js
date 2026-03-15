@@ -41,9 +41,14 @@ router.post('/mfa/setup', requireJwt, validateBody(setupSchema), async (req, res
     const issuer = String(process.env.AUTHENTICATOR_APP_NAME || process.env.DEFAULT_FROM_EMAIL || 'BizClear').replace(/<.*?>/g, '').trim() || 'BizClear'
     const uri = otpauthUri({ issuer, account: email, secret, algorithm: 'SHA1', digits: 6, period: 30 })
 
-    doc.mfaSecret = encryptWithHash(doc.passwordHash, secret)
+    const encryptedSecret = encryptWithHash(doc.passwordHash, secret)
+    console.log(`[MFA Setup] User: ${email}, Secret generated, Encrypted length: ${encryptedSecret?.length || 0}`)
+    
+    doc.mfaSecret = encryptedSecret
     doc.mfaEnabled = false
     await doc.save()
+    
+    console.log(`[MFA Setup] Saved to DB - mfaSecret length: ${doc.mfaSecret?.length || 0}, mfaEnabled: ${doc.mfaEnabled}`)
 
     return res.json({ secret, otpauthUri: uri, issuer })
   } catch (err) {
@@ -210,6 +215,9 @@ router.post('/mfa/verify', requireJwt, validateBody(verifySchema), async (req, r
     const { code } = req.body || {}
     const doc = await User.findById(userId).populate('role')
     if (!doc) return respond.error(res, 404, 'user_not_found', 'User not found')
+    
+    console.log(`[MFA Verify] User: ${doc.email}, mfaSecret length: ${doc.mfaSecret?.length || 0}, mfaEnabled: ${doc.mfaEnabled}`)
+    
     if (!doc.mfaSecret) return respond.error(res, 400, 'mfa_not_setup', 'MFA not set up')
 
     const secretPlain = decryptWithHash(doc.passwordHash, doc.mfaSecret)
@@ -219,20 +227,16 @@ router.post('/mfa/verify', requireJwt, validateBody(verifySchema), async (req, r
     doc.mfaEnabled = true
     doc.mfaReEnrollmentRequired = false
 
-    const roleSlug = doc.role && doc.role.slug ? doc.role.slug : (doc.role && doc.role.toString ? doc.role.toString() : '')
-    // Admin: only one super-auth method allowed. Enabling TOTP disables passkeys.
-    if (roleSlug === 'admin') {
+    // Enforce mutual exclusivity: When TOTP is enabled, disable passkeys
+    // This prevents both MFA types from being active simultaneously
+    if (doc.webauthnCredentials && doc.webauthnCredentials.length > 0) {
+      console.log(`[MFA Verify] User: ${doc.email} - Disabling ${doc.webauthnCredentials.length} passkeys due to TOTP activation`)
       doc.webauthnCredentials = []
-      doc.mfaMethod = 'authenticator'
-    } else {
-      // Update mfaMethod to include authenticator, preserving existing methods (including passkey)
-      const currentMethod = String(doc.mfaMethod || '').toLowerCase()
-      const methods = new Set()
-      methods.add('authenticator')
-      if (doc.fprintEnabled) methods.add('fingerprint')
-      if (currentMethod.includes('passkey')) methods.add('passkey')
-      doc.mfaMethod = Array.from(methods).join(',')
     }
+
+    const roleSlug = doc.role && doc.role.slug ? doc.role.slug : (doc.role && doc.role.toString ? doc.role.toString() : '')
+    // Update mfaMethod to only include authenticator (passkeys cleared above)
+    doc.mfaMethod = 'authenticator'
     doc.mfaLastUsedTotpCounter = resVerify.counter
     doc.mfaLastUsedTotpAt = new Date()
     if (doc.mustSetupMfa) doc.mustSetupMfa = false
@@ -240,11 +244,16 @@ router.post('/mfa/verify', requireJwt, validateBody(verifySchema), async (req, r
       doc.isActive = !(doc.mustChangeCredentials || doc.mustSetupMfa)
     }
     await doc.save()
+    
+    console.log(`[MFA Verify] After save - mfaSecret length: ${doc.mfaSecret?.length || 0}, mfaEnabled: ${doc.mfaEnabled}`)
+
+    const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown'
+    const userAgent = req.headers['user-agent'] || 'unknown'
     createAuditLog(doc._id, 'mfa_verified', 'mfa', 'disabled', 'enabled', roleSlug || doc.role?.slug || 'business_owner', { method: 'totp' }).catch(() => {})
     sendMfaEnabledNotification(doc._id, { method: 'authenticator' }).catch((err) => {
       console.error('Failed to send MFA enabled notification:', err)
     })
-    inAppNotificationService.createNotification(doc._id, 'auth_mfa_enabled', 'MFA enabled', 'Multi-factor authentication has been enabled for your account.').catch((err) => console.error('Failed to create auth notification:', err))
+    inAppNotificationService.createSecurityNotification(doc._id, 'mfa_enabled', { userAgent: req.headers['user-agent'], ip: req.ip }).catch((err) => console.error('Failed to create auth notification:', err))
     return res.json({
       enabled: true,
       user: {
@@ -285,7 +294,7 @@ router.post('/mfa/disable', requireJwt, async (req, res) => {
     sendMfaDisabledNotification(doc._id).catch((err) => {
       console.error('Failed to send MFA disabled notification:', err)
     })
-    inAppNotificationService.createNotification(doc._id, 'auth_mfa_disabled', 'MFA disabled', 'Multi-factor authentication has been disabled.').catch((err) => console.error('Failed to create auth notification:', err))
+    inAppNotificationService.createSecurityNotification(doc._id, 'mfa_disabled', { userAgent: req.headers['user-agent'], ip: req.ip }).catch((err) => console.error('Failed to create auth notification:', err))
     return res.json({ disabled: true })
   } catch (err) {
     console.error('POST /api/auth/mfa/disable error:', err)
@@ -312,7 +321,7 @@ router.post('/mfa/disable', requireJwt, async (req, res) => {
         sendMfaDisabledNotification(doc._id).catch((err) => {
           console.error('Failed to send MFA disabled notification:', err)
         })
-        inAppNotificationService.createNotification(doc._id, 'auth_mfa_disabled', 'MFA disabled', 'Multi-factor authentication has been disabled.').catch((err) => console.error('Failed to create auth notification:', err))
+        inAppNotificationService.createSecurityNotification(doc._id, 'mfa_disabled', { userAgent: req.headers['user-agent'], ip: req.ip }).catch((err) => console.error('Failed to create auth notification:', err))
       }
       const hasTotp = !!doc.mfaSecret
       let method = String(doc.mfaMethod || '').toLowerCase()

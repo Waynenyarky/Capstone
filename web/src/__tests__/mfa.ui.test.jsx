@@ -3,6 +3,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderWithProviders } from '@/test/utils/renderWithProviders.jsx'
 
 // Mock hooks and services used by MFA components
+vi.mock('@/shared/theme/ThemeProvider.jsx', () => ({
+  ThemeProvider: ({ children }) => <>{children}</>,
+  THEMES: {},
+  useAppTheme: () => 'default',
+}))
+
 vi.mock('@/features/authentication/hooks', () => ({
   useAuthSession: () => ({ currentUser: { email: 'jane@example.com', role: 'user' }, login: () => {}, logout: () => {} }),
   useLoginVerificationForm: () => ({ form: undefined, handleFinish: () => {}, isSubmitting: false, prefillDevCode: () => {} }),
@@ -10,7 +16,7 @@ vi.mock('@/features/authentication/hooks', () => ({
   useResendLoginCode: () => ({ isSending: false, handleResend: () => {}, isCooling: false, remaining: 0 }),
   useMfaSetup: () => ({ loading: false, qrDataUrl: null, uri: null, secret: 'S3CR3T', code: '', setCode: () => {}, enabled: false, handleSetup: () => {}, handleVerify: () => {}, handleDisable: () => {}, markMfaComplete: () => {}, showSecret: false, toggleShowSecret: () => {}, confirmedSaved: false, setConfirmedSaved: () => {}, handleCopy: () => {} }),
   useConfirmLogoutModal: () => ({ open: false, show: () => {}, hide: () => {}, confirming: false, handleConfirm: () => {} }),
-  useLoggedInMfaManager: () => ({
+  useLoggedInMfaManager: vi.fn(() => ({
     currentUser: { email: 'jane@example.com', role: 'user' },
     role: { slug: 'user' },
     status: 'disabled',
@@ -42,7 +48,7 @@ vi.mock('@/features/authentication/hooks', () => ({
     confirmDisable: () => {},
     confirmDisableWithoutVerify: () => {},
     confirmUndo: () => {},
-  }),
+  })),
 }))
 
 vi.mock('@/features/authentication/presentation/passkey/hooks/usePasskeyManager', () => ({
@@ -71,6 +77,7 @@ import MfaSetup from '@/features/authentication/components/MfaSetup.jsx'
 import LoginVerificationForm from '@/features/authentication/components/LoginVerificationForm.jsx'
 import TotpVerificationForm from '@/features/authentication/components/TotpVerificationForm.jsx'
 import LoggedInMfaManager from '@/features/authentication/components/LoggedInMfaManager.jsx'
+import { useLoggedInMfaManager } from '@/features/authentication/hooks'
 
 describe('MFA UI snapshots', () => {
   beforeEach(() => {
@@ -110,7 +117,46 @@ describe('MFA UI snapshots', () => {
 
   it('renders LoggedInMfaManager for user', () => {
     const { getByText } = renderWithProviders(<LoggedInMfaManager />)
-    expect(getByText(/Two-factor Authentication/i)).toBeInTheDocument()
-    expect(getByText(/is not enabled/i)).toBeInTheDocument()
+    expect(getByText(/Multi-Factor Authentication/i)).toBeInTheDocument()
+    expect(getByText(/Setup MFA/i)).toBeInTheDocument()
+  })
+
+  it('renders LoggedInMfaManager for user with MFA enabled', () => {
+    vi.mocked(useLoggedInMfaManager).mockReturnValue({
+      currentUser: { email: 'jane@example.com', role: 'user' },
+      role: { slug: 'user' },
+      status: 'enabled',
+      loading: false,
+      isLoading: false,
+      enabled: true,
+      statusFetchFailed: false,
+      disablePending: false,
+      scheduledFor: null,
+      countdown: '',
+      confirmModalVisible: false,
+      setConfirmModalVisible: () => {},
+      confirmCode: '',
+      setConfirmCode: () => {},
+      undoModalVisible: false,
+      setUndoModalVisible: () => {},
+      undoCode: '',
+      setUndoCode: () => {},
+      qrDataUrl: null,
+      uri: null,
+      secret: 'S3CR3T',
+      code: '',
+      setCode: () => {},
+      handleSetup: () => {},
+      handleVerify: () => {},
+      handleDisable: () => {},
+      handleEnable: () => {},
+      handleOpenSetup: () => {},
+      confirmDisable: () => {},
+      confirmDisableWithoutVerify: () => {},
+      confirmUndo: () => {},
+    })
+    const { getByRole, getByText } = renderWithProviders(<LoggedInMfaManager />)
+    expect(getByRole('heading', { name: /Multi-Factor Authentication/i })).toBeInTheDocument()
+    expect(getByText(/Manage MFA/i)).toBeInTheDocument()
   })
 })

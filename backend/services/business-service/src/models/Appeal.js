@@ -6,9 +6,13 @@ const AppealSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    applicationId: {
+      type: String,
+      default: '',
+    },
     appealType: {
       type: String,
-      enum: ['incorrect_fees', 'wrong_fees', 'wrong_violations', 'wrong_assessment', 'processing_errors', 'other'],
+      enum: ['incorrect_fees', 'wrong_fees', 'wrong_violations', 'wrong_assessment', 'processing_errors', 'rejection_appeal', 'other'],
       required: true,
     },
     description: {
@@ -53,6 +57,15 @@ const AppealSchema = new mongoose.Schema(
   },
   { timestamps: true }
 )
+
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+AppealSchema.plugin(encryptionPlugin, {
+  fields: ['description', 'resolution'],
+  deterministicFields: ['businessId', 'applicationId', 'violationId', 'inspectionId'],
+  nestedPaths: [],
+  arrayPaths: [],
+  mixedPaths: [],
+})
 
 module.exports =
   mongoose.models.Appeal ||

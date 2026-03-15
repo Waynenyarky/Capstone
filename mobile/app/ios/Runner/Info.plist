@@ -37,6 +37,10 @@
 	<string>Allow saving edited photos to your library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Allow access to your photo library to update your profile photo.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>BizClear needs location access to verify inspection site location.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>BizClear needs location access to verify inspection site location.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

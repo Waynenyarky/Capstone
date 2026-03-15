@@ -70,4 +70,13 @@ const NotificationSchema = new mongoose.Schema(
 NotificationSchema.index({ userId: 1, read: 1, createdAt: -1 })
 NotificationSchema.index({ userId: 1, createdAt: -1 })
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+NotificationSchema.plugin(encryptionPlugin, {
+  fields: ['title', 'message', 'relatedEntityId'],
+  deterministicFields: [],
+  nestedPaths: [],
+  arrayPaths: [],
+  mixedPaths: ['metadata'],
+})
+
 module.exports = mongoose.models.Notification || mongoose.model('Notification', NotificationSchema)

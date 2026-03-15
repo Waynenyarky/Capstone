@@ -46,6 +46,7 @@ export default function PhilippineAddressFields({
   initialPostalCode = '',
   onAddressChange,
   variant,
+  compactLayout = false,
 }) {
   const fieldName = useCallback(
     (name) => (namePrefix ? [namePrefix, name] : name),
@@ -270,6 +271,129 @@ export default function PhilippineAddressFields({
   // Filter option for search
   const filterOption = (input, option) => {
     return (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+  }
+
+  // Compact layout: all fields in single column (one per row)
+  if (compactLayout) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <Form.Item
+          name={fieldName('province')}
+          label="Province"
+          rules={required ? [{ required: true, message: 'Please select province' }] : []}
+        >
+          <Select
+            showSearch
+            placeholder="Province"
+            loading={loadingProvinces}
+            disabled={disabled || loadingProvinces}
+            onChange={handleProvinceChange}
+            filterOption={filterOption}
+            notFoundContent={loadingProvinces ? <Spin size="small" /> : 'No provinces found'}
+            variant={variant}
+          >
+            {provinces.map((province) => (
+              <Option key={province.code} value={province.code}>
+                {province.name}
+              </Option>
+            ))}
+          </Select>
+        </Form.Item>
+        <Form.Item name={fieldName('provinceName')} hidden>
+          <Input />
+        </Form.Item>
+
+        <Form.Item
+          name={fieldName('city')}
+          label="City/Municipality"
+          rules={required ? [{ required: true, message: 'Please select city/municipality' }] : []}
+        >
+          <Select
+            showSearch
+            placeholder={selectedProvince ? 'City/Municipality' : 'Select province first'}
+            loading={loadingCities}
+            disabled={disabled || !selectedProvince || loadingCities}
+            onChange={handleCityChange}
+            filterOption={filterOption}
+            notFoundContent={
+              loadingCities ? <Spin size="small" /> :
+              !selectedProvince ? 'Select province first' :
+              'No cities found'
+            }
+            variant={variant}
+          >
+            {cities.map((city) => (
+              <Option key={city.code} value={city.code}>
+                {city.name}
+              </Option>
+            ))}
+          </Select>
+        </Form.Item>
+        <Form.Item name={fieldName('cityName')} hidden>
+          <Input />
+        </Form.Item>
+
+        <Form.Item
+          name={fieldName('barangay')}
+          label="Barangay"
+          rules={required ? [{ required: true, message: 'Please select barangay' }] : []}
+        >
+          <Select
+            showSearch
+            placeholder={selectedCity ? 'Barangay' : 'Select city first'}
+            loading={loadingBarangays}
+            disabled={disabled || !selectedCity || loadingBarangays}
+            onChange={handleBarangayChange}
+            filterOption={filterOption}
+            notFoundContent={
+              loadingBarangays ? <Spin size="small" /> :
+              !selectedCity ? 'Select city first' :
+              'No barangays found'
+            }
+            variant={variant}
+          >
+            {barangays.map((barangay) => (
+              <Option key={barangay.code} value={barangay.code}>
+                {barangay.name}
+              </Option>
+            ))}
+          </Select>
+        </Form.Item>
+        <Form.Item name={fieldName('barangayName')} hidden>
+          <Input />
+        </Form.Item>
+
+        <Form.Item
+          name={fieldName('streetAddress')}
+          label="House/Bldg No. & Street"
+          initialValue={initialStreet}
+          rules={required ? [{ required: true, message: 'Please enter house/building no. & street' }] : []}
+        >
+          <Input
+            placeholder="e.g., 133 Roxas Boulevard"
+            disabled={disabled}
+            variant={variant}
+          />
+        </Form.Item>
+
+        <Form.Item
+          name={fieldName('postalCode')}
+          label="Postal Code"
+          initialValue={initialPostalCode}
+          rules={[
+            ...(required ? [{ required: true, message: 'Please enter postal code' }] : []),
+            { pattern: /^\d{4}$/, message: 'Postal code must be 4 digits' }
+          ]}
+        >
+          <Input
+            placeholder="e.g., 2420"
+            maxLength={4}
+            disabled={disabled}
+            variant={variant}
+          />
+        </Form.Item>
+      </div>
+    )
   }
 
   return (

@@ -76,6 +76,15 @@ const PostRequirementSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+PostRequirementSchema.plugin(encryptionPlugin, {
+  fields: ['description', 'documentUrl', 'verificationNotes'],
+  deterministicFields: ['businessId', 'permitId'],
+  nestedPaths: [],
+  arrayPaths: ['submittedDocuments', 'extensionHistory'],
+  mixedPaths: [],
+})
+
 module.exports =
   mongoose.models.PostRequirement ||
   mongoose.model('PostRequirement', PostRequirementSchema)

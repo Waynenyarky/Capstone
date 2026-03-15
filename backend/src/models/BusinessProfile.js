@@ -1,6 +1,27 @@
 const mongoose = require('mongoose')
 const { BUSINESS_TYPE_VALUES } = require('../../shared/constants')
 
+// Define valid status transitions
+const VALID_STATUS_TRANSITIONS = {
+  draft: ['requirements_viewed', 'form_completed', 'submitted'],
+  requirements_viewed: ['form_completed', 'draft', 'submitted'],
+  form_completed: ['documents_uploaded', 'submitted', 'requirements_viewed', 'draft'],
+  documents_uploaded: ['bir_registered', 'agencies_registered', 'submitted', 'form_completed'],
+  bir_registered: ['agencies_registered', 'submitted', 'documents_uploaded'],
+  agencies_registered: ['submitted', 'bir_registered', 'documents_uploaded'],
+  submitted: ['under_review', 'resubmit'],
+  resubmit: ['under_review'],
+  under_review: ['approved', 'rejected', 'needs_revision'],
+  approved: ['active', 'pending_renewal'],
+  rejected: ['resubmit'],
+  needs_revision: ['resubmit'],
+  active: ['pending_renewal', 'closed'],
+  pending_renewal: ['renewal_submitted'],
+  renewal_submitted: ['renewal_approved', 'active'],
+  renewal_approved: ['active'],
+  closed: []
+}
+
 const BusinessProfileSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
@@ -90,6 +111,8 @@ const BusinessProfileSchema = new mongoose.Schema(
       reviewedAt: { type: Date, default: null },
       reviewComments: { type: String, default: '' },
       rejectionReason: { type: String, default: '' },
+      // Per-field accept/reject decisions from LGU review workflow
+      fieldReviewDecisions: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
       // Step 2: Online Application Form (new spec)
       registeredBusinessName: { type: String, default: '' },
       businessTradeName: { type: String, default: '' },
@@ -191,5 +214,75 @@ const BusinessProfileSchema = new mongoose.Schema(
   },
   { timestamps: true }
 )
+
+// Status transition validation middleware for each business
+BusinessProfileSchema.pre('save', function(next) {
+  const businesses = this.businesses || []
+  
+  for (const business of businesses) {
+    const currentStatus = business.applicationStatus
+    const modifiedPaths = this.modifiedPaths()
+    
+    // Check if applicationStatus is being modified
+    if (modifiedPaths.includes('businesses.$.applicationStatus')) {
+      const originalStatus = this.getChanges()?.updated?.find(b => 
+        b.businessId === business.businessId
+      )?.applicationStatus || currentStatus
+      
+      if (originalStatus !== currentStatus) {
+        const validTransitions = VALID_STATUS_TRANSITIONS[originalStatus] || []
+        
+        if (!validTransitions.includes(currentStatus)) {
+          const error = new Error(
+            `Invalid status transition from "${originalStatus}" to "${currentStatus}". ` +
+            `Valid transitions from "${originalStatus}" are: ${validTransitions.join(', ')}`
+          )
+          error.name = 'InvalidStatusTransitionError'
+          error.code = 'INVALID_STATUS_TRANSITION'
+          error.details = {
+            businessId: business.businessId,
+            fromStatus: originalStatus,
+            toStatus: currentStatus,
+            validTransitions
+          }
+          return next(error)
+        }
+      }
+    }
+  }
+  
+  next()
+})
+
+// Static method to validate status transition
+BusinessProfileSchema.statics.validateStatusTransition = function(fromStatus, toStatus) {
+  const validTransitions = VALID_STATUS_TRANSITIONS[fromStatus] || []
+  return validTransitions.includes(toStatus)
+}
+
+// Static method to get valid transitions for a status
+BusinessProfileSchema.statics.getValidTransitions = function(status) {
+  return VALID_STATUS_TRANSITIONS[status] || []
+}
+
+// Instance method to validate business status transition
+BusinessProfileSchema.methods.validateBusinessStatusTransition = function(businessId, newStatus) {
+  const business = this.businesses.find(b => b.businessId === businessId)
+  if (!business) {
+    throw new Error(`Business with ID ${businessId} not found`)
+  }
+  
+  const currentStatus = business.applicationStatus
+  const validTransitions = VALID_STATUS_TRANSITIONS[currentStatus] || []
+  
+  if (!validTransitions.includes(newStatus)) {
+    throw new Error(
+      `Invalid status transition from "${currentStatus}" to "${newStatus}". ` +
+      `Valid transitions from "${currentStatus}" are: ${validTransitions.join(', ')}`
+    )
+  }
+  
+  return true
+}
 
 module.exports = mongoose.models.BusinessProfile || mongoose.model('BusinessProfile', BusinessProfileSchema)

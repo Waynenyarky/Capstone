@@ -2,6 +2,7 @@ const User = require('../models/User')
 const AuditLog = require('../models/AuditLog')
 const MaintenanceWindow = require('../models/MaintenanceWindow')
 const { addToPasswordHistory } = require('./passwordHistory')
+const { decryptWithHash, encryptWithHash } = require('./secretCipher')
 const { createAuditLog } = require('./auditLogger')
 const logger = require('./logger')
 
@@ -86,20 +87,40 @@ async function applyApprovedChange(approval) {
         }
 
         const oldHash = String(user.passwordHash)
+        const hadMfaSecret = !!user.mfaSecret
+        const priorMfaMethod = String(user.mfaMethod || '')
+        let mfaPlain = ''
+        try { if (hadMfaSecret) mfaPlain = decryptWithHash(oldHash, user.mfaSecret) } catch (_) { mfaPlain = '' }
         const updatedHistory = addToPasswordHistory(oldHash, user.passwordHistory || [])
 
         user.passwordHash = newPasswordHash
         user.passwordHistory = updatedHistory
         user.tokenVersion = (user.tokenVersion || 0) + 1 // Invalidate all sessions
-        user.mfaReEnrollmentRequired = true
-        user.mfaEnabled = false
-        user.mfaSecret = ''
-        user.fprintEnabled = false
-        user.mfaMethod = ''
+        user.mfaReEnrollmentRequired = false
         user.mfaDisablePending = false
         user.mfaDisableRequestedAt = null
         user.mfaDisableScheduledFor = null
         user.tokenFprint = ''
+
+        if (hadMfaSecret) {
+          if (!mfaPlain) {
+            user.mfaReEnrollmentRequired = true
+            user.mfaEnabled = false
+            user.mfaSecret = ''
+            user.mfaMethod = ''
+          } else {
+            try {
+              user.mfaSecret = encryptWithHash(user.passwordHash, mfaPlain)
+              user.mfaEnabled = true
+              user.mfaMethod = priorMfaMethod || 'authenticator'
+            } catch (_) {
+              user.mfaReEnrollmentRequired = true
+              user.mfaEnabled = false
+              user.mfaSecret = ''
+              user.mfaMethod = ''
+            }
+          }
+        }
         await user.save()
 
         // Clear password hash from approval metadata (security)
@@ -119,7 +140,7 @@ async function applyApprovedChange(approval) {
             requestType: approval.requestType,
             approvedBy: approval.approvals.map((a) => String(a.adminId)),
             tokenVersion: user.tokenVersion,
-            mfaReEnrollmentRequired: true,
+            mfaReEnrollmentRequired: !!user.mfaReEnrollmentRequired,
           }
         )
 
@@ -127,27 +148,37 @@ async function applyApprovedChange(approval) {
       }
 
       case 'maintenance_mode': {
-        const { action, message, expectedResumeAt } = approval.requestDetails || {}
+        const { action, message, expectedResumeAt, scheduledStartAt } = approval.requestDetails || {}
         const approvedBy = approval.approvals.map((a) => String(a.adminId))
         const now = new Date()
+        const scheduledDate = scheduledStartAt ? new Date(scheduledStartAt) : null
+        const hasValidScheduledDate = !!(scheduledDate && !Number.isNaN(scheduledDate.getTime()))
+        const shouldActivateNow = !hasValidScheduledDate || scheduledDate <= now
 
         if (action === 'enable') {
           await MaintenanceWindow.updateMany({ isActive: true }, { isActive: false, status: 'ended', deactivatedAt: now })
           await MaintenanceWindow.create({
-            status: 'active',
-            isActive: true,
+            status: shouldActivateNow ? 'active' : 'pending',
+            isActive: shouldActivateNow,
             message: message || '',
             expectedResumeAt: expectedResumeAt ? new Date(expectedResumeAt) : null,
             requestedBy: approval.requestedBy,
             approvedBy,
-            activatedAt: now,
-            metadata: { approvalId: approval.approvalId },
+            activatedAt: shouldActivateNow ? now : null,
+            metadata: {
+              approvalId: approval.approvalId,
+              scheduledStartAt: hasValidScheduledDate ? scheduledDate : null,
+            },
           })
         } else if (action === 'disable') {
-          await MaintenanceWindow.findOneAndUpdate(
-            { isActive: true },
-            { isActive: false, status: 'ended', deactivatedAt: now },
-            { sort: { createdAt: -1 } }
+          await MaintenanceWindow.updateMany(
+            {
+              $or: [
+                { isActive: true },
+                { status: 'pending' },
+              ],
+            },
+            { isActive: false, status: 'ended', deactivatedAt: now }
           )
         }
 
@@ -162,6 +193,7 @@ async function applyApprovedChange(approval) {
             approvalId: approval.approvalId,
             message: message || '',
             expectedResumeAt: expectedResumeAt || null,
+            scheduledStartAt: hasValidScheduledDate ? scheduledDate : null,
             approvedBy,
           }
         )
