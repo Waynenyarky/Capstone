@@ -3,7 +3,7 @@ import { Typography, Badge, theme } from 'antd'
 import {
   FileTextOutlined, AuditOutlined, EditOutlined, StopOutlined,
   UserOutlined, FormOutlined, HistoryOutlined, ReloadOutlined,
-  EyeOutlined, SettingOutlined,
+  EyeOutlined, SettingOutlined, SafetyCertificateOutlined,
 } from '@ant-design/icons'
 
 const TABS = [
@@ -12,7 +12,8 @@ const TABS = [
   { key: 'appeals', label: 'Appeals', icon: <AuditOutlined /> },
   { key: 'editRequests', label: 'Edits', icon: <EditOutlined /> },
   { key: 'renewals', label: 'Renewals', icon: <ReloadOutlined /> },
-  { key: 'cessation', label: 'Cessation', icon: <StopOutlined /> },
+  { key: 'cessation', label: 'Cessations', icon: <StopOutlined /> },
+  { key: 'inspections', label: 'Inspections', icon: <SafetyCertificateOutlined /> },
   { key: 'drafts', label: 'My Drafts', icon: <FormOutlined /> },
   { key: 'owners', label: 'Owners', icon: <UserOutlined /> },
   { key: 'logs', label: 'Logs', icon: <HistoryOutlined /> },
@@ -43,7 +44,7 @@ export default function OfficerLeftPanel({
         {TABS.map(tab => {
             const isActive = displayActiveTab === tab.key
             // Show count for applications, appeals, edits, renewals, cessation, and drafts tabs
-            const showCount = ['toReview', 'applications', 'appeals', 'editRequests', 'renewals', 'cessation', 'drafts'].includes(tab.key)
+            const showCount = ['toReview', 'applications', 'appeals', 'editRequests', 'renewals', 'cessation', 'inspections', 'drafts'].includes(tab.key)
             const count = showCount ? (counts[tab.key] || 0) : 0
             return (
               <div

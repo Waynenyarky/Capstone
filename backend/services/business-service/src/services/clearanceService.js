@@ -96,7 +96,11 @@ async function initiateClearance(businessId, applicationId, initiatedBy) {
   // Update business application status
   const businessIndex = profile.businesses.findIndex((b) => b.businessId === businessId || String(b._id) === businessId)
   if (businessIndex !== -1) {
-    profile.businesses[businessIndex].applicationStatus = 'under_review'
+    const currentStatus = profile.businesses[businessIndex].applicationStatus
+    // Do not downgrade finalized decisions (e.g., approved -> under_review)
+    if (!['approved', 'rejected'].includes(currentStatus)) {
+      profile.businesses[businessIndex].applicationStatus = 'under_review'
+    }
     profile.businesses[businessIndex].clearanceReference = referenceNumber
     profile.businesses[businessIndex].clearanceInitiatedAt = new Date()
     profile.markModified('businesses')
@@ -120,6 +124,7 @@ async function getClearanceStatus(businessId) {
   }
 
   return {
+    initiated: true,
     referenceNumber: clearance.referenceNumber,
     overallStatus: clearance.overallStatus,
     currentAgency: clearance.currentAgency,

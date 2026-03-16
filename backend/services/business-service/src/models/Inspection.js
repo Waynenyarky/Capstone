@@ -33,7 +33,7 @@ const InspectionSchema = new mongoose.Schema(
     inspectorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      default: null,
       index: true
     },
     businessProfileId: {
@@ -75,21 +75,21 @@ const InspectionSchema = new mongoose.Schema(
       severity: { type: String, enum: ['low', 'medium', 'high', 'critical'], default: 'medium' },
       _id: false,
     }],
-    scheduledDate: { type: Date, required: true, index: true },
+    scheduledDate: { type: Date, default: null, index: true },
     scheduledTimeWindow: {
       start: { type: Date },
       end: { type: Date }
     },
     status: {
       type: String,
-      enum: ['pending', 'in_progress', 'completed'],
+      enum: ['pending_assignment', 'pending', 'in_progress', 'completed'],
       default: 'pending',
       index: true
     },
     assignedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true
+      default: null,
     },
     assignedAt: { type: Date, default: Date.now },
     startedAt: { type: Date, default: null },

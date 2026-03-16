@@ -387,4 +387,90 @@ router.put('/inspections/:id/reschedule', requireJwt, requireRole(['lgu_officer'
   }
 })
 
+/**
+ * GET /api/lgu-officer/inspections/:id/violations
+ * Get violations associated with a specific inspection
+ */
+router.get('/inspections/:id/violations', requireJwt, requireRole(['lgu_officer', 'lgu_manager', 'staff']), async (req, res) => {
+  try {
+    const { id } = req.params
+    const violations = await Violation.find({ inspectionId: id })
+      .sort({ createdAt: -1 })
+      .lean()
+    return res.json({ violations })
+  } catch (err) {
+    console.error('GET /api/lgu-officer/inspections/:id/violations error:', err)
+    return respond.error(res, 500, 'fetch_error', err.message || 'Failed to fetch violations')
+  }
+})
+
+/**
+ * GET /api/lgu-officer/violations
+ * List all violations with optional filters
+ */
+router.get('/violations', requireJwt, requireRole(['lgu_officer', 'lgu_manager', 'staff']), async (req, res) => {
+  try {
+    const { status, businessId, severity, page = 1, limit = 50 } = req.query
+    const query = {}
+    if (status) query.status = status
+    if (businessId) query.businessId = businessId
+    if (severity) query.severity = severity
+
+    const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10)
+    const total = await Violation.countDocuments(query)
+    const violations = await Violation.find(query)
+      .populate('inspectorId', 'firstName lastName')
+      .populate('inspectionId', 'businessId businessProfileId scheduledDate status')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit, 10))
+      .lean()
+
+    return res.json({
+      violations,
+      pagination: { page: parseInt(page, 10), limit: parseInt(limit, 10), total, totalPages: Math.ceil(total / limit) }
+    })
+  } catch (err) {
+    console.error('GET /api/lgu-officer/violations error:', err)
+    return respond.error(res, 500, 'fetch_error', err.message || 'Failed to fetch violations')
+  }
+})
+
+/**
+ * PUT /api/lgu-officer/violations/:id/resolve
+ * Mark a violation as resolved
+ */
+router.put('/violations/:id/resolve', requireJwt, requireRole(['lgu_officer', 'lgu_manager', 'staff']), async (req, res) => {
+  try {
+    const { id } = req.params
+    const { resolution, notes } = req.body
+
+    const violation = await Violation.findById(id)
+    if (!violation) {
+      return respond.error(res, 404, 'not_found', 'Violation not found')
+    }
+
+    if (violation.status === 'resolved') {
+      return respond.error(res, 400, 'already_resolved', 'Violation is already resolved')
+    }
+
+    violation.status = 'resolved'
+    violation.resolution = resolution || 'Resolved by officer'
+    violation.resolvedAt = new Date()
+    violation.resolvedBy = req._userId
+    if (notes) violation.notes = notes
+    await violation.save()
+
+    logAuditEvent('violation_resolved', req._userId, 'Violation', violation._id.toString(), {
+      businessId: violation.businessId,
+      violationId: violation.violationId,
+    })
+
+    return res.json({ success: true, violation })
+  } catch (err) {
+    console.error('PUT /api/lgu-officer/violations/:id/resolve error:', err)
+    return respond.error(res, 500, 'resolve_error', err.message || 'Failed to resolve violation')
+  }
+})
+
 module.exports = router

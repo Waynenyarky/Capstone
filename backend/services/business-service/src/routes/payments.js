@@ -2,6 +2,7 @@ const express = require('express')
 const mongoose = require('mongoose')
 const Payment = require('../models/Payment')
 const BusinessProfile = require('../models/BusinessProfile')
+const Inspection = require('../models/Inspection')
 const { requireJwt, requireRole } = require('../middleware/auth')
 const { logAuditEvent } = require('../lib/auditClient')
 
@@ -28,16 +29,9 @@ function findBusinessInProfile(profile, identifier) {
 
 async function generatePaymentId() {
   const year = new Date().getFullYear()
-  const prefix = `PAY-${year}-`
-  const last = await Payment.findOne({ paymentId: new RegExp(`^${prefix}`) })
-    .sort({ paymentId: -1 })
-    .lean()
-  let seq = 1
-  if (last && last.paymentId) {
-    const match = last.paymentId.match(/-(\d+)$/)
-    if (match) seq = parseInt(match[1], 10) + 1
-  }
-  return `${prefix}${String(seq).padStart(6, '0')}`
+  const ts = Date.now().toString(36).toUpperCase()
+  const rand = Math.random().toString(36).slice(2, 8).toUpperCase()
+  return `PAY-${year}-${ts}-${rand}`
 }
 
 /**
@@ -49,7 +43,35 @@ router.get('/', requireJwt, async (req, res) => {
     const { page = 1, limit = 20, status, paymentType, businessId } = req.query
     // If businessId is provided, search by businessId (works for LGU officers viewing business owner payments)
     // Otherwise, filter by current user's payments
-    const filter = businessId ? { businessId } : { userId: req._userId }
+    const filter = businessId ? { businessId: String(businessId) } : { userId: req._userId }
+
+    // businessId can be either businesses.businessId or the business subdocument _id,
+    // depending on which module generated the payment record. Resolve both aliases so
+    // owners and officers see the same payment rows regardless of identifier form.
+    if (businessId) {
+      const targetBusinessId = String(businessId)
+      let profile = await BusinessProfile.findOne(buildBusinessLookupQuery(targetBusinessId))
+        .select('businesses.businessId businesses._id')
+        .lean()
+
+      // Fallback for business owners: if direct lookup misses, load owner's profile and
+      // resolve aliases from the decrypted in-memory businesses list.
+      if (!profile && req._userId) {
+        profile = await BusinessProfile.findOne({ userId: req._userId })
+          .select('businesses.businessId businesses._id')
+          .lean()
+      }
+
+      if (profile) {
+        const business = findBusinessInProfile(profile, targetBusinessId)
+        const aliases = new Set([targetBusinessId])
+        if (business?.businessId) aliases.add(String(business.businessId))
+        if (business?._id) aliases.add(String(business._id))
+
+        const aliasList = Array.from(aliases)
+        filter.businessId = aliasList.length > 1 ? { $in: aliasList } : aliasList[0]
+      }
+    }
 
     if (status) filter.status = status
     if (paymentType) filter.paymentType = paymentType
@@ -316,6 +338,44 @@ router.post('/:paymentId/pay', requireJwt, async (req, res) => {
 
     await payment.save()
     logAuditEvent('payment_recorded', req._userId, 'Payment', payment._id.toString(), { amount: payment.amount, businessId: payment.businessId })
+
+    // Auto-create inspection when ALL permit payments for this business are paid
+    try {
+      if (payment.businessId) {
+        const pendingPermitPayments = await Payment.countDocuments({
+          businessId: payment.businessId,
+          status: { $ne: 'paid' },
+          paymentType: { $nin: ['cessation_tax'] },
+        })
+        if (pendingPermitPayments === 0) {
+          // Check if an inspection already exists for this business that is not completed
+          const existingInspection = await Inspection.findOne({
+            businessId: payment.businessId,
+            status: { $in: ['pending_assignment', 'pending', 'in_progress'] },
+          })
+          if (!existingInspection) {
+            const profile = await BusinessProfile.findOne(buildBusinessLookupQuery(payment.businessId))
+            if (profile) {
+              const business = findBusinessInProfile(profile, payment.businessId)
+              if (business) {
+                const appType = business.applicationType || 'new'
+                const permitType = appType === 'renewal' ? 'renewal' : 'initial'
+                await Inspection.create({
+                  businessProfileId: profile._id,
+                  businessId: payment.businessId,
+                  permitType,
+                  inspectionType: permitType,
+                  status: 'pending_assignment',
+                })
+                console.log(`[payments] Auto-created inspection for business ${payment.businessId}`)
+              }
+            }
+          }
+        }
+      }
+    } catch (inspErr) {
+      console.error('[payments] Auto-inspection creation failed (non-blocking):', inspErr)
+    }
 
     return res.json({
       data: payment,

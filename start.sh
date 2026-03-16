@@ -42,6 +42,178 @@ CYAN='\033[0;36m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# Print LAN URLs that can be opened from other devices on the same network.
+print_lan_web_urls() {
+  local port="$1"
+  local lan_ips
+  lan_ips=$(ifconfig 2>/dev/null | awk '/inet / {print $2}' | grep -E '^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)' | sort -u)
+
+  if [ -z "$lan_ips" ]; then
+    echo -e "${YELLOW}   ⚠️  Could not detect a LAN IPv4 address for this machine.${NC}"
+    return
+  fi
+
+  echo -e "${CYAN}LAN access (same Wi-Fi/LAN):${NC}"
+  while IFS= read -r ip; do
+    [ -z "$ip" ] && continue
+    echo -e "   • http://${ip}:${port}"
+  done <<< "$lan_ips"
+}
+
+# Read MONGO_URI from env or .env without printing secrets.
+get_effective_mongo_uri() {
+  if [ -n "${MONGO_URI:-}" ]; then
+    printf '%s' "$MONGO_URI"
+    return 0
+  fi
+
+  if [ -f ".env" ]; then
+    local line
+    line=$(grep -E '^[[:space:]]*MONGO_URI=' .env | tail -n 1)
+    line=${line#*=}
+    line=$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    line=${line%\"}
+    line=${line#\"}
+    line=${line%\'}
+    line=${line#\'}
+    printf '%s' "$line"
+  fi
+}
+
+append_unique_query_param() {
+  local query="$1"
+  local pair="$2"
+  local key="${pair%%=*}"
+  [ -z "$pair" ] && { printf '%s' "$query"; return 0; }
+
+  if [ -n "$query" ] && echo "$query" | tr '&' '\n' | grep -q "^${key}="; then
+    printf '%s' "$query"
+    return 0
+  fi
+
+  if [ -n "$query" ]; then
+    printf '%s' "${query}&${pair}"
+  else
+    printf '%s' "$pair"
+  fi
+}
+
+# Convert mongodb+srv:// URI to explicit mongodb://hosts URI.
+# This avoids runtime SRV/TXT lookups inside containers (common Atlas DNS failure mode in Docker).
+expand_atlas_srv_uri() {
+  local input_uri="$1"
+  if [[ "$input_uri" != mongodb+srv://* ]]; then
+    printf '%s' "$input_uri"
+    return 0
+  fi
+
+  local without_scheme authority remainder
+  without_scheme="${input_uri#mongodb+srv://}"
+  if [[ "$without_scheme" == */* ]]; then
+    authority="${without_scheme%%/*}"
+    remainder="${without_scheme#*/}"
+  else
+    authority="$without_scheme"
+    remainder=""
+  fi
+
+  local auth_part cluster_host
+  if [[ "$authority" == *@* ]]; then
+    auth_part="${authority%@*}"
+    cluster_host="${authority##*@}"
+  else
+    auth_part=""
+    cluster_host="$authority"
+  fi
+
+  local db_path query
+  db_path="$remainder"
+  query=""
+  if [[ "$remainder" == *\?* ]]; then
+    db_path="${remainder%%\?*}"
+    query="${remainder#*\?}"
+  fi
+
+  local srv_hosts txt_params
+  srv_hosts=$(nslookup -type=SRV "_mongodb._tcp.${cluster_host}" 2>/dev/null | awk '/service =/ {print $NF}' | sed 's/\.$//' | paste -sd, -)
+  txt_params=$(nslookup -type=TXT "$cluster_host" 2>/dev/null | sed -n 's/.*text = "\(.*\)".*/\1/p' | paste -sd'&' -)
+
+  if [ -z "$srv_hosts" ]; then
+    return 1
+  fi
+
+  local combined_query
+  combined_query="$query"
+  if [ -n "$txt_params" ]; then
+    local p
+    while IFS= read -r p; do
+      [ -z "$p" ] && continue
+      combined_query=$(append_unique_query_param "$combined_query" "$p")
+    done < <(echo "$txt_params" | tr '&' '\n')
+  fi
+  combined_query=$(append_unique_query_param "$combined_query" "tls=true")
+
+  local auth_prefix new_uri
+  auth_prefix=""
+  [ -n "$auth_part" ] && auth_prefix="${auth_part}@"
+
+  if [ -n "$db_path" ]; then
+    new_uri="mongodb://${auth_prefix}${srv_hosts}/${db_path}"
+  else
+    new_uri="mongodb://${auth_prefix}${srv_hosts}/"
+  fi
+  if [ -n "$combined_query" ]; then
+    new_uri="${new_uri}?${combined_query}"
+  fi
+
+  printf '%s' "$new_uri"
+}
+
+# Atlas preflight + export adjusted MONGO_URI for this script execution.
+prepare_atlas_mongo_uri() {
+  local effective_uri
+  effective_uri=$(get_effective_mongo_uri)
+  if [ -z "$effective_uri" ]; then
+    echo -e "${RED}❌ --atlas set but MONGO_URI is empty.${NC}"
+    echo -e "${YELLOW}   Set MONGO_URI in .env (see docs/deployment/atlas.md).${NC}"
+    return 1
+  fi
+
+  if [[ "$effective_uri" != mongodb+srv://* ]]; then
+    export MONGO_URI="$effective_uri"
+    echo -e "${GREEN}   ✅ Atlas preflight: using explicit MongoDB URI.${NC}"
+    return 0
+  fi
+
+  local authority cluster_host
+  authority="${effective_uri#mongodb+srv://}"
+  authority="${authority%%/*}"
+  cluster_host="${authority##*@}"
+
+  echo -e "${CYAN}   Checking Atlas DNS records for ${cluster_host}...${NC}"
+  if ! nslookup -type=TXT "$cluster_host" >/dev/null 2>&1; then
+    echo -e "${RED}   ❌ Atlas TXT lookup failed for ${cluster_host}.${NC}"
+    echo -e "${YELLOW}   Try: nslookup -type=TXT ${cluster_host}${NC}"
+    return 1
+  fi
+  if ! nslookup -type=SRV "_mongodb._tcp.${cluster_host}" >/dev/null 2>&1; then
+    echo -e "${RED}   ❌ Atlas SRV lookup failed for ${cluster_host}.${NC}"
+    echo -e "${YELLOW}   Try: nslookup -type=SRV _mongodb._tcp.${cluster_host}${NC}"
+    return 1
+  fi
+
+  local expanded_uri
+  expanded_uri=$(expand_atlas_srv_uri "$effective_uri")
+  if [ -z "$expanded_uri" ]; then
+    echo -e "${RED}   ❌ Failed to expand Atlas SRV URI to explicit hosts.${NC}"
+    return 1
+  fi
+
+  export MONGO_URI="$expanded_uri"
+  echo -e "${GREEN}   ✅ Atlas preflight passed (using expanded host list; no in-container SRV/TXT dependency).${NC}"
+  return 0
+}
+
 # Parse arguments
 DEV_MODE=false
 DEMO_MODE=false
@@ -623,6 +795,15 @@ if [ "$GANACHE_GUI" = true ]; then
   COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.ganache-gui.yml"
 fi
 
+if [ "$ATLAS_MODE" = true ]; then
+  echo ""
+  if ! prepare_atlas_mongo_uri; then
+    echo ""
+    echo -e "${RED}Atlas preflight failed. Startup aborted.${NC}"
+    exit 1
+  fi
+fi
+
 if [ "$PRODUCTION_MODE" = true ]; then
   echo ""
   echo -e "${CYAN}🏭 Production mode: resetting everything (containers + volumes)...${NC}"
@@ -913,30 +1094,50 @@ if [ -d "web" ]; then
       fi
     fi
     
-    # Always check for and kill existing Vite processes to prevent conflicts
-    if pgrep -f "vite.*5173" > /dev/null; then
-      echo -e "${YELLOW}   ⚠️  Existing Vite process found - stopping to prevent conflicts...${NC}"
-      pkill -f "vite.*5173" 2>/dev/null || true
-      sleep 2
+    # Always restart Vite dev server so startup is deterministic
+    echo -e "${CYAN}   Restarting web dev server on port 5173...${NC}"
+
+    # Stop PID tracked by prior runs first
+    if [ -f /tmp/web-dev-server.pid ]; then
+      OLD_WEB_PID=$(cat /tmp/web-dev-server.pid 2>/dev/null)
+      if [ -n "$OLD_WEB_PID" ] && kill -0 "$OLD_WEB_PID" >/dev/null 2>&1; then
+        kill "$OLD_WEB_PID" >/dev/null 2>&1 || true
+        sleep 1
+      fi
+      rm -f /tmp/web-dev-server.pid
     fi
-    if ! pgrep -f "vite.*5173" > /dev/null; then
-      if [ "$DEMO_UI_MODE" = true ]; then
-        echo -e "${GREEN}   Starting web dev server on port 5173 (demo UI: no FAB/prefill)...${NC}"
-      else
-        echo -e "${GREEN}   Starting web dev server on port 5173...${NC}"
+
+    # Stop anything still bound to 5173 (preferred)
+    if command -v lsof >/dev/null 2>&1; then
+      WEB_PORT_PIDS=$(lsof -ti tcp:5173 2>/dev/null | sort -u)
+      if [ -n "$WEB_PORT_PIDS" ]; then
+        kill $WEB_PORT_PIDS >/dev/null 2>&1 || true
+        sleep 1
+        WEB_PORT_PIDS_REMAINING=$(lsof -ti tcp:5173 2>/dev/null | sort -u)
+        if [ -n "$WEB_PORT_PIDS_REMAINING" ]; then
+          kill -9 $WEB_PORT_PIDS_REMAINING >/dev/null 2>&1 || true
+          sleep 1
+        fi
       fi
-      (npm run dev > /tmp/web-dev-server.log 2>&1) &
-      WEB_PID=$!
-      echo $WEB_PID > /tmp/web-dev-server.pid
-      sleep $WAIT_AFTER_WEB
-      if ps -p $WEB_PID > /dev/null 2>&1; then
-        echo -e "${GREEN}   ✅ Web server started (PID: $WEB_PID)${NC}"
-        echo -e "${CYAN}   Logs: tail -f /tmp/web-dev-server.log${NC}"
-      else
-        echo -e "${YELLOW}   ⚠️  Web server may have failed to start. Check logs: tail /tmp/web-dev-server.log${NC}"
-      fi
+    fi
+
+    # Fallback process-name kill for environments where lsof is unavailable
+    pkill -f "vite.*5173" 2>/dev/null || true
+
+    if [ "$DEMO_UI_MODE" = true ]; then
+      echo -e "${GREEN}   Starting web dev server on port 5173 (demo UI: no FAB/prefill)...${NC}"
     else
-      echo -e "${YELLOW}   Web dev server already running${NC}"
+      echo -e "${GREEN}   Starting web dev server on port 5173...${NC}"
+    fi
+    (npm run dev > /tmp/web-dev-server.log 2>&1) &
+    WEB_PID=$!
+    echo $WEB_PID > /tmp/web-dev-server.pid
+    sleep $WAIT_AFTER_WEB
+    if ps -p $WEB_PID > /dev/null 2>&1; then
+      echo -e "${GREEN}   ✅ Web server started (PID: $WEB_PID)${NC}"
+      echo -e "${CYAN}   Logs: tail -f /tmp/web-dev-server.log${NC}"
+    else
+      echo -e "${YELLOW}   ⚠️  Web server may have failed to start. Check logs: tail /tmp/web-dev-server.log${NC}"
     fi
   fi
   
@@ -1002,6 +1203,17 @@ elif [ -f "/tmp/web-dev-server.pid" ]; then
   else
     echo -e "   • Web frontend (http://localhost:5173) - HMR enabled"
   fi
+fi
+WEB_PORT=""
+if [ -f "/tmp/web-preview-server.pid" ]; then
+  WEB_PORT="4173"
+elif [ -f "/tmp/web-dev-server.pid" ]; then
+  WEB_PORT="5173"
+fi
+
+if [ -n "$WEB_PORT" ]; then
+  echo ""
+  print_lan_web_urls "$WEB_PORT"
 fi
 echo ""
 echo -e "${CYAN}To stop:${NC}"

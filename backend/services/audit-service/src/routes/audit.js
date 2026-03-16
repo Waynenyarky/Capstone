@@ -121,11 +121,45 @@ router.post('/log', requireServiceAuth, auditLogRateLimit(), async (req, res) =>
     const eventType = Array.isArray(params) && params[1] != null ? params[1] : operation;
     logger.info('Audit log received from service', { operation, eventType, auditLogId });
 
+    // Gas policy: classify event tier
+    const gasPolicy = require('../lib/gasPolicy');
+    const policy = gasPolicy.classify(operation, eventType);
+    logger.info('Gas policy classification', { operation, eventType, tier: policy.tier });
+
+    // Tier C: off-chain only — skip blockchain entirely
+    if (policy.skip) {
+      if (auditLogId) {
+        await AuditLog.findByIdAndUpdate(auditLogId, { blockchainStatus: 'skipped', blockchainError: 'off-chain-only tier' }).catch(() => {});
+      }
+      return res.json({ success: true, queued: false, tier: policy.tier, message: 'Event classified as off-chain only' });
+    }
+
+    // Dedup check: if logAuditHash and we have a hash param, skip if already anchored
+    if (operation === 'logAuditHash' && Array.isArray(params) && params[0]) {
+      const existingAnchored = await AuditLog.findOne({ hash: params[0], blockchainStatus: 'anchored' }).lean();
+      if (existingAnchored) {
+        logger.info('Dedup: hash already anchored, skipping', { hash: params[0] });
+        return res.json({ success: true, queued: false, dedup: true, message: 'Hash already anchored on-chain' });
+      }
+    }
+
     // This endpoint is called by other services to log to blockchain
     if (blockchainService && blockchainService.isAvailable && blockchainService.isAvailable()) {
       const blockchainQueue = require('../lib/blockchainQueue');
+
+      if (policy.anchor) {
+        // Tier A: immediate queue (high priority)
+        blockchainQueue.queueBlockchainOperation(operation, params, auditLogId);
+        return res.json({ success: true, queued: true, tier: policy.tier });
+      } else if (policy.batch) {
+        // Tier B: add to batch buffer for scheduled commit
+        blockchainQueue.addToBatchBuffer(operation, params, auditLogId);
+        return res.json({ success: true, queued: true, tier: policy.tier, batched: true });
+      }
+
+      // Fallback: queue normally
       blockchainQueue.queueBlockchainOperation(operation, params, auditLogId);
-      return res.json({ success: true, queued: true });
+      return res.json({ success: true, queued: true, tier: policy.tier });
     } else {
       // Blockchain not available, but don't fail the request
       return res.json({ success: true, queued: false, message: 'Blockchain service not available' });
@@ -210,15 +244,29 @@ router.get('/queue-status', requireServiceAuth, async (req, res) => {
   try {
     const blockchainQueue = require('../lib/blockchainQueue');
     const status = blockchainQueue.getQueueStatus()
+    const batchStatus = blockchainQueue.getBatchBufferStatus()
     const pendingCount = await AuditLog.countDocuments({ blockchainStatus: 'pending', txHash: { $in: ['', null] } })
     const failedCount = await AuditLog.countDocuments({ blockchainStatus: 'failed' })
     const skippedCount = await AuditLog.countDocuments({ blockchainStatus: 'skipped' })
+    const digestCount = await AuditLog.countDocuments({ blockchainStatus: 'anchored_via_digest' })
 
     return res.json({
       queue: status,
-      unanchored: { pending: pendingCount, failed: failedCount, skipped: skippedCount },
+      batchBuffer: batchStatus,
+      unanchored: { pending: pendingCount, failed: failedCount, skipped: skippedCount, digestAnchored: digestCount },
       blockchainAvailable: blockchainService.isAvailable(),
+      gasMode: blockchainService.getGasMode ? blockchainService.getGasMode() : 'unknown',
     })
+  } catch (err) {
+    return res.status(500).json({ error: err.message })
+  }
+});
+
+// GET /api/audit/gas-budget — gas budget status for treasury/IT dashboard
+router.get('/gas-budget', requireServiceAuth, async (req, res) => {
+  try {
+    const gasBudgetTracker = require('../lib/gasBudgetTracker');
+    return res.json(gasBudgetTracker.getStatus())
   } catch (err) {
     return res.status(500).json({ error: err.message })
   }

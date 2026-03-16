@@ -449,6 +449,56 @@ const BusinessRetirementSystem = ({ businessId, className }) => {
         {!retirementData?.status && currentStep === 2 && (
           <div>
             <Title level={4}>Step 3: Submit Application</Title>
+
+            {/* Official CBPLO-ROB-F11 Form Text */}
+            <Card
+              size="small"
+              title={
+                <div style={{ textAlign: 'center' }}>
+                  <Text type="secondary" style={{ fontSize: 10, display: 'block' }}>CBPLO-ROB-F11 Rev. 00</Text>
+                  <Text strong style={{ fontSize: 13 }}>CITY BUSINESS PERMIT AND LICENSING OFFICE</Text>
+                  <br />
+                  <Text strong style={{ fontSize: 14 }}>APPLICATION FOR THE RETIREMENT OF BUSINESS</Text>
+                </div>
+              }
+              style={{ marginBottom: 24, border: '1px solid #d9d9d9' }}
+            >
+              <div style={{ padding: '8px 0', fontSize: 13, lineHeight: 1.8 }}>
+                <Paragraph style={{ marginBottom: 8 }}>
+                  <Text strong>The City Mayor</Text><br />
+                  <Text>Thru: <strong>The City Treasurer</strong></Text><br />
+                  <Text>Madam:</Text>
+                </Paragraph>
+                <Paragraph style={{ marginBottom: 8, textAlign: 'justify' }}>
+                  Pursuant to Sec. 145 of R.A. 7160 I hereby apply for the retirement of my business, with business
+                  name <Text underline strong>{businessId ? `[Business Name]` : '___________'}</Text> WITH BP NO. <Text underline>___________</Text> located at
+                  _______________, Alaminos City, Pangasinan since ___________.
+                </Paragraph>
+                <Paragraph style={{ marginBottom: 0, textAlign: 'justify' }}>
+                  Attached herewith is my sworn statement of gross sales/receipts for the current year, business
+                  permit and other permits issued under my name. I promise that I shall not engage in any business in the
+                  future without first securing the necessary permit as required by law.
+                </Paragraph>
+              </div>
+            </Card>
+
+            <Form.Item
+              name="acknowledgment"
+              valuePropName="checked"
+              rules={[
+                { validator: (_, value) =>
+                  value ? Promise.resolve() : Promise.reject(new Error('You must acknowledge the legal declaration above'))
+                },
+              ]}
+              style={{ marginBottom: 16 }}
+            >
+              <Space align="start">
+                <input type="checkbox" style={{ marginTop: 4 }} />
+                <Text style={{ fontSize: 12 }}>
+                  I acknowledge and agree to the legal declaration stated in the Application for the Retirement of Business (CBPLO-ROB-F11) above.
+                </Text>
+              </Space>
+            </Form.Item>
             
             <Form
               form={form}
@@ -469,8 +519,9 @@ const BusinessRetirementSystem = ({ businessId, className }) => {
               
               <Form.Item
                 name="swornStatementGrossSales"
-                label="Sworn Statement of Gross Sales"
+                label="Sworn Statement of Gross Sales (Amount)"
                 rules={[{ required: true, message: 'Please provide gross sales amount' }]}
+                extra="Enter the total gross sales/receipts for the current year as declared in your sworn statement."
               >
                 <Input 
                   type="number" 
@@ -478,10 +529,33 @@ const BusinessRetirementSystem = ({ businessId, className }) => {
                   addonBefore="₱"
                 />
               </Form.Item>
+
+              <Form.Item
+                name="swornStatementDoc"
+                label="Sworn Statement Document (Upload)"
+                extra="Upload the notarized sworn statement of gross sales/receipts. This is strongly recommended."
+              >
+                <Upload.Dragger
+                  name="swornStatementDoc"
+                  maxCount={1}
+                  beforeUpload={() => false}
+                  accept=".pdf,.jpg,.jpeg,.png"
+                >
+                  <p className="ant-upload-drag-icon">
+                    <FileTextOutlined style={{ fontSize: 36, color: '#1890ff' }} />
+                  </p>
+                  <p className="ant-upload-text" style={{ fontSize: 13 }}>
+                    Click or drag the sworn statement document here
+                  </p>
+                  <p className="ant-upload-hint" style={{ fontSize: 11 }}>
+                    Accepted: PDF, JPG, PNG (max 10MB)
+                  </p>
+                </Upload.Dragger>
+              </Form.Item>
               
               <Form.Item
                 name="supportingDocuments"
-                label="Supporting Documents"
+                label="Other Supporting Documents"
               >
                 <Upload.Dragger
                   name="files"
@@ -490,12 +564,12 @@ const BusinessRetirementSystem = ({ businessId, className }) => {
                   showUploadList={false}
                 >
                   <p className="ant-upload-drag-icon">
-                    <UploadOutlined style={{ fontSize: 48, color: '#1890ff' }} />
+                    <UploadOutlined style={{ fontSize: 36, color: '#1890ff' }} />
                   </p>
-                  <p className="ant-upload-text">
+                  <p className="ant-upload-text" style={{ fontSize: 13 }}>
                     Click or drag files here to upload supporting documents
                   </p>
-                  <p className="ant-upload-hint">
+                  <p className="ant-upload-hint" style={{ fontSize: 11 }}>
                     Upload tax clearance, permit clearance, and other required documents
                   </p>
                 </Upload.Dragger>

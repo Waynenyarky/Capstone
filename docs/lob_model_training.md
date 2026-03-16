@@ -7,7 +7,7 @@ This document covers the trained ML model for the Line of Business (LOB) recomme
 When you run the app with Docker (`./start.sh` or `./start.sh --dev --web-only`):
 
 - The **lob-model** service starts automatically and is used by the business-service for LOB recommendations.
-- **If no model exists** (e.g. fresh clone, or first run), the service **trains automatically** on startup using `ai/datasets/lob_recommendation_dataset.json`, then starts serving. No manual training step is required.
+- **If no model exists** (e.g. fresh clone, or first run), the service **trains automatically** on startup using `ai/datasets/lob_recommendation_dataset_balanced_4000.json` when present (fallback: `ai/datasets/lob_recommendation_dataset.json`), then starts serving. No manual training step is required.
 - The business-service is configured with `LOB_MODEL_SERVICE_URL=http://lob-model:5050`, so LOB recommendations use the trained model when available and fall back to Gemini otherwise.
 
 Another developer can clone the repo, run `./start.sh --dev --web-only`, and the LOB AI flow (trained model + Gemini fallback) works without extra setup.
@@ -30,11 +30,22 @@ Admin Trainer UI (`/admin/lob-trainer`) lets admins manage training data and ret
 
 ## Dataset
 
-**Full dataset:** `ai/datasets/lob_recommendation_dataset.json`
+**Primary dataset (balanced bilingual):** `ai/datasets/lob_recommendation_dataset_balanced_4000.json`
+
+Dataset target implemented:
+- **4,000 flattened rows total**
+- **2,000 English** + **2,000 Filipino**
+- **80 labels** with **50 rows per label**
+
+Audit/reference artifacts:
+- `ai/datasets/lob_recommendation_dataset_balanced_4000_report.json`
+- `ai/scripts/audit_bilingual_dataset.py`
+
+Legacy dataset remains available at `ai/datasets/lob_recommendation_dataset.json`.
 
 Each entry has a free-text `businessDescription` (English or Filipino) and an array of `recommendations`, each with `taxCode`, `lineOfBusiness`, `detailedLine`, and `psicCode`.
 
-**Preprocessing (flattening):** Entries with multiple recommendations are expanded into separate rows, each with a single label `taxCode|detailedLine` (e.g., `RET|Sari-sari store`). This gives ~165 rows across ~79 classes from the initial dataset.
+**Preprocessing (flattening):** Entries with multiple recommendations are expanded into separate rows, each with a single label `taxCode|detailedLine` (e.g., `RET|Sari-sari store`).
 
 The dataset is also seeded into the MongoDB `lobtrainingexamples` collection on first startup, so admins can manage it from the UI.
 
@@ -65,14 +76,18 @@ Re-run this after adding new data to the full dataset so both train and test get
 
 **Steps:**
 
-1. Load dataset JSON — defaults to `lob_recommendation_train.json` if it exists, otherwise falls back to the full dataset.
+1. Load dataset JSON — defaults to `lob_recommendation_train.json` if it exists, otherwise falls back to `lob_recommendation_dataset_balanced_4000.json` when present (then `lob_recommendation_dataset.json`).
 2. Flatten into (description, label) rows.
-3. Vectorize text with `TfidfVectorizer` (max_features=5000, ngram_range=(1,2), sublinear_tf).
-4. Train three classifiers (all with `class_weight='balanced'`) and compare via cross-validation:
+3. Vectorize text with `TfidfVectorizer` (`max_features=6000`, `ngram_range=(1,2)`, `sublinear_tf=True`, `max_df=0.92`).
+4. Train multiple classifiers (all with class balancing where applicable) and compare via cross-validation:
    - Logistic Regression
    - Random Forest
-   - Linear SVC (wrapped with CalibratedClassifierCV for probability support)
-5. Select the best model by accuracy.
+   - Linear SVC
+   - Decision Tree
+   - SVC (RBF)
+   - MLP
+   - XGBoost (if available)
+5. Select the best model by accuracy and run modest hyperparameter tuning.
 6. Fit the best model on the training set and save artifacts.
 
 **Run manually:**
@@ -100,6 +115,7 @@ All saved under `ai/models/`:
 | `lob_vectorizer.joblib` | Fitted TF-IDF vectorizer |
 | `lob_model.joblib` | Best trained classifier |
 | `lob_labels.json` | Ordered list of class labels (e.g., `["AGR|Crop farming", ...]`) |
+| `lob_artifact_checksums.json` | SHA-256 checksums for model artifacts, verified before load |
 
 ---
 
@@ -145,7 +161,8 @@ The service also honours the env var `LOB_RETRAIN_ON_START=1` (or `true`/`yes`) 
 |--------|------|-------------|
 | `GET` | `/health` | Health check — returns model status and label count |
 | `POST` | `/predict` | Predict LOB recommendations for a description |
-| `POST` | `/train` | Retrain the model with a provided dataset |
+| `POST` | `/train` | Retrain the model with a provided dataset (**requires** `X-LOB-Admin-Token`) |
+| `GET` | `/evaluate` | Return held-out metrics (**requires** `X-LOB-Admin-Token`) |
 
 **POST /predict** request body:
 
@@ -186,13 +203,7 @@ Response:
 }
 ```
 
-Or point to a file:
-
-```json
-{
-  "datasetPath": "/absolute/path/to/dataset.json"
-}
-```
+`datasetPath` is intentionally disabled for security.
 
 ---
 
@@ -215,6 +226,9 @@ GEMINI_API_KEY=your-key-from-google-ai-studio
 
 # Optional — enables trained model predictions
 LOB_MODEL_SERVICE_URL=http://localhost:5050
+
+# Required for protected model admin endpoints (/train, /evaluate)
+LOB_MODEL_ADMIN_TOKEN=change-me-strong-random-token
 ```
 
 ---

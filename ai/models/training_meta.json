@@ -1,41 +1,11 @@
 {
   "algorithm": "LinearSVC",
-  "trainedAt": "2026-03-09T15:44:44.347438+00:00",
-  "cv_accuracy": 0.9610920001528876,
-  "n_train_samples": 1619,
+  "trainedAt": "2026-03-16T09:14:31.209676+00:00",
+  "cv_accuracy": 0.9992441421012849,
+  "n_train_samples": 6614,
+  "n_base_samples": 3200,
+  "n_optional_difficult_samples": 135,
+  "n_noisy_augmented_samples": 3279,
   "n_labels": 80,
-  "tuning": {
-    "best_params": {
-      "C": 0.5
-    },
-    "best_cv_score": 0.9363132458370553,
-    "cv_results": {
-      "params": [
-        {
-          "C": 0.3
-        },
-        {
-          "C": 0.5
-        },
-        {
-          "C": 1.0
-        },
-        {
-          "C": 2.0
-        }
-      ],
-      "mean_test_score": [
-        0.9350786779358208,
-        0.9363132458370553,
-        0.9326049611763897,
-        0.9313681027966743
-      ],
-      "std_test_score": [
-        0.07611415008053048,
-        0.07697210145878436,
-        0.07961185385572803,
-        0.08136072702592306
-      ]
-    }
-  }
+  "feature_extractor": "tfidf_word_char_hybrid"
 }

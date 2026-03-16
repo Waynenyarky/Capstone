@@ -1,1 +1,68 @@
-{"lowestRecall":[{"label":"RET|Sari-sari store","recall":0.8571,"total":7},{"label":"AGR|Crop farming","recall":0.8571,"total":7},{"label":"RET|Pharmacy / drugstore","recall":0.875,"total":8},{"label":"FDS|Coffee shop / milk tea","recall":0.8889,"total":9},{"label":"TRN|Delivery / courier service","recall":0.8889,"total":9},{"label":"FIN|Pawnshop","recall":0.8889,"total":9},{"label":"AGR|Livestock / poultry raising","recall":0.9091,"total":11},{"label":"FDS|Canteen / commissary","recall":1.0,"total":7},{"label":"CON|Specialty trade contractor","recall":1.0,"total":7},{"label":"MFG|Food processing","recall":1.0,"total":7},{"label":"MFG|Fireworks / pyrotechnics","recall":1.0,"total":7},{"label":"AGR|Plant nursery","recall":1.0,"total":7},{"label":"WHL|Food & beverages (wholesale)","recall":1.0,"total":7},{"label":"FDS|Catering services","recall":1.0,"total":6},{"label":"TRN|Trucking / hauling","recall":1.0,"total":6}],"macroF1":0.9469477418006829,"precisionMacro":0.9447767857142857,"precisionWeighted":0.9812049062049062,"recallMacro":0.9520630411255411,"recallWeighted":0.9764309764309764,"skippedRows":0,"testRows":297,"top1Accuracy":0.9764309764309764,"top3Accuracy":1.0,"top5Accuracy":1.0,"usingFixedTest":true,"weightedF1":0.9770285786922746}
+{
+  "accuracyTop1": 1.0,
+  "accuracyTop3": 1.0,
+  "accuracyTop5": 1.0,
+  "precisionMacro": 1.0,
+  "precisionWeighted": 1.0,
+  "recallMacro": 1.0,
+  "recallWeighted": 1.0,
+  "macroF1": 1.0,
+  "weightedF1": 1.0,
+  "testRows": 800,
+  "confidenceGates": [
+    {
+      "threshold": 0.3,
+      "coverage": 1.0,
+      "precision": 1.0,
+      "kept": 800
+    },
+    {
+      "threshold": 0.4,
+      "coverage": 1.0,
+      "precision": 1.0,
+      "kept": 800
+    },
+    {
+      "threshold": 0.5,
+      "coverage": 1.0,
+      "precision": 1.0,
+      "kept": 800
+    },
+    {
+      "threshold": 0.6,
+      "coverage": 1.0,
+      "precision": 1.0,
+      "kept": 800
+    },
+    {
+      "threshold": 0.7,
+      "coverage": 1.0,
+      "precision": 1.0,
+      "kept": 800
+    },
+    {
+      "threshold": 0.8,
+      "coverage": 1.0,
+      "precision": 1.0,
+      "kept": 800
+    },
+    {
+      "threshold": 0.9,
+      "coverage": 1.0,
+      "precision": 1.0,
+      "kept": 800
+    },
+    {
+      "threshold": 0.95,
+      "coverage": 1.0,
+      "precision": 1.0,
+      "kept": 800
+    }
+  ],
+  "recommended95PrecisionGate": {
+    "threshold": 0.3,
+    "coverage": 1.0,
+    "precision": 1.0,
+    "kept": 800
+  }
+}

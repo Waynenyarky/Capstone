@@ -12,7 +12,7 @@
 | Item Category | Description & Details |
 |---------------|----------------------|
 | **New Feature** | **AI**: Filipino language input support - model understands Filipino business descriptions. **Blockchain**: Audit history retrieval with time-based filtering and pagination |
-| **Integration** | **AI**: Bilingual training dataset (1,186 Filipino examples) integrated into ML model. **Blockchain**: New query functions integrated with existing AuditLog contract |
+| **Integration** | **AI**: Balanced bilingual training dataset (2,000 Filipino + 2,000 English examples) integrated into ML model. **Blockchain**: New query functions integrated with existing AuditLog contract |
 | **Success Criteria** | AI: Correctly classifies businesses described in Filipino with same accuracy as English. Blockchain: Can retrieve audit history by time range, get recent audits, and view stats |
 | **Risks & Fixes** | Risk: Model may not recognize all Filipino words. Fix: Dataset includes diverse Filipino vocabulary. Risk: Gas costs for history queries. Fix: Pagination to limit results |
 
@@ -27,14 +27,15 @@
 The AI model supports Filipino language input for business descriptions. Filipino-speaking business owners can describe their business in Filipino (e.g., "Nagtitinda ako ng mga de-lata...") and receive accurate LOB recommendations.
 
 **How it works:**
-- Training dataset contains **1,618 examples** total
-- **1,186 examples (73%)** are in Filipino language
+- Training dataset contains **4,000 examples** total
+- **2,000 examples** are in Filipino language
+- **2,000 examples** are in English language
 - Model learns Filipino vocabulary: "tindahan", "nagbebenta", "serbisyo", "karinderia", etc.
 - No translation needed - model directly understands Filipino input
 
 ## 2. Implementation Details
 
-### Training Data: `ai/datasets/lob_recommendation_dataset.json`
+### Training Data: `ai/datasets/lob_recommendation_dataset_balanced_4000.json`
 
 The dataset includes bilingual examples for each business category:
 
@@ -216,7 +217,7 @@ ALL 3 TEST CASES PASSED (NORMAL ✅ | EDGE ✅ | ATTACK ✅)
 
 | Track | Feature | Integration | Status |
 |-------|---------|-------------|--------|
-| AI | Filipino Language Input Support | Bilingual training dataset (1,186 Filipino examples) | ✅ Working |
+| AI | Filipino Language Input Support | Balanced dataset (2,000 Filipino + 2,000 English examples) | ✅ Working |
 | Blockchain | Audit History | 3 new query functions in AuditLog.sol | ✅ Working |
 
 ### Test Results Summary
@@ -232,7 +233,7 @@ ALL 3 TEST CASES PASSED (NORMAL ✅ | EDGE ✅ | ATTACK ✅)
 ## Files Modified
 
 ### AI Track
-- `ai/datasets/lob_recommendation_dataset.json` - Contains 1,618 training examples (1,186 in Filipino)
+- `ai/datasets/lob_recommendation_dataset_balanced_4000.json` - Contains 4,000 training examples (2,000 Filipino + 2,000 English)
 - Model trained on bilingual data to understand Filipino input
 
 ### Blockchain Track
@@ -250,19 +251,19 @@ ALL 3 TEST CASES PASSED (NORMAL ✅ | EDGE ✅ | ATTACK ✅)
 ### Q: What feature & integration did you add? Did it work on all test cases?
 
 **Version 1:**
-I added Filipino language input support to the AI model by training it on a bilingual dataset containing 1,186 Filipino business descriptions. For the blockchain, I added audit history retrieval functions with time-based filtering and pagination. Yes, all 6 test cases passed—the AI correctly classifies Filipino input like "Nagtitinda ako ng mga de-lata..." as retail/Sari-sari store with 78% confidence.
+I added Filipino language input support to the AI model by training it on a balanced bilingual dataset containing 2,000 Filipino and 2,000 English business descriptions. For the blockchain, I added audit history retrieval functions with time-based filtering and pagination. Yes, all 6 test cases passed—the AI correctly classifies Filipino input like "Nagtitinda ako ng mga de-lata..." as retail/Sari-sari store with 78% confidence.
 
 **Version 2:**
 For the AI track, I integrated a bilingual training dataset so the model understands both English and Filipino input. Business owners can now describe their business in Filipino and get accurate LOB recommendations. For blockchain, I added `getAuditStats()`, `getRecentAudits()`, and `getAuditHistory()` functions. All test cases passed—Filipino and English inputs produce the same correct classifications.
 
 **Version 3:**
-I implemented Filipino language support by including 1,186 Filipino examples in the training data (73% of the dataset). The model learns Filipino vocabulary like "tindahan", "karinderia", and "serbisyo" to classify businesses. For blockchain, I added audit history queries with pagination. All 6 test cases passed, proving the model handles Filipino input with the same accuracy as English.
+I implemented Filipino language support by including 2,000 Filipino examples and 2,000 English examples in the training data. The model learns Filipino vocabulary like "tindahan", "karinderia", and "serbisyo" to classify businesses. For blockchain, I added audit history queries with pagination. All 6 test cases passed, proving the model handles Filipino input with the same accuracy as English.
 
 **Version 4:**
 The AI feature enables Filipino-speaking business owners to describe their business in their native language. The model was trained on bilingual data so it recognizes Filipino terms directly—no translation needed. The blockchain feature adds audit trail querying for compliance dashboards. All tests passed: Filipino input "May karinderia ako..." correctly returns food_service/Restaurant.
 
 **Version 5:**
-I added bilingual support to the AI model by training it on 1,618 examples where 73% are in Filipino. This allows the system to understand descriptions like "Nagpapatakbo ako ng parlor..." and correctly classify them. For blockchain, I implemented three query functions for audit history retrieval. All 6 test cases passed across both tracks with high confidence scores (78-80%).
+I added bilingual support to the AI model by training it on 4,000 examples (2,000 Filipino + 2,000 English). This allows the system to understand descriptions like "Nagpapatakbo ako ng parlor..." and correctly classify them. For blockchain, I implemented three query functions for audit history retrieval. All 6 test cases passed across both tracks with high confidence scores (78-80%).
 
 ---
 

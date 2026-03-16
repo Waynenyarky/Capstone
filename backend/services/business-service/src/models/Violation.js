@@ -29,6 +29,7 @@ const ViolationSchema = new mongoose.Schema(
       default: 'open',
       index: true
     },
+    businessId: { type: String, default: '', index: true },
     inspectorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -36,6 +37,14 @@ const ViolationSchema = new mongoose.Schema(
       index: true
     },
     issuedAt: { type: Date, default: Date.now },
+    resolution: { type: String, default: '' },
+    resolvedAt: { type: Date, default: null },
+    resolvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    notes: { type: String, default: '' },
     blockchainHash: { type: String, default: '' },
     acknowledgedAt: { type: Date, default: null },
     acknowledgedBy: {
@@ -49,8 +58,8 @@ const ViolationSchema = new mongoose.Schema(
 
 const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
 ViolationSchema.plugin(encryptionPlugin, {
-  fields: ['violationType', 'description', 'legalBasis', 'blockchainHash'],
-  deterministicFields: ['violationId'],
+  fields: ['violationType', 'description', 'legalBasis', 'blockchainHash', 'resolution', 'notes'],
+  deterministicFields: ['violationId', 'businessId'],
   nestedPaths: [],
   arrayPaths: [],
   mixedPaths: [],

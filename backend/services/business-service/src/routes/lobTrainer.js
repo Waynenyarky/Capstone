@@ -270,8 +270,12 @@ router.delete('/examples/:id', ...adminOnly, async (req, res) => {
 router.post('/train', ...adminOnly, async (req, res) => {
   try {
     const modelServiceUrl = process.env.LOB_MODEL_SERVICE_URL
+    const modelAdminToken = (process.env.LOB_MODEL_ADMIN_TOKEN || '').trim()
     if (!modelServiceUrl) {
       return respond.error(res, 503, 'service_unavailable', 'LOB_MODEL_SERVICE_URL is not configured. Set it in the environment and start the Python model service.')
+    }
+    if (!modelAdminToken) {
+      return respond.error(res, 503, 'service_unavailable', 'LOB_MODEL_ADMIN_TOKEN is not configured. Set the same token in both business-service and lob-model.')
     }
 
     const examples = await LobTrainingExample.find().lean()
@@ -303,9 +307,14 @@ router.post('/train', ...adminOnly, async (req, res) => {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 120000)
 
+    const trainHeaders = {
+      'Content-Type': 'application/json',
+      'X-LOB-Admin-Token': modelAdminToken,
+    }
+
     const trainRes = await fetch(`${modelServiceUrl}/train`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: trainHeaders,
       body: JSON.stringify({ dataset }),
       signal: controller.signal,
     })
@@ -423,12 +432,21 @@ router.get('/audit', ...adminOnly, async (req, res) => {
 router.get('/evaluate', ...adminOnly, async (req, res) => {
   try {
     const modelServiceUrl = process.env.LOB_MODEL_SERVICE_URL
+    const modelAdminToken = (process.env.LOB_MODEL_ADMIN_TOKEN || '').trim()
     if (!modelServiceUrl) {
       return respond.error(res, 503, 'service_unavailable', 'LOB_MODEL_SERVICE_URL is not configured. Start the Python model service to run evaluation.')
     }
+    if (!modelAdminToken) {
+      return respond.error(res, 503, 'service_unavailable', 'LOB_MODEL_ADMIN_TOKEN is not configured. Set the same token in both business-service and lob-model.')
+    }
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 60000)
-    const evalRes = await fetch(`${modelServiceUrl}/evaluate`, { signal: controller.signal })
+    const evalRes = await fetch(`${modelServiceUrl}/evaluate`, {
+      signal: controller.signal,
+      headers: {
+        'X-LOB-Admin-Token': modelAdminToken,
+      },
+    })
     clearTimeout(timeout)
     if (!evalRes.ok) {
       const body = await evalRes.json().catch(() => ({}))

@@ -485,6 +485,262 @@ class BlockchainService {
     }
   }
 
+  // =========================================================================
+  // V2 GAS-OPTIMIZED METHODS
+  // =========================================================================
+
+  /**
+   * Get current gas mode
+   * @returns {'legacy'|'compact'|'batch'} The current gas optimization mode
+   */
+  getGasMode() {
+    return process.env.BLOCKCHAIN_GAS_MODE || 'compact'
+  }
+
+  /**
+   * V2: Log a critical event using compact hash-only method
+   * @param {string} eventType - Type of event
+   * @param {string} userId - User ID affected
+   * @param {string|object} details - Full event details (kept off-chain)
+   * @returns {Promise<{success: boolean, txHash?: string, blockNumber?: number, error?: string}>}
+   */
+  async logCriticalEventCompact(eventType, userId, details) {
+    if (!this.isAvailable()) {
+      return { success: false, error: 'Blockchain service not initialized' };
+    }
+
+    try {
+      const detailsString = typeof details === 'string' ? details : JSON.stringify(details);
+      const payloadStr = JSON.stringify({ eventType, userId, details: detailsString });
+      const dataHash = '0x' + require('crypto').createHash('sha256').update(payloadStr).digest('hex');
+      const hashBytes32 = this.web3.utils.padLeft(dataHash, 64);
+
+      // Map event type to numeric code (compact representation)
+      const eventCode = this._eventTypeToCode(eventType);
+
+      const gasEstimate = await this.contracts.auditLog.methods
+        .logCriticalEventCompact(hashBytes32, eventCode)
+        .estimateGas({ from: this.defaultAccount });
+
+      const tx = await this.contracts.auditLog.methods
+        .logCriticalEventCompact(hashBytes32, eventCode)
+        .send({
+          from: this.defaultAccount,
+          gas: Math.floor(Number(gasEstimate) * 1.2),
+        });
+
+      return {
+        success: true,
+        txHash: tx.transactionHash,
+        blockNumber: Number(tx.blockNumber),
+        v2: true,
+      };
+    } catch (error) {
+      logger.error('Error logging critical event (compact) to blockchain:', error);
+      return { success: false, error: error.message || 'Unknown error' };
+    }
+  }
+
+  /**
+   * V2: Log an admin approval using compact hash-only method
+   */
+  async logAdminApprovalCompact(approvalId, eventType, userId, approverId, approved, details) {
+    if (!this.isAvailable()) {
+      return { success: false, error: 'Blockchain service not initialized' };
+    }
+
+    try {
+      const detailsString = typeof details === 'string' ? details : JSON.stringify(details);
+      const payloadStr = JSON.stringify({ approvalId, eventType, userId, approverId, approved, details: detailsString });
+      const dataHash = '0x' + require('crypto').createHash('sha256').update(payloadStr).digest('hex');
+      const hashBytes32 = this.web3.utils.padLeft(dataHash, 64);
+      const eventCode = this._eventTypeToCode(eventType);
+
+      const gasEstimate = await this.contracts.auditLog.methods
+        .logAdminApprovalCompact(hashBytes32, eventCode, approved)
+        .estimateGas({ from: this.defaultAccount });
+
+      const tx = await this.contracts.auditLog.methods
+        .logAdminApprovalCompact(hashBytes32, eventCode, approved)
+        .send({
+          from: this.defaultAccount,
+          gas: Math.floor(Number(gasEstimate) * 1.2),
+        });
+
+      return {
+        success: true,
+        txHash: tx.transactionHash,
+        blockNumber: Number(tx.blockNumber),
+        v2: true,
+      };
+    } catch (error) {
+      logger.error('Error logging admin approval (compact) to blockchain:', error);
+      return { success: false, error: error.message || 'Unknown error' };
+    }
+  }
+
+  /**
+   * V2: Batch log multiple audit hashes in a single transaction
+   * @param {string[]} hashes - Array of hex hash strings
+   * @param {string} eventType - Shared event type
+   */
+  async batchLogAuditHash(hashes, eventType) {
+    if (!this.isAvailable()) {
+      return { success: false, error: 'Blockchain service not initialized' };
+    }
+
+    try {
+      const hashBytes32Array = hashes.map(h => {
+        const hp = h.startsWith('0x') ? h : `0x${h}`;
+        return this.web3.utils.padLeft(hp, 64);
+      });
+
+      const gasEstimate = await this.contracts.auditLog.methods
+        .batchLogAuditHash(hashBytes32Array, eventType)
+        .estimateGas({ from: this.defaultAccount });
+
+      const tx = await this.contracts.auditLog.methods
+        .batchLogAuditHash(hashBytes32Array, eventType)
+        .send({
+          from: this.defaultAccount,
+          gas: Math.floor(Number(gasEstimate) * 1.2),
+        });
+
+      return {
+        success: true,
+        txHash: tx.transactionHash,
+        blockNumber: Number(tx.blockNumber),
+        count: hashes.length,
+        v2: true,
+      };
+    } catch (error) {
+      logger.error('Error batch logging audit hashes:', error);
+      return { success: false, error: error.message || 'Unknown error' };
+    }
+  }
+
+  /**
+   * Map event type string to compact uint8 code
+   * @private
+   */
+  _eventTypeToCode(eventType) {
+    const codeMap = {
+      'permit_issued': 1, 'permit_revoked': 2,
+      'business_approved': 3, 'business_rejected': 4,
+      'application_approved': 5, 'application_rejected': 6,
+      'role_change': 7, 'admin_action': 8,
+      'account_deletion': 9, 'ownership_transfer': 10,
+      'profile_update': 11, 'email_change': 12,
+      'password_change': 13, 'login': 14, 'logout': 15,
+      'mfa_enabled': 16, 'mfa_disabled': 17,
+      'document_uploaded': 18, 'status_change': 19,
+      'clearance_approved': 20, 'clearance_rejected': 21,
+      'inspection_completed': 22, 'violation_issued': 23,
+      'appeal_resolved': 24, 'payment_confirmed': 25,
+    };
+    return codeMap[eventType] || 0;
+  }
+
+  // =========================================================================
+  // V2 ADAPTER: auto-routes to V1 or V2 based on gas mode
+  // =========================================================================
+
+  /**
+   * Smart adapter for logCriticalEvent: uses V2 compact if gas mode is compact/batch
+   */
+  async logCriticalEventAdaptive(eventType, userId, details) {
+    const mode = this.getGasMode();
+    if (mode === 'legacy') {
+      return this.logCriticalEvent(eventType, userId, details);
+    }
+    return this.logCriticalEventCompact(eventType, userId, details);
+  }
+
+  /**
+   * Smart adapter for logAdminApproval: uses V2 compact if gas mode is compact/batch
+   */
+  async logAdminApprovalAdaptive(approvalId, eventType, userId, approverId, approved, details) {
+    const mode = this.getGasMode();
+    if (mode === 'legacy') {
+      return this.logAdminApproval(approvalId, eventType, userId, approverId, approved, details);
+    }
+    return this.logAdminApprovalCompact(approvalId, eventType, userId, approverId, approved, details);
+  }
+
+  // =========================================================================
+  // V3 MAINNET-$1K MODE: Digest Root Anchoring
+  // =========================================================================
+
+  /**
+   * V3: Anchor a digest root representing multiple audit events
+   * This is the most gas-efficient method for mainnet-$1k mode.
+   * @param {string} digestRoot - The root hash (hex string)
+   * @param {number} leafCount - Number of events in this digest
+   * @param {Date} windowStart - Epoch window start time
+   * @param {Date} windowEnd - Epoch window end time
+   * @param {number} digestType - 0 = hash_chain, 1 = merkle
+   */
+  async anchorDigestRoot(digestRoot, leafCount, windowStart, windowEnd, digestType = 0) {
+    if (!this.isAvailable()) {
+      return { success: false, error: 'Blockchain service not initialized' };
+    }
+
+    try {
+      const rootWithPrefix = digestRoot.startsWith('0x') ? digestRoot : `0x${digestRoot}`;
+      const rootBytes32 = this.web3.utils.padLeft(rootWithPrefix, 64);
+
+      const startTs = Math.floor(new Date(windowStart).getTime() / 1000);
+      const endTs = Math.floor(new Date(windowEnd).getTime() / 1000);
+
+      const gasEstimate = await this.contracts.auditLog.methods
+        .anchorDigestRoot(rootBytes32, leafCount, startTs, endTs, digestType)
+        .estimateGas({ from: this.defaultAccount });
+
+      const tx = await this.contracts.auditLog.methods
+        .anchorDigestRoot(rootBytes32, leafCount, startTs, endTs, digestType)
+        .send({
+          from: this.defaultAccount,
+          gas: Math.floor(Number(gasEstimate) * 1.2),
+        });
+
+      return {
+        success: true,
+        txHash: tx.transactionHash,
+        blockNumber: Number(tx.blockNumber),
+        gasUsed: Number(tx.gasUsed),
+        v3: true,
+      };
+    } catch (error) {
+      logger.error('Error anchoring digest root:', error);
+      return { success: false, error: error.message || 'Unknown error' };
+    }
+  }
+
+  /**
+   * V3: Verify if a digest root has been anchored
+   * @param {string} digestRoot - The digest root to verify
+   */
+  async verifyDigestRoot(digestRoot) {
+    if (!this.isAvailable()) {
+      return { exists: false, error: 'Blockchain service not initialized' };
+    }
+
+    try {
+      const rootWithPrefix = digestRoot.startsWith('0x') ? digestRoot : `0x${digestRoot}`;
+      const rootBytes32 = this.web3.utils.padLeft(rootWithPrefix, 64);
+
+      const result = await this.contracts.auditLog.methods.verifyDigestRoot(rootBytes32).call();
+
+      return {
+        exists: result.exists,
+        timestamp: result.exists ? Number(result.timestamp) : null,
+      };
+    } catch (error) {
+      logger.error('Error verifying digest root:', error);
+      return { exists: false, error: error.message || 'Unknown error' };
+    }
+  }
+
   /**
    * Get contract statistics
    * @returns {Promise<{auditHashCount?: number, criticalEventCount?: number, adminApprovalCount?: number, error?: string}>}

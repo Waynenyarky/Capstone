@@ -156,7 +156,7 @@ const BusinessProfileSchema = new mongoose.Schema(
       // ── Phase 2: Retirement / Cessation fields (2F) ──
       retirementStatus: {
         type: String,
-        enum: ['', 'requested', 'inspector_verified', 'confirmed', 'rejected'],
+        enum: ['', 'requested', 'inspector_verified', 'pending_tax_payment', 'confirmed', 'rejected'],
         default: '',
       },
       retirementRequestedAt: { type: Date, default: null },

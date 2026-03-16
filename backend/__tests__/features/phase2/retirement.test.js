@@ -175,6 +175,20 @@ describe('Retirement / Cessation (2F)', () => {
       expect(confirmRes.body.data.retirementStatus).toBe('confirmed')
       expect(confirmRes.body.data.businessStatus).toBe('closed')
     })
+
+    it('should review cessation when business subdocument _id is used', async () => {
+      const profile = await createBusinessProfile({ retirementStatus: 'requested' })
+      const businessSubdocId = profile.businesses[0]._id.toString()
+
+      const reviewRes = await request(app)
+        .put(`/api/business/retirements/${businessSubdocId}/review`)
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({ status: 'confirmed', reviewNotes: 'Validated closure' })
+
+      expect(reviewRes.status).toBe(200)
+      expect(reviewRes.body.success).toBe(true)
+      expect(reviewRes.body.application.retirementStatus).toBe('confirmed')
+    })
   })
 
   // ── Edge Cases ──

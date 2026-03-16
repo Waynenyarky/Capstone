@@ -136,8 +136,20 @@ export default function OfficerDashboard() {
   }, [refresh])
 
   const handleClaimChange = useCallback((updatedApplication) => {
-    // Refresh both toReview and applications tabs for claim/release/transfer
-    officerData.refreshApplicationTabs?.()
+    const selectedType = selectedItem?._itemType || activeTab
+
+    // Always refresh To Review (cross-entity claimed queue)
+    officerData.refreshToReview?.()
+
+    // Refresh affected tabs for claim/release/transfer
+    if (selectedType === 'editRequests') {
+      officerData.refreshEditRequests?.()
+    } else if (selectedType === 'cessation') {
+      officerData.refreshCessations?.()
+    } else {
+      officerData.refreshApplicationTabs?.()
+    }
+
     // Update selectedItem with fresh data from API response for immediate UI update
     if (updatedApplication && selectedItem) {
       const updatedItem = {
@@ -148,7 +160,7 @@ export default function OfficerDashboard() {
       }
       setSelectedItem(updatedItem)
     }
-  }, [officerData, selectedItem])
+  }, [officerData, selectedItem, activeTab])
 
   // ── Walk-In Application ──────────────────────────────────
   const handleCreateWalkIn = useCallback((owner = null) => {

@@ -7,6 +7,15 @@ const permitApplicationService = require('../services/permitApplicationService')
 const BusinessProfile = require('../models/BusinessProfile')
 const logger = require('../lib/logger')
 
+// Cross-claim: when claiming an application, also claim related requests for the same business
+let crossClaimForBusiness = null
+try {
+  crossClaimForBusiness = require('../../business-service/src/lib/crossClaimService').crossClaimForBusiness
+} catch (err) {
+  // Fallback: cross-claim not available (separate deployment)
+  console.warn('[permitApplications] crossClaimService not available:', err.message)
+}
+
 // Socket service for realtime updates (lazy-loaded)
 let socketService = null
 function getSocketService() {
@@ -509,6 +518,12 @@ router.put('/:applicationId/claim', requireJwt, requireRole(['lgu_officer', 'lgu
       socket.emitApplicationClaimed(updatedBusiness || profile.businesses[businessIndex], officerId)
     }
 
+    // Cross-claim all other requests for this business
+    if (crossClaimForBusiness) {
+      const bizId = business.businessId || String(business._id)
+      await crossClaimForBusiness(bizId, officerId, { skipModel: 'PermitApplication' })
+    }
+
     return res.json({ success: true, application: updatedBusiness || profile.businesses[businessIndex] })
   } catch (err) {
     console.error('PUT /api/lgu-officer/permit-applications/:applicationId/claim error:', err)
@@ -566,6 +581,12 @@ router.put('/:applicationId/release', requireJwt, requireRole(['lgu_officer', 'l
       socket.emitApplicationReleased(business, officerId)
     }
 
+    // Cross-release all other requests for this business
+    if (crossClaimForBusiness) {
+      const bizId = business.businessId || String(business._id)
+      await crossClaimForBusiness(bizId, null, { skipModel: 'PermitApplication' })
+    }
+
     return res.json({ success: true, message: 'Application released' })
   } catch (err) {
     console.error('PUT /api/lgu-officer/permit-applications/:applicationId/release error:', err)
@@ -615,6 +636,12 @@ router.put('/:applicationId/transfer', requireJwt, requireRole(['lgu_officer', '
         [`businesses.${businessIndex}.updatedAt`]: new Date(),
       }
     })
+
+    // Cross-transfer all other requests for this business
+    if (crossClaimForBusiness) {
+      const bizId = business.businessId || String(business._id)
+      await crossClaimForBusiness(bizId, targetOfficerId, { skipModel: 'PermitApplication' })
+    }
 
     return res.json({ success: true, message: 'Application transferred' })
   } catch (err) {

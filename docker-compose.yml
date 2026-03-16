@@ -101,6 +101,7 @@ services:
     restart: unless-stopped
     environment:
       - LOB_RETRAIN_ON_START=${LOB_RETRAIN_ON_START:-0}
+      - LOB_MODEL_ADMIN_TOKEN=${LOB_MODEL_ADMIN_TOKEN:-}
 
   # Deploy contracts (runs once). Waits for wait-for-services then for Ganache RPC (see command); uses GANACHE_* env.
   deploy-contracts:
@@ -194,6 +195,7 @@ services:
       - AUTH_SERVICE_URL=${DOCKER_AUTH_SERVICE_URL}
       - SEED_FEE_CONFIGURATION=true
       - LOB_MODEL_SERVICE_URL=http://lob-model:5050
+      - LOB_MODEL_ADMIN_TOKEN=${LOB_MODEL_ADMIN_TOKEN:-}
     volumes:
       - contract_addresses:/app/contract-addresses:ro
       - ./ai/datasets:/backend/ai/datasets:ro

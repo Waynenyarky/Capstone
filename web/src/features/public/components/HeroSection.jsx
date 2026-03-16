@@ -36,7 +36,13 @@ export default function HeroSection() {
           const isActive = a?.isActive !== false
           return isPublished && isActive
         })
-        setAnnouncements(published)
+
+        const publishedFallback = rawAnnouncements.filter((a) => {
+          const isPublished = a?.status ? a.status === 'published' : true
+          return isPublished
+        })
+
+        setAnnouncements(published.length > 0 ? published : publishedFallback)
         setMaintenanceStatus({
           active: !!maintenance?.active,
           scheduled: !!maintenance?.scheduled,
@@ -111,14 +117,13 @@ export default function HeroSection() {
   return (
     <div style={{ 
       background: token.colorBgContainer,
-      padding: screens.md ? '60px 50px' : '40px 24px',
+      padding: screens.md ? '60px 200px' : '40px 24px',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center',
+      justifyContent: 'space-between',
       flex: 1,
     }}>
       <div style={{ 
-        maxWidth: '1200px', 
         width: '100%',
         display: 'grid',
         gridTemplateColumns: hasAnnouncementPanel && screens.md ? '1fr 1fr' : '1fr',

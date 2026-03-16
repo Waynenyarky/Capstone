@@ -933,18 +933,32 @@ export default function ApplicationDetailPanel({
       console.log('🔍 [DEBUG] Loading payment generation status for businessId:', application.businessId)
       
       const status = await getPaymentGenerationStatus(application.businessId)
-      if (status?.enabled) {
+      const hasGenerationPayload =
+        status && typeof status === 'object' && (
+          'paymentsGenerated' in status
+          || 'paymentsGeneratedAt' in status
+          || 'paymentGenerationErrors' in status
+          || 'paymentGenerationMetadata' in status
+        )
+
+      if (!hasGenerationPayload && status?.enabled === false) {
+        setPaymentGenStatus(null)
+        return
+      }
+
+      if (status && typeof status === 'object') {
         setPaymentGenStatus({
-          enabled: true,
-          payments: status.payments || [],
-          lastUpdated: status.lastUpdated
+          ...status,
+          paymentsGenerated: Boolean(status.paymentsGenerated),
+          paymentGenerationErrors: Array.isArray(status.paymentGenerationErrors) ? status.paymentGenerationErrors : [],
+          paymentGenerationMetadata: status.paymentGenerationMetadata || null,
         })
       } else {
-        setPaymentGenStatus({ enabled: false })
+        setPaymentGenStatus(null)
       }
     } catch (error) {
       console.error('Failed to load payment generation status:', error)
-      setPaymentGenStatus({ enabled: false })
+      setPaymentGenStatus(null)
     }
   }, [application?.businessId])
 
@@ -1915,6 +1929,16 @@ export default function ApplicationDetailPanel({
         style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', height: '100%' }}
       >
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', height: '100%' }}>
+        {/* Closed business warning */}
+        {application?.businessStatus === 'closed' && (
+          <Alert
+            type="warning"
+            showIcon
+            banner
+            message="This business has been closed (cessation confirmed)."
+            style={{ flexShrink: 0 }}
+          />
+        )}
         {/* Header */}
         <div
           style={{
@@ -2188,11 +2212,21 @@ export default function ApplicationDetailPanel({
         {documentModal.open && documentModal.url && (
           <div style={{ minHeight: 200, display: 'flex', justifyContent: 'center', alignItems: 'stretch', overflow: 'auto', flexDirection: 'column', width: '100%' }}>
             {documentModal.type === 'image' && (
-              <img
-                src={documentModal.url}
-                alt={documentModal.label}
-                style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
-              />
+              <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                <img
+                  src={documentModal.url}
+                  alt={documentModal.label}
+                  style={{
+                    width: '100%',
+                    maxWidth: '100%',
+                    height: 'auto',
+                    maxHeight: '70vh',
+                    objectFit: 'contain',
+                    objectPosition: 'center',
+                    display: 'block',
+                  }}
+                />
+              </div>
             )}
             {documentModal.type === 'pdf' && (
               <iframe

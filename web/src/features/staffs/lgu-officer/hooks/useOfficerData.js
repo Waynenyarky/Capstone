@@ -2,6 +2,50 @@ import { useState, useCallback, useEffect } from 'react'
 import { get } from '@/lib/http.js'
 import { useAuthSession } from '@/features/authentication'
 
+const EDIT_REQUESTS_POLL_INTERVAL_MS = 30 * 1000
+
+const PENDING_APPLICATION_STATUSES = new Set([
+  'submitted',
+  'under_review',
+  'resubmit',
+  'pending',
+  'pending_renewal',
+  'renewal_submitted',
+])
+
+const PENDING_APPEAL_STATUSES = new Set(['pending', 'submitted'])
+const PENDING_RENEWAL_STATUSES = new Set(['pending_renewal', 'renewal_submitted'])
+const PENDING_CESSATION_STATUSES = new Set(['requested', 'inspector_verified', 'pending_tax_payment'])
+
+const normalizeEditRequestStatus = (status) => {
+  if (!status || status === 'submitted') return 'pending'
+  return status
+}
+
+const resolveReviewerId = (reviewedBy) => {
+  if (!reviewedBy) return null
+  if (typeof reviewedBy === 'object') return reviewedBy._id || reviewedBy.id || null
+  return reviewedBy
+}
+
+const isClaimedByOfficer = (item, officerId) => {
+  const reviewerId = resolveReviewerId(item?.reviewedBy)
+  return Boolean(reviewerId && officerId && String(reviewerId) === String(officerId))
+}
+
+const resolveApplicationItemType = (application) => {
+  const rawStatus = application?.status || application?.applicationStatus || ''
+  const status = String(rawStatus).toLowerCase()
+  const applicationType = String(application?.applicationType || '').toLowerCase()
+  const permitType = String(application?.permitType || '').toLowerCase()
+
+  if (status.includes('renewal') || applicationType.includes('renewal') || permitType === 'renewal') {
+    return 'renewals'
+  }
+
+  return 'applications'
+}
+
 export default function useOfficerData(activeTab, refreshTrigger) {
   const { currentUser } = useAuthSession()
 
@@ -12,6 +56,7 @@ export default function useOfficerData(activeTab, refreshTrigger) {
   const [editRequests, setEditRequests] = useState([])
   const [renewals, setRenewals] = useState([])
   const [cessations, setCessations] = useState([])
+  const [inspections, setInspections] = useState([])
   const [owners, setOwners] = useState([])
   const [drafts, setDrafts] = useState([])
   const [logs, setLogs] = useState([])
@@ -28,20 +73,133 @@ export default function useOfficerData(activeTab, refreshTrigger) {
   }
 
   // ── Fetch functions ──────────────────────────────────────────
+
+  /** Resolve a stable businessId from any item shape */
+  const resolveBusinessId = (item) => {
+    return item?.businessId || item?.applicationId || item?._id || ''
+  }
+
   const fetchToReview = useCallback(async () => {
     const officerId = currentUser?.id || currentUser?._id
     if (!officerId) return
     setTabLoading('toReview', true)
     try {
-      // Fetch ALL applications claimed by this officer (any status)
-      const url = `/api/lgu-officer/permit-applications?reviewedBy=${officerId}&limit=200`
-      const res = await get(url, { skipAutoLogout: true })
-      const apps = res?.data?.applications || res?.applications || []
-      setToReview(apps)
-      setCounts(prev => ({ ...prev, toReview: apps.length }))
+      const [applicationsRes, editRequestsRes, appealsRes, cessationsRes, inspectionsRes] = await Promise.allSettled([
+        get(`/api/lgu-officer/permit-applications?reviewedBy=${officerId}&limit=200`, { skipAutoLogout: true }),
+        get('/api/business/edit-requests?role=staff&limit=200', { skipAutoLogout: true }),
+        get('/api/business/appeals?role=staff&limit=200', { skipAutoLogout: true }),
+        get('/api/business/retirements?role=staff', { skipAutoLogout: true }),
+        get('/api/lgu-officer/inspections?limit=200', { skipAutoLogout: true }),
+      ])
+
+      const claimedApplications = applicationsRes.status === 'fulfilled'
+        ? (applicationsRes.value?.data?.applications || applicationsRes.value?.applications || [])
+          .map((application) => ({
+            ...application,
+            _itemType: resolveApplicationItemType(application),
+          }))
+        : []
+
+      const claimedEditRequests = editRequestsRes.status === 'fulfilled'
+        ? (Array.isArray(editRequestsRes.value?.data) ? editRequestsRes.value.data : [])
+          .map((request) => ({
+            ...request,
+            status: normalizeEditRequestStatus(request?.status),
+            _itemType: 'editRequests',
+          }))
+          .filter((request) => isClaimedByOfficer(request, officerId))
+        : []
+
+      const claimedAppeals = appealsRes.status === 'fulfilled'
+        ? (Array.isArray(appealsRes.value?.data) ? appealsRes.value.data : [])
+          .filter((appeal) => isClaimedByOfficer(appeal, officerId))
+          .map((appeal) => ({ ...appeal, _itemType: 'appeals' }))
+        : []
+
+      const claimedCessations = cessationsRes.status === 'fulfilled'
+        ? ((cessationsRes.value?.data || cessationsRes.value?.retirements || []))
+          .filter((cessation) => isClaimedByOfficer(cessation, officerId))
+          .map((cessation) => ({ ...cessation, _itemType: 'cessation' }))
+        : []
+
+      const claimedInspections = inspectionsRes.status === 'fulfilled'
+        ? (inspectionsRes.value?.data || inspectionsRes.value?.inspections || [])
+          .filter((insp) => {
+            const assignedBy = insp.assignedBy ? String(insp.assignedBy) : null
+            const status = insp.status || ''
+            return assignedBy === String(officerId) || status === 'pending_assignment'
+          })
+          .map((insp) => ({ ...insp, _itemType: 'inspections' }))
+        : []
+
+      // Group all claimed items by businessId into consolidated business cards
+      const allItems = [
+        ...claimedApplications,
+        ...claimedEditRequests,
+        ...claimedAppeals,
+        ...claimedCessations,
+        ...claimedInspections,
+      ]
+
+      const businessMap = new Map()
+      for (const item of allItems) {
+        const bizId = String(resolveBusinessId(item))
+        if (!bizId) continue
+        if (!businessMap.has(bizId)) {
+          businessMap.set(bizId, {
+            businessId: bizId,
+            businessName: item.businessName || item.registeredBusinessName || 'Unknown Business',
+            _itemType: 'business',
+            _requests: { application: null, editRequests: [], appeals: [], cessation: null, inspections: [] },
+            createdAt: item.createdAt || item.updatedAt || item.submittedAt || new Date().toISOString(),
+          })
+        }
+        const group = businessMap.get(bizId)
+        // Update business name if we find a better one
+        if (item.businessName && group.businessName === 'Unknown Business') {
+          group.businessName = item.businessName
+        }
+        if (item.registeredBusinessName && group.businessName === 'Unknown Business') {
+          group.businessName = item.registeredBusinessName
+        }
+        // Track earliest date
+        const itemDate = new Date(item.createdAt || item.updatedAt || item.submittedAt || 0).getTime()
+        const groupDate = new Date(group.createdAt || 0).getTime()
+        if (itemDate > groupDate) group.createdAt = item.createdAt || item.updatedAt || item.submittedAt
+
+        // Sort into categories
+        switch (item._itemType) {
+          case 'applications':
+          case 'renewals':
+            group._requests.application = item
+            break
+          case 'editRequests':
+            group._requests.editRequests.push(item)
+            break
+          case 'appeals':
+            group._requests.appeals.push(item)
+            break
+          case 'cessation':
+            group._requests.cessation = item
+            break
+          case 'inspections':
+            group._requests.inspections.push(item)
+            break
+        }
+      }
+
+      const consolidatedItems = Array.from(businessMap.values()).sort((a, b) => {
+        const da = new Date(a.createdAt || 0).getTime()
+        const db = new Date(b.createdAt || 0).getTime()
+        return db - da
+      })
+
+      setToReview(consolidatedItems)
+      setCounts(prev => ({ ...prev, toReview: consolidatedItems.length }))
     } catch (err) { 
       console.error('[useOfficerData] fetchToReview error:', err)
       setToReview([]) 
+      setCounts(prev => ({ ...prev, toReview: 0 }))
     }
     finally { setTabLoading('toReview', false) }
   }, [currentUser?.id, currentUser?._id])
@@ -51,9 +209,15 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     try {
       const res = await get('/api/lgu-officer/permit-applications?limit=200', { skipAutoLogout: true })
       const apps = res?.data?.applications || res?.applications || []
+      const pendingCount = apps.filter(app =>
+        PENDING_APPLICATION_STATUSES.has(app.status || app.applicationStatus)
+      ).length
       setApplications(apps)
-      setCounts(prev => ({ ...prev, applications: apps.length }))
-    } catch { setApplications([]) }
+      setCounts(prev => ({ ...prev, applications: pendingCount }))
+    } catch {
+      setApplications([])
+      setCounts(prev => ({ ...prev, applications: 0 }))
+    }
     finally { setTabLoading('applications', false) }
   }, [])
 
@@ -62,10 +226,13 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     try {
       const res = await get('/api/business/appeals?role=staff', { skipAutoLogout: true })
       const list = res?.data || res?.appeals || []
-      const pending = list.filter(a => a.status === 'pending' || a.status === 'submitted')
+      const pending = list.filter(a => PENDING_APPEAL_STATUSES.has(a.status))
       setAppeals(pending)
       setCounts(prev => ({ ...prev, appeals: pending.length }))
-    } catch { setAppeals([]) }
+    } catch {
+      setAppeals([])
+      setCounts(prev => ({ ...prev, appeals: 0 }))
+    }
     finally { setTabLoading('appeals', false) }
   }, [])
 
@@ -73,11 +240,18 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     setTabLoading('editRequests', true)
     try {
       const res = await get('/api/business/edit-requests?role=staff', { skipAutoLogout: true })
-      const list = res?.data || []
-      const pending = list.filter(r => r.status === 'pending' || r.status === 'submitted' || !r.status)
-      setEditRequests(pending)
-      setCounts(prev => ({ ...prev, editRequests: pending.length }))
-    } catch { setEditRequests([]) }
+      const list = Array.isArray(res?.data) ? res.data : []
+      const normalized = list.map((request) => {
+        return { ...request, status: normalizeEditRequestStatus(request?.status) }
+      })
+      const pendingCount = normalized.filter(request => request.status === 'pending').length
+
+      setEditRequests(normalized)
+      setCounts(prev => ({ ...prev, editRequests: pendingCount }))
+    } catch {
+      setEditRequests([])
+      setCounts(prev => ({ ...prev, editRequests: 0 }))
+    }
     finally { setTabLoading('editRequests', false) }
   }, [])
 
@@ -86,9 +260,15 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     try {
       const res = await get('/api/lgu-officer/permit-applications?status=pending_renewal,renewal_submitted&limit=100', { skipAutoLogout: true })
       const apps = res?.data?.applications || res?.applications || []
+      const pendingCount = apps.filter(app =>
+        PENDING_RENEWAL_STATUSES.has(app.status || app.applicationStatus)
+      ).length
       setRenewals(apps)
-      setCounts(prev => ({ ...prev, renewals: apps.length }))
-    } catch { setRenewals([]) }
+      setCounts(prev => ({ ...prev, renewals: pendingCount }))
+    } catch {
+      setRenewals([])
+      setCounts(prev => ({ ...prev, renewals: 0 }))
+    }
     finally { setTabLoading('renewals', false) }
   }, [])
 
@@ -97,12 +277,13 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     try {
       const res = await get('/api/business/retirements?role=staff', { skipAutoLogout: true })
       const list = res?.data || res?.retirements || []
-      const pending = list.filter(c =>
-        c.retirementStatus === 'requested' || c.retirementStatus === 'inspector_verified'
-      )
+      const pending = list.filter(c => PENDING_CESSATION_STATUSES.has(c.retirementStatus))
       setCessations(pending)
       setCounts(prev => ({ ...prev, cessation: pending.length }))
-    } catch { setCessations([]) }
+    } catch {
+      setCessations([])
+      setCounts(prev => ({ ...prev, cessation: 0 }))
+    }
     finally { setTabLoading('cessation', false) }
   }, [])
 
@@ -125,10 +306,29 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     try {
       const res = await get('/api/lgu-officer/permit-applications?status=draft&limit=100', { skipAutoLogout: true })
       const apps = res?.data?.applications || res?.applications || []
+      const draftCount = apps.filter(app => (app.status || app.applicationStatus) === 'draft').length
       setDrafts(apps)
-      setCounts(prev => ({ ...prev, drafts: apps.length }))
-    } catch { setDrafts([]) }
+      setCounts(prev => ({ ...prev, drafts: draftCount }))
+    } catch {
+      setDrafts([])
+      setCounts(prev => ({ ...prev, drafts: 0 }))
+    }
     finally { setTabLoading('drafts', false) }
+  }, [])
+
+  const fetchInspections = useCallback(async () => {
+    setTabLoading('inspections', true)
+    try {
+      const res = await get('/api/lgu-officer/inspections?limit=200', { skipAutoLogout: true })
+      const list = res?.data || res?.inspections || []
+      const pendingCount = list.filter(i => i.status === 'pending_assignment' || i.status === 'pending').length
+      setInspections(list)
+      setCounts(prev => ({ ...prev, inspections: pendingCount }))
+    } catch {
+      setInspections([])
+      setCounts(prev => ({ ...prev, inspections: 0 }))
+    }
+    finally { setTabLoading('inspections', false) }
   }, [])
 
   const fetchLogs = useCallback(async () => {
@@ -151,11 +351,12 @@ export default function useOfficerData(activeTab, refreshTrigger) {
       case 'editRequests': return fetchEditRequests()
       case 'renewals': return fetchRenewals()
       case 'cessation': return fetchCessations()
+      case 'inspections': return fetchInspections()
       case 'owners': return fetchOwners(ownerSearch)
       case 'drafts': return fetchDrafts()
       case 'logs': return fetchLogs()
     }
-  }, [activeTab, fetchToReview, fetchApplications, fetchAppeals, fetchEditRequests, fetchRenewals, fetchCessations, fetchOwners, fetchDrafts, fetchLogs, ownerSearch])
+  }, [activeTab, fetchToReview, fetchApplications, fetchAppeals, fetchEditRequests, fetchRenewals, fetchCessations, fetchInspections, fetchOwners, fetchDrafts, fetchLogs, ownerSearch])
 
   // Fetch on tab change
   useEffect(() => {
@@ -170,6 +371,7 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     fetchEditRequests()
     fetchRenewals()
     fetchCessations()
+    fetchInspections()
     fetchDrafts()
   }, [currentUser?.id])
 
@@ -180,6 +382,15 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     return () => clearTimeout(t)
   }, [ownerSearch, activeTab])
 
+  // Poll edit requests while edits tab is active so officer list stays fresh
+  useEffect(() => {
+    if (activeTab !== 'editRequests') return
+    const intervalId = setInterval(() => {
+      fetchEditRequests()
+    }, EDIT_REQUESTS_POLL_INTERVAL_MS)
+    return () => clearInterval(intervalId)
+  }, [activeTab, fetchEditRequests])
+
   // Get current list for active tab
   const getCurrentList = useCallback(() => {
     const lists = { 
@@ -188,13 +399,14 @@ export default function useOfficerData(activeTab, refreshTrigger) {
       appeals, 
       editRequests, 
       renewals, 
-      cessation: cessations, 
+      cessation: cessations,
+      inspections,
       owners, 
       drafts, 
       logs 
     }
     return lists[activeTab] || []
-  }, [activeTab, toReview, applications, appeals, editRequests, renewals, cessations, owners, drafts, logs])
+  }, [activeTab, toReview, applications, appeals, editRequests, renewals, cessations, inspections, owners, drafts, logs])
 
   // Refresh all application-related tabs (for claim/release/transfer)
   const refreshApplicationTabs = useCallback(() => {
@@ -210,6 +422,7 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     editRequests,
     renewals,
     cessations,
+    inspections,
     owners,
     drafts,
     logs,
@@ -224,6 +437,10 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     // Methods
     getCurrentList,
     refresh: fetchActiveTabData,
+    refreshToReview: fetchToReview,
     refreshApplicationTabs,
+    refreshEditRequests: fetchEditRequests,
+    refreshCessations: fetchCessations,
+    refreshInspections: fetchInspections,
   }
 }

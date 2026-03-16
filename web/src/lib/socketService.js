@@ -5,6 +5,7 @@
 import { io } from 'socket.io-client'
 
 let socket = null
+let socketToken = null
 let reconnectAttempts = 0
 const MAX_RECONNECT_ATTEMPTS = 5
 
@@ -13,13 +14,23 @@ const MAX_RECONNECT_ATTEMPTS = 5
  * @param {string} token - JWT token for authentication
  */
 export function initializeSocket(token) {
-  // If already connected with same token, return existing socket
-  if (socket?.connected) {
-    console.log('[Socket] Already connected:', socket.id)
-    return socket
+  // Reuse an existing socket when initialize is called repeatedly with the same token
+  // (common in React StrictMode remounts and shared hooks)
+  if (socket && socketToken === token) {
+    if (socket.connected || socket.active || !socket.disconnected) {
+      return socket
+    }
+
+    // Stale/disconnected instance with same token: attempt reconnect first
+    try {
+      socket.connect()
+      return socket
+    } catch {
+      // If reconnect throws, recreate below
+    }
   }
 
-  // If socket exists but not connected, disconnect and recreate
+  // Token changed or stale socket: disconnect and recreate
   if (socket) {
     console.log('[Socket] Reconnecting with new token...')
     socket.disconnect()
@@ -42,6 +53,7 @@ export function initializeSocket(token) {
     reconnectionDelayMax: 5000,
     timeout: 10000,
   })
+  socketToken = token
 
   socket.on('connect', () => {
     console.log('[Socket] Connected:', socket.id)
@@ -81,6 +93,7 @@ export function disconnectSocket() {
   if (socket) {
     socket.disconnect()
     socket = null
+    socketToken = null
     reconnectAttempts = 0
   }
 }

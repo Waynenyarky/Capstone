@@ -1,9 +1,8 @@
 """
 Evaluate the trained LOB recommendation model on held-out data.
 
-If ai/datasets/lob_recommendation_test.json exists (from the split script),
-uses that as a fixed unseen test set. Otherwise falls back to a random 20%
-split from the provided dataset.
+Uses ai/datasets/lob_recommendation_test.json (from the split script) as a
+fixed unseen test set by default.
 
 Usage:
     python3 ai/scripts/evaluate_lob_model.py [--dataset PATH]
@@ -26,6 +25,7 @@ from collections import defaultdict
 import joblib
 import numpy as np
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from train_lob_model import normalize_text
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 AI_ROOT = os.path.dirname(SCRIPT_DIR)
@@ -37,7 +37,7 @@ MODELS_DIR = os.path.join(AI_ROOT, "models")
 def flatten_dataset(dataset):
     rows = []
     for entry in dataset:
-        desc = entry.get("businessDescription", "").strip()
+        desc = normalize_text(entry.get("businessDescription", ""))
         if not desc:
             continue
         for rec in entry.get("recommendations", []):
@@ -48,6 +48,33 @@ def flatten_dataset(dataset):
     return rows
 
 
+def summarize_confidence_gates(y_true_idx, pred_idx, top_probs, thresholds=None):
+    """Compute precision/coverage tradeoff for confidence-gated top-1 predictions."""
+    if thresholds is None:
+        thresholds = [0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 0.95]
+
+    n = len(y_true_idx)
+    rows = []
+    for t in thresholds:
+        keep = top_probs >= t
+        kept = int(np.sum(keep))
+        coverage = kept / n if n else 0.0
+        if kept:
+            precision_at_t = float(np.mean(pred_idx[keep] == y_true_idx[keep]))
+        else:
+            precision_at_t = None
+        rows.append({
+            "threshold": t,
+            "coverage": coverage,
+            "precision": precision_at_t,
+            "kept": kept,
+        })
+
+    qualified = [r for r in rows if r["precision"] is not None and r["precision"] >= 0.95]
+    recommended = max(qualified, key=lambda r: (r["coverage"], -r["threshold"])) if qualified else None
+    return rows, recommended
+
+
 def main():
     parser = argparse.ArgumentParser(description="Evaluate LOB model on held-out data")
     parser.add_argument("--dataset", type=str, default=None,
@@ -56,7 +83,7 @@ def main():
                         help="If set, write metrics to this JSON file (e.g. ai/models/evaluation_metrics.json)")
     args = parser.parse_args()
 
-    # Determine test dataset: explicit arg > fixed test file > full file (with warning)
+    # Determine test dataset: explicit arg > fixed test file
     if args.dataset:
         ds_path = args.dataset
         using_fixed_test = False
@@ -64,10 +91,9 @@ def main():
         ds_path = TEST_DATASET
         using_fixed_test = True
     else:
-        ds_path = FULL_DATASET
-        using_fixed_test = False
-        print("WARNING: No fixed test set found. Using full dataset (metrics may be optimistic).")
-        print("         Run split_lob_dataset.py first to create a proper train/test split.\n")
+        print("ERROR: No fixed test set found at ai/datasets/lob_recommendation_test.json")
+        print("       Run split_lob_dataset.py first to create a proper train/test split.\n")
+        return 1
 
     if not os.path.exists(ds_path):
         print(f"Dataset not found: {ds_path}")
@@ -129,6 +155,8 @@ def main():
 
     acc1 = accuracy_score(y_true_idx, pred_idx)
     acc3 = acc5 = None  # set below if model has predict_proba
+    confidence_gate_rows = []
+    confidence_gate_recommended = None
     print(f"--- Test results (n={len(y_test)} rows) ---\n")
     print(f"Top-1 accuracy: {acc1:.2%}")
     print("  (Fraction of test rows where the model's single best guess is correct.)")
@@ -148,6 +176,24 @@ def main():
         print(f"Top-3 accuracy: {acc3:.2%}")
         print(f"Top-5 accuracy: {acc5:.2%}")
         print("  (Fraction where the correct LOB appears in top-N suggestions.)")
+
+        top_probs = np.max(proba, axis=1)
+        confidence_gate_rows, confidence_gate_recommended = summarize_confidence_gates(
+            y_true_idx, pred_idx, top_probs
+        )
+        print("\n--- Confidence-gated Top-1 (precision vs coverage) ---")
+        for row in confidence_gate_rows:
+            p = "n/a" if row["precision"] is None else f"{row['precision']:.1%}"
+            print(
+                f"  threshold>={row['threshold']:.2f}  precision={p}  coverage={row['coverage']:.1%}  kept={row['kept']}"
+            )
+        if confidence_gate_recommended:
+            print(
+                f"  Recommended 95%-precision gate: >= {confidence_gate_recommended['threshold']:.2f} "
+                f"(coverage {confidence_gate_recommended['coverage']:.1%})"
+            )
+        else:
+            print("  No threshold reached >=95% precision on this evaluation set.")
 
     try:
         f1_macro = f1_score(
@@ -223,6 +269,8 @@ def main():
             "macroF1": float(f1_macro),
             "weightedF1": float(f1_weighted),
             "testRows": len(y_test),
+            "confidenceGates": confidence_gate_rows,
+            "recommended95PrecisionGate": confidence_gate_recommended,
         }
         with open(args.output_json, "w", encoding="utf-8") as f:
             json.dump(metrics, f, indent=2)

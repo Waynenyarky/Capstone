@@ -26,7 +26,8 @@ from collections import Counter
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 AI_ROOT = os.path.dirname(SCRIPT_DIR)
-DEFAULT_DATASET = os.path.join(AI_ROOT, "datasets", "lob_recommendation_dataset.json")
+BALANCED_DATASET = os.path.join(AI_ROOT, "datasets", "lob_recommendation_dataset_balanced_4000.json")
+DEFAULT_DATASET = BALANCED_DATASET if os.path.exists(BALANCED_DATASET) else os.path.join(AI_ROOT, "datasets", "lob_recommendation_dataset.json")
 TAXONOMY_PATH = os.path.join(AI_ROOT, "data", "line_of_business.json")
 
 

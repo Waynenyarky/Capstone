@@ -228,6 +228,183 @@ contract AuditLog {
     }
 
     // =========================================================================
+    // V2 GAS-OPTIMIZED METHODS
+    // =========================================================================
+
+    // V2 compact event for critical events (hash-only, no strings on-chain)
+    event CriticalEventCompactLogged(
+        bytes32 indexed dataHash,
+        uint8 eventCode,
+        uint256 timestamp,
+        address indexed loggedBy
+    );
+
+    // V2 compact event for admin approvals (hash-only, no strings on-chain)
+    event AdminApprovalCompactLogged(
+        bytes32 indexed dataHash,
+        uint8 eventCode,
+        bool approved,
+        uint256 timestamp,
+        address indexed loggedBy
+    );
+
+    // V2 batch event
+    event BatchAuditHashLogged(
+        uint256 count,
+        uint256 timestamp,
+        address indexed loggedBy
+    );
+
+    /**
+     * @dev V2: Log a critical event using only a hash (details stored off-chain in DB/IPFS)
+     * @param dataHash SHA256 hash of the full event payload (eventType + userId + details)
+     * @param eventCode Compact numeric code for event type (replaces string)
+     */
+    function logCriticalEventCompact(
+        bytes32 dataHash,
+        uint8 eventCode
+    ) public onlyAuditor {
+        require(dataHash != bytes32(0), "Hash cannot be zero");
+        require(!hashExists[dataHash], "Hash already exists");
+
+        hashExists[dataHash] = true;
+        hashTimestamp[dataHash] = block.timestamp;
+
+        auditHashEntries.push(AuditHashEntry({
+            hash: dataHash,
+            eventType: "critical",
+            timestamp: block.timestamp,
+            loggedBy: msg.sender
+        }));
+
+        emit CriticalEventCompactLogged(dataHash, eventCode, block.timestamp, msg.sender);
+    }
+
+    /**
+     * @dev V2: Log an admin approval using only a hash (details stored off-chain)
+     * @param dataHash SHA256 hash of full approval payload
+     * @param eventCode Compact numeric code for event type
+     * @param approved Whether the request was approved
+     */
+    function logAdminApprovalCompact(
+        bytes32 dataHash,
+        uint8 eventCode,
+        bool approved
+    ) public onlyAuditor {
+        require(dataHash != bytes32(0), "Hash cannot be zero");
+        require(!hashExists[dataHash], "Hash already exists");
+
+        hashExists[dataHash] = true;
+        hashTimestamp[dataHash] = block.timestamp;
+
+        auditHashEntries.push(AuditHashEntry({
+            hash: dataHash,
+            eventType: "approval",
+            timestamp: block.timestamp,
+            loggedBy: msg.sender
+        }));
+
+        emit AdminApprovalCompactLogged(dataHash, eventCode, approved, block.timestamp, msg.sender);
+    }
+
+    /**
+     * @dev V2: Batch log multiple audit hashes in a single transaction
+     * @param hashes Array of hashes to log
+     * @param eventType Shared event type for the batch (use short codes)
+     */
+    function batchLogAuditHash(
+        bytes32[] memory hashes,
+        string memory eventType
+    ) public onlyAuditor {
+        require(hashes.length > 0, "Empty batch");
+        require(hashes.length <= 50, "Batch too large");
+
+        for (uint256 i = 0; i < hashes.length; i++) {
+            bytes32 h = hashes[i];
+            if (h == bytes32(0) || hashExists[h]) continue;
+
+            hashExists[h] = true;
+            hashTimestamp[h] = block.timestamp;
+
+            auditHashEntries.push(AuditHashEntry({
+                hash: h,
+                eventType: eventType,
+                timestamp: block.timestamp,
+                loggedBy: msg.sender
+            }));
+
+            emit AuditHashLogged(h, eventType, block.timestamp, msg.sender);
+        }
+
+        emit BatchAuditHashLogged(hashes.length, block.timestamp, msg.sender);
+    }
+
+    // =========================================================================
+    // V3 MAINNET-$1K MODE: Epoch Digest Root Anchoring
+    // =========================================================================
+
+    // V3 event for digest root anchoring (minimal gas)
+    event DigestRootAnchored(
+        bytes32 indexed digestRoot,
+        uint32 leafCount,
+        uint64 windowStart,
+        uint64 windowEnd,
+        uint8 digestType,
+        uint256 timestamp,
+        address indexed loggedBy
+    );
+
+    // Mapping to track anchored digest roots
+    mapping(bytes32 => bool) public digestRootExists;
+    mapping(bytes32 => uint256) public digestRootTimestamp;
+
+    /**
+     * @dev V3: Anchor a digest root representing multiple audit events
+     * This is the most gas-efficient method for mainnet-$1k mode.
+     * @param digestRoot The root hash of the epoch digest (hash chain or merkle root)
+     * @param leafCount Number of audit events included in this digest
+     * @param windowStart Unix timestamp of epoch window start
+     * @param windowEnd Unix timestamp of epoch window end
+     * @param digestType 0 = hash_chain, 1 = merkle
+     */
+    function anchorDigestRoot(
+        bytes32 digestRoot,
+        uint32 leafCount,
+        uint64 windowStart,
+        uint64 windowEnd,
+        uint8 digestType
+    ) public onlyAuditor {
+        require(digestRoot != bytes32(0), "Digest root cannot be zero");
+        require(!digestRootExists[digestRoot], "Digest root already anchored");
+        require(leafCount > 0, "Leaf count must be > 0");
+        require(windowEnd >= windowStart, "Invalid window");
+
+        digestRootExists[digestRoot] = true;
+        digestRootTimestamp[digestRoot] = block.timestamp;
+
+        emit DigestRootAnchored(
+            digestRoot,
+            leafCount,
+            windowStart,
+            windowEnd,
+            digestType,
+            block.timestamp,
+            msg.sender
+        );
+    }
+
+    /**
+     * @dev Verify if a digest root has been anchored
+     * @param digestRoot The digest root to verify
+     * @return exists Whether the digest root exists on-chain
+     * @return timestamp When it was anchored (0 if not exists)
+     */
+    function verifyDigestRoot(bytes32 digestRoot) public view returns (bool exists, uint256 timestamp) {
+        exists = digestRootExists[digestRoot];
+        timestamp = digestRootTimestamp[digestRoot];
+    }
+
+    // =========================================================================
     // SPRINT 2 FEATURE: Audit History Retrieval
     // =========================================================================
 

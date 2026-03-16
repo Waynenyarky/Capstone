@@ -1,8 +1,10 @@
 import React from 'react'
-import { Card, Tag, Typography, theme } from 'antd'
+import { Card, Tag, Typography, Space, theme } from 'antd'
 import { 
   FileTextOutlined, AuditOutlined, EditOutlined, StopOutlined, 
-  UserOutlined, FormOutlined, HistoryOutlined, ReloadOutlined, EyeOutlined 
+  UserOutlined, FormOutlined, HistoryOutlined, ReloadOutlined, EyeOutlined,
+  ShopOutlined, SafetyCertificateOutlined,
+  ExclamationCircleOutlined, CheckCircleOutlined, ClockCircleOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
@@ -22,29 +24,64 @@ const STATUS_CONFIG = {
   draft: { color: 'default', label: 'Draft' },
   requested: { color: 'warning', label: 'Requested' },
   inspector_verified: { color: 'processing', label: 'Inspector Verified' },
+  pending_tax_payment: { color: 'warning', label: 'Pending Tax Payment' },
   confirmed: { color: 'success', label: 'Confirmed' },
   upheld: { color: 'success', label: 'Upheld' },
   overturned: { color: 'error', label: 'Overturned' },
+  closed: { color: 'default', label: 'Closed' },
+  pending_assignment: { color: 'warning', label: 'Needs Assignment' },
+  in_progress: { color: 'processing', label: 'In Progress' },
+  completed: { color: 'success', label: 'Completed' },
 }
 
 const TAB_ICONS = {
   toReview: <EyeOutlined />,
+  business: <ShopOutlined />,
   applications: <FileTextOutlined />,
   appeals: <AuditOutlined />,
   editRequests: <EditOutlined />,
   renewals: <ReloadOutlined />,
   cessation: <StopOutlined />,
+  inspections: <SafetyCertificateOutlined />,
   owners: <UserOutlined />,
   drafts: <FormOutlined />,
   logs: <HistoryOutlined />,
 }
 
+/** Build a short summary of request types for consolidated business cards */
+function getBusinessRequestSummary(requests) {
+  if (!requests) return []
+  const parts = []
+  if (requests.application) {
+    const appType = requests.application._itemType === 'renewals' ? 'Renewal' : 'Application'
+    parts.push({ label: appType, icon: <FileTextOutlined style={{ fontSize: 11 }} /> })
+  }
+  if (requests.editRequests?.length > 0) {
+    const n = requests.editRequests.length
+    parts.push({ label: `${n} Edit${n > 1 ? 's' : ''}`, icon: <EditOutlined style={{ fontSize: 11 }} /> })
+  }
+  if (requests.appeals?.length > 0) {
+    const n = requests.appeals.length
+    parts.push({ label: `${n} Appeal${n > 1 ? 's' : ''}`, icon: <AuditOutlined style={{ fontSize: 11 }} /> })
+  }
+  if (requests.cessation) {
+    parts.push({ label: 'Cessation', icon: <StopOutlined style={{ fontSize: 11 }} /> })
+  }
+  if (requests.inspections?.length > 0) {
+    const n = requests.inspections.length
+    parts.push({ label: `${n} Inspection${n > 1 ? 's' : ''}`, icon: <SafetyCertificateOutlined style={{ fontSize: 11 }} /> })
+  }
+  return parts
+}
+
 export default function OfficerItemCard({ item, type, isSelected, onClick }) {
   const { token } = theme.useToken()
+  const effectiveType = type === 'toReview' ? (item?._itemType || 'applications') : type
 
   const getTitle = () => {
-    switch (type) {
-      case 'toReview':
+    switch (effectiveType) {
+      case 'business':
+        return item.businessName || 'Unknown Business'
       case 'applications':
       case 'renewals':
       case 'drafts':
@@ -55,6 +92,8 @@ export default function OfficerItemCard({ item, type, isSelected, onClick }) {
         return item.fieldName || 'Edit Request'
       case 'cessation':
         return item.businessName || item.businesses?.[0]?.businessName || 'Cessation Request'
+      case 'inspections':
+        return item.businessName || item.businessProfileId?.businessName || 'Inspection'
       case 'owners':
         return `${item.firstName || ''} ${item.lastName || ''}`.trim() || item.email || 'Unknown'
       case 'logs':
@@ -65,8 +104,9 @@ export default function OfficerItemCard({ item, type, isSelected, onClick }) {
   }
 
   const getStatus = () => {
-    switch (type) {
-      case 'toReview':
+    switch (effectiveType) {
+      case 'business':
+        return null // consolidated cards show badges instead
       case 'applications':
       case 'renewals':
       case 'drafts':
@@ -77,14 +117,17 @@ export default function OfficerItemCard({ item, type, isSelected, onClick }) {
         return item.status
       case 'cessation':
         return item.retirementStatus || item.status
+      case 'inspections':
+        return item.status
       default:
         return null
     }
   }
 
   const getSubtext = () => {
-    switch (type) {
-      case 'toReview':
+    switch (effectiveType) {
+      case 'business':
+        return null // handled separately with badges
       case 'applications':
       case 'renewals':
       case 'drafts':
@@ -95,6 +138,12 @@ export default function OfficerItemCard({ item, type, isSelected, onClick }) {
         return item.businessId ? `Business: ${item.businessId.slice(-8)}` : null
       case 'cessation':
         return item.reason?.slice(0, 60) || null
+      case 'inspections': {
+        const parts = []
+        if (item.inspectionType) parts.push(item.inspectionType)
+        if (item.scheduledDate) parts.push(dayjs(item.scheduledDate).format('MMM D'))
+        return parts.join(' · ') || null
+      }
       case 'owners':
         return item.email || null
       case 'logs':
@@ -111,7 +160,20 @@ export default function OfficerItemCard({ item, type, isSelected, onClick }) {
 
   const status = getStatus()
   const statusCfg = STATUS_CONFIG[status] || (status ? { color: 'default', label: status } : null)
-  const icon = TAB_ICONS[type] || <FileTextOutlined />
+  const icon = TAB_ICONS[effectiveType] || <FileTextOutlined />
+
+  // For consolidated business cards, show request summary badges
+  const isBusinessCard = effectiveType === 'business'
+  const requestSummary = isBusinessCard ? getBusinessRequestSummary(item._requests) : []
+
+  // Determine if any request in a consolidated card needs attention
+  const hasAttentionNeeded = isBusinessCard && item._requests && (
+    (item._requests.application && ['submitted', 'resubmit', 'under_review'].includes(item._requests.application.status || item._requests.application.applicationStatus)) ||
+    item._requests.editRequests?.some(r => r.status === 'pending') ||
+    item._requests.appeals?.some(a => ['submitted', 'pending'].includes(a.status)) ||
+    (item._requests.cessation && ['requested', 'inspector_verified', 'pending_tax_payment'].includes(item._requests.cessation.retirementStatus)) ||
+    item._requests.inspections?.some(i => i.status === 'pending_assignment')
+  )
 
   return (
     <Card
@@ -132,19 +194,32 @@ export default function OfficerItemCard({ item, type, isSelected, onClick }) {
             {icon}
           </span>
           <Text strong ellipsis style={{ fontSize: 13 }}>{getTitle()}</Text>
+          {hasAttentionNeeded && (
+            <ExclamationCircleOutlined style={{ color: token.colorWarning, fontSize: 12, flexShrink: 0 }} />
+          )}
         </div>
         {getDate() && (
           <Text type="secondary" style={{ fontSize: 11, flexShrink: 0, marginLeft: 8 }}>{getDate()}</Text>
         )}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        {getSubtext() && (
-          <Text type="secondary" ellipsis style={{ fontSize: 11, maxWidth: 180 }}>{getSubtext()}</Text>
-        )}
-        {statusCfg && (
-          <Tag color={statusCfg.color} style={{ fontSize: 11, margin: 0 }}>{statusCfg.label}</Tag>
-        )}
-      </div>
+      {isBusinessCard ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+          {requestSummary.map((part, idx) => (
+            <Tag key={idx} style={{ fontSize: 10, margin: 0, lineHeight: '18px', padding: '0 6px' }}>
+              <Space size={2}>{part.icon}{part.label}</Space>
+            </Tag>
+          ))}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          {getSubtext() && (
+            <Text type="secondary" ellipsis style={{ fontSize: 11, maxWidth: 180 }}>{getSubtext()}</Text>
+          )}
+          {statusCfg && (
+            <Tag color={statusCfg.color} style={{ fontSize: 11, margin: 0 }}>{statusCfg.label}</Tag>
+          )}
+        </div>
+      )}
     </Card>
   )
 }

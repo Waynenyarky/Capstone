@@ -5,6 +5,8 @@ import ApplicationDetailPanel from '../components/ApplicationDetailPanel'
 import AppealDetailPanel from '../components/AppealDetailPanel'
 import EditRequestDetailPanel from '../components/EditRequestDetailPanel'
 import CessationDetailPanel from '../components/CessationDetailPanel'
+import BusinessReviewPanel from '../components/BusinessReviewPanel'
+import InspectionDetailPanel from '../components/InspectionDetailPanel'
 import BusinessOwnerDetailPanel from '../components/BusinessOwnerDetailPanel'
 import LogDetailPanel from '../components/LogDetailPanel'
 import LogsTable from '../components/LogsTable'
@@ -88,6 +90,7 @@ export default function OfficerRightPanel({
       editRequests: officerData.editRequests,
       renewals: officerData.renewals,
       cessation: officerData.cessations,
+      inspections: officerData.inspections,
       owners: officerData.owners,
       drafts: officerData.drafts,
       logs: officerData.logs,
@@ -129,8 +132,8 @@ export default function OfficerRightPanel({
 
   const handleItemClick = useCallback((item) => {
     const id = getItemId(item)
-    // For toReview tab, treat items as applications for detail view
-    const itemType = activeTab === 'toReview' ? 'applications' : activeTab
+    // To Review now uses consolidated business cards
+    const itemType = activeTab === 'toReview' ? (item._itemType || 'business') : activeTab
     onItemSelect({ ...item, _itemType: itemType, _itemId: id })
   }, [activeTab, onItemSelect])
 
@@ -141,8 +144,16 @@ export default function OfficerRightPanel({
       { value: 'submitted', label: 'Pending Review' },
       { value: 'under_review', label: 'Under Review' },
       { value: 'resubmit', label: 'Resubmitted' },
+      { value: 'pending', label: 'Pending' },
+      { value: 'pending_renewal', label: 'Pending Renewal' },
+      { value: 'renewal_submitted', label: 'Renewal Submitted' },
+      { value: 'requested', label: 'Requested' },
+      { value: 'inspector_verified', label: 'Inspector Verified' },
       { value: 'approved', label: 'Approved' },
       { value: 'rejected', label: 'Rejected' },
+      { value: 'upheld', label: 'Upheld' },
+      { value: 'overturned', label: 'Overturned' },
+      { value: 'confirmed', label: 'Confirmed' },
       { value: 'returned', label: 'Returned' },
     ],
     applications: [
@@ -163,7 +174,8 @@ export default function OfficerRightPanel({
     editRequests: [
       { value: 'all', label: 'All' },
       { value: 'pending', label: 'Pending' },
-      { value: 'submitted', label: 'Submitted' },
+      { value: 'approved', label: 'Approved' },
+      { value: 'rejected', label: 'Rejected' },
     ],
     renewals: [
       { value: 'all', label: 'All' },
@@ -174,6 +186,14 @@ export default function OfficerRightPanel({
       { value: 'all', label: 'All' },
       { value: 'requested', label: 'Requested' },
       { value: 'inspector_verified', label: 'Inspector Verified' },
+      { value: 'pending_tax_payment', label: 'Pending Tax Payment' },
+    ],
+    inspections: [
+      { value: 'all', label: 'All' },
+      { value: 'pending_assignment', label: 'Needs Assignment' },
+      { value: 'pending', label: 'Pending' },
+      { value: 'in_progress', label: 'In Progress' },
+      { value: 'completed', label: 'Completed' },
     ],
     drafts: [
       { value: 'all', label: 'All' },
@@ -289,12 +309,14 @@ export default function OfficerRightPanel({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {currentList.map(item => {
               const id = getItemId(item)
+              const itemType = activeTab === 'toReview' ? (item._itemType || 'applications') : activeTab
+              const itemKey = `${itemType}:${id}`
               return (
                 <OfficerItemCard
-                  key={id}
+                  key={itemKey}
                   item={item}
                   type={activeTab}
-                  isSelected={selectedItem?._itemId === id}
+                  isSelected={selectedItem?._itemId === id && selectedItem?._itemType === itemType}
                   onClick={() => handleItemClick(item)}
                 />
               )
@@ -320,8 +342,20 @@ export default function OfficerRightPanel({
 
     const type = selectedItem._itemType || activeTab
 
-  // ── Applications, Renewals, To Review → ApplicationDetailPanel with ClaimBar ──
-    if (type === 'applications' || type === 'renewals' || type === 'toReview') {
+  // ── Consolidated Business (To Review tab) ──
+    if (type === 'business') {
+      return (
+        <BusinessReviewPanel
+          item={selectedItem}
+          onReviewComplete={onReviewComplete}
+          onClaimChange={onClaimChange}
+          refresh={refresh}
+        />
+      )
+    }
+
+  // ── Applications, Renewals → ApplicationDetailPanel with ClaimBar ──
+    if (type === 'applications' || type === 'renewals') {
       return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ flexShrink: 0, padding: '0' }}>
@@ -346,12 +380,45 @@ export default function OfficerRightPanel({
 
     // ── Edit Requests ──
     if (type === 'editRequests') {
-      return <EditRequestDetailPanel request={selectedItem} onReviewComplete={onReviewComplete} />
+      return (
+        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ flexShrink: 0, padding: '0' }}>
+            <ClaimBar
+              item={selectedItem}
+              onClaimChange={onClaimChange}
+              apiBasePath="/api/business/edit-requests"
+              entityLabel="edit request"
+            />
+          </div>
+          <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+            <EditRequestDetailPanel request={selectedItem} onReviewComplete={onReviewComplete} />
+          </div>
+        </div>
+      )
     }
 
     // ── Cessation ──
     if (type === 'cessation') {
-      return <CessationDetailPanel cessation={selectedItem} onReviewComplete={onReviewComplete} />
+      return (
+        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ flexShrink: 0, padding: '0' }}>
+            <ClaimBar
+              item={selectedItem}
+              onClaimChange={onClaimChange}
+              apiBasePath="/api/business/retirements"
+              entityLabel="cessation request"
+            />
+          </div>
+          <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+            <CessationDetailPanel cessation={selectedItem} onReviewComplete={onReviewComplete} />
+          </div>
+        </div>
+      )
+    }
+
+    // ── Inspections ──
+    if (type === 'inspections') {
+      return <InspectionDetailPanel inspection={selectedItem} onReviewComplete={onReviewComplete} />
     }
 
     // ── Business Owners ──

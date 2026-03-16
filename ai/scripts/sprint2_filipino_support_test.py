@@ -3,8 +3,9 @@ Sprint 2 AI Test - Filipino Language Input Support
 Tests the AI model's ability to understand Filipino business descriptions
 and return correct LOB recommendations.
 
-This demonstrates the REAL feature: the model was trained on 1,186 Filipino
-examples and can correctly classify businesses described in Filipino.
+This demonstrates the REAL feature: the model is trained on a balanced
+bilingual dataset (2,000 Filipino + 2,000 English rows) and can correctly
+classify businesses described in Filipino.
 """
 
 import requests
@@ -25,7 +26,7 @@ def main():
     print("=" * 70)
     print("SPRINT 2 AI TEST: Filipino Language Input Support")
     print("=" * 70)
-    print("\nFeature: AI model trained on 1,186 Filipino business descriptions")
+    print("\nFeature: AI model trained on 2,000 Filipino + 2,000 English examples")
     print("         to understand and classify Filipino language input.\n")
     
     results = {
@@ -178,7 +179,7 @@ def main():
     print("=" * 70)
     print("""
 The AI model supports Filipino language input because:
-1. Training dataset contains 1,186 Filipino business descriptions (73% of data)
+1. Training dataset contains 2,000 Filipino + 2,000 English examples (balanced)
 2. Model learns to recognize Filipino words like 'tindahan', 'nagbebenta', 'serbisyo'
 3. Same classification accuracy for both English and Filipino inputs
 4. No translation needed - model directly understands Filipino

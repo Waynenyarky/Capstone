@@ -12,10 +12,16 @@
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AI_ROOT="$(dirname "$SCRIPT_DIR")"
-REPO_ROOT="$(dirname "$(dirname "$AI_ROOT")")"
+REPO_ROOT="$(dirname "$AI_ROOT")"
 cd "$REPO_ROOT"
 
-DATASET="${LOB_DATASET_PATH:-$AI_ROOT/datasets/lob_recommendation_dataset.json}"
+if [ -f "$AI_ROOT/datasets/lob_recommendation_dataset_balanced_4000.json" ]; then
+  DEFAULT_DATASET="$AI_ROOT/datasets/lob_recommendation_dataset_balanced_4000.json"
+else
+  DEFAULT_DATASET="$AI_ROOT/datasets/lob_recommendation_dataset.json"
+fi
+
+DATASET="${LOB_DATASET_PATH:-$DEFAULT_DATASET}"
 NO_TUNE="${LOB_NO_TUNE:-0}"
 
 while [[ $# -gt 0 ]]; do
@@ -40,9 +46,9 @@ echo "=== LOB pipeline: split → train → evaluate ==="
 echo "Dataset: $DATASET"
 echo ""
 
-# 88% train / 12% test — with current dataset this yields Top-1 >= 95% (80/20 split gives ~94.7%)
+# 80% train / 20% test for a standard held-out evaluation split
 echo "--- 1. Split ---"
-python3 "$SCRIPT_DIR/split_lob_dataset.py" --dataset "$DATASET" --test-size 0.12 --seed 42
+python3 "$SCRIPT_DIR/split_lob_dataset.py" --dataset "$DATASET" --test-size 0.2 --seed 42
 
 echo ""
 echo "--- 2. Train ---"

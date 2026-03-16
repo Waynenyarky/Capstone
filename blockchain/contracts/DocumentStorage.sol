@@ -149,6 +149,107 @@ contract DocumentStorage {
         return (cids, versions, timestamps);
     }
 
+    // =========================================================================
+    // V2 GAS-OPTIMIZED METHODS
+    // =========================================================================
+
+    // V2 compact struct: stores hash of CID instead of full string
+    struct DocumentHashEntry {
+        bytes32 userIdHash;
+        DocumentType docType;
+        bytes32 cidHash;
+        uint256 uploadedAt;
+        uint256 version;
+    }
+
+    // V2 storage: userIdHash => docType => DocumentHashEntry[]
+    mapping(bytes32 => mapping(DocumentType => DocumentHashEntry[])) public documentHashes;
+    mapping(bytes32 => mapping(DocumentType => uint256)) public currentHashVersionIndex;
+
+    // V2 events
+    event DocumentHashStored(
+        bytes32 indexed userIdHash,
+        DocumentType indexed docType,
+        bytes32 cidHash,
+        uint256 version,
+        uint256 timestamp
+    );
+
+    event BatchDocumentHashStored(
+        uint256 count,
+        uint256 timestamp,
+        address indexed storedBy
+    );
+
+    /**
+     * @dev V2: Store a document CID hash (full CID kept off-chain in DB/IPFS)
+     * @param userIdHash Hash of the userId
+     * @param docType The document type
+     * @param cidHash Hash of the IPFS CID
+     */
+    function storeDocumentHash(
+        bytes32 userIdHash,
+        DocumentType docType,
+        bytes32 cidHash
+    ) public onlyDocumentManager {
+        require(userIdHash != bytes32(0), "DocumentStorage: userIdHash cannot be zero");
+        require(cidHash != bytes32(0), "DocumentStorage: cidHash cannot be zero");
+
+        DocumentHashEntry[] storage history = documentHashes[userIdHash][docType];
+        uint256 currentVersion = history.length > 0
+            ? history[currentHashVersionIndex[userIdHash][docType]].version + 1
+            : 1;
+
+        history.push(DocumentHashEntry({
+            userIdHash: userIdHash,
+            docType: docType,
+            cidHash: cidHash,
+            uploadedAt: block.timestamp,
+            version: currentVersion
+        }));
+        currentHashVersionIndex[userIdHash][docType] = history.length - 1;
+
+        emit DocumentHashStored(userIdHash, docType, cidHash, currentVersion, block.timestamp);
+    }
+
+    /**
+     * @dev V2: Batch store multiple document CID hashes in one transaction
+     * @param userIdHashes Array of userId hashes
+     * @param docTypes Array of document types
+     * @param cidHashes Array of CID hashes
+     */
+    function batchStoreDocumentHash(
+        bytes32[] memory userIdHashes,
+        DocumentType[] memory docTypes,
+        bytes32[] memory cidHashes
+    ) public onlyDocumentManager {
+        require(userIdHashes.length > 0, "Empty batch");
+        require(userIdHashes.length <= 50, "Batch too large");
+        require(userIdHashes.length == docTypes.length && docTypes.length == cidHashes.length, "Array length mismatch");
+
+        for (uint256 i = 0; i < userIdHashes.length; i++) {
+            if (userIdHashes[i] == bytes32(0) || cidHashes[i] == bytes32(0)) continue;
+
+            DocumentHashEntry[] storage history = documentHashes[userIdHashes[i]][docTypes[i]];
+            uint256 currentVersion = history.length > 0
+                ? history[currentHashVersionIndex[userIdHashes[i]][docTypes[i]]].version + 1
+                : 1;
+
+            history.push(DocumentHashEntry({
+                userIdHash: userIdHashes[i],
+                docType: docTypes[i],
+                cidHash: cidHashes[i],
+                uploadedAt: block.timestamp,
+                version: currentVersion
+            }));
+            currentHashVersionIndex[userIdHashes[i]][docTypes[i]] = history.length - 1;
+
+            emit DocumentHashStored(userIdHashes[i], docTypes[i], cidHashes[i], currentVersion, block.timestamp);
+        }
+
+        emit BatchDocumentHashStored(userIdHashes.length, block.timestamp, msg.sender);
+    }
+
     /**
      * @dev Check if a document exists for a user
      * @param userId The user identifier

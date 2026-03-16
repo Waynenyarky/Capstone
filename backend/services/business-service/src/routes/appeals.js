@@ -2,8 +2,10 @@ const express = require('express')
 const mongoose = require('mongoose')
 const Appeal = require('../models/Appeal')
 const BusinessProfile = require('../models/BusinessProfile')
-const { requireJwt } = require('../middleware/auth')
+const Violation = require('../models/Violation')
+const { requireJwt, requireRole } = require('../middleware/auth')
 const { logAuditEvent } = require('../lib/auditClient')
+const { crossClaimForBusiness } = require('../lib/crossClaimService')
 
 const router = express.Router()
 
@@ -271,6 +273,112 @@ router.put('/:id', requireJwt, async (req, res) => {
   } catch (err) {
     console.error('PUT /appeals error:', err)
     return res.status(500).json({ error: { code: 'INTERNAL', message: 'Failed to update appeal' } })
+  }
+})
+
+// PUT /api/business/appeals/:id/claim
+router.put('/:id/claim', requireJwt, requireRole(['lgu_officer', 'staff', 'lgu_manager', 'admin']), async (req, res) => {
+  try {
+    const appeal = await Appeal.findById(req.params.id)
+    if (!appeal) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Appeal not found' } })
+    }
+
+    if (appeal.status === 'approved' || appeal.status === 'rejected') {
+      return res.status(400).json({
+        error: { code: 'ALREADY_RESOLVED', message: 'Cannot claim a resolved appeal' },
+      })
+    }
+
+    if (appeal.reviewedBy && String(appeal.reviewedBy) !== String(req._userId)) {
+      return res.status(409).json({
+        error: { code: 'ALREADY_CLAIMED', message: 'Appeal is already claimed by another officer' },
+      })
+    }
+
+    appeal.reviewedBy = req._userId
+    await appeal.save()
+
+    // Cross-claim all other requests for this business
+    await crossClaimForBusiness(appeal.businessId, req._userId, { skipModel: 'Appeal', skipId: appeal._id })
+
+    return res.json({ success: true, application: appeal })
+  } catch (err) {
+    console.error('PUT /appeals/:id/claim error:', err)
+    return res.status(500).json({ error: { code: 'INTERNAL', message: 'Failed to claim appeal' } })
+  }
+})
+
+// PUT /api/business/appeals/:id/release
+router.put('/:id/release', requireJwt, requireRole(['lgu_officer', 'staff', 'lgu_manager', 'admin']), async (req, res) => {
+  try {
+    const appeal = await Appeal.findById(req.params.id)
+    if (!appeal) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Appeal not found' } })
+    }
+
+    const userRole = req._userRole
+    const isManagerOrAdmin = userRole === 'lgu_manager' || userRole === 'admin'
+    if (
+      appeal.reviewedBy &&
+      String(appeal.reviewedBy) !== String(req._userId) &&
+      !isManagerOrAdmin
+    ) {
+      return res.status(403).json({
+        error: { code: 'FORBIDDEN', message: 'Only the claiming officer can release this appeal' },
+      })
+    }
+
+    appeal.reviewedBy = null
+    await appeal.save()
+
+    // Cross-release all other requests for this business
+    await crossClaimForBusiness(appeal.businessId, null, { skipModel: 'Appeal', skipId: appeal._id })
+
+    return res.json({ success: true, application: appeal, message: 'Appeal released' })
+  } catch (err) {
+    console.error('PUT /appeals/:id/release error:', err)
+    return res.status(500).json({ error: { code: 'INTERNAL', message: 'Failed to release appeal' } })
+  }
+})
+
+// PUT /api/business/appeals/:id/transfer
+router.put('/:id/transfer', requireJwt, requireRole(['lgu_officer', 'staff', 'lgu_manager', 'admin']), async (req, res) => {
+  try {
+    const { targetOfficerId } = req.body
+    if (!targetOfficerId) {
+      return res.status(400).json({
+        error: { code: 'MISSING_TARGET', message: 'targetOfficerId is required' },
+      })
+    }
+
+    const appeal = await Appeal.findById(req.params.id)
+    if (!appeal) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Appeal not found' } })
+    }
+
+    const userRole = req._userRole
+    const isManagerOrAdmin = userRole === 'lgu_manager' || userRole === 'admin'
+    if (
+      appeal.reviewedBy &&
+      String(appeal.reviewedBy) !== String(req._userId) &&
+      !isManagerOrAdmin
+    ) {
+      return res.status(403).json({
+        error: { code: 'FORBIDDEN', message: 'Only the claiming officer can transfer this appeal' },
+      })
+    }
+
+    appeal.reviewedBy = targetOfficerId
+    await appeal.save()
+
+    // Cross-transfer all other requests for this business
+    await crossClaimForBusiness(appeal.businessId, targetOfficerId, { skipModel: 'Appeal', skipId: appeal._id })
+
+    return res.json({ success: true, application: appeal, message: 'Appeal transferred' })
+  } catch (err) {
+    console.error('PUT /appeals/:id/transfer error:', err)
+    return res.status(500).json({ error: { code: 'INTERNAL', message: 'Failed to transfer appeal' } })
   }
 })
 

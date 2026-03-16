@@ -33,6 +33,7 @@ const PaymentSchema = new mongoose.Schema(
         'violation_fine',
         'general_permit_fee',
         'occupational_permit_fee',
+        'cessation_tax',
         'other'
       ],
       required: true

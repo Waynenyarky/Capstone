@@ -3,9 +3,9 @@ LOB Prediction & Training Flask Service
 
 Endpoints:
   POST /predict  — predict LOB recommendations for a business description
-  POST /train    — retrain the model from a provided dataset
+  POST /train    — retrain the model from a provided dataset (requires X-LOB-Admin-Token)
   GET  /health   — simple health check
-  GET  /evaluate — run model evaluation on test set, return metrics as JSON
+  GET  /evaluate — run model evaluation on test set, return metrics as JSON (requires X-LOB-Admin-Token)
 
 Startup:
   python predict_app.py              — load existing model (auto-train only if missing)
@@ -13,6 +13,8 @@ Startup:
 """
 
 import argparse
+import hashlib
+import hmac
 import json
 import os
 import sys
@@ -30,11 +32,19 @@ SERVICE_DIR = os.path.dirname(os.path.abspath(__file__))
 AI_ROOT = os.path.dirname(SERVICE_DIR)
 MODELS_DIR = os.path.join(AI_ROOT, "models")
 TAXONOMY_PATH = os.path.join(AI_ROOT, "data", "line_of_business.json")
-DEFAULT_DATASET = os.path.join(AI_ROOT, "datasets", "lob_recommendation_dataset.json")
+BALANCED_DATASET = os.path.join(AI_ROOT, "datasets", "lob_recommendation_dataset_balanced_4000.json")
+DEFAULT_DATASET = BALANCED_DATASET if os.path.exists(BALANCED_DATASET) else os.path.join(AI_ROOT, "datasets", "lob_recommendation_dataset.json")
 TEST_DATASET = os.path.join(AI_ROOT, "datasets", "lob_recommendation_test.json")
+CHECKSUMS_PATH = os.path.join(MODELS_DIR, "lob_artifact_checksums.json")
+
+MAX_DESCRIPTION_LENGTH = 2000
+MAX_TOP_K = 10
+MIN_THRESHOLD = 0.0
+MAX_THRESHOLD = 1.0
+MAX_TRAIN_EXAMPLES = 50000
 
 sys.path.insert(0, os.path.join(AI_ROOT, "scripts"))
-from train_lob_model import train as run_training, flatten_dataset
+from train_lob_model import train as run_training, flatten_dataset, normalize_text
 
 app = Flask(__name__)
 CORS(app)
@@ -48,6 +58,90 @@ training_meta = None  # {"algorithm": str, "trainedAt": str} from training_meta.
 
 # OPTIMIZATION: Cache the label-to-taxonomy mapping instead of rebuilding on every request
 _label_to_taxonomy_cache = None
+
+
+def _verify_model_artifacts(paths):
+    """Verify model artifact checksums before loading pickled artifacts."""
+    if not os.path.exists(CHECKSUMS_PATH):
+        print(f"ERROR: Missing artifact checksum file: {CHECKSUMS_PATH}")
+        return False
+
+    try:
+        with open(CHECKSUMS_PATH, "r", encoding="utf-8") as f:
+            expected = json.load(f)
+    except Exception as exc:
+        print(f"ERROR: Could not read checksum file: {exc}")
+        return False
+
+    for p in paths:
+        name = os.path.basename(p)
+        want = expected.get(name)
+        if not want:
+            print(f"ERROR: Missing checksum entry for {name}")
+            return False
+        h = hashlib.sha256()
+        with open(p, "rb") as f:
+            for chunk in iter(lambda: f.read(8192), b""):
+                h.update(chunk)
+        got = h.hexdigest()
+        if not hmac.compare_digest(got, want):
+            print(f"ERROR: Checksum mismatch for {name}")
+            return False
+    return True
+
+
+def _require_admin_token():
+    expected = os.environ.get("LOB_MODEL_ADMIN_TOKEN", "").strip()
+    if not expected:
+        return jsonify({"error": "LOB_MODEL_ADMIN_TOKEN is not configured"}), 503
+
+    provided = (request.headers.get("X-LOB-Admin-Token") or "").strip()
+    if not provided or not hmac.compare_digest(provided, expected):
+        return jsonify({"error": "Unauthorized"}), 401
+    return None
+
+
+def _parse_bounded_float(data, key, default, min_value=MIN_THRESHOLD, max_value=MAX_THRESHOLD):
+    raw = data.get(key, default)
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        raise ValueError(f"{key} must be a number")
+    if value < min_value or value > max_value:
+        raise ValueError(f"{key} must be between {min_value} and {max_value}")
+    return value
+
+
+def _validate_training_dataset(dataset):
+    if not isinstance(dataset, list) or not dataset:
+        raise ValueError("dataset must be a non-empty array")
+    if len(dataset) > MAX_TRAIN_EXAMPLES:
+        raise ValueError(f"dataset too large (max {MAX_TRAIN_EXAMPLES} entries)")
+
+    for i, entry in enumerate(dataset):
+        if not isinstance(entry, dict):
+            raise ValueError(f"dataset[{i}] must be an object")
+
+        desc = (entry.get("businessDescription") or "").strip()
+        if len(desc) < 10:
+            raise ValueError(f"dataset[{i}].businessDescription must be at least 10 characters")
+        if len(desc) > MAX_DESCRIPTION_LENGTH:
+            raise ValueError(
+                f"dataset[{i}].businessDescription must be <= {MAX_DESCRIPTION_LENGTH} characters"
+            )
+
+        recs = entry.get("recommendations")
+        if not isinstance(recs, list) or not recs:
+            raise ValueError(f"dataset[{i}].recommendations must be a non-empty array")
+        for j, rec in enumerate(recs):
+            if not isinstance(rec, dict):
+                raise ValueError(f"dataset[{i}].recommendations[{j}] must be an object")
+            tax = (rec.get("taxCode") or "").strip()
+            detailed = (rec.get("detailedLine") or "").strip()
+            if not tax or not detailed:
+                raise ValueError(
+                    f"dataset[{i}].recommendations[{j}] must include taxCode and detailedLine"
+                )
 
 
 def load_taxonomy():
@@ -88,6 +182,20 @@ def build_label_to_taxonomy_map():
     return mapping
 
 
+def _label_to_recs(pred_labels):
+    """Convert label strings to recommendation payload objects."""
+    label_map = build_label_to_taxonomy_map()
+    recs = []
+    for label in pred_labels:
+        info = label_map.get(str(label))
+        if not info:
+            continue
+        rec = dict(info)
+        rec["confidence"] = 1.0
+        recs.append(rec)
+    return recs
+
+
 def load_model():
     global model, vectorizer, labels, training_meta
     vec_path = os.path.join(MODELS_DIR, "lob_vectorizer.joblib")
@@ -96,6 +204,9 @@ def load_model():
 
     if not all(os.path.exists(p) for p in [vec_path, mod_path, lab_path]):
         print("WARNING: Model artifacts not found. /predict will return an error until the model is trained.")
+        return False
+
+    if not _verify_model_artifacts([vec_path, mod_path, lab_path]):
         return False
 
     with model_lock:
@@ -143,14 +254,25 @@ def predict():
     if not data or not data.get("businessDescription"):
         return jsonify({"error": "businessDescription is required"}), 400
 
-    desc = data["businessDescription"].strip()
+    desc = normalize_text(data["businessDescription"])
     if len(desc) < 10:
         return jsonify({"error": "businessDescription must be at least 10 characters"}), 400
+    if len(desc) > MAX_DESCRIPTION_LENGTH:
+        return jsonify({"error": f"businessDescription must be <= {MAX_DESCRIPTION_LENGTH} characters"}), 400
 
-    top_k = data.get("topK", 5)
-    threshold = data.get("threshold", 0.01)
-    # If the model's best prediction is below this, return no recommendations (description doesn't match any category well)
-    min_confidence = data.get("minConfidence", 0.18)
+    try:
+        top_k = int(data.get("topK", 5))
+    except (TypeError, ValueError):
+        return jsonify({"error": "topK must be an integer"}), 400
+    if top_k < 1 or top_k > MAX_TOP_K:
+        return jsonify({"error": f"topK must be between 1 and {MAX_TOP_K}"}), 400
+
+    try:
+        threshold = _parse_bounded_float(data, "threshold", 0.01)
+        # If the model's best prediction is below this, return no recommendations
+        min_confidence = _parse_bounded_float(data, "minConfidence", 0.50)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     try:
         with model_lock:
@@ -165,7 +287,7 @@ def predict():
                 pred = model.predict(X)
                 return jsonify({"recommendations": _label_to_recs([pred[0]])})
 
-        top_indices = np.argsort(proba)[::-1][:top_k]
+        top_indices = np.argsort(proba)[::-1][: min(top_k, len(labels))]
         best_prob = float(proba[top_indices[0]]) if len(top_indices) else 0
         if best_prob < min_confidence:
             return jsonify({
@@ -202,45 +324,45 @@ def predict():
 def train_endpoint():
     """Accept a dataset and retrain the model.
 
-    Body can be:
+    Body:
       { "dataset": [ { "businessDescription": "...", "recommendations": [...] } ] }
-    or:
-      { "datasetPath": "/absolute/path/to/dataset.json" }
     """
+    auth_error = _require_admin_token()
+    if auth_error:
+        return auth_error
+
     data = request.get_json(silent=True)
     if not data:
         return jsonify({"error": "Request body required"}), 400
 
     dataset = data.get("dataset")
-    dataset_path = data.get("datasetPath")
+    if data.get("datasetPath"):
+        return jsonify({"error": "datasetPath is disabled for security; provide 'dataset' array"}), 400
+    if dataset is None:
+        return jsonify({"error": "Provide 'dataset' (array)"}), 400
 
-    if dataset:
-        tmp_path = os.path.join(AI_ROOT, "datasets", "_train_temp.json")
-        with open(tmp_path, "w", encoding="utf-8") as f:
-            json.dump(dataset, f, ensure_ascii=False)
-        train_path = tmp_path
-    elif dataset_path:
-        if not os.path.exists(dataset_path):
-            return jsonify({"error": f"Dataset file not found: {dataset_path}"}), 400
-        train_path = dataset_path
-    else:
-        return jsonify({"error": "Provide 'dataset' (array) or 'datasetPath' (string)"}), 400
+    tmp_path = os.path.join(AI_ROOT, "datasets", "_train_temp.json")
 
     try:
-        success = run_training(train_path)
+        _validate_training_dataset(dataset)
+
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(dataset, f, ensure_ascii=False)
+
+        success = run_training(tmp_path)
         if not success:
             return jsonify({"error": "Training failed (not enough data?)"}), 500
 
         load_model()
-
-        if dataset and os.path.exists(tmp_path):
-            os.remove(tmp_path)
 
         return jsonify({"ok": True, "message": "Model retrained and reloaded successfully"})
 
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": f"Training failed: {str(e)}"}), 500
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 
 def _flatten_for_eval(dataset):
@@ -265,14 +387,10 @@ def run_evaluation():
     label_list = labels
     label_to_idx = {l: i for i, l in enumerate(label_list)}
 
-    if os.path.exists(TEST_DATASET):
-        ds_path = TEST_DATASET
-        using_fixed_test = True
-    elif os.path.exists(DEFAULT_DATASET):
-        ds_path = DEFAULT_DATASET
-        using_fixed_test = False
-    else:
+    if not os.path.exists(TEST_DATASET):
         return None
+    ds_path = TEST_DATASET
+    using_fixed_test = True
 
     with open(ds_path, "r", encoding="utf-8") as f:
         raw = json.load(f)
@@ -377,10 +495,14 @@ def run_evaluation():
 @app.route("/evaluate", methods=["GET"])
 def evaluate_endpoint():
     """Return model evaluation metrics as JSON."""
+    auth_error = _require_admin_token()
+    if auth_error:
+        return auth_error
+
     result = run_evaluation()
     if result is None:
         return jsonify({
-            "error": "Evaluation not available. Ensure model is loaded and test dataset exists (e.g. lob_recommendation_test.json or lob_recommendation_dataset.json).",
+            "error": "Evaluation not available. Ensure model is loaded and fixed test dataset exists (lob_recommendation_test.json).",
         }), 503
     return jsonify(result)
 

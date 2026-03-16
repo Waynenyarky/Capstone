@@ -30,6 +30,7 @@ afterAll(async () => {
 })
 
 const EditRequest = require('../../../services/business-service/src/models/EditRequest')
+const BusinessProfile = require('../../../services/business-service/src/models/BusinessProfile')
 const User = require('../../../services/business-service/src/models/User')
 const Role = require('../../../services/business-service/src/models/Role')
 const { signAccessToken } = require('../../../services/business-service/src/middleware/auth')
@@ -87,6 +88,7 @@ describe('Edit Requests (2N)', () => {
 
   beforeEach(async () => {
     await EditRequest.deleteMany({})
+    await BusinessProfile.deleteMany({})
   })
 
   // ── Happy Paths ──
@@ -113,10 +115,23 @@ describe('Edit Requests (2N)', () => {
 
   describe('UC-2N-1: Officer approves edit request', () => {
     it('should approve and record reviewer', async () => {
+      await BusinessProfile.create({
+        userId: ownerId,
+        businesses: [{
+          businessId: 'BIZ-001',
+          businessName: 'Old Name',
+          businessRegistrationNumber: 'DTI-0001',
+          formData: {
+            businessName: 'Old Name',
+            'Business / trade name': 'Old Name',
+          },
+        }],
+      })
+
       const editReq = await EditRequest.create({
         businessId: 'BIZ-001',
         requestedBy: ownerId,
-        fieldName: 'tradeName',
+        fieldName: 'businessName',
         currentValue: 'Old Name',
         requestedValue: 'New Name',
         reason: 'Rebranding',
@@ -135,6 +150,12 @@ describe('Edit Requests (2N)', () => {
       expect(res.body.data.status).toBe('approved')
       expect(res.body.data.reviewedBy).toBe(staffId)
       expect(res.body.data.resolvedAt).toBeDefined()
+
+      const profile = await BusinessProfile.findOne({ userId: ownerId }).lean()
+      const business = profile?.businesses?.find((b) => b.businessId === 'BIZ-001')
+      expect(business?.businessName).toBe('New Name')
+      expect(business?.formData?.businessName).toBe('New Name')
+      expect(business?.formData?.['Business / trade name']).toBe('New Name')
     })
   })
 

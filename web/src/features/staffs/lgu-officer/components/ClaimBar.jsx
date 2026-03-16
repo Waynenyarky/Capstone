@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { Alert, Button, Space, Typography, AutoComplete, Popconfirm, theme } from 'antd'
+import { Alert, Button, Space, Typography, AutoComplete, Popconfirm } from 'antd'
 import { LockOutlined, UnlockOutlined, SwapOutlined, UserOutlined } from '@ant-design/icons'
 import { put, get } from '@/lib/http.js'
 import { useAuthSession } from '@/features/authentication'
@@ -7,8 +7,13 @@ import { useNotifier } from '@/shared/notifications.js'
 
 const { Text } = Typography
 
-export default function ClaimBar({ application, onClaimChange }) {
-  const { token } = theme.useToken()
+export default function ClaimBar({
+  application,
+  item,
+  onClaimChange,
+  apiBasePath = '/api/lgu-officer/permit-applications',
+  entityLabel = 'application',
+}) {
   const { currentUser } = useAuthSession()
   const { success, error: notifyError } = useNotifier()
   const [processing, setProcessing] = useState(false)
@@ -17,12 +22,13 @@ export default function ClaimBar({ application, onClaimChange }) {
   const [officerOptions, setOfficerOptions] = useState([])
   const [selectedOfficer, setSelectedOfficer] = useState(null)
 
-  const appId = application?.applicationId || application?.businessId || application?._id
-  const claimedBy = application?.reviewedBy
+  const targetItem = item || application
+
+  const appId = targetItem?.applicationId || targetItem?._id || targetItem?.businessId
+  const claimedBy = targetItem?.reviewedBy
   const myId = currentUser?.id || currentUser?._id
   const claimedById = typeof claimedBy === 'object' ? claimedBy?._id : claimedBy
   const claimedByCurrentUser = claimedBy && myId && (String(claimedById) === String(myId))
-  const claimedByOther = claimedBy && !claimedByCurrentUser
   const claimedByName = claimedBy && typeof claimedBy === 'object'
     ? `${claimedBy.firstName || ''} ${claimedBy.lastName || ''}`.trim()
     : null
@@ -31,51 +37,51 @@ export default function ClaimBar({ application, onClaimChange }) {
     if (!appId) return
     setProcessing(true)
     try {
-      const res = await put(`/api/lgu-officer/permit-applications/${appId}/claim`)
-      success('Application claimed')
+      const res = await put(`${apiBasePath}/${appId}/claim`)
+      success(`${entityLabel[0].toUpperCase()}${entityLabel.slice(1)} claimed`)
       // Pass updated application data to parent for immediate UI update
       onClaimChange?.(res?.application || res)
     } catch (err) {
-      notifyError(err, 'Failed to claim application')
+      notifyError(err, `Failed to claim ${entityLabel}`)
     } finally {
       setProcessing(false)
     }
-  }, [appId, success, notifyError, onClaimChange])
+  }, [appId, apiBasePath, success, notifyError, onClaimChange, entityLabel])
 
   const handleRelease = useCallback(async () => {
     if (!appId) return
     setProcessing(true)
     try {
-      const res = await put(`/api/lgu-officer/permit-applications/${appId}/release`)
-      success('Application released')
+      const res = await put(`${apiBasePath}/${appId}/release`)
+      success(`${entityLabel[0].toUpperCase()}${entityLabel.slice(1)} released`)
       // Pass updated application data to parent for immediate UI update
       onClaimChange?.(res?.application || res)
     } catch (err) {
-      notifyError(err, 'Failed to release application')
+      notifyError(err, `Failed to release ${entityLabel}`)
     } finally {
       setProcessing(false)
     }
-  }, [appId, success, notifyError, onClaimChange])
+  }, [appId, apiBasePath, success, notifyError, onClaimChange, entityLabel])
 
   const handleTransfer = useCallback(async () => {
     if (!appId || !selectedOfficer) return
     setProcessing(true)
     try {
-      const res = await put(`/api/lgu-officer/permit-applications/${appId}/transfer`, {
+      const res = await put(`${apiBasePath}/${appId}/transfer`, {
         targetOfficerId: selectedOfficer,
       })
-      success('Application transferred')
+      success(`${entityLabel[0].toUpperCase()}${entityLabel.slice(1)} transferred`)
       setTransferOpen(false)
       setOfficerSearch('')
       setSelectedOfficer(null)
       // Pass updated application data to parent for immediate UI update
       onClaimChange?.(res?.application || res)
     } catch (err) {
-      notifyError(err, 'Failed to transfer application')
+      notifyError(err, `Failed to transfer ${entityLabel}`)
     } finally {
       setProcessing(false)
     }
-  }, [appId, selectedOfficer, success, notifyError, onClaimChange])
+  }, [appId, selectedOfficer, apiBasePath, success, notifyError, onClaimChange, entityLabel])
 
   const searchOfficers = useCallback(async (value) => {
     setOfficerSearch(value)
@@ -96,7 +102,7 @@ export default function ClaimBar({ application, onClaimChange }) {
     }
   }, [currentUser])
 
-  if (!application) return null
+  if (!targetItem) return null
 
   // Not claimed by anyone
   if (!claimedBy) {
@@ -108,7 +114,7 @@ export default function ClaimBar({ application, onClaimChange }) {
         style={{ marginBottom: 0 }}
         message={
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text>This application is unclaimed. Claim it to start reviewing.</Text>
+            <Text>This {entityLabel} is unclaimed. Claim it to start reviewing.</Text>
             <Button type="primary" size="small" icon={<LockOutlined />} loading={processing} onClick={handleClaim}>
               Claim
             </Button>
@@ -128,7 +134,7 @@ export default function ClaimBar({ application, onClaimChange }) {
         style={{ marginBottom: 0 }}
         message={
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-            <Text>You are reviewing this application.</Text>
+            <Text>You are reviewing this {entityLabel}.</Text>
             <Space size="small">
               {transferOpen ? (
                 <>
@@ -153,7 +159,7 @@ export default function ClaimBar({ application, onClaimChange }) {
                   <Button size="small" icon={<SwapOutlined />} onClick={() => setTransferOpen(true)}>
                     Transfer
                   </Button>
-                  <Popconfirm title="Release this application?" description="It will become available for other officers." onConfirm={handleRelease} okText="Release">
+                  <Popconfirm title={`Release this ${entityLabel}?`} description="It will become available for other officers." onConfirm={handleRelease} okText="Release">
                     <Button size="small" danger icon={<UnlockOutlined />} loading={processing}>
                       Release
                     </Button>

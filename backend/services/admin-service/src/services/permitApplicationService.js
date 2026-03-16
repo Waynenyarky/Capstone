@@ -37,11 +37,20 @@ function bufferToHex(buf) {
  */
 function decryptObject(obj) {
   if (!obj || typeof obj !== 'object') return obj
+  if (obj instanceof Date) return obj
+  if (Buffer.isBuffer(obj)) return obj
+  if (obj._bsontype === 'ObjectId') return String(obj)
   if (Array.isArray(obj)) {
     return obj.map(item => decryptObject(item))
   }
   const result = {}
   for (const [key, value] of Object.entries(obj)) {
+    if (value instanceof Date) {
+      // Preserve Date objects; recursing into Date turns them into {}
+      result[key] = value
+      continue
+    }
+
     // Handle ObjectId fields that come as Binary/Buffer from aggregation
     if (key === 'userId' || key === '_id' || key === 'reviewedBy' || key === '_businessId') {
       result[key] = bufferToHex(value) || value
@@ -163,6 +172,9 @@ class PermitApplicationService {
     const page = parseInt(pagination.page) || 1
     const limit = parseInt(pagination.limit) || 10
     const skip = (page - 1) * limit
+    const ownerObjectId = ownerId && mongoose.Types.ObjectId.isValid(ownerId)
+      ? new mongoose.Types.ObjectId(ownerId)
+      : null
 
     // Parse status filter for post-decryption filtering
     const statusList = status ? status.split(',').map(s => s.trim()) : null
@@ -174,7 +186,7 @@ class PermitApplicationService {
       // First match documents that have businesses array
       { $match: {
         businesses: { $exists: true, $ne: [] },
-        ...(ownerId && { userId: ownerId }),
+        ...(ownerObjectId && { userId: ownerObjectId }),
       } },
       // Unwind the businesses array
       { $unwind: '$businesses' },
@@ -224,6 +236,11 @@ class PermitApplicationService {
     // Post-decryption filtering by status (encrypted fields can't be filtered in aggregation)
     if (statusList && statusList.length > 0) {
       allData = allData.filter(app => statusList.includes(app.applicationStatus))
+    }
+
+    // Fallback owner filter for non-ObjectId identifiers
+    if (ownerId && !ownerObjectId) {
+      allData = allData.filter(app => String(app.userId) === String(ownerId))
     }
 
     // Post-decryption filtering by reviewedBy (stored as string or ObjectId, compare as strings)
@@ -1318,4 +1335,10 @@ class PermitApplicationService {
   }
 }
 
-module.exports = new PermitApplicationService()
+const permitApplicationService = new PermitApplicationService()
+permitApplicationService.__testables = {
+  decryptObject,
+  bufferToHex,
+}
+
+module.exports = permitApplicationService

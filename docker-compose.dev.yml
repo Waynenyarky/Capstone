@@ -33,6 +33,7 @@ services:
     environment:
       - SEED_FEE_CONFIGURATION=true
       - LOB_MODEL_SERVICE_URL=http://lob-model:5050
+      - LOB_MODEL_ADMIN_TOKEN=${LOB_MODEL_ADMIN_TOKEN:-}
     volumes:
       - ./backend/shared:/backend/shared:ro
       - ./backend/services/business-service/src:/backend/services/business-service/src
@@ -63,6 +64,7 @@ services:
   lob-model:
     environment:
       - LOB_RETRAIN_ON_START=${LOB_RETRAIN_ON_START:-0}
+      - LOB_MODEL_ADMIN_TOKEN=${LOB_MODEL_ADMIN_TOKEN:-}
     volumes:
       - ./ai/models:/app/models
       - ./ai/datasets:/app/datasets

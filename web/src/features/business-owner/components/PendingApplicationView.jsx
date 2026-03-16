@@ -725,13 +725,16 @@ export default function PendingApplicationView({ business, onEdit, onSubmit, onD
       if (!business?.formType) return
       try {
         const { get } = await import('@/lib/http')
-        const category = business.category || null
-        const url = category 
-          ? `/api/form-definitions/active?formType=${business.formType}&category=${category}`
-          : `/api/form-definitions/active?formType=${business.formType}`
+        const query = new URLSearchParams()
+        query.set('type', business.formType)
+        if (business?.category) query.set('businessType', business.category)
+        if (business?.lguCode) query.set('lgu', business.lguCode)
+
+        const url = `/api/forms/active?${query.toString()}`
         const res = await get(url)
-        if (res?.sections) {
-          setFormDefinition(res)
+        const definition = res?.definition || res
+        if (definition?.sections) {
+          setFormDefinition(definition)
         }
       } catch (err) {
         console.error('Failed to load form definition:', err)

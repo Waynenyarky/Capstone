@@ -34,6 +34,20 @@ function formatDate(dateStr) {
   return dayjs(dateStr).format('MMM D, YYYY')
 }
 
+function buildRetirementRequestedDescription(retirementRequestedAt, retirementReason) {
+  const reasonText = String(retirementReason || '').trim()
+  return (
+    <>
+      <div>Submitted {formatDate(retirementRequestedAt)}. Waiting for inspector verification.</div>
+      {reasonText ? (
+        <div style={{ marginTop: 4 }}>
+          <Text strong>Reason:</Text> {reasonText}
+        </div>
+      ) : null}
+    </>
+  )
+}
+
 function normalizeFormDataForRenderer(formData, definition) {
   if (!formData || typeof formData !== 'object') return {}
 
@@ -222,17 +236,24 @@ function OverviewTab({ business, onRetire, onRequestEdit }) {
   const { token } = theme.useToken()
   const retirementStatus = business?.retirementStatus || (business?.businessStatus === 'closed' ? 'confirmed' : '')
   const retirementPending = retirementStatus === 'requested'
+  const retirementActive = ['requested', 'inspector_verified', 'pending_tax_payment'].includes(retirementStatus)
+  const retirementReason = business?.retirementApplicationLetter || business?.retirementReason
 
   const retirementAlertConfig = {
     requested: {
       type: 'warning',
       title: 'Retirement Requested',
-      description: `Submitted ${formatDate(business?.retirementRequestedAt)}. Waiting for inspector verification.`,
+      description: buildRetirementRequestedDescription(business?.retirementRequestedAt, retirementReason),
     },
     inspector_verified: {
       type: 'info',
       title: 'Retirement Verified by Inspector',
       description: 'Your retirement request has been inspector-verified and is awaiting LGU officer confirmation.',
+    },
+    pending_tax_payment: {
+      type: 'warning',
+      title: 'Cessation Tax Assessed',
+      description: 'A cessation tax has been assessed for your business. Please complete the payment in the Payments & Fees section below to proceed with closure.',
     },
     confirmed: {
       type: 'success',
@@ -278,9 +299,11 @@ function OverviewTab({ business, onRetire, onRequestEdit }) {
             Retire Business
           </Button>
         )}
-        <Button icon={<EditOutlined />} onClick={onRequestEdit}>
-          Request Edit
-        </Button>
+        {!retirementActive && (
+          <Button icon={<EditOutlined />} onClick={onRequestEdit}>
+            Request Edit
+          </Button>
+        )}
       </Space>
     </div>
   )
@@ -1552,9 +1575,16 @@ export default function ApprovedBusinessView({ business, onRefresh }) {
 
   const retirementStatus = business?.retirementStatus || (business?.businessStatus === 'closed' ? 'confirmed' : '')
   const retirementPending = retirementStatus === 'requested'
+  const retirementActive = ['requested', 'inspector_verified', 'pending_tax_payment'].includes(retirementStatus)
+  const retirementReason = business?.retirementApplicationLetter || business?.retirementReason
   const retirementAlertConfig = {
-    requested: { type: 'warning', title: 'Retirement Requested', description: `Submitted ${formatDate(business?.retirementRequestedAt)}. Waiting for inspector verification.` },
+    requested: {
+      type: 'warning',
+      title: 'Retirement Requested',
+      description: buildRetirementRequestedDescription(business?.retirementRequestedAt, retirementReason),
+    },
     inspector_verified: { type: 'info', title: 'Retirement Verified by Inspector', description: 'Your retirement request has been inspector-verified and is awaiting LGU officer confirmation.' },
+    pending_tax_payment: { type: 'warning', title: 'Cessation Tax Assessed', description: 'A cessation tax has been assessed for your business. Please complete the payment in the Payments & Fees section below to proceed with closure.' },
     confirmed: { type: 'success', title: 'Retirement Confirmed', description: `Confirmed ${formatDate(business?.retirementConfirmedAt)}. Business status is now closed.` },
     rejected: { type: 'error', title: 'Retirement Request Rejected', description: business?.retirementRejectionReason || 'Please review remarks and contact LGU support if needed.' },
   }
@@ -1687,13 +1717,15 @@ export default function ApprovedBusinessView({ business, onRefresh }) {
             {!loading && <ActiveActionCard nextAction={nextAction} token={token} style={{ marginBottom: 16 }} />}
             
             <Space wrap size="small" style={{ paddingTop: 12 }}>
-              <Button
-                icon={<EditOutlined />}
-                onClick={() => setEditOpen(true)}
-                disabled={hasPendingEditRequest}
-              >
-                {hasPendingEditRequest ? 'Edit Request Pending' : 'Request Edits'}
-              </Button>
+              {!retirementActive && (
+                <Button
+                  icon={<EditOutlined />}
+                  onClick={() => setEditOpen(true)}
+                  disabled={hasPendingEditRequest}
+                >
+                  {hasPendingEditRequest ? 'Edit Request Pending' : 'Request Edits'}
+                </Button>
+              )}
               
               {!retirementPending && (
                 <Button

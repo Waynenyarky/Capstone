@@ -2,9 +2,9 @@
 LOB Recommendation Model Training Script
 
 Loads the LOB recommendation dataset, flattens multi-recommendation entries,
-trains multiple classifiers (Logistic Regression, Random Forest, Linear SVC,
-Decision Tree, SVC RBF, MLP, XGBoost), compares them with cross-validation,
-runs hyperparameter tuning on the best, and saves the best model + vectorizer
+adds hard-case rows + noisy augmentation, trains robust text classifiers
+(Logistic Regression, Linear SVC, ComplementNB), compares them with
+cross-validation, runs hyperparameter tuning on the best, and saves the best model + vectorizer
 + label list + tuning metadata.
 
 Usage:
@@ -12,20 +12,24 @@ Usage:
 """
 
 import argparse
+import glob
+import hashlib
 import json
 import os
+import random
+import re
 import sys
+import unicodedata
 from collections import Counter
 from datetime import datetime, timezone
 
 import joblib
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import ComplementNB
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.svm import LinearSVC, SVC
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.neural_network import MLPClassifier
+from sklearn.pipeline import FeatureUnion
+from sklearn.svm import LinearSVC
 from sklearn.model_selection import cross_val_score, StratifiedKFold, GridSearchCV
 from sklearn.metrics import classification_report, accuracy_score
 from sklearn.calibration import CalibratedClassifierCV
@@ -33,17 +37,37 @@ from sklearn.calibration import CalibratedClassifierCV
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 AI_ROOT = os.path.dirname(SCRIPT_DIR)
 TRAIN_DATASET = os.path.join(AI_ROOT, "datasets", "lob_recommendation_train.json")
+BALANCED_DATASET = os.path.join(AI_ROOT, "datasets", "lob_recommendation_dataset_balanced_4000.json")
 FULL_DATASET = os.path.join(AI_ROOT, "datasets", "lob_recommendation_dataset.json")
-DEFAULT_DATASET = TRAIN_DATASET if os.path.exists(TRAIN_DATASET) else FULL_DATASET
+if os.path.exists(TRAIN_DATASET):
+    DEFAULT_DATASET = TRAIN_DATASET
+elif os.path.exists(BALANCED_DATASET):
+    DEFAULT_DATASET = BALANCED_DATASET
+else:
+    DEFAULT_DATASET = FULL_DATASET
 TAXONOMY_PATH = os.path.join(AI_ROOT, "data", "line_of_business.json")
 MODELS_DIR = os.path.join(AI_ROOT, "models")
+CHECKSUMS_PATH = os.path.join(MODELS_DIR, "lob_artifact_checksums.json")
+LOW_RECALL_DATASET_GLOB = os.path.join(AI_ROOT, "datasets", "generated_batch_*_low_recall.json")
+REALWORLD_HOLDOUT_DATASET = os.path.join(AI_ROOT, "datasets", "lob_recommendation_realworld_holdout.json")
 
-# Optional XGBoost (skip if library cannot be loaded, e.g. missing libomp on macOS)
-try:
-    from xgboost import XGBClassifier
-    HAS_XGB = True
-except (ImportError, Exception):
-    HAS_XGB = False
+CANONICAL_TOKEN_MAP = {
+    "tindahan": "store",
+    "kainan": "restaurant",
+    "karinderia": "eatery",
+    "botika": "pharmacy",
+    "sanglaan": "pawnshop",
+    "nagbebenta": "selling",
+    "nagde-deliver": "delivery",
+    "nagpapautang": "lending",
+    "bukid": "farm",
+    "gulay": "vegetables",
+    "bigas": "rice",
+    "kape": "coffee",
+    "gupit": "haircut",
+}
+
+FILLER_SUFFIXES = (" sa barangay", " near palengke", " po", " naman")
 
 
 def load_taxonomy():
@@ -51,11 +75,55 @@ def load_taxonomy():
         return json.load(f)
 
 
+def normalize_text(text):
+    """Normalize bilingual free text into a more stable representation for training/inference."""
+    text = unicodedata.normalize("NFKC", str(text or "")).lower().strip()
+    if not text:
+        return ""
+
+    text = text.replace("&", " and ")
+    text = re.sub(r"[^\w\s/-]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+
+    for source, target in CANONICAL_TOKEN_MAP.items():
+        text = re.sub(rf"\b{re.escape(source)}\b", target, text)
+
+    return text
+
+
+def _inject_typo_noise(token, rng):
+    if len(token) < 5 or not token.isalpha():
+        return token
+
+    roll = rng.random()
+    if roll < 0.34:
+        i = rng.randint(1, len(token) - 2)
+        return token[:i] + token[i + 1 :]
+    if roll < 0.67:
+        i = rng.randint(1, len(token) - 2)
+        chars = list(token)
+        chars[i], chars[i + 1] = chars[i + 1], chars[i]
+        return "".join(chars)
+    return re.sub(r"[aeiou]", lambda _: rng.choice("aeiou"), token, count=1)
+
+
+def make_noisy_variant(text, rng):
+    """Create lightweight typo/colloquial noise variants to improve robustness."""
+    parts = re.split(r"(\s+)", text)
+    for i, part in enumerate(parts):
+        if part.strip() and part.isalpha() and rng.random() < 0.18:
+            parts[i] = _inject_typo_noise(part, rng)
+    noisy = "".join(parts)
+    if rng.random() < 0.45:
+        noisy = noisy + rng.choice(FILLER_SUFFIXES)
+    return normalize_text(noisy)
+
+
 def flatten_dataset(dataset):
     """Flatten so each row is (description, label) where label = 'taxCode|detailedLine'."""
     rows = []
     for entry in dataset:
-        desc = entry.get("businessDescription", "").strip()
+        desc = normalize_text(entry.get("businessDescription", ""))
         if not desc:
             continue
         for rec in entry.get("recommendations", []):
@@ -66,55 +134,93 @@ def flatten_dataset(dataset):
     return rows
 
 
+def _row_key(row):
+    return (row["text"], row["label"])
+
+
+def load_holdout_row_keys():
+    if not os.path.exists(REALWORLD_HOLDOUT_DATASET):
+        return set()
+    try:
+        with open(REALWORLD_HOLDOUT_DATASET, "r", encoding="utf-8") as f:
+            holdout_raw = json.load(f)
+        holdout_rows = flatten_dataset(holdout_raw)
+        return {_row_key(r) for r in holdout_rows}
+    except Exception as exc:
+        print(f"WARNING: Could not load holdout dataset for leakage guard: {exc}")
+        return set()
+
+
+def load_optional_low_recall_rows(primary_dataset_path):
+    """Load additional difficult examples if available to improve hard-case recall."""
+    rows = []
+    primary_abs = os.path.abspath(primary_dataset_path)
+    holdout_row_keys = load_holdout_row_keys()
+    for path in sorted(glob.glob(LOW_RECALL_DATASET_GLOB)):
+        if os.path.abspath(path) == primary_abs:
+            continue
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+            candidate_rows = flatten_dataset(raw)
+            if holdout_row_keys:
+                candidate_rows = [r for r in candidate_rows if _row_key(r) not in holdout_row_keys]
+            rows.extend(candidate_rows)
+        except Exception as exc:
+            print(f"WARNING: Could not load optional dataset {path}: {exc}")
+    return rows
+
+
+def dedupe_rows(rows):
+    seen = set()
+    out = []
+    for row in rows:
+        key = (row["text"], row["label"])
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(row)
+    return out
+
+
+def augment_rows(rows, per_label_limit=50, seed=42):
+    """Generate bounded noisy variants per label to improve typo/code-switch robustness."""
+    rng = random.Random(seed)
+    grouped = {}
+    for row in rows:
+        grouped.setdefault(row["label"], []).append(row)
+
+    augmented = []
+    for label, label_rows in grouped.items():
+        max_take = min(per_label_limit, len(label_rows))
+        sampled = label_rows if len(label_rows) <= max_take else rng.sample(label_rows, max_take)
+        for row in sampled:
+            noisy_text = make_noisy_variant(row["text"], rng)
+            if noisy_text and noisy_text != row["text"]:
+                augmented.append({"text": noisy_text, "label": label})
+    return augmented
+
+
 def get_models():
-    """Build dict of name -> model (6+ algorithms)."""
+    """Build dict of robust text models."""
     models = {
         "LogisticRegression": LogisticRegression(
-            max_iter=2000, C=1.0, random_state=42, solver="lbfgs", class_weight="balanced"
-        ),
-        "RandomForest": RandomForestClassifier(
-            n_estimators=200, max_depth=None, random_state=42, class_weight="balanced"
+            max_iter=3000, C=2.0, random_state=42, solver="lbfgs", class_weight="balanced"
         ),
         "LinearSVC": LinearSVC(
-            max_iter=3000, C=1.0, random_state=42, dual=False, class_weight="balanced"
+            max_iter=5000, C=1.0, random_state=42, dual=False, class_weight="balanced"
         ),
-        "DecisionTree": DecisionTreeClassifier(
-            max_depth=20, random_state=42, class_weight="balanced"
-        ),
-        "SVC_RBF": SVC(
-            kernel="rbf", C=1.0, gamma="scale", random_state=42, class_weight="balanced"
-        ),
-        "MLPClassifier": MLPClassifier(
-            hidden_layer_sizes=(100, 50),
-            max_iter=500,
-            random_state=42,
-            early_stopping=True,
-        ),
+        "ComplementNB": ComplementNB(alpha=0.4),
     }
-    if HAS_XGB:
-        models["XGBoost"] = XGBClassifier(
-            n_estimators=150,
-            max_depth=6,
-            random_state=42,
-            use_label_encoder=False,
-            eval_metric="mlogloss",
-        )
     return models
 
 
 def get_param_grid(algorithm_name):
     """Param grids for hyperparameter tuning (modest size for speed)."""
     grids = {
-        "LogisticRegression": {"C": [0.5, 1.0, 2.0]},
-        "RandomForest": {"n_estimators": [100, 200], "max_depth": [10, 20, None]},
-        "LinearSVC": {"C": [0.3, 0.5, 1.0, 2.0]},
-        "DecisionTree": {"max_depth": [10, 20, 30]},
-        "SVC_RBF": {"C": [0.5, 1.0, 2.0], "gamma": ["scale", "auto"]},
-        "MLPClassifier": {
-            "hidden_layer_sizes": [(100, 50), (150, 75)],
-            "alpha": [1e-4, 1e-3],
-        },
-        "XGBoost": {"n_estimators": [100, 150], "max_depth": [4, 6]},
+        "LogisticRegression": {"C": [1.0, 2.0, 3.0]},
+        "LinearSVC": {"C": [0.5, 1.0, 2.0]},
+        "ComplementNB": {"alpha": [0.2, 0.4, 0.8]},
     }
     return grids.get(algorithm_name, {})
 
@@ -126,7 +232,23 @@ def train(dataset_path=None, skip_tune=False):
         raw = json.load(f)
 
     rows = flatten_dataset(raw)
-    print(f"Flattened dataset: {len(rows)} rows")
+    base_rows_count = len(rows)
+
+    extra_rows = load_optional_low_recall_rows(ds_path)
+    if extra_rows:
+        rows.extend(extra_rows)
+
+    rows = dedupe_rows(rows)
+    deduped_before_aug = len(rows)
+
+    augmented_rows = augment_rows(rows, per_label_limit=60, seed=42)
+    rows.extend(augmented_rows)
+    rows = dedupe_rows(rows)
+
+    print(f"Flattened dataset (base): {base_rows_count} rows")
+    print(f"Added optional difficult rows: {len(extra_rows)}")
+    print(f"Added noisy augmentation rows: {len(augmented_rows)}")
+    print(f"Training rows after dedupe: {len(rows)} (pre-augment dedupe: {deduped_before_aug})")
 
     if len(rows) < 10:
         print("ERROR: Not enough training data (need at least 10 rows).")
@@ -142,18 +264,34 @@ def train(dataset_path=None, skip_tune=False):
         f"Label distribution — min: {min(label_counts.values())}, max: {max(label_counts.values())}, median: {sorted(label_counts.values())[len(label_counts)//2]}"
     )
 
-    vectorizer = TfidfVectorizer(
-        max_features=6000,
-        ngram_range=(1, 2),
-        sublinear_tf=True,
-        min_df=1,
-        max_df=0.92,
-        strip_accents="unicode",
+    vectorizer = FeatureUnion(
+        [
+            (
+                "word",
+                TfidfVectorizer(
+                    max_features=12000,
+                    ngram_range=(1, 2),
+                    sublinear_tf=True,
+                    min_df=1,
+                    max_df=0.95,
+                    strip_accents="unicode",
+                ),
+            ),
+            (
+                "char",
+                TfidfVectorizer(
+                    analyzer="char_wb",
+                    ngram_range=(3, 5),
+                    max_features=25000,
+                    sublinear_tf=True,
+                    min_df=1,
+                    strip_accents="unicode",
+                ),
+            ),
+        ]
     )
     X = vectorizer.fit_transform(texts)
     y = np.array(labels)
-    label_to_idx = {l: i for i, l in enumerate(unique_labels)}
-    y_int = np.array([label_to_idx[l] for l in labels])
 
     min_class_count = min(label_counts.values())
     n_splits = min(5, max(2, min_class_count))
@@ -181,8 +319,7 @@ def train(dataset_path=None, skip_tune=False):
         print("\n--- Cross-validation results ---")
         for name, model in models.items():
             try:
-                y_cv_use = y_int[cv_mask] if name == "XGBoost" and HAS_XGB else y_cv
-                scores = cross_val_score(model, X_cv, y_cv_use, cv=cv, scoring="accuracy")
+                scores = cross_val_score(model, X_cv, y_cv, cv=cv, scoring="accuracy")
                 mean_acc = scores.mean()
                 results[name] = mean_acc
                 print(f"  {name}: accuracy = {mean_acc:.4f} (+/- {scores.std():.4f})")
@@ -192,11 +329,8 @@ def train(dataset_path=None, skip_tune=False):
         print("\n--- Evaluating on full training set ---")
         for name, model in models.items():
             try:
-                y_use = y_int if name == "XGBoost" and HAS_XGB else y
-                model.fit(X, y_use)
+                model.fit(X, y)
                 y_pred = model.predict(X)
-                if name == "XGBoost" and HAS_XGB:
-                    y_pred = np.array([unique_labels[i] for i in y_pred])
                 acc = accuracy_score(y, y_pred)
                 results[name] = acc
                 print(f"  {name}: training accuracy = {acc:.4f}")
@@ -219,7 +353,7 @@ def train(dataset_path=None, skip_tune=False):
         print(f"\n--- Hyperparameter tuning for {best_name} ---")
         try:
             X_tune = X_cv
-            y_tune = y_int[cv_mask] if best_name == "XGBoost" and HAS_XGB else y_cv
+            y_tune = y_cv
             search = GridSearchCV(
                 best_model,
                 param_grid,
@@ -245,8 +379,7 @@ def train(dataset_path=None, skip_tune=False):
             print(f"  Tuning failed: {e}; using default params.")
 
     # Train best (possibly tuned) model on full data
-    y_fit = y_int if best_name == "XGBoost" and HAS_XGB else y
-    best_model.fit(X, y_fit)
+    best_model.fit(X, y)
 
     # LinearSVC doesn't have predict_proba; wrap with calibration
     if best_name == "LinearSVC":
@@ -256,9 +389,10 @@ def train(dataset_path=None, skip_tune=False):
             calibrated = CalibratedClassifierCV(best_model, cv="prefit")
             calibrated.fit(X, y)
         else:
+            c_value = best_model.get_params().get("C", 1.0)
             calibrated = CalibratedClassifierCV(
                 LinearSVC(
-                    max_iter=3000, C=1.0, random_state=42, dual=False, class_weight="balanced"
+                    max_iter=5000, C=c_value, random_state=42, dual=False, class_weight="balanced"
                 ),
                 cv=cal_cv,
             )
@@ -267,8 +401,6 @@ def train(dataset_path=None, skip_tune=False):
 
     print("\n--- Full training set classification report ---")
     y_pred = best_model.predict(X)
-    if best_name == "XGBoost" and HAS_XGB:
-        y_pred = np.array([unique_labels[i] for i in y_pred])
     print(classification_report(y, y_pred, zero_division=0))
     print(f"Training accuracy: {accuracy_score(y, y_pred):.4f}")
 
@@ -282,12 +414,26 @@ def train(dataset_path=None, skip_tune=False):
     with open(labels_path, "w", encoding="utf-8") as f:
         json.dump(unique_labels, f, ensure_ascii=False, indent=2)
 
+    checksums = {}
+    for p in (vectorizer_path, model_path, labels_path):
+        h = hashlib.sha256()
+        with open(p, "rb") as f:
+            for chunk in iter(lambda: f.read(8192), b""):
+                h.update(chunk)
+        checksums[os.path.basename(p)] = h.hexdigest()
+    with open(CHECKSUMS_PATH, "w", encoding="utf-8") as f:
+        json.dump(checksums, f, indent=2)
+
     meta = {
         "algorithm": best_name,
         "trainedAt": datetime.now(timezone.utc).isoformat(),
         "cv_accuracy": best_cv_accuracy,
         "n_train_samples": len(rows),
+        "n_base_samples": base_rows_count,
+        "n_optional_difficult_samples": len(extra_rows),
+        "n_noisy_augmented_samples": len(augmented_rows),
         "n_labels": len(unique_labels),
+        "feature_extractor": "tfidf_word_char_hybrid",
     }
     if tuning_result:
         meta["tuning"] = tuning_result
@@ -298,6 +444,7 @@ def train(dataset_path=None, skip_tune=False):
     print(f"\nSaved vectorizer to {vectorizer_path}")
     print(f"Saved model ({best_name}) to {model_path}")
     print(f"Saved {len(unique_labels)} labels to {labels_path}")
+    print(f"Saved artifact checksums to {CHECKSUMS_PATH}")
     print(f"Saved metadata (incl. tuning) to {meta_path}")
     print("\nTraining complete.")
     return True

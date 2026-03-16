@@ -903,7 +903,7 @@ router.get('/users/search', requireJwt, requireRole(['admin', 'staff', 'lgu_offi
 
     // Fetch users WITHOUT .lean() so Mongoose decryption hooks run
     const allUserDocs = await User.find(filter)
-      .select('firstName lastName email phoneNumber isActive _id')
+      .select('firstName lastName email phoneNumber isActive _id createdAt')
       .limit(200)
 
     // Convert to plain objects after decryption
