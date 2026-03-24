@@ -150,7 +150,47 @@ router.get('/', requireJwt, async (req, res) => {
       EditRequest.find(filter).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)).lean(),
       EditRequest.countDocuments(filter),
     ])
-    return res.json({ data: requests, meta: { page: Number(page), limit: Number(limit), total } })
+
+    // Populate businessName from BusinessProfile for each edit request
+    // NOTE: Do NOT use .lean() here — we need Mongoose decryption hooks to fire
+    const businessIds = [...new Set(requests.map(r => r.businessId).filter(Boolean))]
+    const profiles = businessIds.length > 0
+      ? await BusinessProfile.find({
+          $or: businessIds.flatMap(id => {
+            const clauses = [{ 'businesses.businessId': id }]
+            if (mongoose.Types.ObjectId.isValid(id)) {
+              clauses.push({ 'businesses._id': new mongoose.Types.ObjectId(id) })
+            }
+            return clauses
+          })
+        })
+      : []
+
+    // Build businessId -> { name, subdocId, businessId } map for alias resolution
+    const businessInfoMap = new Map()
+    for (const profile of profiles) {
+      for (const biz of (profile.businesses || [])) {
+        const bizId = biz.businessId || String(biz._id)
+        const subdocId = String(biz._id || '')
+        const name = biz.businessName || biz.registeredBusinessName || biz.formData?.businessName
+        const info = { name, subdocId, businessId: biz.businessId || '' }
+        if (!businessInfoMap.has(bizId)) businessInfoMap.set(bizId, info)
+        if (subdocId && !businessInfoMap.has(subdocId)) businessInfoMap.set(subdocId, info)
+      }
+    }
+
+    // Attach businessName and _businessSubdocId to each edit request
+    const enrichedRequests = requests.map(req => {
+      const info = businessInfoMap.get(req.businessId) || businessInfoMap.get(String(req.businessId))
+      return {
+        ...req,
+        businessName: info?.name || null,
+        _businessSubdocId: info?.subdocId || null,
+        _canonicalBusinessId: info?.businessId || null,
+      }
+    })
+
+    return res.json({ data: enrichedRequests, meta: { page: Number(page), limit: Number(limit), total } })
   } catch (err) {
     console.error('GET /edit-requests error:', err)
     return res.status(500).json({ error: { code: 'INTERNAL', message: 'Failed to fetch edit requests' } })
@@ -222,6 +262,12 @@ router.post('/', requireJwt, async (req, res) => {
       })
     }
 
+    // Auto-assign to claiming officer if the business already has one
+    let claimingOfficerId = null
+    if (targetBusiness?.reviewedBy) {
+      claimingOfficerId = targetBusiness.reviewedBy
+    }
+
     const editRequest = await EditRequest.create({
       businessId: normalizedBusinessId,
       requestedBy: req._userId,
@@ -231,6 +277,7 @@ router.post('/', requireJwt, async (req, res) => {
       reason: reason || '',
       supportingDocuments: supportingDocuments || [],
       status: 'pending',
+      ...(claimingOfficerId ? { reviewedBy: claimingOfficerId } : {}),
     })
     logAuditEvent('edit_request_submitted', req._userId, 'EditRequest', editRequest._id.toString(), { businessId: normalizedBusinessId })
     return res.status(201).json({ data: editRequest })

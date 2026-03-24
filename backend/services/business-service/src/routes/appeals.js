@@ -19,6 +19,17 @@ function buildBusinessLookupQuery(identifier) {
   return clauses.length === 1 ? clauses[0] : { $or: clauses }
 }
 
+ function normalizeAppealResolutionStatus(status) {
+   if (!status) return null
+   const normalized = String(status).trim().toLowerCase()
+   if (normalized === 'upheld') return 'approved'
+   if (normalized === 'overturned' || normalized === 'deny' || normalized === 'denied') return 'rejected'
+   if (normalized === 'approved' || normalized === 'rejected' || normalized === 'submitted' || normalized === 'under_review') {
+     return normalized
+   }
+   return null
+ }
+
 // Helper: find business in profile by either businessId or subdoc _id
 function findBusinessInProfile(profile, identifier) {
   if (!profile?.businesses) return null
@@ -26,6 +37,27 @@ function findBusinessInProfile(profile, identifier) {
   return profile.businesses.find(b => 
     b.businessId === target || String(b._id) === target
   )
+}
+
+ function findBusinessIndexInProfile(profile, identifier) {
+   if (!profile?.businesses) return -1
+   const target = String(identifier)
+   return profile.businesses.findIndex((b) => b.businessId === target || String(b._id) === target)
+ }
+
+async function findProfileForAppeal(appeal) {
+  const businessId = appeal?.businessId
+  const requestedBy = appeal?.requestedBy
+
+  let profile = await BusinessProfile.findOne(buildBusinessLookupQuery(businessId))
+  let businessIndex = findBusinessIndexInProfile(profile, businessId)
+
+  if ((!profile || businessIndex === -1) && requestedBy) {
+    profile = await BusinessProfile.findOne({ userId: requestedBy })
+    businessIndex = findBusinessIndexInProfile(profile, businessId)
+  }
+
+  return { profile, businessIndex }
 }
 
 // Appeal deadline: 30 days from rejection
@@ -47,7 +79,50 @@ router.get('/', requireJwt, async (req, res) => {
       Appeal.find(filter).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)).lean(),
       Appeal.countDocuments(filter),
     ])
-    return res.json({ data: appeals, meta: { page: Number(page), limit: Number(limit), total } })
+
+    // Populate businessName from BusinessProfile for each appeal
+    // NOTE: Do NOT use .lean() here — we need Mongoose decryption hooks to fire
+    // so that businessId/businessName fields are readable plaintext.
+    const businessIds = [...new Set(appeals.map(a => a.businessId).filter(Boolean))]
+    const profileQuery = businessIds.length > 0
+      ? {
+          $or: businessIds.flatMap(id => {
+            const clauses = [{ 'businesses.businessId': id }]
+            if (mongoose.Types.ObjectId.isValid(id)) {
+              clauses.push({ 'businesses._id': new mongoose.Types.ObjectId(id) })
+            }
+            return clauses
+          })
+        }
+      : { _id: null } // no-op query if no businessIds
+    const profiles = businessIds.length > 0 ? await BusinessProfile.find(profileQuery) : []
+
+    // Build businessId -> { name, subdocId, businessId } map for alias resolution
+    const businessInfoMap = new Map()
+    for (const profile of profiles) {
+      for (const biz of (profile.businesses || [])) {
+        const bizId = biz.businessId || String(biz._id)
+        const subdocId = String(biz._id || '')
+        const name = biz.businessName || biz.registeredBusinessName || biz.formData?.businessName
+        const info = { name, subdocId, businessId: biz.businessId || '' }
+        // Map both businessId and subdoc _id to the same info
+        if (bizId && !businessInfoMap.has(bizId)) businessInfoMap.set(bizId, info)
+        if (subdocId && !businessInfoMap.has(subdocId)) businessInfoMap.set(subdocId, info)
+      }
+    }
+
+    // Attach businessName and alias IDs to each appeal
+    const enrichedAppeals = appeals.map(appeal => {
+      const info = businessInfoMap.get(appeal.businessId) || businessInfoMap.get(String(appeal.businessId))
+      return {
+        ...appeal,
+        businessName: info?.name || null,
+        _businessSubdocId: info?.subdocId || null,
+        _canonicalBusinessId: info?.businessId || null,
+      }
+    })
+
+    return res.json({ data: enrichedAppeals, meta: { page: Number(page), limit: Number(limit), total } })
   } catch (err) {
     console.error('GET /appeals error:', err)
     return res.status(500).json({ error: { code: 'INTERNAL', message: 'Failed to fetch appeals' } })
@@ -152,6 +227,20 @@ router.post('/', requireJwt, async (req, res) => {
       })
     }
 
+    // Look up claiming officer on the business so the appeal is auto-assigned
+    let claimingOfficerId = null
+    try {
+      const profile = await BusinessProfile.findOne(buildBusinessLookupQuery(businessId))
+      if (profile) {
+        const biz = findBusinessInProfile(profile, businessId)
+        if (biz?.reviewedBy) {
+          claimingOfficerId = biz.reviewedBy
+        }
+      }
+    } catch (lookupErr) {
+      console.error('Failed to look up claiming officer for appeal auto-assign:', lookupErr)
+    }
+
     const appeal = await Appeal.create({
       businessId,
       applicationId: applicationId || businessId,
@@ -162,6 +251,7 @@ router.post('/', requireJwt, async (req, res) => {
       inspectionId: inspectionId || undefined,
       requestedBy: req._userId,
       status: 'submitted',
+      ...(claimingOfficerId ? { reviewedBy: claimingOfficerId } : {}),
     })
 
     // Update business profile to mark that an appeal is active and change status to appeal_pending
@@ -204,66 +294,50 @@ router.put('/:id', requireJwt, async (req, res) => {
     }
 
     const { status, resolution } = req.body
-    if (status) {
-      appeal.status = status
-      if (status === 'approved' || status === 'rejected') {
+    const normalizedStatus = status ? normalizeAppealResolutionStatus(status) : null
+
+    if (status && !normalizedStatus) {
+      return res.status(400).json({
+        error: { code: 'VALIDATION_ERROR', message: 'Invalid status. Must be approved, rejected, upheld, or overturned' },
+      })
+    }
+
+    if (normalizedStatus) {
+      appeal.status = normalizedStatus
+      if (normalizedStatus === 'approved' || normalizedStatus === 'rejected') {
         appeal.reviewedBy = req._userId
         appeal.resolution = resolution || ''
         appeal.resolvedAt = new Date()
 
         // Update business profile based on appeal outcome
         const businessId = appeal.businessId
-        const isRejectionAppeal = appeal.appealType === 'rejection_appeal' || appeal.appealType === 'wrong_assessment'
+        try {
+          const { profile, businessIndex } = await findProfileForAppeal(appeal)
 
-        if (status === 'approved' && isRejectionAppeal) {
-          // Appeal approved: Reset application to under_review for re-review
-          try {
-            const profile = await BusinessProfile.findOne(buildBusinessLookupQuery(businessId))
-            if (profile) {
-              const businessIndex = profile.businesses.findIndex(b => b.businessId === businessId || String(b._id) === businessId)
-              if (businessIndex !== -1) {
-                profile.businesses[businessIndex].applicationStatus = 'under_review'
-                profile.businesses[businessIndex].hasActiveAppeal = false
-                profile.businesses[businessIndex].appealId = ''
-                // Clear rejection fields
-                profile.businesses[businessIndex].rejectionReason = ''
-                profile.businesses[businessIndex].reviewComments = ''
-                profile.markModified('businesses')
-                await profile.save()
-                console.log(`[Appeal Approved] Application ${businessId} reset to under_review for re-review`)
-              }
+          if (profile && businessIndex !== -1) {
+            const business = profile.businesses[businessIndex]
+            business.hasActiveAppeal = false
+            business.appealId = ''
+
+            if (normalizedStatus === 'approved') {
+              business.applicationStatus = 'under_review'
+              business.appealExhausted = false
+              business.rejectionReason = ''
+              business.reviewComments = ''
+              console.log(`[Appeal Approved] Application ${businessId} reset to under_review for re-review`)
+            } else {
+              business.appealExhausted = true
+              business.applicationStatus = 'rejected'
+              console.log(`[Appeal Rejected] Application ${businessId} marked as appealExhausted, status set to rejected`)
             }
-          } catch (updateErr) {
-            console.error('Failed to reset application status after appeal approval:', updateErr)
+
+            profile.markModified('businesses')
+            await profile.save()
+          } else {
+            console.warn(`[Appeal Resolution] No matching business profile found for appeal businessId=${businessId}`)
           }
-        } else if (status === 'rejected' && isRejectionAppeal) {
-          // Appeal rejected: Mark appeal as exhausted, set status back to rejected
-          try {
-            await BusinessProfile.updateOne(
-              buildBusinessLookupQuery(businessId),
-              { 
-                $set: { 
-                  'businesses.$.hasActiveAppeal': false, 
-                  'businesses.$.appealId': '',
-                  'businesses.$.appealExhausted': true,
-                  'businesses.$.applicationStatus': 'rejected'
-                } 
-              }
-            )
-            console.log(`[Appeal Rejected] Application ${businessId} marked as appealExhausted, status set to rejected`)
-          } catch (updateErr) {
-            console.error('Failed to mark appeal as exhausted:', updateErr)
-          }
-        } else {
-          // Non-rejection appeal resolved, just clear the active flag
-          try {
-            await BusinessProfile.updateOne(
-              buildBusinessLookupQuery(businessId),
-              { $set: { 'businesses.$.hasActiveAppeal': false, 'businesses.$.appealId': '' } }
-            )
-          } catch (updateErr) {
-            console.error('Failed to clear appeal flag:', updateErr)
-          }
+        } catch (updateErr) {
+          console.error('Failed to synchronize business profile after appeal resolution:', updateErr)
         }
       }
     }

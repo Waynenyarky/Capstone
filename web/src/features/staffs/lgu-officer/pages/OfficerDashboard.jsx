@@ -88,6 +88,20 @@ export default function OfficerDashboard() {
     }
   }, [officerData.counts, lastUpdated])
 
+  // Sync selectedItem with refreshed toReview data so detail panel sees updated _requests
+  useEffect(() => {
+    if (!selectedItem || selectedItem._itemType !== 'business' || !officerData.toReview?.length) return
+    const refreshed = officerData.toReview.find(card => card.businessId === selectedItem.businessId)
+    if (refreshed && refreshed !== selectedItem) {
+      setSelectedItem(prev => ({
+        ...prev,
+        ...refreshed,
+        _itemId: prev._itemId,
+        _itemType: prev._itemType,
+      }))
+    }
+  }, [officerData.toReview])
+
   // Walk-in states
   const [walkInDrawerOpen, setWalkInDrawerOpen] = useState(false)
   const [walkInOwner, setWalkInOwner] = useState(null)
@@ -131,9 +145,12 @@ export default function OfficerDashboard() {
   }, [])
 
   const handleReviewComplete = useCallback(() => {
+    officerData.refreshToReview?.()
+    officerData.refreshApplicationTabs?.()
+    officerData.refresh?.()
     refresh()
-    setSelectedItem(null)
-  }, [refresh])
+    // Don't clear selectedItem — keep the business card selected so officer sees updated state
+  }, [officerData, refresh])
 
   const handleClaimChange = useCallback((updatedApplication) => {
     const selectedType = selectedItem?._itemType || activeTab

@@ -21,9 +21,8 @@ import {
   SolutionOutlined, FileDoneOutlined, UserOutlined, EyeOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { get } from '@/lib/http.js'
 import { getPayments } from '@/features/business-owner/services/paymentsService'
-import { getInspections, getInspection as getInspectionDetail } from '@/features/business-owner/services/inspectionsService'
-import { getViolations, getViolationSummary } from '@/features/business-owner/services/violationsService'
 import { getPostRequirements } from '@/features/business-owner/services/postRequirementsService'
 import { getActiveFormDefinition, getPublicFormDefinition } from '@/features/admin/services/formDefinitionService'
 import DynamicFormRenderer from '@/features/business-owner/components/DynamicFormRenderer'
@@ -242,11 +241,11 @@ function PaymentsTab({ businessId }) {
   )
 }
 
-// ── Compliance Tab ───────────────────────────────────────────────────────────
+// ── Compliance Tab (uses officer-scoped API endpoints) ──────────────────────
 function ComplianceTab({ businessId }) {
+  const { token } = theme.useToken()
   const [inspections, setInspections] = useState([])
   const [violations, setViolations] = useState([])
-  const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [inspectionFilter, setInspectionFilter] = useState('all')
   const [violationStatusFilter, setViolationStatusFilter] = useState('all')
@@ -257,28 +256,39 @@ function ComplianceTab({ businessId }) {
   const fetchData = useCallback(() => {
     if (!businessId) return
     setLoading(true)
+    const inspQs = new URLSearchParams({ businessId, limit: '200' })
+    const vioQs = new URLSearchParams({ businessId, limit: '200' })
     Promise.all([
-      getInspections({ businessId }).catch(() => []),
-      getViolations({ businessId }).catch(() => []),
-      getViolationSummary().catch(() => null),
-    ]).then(([ins, vio, sum]) => {
-      setInspections(Array.isArray(ins) ? ins : ins?.inspections || ins?.data || [])
-      setViolations(Array.isArray(vio) ? vio : vio?.violations || vio?.data || [])
-      setSummary(sum)
+      get(`/api/lgu-officer/inspections?${inspQs}`, { skipAutoLogout: true }).catch(() => ({ data: [] })),
+      get(`/api/lgu-officer/violations?${vioQs}`, { skipAutoLogout: true }).catch(() => ({ violations: [] })),
+    ]).then(([insRes, vioRes]) => {
+      setInspections(insRes?.data || insRes?.inspections || [])
+      setViolations(vioRes?.violations || vioRes?.data || [])
     }).finally(() => setLoading(false))
   }, [businessId])
 
   useEffect(() => { fetchData() }, [fetchData])
 
   const handleInspectionDetail = async (record) => {
+    const id = record._id || record.inspectionId
     setDetailLoading(true)
     setDetailOpen(true)
     try {
-      const data = await getInspectionDetail(record._id || record.inspectionId)
-      setDetailData(data)
+      const res = await get(`/api/lgu-officer/inspections/${id}`, { skipAutoLogout: true })
+      setDetailData(res?.inspection || res?.data || res)
     } catch { setDetailData(record) }
     finally { setDetailLoading(false) }
   }
+
+  // Compute summary from violations
+  const summary = useMemo(() => {
+    if (!violations.length) return null
+    return {
+      open: violations.filter(v => v.status === 'open').length,
+      resolved: violations.filter(v => v.status === 'resolved').length,
+      appealed: violations.filter(v => v.status === 'appealed').length,
+    }
+  }, [violations])
 
   const now = dayjs()
   const filteredInspections = inspections.filter(i => {
@@ -291,7 +301,14 @@ function ComplianceTab({ businessId }) {
   const inspectionCols = [
     { title: 'Date', dataIndex: 'scheduledDate', key: 'date', render: v => formatDate(v), width: 120 },
     { title: 'Type', dataIndex: 'inspectionType', key: 'type', width: 120 },
-    { title: 'Result', dataIndex: 'result', key: 'result', width: 100, render: v => <Tag color={v === 'passed' ? 'success' : v === 'failed' ? 'error' : 'default'}>{v || 'Pending'}</Tag> },
+    {
+      title: 'Status', dataIndex: 'status', key: 'status', width: 120,
+      render: v => <Tag color={v === 'completed' ? 'success' : v === 'in_progress' ? 'processing' : v === 'pending_assignment' ? 'warning' : 'default'}>{v === 'pending_assignment' ? 'Needs Assignment' : v || 'Pending'}</Tag>,
+    },
+    {
+      title: 'Result', dataIndex: 'overallResult', key: 'result', width: 100,
+      render: v => v ? <Tag color={v === 'passed' ? 'success' : v === 'failed' ? 'error' : 'warning'}>{v}</Tag> : '—',
+    },
     { title: 'Inspector', dataIndex: 'inspectorName', key: 'inspector', render: (v, r) => v || r.inspector?.name || 'N/A' },
     { title: '', key: 'action', width: 60, render: (_, r) => <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleInspectionDetail(r)} /> },
   ]
@@ -305,39 +322,132 @@ function ComplianceTab({ businessId }) {
 
   if (loading) return <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
 
+  // Render detail content for the drawer
+  const renderDetailDrawer = () => {
+    if (detailLoading) return <Spin />
+    if (!detailData) return <Empty />
+
+    const d = detailData
+    const ack = d.ownerAcknowledgment || {}
+    const hasAck = Boolean(ack.acknowledged)
+    const checklist = d.checklist || []
+    const detailViolations = d.violations || []
+    const evidence = d.evidence || []
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <Descriptions bordered size="small" column={1}>
+          <Descriptions.Item label="Date">{formatDate(d.scheduledDate)}</Descriptions.Item>
+          <Descriptions.Item label="Type">{d.inspectionType || 'N/A'}</Descriptions.Item>
+          <Descriptions.Item label="Status">
+            <Tag color={d.status === 'completed' ? 'success' : d.status === 'in_progress' ? 'processing' : 'default'}>{d.status || 'N/A'}</Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="Result">
+            {d.overallResult ? <Tag color={d.overallResult === 'passed' ? 'success' : d.overallResult === 'failed' ? 'error' : 'warning'}>{d.overallResult}</Tag> : 'Pending'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Inspector">{d.inspectorName || (d.inspectorId && typeof d.inspectorId === 'object' ? `${d.inspectorId.firstName || ''} ${d.inspectorId.lastName || ''}`.trim() : null) || 'N/A'}</Descriptions.Item>
+          <Descriptions.Item label="Assigned By">{d.assignedByName || 'System'}</Descriptions.Item>
+          {d.completedAt && <Descriptions.Item label="Completed">{dayjs(d.completedAt).format('MMM D, YYYY h:mm A')}</Descriptions.Item>}
+          <Descriptions.Item label="Owner Acknowledged">
+            {hasAck ? <Tag color="success">Yes — {formatDate(ack.timestamp)}</Tag> : <Tag color="warning">Not yet</Tag>}
+          </Descriptions.Item>
+        </Descriptions>
+
+        {d.notes && (
+          <Card size="small" title="Inspector Notes">
+            <Text>{d.notes}</Text>
+          </Card>
+        )}
+
+        {checklist.length > 0 && (
+          <Card size="small" title="Checklist Results">
+            {checklist.map((item, idx) => (
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', borderBottom: idx < checklist.length - 1 ? `1px solid ${token.colorBorderSecondary}` : 'none' }}>
+                <Tag color={item.result === 'pass' ? 'success' : item.result === 'fail' ? 'error' : 'default'} style={{ minWidth: 44, textAlign: 'center' }}>{item.result}</Tag>
+                <div style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13 }}>{item.label}</Text>
+                  {item.remarks && <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{item.remarks}</Text>}
+                </div>
+              </div>
+            ))}
+          </Card>
+        )}
+
+        {detailViolations.length > 0 && (
+          <Card size="small" title={`Violations (${detailViolations.length})`}>
+            {detailViolations.map((v, idx) => (
+              <div key={idx} style={{ padding: '6px 0', borderBottom: idx < detailViolations.length - 1 ? `1px solid ${token.colorBorderSecondary}` : 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                  <Tag color={v.severity === 'critical' ? 'error' : v.severity === 'major' ? 'warning' : 'default'}>{v.severity}</Tag>
+                  <Text strong>{v.violationType || `Violation ${idx + 1}`}</Text>
+                  <Tag color={v.status === 'resolved' ? 'success' : v.status === 'open' ? 'error' : 'default'}>{v.status}</Tag>
+                </div>
+                <Text type="secondary" style={{ fontSize: 12 }}>{v.description}</Text>
+                {v.complianceDeadline && (
+                  <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                    Deadline: {formatDate(v.complianceDeadline)}
+                    {v.status === 'open' && dayjs(v.complianceDeadline).isBefore(dayjs()) && <Tag color="error" style={{ marginLeft: 4 }}>Overdue</Tag>}
+                  </Text>
+                )}
+              </div>
+            ))}
+          </Card>
+        )}
+
+        {evidence.length > 0 && (
+          <Card size="small" title={`Evidence (${evidence.length})`}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {evidence.map((ev, idx) => {
+                const src = ev.url || ev.filePath || ev.cid || ''
+                return (
+                  <div key={idx} style={{ width: 64, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', background: token.colorBgLayout, borderRadius: 4, border: `1px solid ${token.colorBorderSecondary}`, overflow: 'hidden' }}>
+                    {/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(src) || ev.type?.startsWith('image')
+                      ? <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <Text type="secondary" style={{ fontSize: 9, textAlign: 'center', padding: 2 }}>{ev.name || ev.fileName || `File ${idx + 1}`}</Text>}
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
+        )}
+
+        {d.gpsCheck && (
+          <Card size="small" title="GPS Verification">
+            <Tag color={d.gpsCheck.matched ? 'success' : 'warning'}>
+              {d.gpsCheck.matched ? 'Location matched' : 'Location mismatch'}
+            </Tag>
+            {d.gpsCheck.distanceMeters != null && <Text type="secondary" style={{ marginLeft: 8 }}>{Math.round(d.gpsCheck.distanceMeters)}m from address</Text>}
+          </Card>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {summary && (
         <Row gutter={16}>
-          <Col xs={8}><Statistic title="Open" value={summary.open ?? 0} valueStyle={{ color: '#cf1322' }} /></Col>
-          <Col xs={8}><Statistic title="Resolved" value={summary.resolved ?? 0} valueStyle={{ color: '#3f8600' }} /></Col>
-          <Col xs={8}><Statistic title="Appealed" value={summary.appealed ?? 0} valueStyle={{ color: '#faad14' }} /></Col>
+          <Col xs={8}><Statistic title="Open Violations" value={summary.open} valueStyle={{ color: '#cf1322' }} /></Col>
+          <Col xs={8}><Statistic title="Resolved" value={summary.resolved} valueStyle={{ color: '#3f8600' }} /></Col>
+          <Col xs={8}><Statistic title="Appealed" value={summary.appealed} valueStyle={{ color: '#faad14' }} /></Col>
         </Row>
       )}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <Title level={5} style={{ marginBottom: 0 }}>Inspections</Title>
+          <Title level={5} style={{ marginBottom: 0 }}>Inspections ({inspections.length})</Title>
           <Segmented options={[{ label: 'All', value: 'all' }, { label: 'Upcoming', value: 'upcoming' }, { label: 'Past', value: 'past' }]} value={inspectionFilter} onChange={setInspectionFilter} size="small" />
         </div>
         <Table size="small" rowKey={r => r._id || r.inspectionId} columns={inspectionCols} dataSource={filteredInspections} pagination={{ pageSize: 5 }} locale={{ emptyText: <Empty description="No inspections recorded" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }} />
       </div>
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <Title level={5} style={{ marginBottom: 0 }}>Violations</Title>
+          <Title level={5} style={{ marginBottom: 0 }}>Violations ({violations.length})</Title>
           <Select size="small" value={violationStatusFilter} onChange={setViolationStatusFilter} style={{ width: 130 }} options={[{ value: 'all', label: 'All' }, { value: 'open', label: 'Open' }, { value: 'resolved', label: 'Resolved' }, { value: 'appealed', label: 'Appealed' }]} />
         </div>
         <Table size="small" rowKey={r => r._id || r.violationId} columns={violationCols} dataSource={filteredViolations} pagination={{ pageSize: 5 }} locale={{ emptyText: <Empty description="No violations recorded" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }} />
       </div>
-      <Drawer title="Inspection Detail" open={detailOpen} onClose={() => setDetailOpen(false)} width={480}>
-        {detailLoading ? <Spin /> : detailData ? (
-          <Descriptions bordered size="small" column={1}>
-            <Descriptions.Item label="Date">{formatDate(detailData.scheduledDate)}</Descriptions.Item>
-            <Descriptions.Item label="Type">{detailData.inspectionType || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Result">{detailData.result || detailData.overallResult || 'Pending'}</Descriptions.Item>
-            <Descriptions.Item label="Inspector">{detailData.inspectorName || detailData.inspector?.name || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Notes">{detailData.notes || 'N/A'}</Descriptions.Item>
-          </Descriptions>
-        ) : <Empty />}
+      <Drawer title="Inspection Detail" open={detailOpen} onClose={() => setDetailOpen(false)} width={520}>
+        {renderDetailDrawer()}
       </Drawer>
     </div>
   )

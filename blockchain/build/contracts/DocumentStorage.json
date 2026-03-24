@@ -122,7 +122,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -146,7 +147,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -170,7 +172,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -219,7 +222,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -268,7 +272,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -325,7 +330,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -359,7 +365,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -429,7 +436,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -453,7 +461,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     }
   ],
   "metadata": "{\"compiler\":{\"version\":\"0.8.20+commit.a1b79de6\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_accessControlAddress\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"count\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"storedBy\",\"type\":\"address\"}],\"name\":\"BatchDocumentHashStored\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"userIdHash\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"docType\",\"type\":\"uint8\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"cidHash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"version\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"}],\"name\":\"DocumentHashStored\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"docType\",\"type\":\"uint8\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"ipfsCid\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"version\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"}],\"name\":\"DocumentStored\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"accessControl\",\"outputs\":[{\"internalType\":\"contract AccessControl\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32[]\",\"name\":\"userIdHashes\",\"type\":\"bytes32[]\"},{\"internalType\":\"enum DocumentStorage.DocumentType[]\",\"name\":\"docTypes\",\"type\":\"uint8[]\"},{\"internalType\":\"bytes32[]\",\"name\":\"cidHashes\",\"type\":\"bytes32[]\"}],\"name\":\"batchStoreDocumentHash\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"\",\"type\":\"uint8\"}],\"name\":\"currentHashVersionIndex\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"\",\"type\":\"uint8\"}],\"name\":\"currentVersionIndex\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"docType\",\"type\":\"uint8\"}],\"name\":\"documentExists\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"\",\"type\":\"uint8\"},{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"documentHashes\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"userIdHash\",\"type\":\"bytes32\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"docType\",\"type\":\"uint8\"},{\"internalType\":\"bytes32\",\"name\":\"cidHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"uploadedAt\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"version\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"\",\"type\":\"uint8\"},{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"documents\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"docType\",\"type\":\"uint8\"},{\"internalType\":\"string\",\"name\":\"ipfsCid\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"uploadedAt\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"version\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"docType\",\"type\":\"uint8\"}],\"name\":\"getDocumentCid\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"ipfsCid\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"version\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"uploadedAt\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"docType\",\"type\":\"uint8\"}],\"name\":\"getDocumentHistory\",\"outputs\":[{\"internalType\":\"string[]\",\"name\":\"cids\",\"type\":\"string[]\"},{\"internalType\":\"uint256[]\",\"name\":\"versions\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256[]\",\"name\":\"timestamps\",\"type\":\"uint256[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"docType\",\"type\":\"uint8\"}],\"name\":\"getDocumentVersionCount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"userId\",\"type\":\"string\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"docType\",\"type\":\"uint8\"},{\"internalType\":\"string\",\"name\":\"ipfsCid\",\"type\":\"string\"}],\"name\":\"storeDocument\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"userIdHash\",\"type\":\"bytes32\"},{\"internalType\":\"enum DocumentStorage.DocumentType\",\"name\":\"docType\",\"type\":\"uint8\"},{\"internalType\":\"bytes32\",\"name\":\"cidHash\",\"type\":\"bytes32\"}],\"name\":\"storeDocumentHash\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"Smart contract for storing IPFS CIDs for documents Links documents to users and tracks document versions\",\"kind\":\"dev\",\"methods\":{\"batchStoreDocumentHash(bytes32[],uint8[],bytes32[])\":{\"details\":\"V2: Batch store multiple document CID hashes in one transaction\",\"params\":{\"cidHashes\":\"Array of CID hashes\",\"docTypes\":\"Array of document types\",\"userIdHashes\":\"Array of userId hashes\"}},\"documentExists(string,uint8)\":{\"details\":\"Check if a document exists for a user\",\"params\":{\"docType\":\"The document type\",\"userId\":\"The user identifier\"},\"returns\":{\"_0\":\"bool True if document exists\"}},\"getDocumentCid(string,uint8)\":{\"details\":\"Get the current document CID for a user and document type\",\"params\":{\"docType\":\"The document type\",\"userId\":\"The user identifier\"},\"returns\":{\"ipfsCid\":\"The IPFS CID\",\"uploadedAt\":\"Upload timestamp\",\"version\":\"The document version\"}},\"getDocumentHistory(string,uint8)\":{\"details\":\"Get document history for a user and document type\",\"params\":{\"docType\":\"The document type\",\"userId\":\"The user identifier\"},\"returns\":{\"cids\":\"Array of IPFS CIDs (all versions)\",\"timestamps\":\"Array of upload timestamps\",\"versions\":\"Array of version numbers\"}},\"getDocumentVersionCount(string,uint8)\":{\"details\":\"Get the number of versions for a document\",\"params\":{\"docType\":\"The document type\",\"userId\":\"The user identifier\"},\"returns\":{\"_0\":\"count The number of versions\"}},\"storeDocument(string,uint8,string)\":{\"details\":\"Store a document CID for a user\",\"params\":{\"docType\":\"The document type\",\"ipfsCid\":\"The IPFS CID of the document\",\"userId\":\"The user identifier\"}},\"storeDocumentHash(bytes32,uint8,bytes32)\":{\"details\":\"V2: Store a document CID hash (full CID kept off-chain in DB/IPFS)\",\"params\":{\"cidHash\":\"Hash of the IPFS CID\",\"docType\":\"The document type\",\"userIdHash\":\"Hash of the userId\"}}},\"title\":\"DocumentStorage\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"/Users/pendiaz/Documents/my-projects/Capstone/blockchain/contracts/DocumentStorage.sol\":\"DocumentStorage\"},\"evmVersion\":\"berlin\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"/Users/pendiaz/Documents/my-projects/Capstone/blockchain/contracts/AccessControl.sol\":{\"keccak256\":\"0x08cd630ecb1ebf2b0b91e08d4c7593f28004622ab0f38a3e9a7fc83d97c1a098\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://31029d46dde5df06072cc029210ee35a8e38a2c5b6230861b380f3d0d1b4c445\",\"dweb:/ipfs/QmZ4EGtBHjkduzViXj68XgdoY24jJuBeu3DKRPNknn5nqM\"]},\"/Users/pendiaz/Documents/my-projects/Capstone/blockchain/contracts/DocumentStorage.sol\":{\"keccak256\":\"0x934c1f719d50b9c94a3dbcc51fc8d686343a35786f9f86a24a6d7992e030f3bb\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://e77ea115b028b1669c59fc00e06963a72a06e0466f8b1dc7b3f6d0ab5554aa78\",\"dweb:/ipfs/QmdhxNLbdMmiA63s9D2RjQMpH5obbfG77dkGTX7S5zbegx\"]}},\"version\":1}",
@@ -32929,11 +32938,73 @@
           ],
           "name": "DocumentStored",
           "type": "event"
+        },
+        "0x0f170d14fb26003bb1492505f450c581767ff08de498851bf18fee4f2736647e": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "count",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "storedBy",
+              "type": "address"
+            }
+          ],
+          "name": "BatchDocumentHashStored",
+          "type": "event"
+        },
+        "0x13b43acf3a98a7e7407e1d0bb52e058de05955dbcd5daf00248271249208feaa": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "userIdHash",
+              "type": "bytes32"
+            },
+            {
+              "indexed": true,
+              "internalType": "enum DocumentStorage.DocumentType",
+              "name": "docType",
+              "type": "uint8"
+            },
+            {
+              "indexed": false,
+              "internalType": "bytes32",
+              "name": "cidHash",
+              "type": "bytes32"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "version",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
+            }
+          ],
+          "name": "DocumentHashStored",
+          "type": "event"
         }
       },
       "links": {},
-      "address": "0x5Be9d13e1969EE214C04876D09dF7f7D9CeC604D",
-      "transactionHash": "0xfe563784d72d3b17a512d29027bd71b24d59168b5df47ec1b37fe7cce195f93b"
+      "address": "0x09eBe0a3D0C526Ce11c0d17586299f07318d3c37",
+      "transactionHash": "0x469ea0f0046f146d6384bb7eb9d78afccfb5986e37e04d5e2727a7804c9700ad"
     },
     "1768839189326": {
       "events": {},
@@ -32987,7 +33058,8 @@
     }
   },
   "schemaVersion": "3.3.4",
-  "updatedAt": "2026-03-16T07:47:34.805Z",
+  "updatedAt": "2026-03-19T06:52:46.900Z",
+  "networkType": "ethereum",
   "devdoc": {
     "details": "Smart contract for storing IPFS CIDs for documents Links documents to users and tracks document versions",
     "kind": "dev",

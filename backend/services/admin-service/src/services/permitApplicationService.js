@@ -223,7 +223,13 @@ class PermitApplicationService {
           reviewedBy: '$businesses.reviewedBy',
           reviewedAt: '$businesses.reviewedAt',
           createdAt: '$businesses.createdAt',
-          updatedAt: '$businesses.updatedAt'
+          updatedAt: '$businesses.updatedAt',
+          // Fields needed by AddBusinessForm for officer draft editing
+          formType: '$businesses.formType',
+          formDefinitionId: '$businesses.formDefinitionId',
+          formData: '$businesses.formData',
+          category: '$businesses.category',
+          createdByOfficer: '$businesses.createdByOfficer',
         }
       },
       { $sort: { submittedAt: -1, createdAt: -1 } },
@@ -308,7 +314,13 @@ class PermitApplicationService {
             reviewedBy: app.reviewedBy || null,
             reviewedAt: app.reviewedAt || null,
             createdAt: app.createdAt,
-            updatedAt: app.updatedAt
+            updatedAt: app.updatedAt,
+            // Fields needed by AddBusinessForm for officer draft editing
+            formType: app.formType || '',
+            formDefinitionId: app.formDefinitionId || null,
+            formData: app.formData || {},
+            category: app.category || '',
+            createdByOfficer: app.createdByOfficer || false,
           }
         } catch (err) {
           // Use _businessId (subdocument _id) as primary identifier since businessId may be encrypted
@@ -331,7 +343,12 @@ class PermitApplicationService {
             reviewedBy: app.reviewedBy || null,
             reviewedAt: app.reviewedAt || null,
             createdAt: app.createdAt,
-            updatedAt: app.updatedAt
+            updatedAt: app.updatedAt,
+            formType: app.formType || '',
+            formDefinitionId: app.formDefinitionId || null,
+            formData: app.formData || {},
+            category: app.category || '',
+            createdByOfficer: app.createdByOfficer || false,
           }
         }
       })

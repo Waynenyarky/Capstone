@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react'
-import { Empty, Typography, Splitter, Input, Spin, Button, Tooltip, Select, theme } from 'antd'
-import { SearchOutlined, PlusOutlined, FormOutlined, FilterOutlined, CloseOutlined } from '@ant-design/icons'
+import { Empty, Typography, Splitter, Input, Spin, Button, Tooltip, Select, Tag, theme } from 'antd'
+import { SearchOutlined, PlusOutlined, FormOutlined, FilterOutlined, CloseOutlined, FileTextOutlined, AuditOutlined, EditOutlined, StopOutlined, SafetyCertificateOutlined, ClockCircleFilled, MinusCircleOutlined } from '@ant-design/icons'
 import ApplicationDetailPanel from '../components/ApplicationDetailPanel'
 import AppealDetailPanel from '../components/AppealDetailPanel'
 import EditRequestDetailPanel from '../components/EditRequestDetailPanel'
@@ -8,6 +8,7 @@ import CessationDetailPanel from '../components/CessationDetailPanel'
 import BusinessReviewPanel from '../components/BusinessReviewPanel'
 import InspectionDetailPanel from '../components/InspectionDetailPanel'
 import BusinessOwnerDetailPanel from '../components/BusinessOwnerDetailPanel'
+import EditOwnerModal from '../components/EditOwnerModal'
 import LogDetailPanel from '../components/LogDetailPanel'
 import LogsTable from '../components/LogsTable'
 import ClaimBar from '../components/ClaimBar'
@@ -18,6 +19,8 @@ import ConsolidatedProfileNav from '@/features/user/pages/profileSettings/Consol
 import ConsolidatedContentRenderer from '@/features/user/pages/profileSettings/ConsolidatedContentRenderer'
 import { CONSOLIDATED_NAV_ITEMS } from '@/features/user/pages/profileSettings/constants'
 import { usePermitApplications } from '@/features/lgu-officer/presentation/hooks/usePermitApplications'
+import { put } from '@/lib/http.js'
+import dayjs from 'dayjs'
 
 const { Text } = Typography
 
@@ -40,10 +43,14 @@ export default function OfficerRightPanel({
   const [statusFilter, setStatusFilter] = useState(null)
   const [filterOpen, setFilterOpen] = useState(false)
   const [settingsKey, setSettingsKey] = useState('mfa') // Default to MFA for staff
+  const [toReviewSubTab, setToReviewSubTab] = useState('applications') // Sub-tab for To Review
+  const [subItemIndex, setSubItemIndex] = useState(0) // Selected item within multi-item sub-tabs
   const filterWrapperRef = React.useRef(null)
   const { reviewApplication } = usePermitApplications()
   const formRef = useRef(null)
   const [formSubmitting, setFormSubmitting] = useState(false)
+  const [editOwnerModalOpen, setEditOwnerModalOpen] = useState(false)
+  const [editingOwner, setEditingOwner] = useState(null)
   
   // Filter nav items for staff (security and theme sections only)
   const settingsNavItems = useMemo(() => {
@@ -67,6 +74,14 @@ export default function OfficerRightPanel({
     setFilterOpen(false)
   }, [activeTab])
 
+  // Reset sub-tab to 'application' when a new business card is selected in To Review
+  useEffect(() => {
+    if (activeTab === 'toReview' && selectedItem?._itemType === 'business') {
+      setToReviewSubTab('application')
+      setSubItemIndex(0)
+    }
+  }, [activeTab, selectedItem?._itemId])
+
   // Close filter panel on outside click
   useEffect(() => {
     if (!filterOpen) return
@@ -83,8 +98,9 @@ export default function OfficerRightPanel({
   // Get current list from officerData
   const currentList = useMemo(() => {
     if (!officerData) return []
+    
     const lists = {
-      toReview: officerData.toReview,
+      toReview: officerData.toReview, // Consolidated business cards
       applications: officerData.applications,
       appeals: officerData.appeals,
       editRequests: officerData.editRequests,
@@ -132,7 +148,7 @@ export default function OfficerRightPanel({
 
   const handleItemClick = useCallback((item) => {
     const id = getItemId(item)
-    // To Review now uses consolidated business cards
+    // For To Review, use 'business' type for consolidated cards; otherwise use the main tab
     const itemType = activeTab === 'toReview' ? (item._itemType || 'business') : activeTab
     onItemSelect({ ...item, _itemType: itemType, _itemId: id })
   }, [activeTab, onItemSelect])
@@ -151,6 +167,7 @@ export default function OfficerRightPanel({
       { value: 'inspector_verified', label: 'Inspector Verified' },
       { value: 'approved', label: 'Approved' },
       { value: 'rejected', label: 'Rejected' },
+      { value: 'appeal_pending', label: 'Appeal Pending' },
       { value: 'upheld', label: 'Upheld' },
       { value: 'overturned', label: 'Overturned' },
       { value: 'confirmed', label: 'Confirmed' },
@@ -309,7 +326,7 @@ export default function OfficerRightPanel({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {currentList.map(item => {
               const id = getItemId(item)
-              const itemType = activeTab === 'toReview' ? (item._itemType || 'applications') : activeTab
+              const itemType = activeTab === 'toReview' ? (item._itemType || 'business') : activeTab
               const itemKey = `${itemType}:${id}`
               return (
                 <OfficerItemCard
@@ -344,13 +361,256 @@ export default function OfficerRightPanel({
 
   // ── Consolidated Business (To Review tab) ──
     if (type === 'business') {
+      const requests = selectedItem._requests || {}
+      const hasApplication = !!requests.application
+      const hasAppeals = (requests.appeals?.length || 0) > 0
+      const hasEditRequests = (requests.editRequests?.length || 0) > 0
+      const hasCessation = !!requests.cessation
+      const hasInspections = (requests.inspections?.length || 0) > 0
+
+      // Sub-tab config with status icons and counts
+      const appealsCount = requests.appeals?.length || 0
+      const editsCount = requests.editRequests?.length || 0
+      const inspectionsCount = requests.inspections?.length || 0
+      const subTabs = [
+        { key: 'application', label: 'Application', icon: <FileTextOutlined />, has: hasApplication },
+        { key: 'appeals', label: appealsCount > 1 ? `Appeals (${appealsCount})` : 'Appeals', icon: <AuditOutlined />, has: hasAppeals },
+        { key: 'editRequests', label: editsCount > 1 ? `Edits (${editsCount})` : 'Edits', icon: <EditOutlined />, has: hasEditRequests },
+        { key: 'cessation', label: 'Cessation', icon: <StopOutlined />, has: hasCessation },
+        { key: 'inspections', label: inspectionsCount > 1 ? `Inspections (${inspectionsCount})` : 'Inspections', icon: <SafetyCertificateOutlined />, has: hasInspections },
+      ]
+
+      // Render content based on selected sub-tab
+      const renderSubTabContent = () => {
+        const currentTab = subTabs.find(t => t.key === toReviewSubTab)
+        if (!currentTab?.has) {
+          return (
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={`No ${currentTab?.label?.toLowerCase() || 'items'} for this business`} />
+            </div>
+          )
+        }
+
+        switch (toReviewSubTab) {
+          case 'application':
+            return (
+              <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div style={{ flexShrink: 0 }}>
+                  <ClaimBar application={requests.application} onClaimChange={onClaimChange} />
+                </div>
+                <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                  <ApplicationDetailPanel
+                    application={requests.application}
+                    onReviewComplete={handleApplicationReviewComplete}
+                    onReviewStarted={handleReviewStarted}
+                    onReview={reviewApplication}
+                    onSelectApplication={onItemSelect}
+                  />
+                </div>
+              </div>
+            )
+          case 'appeals': {
+            const items = requests.appeals || []
+            const selected = items[subItemIndex] || items[0]
+            return (
+              <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                {items.length > 1 && (
+                  <div style={{ flexShrink: 0, padding: '8px 12px', borderBottom: `1px solid ${token.colorBorderSecondary}`, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {items.map((item, idx) => {
+                      const s = item.status || 'pending'
+                      const color = s === 'submitted' || s === 'pending' || s === 'under_review' ? 'processing' : s === 'upheld' || s === 'approved' ? 'success' : s === 'overturned' || s === 'rejected' ? 'error' : 'default'
+                      return (
+                        <Tag key={item._id || idx} color={subItemIndex === idx ? 'blue' : color}
+                          style={{ cursor: 'pointer', margin: 0 }} onClick={() => setSubItemIndex(idx)}>
+                          Appeal {idx + 1} · {s}
+                        </Tag>
+                      )
+                    })}
+                  </div>
+                )}
+                <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                  <AppealDetailPanel appeal={selected} onReviewComplete={onReviewComplete} />
+                </div>
+              </div>
+            )
+          }
+          case 'editRequests': {
+            const items = requests.editRequests || []
+            const selected = items[subItemIndex] || items[0]
+            return (
+              <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                {items.length > 1 && (
+                  <div style={{ flexShrink: 0, padding: '8px 12px', borderBottom: `1px solid ${token.colorBorderSecondary}`, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {items.map((item, idx) => {
+                      const s = item.status || 'pending'
+                      const color = s === 'pending' ? 'processing' : s === 'approved' ? 'success' : s === 'rejected' ? 'error' : 'default'
+                      return (
+                        <Tag key={item._id || idx} color={subItemIndex === idx ? 'blue' : color}
+                          style={{ cursor: 'pointer', margin: 0 }} onClick={() => setSubItemIndex(idx)}>
+                          {item.fieldName || `Edit ${idx + 1}`} · {s}
+                        </Tag>
+                      )
+                    })}
+                  </div>
+                )}
+                <div style={{ flexShrink: 0 }}>
+                  <ClaimBar
+                    item={selected}
+                    onClaimChange={onClaimChange}
+                    apiBasePath="/api/business/edit-requests"
+                    entityLabel="edit request"
+                  />
+                </div>
+                <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                  <EditRequestDetailPanel request={selected} onReviewComplete={onReviewComplete} />
+                </div>
+              </div>
+            )
+          }
+          case 'cessation':
+            return (
+              <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div style={{ flexShrink: 0 }}>
+                  <ClaimBar
+                    item={requests.cessation}
+                    onClaimChange={onClaimChange}
+                    apiBasePath="/api/business/retirements"
+                    entityLabel="cessation request"
+                  />
+                </div>
+                <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                  <CessationDetailPanel cessation={requests.cessation} onReviewComplete={onReviewComplete} />
+                </div>
+              </div>
+            )
+          case 'inspections': {
+            const items = requests.inspections || []
+            const selected = items[subItemIndex] || items[0]
+            return (
+              <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                {items.length > 1 && (
+                  <div style={{ flexShrink: 0, padding: '8px 12px', borderBottom: `1px solid ${token.colorBorderSecondary}`, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {items.map((item, idx) => {
+                      const s = item.status || 'pending'
+                      const color = s === 'pending_assignment' ? 'warning' : s === 'pending' ? 'processing' : s === 'in_progress' ? 'processing' : s === 'completed' ? 'success' : 'default'
+                      return (
+                        <Tag key={item._id || idx} color={subItemIndex === idx ? 'blue' : color}
+                          style={{ cursor: 'pointer', margin: 0 }} onClick={() => setSubItemIndex(idx)}>
+                          {item.inspectionType || `Inspection ${idx + 1}`} · {s === 'pending_assignment' ? 'Needs Assignment' : s}
+                        </Tag>
+                      )
+                    })}
+                  </div>
+                )}
+                <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                  <InspectionDetailPanel inspection={selected} onReviewComplete={onReviewComplete} />
+                </div>
+              </div>
+            )
+          }
+          default:
+            return <Empty description="Select a tab" />
+        }
+      }
+
       return (
-        <BusinessReviewPanel
-          item={selectedItem}
-          onReviewComplete={onReviewComplete}
-          onClaimChange={onClaimChange}
-          refresh={refresh}
-        />
+        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          {/* 2.2 Header: Just business name */}
+          <div style={{ 
+            flexShrink: 0, 
+            padding: '12px 16px',
+            borderBottom: `1px solid ${token.colorBorderSecondary}`,
+            background: token.colorBgContainer,
+          }}>
+            <Text strong style={{ fontSize: 16 }}>{selectedItem.businessName || 'Unknown Business'}</Text>
+          </div>
+          {/* 2.2.1 + 2.2.2: Vertical sub-tabs on left, content on right */}
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
+            {/* 2.2.1 Left panel: Vertical sub-tab buttons */}
+            <div style={{ 
+              width: 160, 
+              minWidth: 160, 
+              flexShrink: 0,
+              borderRight: `1px solid ${token.colorBorderSecondary}`,
+              padding: '12px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+              overflowY: 'auto',
+              background: token.colorBgContainer,
+            }}>
+              {subTabs.map(tab => {
+                const isActive = toReviewSubTab === tab.key
+                return (
+                  <div
+                    key={tab.key}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => { setToReviewSubTab(tab.key); setSubItemIndex(0) }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { setToReviewSubTab(tab.key); setSubItemIndex(0) } }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '6px 8px',
+                      borderRadius: token.borderRadius,
+                      cursor: 'pointer',
+                      background: isActive ? token.colorFillTertiary : 'transparent',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) e.currentTarget.style.background = token.colorFillQuaternary
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) e.currentTarget.style.background = 'transparent'
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: token.borderRadius,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: isActive ? token.colorPrimary : token.colorFillQuaternary,
+                        color: isActive ? '#fff' : token.colorTextSecondary,
+                        flexShrink: 0,
+                        fontSize: 14,
+                      }}
+                    >
+                      {tab.icon}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <Text
+                        strong={isActive}
+                        type={isActive ? undefined : 'secondary'}
+                        style={{ 
+                          fontSize: 12, 
+                          lineHeight: 1.3,
+                          display: 'block',
+                          ...(isActive && { color: token.colorPrimary })
+                        }}
+                      >
+                        {tab.label}
+                      </Text>
+                    </div>
+                    {/* Status indicator */}
+                    {tab.has ? (
+                      <ClockCircleFilled style={{ color: token.colorWarning, fontSize: 10 }} />
+                    ) : (
+                      <MinusCircleOutlined style={{ color: token.colorTextQuaternary, fontSize: 10 }} />
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            {/* 2.2.2 Right panel: Content for selected sub-tab */}
+            <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+              {renderSubTabContent()}
+            </div>
+          </div>
+        </div>
       )
     }
 
@@ -367,6 +627,7 @@ export default function OfficerRightPanel({
               onReviewComplete={handleApplicationReviewComplete}
               onReviewStarted={handleReviewStarted}
               onReview={reviewApplication}
+              onSelectApplication={onItemSelect}
             />
           </div>
         </div>
@@ -423,7 +684,16 @@ export default function OfficerRightPanel({
 
     // ── Business Owners ──
     if (type === 'owners') {
-      return <BusinessOwnerDetailPanel owner={selectedItem} onCreateWalkIn={onCreateWalkIn} />
+      return (
+        <BusinessOwnerDetailPanel
+          owner={selectedItem}
+          onCreateWalkIn={onCreateWalkIn}
+          onEditOwner={(owner) => {
+            setEditingOwner(owner)
+            setEditOwnerModalOpen(true)
+          }}
+        />
+      )
     }
 
     // ── Drafts → AddBusinessForm in embedded mode ──
@@ -444,6 +714,7 @@ export default function OfficerRightPanel({
             onDraftCreated={() => {
               refresh?.()
             }}
+            updateFn={(businessId, payload) => put(`/api/business/walk-in/${businessId}`, payload)}
           />
         </div>
       )
@@ -465,7 +736,7 @@ export default function OfficerRightPanel({
   if (activeTab === 'logs' && !showSettings) {
     return (
       <Splitter style={{ height: '100%' }}>
-        <Splitter.Panel min="30%" defaultSize="30%" style={{ overflow: 'hidden' }}>
+        <Splitter.Panel min="30%" defaultSize="25%" style={{ overflow: 'hidden' }}>
           <LogsTable
             logs={currentList}
             loading={isLoading}
@@ -473,7 +744,7 @@ export default function OfficerRightPanel({
             onSelectLog={(log) => onItemSelect({ ...log, _itemType: 'logs', _itemId: log._id || log.id })}
           />
         </Splitter.Panel>
-        <Splitter.Panel min="40%" defaultSize="70%" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <Splitter.Panel min="40%" defaultSize="75%" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <LogDetailPanel log={selectedItem} />
         </Splitter.Panel>
       </Splitter>
@@ -523,33 +794,61 @@ export default function OfficerRightPanel({
   // Special handling for owners tab - use table layout
   if (activeTab === 'owners') {
     return (
-      <Splitter style={{ height: '100%' }}>
-        <Splitter.Panel min="30%" defaultSize="40%" style={{ overflow: 'hidden' }}>
-          <OwnersListPanel
-            owners={officerData?.owners || []}
-            isLoading={officerData?.isLoading}
-            selectedOwner={selectedItem}
-            onSelectOwner={(owner) => onItemSelect({ ...owner, _itemType: 'owners', _itemId: owner._id })}
-            onRegisterOwner={onRegisterOwner}
-            ownerSearch={officerData?.ownerSearch || ''}
-            setOwnerSearch={officerData?.setOwnerSearch}
-          />
-        </Splitter.Panel>
-        <Splitter.Panel min="50%" defaultSize="60%" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          {renderDetailPanel()}
-        </Splitter.Panel>
-      </Splitter>
+      <>
+        <Splitter style={{ height: '100%' }}>
+          <Splitter.Panel min="30%" defaultSize="25%" style={{ overflow: 'hidden' }}>
+            <OwnersListPanel
+              owners={officerData?.owners || []}
+              isLoading={officerData?.isLoading}
+              selectedOwner={selectedItem}
+              onSelectOwner={(owner) => onItemSelect({ ...owner, _itemType: 'owners', _itemId: owner._id })}
+              onRegisterOwner={onRegisterOwner}
+              ownerSearch={officerData?.ownerSearch || ''}
+              setOwnerSearch={officerData?.setOwnerSearch}
+            />
+          </Splitter.Panel>
+          <Splitter.Panel min="50%" defaultSize="75%" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            {renderDetailPanel()}
+          </Splitter.Panel>
+        </Splitter>
+
+        <EditOwnerModal
+          open={editOwnerModalOpen}
+          owner={editingOwner}
+          onClose={() => {
+            setEditOwnerModalOpen(false)
+            setEditingOwner(null)
+          }}
+          onSuccess={() => {
+            refresh?.()
+          }}
+        />
+      </>
     )
   }
 
   return (
-    <Splitter style={{ height: '100%' }}>
-      <Splitter.Panel min="25%" defaultSize="30%" style={{ overflow: 'hidden' }}>
-        {renderListPanel()}
-      </Splitter.Panel>
-      <Splitter.Panel min="50%" defaultSize="70%" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        {renderDetailPanel()}
-      </Splitter.Panel>
-    </Splitter>
+    <>
+      <Splitter style={{ height: '100%' }}>
+        <Splitter.Panel min="25%" defaultSize="25%" style={{ overflow: 'hidden' }}>
+          {renderListPanel()}
+        </Splitter.Panel>
+        <Splitter.Panel min="50%" defaultSize="75%" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          {renderDetailPanel()}
+        </Splitter.Panel>
+      </Splitter>
+
+      <EditOwnerModal
+        open={editOwnerModalOpen}
+        owner={editingOwner}
+        onClose={() => {
+          setEditOwnerModalOpen(false)
+          setEditingOwner(null)
+        }}
+        onSuccess={() => {
+          refresh?.()
+        }}
+      />
+    </>
   )
 }

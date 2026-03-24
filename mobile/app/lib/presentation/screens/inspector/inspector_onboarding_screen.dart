@@ -44,6 +44,7 @@ class _InspectorOnboardingScreenState extends State<InspectorOnboardingScreen> {
   String? _errorMessage;
   bool _passwordDone = false;
   bool _mfaDone = false;
+  bool _mfaSetupTriggered = false;
 
   @override
   void dispose() {
@@ -153,10 +154,13 @@ class _InspectorOnboardingScreenState extends State<InspectorOnboardingScreen> {
     final showMfaStep = widget.mustSetupMfa && (!widget.mustChangeCredentials || _passwordDone) && !_mfaDone;
 
     if (showMfaStep && !showPasswordStep) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_mfaDone) return;
-        _openMfaSetup();
-      });
+      if (!_mfaSetupTriggered) {
+        _mfaSetupTriggered = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_mfaDone || !mounted) return;
+          _openMfaSetup();
+        });
+      }
       return Scaffold(
         backgroundColor: BizClearColors.background,
         body: SafeArea(

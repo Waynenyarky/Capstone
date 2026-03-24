@@ -31,6 +31,22 @@ const STATUS_LABELS = {
   rejected: 'Rejected',
 }
 
+const formatBusinessAddress = (address) => {
+  if (!address) return ''
+  if (typeof address === 'string') return address
+  if (typeof address === 'object') {
+    const parts = [
+      address.streetAddress || address.street,
+      address.barangayName || address.barangay,
+      address.cityName || address.city,
+      address.provinceName || address.province,
+      address.postalCode || address.zipCode,
+    ].filter(Boolean)
+    return parts.join(', ')
+  }
+  return String(address)
+}
+
 export default function CessationDetailPanel({ cessation, onReviewComplete }) {
   const { token } = theme.useToken()
   const [processing, setProcessing] = useState(false)
@@ -133,6 +149,9 @@ export default function CessationDetailPanel({ cessation, onReviewComplete }) {
   const claimedById = typeof claimedBy === 'object' ? claimedBy?._id : claimedBy
   const reviewLocked = Boolean(claimedBy && myId && String(claimedById) !== String(myId))
   const totalTax = (lbtAmount || 0) + (surcharges || 0) + (outstandingFees || 0)
+  const businessAddressLine = formatBusinessAddress(
+    cessation.businessAddress || cessation.formData?.businessAddress
+  )
 
   return (
     <div style={{ height: '100%', overflow: 'auto', padding: 20 }}>
@@ -187,7 +206,7 @@ export default function CessationDetailPanel({ cessation, onReviewComplete }) {
           </div>
           <div style={{ textAlign: 'justify' }}>
             Pursuant to Sec. 145 of R.A. 7160 I hereby apply for the retirement of my business, with business
-            name <Text underline strong style={{ fontSize: 12 }}>{cessation.businessName || 'N/A'}</Text> WITH BP NO. <Text underline style={{ fontSize: 12 }}>{cessation.businessPlateNo || '—'}</Text> located at {cessation.businessAddress || cessation.formData?.businessAddress || '—'}, Alaminos City, Pangasinan.
+            name <Text underline strong style={{ fontSize: 12 }}>{cessation.businessName || 'N/A'}</Text> WITH BP NO. <Text underline style={{ fontSize: 12 }}>{cessation.businessPlateNo || '—'}</Text> located at {businessAddressLine || '—'}, Alaminos City, Pangasinan.
           </div>
           <div style={{ textAlign: 'justify', marginTop: 4 }}>
             Attached herewith is my sworn statement of gross sales/receipts for the current year, business

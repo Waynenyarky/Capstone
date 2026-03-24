@@ -12,6 +12,7 @@ const EVENT_TYPE_CONFIG = {
   application_claimed: { color: 'cyan', label: 'Application Claimed' },
   application_released: { color: 'default', label: 'Application Released' },
   application_transferred: { color: 'orange', label: 'Application Transferred' },
+  decision_revoked: { color: 'red', label: 'Decision Revoked' },
   // Account & security events
   login: { color: 'green', label: 'Login' },
   logout: { color: 'default', label: 'Logout' },

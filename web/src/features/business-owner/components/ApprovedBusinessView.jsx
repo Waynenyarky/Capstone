@@ -771,34 +771,126 @@ function ComplianceTab({ businessId }) {
         <Table size="small" rowKey={r => r._id || r.violationId} columns={violationCols} dataSource={filteredViolations} pagination={{ pageSize: 5 }} locale={{ emptyText: <Empty description="No violations recorded" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }} />
       </div>
 
-      <Drawer title="Inspection Detail" open={detailOpen} onClose={() => setDetailOpen(false)} width={480}>
-        {detailLoading ? <Spin /> : detailData ? (
-          <>
-            <Descriptions bordered size="small" column={1}>
-              <Descriptions.Item label="Date">{formatDate(detailData.scheduledDate)}</Descriptions.Item>
-              <Descriptions.Item label="Type">{detailData.inspectionType || 'N/A'}</Descriptions.Item>
-              <Descriptions.Item label="Result">{detailData.result || detailData.overallResult || 'Pending'}</Descriptions.Item>
-              <Descriptions.Item label="Inspector">{detailData.inspectorName || detailData.inspector?.name || 'N/A'}</Descriptions.Item>
-              <Descriptions.Item label="Notes">{detailData.notes || 'N/A'}</Descriptions.Item>
-              <Descriptions.Item label="Acknowledgment">
-                {detailData.ownerAcknowledged || detailData.ownerAcknowledgment?.acknowledged
-                  ? `Acknowledged on ${formatDate(detailData.acknowledgedAt || detailData.ownerAcknowledgment?.timestamp)}`
-                  : 'Not yet acknowledged'}
-              </Descriptions.Item>
-            </Descriptions>
-            {detailData.status === 'completed' && !(detailData.ownerAcknowledged || detailData.ownerAcknowledgment?.acknowledged) ? (
-              <div style={{ marginTop: 12 }}>
-                <Button
-                  type="primary"
-                  loading={inspectionAckLoading === (detailData._id || detailData.inspectionId || detailData.id)}
-                  onClick={() => handleInspectionAcknowledge(detailData._id || detailData.inspectionId || detailData.id)}
-                >
-                  Acknowledge Inspection Result
-                </Button>
-              </div>
-            ) : null}
-          </>
-        ) : <Empty />}
+      <Drawer title="Inspection Detail" open={detailOpen} onClose={() => setDetailOpen(false)} width={520}>
+        {detailLoading ? <Spin /> : detailData ? (() => {
+          const d = detailData
+          const isAck = d.ownerAcknowledged || d.ownerAcknowledgment?.acknowledged
+          const checklist = d.checklist || []
+          const detailViolations = d.violationsFound || d.violations || []
+          const evidence = d.evidence || []
+          const inspId = d._id || d.inspectionId || d.id
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <Descriptions bordered size="small" column={1}>
+                <Descriptions.Item label="Date">{formatDate(d.scheduledDate)}</Descriptions.Item>
+                <Descriptions.Item label="Type">{d.inspectionType || 'N/A'}</Descriptions.Item>
+                <Descriptions.Item label="Status">
+                  <Tag color={d.status === 'completed' ? 'success' : d.status === 'in_progress' ? 'processing' : d.status === 'pending' ? 'warning' : 'default'}>{d.status || 'Pending'}</Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="Result">
+                  {(d.result || d.overallResult)
+                    ? <Tag color={(d.result || d.overallResult) === 'passed' ? 'success' : (d.result || d.overallResult) === 'failed' ? 'error' : 'warning'}>{d.result || d.overallResult}</Tag>
+                    : 'Pending'}
+                </Descriptions.Item>
+                <Descriptions.Item label="Inspector">{d.inspectorName || d.inspector?.name || 'N/A'}</Descriptions.Item>
+                {d.completedAt && <Descriptions.Item label="Completed">{dayjs(d.completedAt).format('MMM D, YYYY h:mm A')}</Descriptions.Item>}
+                <Descriptions.Item label="Acknowledgment">
+                  {isAck
+                    ? <Tag color="success">Acknowledged on {formatDate(d.acknowledgedAt || d.ownerAcknowledgment?.timestamp)}</Tag>
+                    : <Tag color="warning">Not yet acknowledged</Tag>}
+                </Descriptions.Item>
+              </Descriptions>
+
+              {d.status === 'completed' && !isAck && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message="Action required: Acknowledge this inspection result"
+                  description="By acknowledging, you confirm that you have reviewed the inspection outcome."
+                  action={
+                    <Button
+                      type="primary"
+                      size="small"
+                      loading={inspectionAckLoading === inspId}
+                      onClick={() => handleInspectionAcknowledge(inspId)}
+                    >
+                      Acknowledge
+                    </Button>
+                  }
+                />
+              )}
+
+              {d.notes && (
+                <Card size="small" title="Inspector Notes">
+                  <Text>{d.notes}</Text>
+                </Card>
+              )}
+
+              {checklist.length > 0 && (
+                <Card size="small" title="Checklist Results">
+                  {checklist.map((item, idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', borderBottom: idx < checklist.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
+                      <Tag color={item.result === 'pass' ? 'success' : item.result === 'fail' ? 'error' : 'default'} style={{ minWidth: 44, textAlign: 'center' }}>{item.result}</Tag>
+                      <div style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 13 }}>{item.label}</Text>
+                        {item.remarks && <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{item.remarks}</Text>}
+                      </div>
+                    </div>
+                  ))}
+                </Card>
+              )}
+
+              {detailViolations.length > 0 && (
+                <Card size="small" title={`Violations (${detailViolations.length})`}>
+                  {detailViolations.map((v, idx) => (
+                    <div key={idx} style={{ padding: '6px 0', borderBottom: idx < detailViolations.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                        <Tag color={v.severity === 'critical' ? 'error' : v.severity === 'major' ? 'warning' : 'default'}>{v.severity}</Tag>
+                        <Text strong>{v.violationType || `Violation ${idx + 1}`}</Text>
+                        <Tag color={v.status === 'resolved' ? 'success' : v.status === 'open' ? 'error' : 'default'}>{v.status || 'open'}</Tag>
+                      </div>
+                      <Text type="secondary" style={{ fontSize: 12 }}>{v.description}</Text>
+                      {v.complianceDeadline && (
+                        <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                          Deadline: {formatDate(v.complianceDeadline)}
+                          {v.status === 'open' && dayjs(v.complianceDeadline).isBefore(dayjs()) && <Tag color="error" style={{ marginLeft: 4 }}>Overdue</Tag>}
+                        </Text>
+                      )}
+                    </div>
+                  ))}
+                </Card>
+              )}
+
+              {evidence.length > 0 && (
+                <Card size="small" title={`Evidence (${evidence.length})`}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {evidence.map((ev, idx) => {
+                      const src = ev.url || ev.filePath || ev.cid || ''
+                      const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(src) || ev.type?.startsWith('image')
+                      return (
+                        <div key={idx} style={{ width: 64, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fafafa', borderRadius: 4, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
+                          {isImage
+                            ? <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            : <Text type="secondary" style={{ fontSize: 9, textAlign: 'center', padding: 2 }}>{ev.name || ev.fileName || `File ${idx + 1}`}</Text>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </Card>
+              )}
+
+              {d.gpsCheck && (
+                <Card size="small" title="GPS Verification">
+                  <Tag color={d.gpsCheck.matched ? 'success' : 'warning'}>
+                    {d.gpsCheck.matched ? 'Location matched' : 'Location mismatch'}
+                  </Tag>
+                  {d.gpsCheck.distanceMeters != null && <Text type="secondary" style={{ marginLeft: 8 }}>{Math.round(d.gpsCheck.distanceMeters)}m from registered address</Text>}
+                </Card>
+              )}
+            </div>
+          )
+        })() : <Empty />}
       </Drawer>
     </div>
   )
@@ -811,16 +903,21 @@ function PermitsTab({ businessId, businessName, onPermitDownloaded }) {
 function RetirementModal({ open, onClose, business, onSuccess }) {
   const { message } = App.useApp()
   const [reason, setReason] = useState('')
+  const [grossSales, setGrossSales] = useState('')
   const [confirmed, setConfirmed] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async () => {
     if (!reason.trim()) { message.warning('Please provide a reason'); return }
+    if (!grossSales || Number(grossSales) < 0) { message.warning('Please provide gross sales for the current year'); return }
     if (!confirmed) { message.warning('Please confirm you understand'); return }
     setSubmitting(true)
     try {
       const businessId = business?.businessId || business?._id
-      await submitRetirement(businessId, { reason })
+      await submitRetirement(businessId, {
+        reason,
+        swornStatementGrossSales: Number(grossSales),
+      })
       message.success('Retirement request submitted')
       onSuccess?.()
       onClose()
@@ -831,6 +928,13 @@ function RetirementModal({ open, onClose, business, onSuccess }) {
     }
   }
 
+  const handleGrossSalesChange = (e) => {
+    const val = e.target.value.replace(/[^0-9.]/g, '')
+    setGrossSales(val)
+  }
+
+  const isFormValid = reason.trim() && grossSales && Number(grossSales) >= 0 && confirmed
+
   return (
     <Modal
       title="Retire Business"
@@ -838,8 +942,9 @@ function RetirementModal({ open, onClose, business, onSuccess }) {
       onCancel={onClose}
       onOk={handleSubmit}
       okText="Submit Retirement Request"
-      okButtonProps={{ danger: true, loading: submitting, disabled: !reason.trim() || !confirmed }}
+      okButtonProps={{ danger: true, loading: submitting, disabled: !isFormValid }}
       destroyOnHidden
+      width={560}
     >
       <Alert
         type="warning"
@@ -848,6 +953,21 @@ function RetirementModal({ open, onClose, business, onSuccess }) {
         description="Once submitted, this cannot be undone. An LGU Officer will review your request."
         style={{ marginBottom: 16 }}
       />
+
+      <div style={{ marginBottom: 16 }}>
+        <Text strong>Sworn Statement of Gross Sales (Current Year) *</Text>
+        <Text type="secondary" style={{ display: 'block', fontSize: 12, marginBottom: 8 }}>
+          Enter the total gross sales/receipts for the current year. This is required per RA 7160 Sec. 145 for cessation tax computation.
+        </Text>
+        <Input
+          value={grossSales}
+          onChange={handleGrossSalesChange}
+          placeholder="Enter gross sales amount"
+          addonBefore="₱"
+          style={{ marginTop: 4 }}
+        />
+      </div>
+
       <div style={{ marginBottom: 16 }}>
         <Text strong>Reason for retirement *</Text>
         <TextArea
@@ -860,8 +980,18 @@ function RetirementModal({ open, onClose, business, onSuccess }) {
           style={{ marginTop: 8 }}
         />
       </div>
+
+      <Alert
+        type="info"
+        showIcon
+        icon={<InfoCircleOutlined />}
+        message="Required Documents"
+        description="You may be asked to submit a notarized sworn statement of gross sales, business permit, and other permits during the review process."
+        style={{ marginBottom: 16 }}
+      />
+
       <Checkbox checked={confirmed} onChange={e => setConfirmed(e.target.checked)}>
-        I understand this action will initiate the retirement process
+        I understand this action will initiate the retirement process and I declare the gross sales amount above is accurate.
       </Checkbox>
     </Modal>
   )
@@ -1401,7 +1531,7 @@ function usePermitProgress(business, businessId, permitDownloaded = false) {
   }
 }
 
-function ProgressStepper({ stepStatuses, currentStep, token, business }) {
+function ProgressStepper({ stepStatuses, currentStep, token, business, payments }) {
   const formatDate = (dateStr) => {
     if (!dateStr) return 'N/A'
     try {
@@ -1415,6 +1545,15 @@ function ProgressStepper({ stepStatuses, currentStep, token, business }) {
     }
   }
 
+  // Get the latest payment date from paid payments
+  const getLatestPaymentDate = () => {
+    if (!payments || !Array.isArray(payments)) return null
+    const paidPayments = payments.filter(p => p.status === 'paid' && p.paidAt)
+    if (paidPayments.length === 0) return null
+    // Sort by paidAt date descending and get the most recent
+    return paidPayments.sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt))[0].paidAt
+  }
+
   const items = [
     { 
       title: 'Approved Application', 
@@ -1423,7 +1562,7 @@ function ProgressStepper({ stepStatuses, currentStep, token, business }) {
     },
     { 
       title: 'Payment Status', 
-      description: stepStatuses[1] === 'finish' ? `Paid on ${formatDate(business?.paidAt)}` : stepStatuses[1] === 'process' ? 'Payment pending' : 'Payment pending',
+      description: stepStatuses[1] === 'finish' ? `Paid on ${formatDate(getLatestPaymentDate())}` : stepStatuses[1] === 'process' ? 'Payment pending' : 'Payment pending',
       icon: <DollarOutlined /> 
     },
     { 
@@ -1566,7 +1705,7 @@ export default function ApprovedBusinessView({ business, onRefresh }) {
   const visibleEditResults = recentEditResults.filter(r => !dismissedEditResults.includes(r._id))
 
   const {
-    pendingTotal, pendingPayments, allPaid, hasPayments,
+    payments, pendingTotal, pendingPayments, allPaid, hasPayments,
     hasActivePermit, pendingPostReqs, allPostReqsVerified, hasPostReqs,
     currentStep, stepStatuses, nextAction, loading, refetchPayments,
   } = usePermitProgress(business, businessId, permitDownloaded)
@@ -1597,7 +1736,7 @@ export default function ApprovedBusinessView({ business, onRefresh }) {
         <span>
           <DollarOutlined style={{ marginRight: 8 }} />
           Payments & Fees
-          {pendingPayments.length > 0 && <Tag color="warning" style={{ marginLeft: 8 }}>{pendingPayments.length} pending</Tag>}
+          {pendingPayments.length > 0 && <Tag color="warning" style={{ marginLeft: 8, color: '#000' }}>{pendingPayments.length} pending</Tag>}
         </span>
       ),
       children: <PaymentsTab businessId={businessId} onPaymentComplete={refetchPayments} />,
@@ -1721,9 +1860,9 @@ export default function ApprovedBusinessView({ business, onRefresh }) {
                 <Button
                   icon={<EditOutlined />}
                   onClick={() => setEditOpen(true)}
-                  disabled={hasPendingEditRequest}
+                  disabled={hasPendingEditRequest || pendingPayments.length > 0}
                 >
-                  {hasPendingEditRequest ? 'Edit Request Pending' : 'Request Edits'}
+                  {pendingPayments.length > 0 ? 'Clear Payments First' : hasPendingEditRequest ? 'Edit Request Pending' : 'Request Edits'}
                 </Button>
               )}
               
@@ -1732,8 +1871,10 @@ export default function ApprovedBusinessView({ business, onRefresh }) {
                   icon={<StopOutlined />}
                   danger
                   onClick={() => setRetireOpen(true)}
+                  disabled={pendingPayments.length > 0}
+                  title={pendingPayments.length > 0 ? 'Clear all pending payments before retiring' : undefined}
                 >
-                  Retire Business
+                  {pendingPayments.length > 0 ? 'Clear Payments First' : 'Retire Business'}
                 </Button>
               )}
             </Space>
@@ -1741,7 +1882,7 @@ export default function ApprovedBusinessView({ business, onRefresh }) {
 
           {/* Permit Application Progress Card */}
           <Card title="Permit Application Progress" size="small" >
-            <ProgressStepper stepStatuses={stepStatuses} currentStep={currentStep} token={token} business={business} />
+            <ProgressStepper stepStatuses={stepStatuses} currentStep={currentStep} token={token} business={business} payments={payments} />
           </Card>
 
           {/* Business Details Card */}

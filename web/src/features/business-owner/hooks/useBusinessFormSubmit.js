@@ -13,7 +13,8 @@ function useBusinessFormSubmit({
   draftBusinessId,
   setDraftBusinessId,
   setSubmitted,
-  setHasUnsavedChanges
+  setHasUnsavedChanges,
+  updateFn, // Optional: override updateBusiness (e.g. officer walk-in uses PUT /api/business/walk-in/:id)
 }) {
   const { message } = App.useApp()
   const [submitting, setSubmitting] = useState(false)
@@ -88,7 +89,8 @@ function useBusinessFormSubmit({
         if (!existingBusinessId) {
           throw new Error('No business ID found for update')
         }
-        response = await updateBusiness(existingBusinessId, payload)
+        const doUpdate = updateFn || updateBusiness
+        response = await doUpdate(existingBusinessId, payload)
       } else {
         response = await addBusiness(payload)
         if (response.businessId) {

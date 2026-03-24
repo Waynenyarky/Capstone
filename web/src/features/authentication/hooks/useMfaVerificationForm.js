@@ -17,7 +17,9 @@ export function useMfaVerificationForm({ email, onSubmit, form }) {
         onSubmit({ 
           email, 
           resetToken: result.resetToken, 
-          allowedToReset: result.allowedToReset 
+          allowedToReset: result.allowedToReset,
+          totpCode: values.code,  // Pass the TOTP code for password change flow
+          code: values.code       // Also pass as 'code' for compatibility
         })
       }
     } catch (err) {

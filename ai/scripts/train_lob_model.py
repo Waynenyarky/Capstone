@@ -36,10 +36,13 @@ from sklearn.calibration import CalibratedClassifierCV
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 AI_ROOT = os.path.dirname(SCRIPT_DIR)
+NATURAL_DATASET = os.path.join(AI_ROOT, "datasets", "lob_natural_dataset.json")
 TRAIN_DATASET = os.path.join(AI_ROOT, "datasets", "lob_recommendation_train.json")
 BALANCED_DATASET = os.path.join(AI_ROOT, "datasets", "lob_recommendation_dataset_balanced_4000.json")
 FULL_DATASET = os.path.join(AI_ROOT, "datasets", "lob_recommendation_dataset.json")
-if os.path.exists(TRAIN_DATASET):
+if os.path.exists(NATURAL_DATASET):
+    DEFAULT_DATASET = NATURAL_DATASET
+elif os.path.exists(TRAIN_DATASET):
     DEFAULT_DATASET = TRAIN_DATASET
 elif os.path.exists(BALANCED_DATASET):
     DEFAULT_DATASET = BALANCED_DATASET
@@ -55,9 +58,12 @@ CANONICAL_TOKEN_MAP = {
     "tindahan": "store",
     "kainan": "restaurant",
     "karinderia": "eatery",
+    "karinderya": "eatery",
+    "carinderia": "eatery",
     "botika": "pharmacy",
     "sanglaan": "pawnshop",
     "nagbebenta": "selling",
+    "nagtitinda": "selling",
     "nagde-deliver": "delivery",
     "nagpapautang": "lending",
     "bukid": "farm",
@@ -65,6 +71,45 @@ CANONICAL_TOKEN_MAP = {
     "bigas": "rice",
     "kape": "coffee",
     "gupit": "haircut",
+    # Food-related Filipino words
+    "pagkain": "food",
+    "lutong-bahay": "homecookedfood",
+    "lutong": "cooked",
+    "luto": "cooked",
+    "ulam": "viand",
+    "merienda": "snack",
+    "kakanin": "ricecake",
+    "pandesal": "bread",
+    "tinapay": "bread",
+    "panaderia": "bakery",
+    "inumin": "drinks",
+    "ihaw": "grilled",
+    "prito": "fried",
+    "nilaga": "boiled",
+    "sinigang": "soupdish",
+    "adobo": "stewdish",
+    "lugaw": "porridge",
+    "goto": "porridge",
+    "bulalo": "soupdish",
+    "tusok-tusok": "streetfood",
+    "fishball": "streetfood",
+    "kwek-kwek": "streetfood",
+    "siomai": "dimsum",
+    "lumpia": "springroll",
+    "halo-halo": "dessert",
+    "manok": "chicken",
+    "baboy": "pork",
+    "baka": "beef",
+    "isda": "fish",
+    "prutas": "fruits",
+    "karne": "meat",
+    "palengke": "market",
+    "damit": "clothing",
+    "sapatos": "shoes",
+    "gamot": "medicine",
+    "laba": "laundry",
+    "sakahan": "farm",
+    "taniman": "plantation",
 }
 
 FILLER_SUFFIXES = (" sa barangay", " near palengke", " po", " naman")

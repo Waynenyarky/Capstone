@@ -60,6 +60,8 @@ function formatRetirementItem(profile, business) {
   return {
     userId: profile.userId,
     businessId: business.businessId || String(business._id || ''),
+    _businessSubdocId: String(business._id || ''),
+    _canonicalBusinessId: business.businessId || '',
     businessName: business.businessName || business.registeredBusinessName || 'N/A',
     retirementStatus,
     retirementRequestedAt: business.retirementRequestedAt,

@@ -1,7 +1,7 @@
 import { useAuthSession } from '@/features/authentication/hooks'
 import { useLoggedInMfaManager } from '@/features/authentication/hooks'
-import { useCallback, useState, useEffect } from 'react'
-import { changePasswordVerify, changePasswordStart } from '@/features/authentication/services'
+import { useCallback, useState, useEffect, useRef } from 'react'
+import { changePasswordVerify } from '@/features/authentication/services'
 import { useAuthNotification, useNotifier } from '@/shared/notifications'
 
 export function useLoggedInPasswordChangeFlow() {
@@ -32,12 +32,14 @@ export function useLoggedInPasswordChangeFlow() {
   }, [])
 
   const handleTotpVerified = useCallback(async (result) => {
-    // After TOTP verification, we need to start the password change process
-    // with a special bypass token since TOTP was already verified
+    // After TOTP verification, store the actual TOTP code for password change
     try {
       setTotpVerified(true)
-      // Set a special code to indicate TOTP was verified
-      setCode('TOTP_VERIFIED')
+      // Store the actual TOTP code that was verified (passed from the form)
+      const totpCode = result?.totpCode || result?.code || ''
+      if (totpCode) {
+        setCode(totpCode)
+      }
       setStep('password')
     } catch (err) {
       console.error('Error after TOTP verification:', err)
@@ -45,8 +47,13 @@ export function useLoggedInPasswordChangeFlow() {
     }
   }, [error])
 
-  const handleMfaVerified = useCallback(() => {
-    // After MFA verification, proceed to password change
+  const handleMfaVerified = useCallback((result) => {
+    // After MFA verification, store the actual code and proceed to password change
+    setTotpVerified(true)
+    const totpCode = result?.totpCode || result?.code || ''
+    if (totpCode) {
+      setCode(totpCode)
+    }
     setStep('password')
   }, [])
 
@@ -56,25 +63,28 @@ export function useLoggedInPasswordChangeFlow() {
     setStep('password')
   }, [])
 
+  // Use a ref to track the latest code value (avoids stale closure issues)
+  const codeRef = useRef('')
+  useEffect(() => {
+    codeRef.current = code
+  }, [code])
+
   const handlePasswordSubmit = useCallback(async (values) => {
     if (!values?.newPassword || values.newPassword !== values.confirmPassword) return
     try {
-      if (totpVerified) {
-        // For TOTP users, we need to first start the password change process, then verify it
-        const startResult = await changePasswordStart({ email, newPassword: values.newPassword })
-        if (startResult?.sent) {
-          // Now verify with a special code since TOTP was already verified
-          await changePasswordVerify({
-            code: 'TOTP_VERIFIED',
-            newPassword: values.newPassword,
-          })
-        }
-      } else {
-        // Always use the verify endpoint with the code from the OTP flow
-        // For email OTP users: code comes from email OTP verification
-        // For passkey users: code comes from PASSKEY_BYPASS
+      // Read from ref to get the latest code value
+      const currentCode = codeRef.current
+      
+      if (currentCode && currentCode !== '') {
+        // Use the verification code (either email OTP or TOTP code)
         await changePasswordVerify({
-          code: code || 'PASSKEY_BYPASS',
+          code: currentCode,
+          newPassword: values.newPassword,
+        })
+      } else {
+        // Passkey-only users: use PASSKEY_BYPASS (only if passkey step-up was completed)
+        await changePasswordVerify({
+          code: 'PASSKEY_BYPASS',
           newPassword: values.newPassword,
         })
       }
@@ -84,7 +94,7 @@ export function useLoggedInPasswordChangeFlow() {
       console.error('Change password error:', err)
       error(err, 'Failed to change password')
     }
-  }, [email, code, totpVerified, notificationSuccess, error])
+  }, [email, totpVerified, notificationSuccess, error])
 
   const reset = useCallback(() => {
     setStep('send')

@@ -22,7 +22,13 @@ router.get('/', requireJwt, requireRole(['business_owner']), async (req, res) =>
       })
     }
 
-    const businessIds = profile.businesses?.map((b) => b.businessId) || []
+    // Collect both businessId and subdoc _id for each business so either alias matches
+    const businessIds = []
+    const businessIdSet = new Set()
+    for (const b of profile.businesses || []) {
+      if (b.businessId) { businessIds.push(b.businessId); businessIdSet.add(b.businessId) }
+      if (b._id) { const sid = String(b._id); businessIds.push(sid); businessIdSet.add(sid) }
+    }
     if (businessIds.length === 0) {
       return res.json({
         data: [],
@@ -33,14 +39,23 @@ router.get('/', requireJwt, requireRole(['business_owner']), async (req, res) =>
     const filter = { businessProfileId: profile._id }
 
     if (businessId) {
-      if (!businessIds.includes(businessId)) {
+      if (!businessIdSet.has(businessId)) {
         return res.status(403).json({
           error: { code: 'FORBIDDEN', message: 'Business does not belong to user' }
         })
       }
-      filter.businessId = businessId
+      // Find the matching business and query with all its aliases
+      const matchedBiz = (profile.businesses || []).find(
+        (b) => b.businessId === businessId || String(b._id) === businessId
+      )
+      if (matchedBiz) {
+        const aliases = [matchedBiz.businessId, String(matchedBiz._id)].filter(Boolean)
+        filter.businessId = aliases.length > 1 ? { $in: [...new Set(aliases)] } : aliases[0]
+      } else {
+        filter.businessId = businessId
+      }
     } else {
-      filter.businessId = { $in: businessIds }
+      filter.businessId = { $in: [...new Set(businessIds)] }
     }
 
     if (status) filter.status = status
@@ -64,7 +79,9 @@ router.get('/', requireJwt, requireRole(['business_owner']), async (req, res) =>
 
     const businessMap = {}
     for (const b of profile.businesses || []) {
-      businessMap[b.businessId] = b.businessName || b.registeredBusinessName || 'Unknown'
+      const name = b.businessName || b.registeredBusinessName || 'Unknown'
+      if (b.businessId) businessMap[b.businessId] = name
+      if (b._id) businessMap[String(b._id)] = name
     }
 
     const items = inspections.map((i) => ({
@@ -111,7 +128,11 @@ router.get('/upcoming', requireJwt, requireRole(['business_owner']), async (req,
       return res.json({ data: [] })
     }
 
-    const businessIds = profile.businesses?.map((b) => b.businessId) || []
+    const businessIds = []
+    for (const b of profile.businesses || []) {
+      if (b.businessId) businessIds.push(b.businessId)
+      if (b._id) businessIds.push(String(b._id))
+    }
     if (businessIds.length === 0) {
       return res.json({ data: [] })
     }
@@ -119,7 +140,7 @@ router.get('/upcoming', requireJwt, requireRole(['business_owner']), async (req,
     const now = new Date()
     const inspections = await Inspection.find({
       businessProfileId: profile._id,
-      businessId: { $in: businessIds },
+      businessId: { $in: [...new Set(businessIds)] },
       status: 'pending',
       scheduledDate: { $gte: now }
     })
@@ -130,7 +151,9 @@ router.get('/upcoming', requireJwt, requireRole(['business_owner']), async (req,
 
     const businessMap = {}
     for (const b of profile.businesses || []) {
-      businessMap[b.businessId] = b.businessName || b.registeredBusinessName || 'Unknown'
+      const name = b.businessName || b.registeredBusinessName || 'Unknown'
+      if (b.businessId) businessMap[b.businessId] = name
+      if (b._id) businessMap[String(b._id)] = name
     }
 
     const items = inspections.map((i) => ({
@@ -183,15 +206,21 @@ router.get('/:inspectionId', requireJwt, requireRole(['business_owner']), async 
       })
     }
 
-    const business = profile.businesses?.find((b) => b.businessId === inspection.businessId)
+    const business = profile.businesses?.find((b) => b.businessId === inspection.businessId || String(b._id) === inspection.businessId)
 
-    const violationCount = await Violation.countDocuments({ inspectionId })
+    const violations = await Violation.find({ inspectionId })
+      .populate('inspectorId', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .lean()
 
     return res.json({
       data: {
         ...inspection,
         businessName: business?.businessName || business?.registeredBusinessName || 'Unknown',
         businessAddress: business?.businessAddress || '',
+        inspectorName: inspection.inspectorId
+          ? `${inspection.inspectorId.firstName} ${inspection.inspectorId.lastName}`
+          : null,
         inspector: inspection.inspectorId
           ? {
               name: `${inspection.inspectorId.firstName} ${inspection.inspectorId.lastName}`,
@@ -201,7 +230,8 @@ router.get('/:inspectionId', requireJwt, requireRole(['business_owner']), async 
         assignedBy: inspection.assignedBy
           ? `${inspection.assignedBy.firstName} ${inspection.assignedBy.lastName}`
           : null,
-        violationCount
+        violations,
+        violationCount: violations.length,
       }
     })
   } catch (err) {

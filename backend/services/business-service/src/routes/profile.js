@@ -201,6 +201,16 @@ router.get('/businesses', requireJwt, requireRole(['business_owner']), async (re
     const profile = await businessProfileService.getProfile(req._userId)
     let businesses = profile.businesses || []
 
+    // Hide walk-in drafts created by officers (only while still in draft status)
+    // Also catch legacy walk-in drafts (before createdByOfficer flag) via WI- reference prefix
+    businesses = businesses.filter(business => {
+      const isDraft = (business.applicationStatus || '').toLowerCase() === 'draft'
+      if (!isDraft) return true
+      if (business.createdByOfficer) return false
+      if ((business.applicationReferenceNumber || '').startsWith('WI-')) return false
+      return true
+    })
+
     // Apply search filter
     if (search) {
       const searchLower = search.toLowerCase()

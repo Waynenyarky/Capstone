@@ -11,7 +11,19 @@ export function useVerificationConfirmForm({ onSubmit, email } = {}) {
   const { notification } = App.useApp()
 
   const handleFinish = useCallback(async (values) => {
-    const payload = { currentEmail: email, code: values.verificationCode }
+    // Wait a tick to ensure form state is updated (especially after paste)
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    let codeRaw = form.getFieldValue('verificationCode') || values?.verificationCode
+    if (Array.isArray(codeRaw)) codeRaw = codeRaw.join('')
+
+    const normalized = String(codeRaw || '').replace(/[^0-9]/g, '').slice(0, 6)
+    if (!normalized || normalized.length !== 6) {
+      form.setFields([{ name: 'verificationCode', errors: ['Code must be exactly 6 digits'] }])
+      return
+    }
+
+    const payload = { currentEmail: email, code: normalized }
     try {
       setSubmitting(true)
       await changeEmailConfirmVerify(payload)

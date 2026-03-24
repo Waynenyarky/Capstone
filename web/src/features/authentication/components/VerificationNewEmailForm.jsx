@@ -7,18 +7,6 @@ const { Title, Text } = Typography
 export default function VerificationNewEmailForm({ email, currentEmail, onSubmit, title } = {}) {
   const { form, handleFinish, isSubmitting } = useVerifyChangeEmailForm({ email, currentEmail, onSubmit })
   
-  const handleSubmit = async (values) => {
-    // Normalize OTP value to ensure it's a single 6-digit string without spaces
-    const normalizedCode = String(values.verificationCode || '').replace(/\D/g, '').slice(0, 6)
-    // Ensure it's exactly 6 digits before sending
-    if (normalizedCode.length !== 6) {
-      // Let the form validation handle the length requirement
-      await handleFinish({ ...values, verificationCode: normalizedCode })
-      return
-    }
-    await handleFinish({ ...values, verificationCode: normalizedCode })
-  }
-  
   return (
     <div style={{ maxWidth: 400, margin: '0 auto' }}>
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
@@ -29,37 +17,36 @@ export default function VerificationNewEmailForm({ email, currentEmail, onSubmit
         </Text>
       </div>
 
-      <Form name="verification_new" form={form} layout="vertical" onFinish={handleSubmit}  requiredMark={false}>
+      <Form name="verification_new" form={form} layout="vertical" onFinish={handleFinish} requiredMark={false}>
         <Form.Item 
           name="verificationCode" 
           rules={[
             { required: true, message: 'Please enter the verification code' },
-            { pattern: /^[0-9]{6}$/, message: 'Please enter a 6-digit code' }
+            { pattern: /^[0-9]{6}$/, message: 'Code must be exactly 6 digits' }
           ]}
           style={{ marginBottom: 32 }}
+          getValueFromEvent={(val) => {
+            // Input.OTP returns a string directly
+            if (typeof val === 'string') return val.replace(/\D/g, '').slice(0, 6)
+            if (Array.isArray(val)) return val.join('').replace(/\D/g, '').slice(0, 6)
+            return ''
+          }}
         >
-          <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-            <Input.OTP 
-              length={6} 
-              style={{ maxWidth: 280, justifyContent: 'center' }}
-              inputType="numeric"
-              mask={false}
-              onChange={(value) => {
-                // Ensure the form value is always a string without spaces
-                const cleanValue = String(value || '').replace(/\D/g, '').slice(0, 6)
-                form.setFieldsValue({ verificationCode: cleanValue })
-              }}
-              onKeyDown={(e) => {
-                const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
-                if (allowedKeys.includes(e.key)) return
-                if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
-                if (!/^[0-9]$/.test(e.key)) {
-                  e.preventDefault()
-                  e.stopPropagation()
-                }
-              }}
-            />
-          </div>
+          <Input.OTP 
+            length={6} 
+            style={{ width: '100%', display: 'flex', justifyContent: 'center' }}
+            inputType="numeric"
+            mask={false}
+            onKeyDown={(e) => {
+              const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
+              if (allowedKeys.includes(e.key)) return
+              if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
+              if (!/^[0-9]$/.test(e.key)) {
+                e.preventDefault()
+                e.stopPropagation()
+              }
+            }}
+          />
         </Form.Item>
         
         <Form.Item style={{ marginBottom: 16 }}>

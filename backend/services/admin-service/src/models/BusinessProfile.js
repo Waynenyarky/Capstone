@@ -182,6 +182,8 @@ const BusinessProfileSchema = new mongoose.Schema(
       submittedAt: { type: Date },
       submittedToLguOfficer: { type: Boolean, default: false },
       isSubmitted: { type: Boolean, default: false },
+      // Walk-in flag: true when created by an LGU officer on behalf of the business owner
+      createdByOfficer: { type: Boolean, default: false },
       // Permit / form application (driven by form definitions)
       formType: { type: String, default: '' },
       formDefinitionId: { type: mongoose.Schema.Types.Mixed, default: null },
@@ -213,6 +215,15 @@ BusinessProfileSchema.plugin(encryptionPlugin, {
   deterministicFields: [],
   nestedPaths: ['ownerIdentity', 'consent'],
   arrayPaths: ['businesses'],
+  arrayPathsExclude: {
+    businesses: [
+      'businessId', 'applicationStatus', 'applicationReferenceNumber',
+      'businessName', 'registeredBusinessName', 'businessPlateNo',
+      'businessStatus', 'registrationStatus', 'retirementStatus',
+      'applicationId', 'applicationType', 'isSubmitted', 'submittedToLguOfficer',
+      'reviewedBy', 'claimedBy', 'createdByOfficer',
+    ],
+  },
   mixedPaths: ['businessRegistration', 'location', 'compliance', 'profileDetails', 'notifications'],
 })
 

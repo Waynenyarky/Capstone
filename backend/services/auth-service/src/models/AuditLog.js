@@ -94,6 +94,13 @@ const AuditLogSchema = new mongoose.Schema(
         'avatar_uploaded',
         'avatar_deleted',
         'pis_update',
+        // Officer work events (written by admin-service, queried by /my-actions)
+        'permit_review',
+        'permit_review_started',
+        'application_claimed',
+        'application_released',
+        'application_transferred',
+        'decision_revoked',
       ],
       index: true,
     },

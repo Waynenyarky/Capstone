@@ -29,6 +29,7 @@ const STATUS_CONFIG = {
   upheld: { color: 'success', label: 'Upheld' },
   overturned: { color: 'error', label: 'Overturned' },
   closed: { color: 'default', label: 'Closed' },
+  appeal_pending: { color: 'warning', label: 'Appeal Pending' },
   pending_assignment: { color: 'warning', label: 'Needs Assignment' },
   in_progress: { color: 'processing', label: 'In Progress' },
   completed: { color: 'success', label: 'Completed' },
@@ -48,29 +49,48 @@ const TAB_ICONS = {
   logs: <HistoryOutlined />,
 }
 
-/** Build a short summary of request types for consolidated business cards */
+/** Build a short summary of PENDING request types for consolidated business cards */
 function getBusinessRequestSummary(requests) {
   if (!requests) return []
   const parts = []
+  
+  // Application/Renewal - only show if pending
   if (requests.application) {
-    const appType = requests.application._itemType === 'renewals' ? 'Renewal' : 'Application'
-    parts.push({ label: appType, icon: <FileTextOutlined style={{ fontSize: 11 }} /> })
+    const appStatus = requests.application.status || requests.application.applicationStatus || ''
+    const isPending = ['submitted', 'under_review', 'resubmit', 'pending', 'pending_renewal', 'renewal_submitted', 'appeal_pending'].includes(appStatus)
+    if (isPending) {
+      const appType = requests.application._itemType === 'renewals' ? 'Renewal' : 'Application'
+      parts.push({ label: `${appType} Pending`, icon: <FileTextOutlined style={{ fontSize: 11 }} />, color: 'processing' })
+    }
   }
-  if (requests.editRequests?.length > 0) {
-    const n = requests.editRequests.length
-    parts.push({ label: `${n} Edit${n > 1 ? 's' : ''}`, icon: <EditOutlined style={{ fontSize: 11 }} /> })
+  
+  // Edit Requests - only show pending ones
+  const pendingEdits = (requests.editRequests || []).filter(r => r.status === 'pending')
+  if (pendingEdits.length > 0) {
+    parts.push({ label: 'Edit Request Pending', icon: <EditOutlined style={{ fontSize: 11 }} />, color: 'processing' })
   }
-  if (requests.appeals?.length > 0) {
-    const n = requests.appeals.length
-    parts.push({ label: `${n} Appeal${n > 1 ? 's' : ''}`, icon: <AuditOutlined style={{ fontSize: 11 }} /> })
+  
+  // Appeals - only show pending ones
+  const pendingAppeals = (requests.appeals || []).filter(a => ['submitted', 'pending', 'under_review'].includes(a.status))
+  if (pendingAppeals.length > 0) {
+    parts.push({ label: 'Appeal Pending', icon: <AuditOutlined style={{ fontSize: 11 }} />, color: 'warning' })
   }
+  
+  // Cessation - only show if pending
   if (requests.cessation) {
-    parts.push({ label: 'Cessation', icon: <StopOutlined style={{ fontSize: 11 }} /> })
+    const cessStatus = requests.cessation.retirementStatus || requests.cessation.status || ''
+    const isPending = ['requested', 'inspector_verified', 'pending_tax_payment'].includes(cessStatus)
+    if (isPending) {
+      parts.push({ label: 'Cessation Pending', icon: <StopOutlined style={{ fontSize: 11 }} />, color: 'warning' })
+    }
   }
-  if (requests.inspections?.length > 0) {
-    const n = requests.inspections.length
-    parts.push({ label: `${n} Inspection${n > 1 ? 's' : ''}`, icon: <SafetyCertificateOutlined style={{ fontSize: 11 }} /> })
+  
+  // Inspections - only show pending ones
+  const pendingInspections = (requests.inspections || []).filter(i => ['pending_assignment', 'pending', 'in_progress'].includes(i.status))
+  if (pendingInspections.length > 0) {
+    parts.push({ label: 'Inspection Pending', icon: <SafetyCertificateOutlined style={{ fontSize: 11 }} />, color: 'processing' })
   }
+  
   return parts
 }
 
@@ -89,7 +109,7 @@ export default function OfficerItemCard({ item, type, isSelected, onClick }) {
       case 'appeals':
         return item.businessName || `Appeal #${(item._id || '').slice(-6)}`
       case 'editRequests':
-        return item.fieldName || 'Edit Request'
+        return item.businessName || item.fieldName || 'Edit Request'
       case 'cessation':
         return item.businessName || item.businesses?.[0]?.businessName || 'Cessation Request'
       case 'inspections':
@@ -135,7 +155,7 @@ export default function OfficerItemCard({ item, type, isSelected, onClick }) {
       case 'appeals':
         return item.appealType || item.description?.slice(0, 60) || null
       case 'editRequests':
-        return item.businessId ? `Business: ${item.businessId.slice(-8)}` : null
+        return item.fieldName ? `Edit: ${item.fieldName}` : null
       case 'cessation':
         return item.reason?.slice(0, 60) || null
       case 'inspections': {
@@ -168,7 +188,7 @@ export default function OfficerItemCard({ item, type, isSelected, onClick }) {
 
   // Determine if any request in a consolidated card needs attention
   const hasAttentionNeeded = isBusinessCard && item._requests && (
-    (item._requests.application && ['submitted', 'resubmit', 'under_review'].includes(item._requests.application.status || item._requests.application.applicationStatus)) ||
+    (item._requests.application && ['submitted', 'resubmit', 'under_review', 'appeal_pending'].includes(item._requests.application.status || item._requests.application.applicationStatus)) ||
     item._requests.editRequests?.some(r => r.status === 'pending') ||
     item._requests.appeals?.some(a => ['submitted', 'pending'].includes(a.status)) ||
     (item._requests.cessation && ['requested', 'inspector_verified', 'pending_tax_payment'].includes(item._requests.cessation.retirementStatus)) ||
@@ -205,7 +225,7 @@ export default function OfficerItemCard({ item, type, isSelected, onClick }) {
       {isBusinessCard ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
           {requestSummary.map((part, idx) => (
-            <Tag key={idx} style={{ fontSize: 10, margin: 0, lineHeight: '18px', padding: '0 6px' }}>
+            <Tag key={idx} color={part.color || 'default'} style={{ fontSize: 10, margin: 0, lineHeight: '18px', padding: '0 6px' }}>
               <Space size={2}>{part.icon}{part.label}</Space>
             </Tag>
           ))}

@@ -12,7 +12,7 @@ vi.mock('@/shared/theme/ThemeProvider.jsx', () => ({
 vi.mock('@/features/authentication/hooks', () => ({
   useAuthSession: () => ({ currentUser: { email: 'jane@example.com', role: 'user' }, login: () => {}, logout: () => {} }),
   useLoginVerificationForm: () => ({ form: undefined, handleFinish: () => {}, isSubmitting: false, prefillDevCode: () => {} }),
-  useTotpVerificationForm: () => ({ form: undefined, handleFinish: () => {}, isSubmitting: false }),
+  useTotpVerificationForm: () => ({ code: '', setCode: () => {}, codeError: '', handleVerify: () => {}, isSubmitting: false }),
   useResendLoginCode: () => ({ isSending: false, handleResend: () => {}, isCooling: false, remaining: 0 }),
   useMfaSetup: () => ({ loading: false, qrDataUrl: null, uri: null, secret: 'S3CR3T', code: '', setCode: () => {}, enabled: false, handleSetup: () => {}, handleVerify: () => {}, handleDisable: () => {}, markMfaComplete: () => {}, showSecret: false, toggleShowSecret: () => {}, confirmedSaved: false, setConfirmedSaved: () => {}, handleCopy: () => {} }),
   useConfirmLogoutModal: () => ({ open: false, show: () => {}, hide: () => {}, confirming: false, handleConfirm: () => {} }),

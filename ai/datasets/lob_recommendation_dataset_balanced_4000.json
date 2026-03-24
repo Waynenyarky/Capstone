@@ -47998,5 +47998,305 @@
         "psicCode": "5629"
       }
     ]
+  },
+  {
+    "businessDescription": "nagtitinda kami ng mga lutong-bahay na pagkain sa gilid ng daan sa harap ng bahay namin",
+    "language": "filipino",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Food cart / food stall",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "nagbebenta ako ng ulam at kanin sa labas ng bahay namin tuwing tanghali",
+    "language": "filipino",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Food cart / food stall",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "nagtitinda kami ng pagkain sa kanto, meron kaming lugaw, goto, at tokwa",
+    "language": "filipino",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Food cart / food stall",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "may kariton kami ng fishball, kwek-kwek, at tusok-tusok sa harap ng school",
+    "language": "filipino",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Food cart / food stall",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "nagluluto kami ng pagkain at ibinebenta sa mga kapitbahay at sa mga nagdadaan",
+    "language": "filipino",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Food cart / food stall",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "nagbebenta po kami ng lutong pagkain sa labas, may adobo, sinigang, at iba pa",
+    "language": "filipino",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Food cart / food stall",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "nagtitinda ng kakanin at merienda sa palengke tuwing umaga",
+    "language": "filipino",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Food cart / food stall",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "selling home-cooked food on the street in front of our house",
+    "language": "english",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Food cart / food stall",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "we sell cooked food and snacks by the roadside near our barangay hall",
+    "language": "english",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Food cart / food stall",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "i sell street food like fishball, kikiam, and kwek-kwek outside the school",
+    "language": "english",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Food cart / food stall",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "we cook food at home and sell it on the sidewalk every day",
+    "language": "english",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Food cart / food stall",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "nagtitinda kami ng ihaw-ihaw at inumin sa harap ng bahay namin sa gabi",
+    "language": "filipino",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Food cart / food stall",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "nagbebenta ng prito at ihaw na street food sa may kanto namin",
+    "language": "filipino",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Food cart / food stall",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "may food cart kami sa tabi ng kalsada, siomai, lumpia, at juice ang benta",
+    "language": "filipino",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Food cart / food stall",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "nagtitinda ng halo-halo at mais con yelo sa harap ng school tuwing tanghali",
+    "language": "filipino",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Food cart / food stall",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "may karinderia kami na nagluluto ng ulam at kanin para sa mga manggagawa sa paligid",
+    "language": "filipino",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Restaurant / eatery",
+        "psicCode": "5610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "karinderia po ito, may sinigang, adobo, at iba pang lutong bahay araw-araw",
+    "language": "filipino",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Restaurant / eatery",
+        "psicCode": "5610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "we run a small eatery that serves home-cooked Filipino meals like adobo and sinigang",
+    "language": "english",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Restaurant / eatery",
+        "psicCode": "5610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "meron kaming karinderya na nagse-serve ng almusal at tanghalian sa mga tao sa barangay",
+    "language": "filipino",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Restaurant / eatery",
+        "psicCode": "5610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "kainan po ang negosyo namin, nagluluto kami ng pagkain para sa mga trabahador dito sa area",
+    "language": "filipino",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Restaurant / eatery",
+        "psicCode": "5610"
+      }
+    ]
+  },
+  {
+    "businessDescription": "nagbebenta kami ng tinapay at pandesal sa umaga, may panaderia po kami",
+    "language": "filipino",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Bakery / pastry shop",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "we bake and sell bread, pandesal, and pastries every morning in our neighborhood",
+    "language": "english",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Bakery / pastry shop",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "panaderia po ang negosyo namin, may tinapay, ensaymada, at cake",
+    "language": "filipino",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Bakery / pastry shop",
+        "psicCode": "5629"
+      }
+    ]
+  },
+  {
+    "businessDescription": "tumatanggap kami ng catering para sa mga handaan at okasyon sa barangay",
+    "language": "filipino",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Catering services",
+        "psicCode": "5621"
+      }
+    ]
+  },
+  {
+    "businessDescription": "we cater food for fiestas, birthdays, and events in the community",
+    "language": "english",
+    "recommendations": [
+      {
+        "taxCode": "FDS",
+        "lineOfBusiness": "food_service",
+        "detailedLine": "Catering services",
+        "psicCode": "5621"
+      }
+    ]
   }
 ]

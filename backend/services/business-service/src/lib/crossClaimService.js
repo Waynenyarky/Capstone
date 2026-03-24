@@ -37,7 +37,7 @@ async function crossClaimForBusiness(businessId, officerId, options = {}) {
         businessId: String(businessId),
         status: 'pending',
       }
-      if (skipModel === 'EditRequest' && skipId) {
+      if (skipId) {
         editFilter._id = { $ne: skipId }
       }
       const editResult = await EditRequest.updateMany(
@@ -49,11 +49,27 @@ async function crossClaimForBusiness(businessId, officerId, options = {}) {
 
     // 2. Claim/release open Appeals for this business
     if (skipModel !== 'Appeal') {
+      // Resolve all aliases for this businessId (subdoc _id + businessId)
+      const appealBusinessIds = [String(businessId)]
+      try {
+        const profileForAliases = await BusinessProfile.findOne(buildBusinessLookupQuery(businessId))
+        if (profileForAliases) {
+          const target = String(businessId)
+          const biz = profileForAliases.businesses.find(
+            b => String(b.businessId || '') === target || String(b._id || '') === target
+          )
+          if (biz) {
+            if (biz.businessId && !appealBusinessIds.includes(String(biz.businessId))) appealBusinessIds.push(String(biz.businessId))
+            if (biz._id && !appealBusinessIds.includes(String(biz._id))) appealBusinessIds.push(String(biz._id))
+          }
+        }
+      } catch (_) { /* ignore alias lookup errors */ }
+
       const appealFilter = {
-        businessId: String(businessId),
-        status: { $in: ['submitted', 'under_review'] },
+        businessId: { $in: appealBusinessIds },
+        status: { $in: ['submitted', 'under_review', 'pending'] },
       }
-      if (skipModel === 'Appeal' && skipId) {
+      if (skipId) {
         appealFilter._id = { $ne: skipId }
       }
       const appealResult = await Appeal.updateMany(
@@ -92,7 +108,7 @@ async function crossClaimForBusiness(businessId, officerId, options = {}) {
         if (businessIndex !== -1) {
           const business = profile.businesses[businessIndex]
           const appStatus = business.applicationStatus || ''
-          const claimableStatuses = ['submitted', 'resubmit', 'under_review', 'appeal_pending']
+          const claimableStatuses = ['submitted', 'resubmit', 'under_review', 'appeal_pending', 'rejected']
           if (claimableStatuses.includes(appStatus)) {
             profile.businesses[businessIndex].reviewedBy = officerId
             profile.businesses[businessIndex].updatedAt = new Date()

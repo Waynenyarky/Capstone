@@ -855,7 +855,8 @@ export default function ApplicationDetailPanel({
   application: initialApplication,
   onReviewComplete,
   onReview,
-  onReviewStarted
+  onReviewStarted,
+  onSelectApplication,
 }) {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
@@ -1416,7 +1417,7 @@ export default function ApplicationDetailPanel({
         <div>
           {paymentGenStatus.paymentsGenerated ? (
             <div>
-              <Text>Generated {paymentGenStatus.paymentGenerationMetadata?.paymentCount || 0} payment(s) on {formatDate(paymentGenStatus.paymentsGeneratedAt)}</Text>
+              <Text>Generated {paymentGenStatus.paymentGenerationMetadata?.paymentCount || 0} payment(s) on {formatDate(paymentGenStatus.paymentsGeneratedAt || paymentGenStatus.lastPaymentGenerationAttempt)}</Text>
               <div style={{ marginTop: 8 }}>
                 <Text type="secondary">Total: ₱{(paymentGenStatus.paymentGenerationMetadata?.totalAmount || 0).toLocaleString()}</Text>
               </div>
@@ -1873,6 +1874,7 @@ export default function ApplicationDetailPanel({
           ownerIdentity={ownerIdentity}
           businessReg={businessReg}
           ownerName={ownerName}
+          onSelectApplication={onSelectApplication}
         />
       </div>
     )
@@ -2213,17 +2215,23 @@ export default function ApplicationDetailPanel({
           <div style={{ minHeight: 200, display: 'flex', justifyContent: 'center', alignItems: 'stretch', overflow: 'auto', flexDirection: 'column', width: '100%' }}>
             {documentModal.type === 'image' && (
               <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-                <img
+                <Image
                   src={documentModal.url}
                   alt={documentModal.label}
                   style={{
                     width: '100%',
-                    maxWidth: '100%',
-                    height: 'auto',
                     maxHeight: '70vh',
                     objectFit: 'contain',
                     objectPosition: 'center',
                     display: 'block',
+                  }}
+                  preview={{
+                    mask: (
+                      <Space direction="vertical" size={4}>
+                        <EyeOutlined style={{ fontSize: 16 }} />
+                        <Text style={{ fontSize: 12, color: '#fff' }}>Zoom</Text>
+                      </Space>
+                    ),
                   }}
                 />
               </div>

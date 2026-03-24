@@ -30,6 +30,7 @@ afterAll(async () => {
 })
 
 const Appeal = require('../../../services/business-service/src/models/Appeal')
+const BusinessProfile = require('../../../services/business-service/src/models/BusinessProfile')
 const User = require('../../../services/business-service/src/models/User')
 const Role = require('../../../services/business-service/src/models/Role')
 const { signAccessToken } = require('../../../services/business-service/src/middleware/auth')
@@ -85,6 +86,7 @@ describe('Appeals (2K)', () => {
 
   beforeEach(async () => {
     await Appeal.deleteMany({})
+    await BusinessProfile.deleteMany({})
   })
 
   // ── Happy Paths ──
@@ -174,6 +176,95 @@ describe('Appeals (2K)', () => {
 
       expect(res.status).toBe(200)
       expect(res.body.data.status).toBe('rejected')
+    })
+
+    it('should normalize upheld to approved', async () => {
+      const appeal = await Appeal.create({
+        businessId: 'BIZ-001',
+        appealType: 'wrong_fees',
+        description: 'Incorrect fee',
+        requestedBy: ownerId,
+        status: 'submitted',
+      })
+
+      const res = await request(app)
+        .put(`/api/business/appeals/${appeal._id}`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({
+          status: 'upheld',
+          resolution: 'Legacy UI alias should still resolve correctly.',
+        })
+
+      expect(res.status).toBe(200)
+      expect(res.body.data.status).toBe('approved')
+      expect(res.body.data.reviewedBy).toBe(managerId)
+    })
+
+    it('should normalize overturned to rejected', async () => {
+      const appeal = await Appeal.create({
+        businessId: 'BIZ-001',
+        appealType: 'wrong_fees',
+        description: 'Incorrect fee',
+        requestedBy: ownerId,
+        status: 'submitted',
+      })
+
+      const res = await request(app)
+        .put(`/api/business/appeals/${appeal._id}`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({
+          status: 'overturned',
+          resolution: 'Legacy UI alias should still resolve correctly.',
+        })
+
+      expect(res.status).toBe(200)
+      expect(res.body.data.status).toBe('rejected')
+      expect(res.body.data.reviewedBy).toBe(managerId)
+    })
+
+    it('should move approved appealed business back to under_review', async () => {
+      await BusinessProfile.create({
+        userId: ownerId,
+        businesses: [{
+          businessId: 'BIZ-001',
+          businessName: 'Appealed Business',
+          businessRegistrationNumber: 'DTI-APPEAL-001',
+          applicationStatus: 'rejected',
+          hasActiveAppeal: true,
+          appealId: 'legacy-appeal-id',
+          appealExhausted: true,
+          rejectionReason: 'Old rejection',
+          reviewComments: 'Needs correction',
+        }],
+      })
+
+      const appeal = await Appeal.create({
+        businessId: 'BIZ-001',
+        appealType: 'wrong_fees',
+        description: 'Incorrect fee',
+        requestedBy: ownerId,
+        status: 'submitted',
+      })
+
+      const res = await request(app)
+        .put(`/api/business/appeals/${appeal._id}`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({
+          status: 'approved',
+          resolution: 'Return this application for re-review.',
+        })
+
+      expect(res.status).toBe(200)
+
+      const profile = await BusinessProfile.findOne({ userId: ownerId }).lean()
+      const business = profile.businesses.find((b) => b.businessId === 'BIZ-001')
+
+      expect(business.applicationStatus).toBe('under_review')
+      expect(business.hasActiveAppeal).toBe(false)
+      expect(business.appealId).toBe('')
+      expect(business.appealExhausted).toBe(false)
+      expect(business.rejectionReason).toBe('')
+      expect(business.reviewComments).toBe('')
     })
   })
 
@@ -310,6 +401,24 @@ describe('Appeals (2K)', () => {
         .send({ status: 'approved' })
 
       expect(res.status).toBe(404)
+    })
+
+    it('should reject invalid resolution status', async () => {
+      const appeal = await Appeal.create({
+        businessId: 'BIZ-001',
+        appealType: 'wrong_fees',
+        description: 'Incorrect fee',
+        requestedBy: ownerId,
+        status: 'submitted',
+      })
+
+      const res = await request(app)
+        .put(`/api/business/appeals/${appeal._id}`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({ status: 'not-a-real-status' })
+
+      expect(res.status).toBe(400)
+      expect(res.body.error.code).toBe('VALIDATION_ERROR')
     })
   })
 

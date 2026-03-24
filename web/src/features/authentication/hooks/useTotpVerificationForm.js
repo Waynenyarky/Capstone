@@ -1,25 +1,35 @@
-import { Form } from '@/shared/components/AppForm'
 import { App } from 'antd'
-import { useState } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { verifyLoginTotp } from '@/features/authentication/services/authService'
 import { useNotifier } from '@/shared/notifications.js'
 
 export function useTotpVerificationForm({ onSubmit, email, onSessionExpired } = {}) {
-  const [form] = Form.useForm()
+  const [code, setCode] = useState('')
+  const [codeError, setCodeError] = useState('')
   const [isSubmitting, setSubmitting] = useState(false)
+  const codeRef = useRef('')
   const { success, error } = useNotifier()
   const { notification } = App.useApp()
 
-  const handleFinish = async (values) => {
+  const handleCodeChange = useCallback((val) => {
+    const raw = Array.isArray(val) ? val.join('') : String(val ?? '')
+    const normalized = raw.replace(/\D/g, '').slice(0, 6)
+    codeRef.current = normalized
+    setCode(normalized)
+    if (codeError) setCodeError('')
+  }, [codeError])
+
+  const handleVerify = useCallback(async () => {
     if (!email) {
       error('Your login verification session expired. Please sign in again.', 'Session expired')
       if (typeof onSessionExpired === 'function') onSessionExpired()
       return
     }
 
-    const normalizedCode = String(values?.verificationCode || '').replace(/\D/g, '').slice(0, 6)
-    if (normalizedCode.length !== 6) {
-      form.setFields([{ name: 'verificationCode', errors: ['Code must be exactly 6 digits'] }])
+    // Read directly from ref — always has the latest value, no form sync issues
+    const normalizedCode = codeRef.current
+    if (!normalizedCode || normalizedCode.length !== 6) {
+      setCodeError('Code must be exactly 6 digits')
       return
     }
 
@@ -28,7 +38,8 @@ export function useTotpVerificationForm({ onSubmit, email, onSessionExpired } = 
       setSubmitting(true)
       const user = await verifyLoginTotp(payload)
       success('Code verified')
-      form.resetFields()
+      setCode('')
+      codeRef.current = ''
       if (typeof onSubmit === 'function') onSubmit(user)
     } catch (err) {
       console.error('TOTP verification error:', err)
@@ -41,10 +52,7 @@ export function useTotpVerificationForm({ onSubmit, email, onSessionExpired } = 
           'Account deletion is scheduled. Please use the email verification code sent to your email instead of TOTP. Check your inbox for the verification code.',
           'Use Email OTP Instead'
         )
-        form.setFields([{ 
-          name: 'verificationCode', 
-          errors: ['Account deletion scheduled - please use email OTP code instead'] 
-        }])
+        setCodeError('Account deletion scheduled - please use email OTP code instead')
       } else if (lower.includes('invalid')) {
         const invalidMsg = 'The authenticator code is incorrect. Please try again.'
         notification.error({
@@ -63,7 +71,7 @@ export function useTotpVerificationForm({ onSubmit, email, onSessionExpired } = 
           },
           key: `totp-error-${Date.now()}`,
         })
-        form.setFields([{ name: 'verificationCode', errors: [invalidMsg] }])
+        setCodeError(invalidMsg)
       } else if (lower.includes('expired')) {
         const expiredMsg = 'The authenticator code has expired. Please generate a new code.'
         notification.error({
@@ -82,13 +90,13 @@ export function useTotpVerificationForm({ onSubmit, email, onSessionExpired } = 
           },
           key: `totp-expired-${Date.now()}`,
         })
-        form.setFields([{ name: 'verificationCode', errors: [expiredMsg] }])
+        setCodeError(expiredMsg)
       } else if (errCode === 'mfa_not_enabled' || errCode === 'request_not_found' || errCode === 'user_not_found') {
         error('Your verification session is no longer valid. Please sign in again.', 'Session expired')
         if (typeof onSessionExpired === 'function') onSessionExpired()
       } else if (err?.status === 401) {
         const invalidMsg = 'The authenticator code is incorrect. Please try again.'
-        form.setFields([{ name: 'verificationCode', errors: [invalidMsg] }])
+        setCodeError(invalidMsg)
         error(invalidMsg, 'Incorrect Code')
       } else {
         error(err, 'Failed to verify code')
@@ -96,9 +104,9 @@ export function useTotpVerificationForm({ onSubmit, email, onSessionExpired } = 
     } finally {
       setSubmitting(false)
     }
-  }
+  }, [email, onSubmit, onSessionExpired, success, error, notification])
 
-  return { form, handleFinish, isSubmitting }
+  return { code, setCode: handleCodeChange, codeError, handleVerify, isSubmitting }
 }
 
 export default useTotpVerificationForm

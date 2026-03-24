@@ -56,7 +56,7 @@ async function logAuditView(viewerId, viewedUserId, auditLogId = null) {
 }
 
 // GET /api/auth/audit/my-actions
-// Get current user's work-related action history (excludes security events)
+// Get current user's FULL action history — both work events AND personal security events.
 // Uses raw MongoDB collection to bypass Mongoose enum restrictions, since officer work
 // events (application_claimed, permit_review, etc.) are written by admin-service
 // and the auth-service AuditLog model's enum doesn't include them.
@@ -70,49 +70,39 @@ router.get('/my-actions', requireJwt, async (req, res) => {
     const skip = Number(req.query.skip) || 0
     const eventType = req.query.eventType
 
-    // Import decryption utility
-    let decrypt
+    // Import decryption utility (safe wrapper that never throws)
+    let _decrypt
     try {
-      decrypt = require('../../../../shared/lib/fieldCipher').decrypt
+      _decrypt = require('../../../../shared/lib/fieldCipher').decrypt
     } catch (e) {
-      decrypt = (v) => v
+      _decrypt = null
     }
-
-    // Security events to exclude
-    const securityEvents = [
-      'login', 'logout', 'login_failed', 'signup',
-      'password_change', 'email_change', 'phone_change',
-      'mfa_enabled', 'mfa_disabled', 'mfa_verified', 'mfa_setup_started',
-      'mfa_fingerprint_registered', 'mfa_fingerprint_removed',
-      'webauthn_registered', 'webauthn_removed',
-      'session_invalidated', 'session_timeout',
-      'account_lock', 'account_unlock',
-      'first_login_credentials_changed',
-      'avatar_uploaded', 'avatar_deleted',
-      'profile_update', 'contact_update', 'name_update',
-    ]
+    const decrypt = (v) => {
+      if (!_decrypt) return v
+      try { return _decrypt(v) } catch { return v }
+    }
 
     // Query raw collection directly to bypass Mongoose enum validation
     const collection = mongoose.connection.db.collection('auditlogs')
 
-    // Step 1: Get logs where officer is the direct userId (non-security events)
+    // Step 1: Get ALL logs where officer is the direct userId (includes security + work events)
     const directQuery = {
       userId: new mongoose.Types.ObjectId(viewerIdStr),
-      eventType: { $nin: securityEvents },
     }
     if (eventType) directQuery.eventType = eventType
 
     const directLogs = await collection
       .find(directQuery)
       .sort({ createdAt: -1 })
-      .limit(limit * 2) // fetch extra since we'll merge
+      .limit(limit * 3) // fetch extra since we'll merge with work logs
       .toArray()
 
-    // Step 2: Get ALL recent work-event logs (non-security) and filter by decrypted metadata.officerId
-    // We can't query encrypted metadata directly, so we fetch work events and filter in JS
+    // Step 2: Get work-event logs where officer is identified via metadata.officerId
+    // (these logs have userId = business owner, not the officer)
     const workEventTypes = [
       'permit_review', 'permit_review_started',
       'application_claimed', 'application_released', 'application_transferred',
+      'decision_revoked',
     ]
     const workQuery = {
       eventType: { $in: workEventTypes },
@@ -127,6 +117,9 @@ router.get('/my-actions', requireJwt, async (req, res) => {
 
     // Decrypt metadata and filter by officerId
     const officerWorkLogs = workLogs.filter(log => {
+      // Skip if we already have this log from directQuery (userId matches officer)
+      if (String(log.userId) === viewerIdStr) return false
+
       let meta = log.metadata
       if (typeof meta === 'string') {
         try { meta = JSON.parse(decrypt(meta) || meta) } catch { return false }

@@ -462,11 +462,17 @@ router.post(
         psicCode: '4721',
       }
 
-      /** True if description suggests retail (sell/products/goods) without specifying what — used to offer one conservative rec. */
+      /** True if description suggests retail (sell/products/goods) without specifying WHAT is sold — used to offer one conservative rec.
+       *  Returns false if the description contains specific product/service/industry words
+       *  (e.g. "food", "pagkain", "lutong-bahay", "electronics", "hardware") because those are NOT vague. */
       function isVagueRetailLike(desc) {
         const lower = desc.toLowerCase()
         const hasGenericRetail = /\b(sell|selling|products|goods|nagbebenta|nagtitinda|produkto|paninda)\b/.test(lower)
-        return hasGenericRetail
+        if (!hasGenericRetail) return false
+
+        // If the description mentions specific products, services, or industries, it is NOT vague
+        const specificitySignals = /\b(food|pagkain|lutong|luto|ulam|kanin|kain|kainan|karinderya|karinderia|eatery|restaurant|carinderia|snack|merienda|tinapay|pandesal|cake|pastry|bakery|panaderia|coffee|kape|milk tea|drinks|inumin|rice|bigas|gulay|vegetables|fruits|prutas|isda|fish|seafood|karne|meat|manok|chicken|baboy|pork|baka|beef|barbecue|ihaw|grilled|fried|prito|siomai|lumpia|kwek|tusok|fishball|kakanin|halo-halo|lugaw|goto|bulalo|adobo|sinigang|electronics|gadget|cellphone|laptop|hardware|construction|cement|semento|buhangin|gravel|hollow|clothes|damit|shoes|sapatos|pharmacy|gamot|botika|medicine|salon|gupit|haircut|barber|laundry|laba|repair|kumpuni|ayos|farm|bukid|tanim|livestock|manukan|babuyan|plant|nursery|gasoline|fuel|gas|auto|car|vehicle|motor|truck|hauling|delivery|hatid|courier|lending|pautang|pawn|sanglaan|remittance|padala|insurance|real estate|lupa|apartment|boarding|hotel|resort|inn|school|tutorial|training|security|guard|agency|warehouse|bodega|storage|printing|advertising|accounting|legal|medical|dental|veterinary|clinic|hospital)\b/.test(lower)
+        return !specificitySignals
       }
 
       // Phase 1: Heuristic first — reject obvious non–business descriptions (e.g. gibberish) even without API key.
@@ -509,6 +515,9 @@ router.post(
           }
         }
         if (modelResult.noConfidentMatch) {
+          // Only suggest "General merchandise" for genuinely vague descriptions
+          // (e.g. "nagtitinda kami" with NO product/service specifics).
+          // If the description mentions specific products/services, fall through to Gemini instead.
           if (isVagueRetailLike(sanitized)) {
             logger.info('Vague retail-like description: returning single conservative recommendation')
             return respond.ok(res, 200, {
@@ -517,16 +526,8 @@ router.post(
               geminiReview,
             })
           }
-          let helpTip = null
-          if (apiKeyForGate) {
-            const genAI = new GoogleGenerativeAI(apiKeyForGate)
-            helpTip = await getGeminiHelpTip(sanitized, genAI)
-          }
-          return respond.ok(res, 200, {
-            recommendations: [],
-            message: helpTip || FALLBACK_HELP_TIP,
-            geminiReview,
-          })
+          // Description is specific but model wasn't confident — fall through to Gemini for a better answer
+          logger.info('Model not confident on specific description, falling through to Gemini')
         }
       }
 

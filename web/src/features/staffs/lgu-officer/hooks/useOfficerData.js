@@ -11,6 +11,7 @@ const PENDING_APPLICATION_STATUSES = new Set([
   'pending',
   'pending_renewal',
   'renewal_submitted',
+  'appeal_pending',
 ])
 
 const PENDING_APPEAL_STATUSES = new Set(['pending', 'submitted'])
@@ -51,6 +52,15 @@ export default function useOfficerData(activeTab, refreshTrigger) {
 
   // Data states per tab
   const [toReview, setToReview] = useState([])
+  // Claimed items by type for To Review sub-tabs
+  const [toReviewByType, setToReviewByType] = useState({
+    applications: [],
+    renewals: [],
+    appeals: [],
+    editRequests: [],
+    cessation: [],
+    inspections: [],
+  })
   const [applications, setApplications] = useState([])
   const [appeals, setAppeals] = useState([])
   const [editRequests, setEditRequests] = useState([])
@@ -74,9 +84,11 @@ export default function useOfficerData(activeTab, refreshTrigger) {
 
   // ── Fetch functions ──────────────────────────────────────────
 
-  /** Resolve a stable businessId from any item shape */
+  /** Resolve a stable businessId from any item shape.
+   *  Prefer _businessSubdocId (subdoc _id) since permit-applications uses that as businessId.
+   *  This ensures edit requests, appeals, cessations group under the same consolidated card. */
   const resolveBusinessId = (item) => {
-    return item?.businessId || item?.applicationId || item?._id || ''
+    return item?._businessSubdocId || item?.businessId || item?.applicationId || item?._id || ''
   }
 
   const fetchToReview = useCallback(async () => {
@@ -100,21 +112,33 @@ export default function useOfficerData(activeTab, refreshTrigger) {
           }))
         : []
 
-      const claimedEditRequests = editRequestsRes.status === 'fulfilled'
+      const allEditRequestsRaw = editRequestsRes.status === 'fulfilled'
         ? (Array.isArray(editRequestsRes.value?.data) ? editRequestsRes.value.data : [])
           .map((request) => ({
             ...request,
             status: normalizeEditRequestStatus(request?.status),
             _itemType: 'editRequests',
           }))
-          .filter((request) => isClaimedByOfficer(request, officerId))
         : []
+      // Include ALL edit requests for claimed businesses (pending + approved + rejected) for history
+      const claimedEditRequests = allEditRequestsRaw
+        .filter((request) => isClaimedByOfficer(request, officerId))
+      // Keep unclaimed pending edit requests to merge later if their business is already claimed
+      const unclaimedEditRequests = allEditRequestsRaw
+        .filter((request) => !isClaimedByOfficer(request, officerId) && request.status === 'pending')
 
-      const claimedAppeals = appealsRes.status === 'fulfilled'
+      const ACTIVE_APPEAL_STATUSES = ['submitted', 'pending', 'under_review']
+      const allAppealsRaw = appealsRes.status === 'fulfilled'
         ? (Array.isArray(appealsRes.value?.data) ? appealsRes.value.data : [])
-          .filter((appeal) => isClaimedByOfficer(appeal, officerId))
-          .map((appeal) => ({ ...appeal, _itemType: 'appeals' }))
         : []
+      // Include ALL appeals for claimed businesses (active + resolved) for history
+      const claimedAppeals = allAppealsRaw
+        .filter((appeal) => isClaimedByOfficer(appeal, officerId))
+        .map((appeal) => ({ ...appeal, _itemType: 'appeals' }))
+      // Keep unclaimed pending appeals to merge later if their business is already claimed
+      const unclaimedAppeals = allAppealsRaw
+        .filter((appeal) => !isClaimedByOfficer(appeal, officerId) && ACTIVE_APPEAL_STATUSES.includes(appeal.status))
+        .map((appeal) => ({ ...appeal, _itemType: 'appeals' }))
 
       const claimedCessations = cessationsRes.status === 'fulfilled'
         ? ((cessationsRes.value?.data || cessationsRes.value?.retirements || []))
@@ -125,12 +149,58 @@ export default function useOfficerData(activeTab, refreshTrigger) {
       const claimedInspections = inspectionsRes.status === 'fulfilled'
         ? (inspectionsRes.value?.data || inspectionsRes.value?.inspections || [])
           .filter((insp) => {
-            const assignedBy = insp.assignedBy ? String(insp.assignedBy) : null
+            const assignedById = insp.assignedById ? String(insp.assignedById) : null
             const status = insp.status || ''
-            return assignedBy === String(officerId) || status === 'pending_assignment'
+            return assignedById === String(officerId) || status === 'pending_assignment'
           })
           .map((insp) => ({ ...insp, _itemType: 'inspections' }))
         : []
+
+      // Build a businessId alias map from applications so that all items for the same
+      // business (which may use different ID formats — subdoc _id vs businessId) resolve
+      // to the same canonical ID. Applications are the source of truth since their
+      // businessId is always the subdoc _id.
+      const bizAliasMap = new Map() // maps any known alias → canonical ID
+      for (const app of claimedApplications) {
+        const canonicalId = String(app.businessId || app._id || '')
+        if (!canonicalId) continue
+        // The canonical ID is what the application uses (subdoc _id)
+        bizAliasMap.set(canonicalId, canonicalId)
+        // Also map the applicationId if different
+        if (app.applicationId && String(app.applicationId) !== canonicalId) {
+          bizAliasMap.set(String(app.applicationId), canonicalId)
+        }
+      }
+      // Also learn aliases from appeals/edit-requests/cessations that carry _businessSubdocId
+      const allItemsForAlias = [...claimedAppeals, ...unclaimedAppeals, ...claimedEditRequests, ...unclaimedEditRequests, ...claimedCessations, ...claimedInspections]
+      for (const item of allItemsForAlias) {
+        const subdocId = item._businessSubdocId ? String(item._businessSubdocId) : null
+        const rawBizId = item.businessId ? String(item.businessId) : null
+        const canonical = item._canonicalBusinessId ? String(item._canonicalBusinessId) : null
+        // If we have a subdocId, use it as canonical; map all variants to it
+        const best = subdocId || bizAliasMap.get(rawBizId) || bizAliasMap.get(subdocId) || null
+        if (best) {
+          if (subdocId) bizAliasMap.set(subdocId, best)
+          if (rawBizId) bizAliasMap.set(rawBizId, best)
+          if (canonical) bizAliasMap.set(canonical, best)
+        }
+      }
+
+      /** Resolve businessId using alias map, falling back to resolveBusinessId */
+      const resolveWithAliases = (item) => {
+        const rawId = resolveBusinessId(item)
+        return bizAliasMap.get(String(rawId)) || rawId
+      }
+
+      // Build claimed-by-type object (will be updated with merged appeals below before calling setToReviewByType)
+      const claimedByType = {
+        applications: claimedApplications.filter(a => a._itemType === 'applications'),
+        renewals: claimedApplications.filter(a => a._itemType === 'renewals'),
+        appeals: claimedAppeals,
+        editRequests: claimedEditRequests,
+        cessation: claimedCessations,
+        inspections: claimedInspections,
+      }
 
       // Group all claimed items by businessId into consolidated business cards
       const allItems = [
@@ -143,7 +213,7 @@ export default function useOfficerData(activeTab, refreshTrigger) {
 
       const businessMap = new Map()
       for (const item of allItems) {
-        const bizId = String(resolveBusinessId(item))
+        const bizId = String(resolveWithAliases(item))
         if (!bizId) continue
         if (!businessMap.has(bizId)) {
           businessMap.set(bizId, {
@@ -187,6 +257,40 @@ export default function useOfficerData(activeTab, refreshTrigger) {
             break
         }
       }
+
+      // Merge unclaimed items into business cards that are already claimed via other items.
+      // This handles the case where an appeal/edit request is submitted after the application was already claimed.
+      const mergeUnclaimedIntoCards = (unclaimedItems, requestKey) => {
+        for (const item of unclaimedItems) {
+          const bizId = String(resolveWithAliases(item))
+          if (!bizId || !businessMap.has(bizId)) continue
+          const group = businessMap.get(bizId)
+          const target = Array.isArray(group._requests[requestKey]) ? group._requests[requestKey] : []
+          const isDuplicate = target.some(existing => String(existing._id) === String(item._id))
+          if (!isDuplicate) target.push(item)
+          if (!Array.isArray(group._requests[requestKey])) group._requests[requestKey] = target
+        }
+      }
+
+      mergeUnclaimedIntoCards(unclaimedEditRequests, 'editRequests')
+      mergeUnclaimedIntoCards(unclaimedAppeals, 'appeals')
+
+      // Also include unclaimed items in claimedByType for sub-tab rendering
+      const mergeUnclaimedIntoByType = (claimed, unclaimed) => {
+        const merged = [...claimed]
+        for (const item of unclaimed) {
+          const bizId = String(resolveWithAliases(item))
+          if (bizId && businessMap.has(bizId)) {
+            const isDuplicate = merged.some(existing => String(existing._id) === String(item._id))
+            if (!isDuplicate) merged.push(item)
+          }
+        }
+        return merged
+      }
+
+      claimedByType.editRequests = mergeUnclaimedIntoByType(claimedEditRequests, unclaimedEditRequests)
+      claimedByType.appeals = mergeUnclaimedIntoByType(claimedAppeals, unclaimedAppeals)
+      setToReviewByType(claimedByType)
 
       const consolidatedItems = Array.from(businessMap.values()).sort((a, b) => {
         const da = new Date(a.createdAt || 0).getTime()
@@ -417,6 +521,7 @@ export default function useOfficerData(activeTab, refreshTrigger) {
   return {
     // Data
     toReview,
+    toReviewByType,
     applications,
     appeals,
     editRequests,

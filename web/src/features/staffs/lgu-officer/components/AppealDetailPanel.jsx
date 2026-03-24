@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { Typography, Descriptions, Tag, Card, Form, Input, Button, Space, Empty, theme } from 'antd'
+import { Typography, Descriptions, Tag, Card, Form, Input, Button, Space, Empty, theme, Modal } from 'antd'
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { put } from '@/lib/http.js'
 import { useNotifier } from '@/shared/notifications.js'
@@ -8,9 +8,16 @@ import dayjs from 'dayjs'
 const { Text } = Typography
 const { TextArea } = Input
 
+const DECISION_LABELS = {
+  approved: 'upheld',
+  rejected: 'overturned',
+}
+
 const STATUS_COLORS = {
   pending: 'processing',
   submitted: 'processing',
+  approved: 'success',
+  rejected: 'error',
   upheld: 'success',
   overturned: 'error',
   resolved: 'success',
@@ -31,7 +38,7 @@ export default function AppealDetailPanel({ appeal, onReviewComplete }) {
         status: decision,
         resolution: values.resolution,
       })
-      success(`Appeal ${decision}`)
+      success(`Appeal ${DECISION_LABELS[decision] || decision}`)
       form.resetFields()
       onReviewComplete?.()
     } catch (err) {
@@ -40,6 +47,20 @@ export default function AppealDetailPanel({ appeal, onReviewComplete }) {
       setProcessing(false)
     }
   }, [appeal, form, success, notifyError, onReviewComplete])
+
+  const confirmReview = useCallback((decision) => {
+    const isApproved = decision === 'approved'
+    Modal.confirm({
+      title: isApproved ? 'Uphold this appeal?' : 'Overturn / deny this appeal?',
+      content: isApproved
+        ? 'This will move the linked application back to Under Review for re-evaluation.'
+        : 'This will keep the linked application in Rejected status and mark the appeal as exhausted.',
+      okText: isApproved ? 'Uphold Appeal' : 'Deny Appeal',
+      okButtonProps: isApproved ? undefined : { danger: true },
+      cancelText: 'Cancel',
+      onOk: () => handleReview(decision),
+    })
+  }, [handleReview])
 
   if (!appeal) {
     return (
@@ -92,7 +113,7 @@ export default function AppealDetailPanel({ appeal, onReviewComplete }) {
                 type="primary"
                 icon={<CheckCircleOutlined />}
                 loading={processing}
-                onClick={() => handleReview('upheld')}
+                onClick={() => confirmReview('approved')}
               >
                 Uphold Appeal
               </Button>
@@ -100,7 +121,7 @@ export default function AppealDetailPanel({ appeal, onReviewComplete }) {
                 danger
                 icon={<CloseCircleOutlined />}
                 loading={processing}
-                onClick={() => handleReview('overturned')}
+                onClick={() => confirmReview('rejected')}
               >
                 Overturn / Deny
               </Button>

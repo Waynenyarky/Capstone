@@ -18,6 +18,7 @@ const webauthnServer = require('@simplewebauthn/server')
 const webauthnRouter = require('./webauthn')
 const authenticationChallenges = webauthnRouter.authenticationChallenges || new Map()
 const { consumePasswordChangeVerified } = require('../lib/mfaStepUpVerify')
+const speakeasy = require('speakeasy')
 
 const router = express.Router()
 
@@ -332,9 +333,31 @@ router.post('/change-password/verify', requireJwt, validateBody(changePasswordVe
       if (!consumePasswordChangeVerified(userId)) {
         return respond.error(res, 403, 'verification_required', 'Verify with your passkey first')
       }
-    } else {
-      // Regular OTP verification
-      if (!reqObj) return respond.error(res, 404, 'request_not_found', 'No password change request found. Please start again.')
+    } else if (doc.mfaSecret && doc.mfaEnabled) {
+      // TOTP user: verify the 6-digit code as a TOTP code
+      console.log('[Password Change] TOTP verification for user:', email)
+      let secretPlain = ''
+      try {
+        secretPlain = decryptWithHash(doc.passwordHash, doc.mfaSecret)
+      } catch (err) {
+        console.error('[Password Change] Failed to decrypt MFA secret:', err)
+        return respond.error(res, 500, 'mfa_error', 'Failed to verify MFA')
+      }
+      
+      const totpResult = speakeasy.totp.verify({
+        secret: secretPlain,
+        encoding: 'base32',
+        token: String(code),
+        window: 1,
+      })
+      
+      if (!totpResult) {
+        return respond.error(res, 401, 'invalid_code', 'Invalid verification code')
+      }
+      console.log('[Password Change] TOTP verified successfully for user:', email)
+    } else if (reqObj) {
+      // Email OTP verification (non-MFA users)
+      console.log('[Password Change] Email OTP verification for user:', email)
       if (Date.now() > reqObj.expiresAt) {
         changePasswordRequests.delete(email)
         return respond.error(res, 410, 'code_expired', 'Verification code expired. Please request a new one.')
@@ -342,6 +365,9 @@ router.post('/change-password/verify', requireJwt, validateBody(changePasswordVe
       if (String(reqObj.code) !== String(code)) {
         return respond.error(res, 401, 'invalid_code', 'Invalid verification code')
       }
+    } else {
+      // No valid verification method found
+      return respond.error(res, 404, 'request_not_found', 'No password change request found. Please start again.')
     }
 
     const sanitizedNewPassword = sanitizeString(newPassword || '')

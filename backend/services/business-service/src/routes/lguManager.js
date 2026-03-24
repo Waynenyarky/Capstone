@@ -807,7 +807,6 @@ router.get('/inspectors', async (req, res) => {
     
     const inspectors = await User.find({ role: inspectorRole._id })
       .select('firstName lastName email phoneNumber')
-      .lean()
     
     return respond.success(res, 200, { inspectors })
   } catch (err) {

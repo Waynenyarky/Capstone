@@ -68,6 +68,17 @@ router.get('/inspections', requireJwt, requireRole(['lgu_officer', 'lgu_manager'
     const query = {}
     if (status) query.status = status
     if (inspectorId) query.inspectorId = inspectorId
+    if (req.query.businessId) {
+      const bizId = String(req.query.businessId)
+      const bizClauses = [{ businessId: bizId }]
+      if (mongoose.Types.ObjectId.isValid(bizId)) {
+        // Also match inspections whose businessId is the subdoc _id
+        bizClauses.push({ businessId: bizId })
+      }
+      // We also need to find inspections where the businessProfileId has this business
+      // For simplicity, filter by businessId field directly (handles both alias forms)
+      query.businessId = bizId
+    }
     if (dateFrom || dateTo) {
       query.scheduledDate = {}
       if (dateFrom) query.scheduledDate.$gte = new Date(dateFrom)
@@ -86,11 +97,13 @@ router.get('/inspections', requireJwt, requireRole(['lgu_officer', 'lgu_manager'
       .lean()
 
     const items = inspections.map((i) => {
-      const business = (i.businessProfileId?.businesses || []).find((b) => b.businessId === i.businessId)
+      const business = (i.businessProfileId?.businesses || []).find((b) => b.businessId === i.businessId || String(b._id) === i.businessId)
       return {
         _id: i._id,
         businessName: business?.businessName || business?.registeredBusinessName || 'Unknown',
         businessId: i.businessId,
+        _businessSubdocId: business ? String(business._id || '') : null,
+        _canonicalBusinessId: business?.businessId || '',
         businessProfileId: i.businessProfileId?._id,
         permitType: i.permitType,
         inspectionType: i.inspectionType,
@@ -99,6 +112,7 @@ router.get('/inspections', requireJwt, requireRole(['lgu_officer', 'lgu_manager'
         overallResult: i.overallResult,
         inspectorId: i.inspectorId?._id,
         inspectorName: i.inspectorId ? `${i.inspectorId.firstName} ${i.inspectorId.lastName}` : null,
+        assignedById: i.assignedBy?._id ? String(i.assignedBy._id) : null,
         assignedBy: i.assignedBy ? `${i.assignedBy.firstName} ${i.assignedBy.lastName}` : null,
         assignedAt: i.assignedAt
       }
@@ -225,13 +239,12 @@ router.post('/inspections', requireJwt, requireRole(['lgu_officer', 'lgu_manager
  */
 router.get('/inspectors', requireJwt, requireRole(['lgu_officer', 'lgu_manager', 'staff']), async (req, res) => {
   try {
-    const inspectorRole = await Role.findOne({ slug: 'inspector' }).lean()
+    const inspectorRole = await Role.findOne({ slug: 'inspector' })
     if (!inspectorRole) return res.json({ inspectors: [] })
 
     const inspectors = await User.find({ role: inspectorRole._id, isActive: true })
       .select('_id firstName lastName email')
       .sort({ lastName: 1, firstName: 1 })
-      .lean()
 
     return res.json({
       inspectors: inspectors.map((u) => ({
@@ -243,6 +256,75 @@ router.get('/inspectors', requireJwt, requireRole(['lgu_officer', 'lgu_manager',
   } catch (err) {
     console.error('GET /api/lgu-officer/inspectors error:', err)
     return respond.error(res, 500, 'fetch_error', err.message || 'Failed to fetch inspectors')
+  }
+})
+
+/**
+ * PUT /api/lgu-officer/inspections/:id/assign
+ * Assign an inspector to an existing pending_assignment inspection
+ */
+router.put('/inspections/:id/assign', requireJwt, requireRole(['lgu_officer', 'lgu_manager', 'staff']), async (req, res) => {
+  try {
+    const { id } = req.params
+    const { inspectorId, scheduledDate } = req.body
+
+    if (!inspectorId || !scheduledDate) {
+      return respond.error(res, 400, 'missing_fields', 'inspectorId and scheduledDate are required')
+    }
+
+    const inspection = await Inspection.findById(id)
+    if (!inspection) {
+      return respond.error(res, 404, 'not_found', 'Inspection not found')
+    }
+    if (inspection.status !== 'pending_assignment') {
+      return respond.error(res, 400, 'invalid_status', 'Inspection is not in pending_assignment status')
+    }
+
+    // Validate inspector
+    const inspector = await User.findById(inspectorId).populate('role').lean()
+    if (!inspector) return respond.error(res, 404, 'inspector_not_found', 'Inspector not found')
+    const roleSlug = inspector.role?.slug || ''
+    if (roleSlug !== 'inspector') {
+      return respond.error(res, 400, 'invalid_inspector', 'Selected user must have inspector role')
+    }
+
+    // Update the existing inspection
+    inspection.inspectorId = inspectorId
+    inspection.scheduledDate = new Date(scheduledDate)
+    inspection.status = 'pending'
+    inspection.assignedBy = req._userId
+    inspection.assignedAt = new Date()
+    inspection.checklist = inspection.checklist?.length ? inspection.checklist : createChecklistFromTemplate()
+
+    await inspection.save()
+
+    logAuditEvent('inspection_assigned', req._userId, 'Inspection', inspection._id.toString(), {
+      businessId: inspection.businessId,
+      inspectorId,
+    })
+
+    // Send notification to inspector
+    try {
+      const profile = await BusinessProfile.findById(inspection.businessProfileId).lean()
+      const business = (profile?.businesses || []).find(
+        (b) => b.businessId === inspection.businessId || String(b._id) === inspection.businessId
+      )
+      const businessName = business?.businessName || business?.registeredBusinessName || 'Unknown'
+      const scheduledStr = new Date(scheduledDate).toLocaleDateString()
+      await notificationService.createNotification(
+        inspectorId, 'inspection_assigned', 'New Inspection Assigned',
+        `You have been assigned to inspect ${businessName}. Scheduled: ${scheduledStr}.`,
+        'inspection', String(inspection._id),
+        { inspectionId: inspection._id, businessName, scheduledDate }
+      )
+    } catch (notifErr) {
+      console.warn('Failed to create inspection_assigned notification:', notifErr)
+    }
+
+    return res.json({ success: true, inspection })
+  } catch (err) {
+    console.error('PUT /api/lgu-officer/inspections/:id/assign error:', err)
+    return respond.error(res, 500, 'assign_error', err.message || 'Failed to assign inspector')
   }
 })
 
@@ -384,6 +466,60 @@ router.put('/inspections/:id/reschedule', requireJwt, requireRole(['lgu_officer'
   } catch (err) {
     console.error('PUT /api/lgu-officer/inspections/:id/reschedule error:', err)
     return respond.error(res, 500, 'reschedule_error', err.message || 'Failed to reschedule inspection')
+  }
+})
+
+/**
+ * GET /api/lgu-officer/inspections/:id
+ * Get full inspection detail (with checklist, evidence, violations, notes)
+ */
+router.get('/inspections/:id', requireJwt, requireRole(['lgu_officer', 'lgu_manager', 'staff']), async (req, res) => {
+  try {
+    const { id } = req.params
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return respond.error(res, 400, 'invalid_id', 'Invalid inspection ID')
+    }
+
+    const inspection = await Inspection.findById(id)
+      .populate('inspectorId', 'firstName lastName email')
+      .populate('businessProfileId', 'businesses userId')
+      .populate('assignedBy', 'firstName lastName')
+      .lean()
+
+    if (!inspection) {
+      return respond.error(res, 404, 'not_found', 'Inspection not found')
+    }
+
+    const business = (inspection.businessProfileId?.businesses || []).find(
+      (b) => b.businessId === inspection.businessId || String(b._id) === inspection.businessId
+    )
+
+    const violations = await Violation.find({ inspectionId: id })
+      .populate('inspectorId', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .lean()
+
+    return res.json({
+      inspection: {
+        ...inspection,
+        businessName: business?.businessName || business?.registeredBusinessName || 'Unknown',
+        businessAddress: business?.businessAddress || '',
+        _businessSubdocId: business ? String(business._id || '') : null,
+        _canonicalBusinessId: business?.businessId || '',
+        inspectorName: inspection.inspectorId
+          ? `${inspection.inspectorId.firstName} ${inspection.inspectorId.lastName}`
+          : null,
+        inspectorEmail: inspection.inspectorId?.email || null,
+        assignedByName: inspection.assignedBy
+          ? `${inspection.assignedBy.firstName} ${inspection.assignedBy.lastName}`
+          : null,
+        violations,
+        violationCount: violations.length,
+      },
+    })
+  } catch (err) {
+    console.error('GET /api/lgu-officer/inspections/:id error:', err)
+    return respond.error(res, 500, 'fetch_error', err.message || 'Failed to fetch inspection detail')
   }
 })
 

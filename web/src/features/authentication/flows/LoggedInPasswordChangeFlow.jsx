@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Form } from '@/shared/components/AppForm'
 import { Input, Button, Typography, Result, Spin, Alert } from 'antd'
-import { changePasswordRules, changeConfirmPasswordRules } from '@/features/authentication/validations'
+import { changePasswordRules, confirmPasswordRulesForNewPassword } from '@/features/authentication/validations'
 import PasswordStrengthIndicator from '@/features/authentication/components/PasswordStrengthIndicator.jsx'
 import { useLoggedInPasswordChangeFlow, useSendCodeForCurrentUserPasswordChange } from '@/features/authentication/hooks'
 import VerificationConfirmForm from '@/features/authentication/components/VerificationConfirmForm.jsx'
@@ -17,6 +17,7 @@ export default function LoggedInPasswordChangeFlow({ onBackToStart } = {}) {
   const { step, setStep, sendProps, totpVerifyProps, mfaVerifyProps, verifyProps, changeProps, reset, effectiveEnabled, code, totpEnabled, hasPasskeys } = useLoggedInPasswordChangeFlow()
   const { isSending, handleSend } = useSendCodeForCurrentUserPasswordChange({ email: sendProps.email, onSent: sendProps.onSent })
   const [passwordForm] = Form.useForm()
+  const [verifyForm] = Form.useForm()
   const [passwordValue, setPasswordValue] = useState('')
   const [isSubmitting, setSubmitting] = useState(false)
   const [passkeyError, setPasskeyError] = useState('')
@@ -115,6 +116,25 @@ export default function LoggedInPasswordChangeFlow({ onBackToStart } = {}) {
     }
   }
 
+  const onVerifyFinish = async (values) => {
+    // Wait a tick to ensure form state is updated (especially after paste)
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    let codeRaw = verifyForm.getFieldValue('verificationCode') || values?.verificationCode
+    if (Array.isArray(codeRaw)) codeRaw = codeRaw.join('')
+
+    const normalized = String(codeRaw || '').replace(/[^0-9]/g, '').slice(0, 6)
+    if (!normalized || normalized.length !== 6) {
+      verifyForm.setFields([{ name: 'verificationCode', errors: ['Code must be exactly 6 digits'] }])
+      return
+    }
+
+    verifyForm.resetFields()
+    if (typeof verifyProps?.onSubmit === 'function') {
+      verifyProps.onSubmit({ email: verifyProps.email, resetToken: normalized })
+    }
+  }
+
   if (step === 'send') {
     return (
       <div style={{ maxWidth: 420, width: '100%', margin: '0 auto' }}>
@@ -178,7 +198,7 @@ export default function LoggedInPasswordChangeFlow({ onBackToStart } = {}) {
       <div style={{ maxWidth: 420, width: '100%', margin: '0 auto' }}>
         <MfaVerificationForm
           email={sendProps.email}
-          onSubmit={() => setStep('password')}
+          onSubmit={mfaVerifyProps.onVerified}
           onBack={showBack ? onBackToStart : () => setStep('send')}
           warning="Multi-factor authentication is required to change your password."
         />
@@ -194,12 +214,68 @@ export default function LoggedInPasswordChangeFlow({ onBackToStart } = {}) {
             &larr; Back
           </Button>
         )}
-        <VerificationConfirmForm
-          email={verifyProps.email}
-          onSubmit={verifyProps.onSubmit}
-          title="Enter verification code"
-          onBack={showBack ? onBackToStart : reset}
-        />
+        <div style={{ maxWidth: 400, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <Title level={4} style={{ marginBottom: 16 }}>Enter verification code</Title>
+            <Text type="secondary" style={{ fontSize: 16 }}>
+              Enter the 6-digit code sent to <br/>
+              <Text strong style={{ color: '#003a70' }}>{verifyProps.email}</Text>
+            </Text>
+          </div>
+
+          <Form
+            name="password_change_verify"
+            form={verifyForm}
+            layout="vertical"
+            onFinish={onVerifyFinish}
+            size="default"
+            requiredMark={false}
+          >
+            <Form.Item
+              name="verificationCode"
+              rules={[
+                { required: true, message: 'Please enter the verification code' },
+                { pattern: /^[0-9]{6}$/, message: 'Code must be exactly 6 digits' }
+              ]}
+              style={{ marginBottom: 32 }}
+              getValueFromEvent={(val) => {
+                if (typeof val === 'string') return val.replace(/\D/g, '').slice(0, 6)
+                if (Array.isArray(val)) return val.join('').replace(/\D/g, '').slice(0, 6)
+                return ''
+              }}
+            >
+              <Input.OTP
+                length={6}
+                style={{ width: '100%', display: 'flex', justifyContent: 'center' }}
+                inputType="numeric"
+                mask={false}
+                onKeyDown={(e) => {
+                  const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
+                  if (allowedKeys.includes(e.key)) return
+                  if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
+                  if (!/^[0-9]$/.test(e.key)) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                  }
+                }}
+              />
+            </Form.Item>
+
+            <Form.Item style={{ marginBottom: 16 }}>
+              <Button type="primary" htmlType="submit" block>
+                Verify
+              </Button>
+            </Form.Item>
+          </Form>
+
+          {showBack && (
+            <div style={{ textAlign: 'center', marginTop: 24 }}>
+              <Button type="text" onClick={onBackToStart} style={{ padding: 0 }}>
+                Back
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     )
   }
@@ -251,7 +327,7 @@ export default function LoggedInPasswordChangeFlow({ onBackToStart } = {}) {
             label="Confirm New Password" 
             dependencies={['newPassword']} 
             hasFeedback 
-            rules={changeConfirmPasswordRules}
+            rules={confirmPasswordRulesForNewPassword}
           >
             <Input.Password placeholder="Confirm new password" />
           </Form.Item>

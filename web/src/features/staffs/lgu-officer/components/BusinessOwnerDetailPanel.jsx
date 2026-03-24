@@ -93,7 +93,6 @@ export default function BusinessOwnerDetailPanel({ owner, onCreateWalkIn, onEdit
   ].filter(Boolean).join(' ') || previewBusinessOwner?.name || previewOwnerIdentity?.fullName || '—'
 
   const ownerPhone = owner?.phoneNumber || owner?.phone || previewBusinessOwner?.phoneNumber || previewBusinessReg?.mobileNumber
-  const accountCreatedAt = owner?.createdAt
   const ownerSex = previewBusinessOwner?.sex || previewOwnerIdentity?.sex
   const ownerDob = previewBusinessOwner?.dateOfBirth || previewOwnerIdentity?.dateOfBirth
   const ownerMaritalStatus = previewBusinessOwner?.maritalStatus || previewOwnerIdentity?.maritalStatus
@@ -143,9 +142,6 @@ export default function BusinessOwnerDetailPanel({ owner, onCreateWalkIn, onEdit
         {ownerNationality && <Descriptions.Item label="Nationality">{ownerNationality}</Descriptions.Item>}
         {ownerAddress && <Descriptions.Item label="Address">{ownerAddress}</Descriptions.Item>}
         <Descriptions.Item label="User ID"><Text code>{owner._id}</Text></Descriptions.Item>
-        <Descriptions.Item label="Account Created">
-          {accountCreatedAt ? dayjs(accountCreatedAt).format('MMM D, YYYY') : '—'}
-        </Descriptions.Item>
       </Descriptions>
 
       <Text strong style={{ display: 'block', marginBottom: 12 }}>Businesses / Applications ({businesses.length})</Text>

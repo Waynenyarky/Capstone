@@ -25,6 +25,7 @@ const adminStepUpRouter = require('./adminStepUp')
 const sessionRouter = require('./session')
 const adminUsersRouter = require('./adminUsers')
 const registerWalkInRouter = require('./registerWalkIn')
+const lguOfficerUsersRouter = require('./lguOfficerUsers')
 
 const router = express.Router()
 
@@ -65,5 +66,6 @@ router.use('/', adminStepUpRouter)
 router.use('/', sessionRouter)
 router.use('/', adminUsersRouter)
 router.use('/', registerWalkInRouter)
+router.use('/', lguOfficerUsersRouter)
 
 module.exports = router

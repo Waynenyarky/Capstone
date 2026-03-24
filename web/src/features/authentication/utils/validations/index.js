@@ -19,6 +19,7 @@ export {
 export {
   passwordRules as changePasswordRules,
   confirmPasswordRules as changeConfirmPasswordRules,
+  confirmPasswordRulesForNewPassword,
 } from './changePasswordRules.js'
 
 // Login rules

@@ -1,11 +1,11 @@
 {
   "algorithm": "LinearSVC",
-  "trainedAt": "2026-03-16T09:14:31.209676+00:00",
-  "cv_accuracy": 0.9992441421012849,
-  "n_train_samples": 6614,
-  "n_base_samples": 3200,
+  "trainedAt": "2026-03-18T18:22:18.501782+00:00",
+  "cv_accuracy": 0.9990456714383095,
+  "n_train_samples": 7335,
+  "n_base_samples": 4032,
   "n_optional_difficult_samples": 135,
-  "n_noisy_augmented_samples": 3279,
+  "n_noisy_augmented_samples": 3246,
   "n_labels": 80,
   "feature_extractor": "tfidf_word_char_hybrid"
 }

@@ -65,14 +65,30 @@ async function generateQRCode(permitNumber, permitData) {
  * Issue a new permit
  */
 async function issuePermit(businessId, permitType = 'initial', userId) {
-  // Get business profile
-  const profile = await BusinessProfile.findOne(buildBusinessLookupQuery(businessId))
+  // Get business profile - try by businessId/subdoc _id first
+  let profile = await BusinessProfile.findOne(buildBusinessLookupQuery(businessId))
+  
+  // Fallback: if not found and userId provided, search by owner's profile
+  // This handles cases where businessId doesn't match due to identifier format differences
+  if (!profile && userId) {
+    profile = await BusinessProfile.findOne({ userId })
+  }
   
   if (!profile) {
     throw new Error('Business not found')
   }
   
-  const business = profile.businesses.find(b => b.businessId === businessId || String(b._id) === businessId)
+  // Find the specific business subdocument
+  let business = profile.businesses.find(b => b.businessId === businessId || String(b._id) === businessId)
+  
+  // If still not found but we have businesses, try to find by approved status (for owner auto-issue)
+  if (!business && profile.businesses && profile.businesses.length > 0) {
+    // Find the first approved business that doesn't have an active permit yet
+    business = profile.businesses.find(b => 
+      b.applicationStatus === 'approved' && b.permitStatus !== 'active'
+    ) || profile.businesses.find(b => b.applicationStatus === 'approved')
+  }
+  
   if (!business) {
     throw new Error('Business not found')
   }
@@ -154,9 +170,37 @@ async function getPermit(permitId) {
 
 /**
  * Get all permits for a business
+ * Resolves businessId aliases (businessId vs subdoc _id) to find all matching permits
  */
-async function getBusinessPermits(businessId) {
-  const permits = await Permit.find({ businessId }).sort({ issuedDate: -1 })
+async function getBusinessPermits(businessId, userId = null) {
+  const targetBusinessId = String(businessId || '')
+  
+  // Try to resolve aliases by looking up the business profile
+  let profile = await BusinessProfile.findOne(buildBusinessLookupQuery(targetBusinessId))
+    .select('businesses.businessId businesses._id')
+    .lean()
+  
+  // Fallback: try by userId if direct lookup misses
+  if (!profile && userId) {
+    profile = await BusinessProfile.findOne({ userId })
+      .select('businesses.businessId businesses._id')
+      .lean()
+  }
+  
+  // Build list of possible businessId values to search
+  const aliases = new Set([targetBusinessId])
+  if (profile?.businesses) {
+    const business = profile.businesses.find(b => 
+      b.businessId === targetBusinessId || String(b._id) === targetBusinessId
+    )
+    if (business?.businessId) aliases.add(String(business.businessId))
+    if (business?._id) aliases.add(String(business._id))
+  }
+  
+  const aliasList = Array.from(aliases)
+  const query = aliasList.length > 1 ? { businessId: { $in: aliasList } } : { businessId: aliasList[0] }
+  
+  const permits = await Permit.find(query).sort({ issuedDate: -1 })
   return permits
 }
 

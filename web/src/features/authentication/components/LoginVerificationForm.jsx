@@ -33,18 +33,21 @@ export default function LoginVerificationForm({ email, onSubmit, title, otpExpir
         <Form.Item 
           name="verificationCode" 
           rules={[
-            { required: true, message: 'Please enter the verification code' }
+            { required: true, message: 'Please enter the verification code' },
+            { pattern: /^[0-9]{6}$/, message: 'Code must be exactly 6 digits' }
           ]}
           style={{ marginBottom: 32 }}
+          getValueFromEvent={(val) => {
+            if (typeof val === 'string') return val.replace(/\D/g, '').slice(0, 6)
+            if (Array.isArray(val)) return val.join('').replace(/\D/g, '').slice(0, 6)
+            return ''
+          }}
         >
           <Input.OTP 
             length={6} 
-            style={{ width: '100%', justifyContent: 'center' }}
+            style={{ width: '100%', display: 'flex', justifyContent: 'center' }}
             inputType="numeric"
             mask={false}
-            onChange={(value) => {
-              form.setFieldsValue({ verificationCode: value })
-            }}
             onKeyDown={(e) => {
               const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
               if (allowedKeys.includes(e.key)) return

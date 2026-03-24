@@ -27,31 +27,29 @@ export default function PasswordChangeTotpVerificationForm({ email, onSubmit, on
           label="Authentication Code"
           rules={[
             { required: true, message: 'Please enter your authentication code' },
-            { len: 6, message: 'Authentication code must be 6 digits' },
-            { pattern: /^\d+$/, message: 'Authentication code must contain only numbers' }
+            { pattern: /^[0-9]{6}$/, message: 'Code must be exactly 6 digits' }
           ]}
+          getValueFromEvent={(val) => {
+            if (typeof val === 'string') return val.replace(/\D/g, '').slice(0, 6)
+            if (Array.isArray(val)) return val.join('').replace(/\D/g, '').slice(0, 6)
+            return ''
+          }}
         >
-          <div style={{ maxWidth: 320, margin: '0 auto' }}>
-            <Input.OTP 
-              length={6} 
-              style={{ width: '100%', justifyContent: 'center', gap: 8 }}
-              inputType="numeric"
-              mask={false}
-              onChange={(value) => {
-                // Input.OTP already handles numeric input, just ensure it's set in form
-                form.setFieldsValue({ verificationCode: value })
-              }}
-              onKeyDown={(e) => {
-                const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
-                if (allowedKeys.includes(e.key)) return
-                if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
-                if (!/^[0-9]$/.test(e.key)) {
-                  e.preventDefault()
-                  e.stopPropagation()
-                }
-              }}
-            />
-          </div>
+          <Input.OTP 
+            length={6} 
+            style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: 8 }}
+            inputType="numeric"
+            mask={false}
+            onKeyDown={(e) => {
+              const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
+              if (allowedKeys.includes(e.key)) return
+              if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
+              if (!/^[0-9]$/.test(e.key)) {
+                e.preventDefault()
+                e.stopPropagation()
+              }
+            }}
+          />
         </Form.Item>
 
         <Form.Item style={{ marginBottom: 16 }}>

@@ -90,7 +90,7 @@ const UserSchema = new mongoose.Schema(
     },
     maritalStatus: {
       type: String,
-      enum: ['', 'single', 'married', 'widowed', 'divorced', 'separated'],
+      enum: ['', 'single', 'married', 'widowed', 'divorced', 'separated', 'legally_separated', 'annulled', 'void'],
       default: '',
     },
     dateOfBirth: { type: Date, default: null },
@@ -101,7 +101,7 @@ const UserSchema = new mongoose.Schema(
     distinctiveMark: { type: String, default: '' },
     highestEducationalAttainment: {
       type: String,
-      enum: ['', 'elementary', 'high_school', 'vocational', 'college', 'postgraduate'],
+      enum: ['', 'elementary', 'high_school', 'vocational', 'college', 'college_undergraduate', 'college_graduate', 'postgraduate', 'others'],
       default: '',
     },
     // Flag indicating PIS profile has been completed (required before first permit application)

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Typography, Card, Tag, Descriptions, Button, Select, DatePicker,
-  Space, Alert, Divider, List, Badge, Spin, Empty, message, theme,
+  Space, Alert, List, Spin, Empty, message, theme, Image,
 } from 'antd'
 import {
   UserOutlined, CalendarOutlined, SafetyCertificateOutlined,
@@ -33,8 +33,10 @@ const SEVERITY_COLORS = {
   critical: 'red',
 }
 
-export default function InspectionDetailPanel({ inspection, onReviewComplete }) {
+export default function InspectionDetailPanel({ inspection: inspectionProp, onReviewComplete }) {
   const { token } = theme.useToken()
+  const [fullDetail, setFullDetail] = useState(null)
+  const [detailLoading, setDetailLoading] = useState(false)
   const [inspectors, setInspectors] = useState([])
   const [loadingInspectors, setLoadingInspectors] = useState(false)
   const [selectedInspector, setSelectedInspector] = useState(null)
@@ -43,8 +45,30 @@ export default function InspectionDetailPanel({ inspection, onReviewComplete }) 
   const [violations, setViolations] = useState([])
   const [loadingViolations, setLoadingViolations] = useState(false)
 
+  // Merge prop with fetched full detail — full detail wins for fields it has
+  const inspection = fullDetail ? { ...inspectionProp, ...fullDetail } : inspectionProp
+
   const status = inspection?.status || 'pending'
   const statusCfg = STATUS_CONFIG[status] || { color: 'default', label: status }
+
+  // Fetch full inspection detail on mount / when inspection changes
+  useEffect(() => {
+    const inspectionId = inspectionProp?._id || inspectionProp?.id
+    if (!inspectionId) { setFullDetail(null); return }
+    let cancelled = false
+    setDetailLoading(true)
+    get(`/api/lgu-officer/inspections/${inspectionId}`, { skipAutoLogout: true })
+      .then((res) => {
+        if (cancelled) return
+        const data = res?.inspection || res?.data || res
+        setFullDetail(data)
+        // Also populate violations from the detail response
+        if (data?.violations?.length) setViolations(data.violations)
+      })
+      .catch(() => { if (!cancelled) setFullDetail(null) })
+      .finally(() => { if (!cancelled) setDetailLoading(false) })
+    return () => { cancelled = true }
+  }, [inspectionProp?._id, inspectionProp?.id])
 
   // Fetch inspectors when in pending_assignment state
   useEffect(() => {
@@ -53,9 +77,9 @@ export default function InspectionDetailPanel({ inspection, onReviewComplete }) 
     }
   }, [status])
 
-  // Fetch violations when inspection is completed
+  // Fetch violations when inspection is completed (fallback if detail didn't include them)
   useEffect(() => {
-    if (status === 'completed' && inspection?._id) {
+    if (status === 'completed' && inspection?._id && violations.length === 0) {
       fetchViolations()
     }
   }, [status, inspection?._id])
@@ -90,14 +114,9 @@ export default function InspectionDetailPanel({ inspection, onReviewComplete }) 
     }
     setAssigning(true)
     try {
-      await post('/api/lgu-officer/inspections', {
+      await put(`/api/lgu-officer/inspections/${inspection._id}/assign`, {
         inspectorId: selectedInspector,
-        businessProfileId: inspection.businessProfileId,
-        businessId: inspection.businessId,
-        permitType: inspection.permitType || 'initial',
-        inspectionType: inspection.inspectionType || 'initial',
         scheduledDate: selectedDate.toISOString(),
-        parentInspectionId: inspection.parentInspectionId || undefined,
       })
       message.success('Inspector assigned successfully')
       onReviewComplete?.()
@@ -131,7 +150,7 @@ export default function InspectionDetailPanel({ inspection, onReviewComplete }) 
     setAssigning(false)
   }
 
-  if (!inspection) {
+  if (!inspectionProp) {
     return (
       <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Empty description="No inspection selected" />
@@ -139,16 +158,19 @@ export default function InspectionDetailPanel({ inspection, onReviewComplete }) 
     )
   }
 
+  const evidenceItems = inspection.evidence || []
+  const ack = inspection.ownerAcknowledgment || {}
+  const hasAcknowledged = Boolean(ack.acknowledged)
+
   return (
+    <Spin spinning={detailLoading} tip="Loading inspection details...">
     <div style={{ height: '100%', overflow: 'auto', padding: 20 }}>
-      {/* Header */}
+      {/* Status + type header */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
           <SafetyCertificateOutlined style={{ fontSize: 20, color: token.colorPrimary }} />
-          <Title level={4} style={{ margin: 0 }}>
-            {inspection.businessName || 'Inspection'}
-          </Title>
           <Tag color={statusCfg.color} icon={statusCfg.icon}>{statusCfg.label}</Tag>
+          {inspection.parentInspectionId && <Tag color="purple">Follow-up</Tag>}
         </div>
         {inspection.inspectionType && (
           <Text type="secondary">
@@ -157,17 +179,34 @@ export default function InspectionDetailPanel({ inspection, onReviewComplete }) 
         )}
       </div>
 
+      {/* Business Info — from full detail */}
+      {inspection.businessName && (
+        <Card size="small" style={{ marginBottom: 16, background: token.colorBgLayout }}>
+          <Descriptions column={1} size="small">
+            <Descriptions.Item label="Business">{inspection.businessName}</Descriptions.Item>
+            {inspection.businessAddress && (
+              <Descriptions.Item label="Address">
+                {typeof inspection.businessAddress === 'object'
+                  ? (inspection.businessAddress.full || [inspection.businessAddress.streetAddress, inspection.businessAddress.barangayName, inspection.businessAddress.cityName].filter(Boolean).join(', '))
+                  : inspection.businessAddress}
+              </Descriptions.Item>
+            )}
+          </Descriptions>
+        </Card>
+      )}
+
       {/* Inspection Details */}
       <Card size="small" style={{ marginBottom: 16 }}>
         <Descriptions column={2} size="small">
           <Descriptions.Item label="Inspector">
-            {inspection.inspectorName || (inspection.inspectorId ? `ID: ${String(inspection.inspectorId).slice(-6)}` : 'Not assigned')}
+            {inspection.inspectorName || (inspection.inspectorId && typeof inspection.inspectorId === 'object' ? `${inspection.inspectorId.firstName || ''} ${inspection.inspectorId.lastName || ''}`.trim() : null) || 'Not assigned'}
           </Descriptions.Item>
           <Descriptions.Item label="Scheduled">
             {inspection.scheduledDate ? dayjs(inspection.scheduledDate).format('MMM D, YYYY') : 'Not scheduled'}
+            {inspection.scheduledTimeWindow && <Text type="secondary" style={{ marginLeft: 4 }}>({inspection.scheduledTimeWindow})</Text>}
           </Descriptions.Item>
           <Descriptions.Item label="Assigned By">
-            {inspection.assignedBy || 'System'}
+            {inspection.assignedByName || inspection.assignedBy || 'System'}
           </Descriptions.Item>
           <Descriptions.Item label="Created">
             {inspection.createdAt ? dayjs(inspection.createdAt).format('MMM D, YYYY h:mm A') : 'N/A'}
@@ -186,6 +225,17 @@ export default function InspectionDetailPanel({ inspection, onReviewComplete }) 
           )}
         </Descriptions>
       </Card>
+
+      {/* Owner Acknowledgment Status */}
+      {status === 'completed' && (
+        <Alert
+          type={hasAcknowledged ? 'success' : 'warning'}
+          showIcon
+          message={hasAcknowledged ? 'Owner has acknowledged inspection results' : 'Owner has NOT acknowledged inspection results'}
+          description={hasAcknowledged && ack.timestamp ? `Acknowledged on ${dayjs(ack.timestamp).format('MMM D, YYYY h:mm A')}` : hasAcknowledged ? undefined : 'The business owner has not yet acknowledged the results of this inspection.'}
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       {/* Assignment Form — for pending_assignment inspections */}
       {status === 'pending_assignment' && (
@@ -211,7 +261,7 @@ export default function InspectionDetailPanel({ inspection, onReviewComplete }) 
                 onChange={setSelectedInspector}
                 options={inspectors.map(i => ({
                   value: i._id,
-                  label: `${i.firstName} ${i.lastName}${i.email ? ` (${i.email})` : ''}`,
+                  label: i.name || `${i.firstName || ''} ${i.lastName || ''}`.trim() || i.email || 'Inspector',
                 }))}
                 showSearch
                 filterOption={(input, option) => option.label.toLowerCase().includes(input.toLowerCase())}
@@ -268,7 +318,7 @@ export default function InspectionDetailPanel({ inspection, onReviewComplete }) 
       {status === 'completed' && (violations.length > 0 || (inspection.violationsFound?.length > 0)) && (
         <Card
           size="small"
-          title={<><WarningOutlined style={{ color: '#faad14' }} /> Violations Found</>}
+          title={<><WarningOutlined style={{ color: '#faad14' }} /> Violations ({violations.length || inspection.violationsFound?.length || 0})</>}
           style={{ marginBottom: 16 }}
         >
           {loadingViolations ? (
@@ -283,19 +333,57 @@ export default function InspectionDetailPanel({ inspection, onReviewComplete }) 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
                       <Tag color={SEVERITY_COLORS[v.severity] || 'default'}>{v.severity}</Tag>
                       <Text strong>{v.violationType || v.type || `Violation ${idx + 1}`}</Text>
-                      {v.status && <Tag>{v.status}</Tag>}
+                      <Tag color={v.status === 'resolved' ? 'success' : v.status === 'open' ? 'error' : 'default'}>{v.status || 'open'}</Tag>
                     </div>
                     <Text type="secondary" style={{ fontSize: 12 }}>{v.description}</Text>
                     {v.complianceDeadline && (
                       <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
                         Deadline: {dayjs(v.complianceDeadline).format('MMM D, YYYY')}
+                        {v.status === 'open' && dayjs(v.complianceDeadline).isBefore(dayjs()) && (
+                          <Tag color="error" style={{ marginLeft: 4 }}>Overdue</Tag>
+                        )}
                       </Text>
+                    )}
+                    {v.legalBasis && (
+                      <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Legal basis: {v.legalBasis}</Text>
                     )}
                   </div>
                 </List.Item>
               )}
             />
           )}
+        </Card>
+      )}
+
+      {/* Evidence Photos — from inspector mobile app */}
+      {evidenceItems.length > 0 && (
+        <Card size="small" title={`Evidence (${evidenceItems.length})`} style={{ marginBottom: 16 }}>
+          <Image.PreviewGroup>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {evidenceItems.map((ev, idx) => {
+                const src = ev.url || ev.filePath || ev.cid || ''
+                const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(src) || ev.type?.startsWith('image')
+                return (
+                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                    {isImage ? (
+                      <Image
+                        width={80}
+                        height={80}
+                        src={src}
+                        style={{ objectFit: 'cover', borderRadius: 4, border: `1px solid ${token.colorBorderSecondary}` }}
+                        fallback="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Crect width='80' height='80' fill='%23f0f0f0'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-size='11'%3ENo preview%3C/text%3E%3C/svg%3E"
+                      />
+                    ) : (
+                      <div style={{ width: 80, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', background: token.colorBgLayout, borderRadius: 4, border: `1px solid ${token.colorBorderSecondary}` }}>
+                        <Text type="secondary" style={{ fontSize: 10, textAlign: 'center' }}>{ev.name || ev.fileName || `File ${idx + 1}`}</Text>
+                      </div>
+                    )}
+                    {ev.description && <Text type="secondary" style={{ fontSize: 10, maxWidth: 80, textAlign: 'center' }}>{ev.description}</Text>}
+                  </div>
+                )
+              })}
+            </div>
+          </Image.PreviewGroup>
         </Card>
       )}
 
@@ -318,7 +406,7 @@ export default function InspectionDetailPanel({ inspection, onReviewComplete }) 
                 onFocus={() => { if (!inspectors.length) fetchInspectors() }}
                 options={inspectors.map(i => ({
                   value: i._id,
-                  label: `${i.firstName} ${i.lastName}${i.email ? ` (${i.email})` : ''}`,
+                  label: i.name || `${i.firstName || ''} ${i.lastName || ''}`.trim() || i.email || 'Inspector',
                 }))}
                 showSearch
                 filterOption={(input, option) => option.label.toLowerCase().includes(input.toLowerCase())}
@@ -352,6 +440,45 @@ export default function InspectionDetailPanel({ inspection, onReviewComplete }) 
           <Text>{inspection.notes}</Text>
         </Card>
       )}
+
+      {/* GPS Check — if location data exists */}
+      {inspection.gpsCheck && (
+        <Card size="small" title="GPS Verification" style={{ marginBottom: 16 }}>
+          <Descriptions column={2} size="small">
+            <Descriptions.Item label="Status">
+              <Tag color={inspection.gpsCheck.matched ? 'success' : 'warning'}>
+                {inspection.gpsCheck.matched ? 'Location matched' : 'Location mismatch'}
+              </Tag>
+            </Descriptions.Item>
+            {inspection.gpsCheck.distanceMeters != null && (
+              <Descriptions.Item label="Distance">{Math.round(inspection.gpsCheck.distanceMeters)}m from registered address</Descriptions.Item>
+            )}
+          </Descriptions>
+        </Card>
+      )}
+
+      {/* Edit History — timeline of changes */}
+      {inspection.editHistory?.length > 0 && (
+        <Card size="small" title="Inspection History" style={{ marginBottom: 16 }}>
+          <List
+            size="small"
+            dataSource={inspection.editHistory}
+            renderItem={(entry, idx) => (
+              <List.Item style={{ padding: '4px 0' }}>
+                <div>
+                  <Text style={{ fontSize: 12 }}>
+                    <Text strong>{entry.action || entry.event || 'Update'}</Text>
+                    {entry.by && <Text type="secondary"> by {entry.by}</Text>}
+                  </Text>
+                  {entry.at && <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{dayjs(entry.at).format('MMM D, YYYY h:mm A')}</Text>}
+                  {entry.details && <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{entry.details}</Text>}
+                </div>
+              </List.Item>
+            )}
+          />
+        </Card>
+      )}
     </div>
+    </Spin>
   )
 }

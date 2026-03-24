@@ -21,12 +21,32 @@ export default function VerifyDeleteCodeForm({ email, onSubmit, title } = {}) {
       <Form name="verifyDelete" form={form} layout="vertical" onFinish={handleFinish} requiredMark={false}>
         <Form.Item
           name="verificationCode"
-          rules={[{ required: true, message: 'Please enter the verification code' }]}
+          rules={[
+            { required: true, message: 'Please enter the verification code' },
+            { pattern: /^[0-9]{6}$/, message: 'Code must be exactly 6 digits' }
+          ]}
           style={{ marginBottom: 32 }}
+          getValueFromEvent={(val) => {
+            if (typeof val === 'string') return val.replace(/\D/g, '').slice(0, 6)
+            if (Array.isArray(val)) return val.join('').replace(/\D/g, '').slice(0, 6)
+            return ''
+          }}
         >
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <Input.OTP length={6} inputType="numeric" mask={false} />
-          </div>
+          <Input.OTP 
+            length={6} 
+            style={{ width: '100%', display: 'flex', justifyContent: 'center' }}
+            inputType="numeric" 
+            mask={false}
+            onKeyDown={(e) => {
+              const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
+              if (allowedKeys.includes(e.key)) return
+              if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
+              if (!/^[0-9]$/.test(e.key)) {
+                e.preventDefault()
+                e.stopPropagation()
+              }
+            }}
+          />
         </Form.Item>
 
         <Form.Item style={{ marginBottom: 16 }}>

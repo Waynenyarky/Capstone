@@ -480,6 +480,9 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
           return respond.error(res, 500, 'email_send_failed', `Failed to send verification email. ${emailResult?.error || 'Check email configuration.'}`)
         }
         logger.info('Login: sent email OTP (scheduled deletion)', { email })
+      } else if (hasPasskey && !isLguOfficer) {
+        // User has passkeys - skip email OTP, they'll authenticate via passkey
+        logger.info('Login: skipping email OTP (passkey enrolled)', { email })
       } else if (forceEmailOtpInDev || (!totpMfaEnabled && !isLguOfficer)) {
         const emailResult = await sendOtp({ to: email, code, subject: 'Your Login Verification Code', purpose: 'login' })
         if (!emailResult || !emailResult.success) {
@@ -507,6 +510,7 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
     const payload = { sent: true }
     payload.mfaEnabled = forceEmailOtpInDev ? false : totpMfaEnabled
     payload.mfaMethod = forceEmailOtpInDev ? 'email' : method
+    payload.hasPasskey = hasPasskey
     try {
       payload.isFingerprintEnabled = !!doc.fprintEnabled || method.includes('fingerprint')
     } catch (_) {}
@@ -516,6 +520,9 @@ router.post('/login/start', loginStartLimiter, validateBody(loginCredentialsSche
       payload.forceEmailOtp = true
       if (forceEmailOtpInDev) payload.mfaEnabled = false
       payload.mfaMethod = 'email'
+    } else if (hasPasskey && !totpMfaEnabled) {
+      // Passkey-only user (no TOTP) - indicate passkey method
+      payload.mfaMethod = 'passkey'
     }
 
     if (process.env.NODE_ENV !== 'production') payload.devCode = code

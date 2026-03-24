@@ -27,7 +27,8 @@ export default forwardRef(function AddBusinessForm({
   readOnly: readOnlyProp = false,
   onSubmitted,
   initialRegistrationType = null,
-  hideActionButtons = false
+  hideActionButtons = false,
+  updateFn = null, // Optional: override updateBusiness (officer walk-in uses PUT /api/business/walk-in/:id)
 }, ref) {
   const { token } = theme.useToken()
   const { message } = App.useApp()
@@ -37,7 +38,7 @@ export default forwardRef(function AddBusinessForm({
 
   const isEditing = !!editingBusiness
   const [step, setStep] = useState(isEditing ? 'form' : (initialRegistrationType ? 'form' : 'type_selection'))
-  const [registrationType, setRegistrationType] = useState(editingBusiness?.formType || initialRegistrationType || null)
+  const [registrationType, setRegistrationType] = useState(editingBusiness?.formType || initialRegistrationType || (isEditing ? 'permit' : null))
   const [generalPermitCategory, setGeneralPermitCategory] = useState(editingBusiness?.category || null)
   const [formDefinition, setFormDefinition] = useState(null)
   // Start loading if editing OR if initialRegistrationType is provided (will auto-create draft)
@@ -272,14 +273,15 @@ export default forwardRef(function AddBusinessForm({
         setFormValues(initial)
       }
       setGeneralPermitCategory(editingBusiness.category || null)
-      setRegistrationType(editingBusiness.formType || null)
+      setRegistrationType(editingBusiness.formType || 'permit')
     }
   }, [editingBusiness])
 
   // Load form definition when editing
   useEffect(() => {
-    if (isEditing && editingBusiness?.formType) {
-      fetchFormDefinition(editingBusiness.formType, editingBusiness.category)
+    if (isEditing) {
+      const type = editingBusiness?.formType || 'permit'
+      fetchFormDefinition(type, editingBusiness?.category)
     }
   }, [isEditing, editingBusiness?.formType, editingBusiness?.category, editingBusiness?.businessId, editingBusiness?._id])
 
@@ -309,7 +311,8 @@ export default forwardRef(function AddBusinessForm({
     draftBusinessId,
     setDraftBusinessId,
     setSubmitted,
-    setHasUnsavedChanges
+    setHasUnsavedChanges,
+    updateFn,
   })
 
   useEffect(() => {

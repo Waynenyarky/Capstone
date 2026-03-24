@@ -273,7 +273,7 @@ router.post('/:applicationId/reset-status', requireJwt, requireRole(['lgu_office
   try {
     const { applicationId } = req.params
     const { newStatus } = req.body || {}
-    const officerId = req.user?.id || req.user?._id
+    const officerId = req._userId || req.user?.id || req.user?._id
 
     if (!newStatus) {
       return respond.error(res, 400, 'validation_error', 'New status is required')
@@ -396,16 +396,18 @@ router.post('/:applicationId/reset-status', requireJwt, requireRole(['lgu_office
       const AuditLog = require('../models/AuditLog')
       const crypto = require('crypto')
       const auditData = {
-        userId: profile.userId,
+        userId: officerId,
         eventType: 'decision_revoked',
         fieldChanged: 'applicationStatus',
         oldValue: oldStatus,
         newValue: newStatus,
-        role: req.user?.role?.slug || 'lgu_officer',
+        role: req._userRole || req.user?.role?.slug || 'lgu_officer',
         metadata: {
           applicationId,
           businessId: applicationId,
           officerId,
+          businessOwnerId: String(profile.userId),
+          businessName: business.businessName || business.registeredBusinessName || '',
           revokedAt: new Date().toISOString()
         }
       }
@@ -493,7 +495,7 @@ router.put('/:applicationId/claim', requireJwt, requireRole(['lgu_officer', 'lgu
         fieldChanged: 'reviewedBy',
         oldValue: '',
         newValue: officerId,
-        role: req.user?.role?.slug || 'lgu_officer',
+        role: req._userRole || req.user?.role?.slug || 'lgu_officer',
         metadata: { applicationId, businessName: business.businessName || business.registeredBusinessName }
       }
       const hashableData = {
@@ -575,6 +577,35 @@ router.put('/:applicationId/release', requireJwt, requireRole(['lgu_officer', 'l
 
     await BusinessProfile.updateOne({ _id: profile._id }, releaseUpdate)
 
+    // Audit log
+    try {
+      const AuditLog = require('../models/AuditLog')
+      const crypto = require('crypto')
+      const auditData = {
+        userId: officerId,
+        eventType: 'application_released',
+        fieldChanged: 'reviewedBy',
+        oldValue: String(business.reviewedBy || ''),
+        newValue: '',
+        role: req.user?.role?.slug || req._userRole || 'lgu_officer',
+        metadata: { applicationId, businessName: business.businessName || business.registeredBusinessName }
+      }
+      const hashableData = {
+        userId: String(auditData.userId),
+        eventType: auditData.eventType,
+        fieldChanged: auditData.fieldChanged,
+        oldValue: auditData.oldValue,
+        newValue: auditData.newValue,
+        role: auditData.role,
+        metadata: JSON.stringify(auditData.metadata),
+        timestamp: new Date().toISOString()
+      }
+      auditData.hash = crypto.createHash('sha256').update(JSON.stringify(hashableData)).digest('hex')
+      await AuditLog.create(auditData)
+    } catch (auditErr) {
+      console.error('[release] Failed to create audit log:', auditErr)
+    }
+
     // Emit realtime event for release
     const socket = getSocketService()
     if (socket) {
@@ -636,6 +667,35 @@ router.put('/:applicationId/transfer', requireJwt, requireRole(['lgu_officer', '
         [`businesses.${businessIndex}.updatedAt`]: new Date(),
       }
     })
+
+    // Audit log
+    try {
+      const AuditLog = require('../models/AuditLog')
+      const crypto = require('crypto')
+      const auditData = {
+        userId: officerId,
+        eventType: 'application_transferred',
+        fieldChanged: 'reviewedBy',
+        oldValue: String(officerId),
+        newValue: String(targetOfficerId),
+        role: req.user?.role?.slug || req._userRole || 'lgu_officer',
+        metadata: { applicationId, businessName: business.businessName || business.registeredBusinessName, targetOfficerId }
+      }
+      const hashableData = {
+        userId: String(auditData.userId),
+        eventType: auditData.eventType,
+        fieldChanged: auditData.fieldChanged,
+        oldValue: auditData.oldValue,
+        newValue: auditData.newValue,
+        role: auditData.role,
+        metadata: JSON.stringify(auditData.metadata),
+        timestamp: new Date().toISOString()
+      }
+      auditData.hash = crypto.createHash('sha256').update(JSON.stringify(hashableData)).digest('hex')
+      await AuditLog.create(auditData)
+    } catch (auditErr) {
+      console.error('[transfer] Failed to create audit log:', auditErr)
+    }
 
     // Cross-transfer all other requests for this business
     if (crossClaimForBusiness) {

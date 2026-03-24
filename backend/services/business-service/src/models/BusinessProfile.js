@@ -183,6 +183,9 @@ const BusinessProfileSchema = new mongoose.Schema(
       reviewedAt: { type: Date, default: null },
       reviewComments: { type: String, default: '' },
       rejectionReason: { type: String, default: '' },
+      hasActiveAppeal: { type: Boolean, default: false },
+      appealId: { type: String, default: '' },
+      appealExhausted: { type: Boolean, default: false },
       // Per-field accept/reject decisions from LGU review workflow
       fieldReviewDecisions: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
       // Step 2: Online Application Form (new spec)
@@ -259,6 +262,8 @@ const BusinessProfileSchema = new mongoose.Schema(
       submittedAt: { type: Date },
       submittedToLguOfficer: { type: Boolean, default: false },
       isSubmitted: { type: Boolean, default: false },
+      // Walk-in flag: true when created by an LGU officer on behalf of the business owner
+      createdByOfficer: { type: Boolean, default: false },
       // Permit / form application fields (draft and submitted)
       formType: { type: String, default: '' },
       category: { type: String, default: '' },
@@ -372,7 +377,7 @@ BusinessProfileSchema.plugin(encryptionPlugin, {
       'businessName', 'registeredBusinessName', 'businessPlateNo',
       'businessStatus', 'registrationStatus', 'retirementStatus',
       'applicationId', 'applicationType', 'isSubmitted', 'submittedToLguOfficer',
-      'reviewedBy', 'claimedBy',
+      'reviewedBy', 'claimedBy', 'createdByOfficer',
     ],
   },
   mixedPaths: ['businessRegistration', 'location', 'compliance', 'profileDetails', 'notifications'],

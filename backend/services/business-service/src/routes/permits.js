@@ -61,7 +61,8 @@ router.get('/', requireJwt, async (req, res) => {
       })
     }
     
-    const permits = await permitService.getBusinessPermits(businessId)
+    // Pass userId for fallback lookup when businessId doesn't match directly
+    const permits = await permitService.getBusinessPermits(businessId, req._userId)
     return res.json({ permits })
   } catch (error) {
     console.error('Get permits error:', error)
