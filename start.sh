@@ -6,25 +6,29 @@
 # when everything is ready. No need to remember commands!
 #
 # Usage:
-#   ./start.sh              # Default (no auto-reload)
+#   ./start.sh              # Default: dev mode + web-only (auto-reload, just opens web app)
 #   ./start.sh --demo       # Security demo (production build on 4173, no FAB/prefill; uses same API)
 #   ./start.sh --demo-ui    # Demo UI on dev server (5173): hot reload, no FAB/prefill, same API
 #   ./start.sh --production # Full reset (containers + volumes; DB empty) then start
-#   ./start.sh --dev        # Development mode (auto-reload + FAB/prefill on 5173)
+#   ./start.sh --no-dev     # Disable dev mode (no auto-reload)
+#   ./start.sh --all-tabs   # Open all browser tabs (IPFS, API health, Dozzle) instead of just web
 #   ./start.sh --clean      # Clean up unused Docker resources before starting
 #   ./start.sh --rebuild    # Rebuild all Docker images (fixes missing dependencies)
-#   ./start.sh --retrain     # Retrain LOB AI model from dataset on startup, then start
+#   ./start.sh --retrain    # Retrain LOB AI model from dataset on startup, then start
 #   ./start.sh --status     # Just show status, don't start anything
 #   ./start.sh --ipfs-list  # List IPFS documents from application submissions (no start)
 #   ./start.sh --eval-lob   # Evaluate LOB model accuracy (Top-1/3/5, F1) and exit
 #   ./start.sh --test       # Run all tests (backend, web, blockchain)
 #   ./start.sh --skip-ipfs  # Skip IPFS (use when IPFS container fails)
 #   ./start.sh --slow-network  # Use longer wait times (for slow or high-latency networks)
-#   ./start.sh --atlas     # Use MongoDB Atlas instead of local MongoDB (set MONGO_URI in .env; see docs/deployment/atlas.md)
-#   ./start.sh --web-only  # Only open the web app tab (no IPFS, API health, Dozzle tabs)
-#   ./start.sh --ganache-gui  # Use Ganache GUI on port 7545 instead of Docker Ganache (start GUI first)
-#   ./start.sh --iphone       # Run mobile app on iOS iPhone simulator (no Docker/web)
-#   ./start.sh --android      # Run mobile app on Android emulator/device (no Docker/web)
+#   ./start.sh --atlas      # Use MongoDB Atlas instead of local MongoDB (set MONGO_URI in .env)
+#   ./start.sh --web-only   # Only open the web app tab (default; use --all-tabs to override)
+#   ./start.sh --ganache-gui   # Use Ganache GUI on port 7545 instead of Docker Ganache
+#   ./start.sh --iphone     # Run mobile app on iOS iPhone simulator (no Docker/web)
+#   ./start.sh --android    # Run mobile app on Android emulator/device (no Docker/web)
+#
+# First Run: .env files are auto-created from .env.development templates if missing.
+#            Seeding is enabled by default (SEED_DEV=true) for test accounts.
 #
 # Email: Before starting, the script runs an email config check (Resend/SendGrid/etc.).
 # If it fails, startup is aborted unless you pass --skip-email-check.
@@ -41,6 +45,80 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
+
+# ================================
+# Environment Setup (Auto-populate .env files)
+# ================================
+setup_env_files() {
+  echo ""
+  echo -e "${CYAN}🔧 Checking environment configuration...${NC}"
+  
+  local PROJECT_ROOT
+  PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || pwd)"
+  local ENV_CREATED=false
+  
+  # Root .env
+  if [ ! -f "$PROJECT_ROOT/.env" ]; then
+    if [ -f "$PROJECT_ROOT/.env.development" ]; then
+      cp "$PROJECT_ROOT/.env.development" "$PROJECT_ROOT/.env"
+      echo -e "${GREEN}   ✅ Created .env from .env.development${NC}"
+      ENV_CREATED=true
+    else
+      echo -e "${YELLOW}   ⚠️  No .env or .env.development found in root${NC}"
+    fi
+  else
+    echo -e "${GREEN}   ✅ Root .env exists${NC}"
+  fi
+  
+  # Backend .env
+  if [ ! -f "$PROJECT_ROOT/backend/.env" ]; then
+    if [ -f "$PROJECT_ROOT/backend/.env.development" ]; then
+      cp "$PROJECT_ROOT/backend/.env.development" "$PROJECT_ROOT/backend/.env"
+      echo -e "${GREEN}   ✅ Created backend/.env from backend/.env.development${NC}"
+      ENV_CREATED=true
+    else
+      echo -e "${YELLOW}   ⚠️  No backend/.env or backend/.env.development found${NC}"
+    fi
+  else
+    echo -e "${GREEN}   ✅ backend/.env exists${NC}"
+  fi
+  
+  # Web .env
+  if [ ! -f "$PROJECT_ROOT/web/.env" ]; then
+    if [ -f "$PROJECT_ROOT/web/.env.development" ]; then
+      cp "$PROJECT_ROOT/web/.env.development" "$PROJECT_ROOT/web/.env"
+      echo -e "${GREEN}   ✅ Created web/.env from web/.env.development${NC}"
+      ENV_CREATED=true
+    else
+      echo -e "${YELLOW}   ⚠️  No web/.env or web/.env.development found${NC}"
+    fi
+  else
+    echo -e "${GREEN}   ✅ web/.env exists${NC}"
+  fi
+  
+  # Mobile .env
+  if [ ! -f "$PROJECT_ROOT/mobile/app/.env" ]; then
+    if [ -f "$PROJECT_ROOT/mobile/app/.env.development" ]; then
+      cp "$PROJECT_ROOT/mobile/app/.env.development" "$PROJECT_ROOT/mobile/app/.env"
+      echo -e "${GREEN}   ✅ Created mobile/app/.env from mobile/app/.env.development${NC}"
+      ENV_CREATED=true
+    else
+      echo -e "${YELLOW}   ⚠️  No mobile/app/.env or mobile/app/.env.development found${NC}"
+    fi
+  else
+    echo -e "${GREEN}   ✅ mobile/app/.env exists${NC}"
+  fi
+  
+  if [ "$ENV_CREATED" = true ]; then
+    echo -e "${CYAN}   ℹ️  Environment files created from development templates.${NC}"
+    echo -e "${CYAN}      These use shared development credentials (free tier APIs).${NC}"
+    echo -e "${CYAN}      For production, edit .env files with your own secrets.${NC}"
+  fi
+  echo ""
+}
+
+# Run env setup immediately
+setup_env_files
 
 # Print LAN URLs that can be opened from other devices on the same network.
 print_lan_web_urls() {
@@ -215,7 +293,8 @@ prepare_atlas_mongo_uri() {
 }
 
 # Parse arguments
-DEV_MODE=false
+# Defaults: dev mode + web-only for easy onboarding (./start.sh just works)
+DEV_MODE=true
 DEMO_MODE=false
 DEMO_UI_MODE=false
 PRODUCTION_MODE=false
@@ -227,7 +306,7 @@ IPFS_LIST_ONLY=false
 EVAL_LOB=false
 SLOW_NETWORK=false
 ATLAS_MODE=false
-OPEN_WEB_ONLY=false
+OPEN_WEB_ONLY=true
 RETRAIN_LOB=false
 GANACHE_GUI=false
 SKIP_EMAIL_CHECK=false
@@ -240,14 +319,19 @@ for arg in "$@"; do
     --dev|-d)
       DEV_MODE=true
       ;;
+    --no-dev)
+      DEV_MODE=false
+      ;;
     --demo|-D)
       DEMO_MODE=true
+      DEV_MODE=false
       ;;
     --demo-ui)
       DEMO_UI_MODE=true
       ;;
     --production|-p)
       PRODUCTION_MODE=true
+      DEV_MODE=false
       ;;
     --skip-ipfs)
       SKIP_IPFS=true
@@ -281,6 +365,9 @@ for arg in "$@"; do
       ;;
     --web-only)
       OPEN_WEB_ONLY=true
+      ;;
+    --all-tabs)
+      OPEN_WEB_ONLY=false
       ;;
     --ganache-gui)
       GANACHE_GUI=true
@@ -1239,24 +1326,22 @@ elif [ -f "/tmp/web-dev-server.pid" ]; then
   echo -e "   • Web: tail -f /tmp/web-dev-server.log"
 fi
 echo ""
-if [ "$DEV_MODE" = false ] && [ "$DEMO_MODE" = false ]; then
-  echo -e "${YELLOW}💡 Tip: Use './start.sh --dev' for development or './start.sh --demo' for security demo!${NC}"
-fi
-echo -e "${CYAN}💡 Other options:${NC}"
-echo -e "   • ./start.sh --demo       # Security demo (4173, production build, no dev UI)"
+echo -e "${CYAN}💡 Options:${NC}"
+echo -e "   • ./start.sh             # Default: dev mode + web-only (current)"
+echo -e "   • ./start.sh --no-dev    # Disable dev mode (no auto-reload)"
+echo -e "   • ./start.sh --all-tabs  # Open all browser tabs (IPFS, Dozzle, etc.)"
+echo -e "   • ./start.sh --demo      # Security demo (4173, production build)"
 echo -e "   • ./start.sh --demo-ui   # Demo UI on 5173 (hot reload, no FAB/prefill)"
-echo -e "   • ./start.sh --production # Full reset + empty DB (cannot use with --dev or --clean)"
-echo -e "   • ./start.sh --status     # Check what's running and disk usage"
-echo -e "   • ./start.sh --ipfs-list  # List IPFS documents from application submissions"
-echo -e "   • ./start.sh --clean      # Clean unused Docker resources before starting"
-echo -e "   • ./start.sh --skip-ipfs      # Skip IPFS (use when IPFS container fails)"
-echo -e "   • ./start.sh --atlas         # Use MongoDB Atlas (set MONGO_URI in .env)"
-echo -e "   • ./start.sh --web-only      # Only open the web app tab (no extra tabs)"
-echo -e "   • ./start.sh --retrain       # Retrain LOB AI model from dataset on startup"
-echo -e "   • ./start.sh --eval-lob     # Evaluate LOB model accuracy (Top-1/3/5, F1)"
-echo -e "   • ./start.sh --slow-network  # Longer waits for slow or high-latency networks"
-echo -e "   • ./start.sh --ganache-gui   # Use Ganache GUI on 7545 instead of Docker (start GUI first)"
-echo -e "   • ./start.sh --iphone        # Run mobile app on iOS iPhone simulator"
-echo -e "   • ./start.sh --android       # Run mobile app on Android emulator/device"
-echo -e "   • ./start.sh --test          # Run all tests (backend, web, blockchain)"
-echo -e "   • ./start.sh --skip-email-check  # Skip email config check on startup"
+echo -e "   • ./start.sh --production # Full reset + empty DB"
+echo -e "   • ./start.sh --status    # Check what's running and disk usage"
+echo -e "   • ./start.sh --clean     # Clean unused Docker resources"
+echo -e "   • ./start.sh --rebuild   # Rebuild Docker images (fixes deps)"
+echo -e "   • ./start.sh --skip-ipfs # Skip IPFS container"
+echo -e "   • ./start.sh --atlas     # Use MongoDB Atlas (set MONGO_URI in .env)"
+echo -e "   • ./start.sh --retrain   # Retrain LOB AI model on startup"
+echo -e "   • ./start.sh --eval-lob  # Evaluate LOB model accuracy"
+echo -e "   • ./start.sh --test      # Run all tests (backend, web, blockchain)"
+echo -e "   • ./start.sh --ganache-gui  # Use Ganache GUI on 7545"
+echo -e "   • ./start.sh --iphone    # Run mobile app on iOS simulator"
+echo -e "   • ./start.sh --android   # Run mobile app on Android"
+echo -e "   • ./start.sh --skip-email-check  # Skip email config check"
