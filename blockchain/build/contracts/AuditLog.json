@@ -48934,8 +48934,8 @@
         }
       },
       "links": {},
-      "address": "0x204725D81AFC96E65E65930699D447D357e3f939",
-      "transactionHash": "0xf8762525243e11892672bd190452936e368728cd6a0709034c5e7db15126ef2c"
+      "address": "0xfd0b8a832e4f3c0725054669E3FAC71CCa4Afe13",
+      "transactionHash": "0x31910b584762682860f8afe6bfc3406f731b40cf53636f7a3e11cf16965e34de"
     },
     "1768839189326": {
       "events": {},
@@ -49075,7 +49075,7 @@
     }
   },
   "schemaVersion": "3.3.4",
-  "updatedAt": "2026-03-19T06:52:47.012Z",
+  "updatedAt": "2026-03-25T00:34:23.834Z",
   "networkType": "ethereum",
   "devdoc": {
     "details": "Smart contract for immutable audit logging Supports both hash-based logging (off-chain data) and full event logging (on-chain data) Now uses AccessControl for role-based permissions",
