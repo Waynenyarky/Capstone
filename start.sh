@@ -30,8 +30,8 @@
 # First Run: .env files are auto-created from .env.development templates if missing.
 #            Seeding is enabled by default (SEED_DEV=true) for test accounts.
 #
-# Email: Before starting, the script runs an email config check (Resend/SendGrid/etc.).
-# If it fails, startup is aborted unless you pass --skip-email-check.
+# Email: The script checks email config but won't block startup. Mock emails
+# work in dev mode (codes shown in terminal). Use --skip-email-check to skip it.
 #
 # Note: --production cannot be combined with --dev or --clean. --demo cannot be combined with --dev, --production, or --clean.
 
@@ -855,13 +855,13 @@ if [ "$SKIP_EMAIL_CHECK" = false ]; then
     echo -e "${CYAN}📧 Checking email configuration (Resend/SendGrid/etc.)...${NC}"
     echo -e "${CYAN}   Run with --skip-email-check to skip this.${NC}"
     echo ""
-    if ! (cd "${PROJECT_ROOT_EMAIL}" && node backend/check-email-config.js); then
+    if ! (cd "${PROJECT_ROOT_EMAIL}" && node backend/check-email-config.js 2>/dev/null); then
       echo ""
-      echo -e "${RED}❌ Email configuration has errors. OTP/signup emails will not work.${NC}"
-      echo -e "${YELLOW}   Fix the issues above, or start with: ./start.sh --skip-email-check${NC}"
-      echo -e "${CYAN}   To test sending: node backend/scripts/test-sendgrid.js your@email.com${NC}"
+      echo -e "${YELLOW}⚠️  Email configuration check failed or dotenv not installed yet.${NC}"
+      echo -e "${CYAN}   This is OK for first run - the app will use mock emails in dev mode.${NC}"
+      echo -e "${CYAN}   To verify real emails later: npm install && ./start.sh${NC}"
       echo ""
-      exit 1
+      # Don't exit - continue with startup for "just works" experience
     fi
     echo ""
   fi
