@@ -240,6 +240,7 @@ services:
       - deploy-contracts
     env_file: .env
     environment:
+      - MONGO_URI=mongodb://${MONGO_APP_USER:-capstone_app}:${MONGO_APP_PASSWORD:-devapppass}@mongodb:27017/capstone_project?authSource=admin
       - GANACHE_RPC_URL=http://ganache:8545
       - CONTRACT_ABI_PATH=/app/contract-addresses
       - ADMIN_SERVICE_URL=${DOCKER_ADMIN_SERVICE_URL}
