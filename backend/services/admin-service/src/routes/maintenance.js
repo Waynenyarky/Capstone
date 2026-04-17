@@ -12,6 +12,21 @@ async function ensureActiveMaintenanceFromApprovals() {
   const latestApproved = await AdminApproval.findOne({ requestType: 'maintenance_mode', status: 'approved' })
     .sort({ updatedAt: -1 })
     .lean()
+  const latestAction = latestApproved?.requestDetails?.action
+
+  if (latestAction === 'disable') {
+    await MaintenanceWindow.updateMany(
+      {
+        $or: [
+          { isActive: true },
+          { status: 'pending' },
+        ],
+      },
+      { isActive: false, status: 'ended', deactivatedAt: new Date() }
+    )
+    return null
+  }
+
   const active = await MaintenanceWindow.findOne({ isActive: true }).sort({ createdAt: -1 })
   if (active) return active
 
@@ -32,18 +47,6 @@ async function ensureActiveMaintenanceFromApprovals() {
   if (!latestApproved) return null
 
   const { action, message, expectedResumeAt, scheduledStartAt } = latestApproved.requestDetails || {}
-  if (action === 'disable') {
-    await MaintenanceWindow.updateMany(
-      {
-        $or: [
-          { isActive: true },
-          { status: 'pending' },
-        ],
-      },
-      { isActive: false, status: 'ended', deactivatedAt: new Date() }
-    )
-    return null
-  }
 
   if (action !== 'enable') return null
 

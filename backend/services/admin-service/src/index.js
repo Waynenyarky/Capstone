@@ -270,6 +270,19 @@ async function start() {
       }
     }
 
+    // Seed announcements for landing page when SEED_ANNOUNCEMENTS or SEED_DEV is set (idempotent)
+    if (process.env.NODE_ENV !== 'test' && (process.env.SEED_ANNOUNCEMENTS === 'true' || process.env.SEED_DEV === 'true')) {
+      try {
+        const { seedAnnouncementsIfEmpty } = require('./seed/seedAnnouncements')
+        const result = await seedAnnouncementsIfEmpty()
+        if (result.seeded) {
+          logger.info('Announcements seeded', { created: result.created })
+        }
+      } catch (error) {
+        logger.warn('Announcements seed failed', { error: error.message })
+      }
+    }
+
     // Initialize background jobs after DB connection
     if (process.env.NODE_ENV !== 'test') {
       try {

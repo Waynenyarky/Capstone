@@ -36,7 +36,6 @@ export default function MaintenanceDesktopView({
   onApprove,
   onOpenRequestModal,
   onRefresh,
-  headerActions,
 }) {
   const { token } = theme.useToken()
   const [selectedApproval, setSelectedApproval] = useState(null)

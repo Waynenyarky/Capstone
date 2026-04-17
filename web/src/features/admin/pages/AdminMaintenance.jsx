@@ -156,7 +156,12 @@ export default function AdminMaintenance() {
           content: 'Are you sure you want to Cancel the Maintenance?',
           okText: 'Yes, cancel maintenance',
           cancelText: 'No, keep maintenance',
-          onOk: () => handleSubmit(values),
+          // Close the confirm modal first, then open step-up so the PIN modal stays on top.
+          onOk: () => {
+            window.setTimeout(() => {
+              handleSubmit(values)
+            }, 0)
+          },
           onCancel: () => setSubmitting(false),
         })
         return

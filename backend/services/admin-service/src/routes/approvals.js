@@ -34,6 +34,43 @@ const approveRequestSchema = Joi.object({
   comment: Joi.string().allow('').optional(),
 });
 
+async function reconcilePendingMaintenanceApprovals() {
+  const pendingMaintenance = await AdminApproval.find({
+    requestType: 'maintenance_mode',
+    status: 'pending',
+  });
+
+  for (const approval of pendingMaintenance) {
+    const approvedCount = approval.approvals.filter((a) => a.approved === true).length;
+    const voteCount = approval.approvals.length;
+
+    if (voteCount < approval.requiredApprovals) continue;
+
+    const nextStatus = approvedCount >= approval.requiredApprovals ? 'approved' : 'rejected';
+    if (approval.status === nextStatus) continue;
+
+    approval.status = nextStatus;
+    await approval.save();
+
+    if (nextStatus === 'approved') {
+      try {
+        const applyResult = await applyApprovedChange(approval);
+        if (!applyResult.success) {
+          logger.error('Failed to apply reconciled approved maintenance change', {
+            approvalId: approval.approvalId,
+            error: applyResult.error,
+          });
+        }
+      } catch (err) {
+        logger.error('Error applying reconciled approved maintenance change', {
+          approvalId: approval.approvalId,
+          error: err.message,
+        });
+      }
+    }
+  }
+}
+
 // POST /api/admin/approvals - Create an approval request
 router.post('/approvals', requireJwt, requireRole(['admin']), requireAdminStepUp, async (req, res) => {
   try {
@@ -165,12 +202,20 @@ router.post('/approvals/:approvalId/approve', requireJwt, requireRole(['admin'])
       timestamp: new Date(),
     });
 
-    // Check if request is complete
+    // Finalize decision after each vote.
+    // Rule: 2 approvals => approved. If vote count reaches requiredApprovals with mixed votes => rejected.
     let wasJustApproved = false;
-    if (approval.isComplete() && approval.status === 'pending') {
+    const approvedCount = approval.approvals.filter((a) => a.approved === true).length;
+    const rejectedCount = approval.approvals.filter((a) => a.approved === false).length;
+    const voteCount = approval.approvals.length;
+    const hasMixedVotes = approvedCount > 0 && rejectedCount > 0;
+
+    if (approvedCount >= approval.requiredApprovals && approval.status === 'pending') {
       approval.status = 'approved';
       wasJustApproved = true;
-    } else if (approval.isRejected()) {
+    } else if (rejectedCount >= approval.requiredApprovals) {
+      approval.status = 'rejected';
+    } else if (voteCount >= approval.requiredApprovals && hasMixedVotes) {
       approval.status = 'rejected';
     }
 
@@ -306,6 +351,13 @@ router.post('/approvals/:approvalId/approve', requireJwt, requireRole(['admin'])
 router.get('/approvals', requireJwt, requireRole(['admin']), async (req, res) => {
   try {
     const { status, userId, requestType } = req.query;
+
+    // Keep maintenance approvals consistent with 2-admin voting rules.
+    // This prevents old split-vote records from remaining stuck in pending.
+    if (!requestType || requestType === 'maintenance_mode') {
+      await reconcilePendingMaintenanceApprovals();
+    }
+
     const query = {};
     if (status) query.status = status;
     if (userId) query.userId = userId;
@@ -314,6 +366,7 @@ router.get('/approvals', requireJwt, requireRole(['admin']), async (req, res) =>
     const approvals = await AdminApproval.find(query)
       .populate('userId', 'firstName lastName email')
       .populate('requestedBy', 'firstName lastName email')
+      .populate('approvals.adminId', 'firstName lastName email')
       .sort({ createdAt: -1 })
       .lean();
 
