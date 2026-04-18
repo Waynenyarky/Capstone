@@ -15,6 +15,45 @@ export default function HeroSection() {
   const [announcements, setAnnouncements] = useState([])
   const [maintenanceStatus, setMaintenanceStatus] = useState({ active: false, scheduled: false })
 
+  const faqItems = [
+    {
+      key: 'faq-1',
+      label: 'How long does permit processing usually take?',
+      children: (
+        <Paragraph style={{ marginBottom: 0 }}>
+          Most complete applications move through initial review within 3 to 5 working days. Processing time can vary depending on document completeness and required agency clearances.
+        </Paragraph>
+      ),
+    },
+    {
+      key: 'faq-2',
+      label: 'Can I submit my application even if one document is pending?',
+      children: (
+        <Paragraph style={{ marginBottom: 0 }}>
+          You can start your application and save progress, but final submission should include all required documents to avoid review delays and repeated verification requests.
+        </Paragraph>
+      ),
+    },
+    {
+      key: 'faq-3',
+      label: 'How will I know if my permit status changes?',
+      children: (
+        <Paragraph style={{ marginBottom: 0 }}>
+          Status updates are posted in your portal account and may also be sent through your registered contact channels, depending on your account notification settings.
+        </Paragraph>
+      ),
+    },
+    {
+      key: 'faq-4',
+      label: 'What should I do if my application is returned for correction?',
+      children: (
+        <Paragraph style={{ marginBottom: 0 }}>
+          Review the feedback note, update the requested details, and resubmit the corrected documents promptly. Keeping file names clear and readable helps speed up revalidation.
+        </Paragraph>
+      ),
+    },
+  ]
+
   useEffect(() => {
     const fetchLandingData = async () => {
       try {
@@ -117,24 +156,26 @@ export default function HeroSection() {
   return (
     <div style={{ 
       background: token.colorBgContainer,
-      padding: screens.md ? '60px 200px' : '40px 24px',
+      padding: screens.md ? '56px clamp(24px, 8vw, 140px)' : '36px 16px',
       display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+      flexDirection: 'column',
+      alignItems: 'stretch',
+      gap: screens.md ? 44 : 28,
       flex: 1,
     }}>
       <div style={{ 
         width: '100%',
+        maxWidth: 1280,
+        margin: '0 auto',
         display: 'grid',
-        gridTemplateColumns: hasAnnouncementPanel && screens.md ? '1fr 1fr' : '1fr',
-        gridAutoRows: '1fr',
-        gap: screens.md ? 60 : 40,
+        gridTemplateColumns: hasAnnouncementPanel && screens.lg ? 'minmax(0, 1.15fr) minmax(320px, 0.85fr)' : '1fr',
+        gap: screens.lg ? 56 : 32,
         alignItems: 'start'
       }}>
         {/* Left Panel - Hero Text */}
         <div style={{ 
-          textAlign: (hasAnnouncementPanel && screens.md) ? 'left' : 'center',
-          height: '100%',
+          textAlign: hasAnnouncementPanel && screens.lg ? 'left' : 'center',
+          minHeight: screens.lg ? 280 : 'auto',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center'
@@ -144,7 +185,7 @@ export default function HeroSection() {
             fontSize,
             fontWeight: 700,
             lineHeight: 1.1,
-            whiteSpace: 'nowrap'
+            whiteSpace: screens.sm ? 'nowrap' : 'normal'
           }}>
             <span style={{ color: BRAND_COLORS.blue }}>Business </span>
             <span style={{ color: BRAND_COLORS.red }}>Permit </span>
@@ -163,7 +204,7 @@ export default function HeroSection() {
 
         {/* Right Panel - Announcements Collapsible */}
         {hasAnnouncementPanel && (
-          <div style={{ height: '100%' }}>
+          <div style={{ height: '100%', minWidth: 0 }}>
             <Title level={5} style={{ marginBottom: 16 }}>
               Announcements
             </Title>
@@ -175,6 +216,42 @@ export default function HeroSection() {
           </div>
         )}
       </div>
+
+      <section style={{ width: '100%', maxWidth: 1280, margin: '0 auto' }}>
+        <div
+          style={{
+            border: `1px solid ${token.colorBorderSecondary}`,
+            borderRadius: token.borderRadiusLG,
+            padding: screens.md ? '24px 28px' : '18px 14px',
+            background: token.colorBgLayout,
+          }}
+        >
+          <Title
+            level={4}
+            style={{
+              marginTop: 0,
+              marginBottom: 8,
+              textAlign: screens.md ? 'left' : 'center',
+            }}
+          >
+            Frequently Asked Questions
+          </Title>
+          <Paragraph
+            type="secondary"
+            style={{
+              marginBottom: 16,
+              textAlign: screens.md ? 'left' : 'center',
+            }}
+          >
+            Quick answers about application timelines, updates, and submission best practices.
+          </Paragraph>
+          <Collapse
+            items={faqItems}
+            defaultActiveKey={['faq-1']}
+            style={{ background: token.colorBgContainer, textAlign: 'left' }}
+          />
+        </div>
+      </section>
     </div>
   )
 }

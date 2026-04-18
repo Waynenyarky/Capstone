@@ -55,6 +55,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@simplewebauthn/server": "^13.2.2",
     "axios": "^1.6.0",
     "base64url": "^3.0.1",
@@ -80,6 +81,7 @@
     "philippine-administrative-divisions": "^2.0.3",
     "qrcode": "^1.5.4",
     "socket.io": "^4.7.5",
+    "speakeasy": "^2.0.0",
     "web3": "^4.16.0"
   },
   "optionalDependencies": {
