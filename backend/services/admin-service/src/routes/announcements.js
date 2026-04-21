@@ -3,6 +3,7 @@ const router = express.Router()
 const { requireJwt, requireRole, optionalJwt } = require('../middleware/auth')
 const respond = require('../middleware/respond')
 const Announcement = require('../models/Announcement')
+const { createAuditLog } = require('../lib/auditLogger')
 
 router.get('/', optionalJwt, async (req, res) => {
   try {
@@ -40,6 +41,22 @@ router.post('/', requireJwt, requireRole(['admin']), async (req, res) => {
       expiresAt: expiresAt || null,
       createdBy: req._userId,
     })
+
+    // Create audit log
+    await createAuditLog(
+      req._userId,
+      'announcement_created',
+      'announcement',
+      null,
+      JSON.stringify({ title, body, priority, status, isActive, expiresAt }),
+      req._userRole,
+      {
+        announcementId: announcement._id,
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+      }
+    )
+
     return respond.success(res, 201, announcement)
   } catch (err) {
     console.error('POST /api/admin/announcements error:', err)
@@ -54,12 +71,44 @@ router.put('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
     if (!isDraft && (!title || !body)) {
       return respond.error(res, 400, 'missing_fields', 'Title and body are required for published announcements')
     }
+
+    // Get the current announcement for audit logging
+    const currentAnnouncement = await Announcement.findById(req.params.id)
+    if (!currentAnnouncement) {
+      return respond.error(res, 404, 'not_found', 'Announcement not found')
+    }
+
+    const oldValues = {
+      title: currentAnnouncement.title,
+      body: currentAnnouncement.body,
+      priority: currentAnnouncement.priority,
+      status: currentAnnouncement.status,
+      isActive: currentAnnouncement.isActive,
+      expiresAt: currentAnnouncement.expiresAt,
+    }
+
     const announcement = await Announcement.findByIdAndUpdate(
       req.params.id,
       { title, body, priority, status, isActive, expiresAt, updatedBy: req._userId },
       { new: true }
     )
     if (!announcement) return respond.error(res, 404, 'not_found', 'Announcement not found')
+
+    // Create audit log
+    await createAuditLog(
+      req._userId,
+      'announcement_updated',
+      'announcement',
+      JSON.stringify(oldValues),
+      JSON.stringify({ title, body, priority, status, isActive, expiresAt }),
+      req._userRole,
+      {
+        announcementId: announcement._id,
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+      }
+    )
+
     return respond.success(res, 200, announcement)
   } catch (err) {
     console.error('PUT /api/admin/announcements/:id error:', err)
@@ -69,8 +118,32 @@ router.put('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
 
 router.delete('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
   try {
-    const announcement = await Announcement.findByIdAndDelete(req.params.id)
+    const announcement = await Announcement.findById(req.params.id)
     if (!announcement) return respond.error(res, 404, 'not_found', 'Announcement not found')
+
+    // Create audit log before deletion
+    await createAuditLog(
+      req._userId,
+      'announcement_deleted',
+      'announcement',
+      JSON.stringify({
+        title: announcement.title,
+        body: announcement.body,
+        priority: announcement.priority,
+        status: announcement.status,
+        isActive: announcement.isActive,
+        expiresAt: announcement.expiresAt,
+      }),
+      null,
+      req._userRole,
+      {
+        announcementId: announcement._id,
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+      }
+    )
+
+    await Announcement.findByIdAndDelete(req.params.id)
     return respond.success(res, 200, { deleted: true })
   } catch (err) {
     console.error('DELETE /api/admin/announcements/:id error:', err)

@@ -1,6 +1,10 @@
 {
   "algorithm": "LinearSVC",
+<<<<<<< Updated upstream
   "trainedAt": "2026-04-17T15:06:23.410764+00:00",
+=======
+  "trainedAt": "2026-04-15T12:10:02.011559+00:00",
+>>>>>>> Stashed changes
   "cv_accuracy": 0.9993943064809206,
   "n_train_samples": 8255,
   "n_base_samples": 4025,

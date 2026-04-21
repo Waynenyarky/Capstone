@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { App, Button, Input, Select, Tag, Tooltip, Splitter, Grid, Pagination, theme, Empty, Typography, Form, Switch, DatePicker, Popconfirm, Descriptions, Spin, Modal } from 'antd'
-import { PlusOutlined, FilterOutlined, SearchOutlined, CloseOutlined, NotificationOutlined, DeleteOutlined, SaveOutlined, SendOutlined, FileTextOutlined, ArrowLeftOutlined, RollbackOutlined } from '@ant-design/icons'
+import { App, Button, Input, Select, Tag, Tooltip, Splitter, Grid, Pagination, theme, Empty, Typography, Form, Switch, DatePicker, Popconfirm, Descriptions, Spin, Modal, Tabs, Table, Space } from 'antd'
+import { PlusOutlined, FilterOutlined, SearchOutlined, CloseOutlined, NotificationOutlined, DeleteOutlined, SaveOutlined, SendOutlined, FileTextOutlined, ArrowLeftOutlined, RollbackOutlined, HistoryOutlined } from '@ant-design/icons'
 import AdminLayout from '../components/AdminLayout'
 import HomeHeader from '@/features/public/components/HomeHeader'
 import HomeFooter from '@/features/public/components/HomeFooter'
@@ -33,6 +33,11 @@ export default function AdminAnnouncements() {
   const [currentPage, setCurrentPage] = useState(1)
   const filterWrapperRef = useRef(null)
 
+  const [auditLogs, setAuditLogs] = useState([])
+  const [auditLogsLoading, setAuditLogsLoading] = useState(false)
+  const [auditLogsPage, setAuditLogsPage] = useState(1)
+  const [auditLogsTotal, setAuditLogsTotal] = useState(0)
+
   const PAGE_SIZE = 20
 
   const fetchAnnouncements = useCallback(async () => {
@@ -44,6 +49,26 @@ export default function AdminAnnouncements() {
       message.error('Failed to load announcements')
     } finally {
       setLoading(false)
+    }
+  }, [message])
+
+  const fetchAuditLogs = useCallback(async (page = 1) => {
+    try {
+      setAuditLogsLoading(true)
+      const res = await get(`/api/admin/monitoring/audit-logs?page=${page}&limit=20`)
+      const logs = res?.data?.logs || []
+      // Filter for announcement-related events
+      const announcementLogs = logs.filter(log => 
+        log.action?.includes('announcement') || 
+        log.resource?.includes('announcement') ||
+        log.resourceType?.includes('announcement')
+      )
+      setAuditLogs(announcementLogs)
+      setAuditLogsTotal(res?.meta?.total || 0)
+    } catch (err) {
+      message.error('Failed to load audit logs')
+    } finally {
+      setAuditLogsLoading(false)
     }
   }, [message])
 
@@ -448,223 +473,326 @@ export default function AdminAnnouncements() {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
-        <Form form={form} layout="vertical" onValuesChange={(_, allValues) => setFormValues(allValues)}>
-          <Form.Item
-            name="title"
-            label="Title"
-            rules={[{ required: true, message: 'Title is required' }]}
-          >
-            <Input placeholder="Announcement title" disabled={selected.status === 'published'} />
-          </Form.Item>
-          <Form.Item
-            name="body"
-            label="Content"
-            rules={[{ required: true, message: 'Content is required' }]}
-          >
-            <TextArea rows={6} placeholder="Announcement content" disabled={selected.status === 'published'} />
-          </Form.Item>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
-            <Form.Item name="priority" label="Priority">
-              <Select
-                disabled={selected.status === 'published'}
-                options={[
-                  { value: 'urgent', label: 'Urgent' },
-                  { value: 'high', label: 'High' },
-                  { value: 'normal', label: 'Normal' },
-                  { value: 'low', label: 'Low' },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item name="expiresAt" label="Expires At">
-              <DatePicker style={{ width: '100%' }} disabled={selected.status === 'published'} />
-            </Form.Item>
-          </div>
-        </Form>
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        <Tabs
+          defaultActiveKey="details"
+          onChange={(key) => {
+            if (key === 'audit-logs' && auditLogs.length === 0) {
+              fetchAuditLogs()
+            }
+          }}
+          items={[
+            {
+              key: 'details',
+              label: 'Details',
+              children: (
+                <div style={{ padding: 16 }}>
+                  <Form form={form} layout="vertical" onValuesChange={(_, allValues) => setFormValues(allValues)}>
+                    <Form.Item
+                      name="title"
+                      label="Title"
+                      rules={[{ required: true, message: 'Title is required' }]}
+                    >
+                      <Input placeholder="Announcement title" disabled={selected.status === 'published'} />
+                    </Form.Item>
+                    <Form.Item
+                      name="body"
+                      label="Content"
+                      rules={[{ required: true, message: 'Content is required' }]}
+                    >
+                      <TextArea rows={6} placeholder="Announcement content" disabled={selected.status === 'published'} />
+                    </Form.Item>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+                      <Form.Item name="priority" label="Priority">
+                        <Select
+                          disabled={selected.status === 'published'}
+                          options={[
+                            { value: 'urgent', label: 'Urgent' },
+                            { value: 'high', label: 'High' },
+                            { value: 'normal', label: 'Normal' },
+                            { value: 'low', label: 'Low' },
+                          ]}
+                        />
+                      </Form.Item>
+                      <Form.Item name="expiresAt" label="Expires At">
+                        <DatePicker style={{ width: '100%' }} disabled={selected.status === 'published'} />
+                      </Form.Item>
+                    </div>
+                  </Form>
 
-        <div style={{ padding: 16, borderTop: `1px solid ${token.colorBorderSecondary}` }}>
-          <Title level={5} style={{ marginBottom: 16 }}>Live Preview - Landing Page</Title>
-          <div style={{
-            border: `1px solid ${token.colorBorderSecondary}`,
-            borderRadius: 8,
-            overflow: 'hidden',
-            height: 600,
-            position: 'relative'
-          }}>
-            
-            {/* Actual Home Page Components with live preview */}
-            <Layout style={{ minHeight: '100%', background: token.colorBgContainer }}>
-              <div style={{ position: 'relative' }}>
-                <HomeHeader />
-                {/* Overlay to prevent clicking header links */}
-                <div style={{ 
-                  position: 'absolute', 
-                  top: 0, 
-                  left: 0, 
-                  right: 0, 
-                  bottom: 0, 
-                  zIndex: 1101,
-                  cursor: 'not-allowed',
-                  pointerEvents: 'auto'
-                }} />
-              </div>
-              <Layout.Content style={{ display: 'flex', flexDirection: 'column' }}>
-                {/* Two-panel Hero with Collapsible Announcements */}
-                <div style={{ 
-                  background: token.colorBgContainer,
-                  padding: screens.md ? '60px 50px' : '40px 24px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flex: 1,
-                  position: 'relative'
-                }}>
-                  {(() => {
-                    const hasMaintenanceNotice = previewMaintenance.active || previewMaintenance.scheduled
-                    const hasAnnouncements = hasMaintenanceNotice || previewAnnouncements.length > 0 || (selected && formValues.title)
-                    
-                    const previewCollapseItems = []
-
-                    if (hasMaintenanceNotice) {
-                      previewCollapseItems.push({
-                        key: 'maintenance-notice',
-                        label: (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span>{previewMaintenance.active ? 'Maintenance Underway' : 'Scheduled Maintenance'}</span>
-                          </div>
-                        ),
-                        children: (
-                          <div>
-                            {(previewMaintenance.scheduledStartAt || previewMaintenance.expectedResumeAt) && (
-                              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-                                {previewMaintenance.scheduledStartAt
-                                  ? `Starts: ${dayjs(previewMaintenance.scheduledStartAt).format('MMM D, YYYY h:mm A')}`
-                                  : `Expected back: ${dayjs(previewMaintenance.expectedResumeAt).format('MMM D, YYYY h:mm A')}`}
-                              </Text>
-                            )}
-                            <Paragraph style={{ marginBottom: 0 }}>
-                              {previewMaintenance.message || "We're performing scheduled maintenance. Some features may be temporarily unavailable."}
-                            </Paragraph>
-                          </div>
-                        ),
-                      })
-                    }
-                    
-                    if (selected && formValues.title) {
-                      previewCollapseItems.push({
-                        key: 'preview',
-                        label: (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span>{formValues.title}</span>
-                            <Tag color="blue" size="small" style={{ marginLeft: 'auto' }}>PREVIEW</Tag>
-                          </div>
-                        ),
-                        children: (
-                          <div>
-                            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-                              {selected?.createdAt ? dayjs(selected.createdAt).format('MMM D, YYYY h:mm A') : 'Just now'}
-                            </Text>
-                            <Paragraph style={{ marginBottom: 0 }}>
-                              {formValues.body || 'No content'}
-                            </Paragraph>
-                          </div>
-                        ),
-                      })
-                    }
-                    
-                    previewAnnouncements.slice(0, 3).forEach((ann, idx) => {
-                      previewCollapseItems.push({
-                        key: `announcement-${idx + 1}`,
-                        label: (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span>{ann.title}</span>
-                          </div>
-                        ),
-                        children: (
-                          <div>
-                            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-                              {ann.createdAt ? dayjs(ann.createdAt).format('MMM D, YYYY h:mm A') : '-'}
-                            </Text>
-                            <Paragraph style={{ marginBottom: 0 }}>
-                              {ann.body}
-                            </Paragraph>
-                          </div>
-                        ),
-                      })
-                    })
-
-                    const defaultActiveKey = hasMaintenanceNotice
-                      ? ['maintenance-notice']
-                      : (selected && formValues.title ? ['preview'] : ['announcement-1'])
-                    
-                    return (
-                      <div style={{ 
-                        maxWidth: '1200px', 
-                        width: '100%',
-                        display: 'grid',
-                        gridTemplateColumns: hasAnnouncements && screens.md ? '1fr 1fr' : '1fr',
-                        gap: screens.md ? 60 : 40,
-                        alignItems: 'start'
-                      }}>
-                        {/* Left Panel - Hero Text */}
-                        <div style={{ textAlign: (hasAnnouncements && screens.md) ? 'left' : 'center' }}>
-                          <Title level={1} style={{ 
-                            marginBottom: '8px', 
-                            fontSize: screens.md ? '56px' : '36px',
-                            fontWeight: 700,
-                            lineHeight: 1.1,
-                            whiteSpace: 'nowrap'
-                          }}>
-                            <span style={{ color: BRAND_COLORS.blue }}>Business </span>
-                            <span style={{ color: BRAND_COLORS.red }}>Permit </span>
-                            <span style={{ color: BRAND_COLORS.yellow }}>Processing</span>
-                          </Title>
-                          <Title level={2} style={{ 
-                            margin: 0, 
-                            fontSize: screens.md ? '40px' : '28px',
-                            fontWeight: 700,
-                            color: token.colorText,
-                            whiteSpace: 'nowrap'
-                          }}>
-                            Made Simpler.
-                          </Title>
+                  <div style={{ padding: 16, borderTop: `1px solid ${token.colorBorderSecondary}` }}>
+                    <Title level={5} style={{ marginBottom: 16 }}>Live Preview - Landing Page</Title>
+                    <div style={{
+                      border: `1px solid ${token.colorBorderSecondary}`,
+                      borderRadius: 8,
+                      overflow: 'hidden',
+                      height: 600,
+                      position: 'relative'
+                    }}>
+                      
+                      {/* Actual Home Page Components with live preview */}
+                      <Layout style={{ minHeight: '100%', background: token.colorBgContainer }}>
+                        <div style={{ position: 'relative' }}>
+                          <HomeHeader />
+                          {/* Overlay to prevent clicking header links */}
+                          <div style={{ 
+                            position: 'absolute', 
+                            top: 0, 
+                            left: 0, 
+                            right: 0, 
+                            bottom: 0, 
+                            zIndex: 1101,
+                            cursor: 'not-allowed',
+                            pointerEvents: 'auto'
+                          }} />
                         </div>
+                        <Layout.Content style={{ display: 'flex', flexDirection: 'column' }}>
+                          {/* Two-panel Hero with Collapsible Announcements */}
+                          <div style={{ 
+                            background: token.colorBgContainer,
+                            padding: screens.md ? '60px 50px' : '40px 24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flex: 1,
+                            position: 'relative'
+                          }}>
+                            {(() => {
+                              const hasMaintenanceNotice = previewMaintenance.active || previewMaintenance.scheduled
+                              const hasAnnouncements = hasMaintenanceNotice || previewAnnouncements.length > 0 || (selected && formValues.title)
+                              
+                              const previewCollapseItems = []
 
-                        {/* Right Panel - Announcements Collapsible */}
-                        {hasAnnouncements && (
-                          <div>
-                            <Title level={4} style={{ marginBottom: 16 }}>
-                              Announcements
-                            </Title>
-                            <Collapse
-                              items={previewCollapseItems}
-                              defaultActiveKey={defaultActiveKey}
-                              style={{ background: token.colorBgContainer }}
-                            />
+                              if (hasMaintenanceNotice) {
+                                previewCollapseItems.push({
+                                  key: 'maintenance-notice',
+                                  label: (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                      <span>{previewMaintenance.active ? 'Maintenance Underway' : 'Scheduled Maintenance'}</span>
+                                    </div>
+                                  ),
+                                  children: (
+                                    <div>
+                                      {(previewMaintenance.scheduledStartAt || previewMaintenance.expectedResumeAt) && (
+                                        <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
+                                          {previewMaintenance.scheduledStartAt
+                                            ? `Starts: ${dayjs(previewMaintenance.scheduledStartAt).format('MMM D, YYYY h:mm A')}`
+                                            : `Expected back: ${dayjs(previewMaintenance.expectedResumeAt).format('MMM D, YYYY h:mm A')}`}
+                                        </Text>
+                                      )}
+                                      <Paragraph style={{ marginBottom: 0 }}>
+                                        {previewMaintenance.message || "We're performing scheduled maintenance. Some features may be temporarily unavailable."}
+                                      </Paragraph>
+                                    </div>
+                                  ),
+                                })
+                              }
+                              
+                              if (selected && formValues.title) {
+                                previewCollapseItems.push({
+                                  key: 'preview',
+                                  label: (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                      <span>{formValues.title}</span>
+                                      <Tag color="blue" size="small" style={{ marginLeft: 'auto' }}>PREVIEW</Tag>
+                                    </div>
+                                  ),
+                                  children: (
+                                    <div>
+                                      <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
+                                        {selected?.createdAt ? dayjs(selected.createdAt).format('MMM D, YYYY h:mm A') : 'Just now'}
+                                      </Text>
+                                      <Paragraph style={{ marginBottom: 0 }}>
+                                        {formValues.body || 'No content'}
+                                      </Paragraph>
+                                    </div>
+                                  ),
+                                })
+                              }
+                              
+                              previewAnnouncements.slice(0, 3).forEach((ann, idx) => {
+                                previewCollapseItems.push({
+                                  key: `announcement-${idx + 1}`,
+                                  label: (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                      <span>{ann.title}</span>
+                                    </div>
+                                  ),
+                                  children: (
+                                    <div>
+                                      <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
+                                        {ann.createdAt ? dayjs(ann.createdAt).format('MMM D, YYYY h:mm A') : '-'}
+                                      </Text>
+                                      <Paragraph style={{ marginBottom: 0 }}>
+                                        {ann.body}
+                                      </Paragraph>
+                                    </div>
+                                  ),
+                                })
+                              })
+
+                              const defaultActiveKey = hasMaintenanceNotice
+                                ? ['maintenance-notice']
+                                : (selected && formValues.title ? ['preview'] : ['announcement-1'])
+                              
+                              return (
+                                <div style={{ 
+                                  maxWidth: '1200px', 
+                                  width: '100%',
+                                  display: 'grid',
+                                  gridTemplateColumns: hasAnnouncements && screens.md ? '1fr 1fr' : '1fr',
+                                  gap: screens.md ? 60 : 40,
+                                  alignItems: 'start'
+                                }}>
+                                  {/* Left Panel - Hero Text */}
+                                  <div style={{ textAlign: (hasAnnouncements && screens.md) ? 'left' : 'center' }}>
+                                    <Title level={1} style={{ 
+                                      marginBottom: '8px', 
+                                      fontSize: screens.md ? '56px' : '36px',
+                                      fontWeight: 700,
+                                      lineHeight: 1.1,
+                                      whiteSpace: 'nowrap'
+                                    }}>
+                                      <span style={{ color: BRAND_COLORS.blue }}>Business </span>
+                                      <span style={{ color: BRAND_COLORS.red }}>Permit </span>
+                                      <span style={{ color: BRAND_COLORS.yellow }}>Processing</span>
+                                    </Title>
+                                    <Title level={2} style={{ 
+                                      margin: 0, 
+                                      fontSize: screens.md ? '40px' : '28px',
+                                      fontWeight: 700,
+                                      color: token.colorText,
+                                      whiteSpace: 'nowrap'
+                                    }}>
+                                      Made Simpler.
+                                    </Title>
+                                  </div>
+
+                                  {/* Right Panel - Announcements Collapsible */}
+                                  {hasAnnouncements && (
+                                    <div>
+                                      <Title level={4} style={{ marginBottom: 16 }}>
+                                        Announcements
+                                      </Title>
+                                      <Collapse
+                                        items={previewCollapseItems}
+                                        defaultActiveKey={defaultActiveKey}
+                                        style={{ background: token.colorBgContainer }}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })()}
                           </div>
-                        )}
-                      </div>
-                    )
-                  })()}
+                        </Layout.Content>
+                        <div style={{ position: 'relative' }}>
+                          <HomeFooter />
+                          {/* Overlay to prevent clicking footer links */}
+                          <div style={{ 
+                            position: 'absolute', 
+                            top: 0, 
+                            left: 0, 
+                            right: 0, 
+                            bottom: 0, 
+                            zIndex: 10,
+                            cursor: 'not-allowed',
+                            pointerEvents: 'auto'
+                          }} />
+                        </div>
+                      </Layout>
+                    </div>
+                  </div>
                 </div>
-              </Layout.Content>
-              <div style={{ position: 'relative' }}>
-                <HomeFooter />
-                {/* Overlay to prevent clicking footer links */}
-                <div style={{ 
-                  position: 'absolute', 
-                  top: 0, 
-                  left: 0, 
-                  right: 0, 
-                  bottom: 0, 
-                  zIndex: 10,
-                  cursor: 'not-allowed',
-                  pointerEvents: 'auto'
-                }} />
-              </div>
-            </Layout>
-          </div>
-        </div>
+              ),
+            },
+            {
+              key: 'audit-logs',
+              label: (
+                <span>
+                  <HistoryOutlined style={{ marginRight: 8 }} />
+                  Audit Logs
+                </span>
+              ),
+              children: (
+                <div style={{ padding: 16 }}>
+                  <div style={{ marginBottom: 16 }}>
+                    <Text type="secondary">
+                      Audit logs for announcement operations (create, edit, delete)
+                    </Text>
+                  </div>
+                  
+                  {auditLogsLoading ? (
+                    <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
+                      <Spin />
+                    </div>
+                  ) : auditLogs.length === 0 ? (
+                    <Empty description="No audit logs found" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                  ) : (
+                    <>
+                      <Table
+                        dataSource={auditLogs}
+                        columns={[
+                          {
+                            title: 'Action',
+                            dataIndex: 'action',
+                            key: 'action',
+                            render: (action) => {
+                              const actionColors = {
+                                'announcement_created': 'green',
+                                'announcement_updated': 'blue', 
+                                'announcement_deleted': 'red'
+                              }
+                              return (
+                                <Tag color={actionColors[action] || 'default'}>
+                                  {action?.replace('announcement_', '').toUpperCase() || 'UNKNOWN'}
+                                </Tag>
+                              )
+                            }
+                          },
+                          {
+                            title: 'User',
+                            dataIndex: 'userEmail',
+                            key: 'userEmail',
+                            render: (email) => email || 'Unknown'
+                          },
+                          {
+                            title: 'Date & Time',
+                            dataIndex: 'createdAt',
+                            key: 'createdAt',
+                            render: (date) => date ? dayjs(date).format('MMM D, YYYY h:mm A') : '-'
+                          },
+                          {
+                            title: 'Details',
+                            dataIndex: 'details',
+                            key: 'details',
+                            render: (details) => (
+                              <Text ellipsis={{ tooltip: details }} style={{ maxWidth: 300 }}>
+                                {details || '-'}
+                              </Text>
+                            )
+                          }
+                        ]}
+                        pagination={{
+                          current: auditLogsPage,
+                          total: auditLogsTotal,
+                          pageSize: 20,
+                          onChange: (page) => {
+                            setAuditLogsPage(page)
+                            fetchAuditLogs(page)
+                          },
+                          showSizeChanger: false
+                        }}
+                        rowKey="_id"
+                        size="small"
+                      />
+                    </>
+                  )}
+                </div>
+              ),
+            },
+          ]}
+        />
       </div>
     </div>
   ) : (
