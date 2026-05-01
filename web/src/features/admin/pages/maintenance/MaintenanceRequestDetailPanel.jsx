@@ -41,7 +41,7 @@ export default function MaintenanceRequestDetailPanel({ approval, allApprovals, 
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 24 }}>
         <Empty
-          image={<ToolOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />}
+          image={<ToolOutlined style={{ fontSize: 48, color: token.colorTextTertiary }} />}
           styles={{ image: { height: 60 } }}
           description="Select a maintenance request to view details"
         />
@@ -98,20 +98,14 @@ export default function MaintenanceRequestDetailPanel({ approval, allApprovals, 
 
       {isApprovedUpcoming && (
         <div style={{ marginTop: 16 }}>
-          <button
+          <Button
+            danger
             onClick={handleCancelApproved}
             disabled={submitting}
-            style={{
-              padding: '8px 16px',
-              background: '#ff4d4f',
-              color: 'white',
-              border: 'none',
-              borderRadius: 6,
-              cursor: submitting ? 'not-allowed' : 'pointer',
-            }}
+            style={{ width: '100%' }}
           >
             Cancel Approved Maintenance
-          </button>
+          </Button>
         </div>
       )}
 

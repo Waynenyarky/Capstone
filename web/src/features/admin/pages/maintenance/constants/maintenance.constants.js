@@ -61,7 +61,7 @@ export const PRESET_MESSAGES = {
   outage: 'We are currently experiencing a temporary service outage due to unforeseen technical difficulties. Our team is actively working to identify and resolve the issue. We sincerely apologize for the disruption and are working to restore full service as soon as possible. Thank you for your patience and understanding.',
 }
 
-// Status colors
+// Status colors (Ant Design semantic color names)
 export const STATUS_COLORS = {
   pending: 'processing',
   approved: 'success',
@@ -69,19 +69,20 @@ export const STATUS_COLORS = {
   expired: 'default',
 }
 
+// Card colors (Ant Design semantic color names for theme support)
 export const CARD_COLORS = {
-  auth: '#1890ff',
-  business: '#52c41a',
-  admin: '#722ed1',
-  audit: '#13c2c2',
-  ai: '#eb2f96',
-  mongodb: '#47a248',
-  ipfs: '#13c2c2',
-  pending: '#fa8c16',
-  approved: '#52c41a',
-  rejected: '#f5222d',
-  on: '#52c41a',
-  off: '#8c8c8c',
+  auth: 'blue',
+  business: 'green',
+  admin: 'purple',
+  audit: 'cyan',
+  ai: 'magenta',
+  mongodb: 'green',
+  ipfs: 'cyan',
+  pending: 'orange',
+  approved: 'green',
+  rejected: 'red',
+  on: 'green',
+  off: 'default',
 }
 
 // Action labels

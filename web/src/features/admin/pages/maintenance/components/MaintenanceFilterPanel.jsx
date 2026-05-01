@@ -27,7 +27,7 @@ export default function MaintenanceFilterPanel({
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
       <Input
         placeholder="Search by requester, reason, message, or ID"
-        prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+        prefix={<SearchOutlined style={{ color: token.colorTextQuaternary }} />}
         allowClear
         value={searchValue}
         onChange={(e) => onSearchChange(e.target.value)}

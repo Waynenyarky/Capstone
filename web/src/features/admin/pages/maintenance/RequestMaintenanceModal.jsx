@@ -118,7 +118,7 @@ export default function RequestMaintenanceModal({ open, onCancel, form, onSubmit
         )}
 
         {isScheduled && hasConflict(scheduledStartAt, expectedResumeAt) && (
-          <div style={{ marginTop: 16, padding: 12, background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: 6 }}>
+          <div style={{ marginTop: 16, padding: 12, background: token.colorErrorBg, border: `1px solid ${token.colorErrorBorder}`, borderRadius: 6 }}>
             <Text type="danger">Warning: This schedule overlaps with an existing maintenance request. Please choose a different time.</Text>
           </div>
         )}

@@ -9,7 +9,6 @@ import {
   CloudOutlined,
   RobotOutlined,
 } from '@ant-design/icons'
-import { CARD_COLORS } from '../constants/maintenance.constants.js'
 
 const { Text } = Typography
 
@@ -25,13 +24,6 @@ export default function MaintenanceOverviewCards({ services, dependencies, appro
            service.name.toLowerCase().includes('ai') ? RobotOutlined :
            service.name.toLowerCase().includes('ipfs') ? CloudOutlined :
            ApiOutlined,
-    color: service.name.toLowerCase().includes('auth') ? CARD_COLORS.auth :
-           service.name.toLowerCase().includes('business') ? CARD_COLORS.business :
-           service.name.toLowerCase().includes('admin') ? CARD_COLORS.admin :
-           service.name.toLowerCase().includes('audit') ? CARD_COLORS.audit :
-           service.name.toLowerCase().includes('ai') ? CARD_COLORS.ai :
-           service.name.toLowerCase().includes('ipfs') ? CARD_COLORS.ipfs :
-           CARD_COLORS.mongodb,
   }))
 
   return (
@@ -48,14 +40,14 @@ export default function MaintenanceOverviewCards({ services, dependencies, appro
               <Col key={card.key} xs={12} sm={8} md={6}>
                 <Card
                   size="small"
-                  style={{ height: '100%', borderColor: card.status === 'healthy' ? CARD_COLORS.on : CARD_COLORS.off }}
+                  style={{ height: '100%', borderColor: card.status === 'healthy' ? token.colorSuccess : token.colorTextSecondary }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Icon style={{ fontSize: 20, color: card.status === 'healthy' ? CARD_COLORS.on : CARD_COLORS.off }} />
+                    <Icon style={{ fontSize: 20, color: card.status === 'healthy' ? token.colorSuccess : token.colorTextSecondary }} />
                     <Text style={{ fontSize: 13, fontWeight: 500 }}>{card.title}</Text>
                   </div>
                   <Tag
-                    color={card.status === 'healthy' ? 'green' : 'red'}
+                    color={card.status === 'healthy' ? 'success' : 'error'}
                     style={{ marginTop: 8 }}
                   >
                     {card.status}
@@ -79,13 +71,13 @@ export default function MaintenanceOverviewCards({ services, dependencies, appro
                 <Card size="small" style={{ height: '100%' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     {key.toLowerCase().includes('mongo') ? (
-                      <DatabaseOutlined style={{ fontSize: 20, color: CARD_COLORS.mongodb }} />
+                      <DatabaseOutlined style={{ fontSize: 20, color: token.colorSuccess }} />
                     ) : (
-                      <CloudOutlined style={{ fontSize: 20, color: CARD_COLORS.ipfs }} />
+                      <CloudOutlined style={{ fontSize: 20, color: token.colorInfo }} />
                     )}
                     <Text style={{ fontSize: 13, fontWeight: 500 }}>{key}</Text>
                   </div>
-                  <Tag color={status === 'connected' ? 'green' : 'red'} style={{ marginTop: 8 }}>
+                  <Tag color={status === 'connected' ? 'success' : 'error'} style={{ marginTop: 8 }}>
                     {status}
                   </Tag>
                 </Card>
@@ -105,10 +97,10 @@ export default function MaintenanceOverviewCards({ services, dependencies, appro
             <Col xs={24} sm={12}>
               <Card size="small">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <ToolOutlined style={{ fontSize: 20, color: current.active ? CARD_COLORS.on : CARD_COLORS.off }} />
+                  <ToolOutlined style={{ fontSize: 20, color: current.active ? token.colorSuccess : token.colorTextSecondary }} />
                   <Text style={{ fontSize: 13, fontWeight: 500 }}>Status</Text>
                 </div>
-                <Tag color={current.active ? 'green' : 'default'}>
+                <Tag color={current.active ? 'success' : 'default'}>
                   {current.active ? 'Active' : 'Inactive'}
                 </Tag>
               </Card>
@@ -117,7 +109,7 @@ export default function MaintenanceOverviewCards({ services, dependencies, appro
               <Col xs={24} sm={12}>
                 <Card size="small">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <ClockCircleOutlined style={{ fontSize: 20, color: CARD_COLORS.on }} />
+                    <ClockCircleOutlined style={{ fontSize: 20, color: token.colorSuccess }} />
                     <Text style={{ fontSize: 13, fontWeight: 500 }}>Resumes At</Text>
                   </div>
                   <Text style={{ fontSize: 13 }}>
@@ -137,9 +129,9 @@ export default function MaintenanceOverviewCards({ services, dependencies, appro
         </Text>
         <Row gutter={[16, 16]}>
           <Col xs={8}>
-            <Card size="small" style={{ borderColor: CARD_COLORS.pending }}>
+            <Card size="small" style={{ borderColor: token.colorWarning }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <ClockCircleOutlined style={{ fontSize: 20, color: CARD_COLORS.pending }} />
+                <ClockCircleOutlined style={{ fontSize: 20, color: token.colorWarning }} />
                 <div>
                   <Text style={{ fontSize: 12, display: 'block' }}>Pending</Text>
                   <Text strong style={{ fontSize: 16 }}>{approvalStats.pending}</Text>
@@ -148,9 +140,9 @@ export default function MaintenanceOverviewCards({ services, dependencies, appro
             </Card>
           </Col>
           <Col xs={8}>
-            <Card size="small" style={{ borderColor: CARD_COLORS.approved }}>
+            <Card size="small" style={{ borderColor: token.colorSuccess }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <CheckCircleOutlined style={{ fontSize: 20, color: CARD_COLORS.approved }} />
+                <CheckCircleOutlined style={{ fontSize: 20, color: token.colorSuccess }} />
                 <div>
                   <Text style={{ fontSize: 12, display: 'block' }}>Approved</Text>
                   <Text strong style={{ fontSize: 16 }}>{approvalStats.approved}</Text>
@@ -159,9 +151,9 @@ export default function MaintenanceOverviewCards({ services, dependencies, appro
             </Card>
           </Col>
           <Col xs={8}>
-            <Card size="small" style={{ borderColor: CARD_COLORS.rejected }}>
+            <Card size="small" style={{ borderColor: token.colorError }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <ToolOutlined style={{ fontSize: 20, color: CARD_COLORS.rejected }} />
+                <ToolOutlined style={{ fontSize: 20, color: token.colorError }} />
                 <div>
                   <Text style={{ fontSize: 12, display: 'block' }}>Rejected</Text>
                   <Text strong style={{ fontSize: 16 }}>{approvalStats.rejected}</Text>
