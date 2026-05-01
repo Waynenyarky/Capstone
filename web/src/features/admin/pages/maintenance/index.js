@@ -1,14 +1,8 @@
-// Main components
+// Main page components
 export { default as MaintenanceDesktopView } from './MaintenanceDesktopView.jsx'
 export { default as MaintenanceMobileView } from './MaintenanceMobileView.jsx'
-export { default as MaintenanceOverviewTab } from './MaintenanceOverviewTab.jsx'
-export { default as MaintenanceRequestDetailPanel } from './MaintenanceRequestDetailPanel.jsx'
-export { default as RequestMaintenanceModal } from './RequestMaintenanceModal.jsx'
-export { default as MaintenanceInfoModal } from './MaintenanceInfoModal.jsx'
-export { default as MaintenanceStatusCard } from './MaintenanceStatusCard.jsx'
-export { default as MaintenanceHistoryDetailPanel } from './MaintenanceHistoryDetailPanel.jsx'
 
-// Subcomponents
+// All other components (subcomponents, modals, panels, tabs, etc.)
 export * from './components/index.js'
 
 // Hooks

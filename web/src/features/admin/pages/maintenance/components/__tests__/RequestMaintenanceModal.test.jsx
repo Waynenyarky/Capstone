@@ -200,8 +200,8 @@ describe('Maintenance Scheduling Logic - Comprehensive Tests', () => {
       const maxDate = dayjs().add(30, 'day')
       if (date.isBefore(now, 'day') || date.isAfter(maxDate)) return true
       if (maintenanceActive && currentMaintenance?.expectedResumeAt) {
-        const currentResumeAt = dayjs(currentMaintenance.expectedResumeAt)
-        if (date.isBefore(currentResumeAt, 'day')) return true
+        const resumeTime = dayjs(currentMaintenance.expectedResumeAt)
+        if (date.isBefore(resumeTime, 'day') || date.isSame(resumeTime, 'day')) return true
       }
       return false
     }

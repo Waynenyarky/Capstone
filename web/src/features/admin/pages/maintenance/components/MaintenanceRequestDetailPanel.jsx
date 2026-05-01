@@ -3,9 +3,9 @@ import { Typography, Tag, Descriptions, Space, theme, Empty } from 'antd'
 import { ToolOutlined } from '@ant-design/icons'
 import { userName, userEmail, entityId } from '../utils/maintenance.utils.js'
 import { STATUS_COLORS } from '../constants/maintenance.constants.js'
-import { useMaintenanceApprovalActions } from './hooks/useMaintenanceApprovalActions.js'
-import MaintenanceVotePanel from './components/MaintenanceVotePanel.jsx'
-import MaintenanceActionModal from './components/MaintenanceActionModal.jsx'
+import { useMaintenanceApprovalActions } from '../hooks/useMaintenanceApprovalActions.js'
+import MaintenanceVotePanel from './MaintenanceVotePanel.jsx'
+import MaintenanceActionModal from './MaintenanceActionModal.jsx'
 
 const { Text } = Typography
 

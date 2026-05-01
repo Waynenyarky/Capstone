@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getMaintenanceConflicts } from '../../services'
+import { getMaintenanceConflicts } from '../../../services'
 import { get } from '@/lib/http.js'
 import dayjs from 'dayjs'
 import {

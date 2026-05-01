@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { getServicesHealth } from '../../services'
-import { getAllAuditLogsAdmin } from '../../services'
+import { getServicesHealth } from '../../../services'
+import { getAllAuditLogsAdmin } from '../../../services'
 
 export function useMaintenanceServiceHealth(approvals) {
   const [services, setServices] = useState([])

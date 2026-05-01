@@ -11,3 +11,13 @@ export { default as MaintenanceFormFields } from './MaintenanceFormFields.jsx'
 export { default as MaintenancePreview } from './MaintenancePreview.jsx'
 export { default as MaintenanceOverviewCards } from './MaintenanceOverviewCards.jsx'
 export { default as MaintenanceRecentActivity } from './MaintenanceRecentActivity.jsx'
+
+// Additional components moved from parent directory
+export { default as MaintenanceOverviewTab } from './MaintenanceOverviewTab.jsx'
+export { default as MaintenanceRequestDetailPanel } from './MaintenanceRequestDetailPanel.jsx'
+export { default as RequestMaintenanceModal } from './RequestMaintenanceModal.jsx'
+export { default as MaintenanceInfoModal } from './MaintenanceInfoModal.jsx'
+export { default as MaintenanceStatusCard } from './MaintenanceStatusCard.jsx'
+export { default as MaintenanceHistoryDetailPanel } from './MaintenanceHistoryDetailPanel.jsx'
+
+

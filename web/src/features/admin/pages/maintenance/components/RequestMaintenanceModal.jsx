@@ -1,10 +1,10 @@
 import React from 'react'
 import { Form } from '@/shared/components/AppForm'
 import { Modal, Button, Typography, Drawer, Input, TextArea } from 'antd'
-import { useMaintenanceConflictDetection } from './hooks/useMaintenanceConflictDetection.js'
-import MaintenanceFormFields from './components/MaintenanceFormFields.jsx'
-import MaintenancePreview from './components/MaintenancePreview.jsx'
-import { REASON_PRESET_OPTIONS, REASON_PRESET_OTHER } from './constants/maintenance.constants.js'
+import { useMaintenanceConflictDetection } from '../hooks/useMaintenanceConflictDetection.js'
+import MaintenanceFormFields from './MaintenanceFormFields.jsx'
+import MaintenancePreview from './MaintenancePreview.jsx'
+import { REASON_PRESET_OPTIONS, REASON_PRESET_OTHER } from '../constants/maintenance.constants.js'
 
 const { Text } = Typography
 

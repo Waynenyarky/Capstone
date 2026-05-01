@@ -1,8 +1,8 @@
 import React from 'react'
 import { theme } from 'antd'
-import MaintenanceOverviewCards from './components/MaintenanceOverviewCards.jsx'
-import MaintenanceRecentActivity from './components/MaintenanceRecentActivity.jsx'
-import { useMaintenanceServiceHealth } from './hooks/useMaintenanceServiceHealth.js'
+import MaintenanceOverviewCards from './MaintenanceOverviewCards.jsx'
+import MaintenanceRecentActivity from './MaintenanceRecentActivity.jsx'
+import { useMaintenanceServiceHealth } from '../hooks/useMaintenanceServiceHealth.js'
 
 export default function MaintenanceOverviewTab({
   current,
