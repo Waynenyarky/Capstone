@@ -2,6 +2,7 @@ import React from 'react'
 import { Typography, Tag, Descriptions, Space, theme, Empty } from 'antd'
 import { HistoryOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { STATUS_COLORS } from './constants/maintenance.constants.js'
 
 const { Text, Title } = Typography
 
@@ -17,11 +18,6 @@ function userName(user) {
 function userEmail(user) {
   if (!user || typeof user !== 'object') return ''
   return user.email || ''
-}
-
-const STATUS_COLORS = {
-  approved: 'success',
-  rejected: 'error',
 }
 
 export default function MaintenanceHistoryDetailPanel({ approval, token: tokenProp }) {
