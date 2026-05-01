@@ -1,6 +1,6 @@
 import React from 'react'
 import { Modal, Button, Typography, Space, Divider, Collapse } from 'antd'
-import { FAQ_ITEMS } from './constants/maintenance.constants.js'
+import { FAQ_ITEMS } from "../constants/maintenance.constants.js";
 
 const { Text } = Typography
 

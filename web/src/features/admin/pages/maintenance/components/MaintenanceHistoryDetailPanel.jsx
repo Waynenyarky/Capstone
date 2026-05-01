@@ -2,7 +2,7 @@ import React from 'react'
 import { Typography, Tag, Descriptions, Space, theme, Empty } from 'antd'
 import { HistoryOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { STATUS_COLORS } from './constants/maintenance.constants.js'
+import { STATUS_COLORS } from '../constants/maintenance.constants.js'
 
 const { Text, Title } = Typography
 

@@ -15,10 +15,11 @@ import {
 } from '../services'
 import { useNotifier } from '@/shared/notifications.js'
 import { useAdminStepUp } from '../hooks/useAdminStepUp'
-import RequestMaintenanceModal, { REASON_PRESET_OTHER, REASON_PRESET_OPTIONS } from './maintenance/RequestMaintenanceModal'
+import RequestMaintenanceModal from './maintenance/components/RequestMaintenanceModal'
+import { REASON_PRESET_OTHER, REASON_PRESET_OPTIONS } from './maintenance/constants/maintenance.constants.js'
 import MaintenanceDesktopView from './maintenance/MaintenanceDesktopView'
 import MaintenanceMobileView from './maintenance/MaintenanceMobileView'
-import MaintenanceInfoModal from './maintenance/MaintenanceInfoModal'
+import MaintenanceInfoModal from './maintenance/components/MaintenanceInfoModal'
 
 const MENU_ITEMS = [
   { key: 'overview', label: 'Overview', icon: DashboardOutlined },

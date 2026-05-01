@@ -1,6 +1,6 @@
 import React from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Modal, Button, Typography, Drawer, Input, TextArea } from 'antd'
+import { Modal, Button, Typography, Drawer, Input, Select } from 'antd'
 import { useMaintenanceConflictDetection } from '../hooks/useMaintenanceConflictDetection.js'
 import MaintenanceFormFields from './MaintenanceFormFields.jsx'
 import MaintenancePreview from './MaintenancePreview.jsx'
@@ -112,7 +112,7 @@ export default function RequestMaintenanceModal({ open, onCancel, form, onSubmit
               label="Maintenance message"
               rules={[{ required: true, message: 'Please provide a maintenance message' }]}
             >
-              <TextArea rows={4} placeholder="Enter maintenance message" maxLength={1000} showCount />
+              <Input.TextArea rows={4} placeholder="Enter maintenance message" maxLength={1000} showCount />
             </Form.Item>
           </div>
         )}
