@@ -92,7 +92,7 @@ export default function MaintenanceHistoryDetailPanel({ approval, token: tokenPr
           }}
         >
           <Descriptions.Item label="Status">
-            <Tag color={STATUS_COLORS[approval.status] || 'default'}>{approval.status}</Tag>
+            <Tag color={STATUS_COLORS[approval.status]} style={{ textTransform: 'capitalize' }}>{approval.status}</Tag>
           </Descriptions.Item>
           <Descriptions.Item label="Requested by">
             {userName(approval.requestedBy)}

@@ -9,8 +9,10 @@ const AnnouncementSchema = new mongoose.Schema({
   expiresAt: { type: Date, default: null },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
 }, { timestamps: true })
 
 AnnouncementSchema.index({ isActive: 1, createdAt: -1 })
+AnnouncementSchema.index({ 'metadata.maintenanceApprovalId': 1 })
 
 module.exports = mongoose.model('Announcement', AnnouncementSchema)

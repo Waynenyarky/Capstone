@@ -1,5 +1,5 @@
-import { Typography, Grid, theme, Collapse } from 'antd'
-import { NotificationOutlined } from '@ant-design/icons'
+import { Typography, Grid, theme, Collapse, Alert } from 'antd'
+import { NotificationOutlined, WarningOutlined, SettingOutlined } from '@ant-design/icons'
 import { BRAND_COLORS } from '@/shared/theme/ThemeProvider'
 import { useState, useEffect } from 'react'
 import { get } from '@/lib/http.js'
@@ -99,37 +99,9 @@ export default function HeroSection() {
 
   const fontSize = 'clamp(28px, 5vw, 56px)'
 
-  const hasMaintenanceNotice = maintenanceStatus.active || maintenanceStatus.scheduled
+  const hasMaintenanceNotice = maintenanceStatus.active
 
-  const maintenanceItems = hasMaintenanceNotice
-    ? [{
-        key: 'maintenance-notice',
-        label: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <NotificationOutlined />
-            <span>{maintenanceStatus.active ? 'Maintenance Underway' : 'Scheduled Maintenance'}</span>
-          </div>
-        ),
-        children: (
-          <div>
-            {(maintenanceStatus.scheduledStartAt || maintenanceStatus.expectedResumeAt) && (
-              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-                {maintenanceStatus.scheduledStartAt
-                  ? `Starts: ${dayjs(maintenanceStatus.scheduledStartAt).format('MMM D, YYYY h:mm A')}`
-                  : `Expected back: ${dayjs(maintenanceStatus.expectedResumeAt).format('MMM D, YYYY h:mm A')}`}
-              </Text>
-            )}
-            <Paragraph style={{ marginBottom: 0 }}>
-              {maintenanceStatus.message || "We're performing scheduled maintenance. Some features may be temporarily unavailable."}
-            </Paragraph>
-          </div>
-        ),
-      }]
-    : []
-
-  const announcementItems = [
-    ...maintenanceItems,
-    ...announcements.map((ann, idx) => ({
+  const announcementItems = announcements.map((ann, idx) => ({
     key: `announcement-${idx + 1}`,
     label: (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -147,11 +119,10 @@ export default function HeroSection() {
         </Paragraph>
       </div>
     ),
-  })),
-  ]
+  }))
 
-  const hasAnnouncementPanel = announcementItems.length > 0
-  const defaultOpenKey = hasMaintenanceNotice ? ['maintenance-notice'] : ['announcement-1']
+  const hasAnnouncementPanel = announcementItems.length > 0 || hasMaintenanceNotice
+  const defaultOpenKey = hasAnnouncementPanel && announcementItems.length > 0 ? ['announcement-1'] : []
 
   return (
     <div style={{ 
@@ -208,11 +179,45 @@ export default function HeroSection() {
             <Title level={5} style={{ marginBottom: 16 }}>
               Announcements
             </Title>
-            <Collapse
-              items={announcementItems}
-              defaultActiveKey={defaultOpenKey}
-              style={{ background: token.colorBgContainer }}
-            />
+
+            {/* Maintenance Notice - Prominent Card */}
+            {hasMaintenanceNotice && (
+              <div
+                style={{
+                  marginBottom: 16,
+                  padding: 16,
+                  border: `1px solid ${token.colorBorder}`,
+                  borderRadius: token.borderRadius,
+                  background: token.colorBgContainer,
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
+                  
+                  <div>
+                    {maintenanceStatus.active ? 'System Maintenance Underway' : 'Scheduled Maintenance'}
+                  </div>
+                  {(maintenanceStatus.scheduledStartAt || maintenanceStatus.expectedResumeAt) && (
+                    <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 10}}>
+                      {maintenanceStatus.scheduledStartAt
+                        ? `Starts: ${dayjs(maintenanceStatus.scheduledStartAt).format('MMM D, YYYY h:mm A')}`
+                        : `Expected back: ${dayjs(maintenanceStatus.expectedResumeAt).format('MMM D, YYYY h:mm A')}`}
+                    </Text>
+                  )}
+                  <Paragraph style={{ marginBottom: 0, fontSize: 14 }}>
+                    {maintenanceStatus.message || "We're performing scheduled maintenance. Some features may be temporarily unavailable."}
+                  </Paragraph>
+                </div>
+              </div>
+            )}
+
+            {/* Regular Announcements Collapsible */}
+            {announcementItems.length > 0 && (
+              <Collapse
+                items={announcementItems}
+                defaultActiveKey={defaultOpenKey}
+                style={{ background: token.colorBgContainer }}
+              />
+            )}
           </div>
         )}
       </div>

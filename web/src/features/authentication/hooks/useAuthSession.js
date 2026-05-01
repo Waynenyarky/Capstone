@@ -161,12 +161,17 @@ export function useAuthSession() {
   }, [])
 
   useEffect(() => {
-    // Validate token on app load
+    // Validate token on app load with fail-safe timeout
     const initialValidation = async () => {
       const user = currentUserRef.current || readStored()
       if (user?.token) {
-        await validateToken()
-        checkTokenExpiration()
+        // Fail-safe: if validation takes too long, render with the stored user
+        const timeout = setTimeout(() => { setIsLoading(false) }, 6000)
+        try {
+          await validateToken()
+          checkTokenExpiration()
+        } catch { /* ignore – stored user will be used */ }
+        clearTimeout(timeout)
       }
       setIsLoading(false)
     }

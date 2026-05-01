@@ -222,7 +222,7 @@ export default function MaintenanceOverviewTab({
           key: 'status',
           width: 100,
           render: (v) => (
-            <Tag color={v === 'pending' ? 'gold' : v === 'approved' ? 'green' : 'red'}>{v}</Tag>
+            <Tag color={v === 'pending' ? 'gold' : v === 'approved' ? 'green' : 'red'} style={{ textTransform: 'capitalize' }}>{v}</Tag>
           ),
         },
         {
@@ -240,7 +240,7 @@ export default function MaintenanceOverviewTab({
       window.location.href = `/admin/users?tab=logs&logId=${encodeURIComponent(id)}`
       return
     }
-    if (record?.approvalId) setTabKey('status')
+    if (record?.approvalId) setTabKey('requests')
   }
 
   return (
@@ -320,8 +320,8 @@ export default function MaintenanceOverviewTab({
               <span
                 role="button"
                 tabIndex={0}
-                onClick={() => setTabKey('status')}
-                onKeyDown={(e) => e.key === 'Enter' && setTabKey('status')}
+                onClick={() => setTabKey('requests')}
+                onKeyDown={(e) => e.key === 'Enter' && setTabKey('requests')}
                 style={{ color: token.colorPrimary, cursor: 'pointer' }}
               >
                 View all requests

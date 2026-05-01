@@ -13,8 +13,10 @@ export async function getMaintenanceStatus() {
   }
 
   const ts = Date.now()
+  // 8-second timeout to avoid indefinite hang blocking page load
   return fetchJsonWithFallback(`/api/maintenance/status?ts=${ts}`, {
     method: 'GET',
+    timeoutMs: 8000,
     headers: {
       'Cache-Control': 'no-store',
       Pragma: 'no-cache',

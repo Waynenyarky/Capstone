@@ -12,7 +12,7 @@ import dayjs from 'dayjs'
 const { Text, Title, Paragraph } = Typography
 const { TextArea } = Input
 
-export default function AdminAnnouncements() {
+export default function AdminAnnouncements({ embedded = false }) {
   const { message } = App.useApp()
   const { token } = theme.useToken()
   const screens = Grid.useBreakpoint()
@@ -801,60 +801,84 @@ export default function AdminAnnouncements() {
     </div>
   )
 
-  if (isMobile) {
-    return (
-      <AdminLayout pageTitle="Announcements" pageIcon={<NotificationOutlined />}>
-        <div style={{ padding: 16 }}>
-          {selected ? (
-            <div>
-              <Button onClick={() => setSelected(null)} style={{ marginBottom: 16 }}>← Back to list</Button>
-              {detailContent}
-            </div>
-          ) : (
-            listContent
-          )}
+  const unpublishModal = (
+    <Modal
+      title="Unpublish Announcement"
+      open={unpublishModalVisible}
+      onOk={handleUnpublish}
+      onCancel={() => setUnpublishModalVisible(false)}
+      okText="Unpublish"
+      cancelText="Cancel"
+      confirmLoading={saving}
+      okButtonProps={{ danger: true }}
+    >
+      <p>Are you sure you want to unpublish this announcement?</p>
+      <p>This will move the announcement back to draft status and it will no longer appear on the landing page.</p>
+      {selected && (
+        <div style={{ marginTop: 16, padding: 12, background: token.colorBgLayout, borderRadius: 6 }}>
+          <Text strong>{selected.title}</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Created: {selected.createdAt ? dayjs(selected.createdAt).format('MMM D, YYYY') : '-'}
+          </Text>
         </div>
-      </AdminLayout>
+      )}
+    </Modal>
+  )
+
+  if (isMobile) {
+    const mobileBody = (
+      <div style={{ padding: 16 }}>
+        {selected ? (
+          <div>
+            <Button onClick={() => setSelected(null)} style={{ marginBottom: 16 }}>← Back to list</Button>
+            {detailContent}
+          </div>
+        ) : (
+          listContent
+        )}
+      </div>
+    )
+
+    return embedded ? (
+      <>
+        {mobileBody}
+        {unpublishModal}
+      </>
+    ) : (
+      <>
+        <AdminLayout pageTitle="Announcements" pageIcon={<NotificationOutlined />}>
+          {mobileBody}
+        </AdminLayout>
+        {unpublishModal}
+      </>
     )
   }
 
-  return (
+  const desktopBody = (
+    <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <Splitter style={{ flex: 1, minHeight: 0 }}>
+        <Splitter.Panel min="25%" defaultSize="20%" max="40%" style={{ overflow: 'hidden', background: token.colorBgContainer }}>
+          {listContent}
+        </Splitter.Panel>
+        <Splitter.Panel min="60%" defaultSize="80%" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', background: token.colorBgContainer }}>
+          {detailContent}
+        </Splitter.Panel>
+      </Splitter>
+    </div>
+  )
+
+  return embedded ? (
+    <>
+      {desktopBody}
+      {unpublishModal}
+    </>
+  ) : (
     <>
       <AdminLayout pageTitle="Announcements" pageIcon={<NotificationOutlined />}>
-        <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <Splitter style={{ flex: 1, minHeight: 0 }}>
-            <Splitter.Panel min="25%" defaultSize="20%" max="40%" style={{ overflow: 'hidden', background: token.colorBgContainer }}>
-              {listContent}
-            </Splitter.Panel>
-            <Splitter.Panel min="60%" defaultSize="80%" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', background: token.colorBgContainer }}>
-              {detailContent}
-            </Splitter.Panel>
-          </Splitter>
-        </div>
+        {desktopBody}
       </AdminLayout>
-      
-      <Modal
-        title="Unpublish Announcement"
-        open={unpublishModalVisible}
-        onOk={handleUnpublish}
-        onCancel={() => setUnpublishModalVisible(false)}
-        okText="Unpublish"
-        cancelText="Cancel"
-        confirmLoading={saving}
-        okButtonProps={{ danger: true }}
-      >
-        <p>Are you sure you want to unpublish this announcement?</p>
-        <p>This will move the announcement back to draft status and it will no longer appear on the landing page.</p>
-        {selected && (
-          <div style={{ marginTop: 16, padding: 12, background: token.colorBgLayout, borderRadius: 6 }}>
-            <Text strong>{selected.title}</Text>
-            <br />
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Created: {selected.createdAt ? dayjs(selected.createdAt).format('MMM D, YYYY') : '-'}
-            </Text>
-          </div>
-        )}
-      </Modal>
+      {unpublishModal}
     </>
   )
 }

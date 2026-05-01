@@ -23,7 +23,7 @@ body {
   color: var(--body-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background 0.3s, color 0.3s;
+  transition: none;
 }
 
 h1, h2, h3, h4, h5, h6 {

@@ -19,6 +19,22 @@ NC='\033[0m' # No Color
 
 echo -e "${CYAN}🛑 Stopping Docker services...${NC}\n"
 
+# Detect if using MongoDB Atlas vs local MongoDB before shutting containers down
+USING_ATLAS=false
+DB_MODE_DETECTED_FROM="none"
+
+if docker ps --format '{{.Names}} {{.Image}}' 2>/dev/null | grep -q '^capstone-mongodb '; then
+    MONGODB_IMAGE=$(docker ps --format '{{.Names}} {{.Image}}' 2>/dev/null | awk '$1=="capstone-mongodb"{print $2; exit}')
+
+    if echo "$MONGODB_IMAGE" | grep -Eq '^mongo(:|$)'; then
+        USING_ATLAS=false
+        DB_MODE_DETECTED_FROM="container"
+    elif echo "$MONGODB_IMAGE" | grep -Eq '^alpine(:|$)'; then
+        USING_ATLAS=true
+        DB_MODE_DETECTED_FROM="container"
+    fi
+fi
+
 # Stop all services (try both regular and dev mode)
 docker-compose down 2>/dev/null || docker-compose -f docker-compose.yml -f docker-compose.dev.yml down 2>/dev/null || true
 
@@ -60,14 +76,6 @@ if pgrep -f "vite.*5173" > /dev/null || pgrep -f "vite preview" > /dev/null || p
   pkill -f "npm run dev" 2>/dev/null || true
   pkill -f "node.*vite" 2>/dev/null || true
   echo -e "${GREEN}✅ All web servers stopped${NC}\n"
-fi
-
-# Detect if using MongoDB Atlas
-USING_ATLAS=false
-if [ -f ".env" ]; then
-    if grep -q "^MONGO_URI=mongodb+srv://" .env 2>/dev/null || grep -q "^MONGO_URI=mongodb://.*mongodb.net" .env 2>/dev/null; then
-        USING_ATLAS=true
-    fi
 fi
 
 # Ask user if they want to preserve data before removing volumes
@@ -113,6 +121,9 @@ if [ "$USING_ATLAS" = true ]; then
         echo -e "${CYAN}💡 Local volumes kept${NC}\n"
     fi
 else
+    if [ "$DB_MODE_DETECTED_FROM" != "container" ]; then
+        echo -e "${YELLOW}ℹ️  Could not detect DB mode from running containers; defaulting to local-safe behavior.${NC}"
+    fi
     echo -e "${CYAN}ℹ️  Using local MongoDB${NC}"
     echo -ne "${YELLOW}Keep data for next start? [y/N]: ${NC}"
     read -n 1 -r

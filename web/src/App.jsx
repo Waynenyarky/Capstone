@@ -20,7 +20,7 @@ const NotificationHistoryPage = lazy(() => import("@/features/user/pages/Notific
 const AdminOnboarding = lazy(() => import("@/features/admin/pages/AdminOnboarding.jsx"))
 const AdminDashboard = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminDashboard })))
 const AdminUsers = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminUsers })))
-const AdminMaintenance = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminMaintenance })))
+const AdminSiteSettings = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminSiteSettings })))
 const AdminFormDefinitions = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminFormDefinitions })))
 const AdminFormGroupDetail = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminFormGroupDetail })))
 const AdminFormDefinitionEditor = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminFormDefinitionEditor })))
@@ -28,7 +28,6 @@ const AdminAuditTamper = lazy(() => import("@/features/admin").then(m => ({ defa
 const AdminRequests = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminRequests })))
 const AdminFinance = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminFinance })))
 const AdminLobTrainer = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminLobTrainer })))
-const AdminAnnouncements = lazy(() => import("@/features/admin/pages/AdminAnnouncements.jsx"))
 // Phase 2 admin pages
 const AdminFeeConfiguration = lazy(() => import("@/features/admin/pages/AdminFeeConfiguration.jsx"))
 const BusinessOwnerDashboard = lazy(() => import("@/features/business-owner").then(m => ({ default: m.BusinessOwnerDashboard })))
@@ -94,7 +93,8 @@ function App() {
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="requests" element={<AdminRequests />} />
-        <Route path="maintenance" element={<AdminMaintenance />} />
+        <Route path="site-settings" element={<AdminSiteSettings />} />
+        <Route path="maintenance" element={<Navigate to="/admin/site-settings" replace />} />
         <Route path="form-definitions" element={<AdminFormDefinitions />} />
         <Route path="form-definitions/group/:groupId" element={<AdminFormGroupDetail />} />
         <Route path="form-definitions/:id" element={<AdminFormDefinitionEditor />} />
@@ -104,7 +104,7 @@ function App() {
         <Route path="security" element={<AdminAuditTamper />} />
         <Route path="audit-tamper" element={<Navigate to="/admin/security" replace />} />
         <Route path="lob-trainer" element={<AdminLobTrainer />} />
-        <Route path="announcements" element={<AdminAnnouncements />} />
+        <Route path="announcements" element={<Navigate to="/admin/site-settings" replace />} />
       </Route>
 
       {/* Business Owner Routes */}

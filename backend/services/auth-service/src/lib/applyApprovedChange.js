@@ -156,7 +156,9 @@ async function applyApprovedChange(approval) {
         const shouldActivateNow = !hasValidScheduledDate || scheduledDate <= now
 
         if (action === 'enable') {
-          await MaintenanceWindow.updateMany({ isActive: true }, { isActive: false, status: 'ended', deactivatedAt: now })
+          if (shouldActivateNow) {
+            await MaintenanceWindow.updateMany({ isActive: true }, { isActive: false, status: 'ended', deactivatedAt: now })
+          }
           await MaintenanceWindow.create({
             status: shouldActivateNow ? 'active' : 'pending',
             isActive: shouldActivateNow,

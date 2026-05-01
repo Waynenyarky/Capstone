@@ -4,6 +4,7 @@ const { validateBody, Joi } = require('../middleware/validation');
 const respond = require('../middleware/respond');
 const AdminApproval = require('../models/AdminApproval');
 const User = require('../models/User'); // Shared model - all services access same DB
+const Announcement = require('../models/Announcement');
 const { applyApprovedChange, logToBlockchain } = require('../lib/interServiceClient');
 const { sendApprovalNotification, createInAppNotificationsForAdmins, createInAppNotification } = require('../lib/notificationService');
 const { createAuditLog } = require('../lib/auditLogger');
@@ -31,7 +32,11 @@ const createApprovalRequestSchema = Joi.object({
 
 const approveRequestSchema = Joi.object({
   approved: Joi.boolean().optional().default(true),
-  comment: Joi.string().allow('').optional(),
+  comment: Joi.string().when('approved', {
+    is: false,
+    then: Joi.required().messages({ 'any.required': 'Comment is required when rejecting' }),
+    otherwise: Joi.string().allow('').optional(),
+  }),
 });
 
 async function reconcilePendingMaintenanceApprovals() {
@@ -42,11 +47,19 @@ async function reconcilePendingMaintenanceApprovals() {
 
   for (const approval of pendingMaintenance) {
     const approvedCount = approval.approvals.filter((a) => a.approved === true).length;
+    const rejectedCount = approval.approvals.filter((a) => a.approved === false).length;
     const voteCount = approval.approvals.length;
 
-    if (voteCount < approval.requiredApprovals) continue;
+    // Maintenance-specific veto: single rejection = rejected
+    let nextStatus;
+    if (rejectedCount > 0) {
+      nextStatus = 'rejected';
+    } else if (approvedCount >= approval.requiredApprovals) {
+      nextStatus = 'approved';
+    } else {
+      continue; // Still pending
+    }
 
-    const nextStatus = approvedCount >= approval.requiredApprovals ? 'approved' : 'rejected';
     if (approval.status === nextStatus) continue;
 
     approval.status = nextStatus;
@@ -90,7 +103,7 @@ router.post('/approvals', requireJwt, requireRole(['admin']), requireAdminStepUp
 
     // Support both requestDetails and requestedChanges for backward compatibility
     const details = requestDetails || (requestedChanges ? { newValues: requestedChanges, oldValues: {} } : {});
-    
+
     if (!details || Object.keys(details).length === 0) {
       return respond.error(res, 400, 'validation_error', 'requestDetails or requestedChanges is required');
     }
@@ -104,6 +117,35 @@ router.post('/approvals', requireJwt, requireRole(['admin']), requireAdminStepUp
     // Check if admin is trying to approve their own change
     if (String(userId) === String(requestedBy)) {
       return respond.error(res, 400, 'self_approval_not_allowed', 'Admins cannot request approval for their own changes');
+    }
+
+    // Overlap check for maintenance_mode requests
+    if (requestType === 'maintenance_mode' && details.action === 'enable') {
+      console.log('[Approvals Endpoint] Maintenance overlap check triggered')
+      const { parseDateSafe } = require('../lib/dateHelpers')
+      const { findOverlappingMaintenanceApprovals } = require('./maintenance')
+
+      const scheduledStartAt = details.scheduledStartAt
+      const expectedResumeAt = details.expectedResumeAt
+      const startAt = parseDateSafe(scheduledStartAt) || new Date()
+      const endAt = parseDateSafe(expectedResumeAt)
+      const isNewRequestStartNow = !scheduledStartAt
+      console.log('[Approvals Endpoint] Overlap check params:', { scheduledStartAt, expectedResumeAt, startAt: startAt.toISOString(), endAt: endAt?.toISOString(), isNewRequestStartNow })
+
+      if (!endAt || endAt <= startAt) {
+        return respond.error(res, 400, 'invalid_schedule', 'End time must be after start time')
+      }
+
+      const overlaps = await findOverlappingMaintenanceApprovals(startAt, endAt, null, isNewRequestStartNow)
+      console.log('[Approvals Endpoint] Found overlaps:', overlaps.length)
+      if (overlaps.length > 0) {
+        return respond.error(
+          res,
+          409,
+          'maintenance_schedule_conflict',
+          'Selected schedule overlaps with an existing pending or approved maintenance request. Please pick another time slot.'
+        )
+      }
     }
 
     // Generate unique approval ID
@@ -204,13 +246,17 @@ router.post('/approvals/:approvalId/approve', requireJwt, requireRole(['admin'])
 
     // Finalize decision after each vote.
     // Rule: 2 approvals => approved. If vote count reaches requiredApprovals with mixed votes => rejected.
+    // For maintenance_mode: single rejection immediately rejects (veto system).
     let wasJustApproved = false;
     const approvedCount = approval.approvals.filter((a) => a.approved === true).length;
     const rejectedCount = approval.approvals.filter((a) => a.approved === false).length;
     const voteCount = approval.approvals.length;
     const hasMixedVotes = approvedCount > 0 && rejectedCount > 0;
 
-    if (approvedCount >= approval.requiredApprovals && approval.status === 'pending') {
+    // Maintenance-specific veto: single rejection = rejected
+    if (approval.requestType === 'maintenance_mode' && !approved && approval.status === 'pending') {
+      approval.status = 'rejected';
+    } else if (approvedCount >= approval.requiredApprovals && approval.status === 'pending') {
       approval.status = 'approved';
       wasJustApproved = true;
     } else if (rejectedCount >= approval.requiredApprovals) {
@@ -266,6 +312,76 @@ router.post('/approvals/:approvalId/approve', requireJwt, requireRole(['admin'])
             approval.approvalId,
             { status: 'approved', approverName }
           ).catch((err) => console.error('Failed to create approval-resolved in-app notification:', err));
+
+          // Create announcement for approved maintenance
+          if (
+            approval.requestType === 'maintenance_mode'
+            && approval.requestDetails?.action === 'enable'
+          ) {
+            const scheduledStartAt = approval.requestDetails?.scheduledStartAt
+              ? new Date(approval.requestDetails.scheduledStartAt)
+              : null;
+            const expectedResumeAt = approval.requestDetails?.expectedResumeAt
+              ? new Date(approval.requestDetails.expectedResumeAt)
+              : null;
+            const reason = approval.requestDetails?.reason || 'System maintenance';
+            const message = approval.requestDetails?.message || reason;
+            const now = new Date();
+            const isUpcoming = scheduledStartAt && scheduledStartAt > now;
+
+            if (scheduledStartAt && expectedResumeAt) {
+              const startDate = scheduledStartAt.toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+              });
+              const startTime = scheduledStartAt.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+              const endTime = expectedResumeAt.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+
+              const announcement = await Announcement.create({
+                title: isUpcoming ? 'Upcoming Maintenance' : 'Scheduled Maintenance',
+                body: isUpcoming ? `Upcoming: ${message}` : message,
+                priority: 'high',
+                status: 'published',
+                isActive: true,
+                expiresAt: expectedResumeAt,
+                createdBy: approverId,
+                metadata: {
+                  maintenanceApprovalId: approval.approvalId,
+                  scheduledStartAt: scheduledStartAt,
+                  expectedResumeAt: expectedResumeAt,
+                },
+              }).catch((err) => logger.warn('Failed to create maintenance announcement', { err }));
+            }
+          }
+
+          if (
+            approval.requestType === 'maintenance_mode'
+            && approval.requestDetails?.action === 'disable'
+            && approval.requestDetails?.cancelTargetApprovalId
+          ) {
+            await AdminApproval.updateOne(
+              {
+                approvalId: approval.requestDetails.cancelTargetApprovalId,
+                requestType: 'maintenance_mode',
+                status: 'approved',
+              },
+              {
+                $set: {
+                  status: 'cancelled',
+                  'metadata.cancelledByApprovalId': approval.approvalId,
+                  'metadata.cancelledAt': new Date(),
+                },
+              }
+            )
+          }
         }
       } catch (applyError) {
         console.error('Error applying approved change:', applyError);
@@ -344,6 +460,91 @@ router.post('/approvals/:approvalId/approve', requireJwt, requireRole(['admin'])
   } catch (err) {
     console.error('POST /api/admin/approvals/:approvalId/approve error:', err);
     return respond.error(res, 500, 'approval_failed', 'Failed to process approval');
+  }
+});
+
+// DELETE /api/admin/approvals/:approvalId/approve - Remove admin's vote (undo)
+router.delete('/approvals/:approvalId/approve', requireJwt, requireRole(['admin']), async (req, res) => {
+  try {
+    const { approvalId } = req.params;
+    const approverId = req._userId;
+
+    const approval = await AdminApproval.findOne({ approvalId });
+    if (!approval) {
+      return respond.error(res, 404, 'approval_not_found', 'Approval request not found');
+    }
+
+    // Check if admin has voted
+    const voteIndex = approval.approvals.findIndex((a) => String(a.adminId) === String(approverId));
+    if (voteIndex === -1) {
+      return respond.error(res, 400, 'no_vote_found', 'You have not voted on this request');
+    }
+
+    // Check for overlapping maintenance if undoing a vote on maintenance
+    if (approval.requestType === 'maintenance_mode') {
+      const details = approval.requestDetails;
+      const startAt = details?.scheduledStartAt ? new Date(details.scheduledStartAt) : null;
+      const endAt = details?.expectedResumeAt ? new Date(details.expectedResumeAt) : null;
+
+      if (startAt && endAt) {
+        const overlapping = await AdminApproval.findOne({
+          approvalId: { $ne: approvalId },
+          requestType: 'maintenance_mode',
+          status: { $in: ['approved', 'pending'] },
+          'requestDetails.scheduledStartAt': { $lt: endAt },
+          'requestDetails.expectedResumeAt': { $gt: startAt },
+        });
+
+        if (overlapping) {
+          return respond.error(res, 400, 'overlapping_maintenance', 'Cannot undo: overlapping maintenance exists');
+        }
+      }
+    }
+
+    // Remove the vote
+    approval.approvals.splice(voteIndex, 1);
+
+    // Reconcile status after removing vote
+    const approvedCount = approval.approvals.filter((a) => a.approved === true).length;
+    const rejectedCount = approval.approvals.filter((a) => a.approved === false).length;
+    const voteCount = approval.approvals.length;
+
+    // If no votes left, reset to pending
+    if (voteCount === 0) {
+      approval.status = 'pending';
+    } else if (approvedCount >= approval.requiredApprovals) {
+      approval.status = 'approved';
+    } else if (rejectedCount >= approval.requiredApprovals) {
+      approval.status = 'rejected';
+    } else {
+      approval.status = 'pending';
+    }
+
+    await approval.save();
+
+    createAuditLog({
+      action: 'undo_vote',
+      targetId: approvalId,
+      targetType: 'approval',
+      details: {
+        approverId,
+        requestType: approval.requestType,
+        newStatus: approval.status,
+      },
+    });
+
+    return res.json({
+      success: true,
+      approval: {
+        approvalId: approval.approvalId,
+        status: approval.status,
+        approvals: approval.approvals,
+        completed: approval.status !== 'pending',
+      },
+    });
+  } catch (err) {
+    console.error('DELETE /api/admin/approvals/:approvalId/approve error:', err);
+    return respond.error(res, 500, 'undo_failed', 'Failed to undo vote');
   }
 });
 

@@ -74,6 +74,26 @@ if (process.env.NODE_ENV !== 'production') {
   if (morgan) app.use(morgan('dev'))
 }
 
+// Track database readiness - prevents indefinite hangs when DB is slow
+let dbReady = false;
+
+// Middleware to return 503 while DB is connecting (prevents frontend hangs)
+app.use((req, res, next) => {
+  // Always allow health check and CSRF endpoints
+  if (req.path === '/api/health' || req.path.includes('/csrf-token')) {
+    return next();
+  }
+  // Allow requests once DB is ready
+  if (dbReady || mongoose.connection.readyState === 1) {
+    return next();
+  }
+  // Return 503 Service Unavailable - frontend should retry
+  return res.status(503).json({
+    ok: false,
+    error: { code: 'service_starting', message: 'Service is starting, please retry' }
+  });
+});
+
 // Session/cookie support for SSO
 try {
   const cookieParser = require('cookie-parser')
@@ -133,11 +153,20 @@ app.use(errorHandlerMiddleware);
 const PORT = Number(process.env.AUTH_SERVICE_PORT || 3001);
 
 async function start() {
-  try {
-    const uri = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URL || ''
-    logger.info('Auth Service starting', { mongoUri: uri ? '<set>' : '<not-set>' });
+  const uri = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URL || ''
+  logger.info('Auth Service starting', { mongoUri: uri ? '<set>' : '<not-set>' });
 
+  // START SERVER IMMEDIATELY - don't wait for DB connection
+  const server = http.createServer(app);
+  server.listen(PORT, '0.0.0.0', () => {
+    logger.info(`Auth Service listening on http://0.0.0.0:${PORT} (DB connecting...)`);
+  });
+
+  // Connect to DB in background
+  try {
     await connectDB(uri);
+    dbReady = true;
+    logger.info('Auth Service database ready');
 
     // Seed development data if enabled (with retry for Docker startup)
     if (process.env.SEED_DEV === 'true') {
@@ -178,16 +207,12 @@ async function start() {
       }
     }
 
-    const server = http.createServer(app);
-    server.listen(PORT, '0.0.0.0', () => {
-      logger.info(`Auth Service listening on http://0.0.0.0:${PORT}`);
-    });
-
-    return server;
   } catch (err) {
-    logger.error('Auth Service start failed', { error: err });
-    process.exit(1);
+    logger.error('Auth Service DB/init failed (server still running)', { error: err });
+    // Don't exit - server is still running and will return 503 until DB connects
   }
+
+  return server;
 }
 
 if (require.main === module) {

@@ -23,7 +23,6 @@ import {
   AccountBookOutlined,
   SettingOutlined,
   ExperimentOutlined,
-  NotificationOutlined,
 } from '@ant-design/icons'
 
 // Role keys used across the app: 'business_owner', 'admin', 'inspector', 'lgu_officer', 'lgu_manager', 'cso', 'user'
@@ -49,8 +48,7 @@ export default function useSidebar() {
         { key: 'finance', label: 'Finance', to: '/admin/finance', icon: <AccountBookOutlined /> },
         { key: 'security', label: 'Security', to: '/admin/security', icon: <SafetyCertificateOutlined /> },
         { key: 'lob-trainer', label: 'AI Training Data', to: '/admin/lob-trainer', icon: <ExperimentOutlined /> },
-        { key: 'announcements', label: 'Announcements', to: '/admin/announcements', icon: <NotificationOutlined /> },
-        { key: 'maintenance', label: 'Maintenance', to: '/admin/maintenance', icon: <SettingOutlined /> },
+        { key: 'site-settings', label: 'Site Settings', to: '/admin/site-settings', icon: <SettingOutlined /> },
       ],
       staff: [
         { key: 'dashboard', label: 'Dashboard', to: '/staff', icon: <DashboardOutlined /> },

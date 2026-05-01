@@ -93,6 +93,26 @@ if (process.env.NODE_ENV !== 'production') {
   if (morgan) app.use(morgan('dev'))
 }
 
+// Track database readiness - prevents indefinite hangs when DB is slow
+let dbReady = false;
+
+// Middleware to return 503 while DB is connecting (prevents frontend hangs)
+app.use((req, res, next) => {
+  // Always allow health check and CSRF endpoints
+  if (req.path === '/api/health' || req.path.includes('/csrf-token')) {
+    return next();
+  }
+  // Allow requests once DB is ready
+  if (dbReady || mongoose.connection.readyState === 1) {
+    return next();
+  }
+  // Return 503 Service Unavailable - frontend should retry
+  return res.status(503).json({
+    ok: false,
+    error: { code: 'service_starting', message: 'Service is starting, please retry' }
+  });
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -198,11 +218,21 @@ app.use(errorHandlerMiddleware);
 const PORT = Number(process.env.ADMIN_SERVICE_PORT || 3003);
 
 async function start() {
-  try {
-    const uri = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URL || ''
-    logger.info('Admin Service starting', { mongoUri: uri ? '<set>' : '<not-set>' });
+  const uri = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URL || ''
+  logger.info('Admin Service starting', { mongoUri: uri ? '<set>' : '<not-set>' });
 
+  // START SERVER IMMEDIATELY - don't wait for DB connection
+  // This prevents proxy timeouts when backend is slow to connect to DB
+  const server = http.createServer(app);
+  server.listen(PORT, '0.0.0.0', () => {
+    logger.info(`Admin Service listening on http://0.0.0.0:${PORT} (DB connecting...)`);
+  });
+
+  // Connect to DB in background
+  try {
     await connectDB(uri);
+    dbReady = true;
+    logger.info('Admin Service database ready');
 
     // Seed form definitions if empty (idempotent)
     // Runs when SEED_FORM_DEFINITIONS=true (Docker) or in non-test dev
@@ -292,17 +322,12 @@ async function start() {
         logger.warn('Failed to start background jobs', { error })
       }
     }
-
-    const server = http.createServer(app);
-    server.listen(PORT, '0.0.0.0', () => {
-      logger.info(`Admin Service listening on http://0.0.0.0:${PORT}`);
-    });
-
-    return server;
   } catch (err) {
-    logger.error('Admin Service start failed', { error: err });
-    process.exit(1);
+    logger.error('Admin Service DB/seed failed (server still running)', { error: err });
+    // Don't exit - server is still running and will return 503 until DB connects
   }
+
+  return server;
 }
 
 if (require.main === module) {

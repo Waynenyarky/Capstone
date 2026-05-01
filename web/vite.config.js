@@ -66,6 +66,36 @@ if (USE_MICROSERVICES) {
   console.log(`[Vite Config] Backend target: ${UNIFIED_BACKEND_TARGET}`);
 }
 
+// SSE proxy config: no timeouts, buffering disabled — required for long-lived event streams
+function createSSEProxyConfig(path, target) {
+  return {
+    target: target,
+    changeOrigin: true,
+    secure: false,
+    selfHandleResponse: false,
+    configure: (proxy, _options) => {
+      console.log(`[Proxy SSE] ${path} -> ${target}`);
+      proxy.on('proxyReq', (proxyReq, req, _res) => {
+        // Disable keep-alive compression so chunks flush immediately
+        proxyReq.setHeader('Accept-Encoding', 'identity')
+      })
+      proxy.on('proxyRes', (proxyRes, _req, res) => {
+        // Disable buffering on the proxy response side
+        proxyRes.headers['x-accel-buffering'] = 'no'
+        proxyRes.headers['cache-control'] = 'no-cache'
+        res.setHeader && res.setHeader('X-Accel-Buffering', 'no')
+      })
+      proxy.on('error', (err, _req, res) => {
+        console.error(`[Proxy SSE Error] ${path} to ${target}:`, err.message)
+        if (res && !res.headersSent) {
+          res.writeHead(502, { 'Content-Type': 'text/plain' })
+          res.end('Bad Gateway: Backend server not available')
+        }
+      })
+    },
+  }
+}
+
 // Helper function to create proxy config with error handling
 function createProxyConfig(path, target, customConfig = {}) {
   return {
@@ -73,6 +103,9 @@ function createProxyConfig(path, target, customConfig = {}) {
     changeOrigin: true,
     secure: false,
     ws: true,
+    // Timeout to prevent indefinite hangs when backend is slow/unavailable
+    timeout: 15000,        // 15s timeout for proxy to connect to backend
+    proxyTimeout: 30000,   // 30s timeout for backend to respond
     ...customConfig,
     configure: (proxy, _options) => {
       console.log(`[Proxy] ${path} -> ${target}`);
@@ -284,6 +317,9 @@ export default defineConfig({
       // Uploads -> Business Service (port 3002)
       '/uploads': createProxyConfig('/uploads', `http://localhost:${MICROSERVICES.business}`),
       
+      // SSE stream (long-lived) -> Auth Service — no proxy timeout
+      '/api/notifications/stream': createSSEProxyConfig('/api/notifications/stream', `http://localhost:${MICROSERVICES.auth}`),
+
       // Catch-all for other API routes -> Auth Service (port 3001)
       '/api': createProxyConfig('/api', `http://localhost:${MICROSERVICES.auth}`)
     } : {
@@ -300,6 +336,9 @@ export default defineConfig({
       '/api/lgus': createProxyConfig('/api/lgus', UNIFIED_BACKEND_TARGET),
       '/api/forms': createProxyConfig('/api/forms', UNIFIED_BACKEND_TARGET),
       '/uploads': createProxyConfig('/uploads', UNIFIED_BACKEND_TARGET),
+      // SSE stream (long-lived) — no proxy timeout
+      '/api/notifications/stream': createSSEProxyConfig('/api/notifications/stream', UNIFIED_BACKEND_TARGET),
+
       '/api': createProxyConfig('/api', UNIFIED_BACKEND_TARGET),
     }
   }

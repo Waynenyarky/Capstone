@@ -155,63 +155,6 @@
 
     return (
       <>
-        {/* Submenu Theme Styles */}
-        <style>{`
-          .ant-menu-submenu-inner {
-            background: ${getSubmenuBg()} !important;
-            border-radius: 6px;
-            transition: all 0.2s;
-          }
-          .ant-menu-submenu-title {
-            color: ${getSubmenuTextColor()} !important;
-            transition: all 0.2s;
-          }
-          .ant-menu-submenu-title:hover {
-            background: ${getSubmenuHoverBg()} !important;
-            color: ${isLightSidebar ? token.colorPrimary : '#fff'} !important;
-          }
-          .ant-menu-submenu-open > .ant-menu-submenu-title {
-            color: ${isLightSidebar ? token.colorPrimary : '#fff'} !important;
-          }
-          .ant-menu-submenu .ant-menu {
-            background: ${getSubmenuBg()} !important;
-          }
-          .ant-menu-submenu .ant-menu-item {
-            background: transparent !important;
-            color: ${getSubmenuTextColor()} !important;
-            transition: all 0.2s;
-          }
-          .ant-menu-submenu .ant-menu-item:hover {
-            background: ${getSubmenuHoverBg()} !important;
-            color: ${isLightSidebar ? token.colorPrimary : '#fff'} !important;
-          }
-          .ant-menu-submenu .ant-menu-item-selected {
-            background: ${isLightSidebar 
-              ? (currentTheme === THEMES.BLOSSOM 
-                  ? 'rgba(235, 47, 150, 0.12)' 
-                  : currentTheme === THEMES.SUNSET
-                  ? 'rgba(250, 84, 28, 0.12)'
-                  : currentTheme === THEMES.ROYAL
-                  ? 'rgba(114, 46, 209, 0.12)'
-                  : currentTheme === THEMES.DOCUMENT
-                  ? 'rgba(0, 185, 107, 0.12)'
-                  : token.colorPrimaryBg)
-              : token.colorPrimaryBg} !important;
-            color: ${isLightSidebar ? token.colorPrimary : '#fff'} !important;
-          }
-          .ant-menu-submenu .ant-menu-item-active {
-            background: ${getSubmenuHoverBg()} !important;
-          }
-          .ant-menu-submenu-arrow {
-            color: ${getSubmenuTextColor()} !important;
-          }
-          .ant-menu-submenu-title:hover .ant-menu-submenu-arrow {
-            color: ${isLightSidebar ? token.colorPrimary : '#fff'} !important;
-          }
-          .ant-menu-submenu-open .ant-menu-submenu-arrow {
-            color: ${isLightSidebar ? token.colorPrimary : '#fff'} !important;
-          }
-        `}</style>
         {/* Brand / Logo */}
         <div style={{
           height: 65,
@@ -220,7 +163,7 @@
           justifyContent: collapsed ? 'center' : 'flex-start',
           padding: collapsed ? '0' : '0 24px',
           borderBottom: `1px solid ${token.colorBorder}`,
-          transition: 'all 0.2s',
+          transition: 'none',
           background: menuBg
         }}>
           <div style={{
@@ -570,7 +513,7 @@
                 lineHeight: '48px',
                 textAlign: 'center',
                 cursor: 'pointer',
-                transition: 'all 0.2s',
+                transition: 'none',
                 borderTop: `1px solid ${token.colorBorder}`,
               }}>
                 {collapsed ? <RightOutlined /> : <LeftOutlined />}

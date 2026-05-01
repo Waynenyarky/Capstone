@@ -64,7 +64,7 @@ const AdminApprovalSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ['pending', 'approved', 'rejected', 'expired'],
+      enum: ['pending', 'approved', 'rejected', 'expired', 'cancelled'],
       default: 'pending',
       index: true,
     },

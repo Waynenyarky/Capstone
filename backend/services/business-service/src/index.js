@@ -84,6 +84,26 @@ if (process.env.NODE_ENV !== 'production') {
   if (morgan) app.use(morgan('dev'))
 }
 
+// Track database readiness - prevents indefinite hangs when DB is slow
+let dbReady = false;
+
+// Middleware to return 503 while DB is connecting (prevents frontend hangs)
+app.use((req, res, next) => {
+  // Always allow health check and CSRF endpoints
+  if (req.path === '/api/health' || req.path.includes('/csrf-token')) {
+    return next();
+  }
+  // Allow requests once DB is ready
+  if (dbReady || mongoose.connection.readyState === 1) {
+    return next();
+  }
+  // Return 503 Service Unavailable - frontend should retry
+  return res.status(503).json({
+    ok: false,
+    error: { code: 'service_starting', message: 'Service is starting, please retry' }
+  });
+});
+
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
   let ipfsStatus = 'not_configured'
@@ -181,11 +201,37 @@ app.use(errorHandlerMiddleware);
 const PORT = Number(process.env.BUSINESS_SERVICE_PORT || 3002);
 
 async function start() {
-  try {
-    const uri = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URL || ''
-    logger.info('Business Service starting', { mongoUri: uri ? '<set>' : '<not-set>' });
+  const uri = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URL || ''
+  logger.info('Business Service starting', { mongoUri: uri ? '<set>' : '<not-set>' });
 
+  // START SERVER EARLY - create server first for socket.io attachment
+  const server = http.createServer(app);
+
+  // Initialize Socket.io for realtime updates (can work without DB)
+  try {
+    const { initializeSocket } = require('../../../shared/lib/socketService');
+    const { Server: SocketIOServer } = require('socket.io');
+    const jwtModule = require('jsonwebtoken');
+    initializeSocket(server, { SocketIO: SocketIOServer, jwt: jwtModule });
+    logger.info('Socket.io initialized for realtime updates');
+  } catch (err) {
+    logger.warn('Socket.io initialization failed (non-critical)', { error: err.message });
+  }
+
+  // Start listening IMMEDIATELY - don't wait for DB connection
+  server.listen(PORT, () => {
+    logger.info(`Business Service listening on http://localhost:${PORT} (DB connecting...)`);
+    logger.info('AI LOB recommendation config', {
+      geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+      lobModelServiceUrl: process.env.LOB_MODEL_SERVICE_URL ? '(set)' : '(not set)',
+    });
+  });
+
+  // Connect to DB in background
+  try {
     await connectDB(uri);
+    dbReady = true;
+    logger.info('Business Service database ready');
 
     // Seed fee configuration if empty (idempotent). Runs when SEED_FEE_CONFIGURATION=true (Docker) or in non-production.
     const shouldSeedFeeConfig = process.env.NODE_ENV !== 'test' &&
@@ -351,32 +397,12 @@ async function start() {
       logger.info('Phase 4 cron jobs scheduled: escalateViolations, violationReminders, flagCriticalViolators, inspectionReminders, cancelExpiredBookings')
     }
 
-    const server = http.createServer(app);
-
-    // Initialize Socket.io for realtime updates
-    try {
-      const { initializeSocket } = require('../../../shared/lib/socketService');
-      const { Server: SocketIOServer } = require('socket.io');
-      const jwtModule = require('jsonwebtoken');
-      initializeSocket(server, { SocketIO: SocketIOServer, jwt: jwtModule });
-      logger.info('Socket.io initialized for realtime updates');
-    } catch (err) {
-      logger.warn('Socket.io initialization failed (non-critical)', { error: err.message });
-    }
-
-    server.listen(PORT, () => {
-      logger.info(`Business Service listening on http://localhost:${PORT}`);
-      logger.info('AI LOB recommendation config', {
-        geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
-        lobModelServiceUrl: process.env.LOB_MODEL_SERVICE_URL ? '(set)' : '(not set)',
-      });
-    });
-
-    return server;
   } catch (err) {
-    logger.error('Business Service start failed', { error: err });
-    process.exit(1);
+    logger.error('Business Service DB/init failed (server still running)', { error: err });
+    // Don't exit - server is still running and will return 503 until DB connects
   }
+
+  return server;
 }
 
 if (require.main === module) {

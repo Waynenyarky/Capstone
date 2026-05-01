@@ -9,6 +9,8 @@ const logger = require('../lib/logger')
 const finalizeAccountDeletions = require('./finalizeAccountDeletions')
 const sendDeletionReminders = require('./sendDeletionReminders')
 const notifyTamperIncidents = require('./notifyTamperIncidents')
+const expirePendingApprovals = require('./expirePendingApprovals')
+const { checkAndSendMaintenanceNotifications } = require('../cron/maintenanceNotification')
 
 // Try to use node-cron, fallback to setInterval if not available
 let cron = null
@@ -37,6 +39,8 @@ function scheduleJob(cronExpression, jobFunction, description) {
       intervalMs = 24 * 60 * 60 * 1000 // Daily at 9 AM
     } else if (cronExpression === '*/10 * * * *') {
       intervalMs = 10 * 60 * 1000 // Every 10 minutes
+    } else if (cronExpression === '0 * * * *') {
+      intervalMs = 60 * 60 * 1000 // Every hour
     }
     
     const interval = setInterval(jobFunction, intervalMs)
@@ -84,6 +88,24 @@ function startJobs() {
       logger.error('Error in notifyTamperIncidents job', { error })
     }
   }, 'notifyTamperIncidents')
+
+  // Expire pending maintenance approvals after 48 hours (run hourly)
+  scheduleJob('0 * * * *', async () => {
+    try {
+      await expirePendingApprovals()
+    } catch (error) {
+      logger.error('Error in expirePendingApprovals job', { error })
+    }
+  }, 'expirePendingApprovals')
+
+  // Send maintenance notifications 1 day before scheduled maintenance (run daily at 9 AM)
+  scheduleJob('0 9 * * *', async () => {
+    try {
+      await checkAndSendMaintenanceNotifications()
+    } catch (error) {
+      logger.error('Error in checkAndSendMaintenanceNotifications job', { error })
+    }
+  }, 'checkAndSendMaintenanceNotifications')
 
   logger.info('Admin Service background jobs started successfully')
 }

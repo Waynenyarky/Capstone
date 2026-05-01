@@ -1,21 +1,30 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { App, Button, Grid, Typography } from 'antd'
-import { SettingOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { App, Button, Grid, Typography, Card, Row, Col } from 'antd'
+import { SettingOutlined, ReloadOutlined, InfoCircleOutlined, DashboardOutlined, NotificationOutlined, ToolOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import AdminLayout from '../components/AdminLayout'
+import AdminAnnouncements from './AdminAnnouncements'
 import {
   requestMaintenance,
   getMaintenanceCurrent,
   getMaintenanceApprovals,
   approveMaintenance,
+  undoVote,
+  cancelApprovedMaintenance,
   getMaintenancePublicStatus,
 } from '../services'
 import { useNotifier } from '@/shared/notifications.js'
 import { useAdminStepUp } from '../hooks/useAdminStepUp'
-import RequestMaintenanceModal, { getMaintenanceMessage, MESSAGE_PRESET_OTHER } from './maintenance/RequestMaintenanceModal'
+import RequestMaintenanceModal, { REASON_PRESET_OTHER, REASON_PRESET_OPTIONS } from './maintenance/RequestMaintenanceModal'
 import MaintenanceDesktopView from './maintenance/MaintenanceDesktopView'
 import MaintenanceMobileView from './maintenance/MaintenanceMobileView'
 import MaintenanceInfoModal from './maintenance/MaintenanceInfoModal'
+
+const MENU_ITEMS = [
+  { key: 'overview', label: 'Overview', icon: DashboardOutlined },
+  { key: 'announcements', label: 'Announcements', icon: NotificationOutlined },
+  { key: 'requests', label: 'Maintenance', icon: ToolOutlined },
+]
 
 const { Text } = Typography
 
@@ -28,12 +37,15 @@ export default function AdminMaintenance() {
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [requestModalOpen, setRequestModalOpen] = useState(false)
+  const [requestModalOptions, setRequestModalOptions] = useState({})
   const [infoOpen, setInfoOpen] = useState(false)
   const [tabKey, setTabKey] = useState('overview')
+  const [showMenu, setShowMenu] = useState(true)
   const [lastUpdated, setLastUpdated] = useState(null)
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md
   const { success, error } = useNotifier()
+  const normalizedTabKey = tabKey === 'history' ? 'requests' : tabKey
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -79,8 +91,8 @@ export default function AdminMaintenance() {
     if (import.meta.env.MODE === 'production') return undefined
     const handler = (event) => {
       const { action: evAction, tab, prefill } = event?.detail || {}
-      if (evAction === 'setTab' && (tab === 'overview' || tab === 'status' || tab === 'history')) {
-        setTabKey(tab)
+      if (evAction === 'setTab' && (tab === 'overview' || tab === 'announcements' || tab === 'requests' || tab === 'history')) {
+        setTabKey(tab === 'history' ? 'requests' : tab)
       } else if (evAction === 'openRequestModal') {
         setRequestModalOpen(true)
         if (prefill === 'enable') {
@@ -88,7 +100,8 @@ export default function AdminMaintenance() {
             form.setFieldsValue({
               action: 'enable',
               whenToStart: 'now',
-              messagePreset: 'scheduled',
+              reasonPreset: 'scheduled',
+              reason: undefined,
               message: undefined,
             })
           }, 100)
@@ -97,13 +110,14 @@ export default function AdminMaintenance() {
             form.setFieldsValue({
               action: 'enable',
               whenToStart: undefined,
-              messagePreset: MESSAGE_PRESET_OTHER,
+              reasonPreset: REASON_PRESET_OTHER,
+              reason: '',
               message: '',
             })
           }, 100)
         }
       } else if (evAction === 'selectFirstPending') {
-        setTabKey('status')
+        setTabKey('requests')
         setTimeout(() => {
           window.dispatchEvent(new CustomEvent('devtools:maintenance-select-first'))
         }, 100)
@@ -116,9 +130,17 @@ export default function AdminMaintenance() {
   const handleSubmit = useCallback(
     async (values) => {
       try {
+        let reason = ''
+        if (values.reasonPreset === REASON_PRESET_OTHER) {
+          reason = values.reason || ''
+        } else if (values.reasonPreset) {
+          const preset = REASON_PRESET_OPTIONS.find((o) => o.value === values.reasonPreset)
+          reason = preset?.label || ''
+        }
         const payload = {
           action: values.action,
-          message: getMaintenanceMessage(values) || '',
+          reason,
+          message: values.message || '',
         }
         if (values.expectedResumeAt && typeof values.expectedResumeAt.toISOString === 'function') {
           payload.expectedResumeAt = values.expectedResumeAt.toISOString()
@@ -149,28 +171,11 @@ export default function AdminMaintenance() {
     setSubmitting(true)
     try {
       const values = await form.validateFields()
-      const isDisable = values.action === 'disable'
-      if (isDisable) {
-        modal.confirm({
-          title: 'Cancel Maintenance?',
-          content: 'Are you sure you want to Cancel the Maintenance?',
-          okText: 'Yes, cancel maintenance',
-          cancelText: 'No, keep maintenance',
-          // Close the confirm modal first, then open step-up so the PIN modal stays on top.
-          onOk: () => {
-            window.setTimeout(() => {
-              handleSubmit(values)
-            }, 0)
-          },
-          onCancel: () => setSubmitting(false),
-        })
-        return
-      }
       await handleSubmit(values)
     } catch {
       setSubmitting(false)
     }
-  }, [form, handleSubmit, modal])
+  }, [form, handleSubmit])
 
   const handleApprove = useCallback(
     async (approvalId, approved, comment = '') => {
@@ -190,6 +195,24 @@ export default function AdminMaintenance() {
     [success, error, load, runWithStepUp]
   )
 
+  const handleCancelApproved = useCallback(
+    async (approvalId) => {
+      try {
+        await runWithStepUp(async (stepUpToken) => {
+          await cancelApprovedMaintenance(approvalId, { stepUpToken })
+        })
+        success('Cancellation request submitted for approval')
+        await load()
+      } catch (err) {
+        if (err?.message !== 'Step-up cancelled') {
+          console.error('Cancel approved maintenance failed', err)
+          error(err, 'Failed to request cancellation')
+        }
+      }
+    },
+    [success, error, load, runWithStepUp]
+  )
+
   const headerActions = (
     <>
       {lastUpdated && (
@@ -202,42 +225,126 @@ export default function AdminMaintenance() {
     </>
   )
 
+  const handleMenuSelect = (key) => {
+    setTabKey(key)
+    setShowMenu(false)
+  }
+
+  const handleBackToMenu = () => {
+    setShowMenu(true)
+  }
+
+  const IconMenu = () => (
+    <div style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      height: '100%',
+      padding: 24 
+    }}>
+      <Text strong style={{ fontSize: 20, marginBottom: 24 }}>Site Settings</Text>
+      <Row gutter={[24, 24]} style={{ width: '100%', maxWidth: 800 }}>
+        {MENU_ITEMS.map((item) => {
+          const Icon = item.icon
+          return (
+            <Col xs={24} sm={12} md={8} key={item.key}>
+              <Card
+                hoverable
+                onClick={() => handleMenuSelect(item.key)}
+                style={{ 
+                  textAlign: 'center',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <div style={{ 
+                  width: 64, 
+                  height: 64, 
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: '#f0f0f0',
+                  marginBottom: 16
+                }}>
+                  <Icon style={{ fontSize: 32 }} />
+                </div>
+                <Text strong>{item.label}</Text>
+              </Card>
+            </Col>
+          )
+        })}
+      </Row>
+    </div>
+  )
+
   return (
     <AdminLayout
-      pageTitle="Maintenance"
+      pageTitle="Site Settings"
       pageIcon={<SettingOutlined />}
       headerActions={headerActions}
     >
       <div
         style={
           isMobile
-            ? { overflow: 'auto', flex: 1 }
+            ? { height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }
             : { height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }
         }
       >
         {isMobile ? (
-          <MaintenanceMobileView
-            tabKey={tabKey}
-            setTabKey={setTabKey}
-            current={current}
-            loading={loading}
-            approvals={approvals}
-            onApprove={handleApprove}
-            onRefresh={load}
-            onOpenRequestModal={() => setRequestModalOpen(true)}
-          />
+          showMenu ? (
+            <IconMenu />
+          ) : (
+            <MaintenanceMobileView
+              tabKey={normalizedTabKey}
+              setTabKey={setTabKey}
+              current={current}
+              loading={loading}
+              approvals={approvals}
+              onApprove={handleApprove}
+              onUndoVote={undoVote}
+              onCancelApproved={handleCancelApproved}
+              onRefresh={load}
+              onOpenRequestModal={(options) => {
+                setRequestModalOptions(options || {})
+                setRequestModalOpen(true)
+              }}
+              announcementsTab={<AdminAnnouncements embedded />}
+              onBackToMenu={handleBackToMenu}
+              infoOpen={infoOpen}
+              setInfoOpen={setInfoOpen}
+            />
+          )
         ) : (
-          <MaintenanceDesktopView
-            tabKey={tabKey}
-            setTabKey={setTabKey}
-            current={current}
-            loading={loading}
-            approvals={approvals}
-            onApprove={handleApprove}
-            onRefresh={load}
-            onOpenRequestModal={() => setRequestModalOpen(true)}
-            headerActions={headerActions}
-          />
+          showMenu ? (
+            <IconMenu />
+          ) : (
+            <MaintenanceDesktopView
+              tabKey={normalizedTabKey}
+              setTabKey={setTabKey}
+              current={current}
+              loading={loading}
+              approvals={approvals}
+              onApprove={handleApprove}
+              onUndoVote={undoVote}
+              onCancelApproved={handleCancelApproved}
+              onRefresh={load}
+              onOpenRequestModal={(options) => {
+                setRequestModalOptions(options || {})
+                setRequestModalOpen(true)
+              }}
+              headerActions={headerActions}
+              announcementsTab={<AdminAnnouncements embedded />}
+              onBackToMenu={handleBackToMenu}
+              infoOpen={infoOpen}
+              setInfoOpen={setInfoOpen}
+            />
+          )
         )}
       </div>
 
@@ -245,9 +352,11 @@ export default function AdminMaintenance() {
         open={requestModalOpen}
         onCancel={() => setRequestModalOpen(false)}
         form={form}
+        forceScheduleMode={requestModalOptions.forceScheduleMode}
         onSubmit={handleConfirmSubmit}
         submitting={submitting}
         maintenanceActive={current?.isActive === true}
+        isMobile={isMobile}
       />
 
       <MaintenanceInfoModal open={infoOpen} onClose={() => setInfoOpen(false)} />

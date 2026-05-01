@@ -8,8 +8,8 @@ const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
 const MaintenanceWindow = require('../models/MaintenanceWindow');
 const FormDefinition = require('../models/FormDefinition');
-const bcrypt = require('bcryptjs');
-const { addToPasswordHistory } = require('./passwordHistory');
+// bcrypt and passwordHistory are lazy-required inside the cases that need them
+// so maintenance_mode approval works even if bcryptjs is not installed
 const { logToBlockchain } = require('./interServiceClient');
 const logger = require('./logger');
 
@@ -179,6 +179,8 @@ async function applyApprovedChange(approval) {
       }
 
       case 'password_change': {
+        const bcrypt = require('bcryptjs');
+        const { addToPasswordHistory } = require('./passwordHistory');
         const { newPasswordHash } = approval.metadata;
         if (!newPasswordHash) {
           return { success: false, error: 'Password hash not found in approval metadata' };
@@ -235,10 +237,12 @@ async function applyApprovedChange(approval) {
         const shouldActivateNow = !hasValidScheduledDate || scheduledDate <= now;
 
         if (action === 'enable') {
-          await MaintenanceWindow.updateMany(
-            { isActive: true },
-            { isActive: false, status: 'ended', deactivatedAt: now }
-          );
+          if (shouldActivateNow) {
+            await MaintenanceWindow.updateMany(
+              { isActive: true },
+              { isActive: false, status: 'ended', deactivatedAt: now }
+            );
+          }
           await MaintenanceWindow.create({
             status: shouldActivateNow ? 'active' : 'pending',
             isActive: shouldActivateNow,
@@ -377,6 +381,8 @@ async function applyApprovedChange(approval) {
       }
 
       case 'password_reset': {
+        const bcrypt = require('bcryptjs');
+        const { addToPasswordHistory: addToPasswordHistoryReset } = require('./passwordHistory');
         const crypto = require('crypto');
         const details = approval.requestDetails || {};
 
@@ -400,7 +406,7 @@ async function applyApprovedChange(approval) {
 
         const oldHash = String(user.passwordHash || '');
         const newHash = await bcrypt.hash(tempPassword, 10);
-        const updatedHistory = addToPasswordHistory(oldHash, user.passwordHistory || []);
+        const updatedHistory = addToPasswordHistoryReset(oldHash, user.passwordHistory || []);
 
         user.passwordHash = newHash;
         user.passwordChangedAt = new Date();

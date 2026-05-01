@@ -1,5 +1,5 @@
 import { Layout, Typography, Button, Grid, theme } from 'antd'
-import { LogoutOutlined } from '@ant-design/icons'
+import { LogoutOutlined, SettingOutlined } from '@ant-design/icons'
 import HomeFooter from '../components/HomeFooter.jsx'
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -51,21 +51,14 @@ export default function Maintenance() {
           flex: 1,
         }}>
           <div style={{ maxWidth: '600px' }}>
-            
-            <Title level={1} style={{ 
-              marginBottom: '16px', 
-              fontSize: screens.md ? '48px' : '32px', 
-              fontWeight: 700,
-            }}>
-              Under Maintenance
+
+            <SettingOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+
+            <Title level={1}>
+              Site is under maintenance
             </Title>
-            
-            <Paragraph style={{ 
-              fontSize: screens.md ? '18px' : '16px', 
-              color: token.colorTextSecondary, 
-              marginBottom: '24px', 
-              lineHeight: 1.7,
-            }}>
+
+            <Paragraph>
               {message || "We're performing scheduled maintenance to improve our services. Please check back soon."}
             </Paragraph>
 
@@ -76,18 +69,11 @@ export default function Maintenance() {
             )}
 
             {isLoggedIn && (
-              <Button 
-                icon={<LogoutOutlined />} 
+              <Button
+                icon={<LogoutOutlined />}
                 onClick={() => {
                   logout()
                   navigate('/', { replace: true })
-                }}
-                style={{ 
-                  height: '48px', 
-                  padding: '0 32px', 
-                  fontSize: '16px', 
-                  borderRadius: '8px',
-                  fontWeight: 600,
                 }}
               >
                 Logout and Go Back to the Home Page

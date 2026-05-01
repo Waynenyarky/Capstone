@@ -25,7 +25,7 @@ createRoot(document.getElementById('root')).render(
           <ErrorBoundary>
             <DevToolsProvider>
               <App />
-              <DevFab />
+              {/* <DevFab /> */}
             </DevToolsProvider>
           </ErrorBoundary>
         </AntdApp>

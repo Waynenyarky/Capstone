@@ -120,9 +120,15 @@ export async function fetchWithFallback(path, options = {}) {
   const retryOnCsrfInvalid = opts.retryOnCsrfInvalid !== false
   const skipAutoLogout = opts.skipAutoLogout === true
   const skipAuth = opts.skipAuth === true
+  const retryOn503 = opts.retryOn503 !== false // Default: retry on 503 (service starting)
+  const maxRetries = opts.maxRetries ?? 3
+  const retryDelay = opts.retryDelay ?? 1000
   delete opts.retryOnCsrfInvalid
   delete opts.skipAutoLogout
   delete opts.skipAuth
+  delete opts.retryOn503
+  delete opts.maxRetries
+  delete opts.retryDelay
 
   // Merge and normalize headers
   const incomingHeaders = opts.headers || {}
@@ -200,11 +206,13 @@ export async function fetchWithFallback(path, options = {}) {
   }
   opts.headers = headers
 
-  // Optional request timeout (e.g. for slow connections during demos). Uses AbortController.
+  // Request timeout to prevent indefinite hangs. Uses AbortController.
+  // Default: 30s for all requests as a safety net; explicit timeoutMs overrides.
   let timeoutId = null
-  if (opts.timeoutMs != null && opts.timeoutMs > 0) {
+  const effectiveTimeout = opts.timeoutMs ?? 30000
+  if (effectiveTimeout > 0 && !opts.signal) {
     const ac = new AbortController()
-    timeoutId = setTimeout(() => ac.abort(), opts.timeoutMs)
+    timeoutId = setTimeout(() => ac.abort(), effectiveTimeout)
     opts.signal = ac.signal
   }
 
@@ -256,10 +264,23 @@ export async function fetchWithFallback(path, options = {}) {
     }
   }
 
+  // Retry on 503 (Service Unavailable) - backend is starting up
+  const currentRetryCount = options._retryCount || 0
+  if (retryOn503 && res?.status === 503 && currentRetryCount < maxRetries) {
+    console.log(`[HTTP] Service unavailable (503), retrying in ${retryDelay}ms... (${currentRetryCount + 1}/${maxRetries})`)
+    await new Promise(r => setTimeout(r, retryDelay))
+    return fetchWithFallback(path, { 
+      ...options, 
+      _retryCount: currentRetryCount + 1,
+      retryDelay: Math.min(retryDelay * 1.5, 5000) // Exponential backoff, max 5s
+    })
+  }
+
   return res
 }
 
 export async function fetchJsonWithFallback(path, options = {}) {
+  const skipAutoLogout = options.skipAutoLogout === true
   const res = await fetchWithFallback(path, options)
   if (!res || !res.ok) {
     let errMsg = `Request failed: ${res?.status || 'network'}`

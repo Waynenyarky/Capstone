@@ -144,8 +144,11 @@ export async function adminVerifyLoginCode(payload) {
   return res.json()
 }
 
-export async function getMe() {
-  return await fetchJsonWithFallback('/api/auth/me', { method: 'GET' })
+export async function getMe(options = {}) {
+  // Default 10-second timeout for initial auth check to avoid indefinite hang
+  const timeoutMs = options.timeoutMs ?? 10000
+  // Disable 503 retry for auth check — we want fast fail so page renders with stored user
+  return await fetchJsonWithFallback('/api/auth/me', { method: 'GET', timeoutMs, retryOn503: false })
 }
 
 /** Call server to record logout in notification history. Does not clear local session. */

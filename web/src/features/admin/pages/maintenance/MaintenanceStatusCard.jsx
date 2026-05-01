@@ -26,7 +26,7 @@ export default function MaintenanceStatusCard({ current, loading }) {
       ) : isActive ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <Tag color="green">On</Tag>
+            <Tag color="cyan">On</Tag>
             <Text type="secondary" style={{ marginLeft: 8 }}>
               Maintenance mode is on. Non-admin users are redirected to the maintenance page.
             </Text>

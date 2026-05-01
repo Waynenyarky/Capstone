@@ -28,9 +28,16 @@ export function useSessionTimeout({ timeoutMs = 60 * 60 * 1000, warningMs = 2 * 
       })
     }
 
-    interval = setInterval(tick, 1000)
+    const start = () => { interval = setInterval(tick, 1000) }
+    const stop = () => { if (interval) { clearInterval(interval); interval = null } }
+
+    const onVisibility = () => { document.hidden ? stop() : start() }
+    document.addEventListener('visibilitychange', onVisibility)
+    start()
+
     return () => {
-      if (interval) clearInterval(interval)
+      stop()
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [warningMs, onTimeout, onWarning])
 

@@ -261,7 +261,7 @@ export default function AdminDashboard() {
                 <Space>
                   <ToolOutlined style={{ color: '#faad14' }} />
                   <Text strong>Maintenance mode is active.</Text>
-                  <Link to="/admin/maintenance">View maintenance</Link>
+                  <Link to="/admin/site-settings">View site settings</Link>
                 </Space>
               </Card>
             </Col>

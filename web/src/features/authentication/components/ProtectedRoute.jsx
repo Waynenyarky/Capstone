@@ -15,7 +15,7 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
   const allowed = allowedRoles.map((r) => String(r || '').toLowerCase())
   const isUnauthorized = !isLoading && currentUser && allowed.length > 0 && !allowed.includes(roleKey)
 
-  if (isLoading || maintenance.loading) {
+  if (isLoading) {
     return (
       <div style={{ 
         position: 'fixed',
