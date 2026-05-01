@@ -1,7 +1,7 @@
 import React from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { ConfigProvider, theme } from 'antd'
+import { ConfigProvider } from 'antd'
 import MaintenanceFilterPanel from '../MaintenanceFilterPanel.jsx'
 
 const mockToken = {

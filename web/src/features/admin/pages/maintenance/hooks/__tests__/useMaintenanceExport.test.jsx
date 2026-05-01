@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook } from '@testing-library/react'
-import dayjs from 'dayjs'
 import { useMaintenanceExport } from '../useMaintenanceExport.js'
 
 // Mock dependencies

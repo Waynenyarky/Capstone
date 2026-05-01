@@ -4,7 +4,7 @@ import { useAuthSession } from '@/features/authentication'
 import { getAdminList } from '../../../services/staffService'
 import dayjs from 'dayjs'
 import { REQUEST_EXPIRY_HOURS } from '../constants/maintenance.constants.js'
-import { userName, userEmail, entityId } from '../utils/maintenance.utils.js'
+import { entityId } from '../utils/maintenance.utils.js'
 
 export function useMaintenanceApprovalActions(approval, allApprovals, onApprove, onUndoVote, onCancelApproved, onRefresh) {
   const { message } = App.useApp()
@@ -21,8 +21,6 @@ export function useMaintenanceApprovalActions(approval, allApprovals, onApprove,
   const hasVoted = localApproval?.approvals?.some((a) => entityId(a.adminId) === currentUserId)
   const myVote = localApproval?.approvals?.find((a) => entityId(a.adminId) === currentUserId)
   const requesterId = entityId(localApproval?.requestedBy)
-  const requesterEmail = userEmail(localApproval?.requestedBy).toLowerCase()
-  const currentUserEmail = userEmail(currentUser).toLowerCase()
   const isRequester = localApproval ? requesterId === currentUserId : false
   const canVote = isPending && !hasVoted && !isRequester
   const scheduledStart = localApproval?.requestDetails?.scheduledStartAt ? dayjs(localApproval.requestDetails.scheduledStartAt) : null

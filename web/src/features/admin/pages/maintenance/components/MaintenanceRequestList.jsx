@@ -5,7 +5,7 @@ import MaintenanceRequestCard from './MaintenanceRequestCard.jsx'
 const { Text } = Typography
 const { useBreakpoint } = Grid
 
-export default function MaintenanceRequestList({ requests, selectedId, onSelect, paginatedRequests, total, page, pageSize, onPageChange, loading, token, style }) {
+export default function MaintenanceRequestList({ selectedId, onSelect, paginatedRequests, total, page, pageSize, onPageChange, loading, token, style }) {
   const screens = useBreakpoint()
   const isLg = screens.lg
 

@@ -5,8 +5,7 @@ import { REASON_PRESET_OPTIONS, PRESET_REASONS, REASON_PRESET_OTHER } from '../c
 
 const { TextArea } = Input
 
-export default function MaintenanceFormFields({ form, whenToStart, validateScheduledStartAt, validateExpectedResumeAt, maintenanceActive, forceScheduleMode, isMobile }) {
-  const action = Form.useWatch('action', form)
+export default function MaintenanceFormFields({ form, whenToStart, validateScheduledStartAt, validateExpectedResumeAt, maintenanceActive, forceScheduleMode }) {
   const reasonPreset = Form.useWatch('reasonPreset', form)
 
   return (

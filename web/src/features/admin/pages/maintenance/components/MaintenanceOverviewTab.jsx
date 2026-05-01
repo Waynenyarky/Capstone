@@ -45,7 +45,6 @@ export default function MaintenanceOverviewTab({
   current,
   approvals = [],
   setTabKey,
-  onOpenRequestModal,
 }) {
   const { token } = theme.useToken()
   const [services, setServices] = useState([])
@@ -291,7 +290,7 @@ export default function MaintenanceOverviewTab({
                               color: '#fff',
                             }}
                           >
-                            <Icon style={{ fontSize: 18 }} />
+                            {Icon && <Icon style={{ fontSize: 18 }} />}
                           </span>
                           <span style={{ fontSize: 16, fontWeight: 600 }}>{value ?? '—'}</span>
                         </div>

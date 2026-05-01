@@ -73,7 +73,7 @@ describe('MaintenanceOverviewCards', () => {
   })
 
   it('does not render infrastructure status when no dependencies', () => {
-    const { container } = renderWithConfig(<MaintenanceOverviewCards {...defaultProps} dependencies={null} />)
+    renderWithConfig(<MaintenanceOverviewCards {...defaultProps} dependencies={null} />)
 
     expect(screen.queryByText(/infrastructure status/i)).not.toBeInTheDocument()
   })
@@ -87,7 +87,7 @@ describe('MaintenanceOverviewCards', () => {
   })
 
   it('does not render maintenance schedule when no current', () => {
-    const { container } = renderWithConfig(<MaintenanceOverviewCards {...defaultProps} current={null} />)
+    renderWithConfig(<MaintenanceOverviewCards {...defaultProps} current={null} />)
 
     expect(screen.queryByText(/maintenance schedule/i)).not.toBeInTheDocument()
   })

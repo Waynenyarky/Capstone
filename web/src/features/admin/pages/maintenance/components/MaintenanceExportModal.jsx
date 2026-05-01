@@ -1,6 +1,5 @@
 import React from 'react'
 import { Modal, DatePicker, Typography } from 'antd'
-import dayjs from 'dayjs'
 
 const { Text } = Typography
 const { RangePicker } = DatePicker

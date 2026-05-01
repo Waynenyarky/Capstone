@@ -268,7 +268,6 @@ export default function MaintenanceRequestDetailPanel({ approval, allApprovals, 
   }
 
   const details = approval.requestDetails || {}
-  const actionLabel = details.action === 'enable' ? 'Enable maintenance' : 'Disable maintenance'
   const requestExpiryDate = approval?.createdAt
     ? dayjs(approval.createdAt).add(REQUEST_EXPIRY_HOURS, 'hour')
     : null

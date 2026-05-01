@@ -1,7 +1,6 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react'
-import { Typography, theme, Button, Tag, Splitter, Space, Grid, Tooltip } from 'antd'
+import React, { useState, useMemo, useRef } from 'react'
+import { Typography, theme, Button, Tag, Splitter, Space, Grid, Tooltip, Empty } from 'antd'
 import { ToolOutlined, StopOutlined, ClockCircleOutlined, NotificationOutlined, ArrowLeftOutlined, InfoCircleOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import MaintenanceOverviewTab from './components/MaintenanceOverviewTab'
 import MaintenanceRequestDetailPanel from './components/MaintenanceRequestDetailPanel'
 import MaintenanceInfoModal from './components/MaintenanceInfoModal'
@@ -11,7 +10,7 @@ import MaintenanceFilterPanel from './components/MaintenanceFilterPanel'
 import MaintenanceRequestList from './components/MaintenanceRequestList'
 import MaintenanceExportModal from './components/MaintenanceExportModal'
 import { NAV_ITEMS, REQUESTS_PAGE_SIZE, REQUEST_EXPIRY_HOURS, HISTORY_REASON_OPTIONS, PRESET_HISTORY_REASONS } from './constants/maintenance.constants'
-import { requestedByDisplay, isApprovedUpcoming, isDefaultVisible, filterApprovalsBySearch, filterApprovalsByStatus, filterApprovalsByReason } from './utils/maintenance.utils'
+import { isDefaultVisible, filterApprovalsBySearch, filterApprovalsByStatus, filterApprovalsByReason } from './utils/maintenance.utils'
 import { useMaintenanceFilters, useMaintenancePagination, useMaintenanceExport } from './hooks'
 
 const { Text } = Typography
@@ -27,7 +26,6 @@ export default function MaintenanceDesktopView({
   onCancelApproved,
   onOpenRequestModal,
   onRefresh,
-  headerActions,
   announcementsTab,
   onBackToMenu,
   infoOpen,
@@ -48,7 +46,6 @@ export default function MaintenanceDesktopView({
     setFilterOpen: setHistoryFilterOpen,
     showAllRequests,
     setShowAllRequests,
-    clearFilters,
   } = useMaintenanceFilters()
 
   const scopedApprovals = useMemo(() => {

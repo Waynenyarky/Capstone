@@ -1,13 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { Card, Tabs, Button, Tag, Drawer, Select, Pagination, Empty, Typography, theme, Space, Tooltip, DatePicker, Input } from 'antd'
 import { StopOutlined, ClockCircleOutlined, NotificationOutlined, ArrowLeftOutlined, FilterOutlined, DownloadOutlined, InfoCircleOutlined, SearchOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import MaintenanceOverviewTab from './components/MaintenanceOverviewTab.jsx'
 import MaintenanceRequestDetailPanel from './components/MaintenanceRequestDetailPanel'
 import MaintenanceInfoModal from './components/MaintenanceInfoModal'
 import MaintenanceRequestList from './components/MaintenanceRequestList'
 import { TAB_ITEMS, HISTORY_PAGE_SIZE, REQUEST_EXPIRY_HOURS, HISTORY_REASON_OPTIONS, PRESET_HISTORY_REASONS } from './constants/maintenance.constants'
-import { requestedByDisplay, isApprovedUpcoming, isDefaultVisible, filterApprovalsBySearch, filterApprovalsByStatus, filterApprovalsByReason } from './utils/maintenance.utils'
+import { isDefaultVisible, filterApprovalsBySearch, filterApprovalsByStatus, filterApprovalsByReason } from './utils/maintenance.utils'
 import { useMaintenanceFilters, useMaintenancePagination, useMaintenanceExport } from './hooks'
 
 const { Text } = Typography

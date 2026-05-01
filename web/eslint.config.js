@@ -38,16 +38,20 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
-      'import/no-unresolved': ['error', { 
-        commonjs: true, 
+      'import/no-unresolved': ['error', {
+        commonjs: true,
         caseSensitive: true,
         ignore: [
           '@playwright/test', // Playwright is a dev dependency
           '@testing-library/react', // Testing library is a dev dependency
           'msw', // MSW is a dev dependency
           'msw/node', // MSW node is a dev dependency
+          '@/features/authentication', // Alias path not resolved by ESLint
+          '@/lib/http.js', // Alias path not resolved by ESLint
+          '@/shared/components/AppForm', // Alias path not resolved by ESLint
         ]
       }],
+      'import/named': 'error',
     },
   },
   // Node.js environment for config files and test setup
