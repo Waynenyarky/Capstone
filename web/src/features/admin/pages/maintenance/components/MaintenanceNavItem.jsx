@@ -1,5 +1,8 @@
 import React from 'react'
+import { Typography } from 'antd'
 import { DashboardOutlined, ToolOutlined, NotificationOutlined } from '@ant-design/icons'
+
+const { Text } = Typography
 
 const ICON_MAP = {
   DashboardOutlined,
@@ -28,20 +31,36 @@ export default function MaintenanceNavItem({ key, label, icon, isSelected, onCli
         transition: 'all 0.15s ease',
       }}
       onMouseEnter={(e) => {
-        if (!isSelected) {
-          e.currentTarget.style.background = token.colorBgTextSecondary
-        }
+        if (!isSelected) e.currentTarget.style.background = token.colorFillTertiary
       }}
       onMouseLeave={(e) => {
-        if (!isSelected) {
-          e.currentTarget.style.background = 'transparent'
-        }
+        if (!isSelected) e.currentTarget.style.background = 'transparent'
       }}
     >
-      {Icon && <Icon style={{ fontSize: 16, color: isSelected ? token.colorPrimary : token.colorTextSecondary }} />}
-      <span style={{ fontSize: 13, color: isSelected ? token.colorPrimary : token.colorTextSecondary, fontWeight: isSelected ? 500 : 400 }}>
+      {Icon && (
+        <span
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: token.borderRadius,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            background: isSelected ? token.colorFillTertiary : token.colorFillQuaternary,
+            color: isSelected ? token.colorPrimary : token.colorTextSecondary,
+          }}
+        >
+          <Icon style={{ fontSize: 16 }} />
+        </span>
+      )}
+      <Text
+        strong={isSelected}
+        type={isSelected ? undefined : 'secondary'}
+        style={{ fontSize: 13, flex: 1, lineHeight: 1.4 }}
+      >
         {label}
-      </span>
+      </Text>
     </div>
   )
 }

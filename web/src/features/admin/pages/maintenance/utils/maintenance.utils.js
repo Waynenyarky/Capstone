@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import { STATUS_COLORS } from '../constants/maintenance.constants.js'
+import { STATUS_COLORS, PRESET_HISTORY_REASONS } from '../constants/maintenance.constants.js'
 
 /**
  * Display user name from user object
@@ -50,7 +50,17 @@ export function isApprovedUpcoming(approval) {
   const scheduled = approval?.requestDetails?.scheduledStartAt
   if (!scheduled || approval?.status !== 'approved') return false
   const ts = dayjs(scheduled)
-  return ts.isValid() && ts.isAfter(dayjs())
+  const now = dayjs()
+  // Check if scheduled time is in the future
+  if (!ts.isValid() || !ts.isAfter(now)) return false
+  // Also check that the maintenance hasn't started yet
+  const expectedResumeAt = approval?.requestDetails?.expectedResumeAt
+  if (expectedResumeAt) {
+    const resumeTs = dayjs(expectedResumeAt)
+    // If resume time is in the past, the maintenance is already active, not upcoming
+    if (resumeTs.isValid() && resumeTs.isBefore(now)) return false
+  }
+  return true
 }
 
 /**
@@ -137,16 +147,13 @@ export function escapeCsv(value) {
  */
 export function filterApprovalsBySearch(approvals, query) {
   if (!query || query.trim() === '') return approvals
-  const lowerQuery = query.toLowerCase()
-  return approvals.filter((approval) => {
-    const reason = approval?.requestDetails?.reason || ''
-    const message = approval?.requestDetails?.message || ''
-    const requester = requestedByDisplay(approval?.requestedBy)
-    return (
-      reason.toLowerCase().includes(lowerQuery) ||
-      message.toLowerCase().includes(lowerQuery) ||
-      requester.toLowerCase().includes(lowerQuery)
-    )
+  const q = query.trim().toLowerCase()
+  return approvals.filter((a) => {
+    const requestedBy = requestedByDisplay(a.requestedBy).toLowerCase()
+    const reason = (a.requestDetails?.reason || '').toLowerCase()
+    const message = (a.requestDetails?.message || '').toLowerCase()
+    const id = (a.approvalId || '').toLowerCase()
+    return requestedBy.includes(q) || reason.includes(q) || message.includes(q) || id.includes(q)
   })
 }
 
@@ -155,7 +162,10 @@ export function filterApprovalsBySearch(approvals, query) {
  */
 export function filterApprovalsByStatus(approvals, statusFilter) {
   if (!statusFilter) return approvals
-  return approvals.filter((approval) => approval.status === statusFilter)
+  if (statusFilter === 'approved_upcoming') {
+    return approvals.filter((a) => isApprovedUpcoming(a) && a.status === 'approved')
+  }
+  return approvals.filter((a) => a.status === statusFilter)
 }
 
 /**
@@ -164,12 +174,12 @@ export function filterApprovalsByStatus(approvals, statusFilter) {
 export function filterApprovalsByReason(approvals, reasonFilter) {
   if (!reasonFilter) return approvals
   if (reasonFilter === '__others__') {
-    return approvals.filter((approval) => {
-      const reason = approval?.requestDetails?.reason || ''
-      return !['Scheduled maintenance', 'Emergency maintenance', 'System upgrade', 'Temporary outage'].includes(reason)
+    return approvals.filter((a) => {
+      const reason = a.requestDetails?.reason || ''
+      return !!reason && !PRESET_HISTORY_REASONS.includes(reason)
     })
   }
-  return approvals.filter((approval) => approval?.requestDetails?.reason === reasonFilter)
+  return approvals.filter((a) => (a.requestDetails?.reason || '') === reasonFilter)
 }
 
 /**

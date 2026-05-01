@@ -160,6 +160,13 @@ const vitestProjects = [
         'src/**/*.stories.@(js|jsx|ts|tsx)',
         'src/**/*.mdx'
       ],
+      environmentOptions: {
+        jsdom: {
+          url: 'http://localhost:3000',
+          pretendToBeVisual: false,
+          resources: 'usable'
+        }
+      },
       coverage: {
         provider: 'v8',
         reporter: ['text', 'html'],

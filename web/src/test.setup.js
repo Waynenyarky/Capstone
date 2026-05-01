@@ -244,6 +244,14 @@ if (typeof window !== 'undefined' && typeof window.scrollTo !== 'function') {
   window.scrollTo = vi.fn()
 }
 
+// Polyfill requestAnimationFrame/cancelAnimationFrame for React 19 and rc-motion
+if (typeof window !== 'undefined' && typeof window.requestAnimationFrame !== 'function') {
+  window.requestAnimationFrame = (callback) => setTimeout(callback, 0)
+}
+if (typeof window !== 'undefined' && typeof window.cancelAnimationFrame !== 'function') {
+  window.cancelAnimationFrame = (id) => clearTimeout(id)
+}
+
 // Polyfill window.matchMedia used by Ant Design's responsive observers
 if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
   window.matchMedia = (query) => ({

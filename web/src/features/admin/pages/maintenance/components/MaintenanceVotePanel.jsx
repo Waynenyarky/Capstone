@@ -2,89 +2,168 @@ import React from 'react'
 import { Typography, Tag, Space, Button, Divider } from 'antd'
 import { CheckCircleOutlined, CloseCircleOutlined, UndoOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { userName } from '../utils/maintenance.utils.js'
+import { userName, userEmail, entityId } from '../utils/maintenance.utils.js'
 
 const { Text } = Typography
 
 export default function MaintenanceVotePanel({ approval, admins, myVote, canVote, canUndoVote, onApproveClick, onDenyClick, onUndoClick, undoDeadline, token }) {
-  const approvedVotes = (approval?.approvals || []).filter((a) => a.approved === true)
-  const rejectedVotes = (approval?.approvals || []).filter((a) => a.approved === false)
+  const requesterId = entityId(approval?.requestedBy)
+  const requesterEmail = userEmail(approval?.requestedBy)?.toLowerCase()
+  const currentUser = { _id: 'current_user_id', email: 'current@example.com' } // This should come from auth context
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div>
-        <Text strong style={{ fontSize: 13 }}>Admin Votes</Text>
-        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {admins.map((admin) => {
-            const vote = approval?.approvals?.find((a) => String(a.adminId) === String(admin._id))
-            const isCurrentUser = vote?.adminId?._id === vote?.adminId
-            return (
-              <div key={admin._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Space size={8}>
-                  <Text style={{ fontSize: 13 }}>{userName(admin)}</Text>
-                  {vote && (
-                    <Tag color={vote.approved ? 'green' : 'red'} style={{ margin: 0 }}>
+    <div style={{ marginBottom: 16 }}>
+      <Text style={{ display: 'block', marginBottom: 8 }}>Admin votes :</Text>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {admins
+          .filter((admin) => {
+            const adminId = entityId(admin)
+            const adminEmail = userEmail(admin).toLowerCase()
+            if (adminId && (adminId === requesterId || adminId === currentUser._id)) return false
+            if (adminEmail && (adminEmail === requesterEmail || adminEmail === currentUser.email)) return false
+            return true
+          })
+          .map((admin) => {
+            const vote = approval?.approvals?.find(
+              (a) => entityId(a.adminId) === entityId(admin)
+            )
+            if (vote) {
+              return (
+                <div
+                  key={entityId(admin)}
+                  style={{
+                    padding: 8,
+                    background: token.colorFillQuaternary,
+                    borderRadius: token.borderRadius,
+                    fontSize: 12,
+                  }}
+                >
+                  <Space size={2}>
+                    <Tag color={vote.approved ? 'success' : 'error'}>
                       {vote.approved ? 'Approved' : 'Rejected'}
                     </Tag>
+                    <Text>{userName(admin)}</Text>
+                  </Space>
+                  <Divider style={{ margin: '8px 0' }} />
+                  {vote.comment ? (
+                    <div>
+                      <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+                        Reason: {vote.comment}
+                      </Text>
+                    </div>
+                  ) : (
+                    <div>
+                      <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4, fontStyle: 'italic' }}>
+                        No comment provided
+                      </Text>
+                    </div>
                   )}
-                </Space>
-                {vote?.comment && (
-                  <Text type="secondary" style={{ fontSize: 12, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {vote.comment}
-                  </Text>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      <Divider style={{ margin: '12px 0' }} />
-
-      <div>
-        <Text strong style={{ fontSize: 13 }}>Your Action</Text>
-        {myVote ? (
-          <div style={{ marginTop: 8 }}>
-            <Tag color={myVote.approved ? 'green' : 'red'}>
-              You {myVote.approved ? 'approved' : 'rejected'}
-            </Tag>
-            {canUndoVote && undoDeadline && (
-              <div style={{ marginTop: 8 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Undo available until {dayjs(undoDeadline).format('MMM D, YYYY HH:mm')}
-                </Text>
-                <Button
-                  size="small"
-                  icon={<UndoOutlined />}
-                  onClick={onUndoClick}
-                  style={{ marginTop: 4 }}
+                  {vote.timestamp && (
+                    <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+                      Submitted on: {new Date(vote.timestamp).toLocaleString()}
+                    </Text>
+                  )}
+                </div>
+              )
+            } else {
+              return (
+                <div
+                  key={entityId(admin)}
+                  style={{
+                    padding: 8,
+                    background: token.colorFillQuaternary,
+                    borderRadius: token.borderRadius,
+                    fontSize: 12,
+                  }}
                 >
-                  Undo Vote
-                </Button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-            <Button
-              type="primary"
-              icon={<CheckCircleOutlined />}
-              onClick={onApproveClick}
-              disabled={!canVote}
-            >
-              Approve
-            </Button>
-            <Button
-              danger
-              icon={<CloseCircleOutlined />}
-              onClick={onDenyClick}
-              disabled={!canVote}
-            >
-              Reject
-            </Button>
-          </div>
-        )}
+                  <Space size={2}>
+                    <Tag color="gold">Pending</Tag>
+                    <Text>{userName(admin)}</Text>
+                  </Space>
+                </div>
+              )
+            }
+          })}
       </div>
+
+      {myVote && (
+        <div
+          style={{
+            marginTop: 16,
+            padding: 8,
+            background: token.colorFillQuaternary,
+            borderRadius: token.borderRadius,
+          }}
+        >
+          <div style={{ marginBottom: 8 }}>
+            <Space size={2}>
+              <Tag color={myVote.approved ? 'success' : 'error'}>
+                {myVote.approved ? 'Approved' : 'Rejected'}
+              </Tag>
+              <Text>{userName(currentUser)}</Text>
+            </Space>
+          </div>
+          <Divider style={{ margin: '8px 0' }} />
+          {myVote?.comment ? (
+            <div>
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+                Reason: {myVote.comment}
+              </Text>
+            </div>
+          ) : (
+            <div>
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4, fontStyle: 'italic' }}>
+                No comment provided
+              </Text>
+            </div>
+          )}
+          {myVote?.timestamp && (
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+              Submitted on: {new Date(myVote.timestamp).toLocaleString()}
+            </Text>
+          )}
+          <Divider style={{ margin: '8px 0' }} />
+          <Button icon={<UndoOutlined />} onClick={onUndoClick}>
+            Undo
+          </Button>
+          {undoDeadline && (
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+              {canUndoVote
+                ? `Undo available until ${dayjs(undoDeadline).format('MMM D, YYYY HH:mm')}`
+                : 'Undo no longer available'
+              }
+            </Text>
+          )}
+        </div>
+      )}
+
+      {canVote && (
+        <div
+          style={{
+            marginTop: 16,
+            padding: 8,
+            background: token.colorFillQuaternary,
+            borderRadius: token.borderRadius,
+            fontSize: 12,
+          }}
+        >
+          <div style={{ marginBottom: 8 }}>
+            <Space size={2}>
+              <Tag color="gold">Pending</Tag>
+              <Text>{userName(currentUser)}</Text>
+            </Space>
+          </div>
+          <Divider style={{ margin: '8px 0' }} />
+          <Space>
+            <Button type="primary" icon={<CheckCircleOutlined />} onClick={onApproveClick}>
+              Approve Request
+            </Button>
+            <Button danger icon={<CloseCircleOutlined />} onClick={onDenyClick}>
+              Reject Request
+            </Button>
+          </Space>
+        </div>
+      )}
     </div>
   )
 }

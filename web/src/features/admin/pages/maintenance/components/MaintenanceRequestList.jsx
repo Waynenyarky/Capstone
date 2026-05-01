@@ -1,14 +1,18 @@
 import React from 'react'
-import { Typography, Empty, Card, Row, Col, Pagination } from 'antd'
+import { Typography, Empty, Card, Row, Col, Pagination, Grid } from 'antd'
 import MaintenanceRequestCard from './MaintenanceRequestCard.jsx'
 
 const { Text } = Typography
+const { useBreakpoint } = Grid
 
-export default function MaintenanceRequestList({ requests, selectedId, onSelect, paginatedRequests, total, page, pageSize, onPageChange, loading, token }) {
+export default function MaintenanceRequestList({ requests, selectedId, onSelect, paginatedRequests, total, page, pageSize, onPageChange, loading, token, style }) {
+  const screens = useBreakpoint()
+  const isLg = screens.lg
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ borderBottom: `1px solid ${token.colorBorderSecondary}`, borderTop: `1px solid ${token.colorBorderSecondary}`, overflow: 'auto', flex: 1, minHeight: 0, padding: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', ...style }}>
+      <div style={{ flex: 1, minHeight: 0,  display: 'flex', flexDirection: 'column' }}>
+        <div style={{ overflow: 'auto', flex: 1, minHeight: 0, padding: isLg ? 12 : 0, paddingTop: 0}}>
           {loading ? null : paginatedRequests.length === 0 ? (
             <Empty description="No matching maintenance requests" style={{ marginTop: 24 }} />
           ) : (

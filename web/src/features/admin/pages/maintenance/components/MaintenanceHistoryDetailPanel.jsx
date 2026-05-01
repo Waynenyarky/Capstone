@@ -2,7 +2,6 @@ import React from 'react'
 import { Typography, Tag, Descriptions, Space, theme, Empty } from 'antd'
 import { HistoryOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { STATUS_COLORS } from '../constants/maintenance.constants.js'
 
 const { Text, Title } = Typography
 
@@ -20,6 +19,11 @@ function userEmail(user) {
   return user.email || ''
 }
 
+const STATUS_COLORS = {
+  approved: 'success',
+  rejected: 'error',
+}
+
 export default function MaintenanceHistoryDetailPanel({ approval, token: tokenProp }) {
   const { token } = theme.useToken()
   const t = tokenProp ?? token
@@ -28,7 +32,7 @@ export default function MaintenanceHistoryDetailPanel({ approval, token: tokenPr
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 24 }}>
         <Empty
-          image={<HistoryOutlined style={{ fontSize: 48, color: t.colorTextTertiary }} />}
+          image={<HistoryOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />}
           styles={{ image: { height: 60 } }}
           description={<Text type="secondary">Select a record to view details</Text>}
         />

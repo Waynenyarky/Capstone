@@ -1,25 +1,17 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { Typography, theme, Button, Tag, Drawer, Tabs, Space } from 'antd'
-import { ToolOutlined, ClockCircleOutlined, InfoCircleOutlined, NotificationOutlined } from '@ant-design/icons'
+import { Card, Tabs, Button, Tag, Drawer, Select, Pagination, Empty, Typography, theme, Space, Tooltip, DatePicker, Input } from 'antd'
+import { StopOutlined, ClockCircleOutlined, NotificationOutlined, ArrowLeftOutlined, FilterOutlined, DownloadOutlined, InfoCircleOutlined, SearchOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import MaintenanceOverviewTab from './components/MaintenanceOverviewTab.jsx'
-import MaintenanceRequestDetailPanel from './components/MaintenanceRequestDetailPanel.jsx'
-import MaintenanceInfoModal from './components/MaintenanceInfoModal.jsx'
-import MaintenanceFilterPanel from './MaintenanceFilterPanel.jsx'
-import MaintenanceRequestList from './MaintenanceRequestList.jsx'
-import MaintenanceExportModal from './MaintenanceExportModal.jsx'
-import { HISTORY_REASON_OPTIONS, PRESET_HISTORY_REASONS, HISTORY_PAGE_SIZE } from '../constants/maintenance.constants.js'
-import { isDefaultVisible } from '../utils/maintenance.utils.js'
-import { useMaintenanceFilters } from '../hooks/useMaintenanceFilters.js'
-import { useMaintenancePagination } from '../hooks/useMaintenancePagination.js'
-import { useMaintenanceExport } from '../hooks/useMaintenanceExport.js'
+import MaintenanceRequestDetailPanel from './components/MaintenanceRequestDetailPanel'
+import MaintenanceInfoModal from './components/MaintenanceInfoModal'
+import MaintenanceRequestList from './components/MaintenanceRequestList'
+import { TAB_ITEMS, HISTORY_PAGE_SIZE, REQUEST_EXPIRY_HOURS, HISTORY_REASON_OPTIONS, PRESET_HISTORY_REASONS } from './constants/maintenance.constants'
+import { requestedByDisplay, isApprovedUpcoming, isDefaultVisible, filterApprovalsBySearch, filterApprovalsByStatus, filterApprovalsByReason } from './utils/maintenance.utils'
+import { useMaintenanceFilters, useMaintenancePagination, useMaintenanceExport } from './hooks'
 
 const { Text } = Typography
-
-const TAB_ITEMS = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'announcements', label: 'Announcements', icon: <NotificationOutlined /> },
-  { key: 'requests', label: 'Maintenance' },
-]
+const { RangePicker } = DatePicker
 
 export default function MaintenanceMobileView({
   tabKey,
@@ -39,7 +31,6 @@ export default function MaintenanceMobileView({
 }) {
   const { token } = theme.useToken()
   const [selectedApproval, setSelectedApproval] = useState(null)
-  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false)
 
   const {
     historySearch,
@@ -48,76 +39,49 @@ export default function MaintenanceMobileView({
     setHistoryStatusFilter,
     historyReasonFilter,
     setHistoryReasonFilter,
-    filterOpen,
-    setFilterOpen,
+    filterOpen: filterDrawerOpen,
+    setFilterOpen: setFilterDrawerOpen,
     showAllRequests,
     setShowAllRequests,
     clearFilters,
   } = useMaintenanceFilters()
+
+  const { exportOpen: historyExportOpen, setExportOpen: setHistoryExportOpen, exportRange: historyExportRange, setExportRange: setHistoryExportRange, handleExport: handleExportHistory, rowCount: exportRangeRows } = useMaintenanceExport(filteredApprovals, () => setHistoryExportOpen(false))
 
   const scopedApprovals = useMemo(() => {
     const list = approvals || []
     return showAllRequests ? list : list.filter(isDefaultVisible)
   }, [approvals, showAllRequests])
 
-  const filteredHistoryApprovals = useMemo(() => {
+  const filteredApprovals = useMemo(() => {
     let list = [...scopedApprovals]
-    if (historySearch.trim()) {
-      const q = historySearch.trim().toLowerCase()
-      list = list.filter((a) => {
-        const requestedBy = (a.requestedBy?.firstName + ' ' + a.requestedBy?.lastName).toLowerCase()
-        const reason = (a.requestDetails?.reason || '').toLowerCase()
-        const message = (a.requestDetails?.message || '').toLowerCase()
-        const id = (a.approvalId || '').toLowerCase()
-        return requestedBy.includes(q) || reason.includes(q) || message.includes(q) || id.includes(q)
-      })
-    }
-    if (historyStatusFilter) {
-      if (historyStatusFilter === 'approved_upcoming') {
-        list = list.filter((a) => {
-          const scheduledStart = a.requestDetails?.scheduledStartAt ? new Date(a.requestDetails.scheduledStartAt) : null
-          return a.status === 'approved' && scheduledStart && scheduledStart > new Date()
-        })
-      } else {
-        list = list.filter((a) => a.status === historyStatusFilter)
-      }
-    }
-    if (historyReasonFilter) {
-      if (historyReasonFilter === '__others__') {
-        list = list.filter((a) => {
-          const reason = a.requestDetails?.reason || ''
-          return !!reason && !PRESET_HISTORY_REASONS.includes(reason)
-        })
-      } else {
-        list = list.filter((a) => (a.requestDetails?.reason || '') === historyReasonFilter)
-      }
-    }
+    list = filterApprovalsBySearch(list, historySearch)
+    list = filterApprovalsByStatus(list, historyStatusFilter)
+    list = filterApprovalsByReason(list, historyReasonFilter)
     return list
   }, [scopedApprovals, historySearch, historyStatusFilter, historyReasonFilter])
 
-  const { page, setPage, paginatedData, total } = useMaintenancePagination(filteredHistoryApprovals, HISTORY_PAGE_SIZE)
+  const { page: statusPage, setPage: setStatusPage, paginatedData: paginatedApprovals } = useMaintenancePagination(filteredApprovals, HISTORY_PAGE_SIZE)
 
-  const { exportOpen, setExportOpen, exportRange, setExportRange, handleExport, rowCount } = useMaintenanceExport(
-    filteredHistoryApprovals,
-    onRefresh
-  )
-
-  const historyActiveFilterCount = [historyStatusFilter, historyReasonFilter].filter(Boolean).length
+  const historyActiveFilterCount = (historyStatusFilter ? 1 : 0) + (historyReasonFilter ? 1 : 0)
 
   // Update selectedApproval with fresh data when approvals change
   useEffect(() => {
     if (selectedApproval) {
       const updatedApproval = approvals?.find(a => a.approvalId === selectedApproval.approvalId)
-      if (updatedApproval) {
-        setSelectedApproval(updatedApproval)
-      }
+      if (updatedApproval) setSelectedApproval(updatedApproval)
     }
   }, [approvals, selectedApproval])
 
-  const handleCardClick = (approval) => {
-    setSelectedApproval(approval)
-    setDetailDrawerOpen(true)
-  }
+  useEffect(() => {
+    if (import.meta.env.MODE === 'production') return undefined
+    const handler = () => {
+      const first = scopedApprovals.find((a) => a.status === 'pending') || scopedApprovals[0]
+      if (first) setSelectedApproval(first)
+    }
+    window.addEventListener('devtools:maintenance-select-first', handler)
+    return () => window.removeEventListener('devtools:maintenance-select-first', handler)
+  }, [scopedApprovals])
 
   const overviewTab = (
     <MaintenanceOverviewTab
@@ -130,53 +94,56 @@ export default function MaintenanceMobileView({
 
   const requestsTab = (
     <div style={{ padding: '0 16px 12px 16px', background: token.colorBgContainer, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <div style={{ flexShrink: 0, marginBottom: 12 }}>
-        <MaintenanceFilterPanel
-          searchValue={historySearch}
-          onSearchChange={setHistorySearch}
-          statusFilter={historyStatusFilter}
-          onStatusChange={setHistoryStatusFilter}
-          reasonFilter={historyReasonFilter}
-          onReasonChange={setHistoryReasonFilter}
-          showAllRequests={showAllRequests}
-          onToggleShowAll={() => setShowAllRequests(prev => !prev)}
-          filterOpen={filterOpen}
-          onToggleFilter={() => setFilterOpen(prev => !prev)}
-          onClearFilters={clearFilters}
-          activeFilterCount={historyActiveFilterCount}
-          onExport={() => setExportOpen(true)}
-          exportDisabled={filteredHistoryApprovals.length === 0}
-          token={token}
-        />
+      <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+          <Input
+            placeholder="Search by requester, reason, message, or ID"
+            prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+            allowClear
+            value={historySearch}
+            onChange={(e) => setHistorySearch(e.target.value)}
+            style={{ flex: 1, minWidth: 0 }}
+          />
+        </div>
+        <div>
+          <Tooltip title="Filter">
+            <Button
+              icon={<FilterOutlined />}
+              type={historyActiveFilterCount > 0 ? 'primary' : 'default'}
+              ghost={historyActiveFilterCount > 0}
+              onClick={() => setFilterDrawerOpen(true)}
+              aria-label="Toggle filters"
+            />
+          </Tooltip>
+        </div>
+        <Tooltip title="Download filtered requests">
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={() => setHistoryExportOpen(true)}
+            disabled={paginatedApprovals.length === 0}
+            aria-label="Download requests"
+          />
+        </Tooltip>
       </div>
-
       <MaintenanceRequestList
-        requests={filteredHistoryApprovals}
+        requests={filteredApprovals}
         selectedId={selectedApproval?.approvalId}
-        onSelect={handleCardClick}
-        paginatedRequests={paginatedData}
-        total={total}
-        page={page}
+        onSelect={setSelectedApproval}
+        paginatedRequests={paginatedApprovals}
+        total={filteredApprovals.length}
+        page={statusPage}
         pageSize={HISTORY_PAGE_SIZE}
-        onPageChange={setPage}
+        onPageChange={setStatusPage}
         loading={loading}
         token={token}
-      />
-
-      <MaintenanceExportModal
-        open={exportOpen}
-        onCancel={() => setExportOpen(false)}
-        onOk={handleExport}
-        exportRange={exportRange}
-        onRangeChange={setExportRange}
-        rowCount={rowCount}
+        style={{ flex: 1, marginTop: 0 }}
       />
     </div>
   )
 
   const tabChildren = {
     overview: overviewTab,
-    announcements: announcementsTab || <div style={{ padding: 24 }}>Announcements tab unavailable</div>,
+    announcements: announcementsTab || <Empty description="Announcements tab unavailable" style={{ marginTop: 24 }} />,
     requests: requestsTab,
     history: requestsTab,
   }
@@ -184,45 +151,62 @@ export default function MaintenanceMobileView({
   const selectedLabel = TAB_ITEMS.find((i) => i.key === tabKey)?.label ?? tabKey
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Card styles={{ body: { background: 'transparent', padding: 0, height: '100%', display: 'flex', flexDirection: 'column' } }} style={{ background: 'transparent', border: 'none', height: '100%' }}>
       {onBackToMenu && (
-        <div style={{ padding: '12px 16px', background: token.colorBgContainer, flexShrink: 0 }}>
+        <div
+          style={{
+            padding: '12px 16px',
+            background: token.colorBgContainer,
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <Button icon={<ArrowLeftOutlined />} onClick={onBackToMenu} />
-              <Text strong style={{ fontSize: 16 }}>{selectedLabel}</Text>
+              <Text strong style={{ fontSize: 16 }}>
+                {selectedLabel}
+              </Text>
               {tabKey === 'requests' && (
-                <Tag color={current?.active ? 'cyan' : 'default'}>{current?.active ? 'Active' : 'Inactive'}</Tag>
+                <Tag color={current?.isActive ? 'cyan' : 'default'}>{current?.isActive ? 'Active' : 'Inactive'}</Tag>
               )}
             </div>
             {tabKey === 'requests' && (
               <Space>
-                {setInfoOpen && <Button icon={<InfoCircleOutlined />} onClick={() => setInfoOpen(true)} />}
-                {current?.active && <Button icon={<ClockCircleOutlined />} onClick={() => onOpenRequestModal({ forceScheduleMode: true })} />}
-                <Button type="primary" icon={current?.active ? <StopOutlined /> : <ClockCircleOutlined />} onClick={onOpenRequestModal}>
-                  {current?.active ? 'Disable' : 'Schedule'}
-                </Button>
+                {setInfoOpen && (
+                  <Tooltip title="About">
+                    <Button icon={<InfoCircleOutlined />} onClick={() => setInfoOpen(true)} />
+                  </Tooltip>
+                )}
+                {current?.isActive && (
+                  <Tooltip title="Schedule">
+                    <Button icon={<ClockCircleOutlined />} onClick={() => onOpenRequestModal({ forceScheduleMode: true })} />
+                  </Tooltip>
+                )}
+                <Tooltip title={current?.isActive ? 'Disable' : 'Schedule'}>
+                  <Button type="primary" icon={current?.isActive ? <StopOutlined /> : <ClockCircleOutlined />} onClick={onOpenRequestModal}>
+                    {current?.isActive ? 'Disable' : 'Schedule'}
+                  </Button>
+                </Tooltip>
               </Space>
             )}
           </div>
         </div>
       )}
-
-      {!onBackToMenu ? (
+      {!onBackToMenu && (
         <Tabs
           activeKey={tabKey}
           onChange={setTabKey}
-          items={TAB_ITEMS.map(({ key, label }) => ({ key, label, children: tabChildren[key] }))}
-          style={{ flex: 1 }}
+          items={TAB_ITEMS.map(({ key, label }) => ({
+            key,
+            label,
+            children: tabChildren[key],
+          }))}
         />
-      ) : (
-        <div style={{ flex: 1, overflow: 'auto' }}>{tabChildren[tabKey]}</div>
       )}
-
+      {onBackToMenu && <div style={{ padding: 0, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>{tabChildren[tabKey]}</div>}
       <Drawer
         title="Request details"
-        open={detailDrawerOpen}
-        onClose={() => setDetailDrawerOpen(false)}
+        open={!!selectedApproval}
+        onClose={() => setSelectedApproval(null)}
         placement="bottom"
         height="100%"
         styles={{ body: { padding: 0 } }}
@@ -231,9 +215,16 @@ export default function MaintenanceMobileView({
           <MaintenanceRequestDetailPanel
             approval={selectedApproval}
             allApprovals={approvals}
-            onApprove={onApprove}
+            onApprove={async (approvalId, approved, comment) => {
+              await onApprove(approvalId, approved, comment)
+              onRefresh?.()
+            }}
             onUndoVote={onUndoVote}
-            onCancelApproved={onCancelApproved}
+            onCancelApproved={async (approvalId) => {
+              await onCancelApproved?.(approvalId)
+              onRefresh?.()
+              setSelectedApproval(null)
+            }}
             onRefresh={onRefresh}
           />
         )}
@@ -241,8 +232,8 @@ export default function MaintenanceMobileView({
 
       <Drawer
         title="Filters"
-        open={filterOpen}
-        onClose={() => setFilterOpen(false)}
+        open={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
         placement="bottom"
         height="50%"
         styles={{ body: { padding: 16 } }}
@@ -277,18 +268,47 @@ export default function MaintenanceMobileView({
               options={HISTORY_REASON_OPTIONS}
             />
           </div>
-          <Button onClick={() => setShowAllRequests(prev => !prev)}>
+          <Button onClick={() => setShowAllRequests((prev) => !prev)}>
             {showAllRequests ? 'Show default view' : 'Show all'}
           </Button>
           {historyActiveFilterCount > 0 && (
-            <Button size="small" type="link" onClick={clearFilters} style={{ alignSelf: 'flex-start', padding: 0 }}>
+            <Button size="small" type="link" onClick={() => clearFilters()} style={{ alignSelf: 'flex-start', padding: 0 }}>
               Clear all filters
             </Button>
           )}
         </div>
       </Drawer>
 
+      <Drawer
+        title="Download requests"
+        open={historyExportOpen}
+        onClose={() => setHistoryExportOpen(false)}
+        placement="bottom"
+        height="50%"
+        styles={{ body: { padding: 16 } }}
+        extra={
+          <Button type="primary" onClick={handleExportHistory} disabled={exportRangeRows === 0}>
+            Download CSV
+          </Button>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Text type="secondary">Select start and end date for exported records (based on request date).</Text>
+          <RangePicker
+            value={historyExportRange}
+            onChange={(value) => setHistoryExportRange(value || [null, null])}
+            style={{ width: '100%' }}
+            format="MMM D, YYYY"
+          />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {historyExportRange?.[0] && historyExportRange?.[1]
+              ? `${exportRangeRows} record${exportRangeRows === 1 ? '' : 's'} ready to export`
+              : 'Choose a date range to enable download'}
+          </Text>
+        </div>
+      </Drawer>
+
       {setInfoOpen && <MaintenanceInfoModal open={infoOpen} onClose={() => setInfoOpen(false)} />}
-    </div>
+    </Card>
   )
 }
