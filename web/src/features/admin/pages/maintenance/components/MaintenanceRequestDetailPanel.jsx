@@ -223,6 +223,11 @@ export default function MaintenanceRequestDetailPanel({ approval, allApprovals, 
     try {
       await onUndoVote(localApproval.approvalId)
       message.success('Vote undone successfully')
+      // Update local approval to immediately reflect the vote removal
+      setLocalApproval(prev => ({
+        ...prev,
+        approvals: prev.approvals?.filter(a => entityId(a.adminId) !== currentUserId) || []
+      }))
       onRefresh?.()
     } catch (err) {
       console.error('Failed to undo vote:', err)

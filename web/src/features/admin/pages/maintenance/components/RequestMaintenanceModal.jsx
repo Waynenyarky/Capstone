@@ -353,7 +353,7 @@ export default function RequestMaintenanceModal({ open, onCancel, form, onSubmit
             />
           </Form.Item>
 
-          {isEnable && !currentMaintenance.active && (
+          {isEnable && (!currentMaintenance.active || forceScheduleMode) && (
             <>
               <div style={{ marginTop: 16 }}>
                 <Text style={{ marginBottom: 12, display: 'block' }}>Live Landing Page Preview</Text>
