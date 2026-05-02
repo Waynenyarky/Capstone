@@ -2,25 +2,43 @@ import js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
+import tseslint from 'typescript-eslint'
+import react from 'eslint-plugin-react'
+import jsxA11y from 'eslint-plugin-jsx-a11y'
+import reactPerf from 'eslint-plugin-react-perf'
+import prettier from 'eslint-plugin-prettier'
+import prettierConfig from 'eslint-config-prettier'
 import { defineConfig, globalIgnores } from 'eslint/config'
 import importPlugin from 'eslint-plugin-import'
 
 export default defineConfig([
   globalIgnores(['dist', 'coverage']),
   {
-    files: ['**/*.{js,jsx}'],
+    files: ['**/*.{js,jsx,ts,tsx}'],
     extends: [
       js.configs.recommended,
+      ...tseslint.configs.recommended,
+      react.configs.flat.recommended,
+      react.configs.flat['jsx-runtime'],
+      jsxA11y.flatConfigs.recommended,
       reactHooks.configs['recommended-latest'],
       reactRefresh.configs.vite,
+      reactPerf.configs.recommended,
+      prettierConfig,
     ],
+    plugins: {
+      'react-perf': reactPerf,
+      prettier: prettier,
+    },
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+      parser: tseslint.parser,
       parserOptions: {
         ecmaVersion: 'latest',
         ecmaFeatures: { jsx: true },
         sourceType: 'module',
+        project: './tsconfig.json',
       },
     },
     plugins: {
@@ -38,6 +56,7 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'no-use-before-define': ['error', { variables: true, functions: true, classes: true }],
       'import/no-unresolved': ['error', {
         commonjs: true,
         caseSensitive: true,

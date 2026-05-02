@@ -1,5 +1,5 @@
 import React from 'react'
-import { Typography, Empty, Card, Row, Col, Pagination, Grid } from 'antd'
+import { Typography, Empty, Row, Pagination, Grid } from 'antd'
 import MaintenanceRequestCard from './MaintenanceRequestCard.jsx'
 
 const { Text } = Typography
@@ -12,7 +12,7 @@ export default function MaintenanceRequestList({ selectedId, onSelect, paginated
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', ...style }}>
       <div style={{ flex: 1, minHeight: 0,  display: 'flex', flexDirection: 'column' }}>
-        <div style={{ overflow: 'auto', flex: 1, minHeight: 0, padding: isLg ? 12 : 0, paddingTop: 0}}>
+        <div style={{ overflow: 'auto', flex: 1, minHeight: 0, paddingRight: isLg ? 12 : 0, paddingBottom: isLg ? 12 : 0, paddingLeft: isLg ? 12 : 0 }}>
           {loading ? null : paginatedRequests.length === 0 ? (
             <Empty description="No matching maintenance requests" style={{ marginTop: 24 }} />
           ) : (

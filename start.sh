@@ -1211,12 +1211,20 @@ if [ -d "web" ]; then
     # Fallback process-name kill for environments where lsof is unavailable
     pkill -f "vite.*5173" 2>/dev/null || true
 
+    # Check if web dependencies need installation
+    cd web
+    if [ ! -d "node_modules" ] || [ "package.json" -nt "node_modules" ]; then
+      echo -e "${YELLOW}   Installing web dependencies...${NC}"
+      npm install
+    fi
+    cd ..
+
     if [ "$DEMO_UI_MODE" = true ]; then
       echo -e "${GREEN}   Starting web dev server on port 5173 (demo UI: no FAB/prefill)...${NC}"
     else
       echo -e "${GREEN}   Starting web dev server on port 5173...${NC}"
     fi
-    (npm run dev > /tmp/web-dev-server.log 2>&1) &
+    (cd web && npm run dev > /tmp/web-dev-server.log 2>&1) &
     WEB_PID=$!
     echo $WEB_PID > /tmp/web-dev-server.pid
     sleep $WAIT_AFTER_WEB

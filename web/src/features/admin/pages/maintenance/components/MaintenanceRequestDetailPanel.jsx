@@ -22,13 +22,6 @@ const { Text } = Typography
 const { TextArea } = Input
 const REQUEST_EXPIRY_HOURS = 48
 
-const STATUS_COLORS = {
-  pending: 'processing',
-  approved: 'success',
-  rejected: 'error',
-  expired: 'default',
-}
-
 function userName(user) {
   if (!user) return '—'
   if (typeof user === 'object') {
@@ -76,6 +69,63 @@ export default function MaintenanceRequestDetailPanel({ approval, allApprovals, 
   const canVote = isPending && !hasVoted && !isRequester
   const scheduledStart = localApproval?.requestDetails?.scheduledStartAt ? dayjs(localApproval.requestDetails.scheduledStartAt) : null
   const isApprovedUpcoming = localApproval?.status === 'approved' && scheduledStart?.isValid() && scheduledStart.isAfter(dayjs())
+
+  const getUndoDeadline = () => {
+    if (!myVote?.timestamp) return null
+
+    const now = dayjs()
+    const voteTime = dayjs(myVote.timestamp)
+    const deadlines = []
+
+    // 24-hour undo window from vote time
+    deadlines.push(voteTime.add(24, 'hour'))
+
+    // Request expiry (48 hours from creation)
+    if (localApproval?.createdAt) {
+      deadlines.push(dayjs(localApproval.createdAt).add(48, 'hour'))
+    }
+
+    // Scheduled start time
+    if (localApproval?.requestDetails?.scheduledStartAt) {
+      deadlines.push(dayjs(localApproval.requestDetails.scheduledStartAt))
+    }
+
+    // Expected resume time
+    if (localApproval?.requestDetails?.expectedResumeAt) {
+      deadlines.push(dayjs(localApproval.requestDetails.expectedResumeAt))
+    }
+
+    // Return the earliest deadline that's in the future
+    const futureDeadlines = deadlines.filter(d => d.isAfter(now))
+    if (futureDeadlines.length === 0) return null
+
+    return futureDeadlines.sort((a, b) => a.diff(b))[0]
+  }
+
+  const hasOverlappingMaintenance = () => {
+    if (!localApproval?.requestDetails || !allApprovals) return false
+
+    const details = localApproval.requestDetails
+    const startAt = details.scheduledStartAt ? dayjs(details.scheduledStartAt) : null
+    const endAt = details.expectedResumeAt ? dayjs(details.expectedResumeAt) : null
+
+    if (!startAt || !endAt) return false
+
+    // Check for overlapping maintenance with approved/pending status (excluding current approval)
+    return allApprovals.some(a => {
+      if (a.approvalId === localApproval.approvalId) return false
+      if (a.status !== 'approved' && a.status !== 'pending') return false
+      if (a.requestType !== 'maintenance_mode') return false
+
+      const aStart = a.requestDetails?.scheduledStartAt ? dayjs(a.requestDetails.scheduledStartAt) : null
+      const aEnd = a.requestDetails?.expectedResumeAt ? dayjs(a.requestDetails.expectedResumeAt) : null
+
+      if (!aStart || !aEnd) return false
+
+      // Check for overlap
+      return startAt.isBefore(aEnd) && endAt.isAfter(aStart)
+    })
+  }
 
   // Update local approval when prop changes
   useEffect(() => {
@@ -182,63 +232,6 @@ export default function MaintenanceRequestDetailPanel({ approval, allApprovals, 
     }
   }
 
-  const getUndoDeadline = () => {
-    if (!myVote?.timestamp) return null
-
-    const now = dayjs()
-    const voteTime = dayjs(myVote.timestamp)
-    const deadlines = []
-
-    // 24-hour undo window from vote time
-    deadlines.push(voteTime.add(24, 'hour'))
-
-    // Request expiry (48 hours from creation)
-    if (localApproval?.createdAt) {
-      deadlines.push(dayjs(localApproval.createdAt).add(48, 'hour'))
-    }
-
-    // Scheduled start time
-    if (localApproval?.requestDetails?.scheduledStartAt) {
-      deadlines.push(dayjs(localApproval.requestDetails.scheduledStartAt))
-    }
-
-    // Expected resume time
-    if (localApproval?.requestDetails?.expectedResumeAt) {
-      deadlines.push(dayjs(localApproval.requestDetails.expectedResumeAt))
-    }
-
-    // Return the earliest deadline that's in the future
-    const futureDeadlines = deadlines.filter(d => d.isAfter(now))
-    if (futureDeadlines.length === 0) return null
-
-    return futureDeadlines.sort((a, b) => a.diff(b))[0]
-  }
-
-  const hasOverlappingMaintenance = () => {
-    if (!localApproval?.requestDetails || !allApprovals) return false
-
-    const details = localApproval.requestDetails
-    const startAt = details.scheduledStartAt ? dayjs(details.scheduledStartAt) : null
-    const endAt = details.expectedResumeAt ? dayjs(details.expectedResumeAt) : null
-
-    if (!startAt || !endAt) return false
-
-    // Check for overlapping maintenance with approved/pending status (excluding current approval)
-    return allApprovals.some(a => {
-      if (a.approvalId === localApproval.approvalId) return false
-      if (a.status !== 'approved' && a.status !== 'pending') return false
-      if (a.requestType !== 'maintenance_mode') return false
-
-      const aStart = a.requestDetails?.scheduledStartAt ? dayjs(a.requestDetails.scheduledStartAt) : null
-      const aEnd = a.requestDetails?.expectedResumeAt ? dayjs(a.requestDetails.expectedResumeAt) : null
-
-      if (!aStart || !aEnd) return false
-
-      // Check for overlap
-      return startAt.isBefore(aEnd) && endAt.isAfter(aStart)
-    })
-  }
-
   const canUndoVote = () => {
     const deadline = getUndoDeadline()
     if (deadline === null) return false
@@ -294,7 +287,7 @@ export default function MaintenanceRequestDetailPanel({ approval, allApprovals, 
           size="small"
           bordered
           style={{ marginBottom: 16 }}
-          labelStyle={{ color: token.colorTextSecondary, width: 140 }}
+          styles={{ label: { color: token.colorTextSecondary, width: 140 } }}
         >
           <Descriptions.Item label="ID">{approval.approvalId}</Descriptions.Item>
           <Descriptions.Item label="Requested by">

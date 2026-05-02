@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react'
-import { Typography, theme, Button, Tag, Splitter, Space, Grid, Tooltip, Empty } from 'antd'
-import { ToolOutlined, StopOutlined, ClockCircleOutlined, NotificationOutlined, ArrowLeftOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { theme, Button, Tag, Splitter, Space, Tooltip, Empty } from 'antd'
+import { StopOutlined, ClockCircleOutlined, ArrowLeftOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import MaintenanceOverviewTab from './components/MaintenanceOverviewTab'
 import MaintenanceRequestDetailPanel from './components/MaintenanceRequestDetailPanel'
 import MaintenanceInfoModal from './components/MaintenanceInfoModal'
@@ -9,11 +9,10 @@ import MaintenanceHeader from './components/MaintenanceHeader'
 import MaintenanceFilterPanel from './components/MaintenanceFilterPanel'
 import MaintenanceRequestList from './components/MaintenanceRequestList'
 import MaintenanceExportModal from './components/MaintenanceExportModal'
-import { NAV_ITEMS, REQUESTS_PAGE_SIZE, REQUEST_EXPIRY_HOURS, HISTORY_REASON_OPTIONS, PRESET_HISTORY_REASONS } from './constants/maintenance.constants'
+import { NAV_ITEMS, REQUESTS_PAGE_SIZE } from './constants/maintenance.constants'
 import { isDefaultVisible, filterApprovalsBySearch, filterApprovalsByStatus, filterApprovalsByReason } from './utils/maintenance.utils'
 import { useMaintenanceFilters, useMaintenancePagination, useMaintenanceExport } from './hooks'
 
-const { Text } = Typography
 
 export default function MaintenanceDesktopView({
   tabKey,

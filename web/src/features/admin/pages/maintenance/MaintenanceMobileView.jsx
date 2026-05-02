@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react'
-import { Card, Tabs, Button, Tag, Drawer, Select, Pagination, Empty, Typography, theme, Space, Tooltip, DatePicker, Input } from 'antd'
-import { StopOutlined, ClockCircleOutlined, NotificationOutlined, ArrowLeftOutlined, FilterOutlined, DownloadOutlined, InfoCircleOutlined, SearchOutlined } from '@ant-design/icons'
+import { useState, useMemo, useEffect } from 'react'
+import { Card, Tabs, Button, Tag, Drawer, Select, Empty, Typography, theme, Space, Tooltip, DatePicker, Input } from 'antd'
+import { StopOutlined, ClockCircleOutlined, ArrowLeftOutlined, FilterOutlined, DownloadOutlined, InfoCircleOutlined, SearchOutlined } from '@ant-design/icons'
 import MaintenanceOverviewTab from './components/MaintenanceOverviewTab.jsx'
 import MaintenanceRequestDetailPanel from './components/MaintenanceRequestDetailPanel'
 import MaintenanceInfoModal from './components/MaintenanceInfoModal'
 import MaintenanceRequestList from './components/MaintenanceRequestList'
-import { TAB_ITEMS, HISTORY_PAGE_SIZE, REQUEST_EXPIRY_HOURS, HISTORY_REASON_OPTIONS, PRESET_HISTORY_REASONS } from './constants/maintenance.constants'
+import { TAB_ITEMS, HISTORY_PAGE_SIZE, HISTORY_REASON_OPTIONS } from './constants/maintenance.constants'
 import { isDefaultVisible, filterApprovalsBySearch, filterApprovalsByStatus, filterApprovalsByReason } from './utils/maintenance.utils'
 import { useMaintenanceFilters, useMaintenancePagination, useMaintenanceExport } from './hooks'
 
@@ -45,8 +45,6 @@ export default function MaintenanceMobileView({
     clearFilters,
   } = useMaintenanceFilters()
 
-  const { exportOpen: historyExportOpen, setExportOpen: setHistoryExportOpen, exportRange: historyExportRange, setExportRange: setHistoryExportRange, handleExport: handleExportHistory, rowCount: exportRangeRows } = useMaintenanceExport(filteredApprovals, () => setHistoryExportOpen(false))
-
   const scopedApprovals = useMemo(() => {
     const list = approvals || []
     return showAllRequests ? list : list.filter(isDefaultVisible)
@@ -59,6 +57,8 @@ export default function MaintenanceMobileView({
     list = filterApprovalsByReason(list, historyReasonFilter)
     return list
   }, [scopedApprovals, historySearch, historyStatusFilter, historyReasonFilter])
+
+  const { exportOpen: historyExportOpen, setExportOpen: setHistoryExportOpen, exportRange: historyExportRange, setExportRange: setHistoryExportRange, handleExport: handleExportHistory, rowCount: exportRangeRows } = useMaintenanceExport(filteredApprovals, () => setHistoryExportOpen(false))
 
   const { page: statusPage, setPage: setStatusPage, paginatedData: paginatedApprovals } = useMaintenancePagination(filteredApprovals, HISTORY_PAGE_SIZE)
 

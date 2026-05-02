@@ -1,12 +1,12 @@
 import React from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Modal, Input, DatePicker, Select, Button, Typography, Drawer, Collapse, Tag, Divider } from 'antd'
+import { Modal, Input, DatePicker, Select, Button, Typography, Drawer, Collapse, Tag } from 'antd'
 import dayjs from 'dayjs'
 import { getMaintenanceConflicts } from '../../../services'
 import { get } from '@/lib/http.js'
 import { REASON_PRESET_OTHER, REASON_PRESET_OPTIONS } from '../constants/requestMaintenance.constants.js'
 
-const { Text, Paragraph, Title } = Typography
+const { Text, Paragraph } = Typography
 
 const WHEN_TO_START_OPTIONS = [
   { value: 'now', label: 'Start now (after approval)' },
