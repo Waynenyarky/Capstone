@@ -1,5 +1,4 @@
-import { Typography, Grid, theme, Collapse, Alert } from 'antd'
-import { NotificationOutlined, WarningOutlined, SettingOutlined } from '@ant-design/icons'
+import { Typography, Grid, theme, Collapse } from 'antd'
 import { BRAND_COLORS } from '@/shared/theme/ThemeProvider'
 import { useState, useEffect } from 'react'
 import { get } from '@/lib/http.js'
@@ -58,7 +57,7 @@ export default function HeroSection() {
     const fetchLandingData = async () => {
       try {
         const [res, maintenance] = await Promise.all([
-          get('/api/admin/announcements', { skipAuth: true }),
+          get('/api/admin/announcements/public'),
           getMaintenanceStatus().catch(() => ({ active: false, scheduled: false })),
         ])
 
@@ -103,12 +102,7 @@ export default function HeroSection() {
 
   const announcementItems = announcements.map((ann, idx) => ({
     key: `announcement-${idx + 1}`,
-    label: (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <NotificationOutlined />
-        <span>{ann.title}</span>
-      </div>
-    ),
+    label: <span>{ann.title}</span>,
     children: (
       <div>
         <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
