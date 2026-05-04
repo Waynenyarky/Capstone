@@ -20659,6 +20659,12 @@
       "links": {},
       "address": "0x9A676e781A523b5d0C0e43731313A708CB607508",
       "transactionHash": "0x4a29d8510acf45ef58a85ae934ff7bea77207ce618d20e45d622a3f2717148da"
+<<<<<<< Updated upstream
+    }
+  },
+  "schemaVersion": "3.3.4",
+  "updatedAt": "2026-05-01T23:35:49.272Z",
+=======
     },
     "1777698102868": {
       "events": {
@@ -20866,10 +20872,80 @@
       "links": {},
       "address": "0x9A676e781A523b5d0C0e43731313A708CB607508",
       "transactionHash": "0x4a29d8510acf45ef58a85ae934ff7bea77207ce618d20e45d622a3f2717148da"
+    },
+    "1777857503720": {
+      "events": {
+        "0x1d56d93abf35145f34260ac1c83fd3310d7a9be74b2eb6f682faceb64c1d2bd5": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "string",
+              "name": "userId",
+              "type": "string"
+            },
+            {
+              "indexed": false,
+              "internalType": "bytes32",
+              "name": "oldHash",
+              "type": "bytes32"
+            },
+            {
+              "indexed": false,
+              "internalType": "bytes32",
+              "name": "newHash",
+              "type": "bytes32"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
+            }
+          ],
+          "name": "ProfileHashUpdated",
+          "type": "event"
+        },
+        "0x1043384e988ee675889ca35c132bb4d1fb186eec4ff0b53027129d9ebb98730a": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "string",
+              "name": "userId",
+              "type": "string"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "userAddress",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "bytes32",
+              "name": "profileHash",
+              "type": "bytes32"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
+            }
+          ],
+          "name": "UserRegistered",
+          "type": "event"
+        }
+      },
+      "links": {},
+      "address": "0x9A676e781A523b5d0C0e43731313A708CB607508",
+      "transactionHash": "0x4a29d8510acf45ef58a85ae934ff7bea77207ce618d20e45d622a3f2717148da"
     }
   },
   "schemaVersion": "3.3.4",
-  "updatedAt": "2026-05-02T07:35:46.475Z",
+  "updatedAt": "2026-05-04T01:18:51.513Z",
+>>>>>>> Stashed changes
   "networkType": "ethereum",
   "devdoc": {
     "details": "Smart contract for storing user identity and profile data hashes Links user IDs to Ethereum addresses and stores profile hashes",

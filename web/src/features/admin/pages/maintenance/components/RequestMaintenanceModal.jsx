@@ -4,7 +4,13 @@ import { Modal, Input, DatePicker, Select, Button, Typography, Drawer, Collapse,
 import dayjs from 'dayjs'
 import { getMaintenanceConflicts } from '../../../services'
 import { get } from '@/lib/http.js'
-import { REASON_PRESET_OTHER, REASON_PRESET_OPTIONS } from '../constants/requestMaintenance.constants.js'
+import {
+  REASON_PRESET_OTHER,
+  REASON_PRESET_OPTIONS,
+  DISABLE_REASON_PRESET_OPTIONS,
+  DISABLE_PRESET_REASONS,
+  DISABLE_PRESET_MESSAGES,
+} from '../constants/requestMaintenance.constants.js'
 
 const { Text, Paragraph } = Typography
 
@@ -116,13 +122,14 @@ export default function RequestMaintenanceModal({ open, onCancel, form, onSubmit
 
   React.useEffect(() => {
     if (open && maintenanceActive && !forceScheduleMode) {
+      const initialDisablePreset = 'completed'
       form.setFieldsValue({
         action: 'disable',
         whenToStart: undefined,
         scheduledStartAt: undefined,
-        reasonPreset: undefined,
-        reason: undefined,
-        message: undefined,
+        reasonPreset: initialDisablePreset,
+        reason: DISABLE_PRESET_REASONS[initialDisablePreset],
+        message: DISABLE_PRESET_MESSAGES[initialDisablePreset],
         expectedResumeAt: undefined,
       })
     } else if (open && (!maintenanceActive || forceScheduleMode)) {
@@ -157,9 +164,44 @@ export default function RequestMaintenanceModal({ open, onCancel, form, onSubmit
               Submit a request to end maintenance mode. The request will require approval from two admins before the system returns to normal operation.
             </Text>
           </div>
-          <Form form={form} layout="vertical" initialValues={{ action: 'disable' }}>
+          <Form form={form} layout="vertical" initialValues={{ action: 'disable', reasonPreset: 'completed' }}>
             <Form.Item name="action" hidden>
               <input type="hidden" readOnly />
+            </Form.Item>
+            <Form.Item
+              name="reasonPreset"
+              label="Reason"
+              rules={[{ required: true, message: 'Select a reason' }]}
+            >
+              <Select
+                placeholder="Choose a reason"
+                options={DISABLE_REASON_PRESET_OPTIONS}
+                onChange={(value) => {
+                  if (value !== REASON_PRESET_OTHER) {
+                    form.setFieldValue('reason', DISABLE_PRESET_REASONS[value] || '')
+                    form.setFieldValue('message', DISABLE_PRESET_MESSAGES[value] || '')
+                  } else {
+                    form.setFieldValue('reason', '')
+                    form.setFieldValue('message', '')
+                  }
+                }}
+              />
+            </Form.Item>
+            {reasonPreset === REASON_PRESET_OTHER && (
+              <Form.Item
+                name="reason"
+                label="Custom reason"
+                rules={[{ required: true, message: 'Enter a reason' }, { max: 100, message: 'Max 100 characters' }]}
+              >
+                <Input placeholder="Short reason (e.g., Maintenance completed early)" />
+              </Form.Item>
+            )}
+            <Form.Item
+              name="message"
+              label="Message"
+              rules={[{ required: true, message: 'Enter a message' }, { max: 500, message: 'Max 500 characters' }]}
+            >
+              <Input.TextArea placeholder="Message shown to admins" rows={3} />
             </Form.Item>
           </Form>
         </>

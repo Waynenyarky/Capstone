@@ -34327,6 +34327,12 @@
       "links": {},
       "address": "0x959922bE3CAee4b8Cd9a407cc3ac1C251C2007B1",
       "transactionHash": "0x3578c4d08dea5ed0e270023d752c356fccf9e8363d2d3604a7b9033675cac42c"
+<<<<<<< Updated upstream
+    }
+  },
+  "schemaVersion": "3.3.4",
+  "updatedAt": "2026-05-01T23:35:49.429Z",
+=======
     },
     "1777698102868": {
       "events": {
@@ -34645,10 +34651,117 @@
       "links": {},
       "address": "0x959922bE3CAee4b8Cd9a407cc3ac1C251C2007B1",
       "transactionHash": "0x3578c4d08dea5ed0e270023d752c356fccf9e8363d2d3604a7b9033675cac42c"
+    },
+    "1777857503720": {
+      "events": {
+        "0x0f170d14fb26003bb1492505f450c581767ff08de498851bf18fee4f2736647e": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "count",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "storedBy",
+              "type": "address"
+            }
+          ],
+          "name": "BatchDocumentHashStored",
+          "type": "event"
+        },
+        "0x13b43acf3a98a7e7407e1d0bb52e058de05955dbcd5daf00248271249208feaa": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "userIdHash",
+              "type": "bytes32"
+            },
+            {
+              "indexed": true,
+              "internalType": "enum DocumentStorage.DocumentType",
+              "name": "docType",
+              "type": "uint8"
+            },
+            {
+              "indexed": false,
+              "internalType": "bytes32",
+              "name": "cidHash",
+              "type": "bytes32"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "version",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
+            }
+          ],
+          "name": "DocumentHashStored",
+          "type": "event"
+        },
+        "0xc264d5006afef0fbdd979736a7cdefa033c9db8bdbf3ba38a43b980f48b79d89": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "string",
+              "name": "userId",
+              "type": "string"
+            },
+            {
+              "indexed": true,
+              "internalType": "enum DocumentStorage.DocumentType",
+              "name": "docType",
+              "type": "uint8"
+            },
+            {
+              "indexed": false,
+              "internalType": "string",
+              "name": "ipfsCid",
+              "type": "string"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "version",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
+            }
+          ],
+          "name": "DocumentStored",
+          "type": "event"
+        }
+      },
+      "links": {},
+      "address": "0x959922bE3CAee4b8Cd9a407cc3ac1C251C2007B1",
+      "transactionHash": "0x3578c4d08dea5ed0e270023d752c356fccf9e8363d2d3604a7b9033675cac42c"
     }
   },
   "schemaVersion": "3.3.4",
-  "updatedAt": "2026-05-02T07:35:46.624Z",
+  "updatedAt": "2026-05-04T01:18:51.664Z",
+>>>>>>> Stashed changes
   "networkType": "ethereum",
   "devdoc": {
     "details": "Smart contract for storing IPFS CIDs for documents Links documents to users and tracks document versions",

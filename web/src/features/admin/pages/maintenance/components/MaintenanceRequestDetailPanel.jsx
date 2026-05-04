@@ -12,7 +12,7 @@ import {
   Divider,
   Form,
 } from 'antd'
-import { ToolOutlined, CheckCircleOutlined, CloseCircleOutlined, UndoOutlined } from '@ant-design/icons'
+import { ToolOutlined, CheckCircleOutlined, CloseCircleOutlined, UndoOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import { App } from 'antd'
 import { useAuthSession } from '@/features/authentication'
 import { getAdminList } from '../../../services/staffService'
@@ -237,7 +237,17 @@ export default function MaintenanceRequestDetailPanel({ approval, allApprovals, 
     }
   }
 
+  const isExecuted = !!localApproval?.executedAt
+
+  const isFinalVote = (() => {
+    if (!isPending || !localApproval) return false
+    const currentApprovedCount = (localApproval.approvals || []).filter((a) => a.approved === true).length
+    const required = localApproval.requiredApprovals || 2
+    return currentApprovedCount === required - 1
+  })()
+
   const canUndoVote = () => {
+    if (isExecuted) return false
     const deadline = getUndoDeadline()
     if (deadline === null) return false
     if (hasOverlappingMaintenance()) return false
@@ -308,12 +318,14 @@ export default function MaintenanceRequestDetailPanel({ approval, allApprovals, 
               )}
             </div>
           </Descriptions.Item>
-          {details.scheduledStartAt ? (
-            <Descriptions.Item label="Starts">
-              {dayjs(details.scheduledStartAt).format('MMM D, YYYY HH:mm')}
-            </Descriptions.Item>
-          ) : (
-            <Descriptions.Item label="Starts">Immediately after approval</Descriptions.Item>
+          {details.action !== 'disable' && (
+            details.scheduledStartAt ? (
+              <Descriptions.Item label="Starts">
+                {dayjs(details.scheduledStartAt).format('MMM D, YYYY HH:mm')}
+              </Descriptions.Item>
+            ) : (
+              <Descriptions.Item label="Starts">Immediately after approval</Descriptions.Item>
+            )
           )}
           {details.expectedResumeAt && (
             <Descriptions.Item label="Resumes">
@@ -322,6 +334,11 @@ export default function MaintenanceRequestDetailPanel({ approval, allApprovals, 
           )}
           {details.message != null && details.message !== '' && details.message !== details.reason && (
             <Descriptions.Item label="Message">{details.message}</Descriptions.Item>
+          )}
+          {approval.executedAt && (
+            <Descriptions.Item label="Executed at">
+              {dayjs(approval.executedAt).format('MMM D, YYYY HH:mm')}
+            </Descriptions.Item>
           )}
         </Descriptions>
 
@@ -437,12 +454,14 @@ export default function MaintenanceRequestDetailPanel({ approval, allApprovals, 
               </Text>
             )}
             <Divider style={{ margin: '8px 0' }} />
-            <Button icon={<UndoOutlined />} onClick={() => handleUndoVote()}>
+            <Button icon={<UndoOutlined />} onClick={() => handleUndoVote()} disabled={isExecuted || !canUndoVote()}>
               Undo
             </Button>
             {myVote?.timestamp && (
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-                {hasOverlappingMaintenance()
+                {isExecuted
+                  ? 'Undo unavailable: request has been executed'
+                  : hasOverlappingMaintenance()
                   ? 'Undo unavailable: overlapping maintenance exists'
                   : canUndoVote()
                   ? `Undo unavailable on ${getUndoDeadline()?.format('MMM D, YYYY HH:mm')}`
@@ -499,6 +518,25 @@ export default function MaintenanceRequestDetailPanel({ approval, allApprovals, 
         okText={actionApproved ? 'Approve Request' : 'Reject Request'}
         okButtonProps={actionApproved ? {} : { danger: true }}
       >
+        {actionApproved && isFinalVote && (
+          <div
+            style={{
+              padding: '8px 12px',
+              marginBottom: 12,
+              background: token.colorWarningBg,
+              border: `1px solid ${token.colorWarningBorder}`,
+              borderRadius: token.borderRadius,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 8,
+            }}
+          >
+            <ExclamationCircleOutlined style={{ color: token.colorWarning, marginTop: 2 }} />
+            <Text style={{ fontSize: 13 }}>
+              Your vote is the final approval required. Once submitted, this action will be executed immediately and <strong>cannot be undone</strong>.
+            </Text>
+          </div>
+        )}
         {!actionApproved ? (
           <Form layout="vertical">
             <Form.Item

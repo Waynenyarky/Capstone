@@ -23,12 +23,12 @@ export default defineConfig([
       jsxA11y.flatConfigs.recommended,
       reactHooks.configs['recommended-latest'],
       reactRefresh.configs.vite,
-      reactPerf.configs.recommended,
       prettierConfig,
     ],
     plugins: {
       'react-perf': reactPerf,
       prettier: prettier,
+      import: importPlugin,
     },
     languageOptions: {
       ecmaVersion: 2020,
@@ -40,9 +40,6 @@ export default defineConfig([
         sourceType: 'module',
         project: './tsconfig.json',
       },
-    },
-    plugins: {
-      import: importPlugin,
     },
     settings: {
       'import/resolver': {

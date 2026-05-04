@@ -61,6 +61,26 @@ export const PRESET_MESSAGES = {
   outage: 'We are currently experiencing a temporary service outage due to unforeseen technical difficulties. Our team is actively working to identify and resolve the issue. We sincerely apologize for the disruption and are working to restore full service as soon as possible. Thank you for your patience and understanding.',
 }
 
+// Disable-flow presets
+export const DISABLE_REASON_PRESET_OPTIONS = [
+  { value: 'completed', label: 'Maintenance completed' },
+  { value: 'resolved', label: 'Issue resolved' },
+  { value: 'emergency_end', label: 'Emergency end' },
+  { value: REASON_PRESET_OTHER, label: 'Others' },
+]
+
+export const DISABLE_PRESET_REASONS = {
+  completed: 'Maintenance completed',
+  resolved: 'Issue resolved',
+  emergency_end: 'Emergency end',
+}
+
+export const DISABLE_PRESET_MESSAGES = {
+  completed: 'Scheduled maintenance has been completed successfully. All services are now fully operational. Thank you for your patience during the maintenance window.',
+  resolved: 'The issue that required maintenance has been resolved. All services are now back to normal operation. Thank you for your understanding.',
+  emergency_end: 'Maintenance mode is being ended early due to an urgent need to restore services. All systems are being brought back online immediately.',
+}
+
 // Status colors (Ant Design semantic color names)
 export const STATUS_COLORS = {
   pending: 'processing',

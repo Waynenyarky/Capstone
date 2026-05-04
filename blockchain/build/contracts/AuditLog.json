@@ -52336,6 +52336,12 @@
       "links": {},
       "address": "0x68B1D87F95878fE05B998F19b66F4baba5De1aed",
       "transactionHash": "0x4e35bce10edcd29e12b1dbfc08c6a23ef95ceabbcd5d99824367e7de1126aa37"
+<<<<<<< Updated upstream
+    }
+  },
+  "schemaVersion": "3.3.4",
+  "updatedAt": "2026-05-01T23:35:49.608Z",
+=======
     },
     "1777698102868": {
       "events": {
@@ -53152,10 +53158,283 @@
       "links": {},
       "address": "0x68B1D87F95878fE05B998F19b66F4baba5De1aed",
       "transactionHash": "0x4e35bce10edcd29e12b1dbfc08c6a23ef95ceabbcd5d99824367e7de1126aa37"
+    },
+    "1777857503720": {
+      "events": {
+        "0x208cbeb0baf4124a3786d602986c4d07496f62cac4fcf55faa3803674c28d5b8": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "dataHash",
+              "type": "bytes32"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint8",
+              "name": "eventCode",
+              "type": "uint8"
+            },
+            {
+              "indexed": false,
+              "internalType": "bool",
+              "name": "approved",
+              "type": "bool"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "loggedBy",
+              "type": "address"
+            }
+          ],
+          "name": "AdminApprovalCompactLogged",
+          "type": "event"
+        },
+        "0x84c60a69ef0685783650f40fe753d726036d81fa79806b9d10daa188db5df20d": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "string",
+              "name": "approvalId",
+              "type": "string"
+            },
+            {
+              "indexed": false,
+              "internalType": "string",
+              "name": "eventType",
+              "type": "string"
+            },
+            {
+              "indexed": false,
+              "internalType": "string",
+              "name": "userId",
+              "type": "string"
+            },
+            {
+              "indexed": false,
+              "internalType": "string",
+              "name": "approverId",
+              "type": "string"
+            },
+            {
+              "indexed": false,
+              "internalType": "bool",
+              "name": "approved",
+              "type": "bool"
+            },
+            {
+              "indexed": false,
+              "internalType": "string",
+              "name": "details",
+              "type": "string"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "loggedBy",
+              "type": "address"
+            }
+          ],
+          "name": "AdminApprovalLogged",
+          "type": "event"
+        },
+        "0xc9e100e0967b21c3e981d1f6638cb278b926193bdb873f107071a7feb0076cef": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "hash",
+              "type": "bytes32"
+            },
+            {
+              "indexed": false,
+              "internalType": "string",
+              "name": "eventType",
+              "type": "string"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "loggedBy",
+              "type": "address"
+            }
+          ],
+          "name": "AuditHashLogged",
+          "type": "event"
+        },
+        "0x6517f7ee40b4a18281b91a107cb3e7cff69996318c95048353897f34bceb3afa": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "count",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "loggedBy",
+              "type": "address"
+            }
+          ],
+          "name": "BatchAuditHashLogged",
+          "type": "event"
+        },
+        "0x104508f258739ab7c0ab5c628a8eefc69138907b304ba966edb49f520cfb9994": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "dataHash",
+              "type": "bytes32"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint8",
+              "name": "eventCode",
+              "type": "uint8"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "loggedBy",
+              "type": "address"
+            }
+          ],
+          "name": "CriticalEventCompactLogged",
+          "type": "event"
+        },
+        "0xad8a2cde1c7caa781aa68aea2a047f50ec88e8a6424bdc991b7572d33b6f732c": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "string",
+              "name": "eventType",
+              "type": "string"
+            },
+            {
+              "indexed": false,
+              "internalType": "string",
+              "name": "userId",
+              "type": "string"
+            },
+            {
+              "indexed": false,
+              "internalType": "string",
+              "name": "details",
+              "type": "string"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "loggedBy",
+              "type": "address"
+            }
+          ],
+          "name": "CriticalEventLogged",
+          "type": "event"
+        },
+        "0x68fc2cc2aae2ecdaf6658d539a74733268a50e5c88dd2e43518213c049194aee": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "digestRoot",
+              "type": "bytes32"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint32",
+              "name": "leafCount",
+              "type": "uint32"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint64",
+              "name": "windowStart",
+              "type": "uint64"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint64",
+              "name": "windowEnd",
+              "type": "uint64"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint8",
+              "name": "digestType",
+              "type": "uint8"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "loggedBy",
+              "type": "address"
+            }
+          ],
+          "name": "DigestRootAnchored",
+          "type": "event"
+        }
+      },
+      "links": {},
+      "address": "0x68B1D87F95878fE05B998F19b66F4baba5De1aed",
+      "transactionHash": "0x4e35bce10edcd29e12b1dbfc08c6a23ef95ceabbcd5d99824367e7de1126aa37"
     }
   },
   "schemaVersion": "3.3.4",
-  "updatedAt": "2026-05-02T07:35:46.787Z",
+  "updatedAt": "2026-05-04T01:18:51.837Z",
+>>>>>>> Stashed changes
   "networkType": "ethereum",
   "devdoc": {
     "details": "Smart contract for immutable audit logging Supports both hash-based logging (off-chain data) and full event logging (on-chain data) Now uses AccessControl for role-based permissions",
