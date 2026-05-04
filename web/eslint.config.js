@@ -54,6 +54,9 @@ export default defineConfig([
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
       'no-use-before-define': ['error', { variables: true, functions: true, classes: true }],
+      'react/prop-types': 'off', // Using TypeScript instead of prop-types
+      'react/react-in-jsx-scope': 'off', // React 17+ doesn't require React in scope
+      '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^(React|use[A-Z])', argsIgnorePattern: '^_' }],
       'import/no-unresolved': ['error', {
         commonjs: true,
         caseSensitive: true,

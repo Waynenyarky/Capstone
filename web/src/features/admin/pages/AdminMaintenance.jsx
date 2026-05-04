@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Form } from '@/shared/components/AppForm'
 import { App, Button, Grid, Typography, Card, Row, Col } from 'antd'
-import { SettingOutlined, ReloadOutlined, InfoCircleOutlined, DashboardOutlined, NotificationOutlined, ToolOutlined, ArrowLeftOutlined } from '@ant-design/icons'
+import { SettingOutlined, ReloadOutlined, InfoCircleOutlined, DashboardOutlined, NotificationOutlined, ToolOutlined } from '@ant-design/icons'
 import AdminLayout from '../components/AdminLayout'
 import AdminAnnouncements from './AdminAnnouncements'
 import {
