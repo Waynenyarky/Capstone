@@ -1,4 +1,3 @@
-import React from 'react'
 import { Form, DatePicker, Select, Input } from 'antd'
 import dayjs from 'dayjs'
 import { REASON_PRESET_OPTIONS, PRESET_REASONS, REASON_PRESET_OTHER } from '../constants/maintenance.constants.js'
