@@ -73,6 +73,9 @@ async function reconcilePendingMaintenanceApprovals() {
             approvalId: approval.approvalId,
             error: applyResult.error,
           });
+        } else {
+          approval.executedAt = new Date();
+          await approval.save();
         }
       } catch (err) {
         logger.error('Error applying reconciled approved maintenance change', {
@@ -293,6 +296,8 @@ router.post('/approvals/:approvalId/approve', requireJwt, requireRole(['admin'])
           logger.error('Failed to apply approved change', { error: applyResult.error, approvalId });
           // Don't fail the approval, but log the error
         } else {
+          approval.executedAt = new Date();
+          await approval.save();
           // Send email and in-app notification to requesting admin (non-blocking)
           const approver = await User.findById(approverId).lean();
           const approverName = approver ? `${approver.firstName} ${approver.lastName}` : 'Admin';
@@ -472,6 +477,11 @@ router.delete('/approvals/:approvalId/approve', requireJwt, requireRole(['admin'
     const approval = await AdminApproval.findOne({ approvalId });
     if (!approval) {
       return respond.error(res, 404, 'approval_not_found', 'Approval request not found');
+    }
+
+    // Block undo for executed requests
+    if (approval.executedAt) {
+      return respond.error(res, 400, 'already_executed', 'Cannot undo: this request has already been executed');
     }
 
     // Check if admin has voted
