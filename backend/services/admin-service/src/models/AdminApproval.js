@@ -83,6 +83,11 @@ const AdminApprovalSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
+    executedAt: {
+      type: Date,
+      default: null,
+      // Timestamp of when the approved change was applied
+    },
     metadata: {
       type: mongoose.Schema.Types.Mixed,
       default: {},

@@ -313,4 +313,82 @@ describe('useMaintenanceApprovalActions', () => {
 
     expect(result.current.localApproval.status).toBe('approved')
   })
+
+  describe('isExecuted', () => {
+    it('returns false when executedAt is null', () => {
+      const { result } = renderHook(() =>
+        useMaintenanceApprovalActions(mockApproval, mockAllApprovals, mockOnApprove, mockOnUndoVote, mockOnCancelApproved, mockOnRefresh)
+      )
+      expect(result.current.isExecuted).toBe(false)
+    })
+
+    it('returns true when executedAt is set', () => {
+      const executedApproval = {
+        ...mockApproval,
+        status: 'approved',
+        executedAt: new Date().toISOString(),
+      }
+      const { result } = renderHook(() =>
+        useMaintenanceApprovalActions(executedApproval, mockAllApprovals, mockOnApprove, mockOnUndoVote, mockOnCancelApproved, mockOnRefresh)
+      )
+      expect(result.current.isExecuted).toBe(true)
+    })
+  })
+
+  describe('isFinalVote', () => {
+    it('returns false when no approvals exist (0 of 2)', () => {
+      const { result } = renderHook(() =>
+        useMaintenanceApprovalActions(mockApproval, mockAllApprovals, mockOnApprove, mockOnUndoVote, mockOnCancelApproved, mockOnRefresh)
+      )
+      expect(result.current.isFinalVote).toBe(false)
+    })
+
+    it('returns true when one approval exists (1 of 2)', () => {
+      const oneVoteApproval = {
+        ...mockApproval,
+        approvals: [
+          { adminId: { _id: 'admin2' }, approved: true, timestamp: new Date().toISOString() }
+        ],
+      }
+      const { result } = renderHook(() =>
+        useMaintenanceApprovalActions(oneVoteApproval, mockAllApprovals, mockOnApprove, mockOnUndoVote, mockOnCancelApproved, mockOnRefresh)
+      )
+      expect(result.current.isFinalVote).toBe(true)
+    })
+
+    it('returns false when status is not pending', () => {
+      const approvedApproval = {
+        ...mockApproval,
+        status: 'approved',
+        approvals: [
+          { adminId: { _id: 'admin2' }, approved: true, timestamp: new Date().toISOString() }
+        ],
+      }
+      const { result } = renderHook(() =>
+        useMaintenanceApprovalActions(approvedApproval, mockAllApprovals, mockOnApprove, mockOnUndoVote, mockOnCancelApproved, mockOnRefresh)
+      )
+      expect(result.current.isFinalVote).toBe(false)
+    })
+  })
+
+  describe('canUndoVote blocks on executed requests', () => {
+    it('returns false when request is executed', () => {
+      const executedApproval = {
+        ...mockApproval,
+        status: 'approved',
+        executedAt: new Date().toISOString(),
+        approvals: [
+          {
+            adminId: { _id: 'admin1', email: 'admin@example.com' },
+            approved: true,
+            timestamp: new Date().toISOString()
+          }
+        ],
+      }
+      const { result } = renderHook(() =>
+        useMaintenanceApprovalActions(executedApproval, mockAllApprovals, mockOnApprove, mockOnUndoVote, mockOnCancelApproved, mockOnRefresh)
+      )
+      expect(result.current.canUndoVote()).toBe(false)
+    })
+  })
 })
