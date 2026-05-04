@@ -63,7 +63,7 @@ export default function AlaminosAddressFields({
 
   return (
     <>
-      <Col span={24}>
+      <Col xs={24} sm={12}>
         <Form.Item
           name={field('streetAddress')}
           label="House/Bldg No. & Street"
