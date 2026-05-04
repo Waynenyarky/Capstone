@@ -21,3 +21,6 @@ deploy/mongo-tls/
 
 # Test run error log (overwritten each run)
 test-results.log
+
+# Blockchain build artifacts
+blockchain/build/
