@@ -13,11 +13,11 @@ const http = require('http');
 const mongoose = require('mongoose');
 
 dotenv.config();
-// Load project root .env so EMAIL_API_PROVIDER/EMAIL_API_KEY from root override any local .env
-const rootEnv = path.join(__dirname, '..', '..', '..', '..', '..', '.env');
-if (fs.existsSync(rootEnv)) {
-  dotenv.config({ path: rootEnv });
-}
+// Load .env from project root when running from backend/services/admin-service (so MONGO_URI etc. are found)
+const projectRootEnv = path.join(__dirname, '..', '..', '..', '..', '.env');
+try {
+  require('dotenv').config({ path: projectRootEnv });
+} catch (_) { /* optional */ }
 
 const app = express();
 
