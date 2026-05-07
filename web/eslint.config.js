@@ -23,12 +23,12 @@ export default defineConfig([
       jsxA11y.flatConfigs.recommended,
       reactHooks.configs['recommended-latest'],
       reactRefresh.configs.vite,
-      reactPerf.configs.recommended,
       prettierConfig,
     ],
     plugins: {
       'react-perf': reactPerf,
       prettier: prettier,
+      import: importPlugin,
     },
     languageOptions: {
       ecmaVersion: 2020,
@@ -40,9 +40,6 @@ export default defineConfig([
         sourceType: 'module',
         project: './tsconfig.json',
       },
-    },
-    plugins: {
-      import: importPlugin,
     },
     settings: {
       'import/resolver': {
@@ -57,6 +54,9 @@ export default defineConfig([
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
       'no-use-before-define': ['error', { variables: true, functions: true, classes: true }],
+      'react/prop-types': 'off', // Using TypeScript instead of prop-types
+      'react/react-in-jsx-scope': 'off', // React 17+ doesn't require React in scope
+      '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^(React|use[A-Z])', argsIgnorePattern: '^_' }],
       'import/no-unresolved': ['error', {
         commonjs: true,
         caseSensitive: true,

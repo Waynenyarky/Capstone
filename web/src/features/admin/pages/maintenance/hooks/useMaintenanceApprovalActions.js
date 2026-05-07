@@ -183,7 +183,17 @@ export function useMaintenanceApprovalActions(approval, allApprovals, onApprove,
     }
   }
 
+  const isExecuted = !!localApproval?.executedAt
+
+  const isFinalVote = (() => {
+    if (!isPending || !localApproval) return false
+    const currentApprovedCount = (localApproval.approvals || []).filter((a) => a.approved === true).length
+    const required = localApproval.requiredApprovals || 2
+    return currentApprovedCount === required - 1
+  })()
+
   const canUndoVote = () => {
+    if (isExecuted) return false
     const deadline = getUndoDeadline()
     if (deadline === null) return false
     if (hasOverlappingMaintenance()) return false
@@ -204,6 +214,8 @@ export function useMaintenanceApprovalActions(approval, allApprovals, onApprove,
     myVote,
     canVote,
     isApprovedUpcoming,
+    isExecuted,
+    isFinalVote,
     canUndoVote,
     handleApproveClick,
     handleDenyClick,

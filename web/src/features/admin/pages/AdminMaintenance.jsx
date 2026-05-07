@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Form } from '@/shared/components/AppForm'
 import { App, Button, Grid, Typography, Card, Row, Col } from 'antd'
-import { SettingOutlined, ReloadOutlined, InfoCircleOutlined, DashboardOutlined, NotificationOutlined, ToolOutlined, ArrowLeftOutlined } from '@ant-design/icons'
+import { SettingOutlined, ReloadOutlined, InfoCircleOutlined, DashboardOutlined, NotificationOutlined, ToolOutlined } from '@ant-design/icons'
 import AdminLayout from '../components/AdminLayout'
 import AdminAnnouncements from './AdminAnnouncements'
 import {
@@ -16,7 +16,12 @@ import {
 import { useNotifier } from '@/shared/notifications.js'
 import { useAdminStepUp } from '../hooks/useAdminStepUp'
 import RequestMaintenanceModal from './maintenance/components/RequestMaintenanceModal'
-import { REASON_PRESET_OTHER, REASON_PRESET_OPTIONS } from './maintenance/constants/maintenance.constants.js'
+import {
+  REASON_PRESET_OTHER,
+  REASON_PRESET_OPTIONS,
+  DISABLE_REASON_PRESET_OPTIONS,
+  DISABLE_PRESET_REASONS,
+} from './maintenance/constants/maintenance.constants.js'
 import MaintenanceDesktopView from './maintenance/MaintenanceDesktopView'
 import MaintenanceMobileView from './maintenance/MaintenanceMobileView'
 import MaintenanceInfoModal from './maintenance/components/MaintenanceInfoModal'
@@ -132,11 +137,18 @@ export default function AdminMaintenance() {
     async (values) => {
       try {
         let reason = ''
+        const isDisable = values.action === 'disable'
         if (values.reasonPreset === REASON_PRESET_OTHER) {
           reason = values.reason || ''
         } else if (values.reasonPreset) {
-          const preset = REASON_PRESET_OPTIONS.find((o) => o.value === values.reasonPreset)
-          reason = preset?.label || ''
+          if (isDisable) {
+            reason = DISABLE_PRESET_REASONS[values.reasonPreset]
+              || DISABLE_REASON_PRESET_OPTIONS.find((o) => o.value === values.reasonPreset)?.label
+              || ''
+          } else {
+            const preset = REASON_PRESET_OPTIONS.find((o) => o.value === values.reasonPreset)
+            reason = preset?.label || ''
+          }
         }
         const payload = {
           action: values.action,
@@ -212,6 +224,32 @@ export default function AdminMaintenance() {
       }
     },
     [success, error, load, runWithStepUp]
+  )
+
+  const hasPendingDisableRequest = useMemo(
+    () =>
+      approvals.some(
+        (a) =>
+          a.status === 'pending' &&
+          a.requestDetails?.action === 'disable'
+      ),
+    [approvals]
+  )
+
+  const openRequestModalOrBlock = useCallback(
+    (options) => {
+      const isDisableFlow = current?.isActive && !options?.forceScheduleMode
+      if (isDisableFlow && hasPendingDisableRequest) {
+        modal.warning({
+          title: 'Ongoing disable request',
+          content: 'A pending request to disable maintenance already exists. Please wait for it to be resolved before submitting another.',
+        })
+        return
+      }
+      setRequestModalOptions(options || {})
+      setRequestModalOpen(true)
+    },
+    [current?.isActive, hasPendingDisableRequest, modal]
   )
 
   const headerActions = (
@@ -311,10 +349,7 @@ export default function AdminMaintenance() {
               onUndoVote={undoVote}
               onCancelApproved={handleCancelApproved}
               onRefresh={load}
-              onOpenRequestModal={(options) => {
-                setRequestModalOptions(options || {})
-                setRequestModalOpen(true)
-              }}
+              onOpenRequestModal={openRequestModalOrBlock}
               announcementsTab={<AdminAnnouncements embedded />}
               onBackToMenu={handleBackToMenu}
               infoOpen={infoOpen}
@@ -335,10 +370,7 @@ export default function AdminMaintenance() {
               onUndoVote={undoVote}
               onCancelApproved={handleCancelApproved}
               onRefresh={load}
-              onOpenRequestModal={(options) => {
-                setRequestModalOptions(options || {})
-                setRequestModalOpen(true)
-              }}
+              onOpenRequestModal={openRequestModalOrBlock}
               headerActions={headerActions}
               announcementsTab={<AdminAnnouncements embedded />}
               onBackToMenu={handleBackToMenu}
