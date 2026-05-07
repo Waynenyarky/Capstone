@@ -464,7 +464,18 @@ export default function AdminAnnouncements({ embedded = false }) {
 
   const detailContent = selected ? (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: token.colorBgContainer }}>
-      <div style={{ padding: 16, borderBottom: `1px solid ${token.colorBorderSecondary}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+      <div
+        style={{
+          padding: 16,
+          borderBottom: `1px solid ${token.colorBorderSecondary}`,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          flexWrap: 'wrap',
+          gap: 12,
+          flexShrink: 0,
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -481,7 +492,14 @@ export default function AdminAnnouncements({ embedded = false }) {
             )}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            flexWrap: 'wrap',
+            justifyContent: 'flex-end',
+          }}
+        >
           {selected.status === 'draft' && (
             <>
               <Button icon={<FileTextOutlined />} onClick={handleFillTestData}>
@@ -506,7 +524,14 @@ export default function AdminAnnouncements({ embedded = false }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflow: 'auto' }}>
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          minHeight: 0,
+        }}
+      >
         <Tabs
           tabBarGutter={16}
           defaultActiveKey="details"
@@ -566,8 +591,9 @@ export default function AdminAnnouncements({ embedded = false }) {
                     <div style={{
                       border: `1px solid ${token.colorBorderSecondary}`,
                       borderRadius: 8,
-                      overflow: 'hidden',
-                      height: 600,
+                      overflow: 'auto',
+                      height: isMobile ? 500 : 600,
+                      maxHeight: '70vh',
                       position: 'relative'
                     }}>
                       
@@ -691,8 +717,7 @@ export default function AdminAnnouncements({ embedded = false }) {
                                       marginBottom: '8px', 
                                       fontSize: screens.md ? '56px' : '36px',
                                       fontWeight: 700,
-                                      lineHeight: 1.1,
-                                      whiteSpace: 'nowrap'
+                                      lineHeight: 1.1
                                     }}>
                                       <span style={{ color: BRAND_COLORS.blue }}>Business </span>
                                       <span style={{ color: BRAND_COLORS.red }}>Permit </span>
@@ -702,8 +727,7 @@ export default function AdminAnnouncements({ embedded = false }) {
                                       margin: 0, 
                                       fontSize: screens.md ? '40px' : '28px',
                                       fontWeight: 700,
-                                      color: token.colorText,
-                                      whiteSpace: 'nowrap'
+                                      color: token.colorText
                                     }}>
                                       Made Simpler.
                                     </Title>
@@ -776,6 +800,7 @@ export default function AdminAnnouncements({ embedded = false }) {
                     <>
                       <Table
                         dataSource={auditLogs}
+                        scroll={{ x: 1000 }}
                         columns={[
                           {
                             title: 'Date & Time',
@@ -989,9 +1014,19 @@ export default function AdminAnnouncements({ embedded = false }) {
     const mobileBody = (
       <div style={{ padding: 16 }}>
         {selected ? (
-          <div>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              height: 'calc(100vh - 120px)',
+              overflow: 'hidden',
+            }}
+          >
             <Button onClick={() => setSelected(null)} style={{ marginBottom: 16 }}>← Back to list</Button>
-            {detailContent}
+
+            <div style={{ flex: 1, minHeight: 0 }}>
+              {detailContent}
+            </div>
           </div>
         ) : (
           listContent
@@ -1021,8 +1056,22 @@ export default function AdminAnnouncements({ embedded = false }) {
   }
 
   const desktopBody = (
-    <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <Splitter style={{ flex: 1, minHeight: 0 }}>
+    <div
+      style={{
+        height: 'calc(100vh - 120px)',
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      <Splitter
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflow: 'hidden',
+        }}
+      >
         <Splitter.Panel min="280px" defaultSize="30%" max="40%" style={{ overflow: 'hidden', background: token.colorBgContainer }}>
           {listContent}
         </Splitter.Panel>
