@@ -16,7 +16,7 @@ router.get('/public', async (req, res) => {
         { $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] },
       ],
     }).sort({ priority: -1, createdAt: -1 })
-    respond.success(res, announcements)
+    return respond.success(res, 200, announcements)
   } catch (err) {
     logger.error('Failed to fetch public announcements', { error: err, correlationId: req.correlationId })
     return respond.error(res, 500, 'fetch_failed', 'Failed to fetch announcements')
