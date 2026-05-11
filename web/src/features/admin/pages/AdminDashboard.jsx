@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Row, Col, Card, Typography, Space, Tag, List, message, theme, Button } from 'antd'
 import { Link } from 'react-router-dom'
-import { DashboardOutlined, CheckCircleOutlined, SafetyCertificateOutlined, ToolOutlined, FileTextOutlined, ReloadOutlined, InfoCircleOutlined, ShopOutlined, DollarOutlined, TeamOutlined, ClockCircleOutlined } from '@ant-design/icons'
-import DashboardInfoModal from './DashboardInfoModal'
+import { DashboardOutlined, CheckCircleOutlined, SafetyCertificateOutlined, ToolOutlined, FileTextOutlined, InfoCircleOutlined, ShopOutlined, DollarOutlined, TeamOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import DashboardInfoModal from './DashboardInfoModal'
 import AdminLayout from '../components/AdminLayout'
 import { TamperIncidentsPanel } from '@/features/admin'
 import { getApprovals } from '@/features/admin/services/approvalService'
@@ -11,6 +11,7 @@ import { fetchTamperStats } from '@/features/admin/services/tamperService'
 import { getFormGroupStats } from '@/features/admin/services/formDefinitionService'
 import { getMaintenanceCurrent } from '@/features/admin/services/maintenanceService'
 import { get } from '@/lib/http.js'
+import { SiteStatusPill } from '@/features/shared/components'
 
 const { Text } = Typography
 
@@ -117,20 +118,16 @@ export default function AdminDashboard() {
     loadRecentActivity()
   }, [loadRecentActivity])
 
-  useEffect(() => {
-    const onRefresh = () => {
-      loadKpis()
-      loadRecentActivity()
-      setLastUpdated(new Date())
-    }
-    window.addEventListener('admin-dashboard-refresh', onRefresh)
-    return () => window.removeEventListener('admin-dashboard-refresh', onRefresh)
-  }, [loadKpis, loadRecentActivity])
-
-  const handleRefresh = useCallback(async () => {
-    await Promise.all([loadKpis(), loadRecentActivity()])
+  const onRefresh = useCallback(() => {
+    loadKpis()
+    loadRecentActivity()
     setLastUpdated(new Date())
   }, [loadKpis, loadRecentActivity])
+
+  useEffect(() => {
+    window.addEventListener('admin-dashboard-refresh', onRefresh)
+    return () => window.removeEventListener('admin-dashboard-refresh', onRefresh)
+  }, [onRefresh])
 
   const formCount = formStats?.activated != null ? Number(formStats.activated) + Number(formStats.deactivated || 0) + Number(formStats.retired || 0) : null
   const hasMaintenance = maintenanceStatus?.active === true || maintenanceStatus?.status === 'active'
@@ -196,16 +193,11 @@ export default function AdminDashboard() {
 
   const mainHeaderActions = (
     <>
-      {lastUpdated && (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          Last updated: {lastUpdated.toLocaleTimeString()}
-        </Text>
-      )}
-      <Button
-        icon={<ReloadOutlined />}
-        onClick={handleRefresh}
-        loading={kpiLoading || recentActivityLoading}
-        aria-label="Refresh"
+      <SiteStatusPill
+        lastUpdated={lastUpdated}
+        onRefresh={loadKpis}
+        loading={kpiLoading}
+        showSocketStatus={false}
       />
       <Button icon={<InfoCircleOutlined />} onClick={() => setInfoOpen(true)} aria-label="About" />
     </>

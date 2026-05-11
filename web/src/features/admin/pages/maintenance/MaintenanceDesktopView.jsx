@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react'
-import { theme, Button, Tag, Splitter, Space, Tooltip, Empty } from 'antd'
+import { theme, Button, Tag, Splitter, Space, Tooltip } from 'antd'
 import { StopOutlined, ClockCircleOutlined, ArrowLeftOutlined, InfoCircleOutlined } from '@ant-design/icons'
-import MaintenanceOverviewTab from './components/MaintenanceOverviewTab'
 import MaintenanceRequestDetailPanel from './components/MaintenanceRequestDetailPanel'
 import MaintenanceInfoModal from './components/MaintenanceInfoModal'
 import MaintenanceSidebar from './components/MaintenanceSidebar'
@@ -9,30 +8,38 @@ import MaintenanceHeader from './components/MaintenanceHeader'
 import MaintenanceFilterPanel from './components/MaintenanceFilterPanel'
 import MaintenanceRequestList from './components/MaintenanceRequestList'
 import MaintenanceExportModal from './components/MaintenanceExportModal'
+import RequestMaintenanceModal from './components/RequestMaintenanceModal'
 import { NAV_ITEMS, REQUESTS_PAGE_SIZE } from './constants/maintenance.constants'
 import { isDefaultVisible, filterApprovalsBySearch, filterApprovalsByStatus, filterApprovalsByReason } from './utils/maintenance.utils'
-import { useMaintenanceFilters, useMaintenancePagination, useMaintenanceExport } from './hooks'
+import { useMaintenanceFilters, useMaintenancePagination, useMaintenanceExport, useMaintenance } from './hooks'
 
 
 export default function MaintenanceDesktopView({
-  tabKey,
-  setTabKey,
-  current,
-  loading,
-  approvals,
-  onApprove,
-  onUndoVote,
-  onCancelApproved,
-  onOpenRequestModal,
-  onRefresh,
-  announcementsTab,
   onBackToMenu,
-  infoOpen,
-  setInfoOpen,
 }) {
+  const [tabKey, setTabKey] = useState('requests')
+  const [infoOpen, setInfoOpen] = useState(false)
   const { token } = theme.useToken()
   const [selectedApproval, setSelectedApproval] = useState(null)
   const historyFilterRef = useRef(null)
+
+  const {
+    form,
+    current,
+    approvals,
+    loading,
+    submitting,
+    requestModalOpen,
+    setRequestModalOpen,
+    requestModalOptions,
+    load,
+    handleConfirmSubmit,
+    handleApprove,
+    handleUndoVote,
+    handleCancelApproved,
+    openRequestModalOrBlock,
+    stepUpModal,
+  } = useMaintenance()
 
   const {
     historySearch,
@@ -125,25 +132,16 @@ export default function MaintenanceDesktopView({
         <MaintenanceRequestDetailPanel
           approval={selectedApproval}
           allApprovals={approvals}
-          onApprove={onApprove}
-          onUndoVote={onUndoVote}
-          onCancelApproved={onCancelApproved}
-          onRefresh={onRefresh}
+          onApprove={handleApprove}
+          onUndoVote={handleUndoVote}
+          onCancelApproved={handleCancelApproved}
+          onRefresh={load}
         />
       </Splitter.Panel>
     </Splitter>
   )
 
   const tabChildren = {
-    overview: (
-      <MaintenanceOverviewTab
-        current={current}
-        approvals={approvals}
-        setTabKey={setTabKey}
-        onOpenRequestModal={onOpenRequestModal}
-      />
-    ),
-    announcements: announcementsTab || <Empty description="Announcements tab unavailable" style={{ marginTop: 24 }} />,
     requests: statusTabContent,
     history: statusTabContent,
   }
@@ -162,11 +160,11 @@ export default function MaintenanceDesktopView({
           </Tooltip>
         )}
         {current?.isActive && (
-          <Button icon={<ClockCircleOutlined />} onClick={() => onOpenRequestModal({ forceScheduleMode: true })}>
+          <Button icon={<ClockCircleOutlined />} onClick={() => openRequestModalOrBlock({ forceScheduleMode: true })}>
             Schedule
           </Button>
         )}
-        <Button type="primary" icon={requestButtonIcon} onClick={onOpenRequestModal}>
+        <Button type="primary" icon={requestButtonIcon} onClick={openRequestModalOrBlock}>
           {requestButtonLabel}
         </Button>
       </Space>
@@ -218,6 +216,19 @@ export default function MaintenanceDesktopView({
       </div>
 
       {setInfoOpen && <MaintenanceInfoModal open={infoOpen} onClose={() => setInfoOpen(false)} />}
+
+      <RequestMaintenanceModal
+        open={requestModalOpen}
+        onCancel={() => setRequestModalOpen(false)}
+        form={form}
+        forceScheduleMode={requestModalOptions.forceScheduleMode}
+        onSubmit={handleConfirmSubmit}
+        submitting={submitting}
+        maintenanceActive={current?.isActive === true}
+        isMobile={false}
+      />
+
+      {stepUpModal}
     </div>
   )
 }

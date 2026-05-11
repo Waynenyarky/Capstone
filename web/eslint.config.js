@@ -56,6 +56,7 @@ export default defineConfig([
       'no-use-before-define': ['error', { variables: true, functions: true, classes: true }],
       'react/prop-types': 'off', // Using TypeScript instead of prop-types
       'react/react-in-jsx-scope': 'off', // React 17+ doesn't require React in scope
+      'react/jsx-filename-extension': ['error', { extensions: ['.jsx', '.tsx'] }], // Enforce JSX files to have .jsx or .tsx extension
       '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^(React|use[A-Z])', argsIgnorePattern: '^_' }],
       'import/no-unresolved': ['error', {
         commonjs: true,

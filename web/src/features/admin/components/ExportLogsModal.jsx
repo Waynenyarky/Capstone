@@ -43,6 +43,7 @@ function exportTypeLabel (exportType) {
   if (exportType === 'users') return 'User management'
   if (exportType === 'forms') return 'Form definitions'
   if (exportType === 'security') return 'Security'
+  if (exportType === 'permit-forms') return 'Permit forms'
   return 'Fee configuration'
 }
 
@@ -86,6 +87,15 @@ export default function ExportLogsModal ({ open, onClose, exportType, title }) {
           return t >= startT && t <= endT
         })
         setAvailability({ total: inRange.length, hasData: inRange.length > 0 })
+      } else if (exportType === 'permit-forms') {
+        const res = await getAllAuditLogsAdmin({ startDate: start, endDate: end, limit: EXPORT_LIMIT })
+        const logs = res?.logs || []
+        const permitFormsOnly = logs.filter((log) => 
+          log.eventType === 'permit_forms_published' || 
+          log.eventType === 'permit_forms_reverted' || 
+          log.eventType === 'permit_forms_toggled'
+        )
+        setAvailability({ total: permitFormsOnly.length, hasData: permitFormsOnly.length > 0 })
       } else {
         setAvailability({ total: 0, hasData: false })
       }
@@ -202,6 +212,29 @@ export default function ExportLogsModal ({ open, onClose, exportType, title }) {
         const a = document.createElement('a')
         a.href = url
         a.download = `form-definitions-logs-${dateRange[0].format('YYYY-MM-DD')}-to-${dateRange[1].format('YYYY-MM-DD')}.csv`
+        a.click()
+        URL.revokeObjectURL(url)
+      } else if (exportType === 'permit-forms') {
+        const res = await getAllAuditLogsAdmin({ startDate: start, endDate: end, limit: EXPORT_LIMIT })
+        const logs = res?.logs || []
+        const permitFormsOnly = logs.filter((log) => 
+          log.eventType === 'permit_forms_published' || 
+          log.eventType === 'permit_forms_reverted' || 
+          log.eventType === 'permit_forms_toggled'
+        )
+        const headers = ['Action', 'Admin', 'Date', 'Details']
+        const rows = permitFormsOnly.map((log) => [
+          log.eventType || '',
+          log.userId || '',
+          log.createdAt ? dayjs(log.createdAt).format('YYYY-MM-DD HH:mm:ss') : '',
+          log.newValue ? log.newValue.substring(0, 200) : '',
+        ])
+        const csv = [headers, ...rows].map((r) => r.map(csvEscape).join(',')).join('\n')
+        const blob = new Blob([csv], { type: 'text/csv' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `permit-forms-logs-${dateRange[0].format('YYYY-MM-DD')}-to-${dateRange[1].format('YYYY-MM-DD')}.csv`
         a.click()
         URL.revokeObjectURL(url)
       } else {

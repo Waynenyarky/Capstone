@@ -113,6 +113,8 @@ export const ACTION_LABELS = {
   maintenance_mode: 'Maintenance mode',
 }
 
+export const actionLabel = (eventType) => ACTION_LABELS[eventType] || eventType || '—'
+
 // FAQ items for info modal
 export const FAQ_ITEMS = [
   {
