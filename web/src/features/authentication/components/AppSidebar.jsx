@@ -5,6 +5,7 @@ import useSidebar from '../hooks/useSidebar'
 import { useAuthSession } from '../hooks'
 import ConfirmLogoutModal from './ConfirmLogoutModal.jsx'
 import { useConfirmLogoutModal } from '../hooks'
+import { setIsLoggingOut, setLogoutNotification } from '../lib/authEvents.js'
 
 export default function AppSidebar({ hiddenKeys = [], renamedKeys = {}, itemOverrides = {}, headerContent, ...siderProps }) {
   const { items: rawItems, selected, onSelect } = useSidebar()
@@ -77,6 +78,13 @@ export default function AppSidebar({ hiddenKeys = [], renamedKeys = {}, itemOver
   const { open, show, hide, confirming, handleConfirm } = useConfirmLogoutModal({
     onConfirm: async () => {
       try {
+        const logoutNotification = {
+          type: 'success',
+          message: 'Logged out',
+          description: 'You have been signed out successfully.'
+        }
+        setLogoutNotification(logoutNotification)
+        setIsLoggingOut(true)
         logout()
         navigate('/', { replace: true })
       } catch (err) {

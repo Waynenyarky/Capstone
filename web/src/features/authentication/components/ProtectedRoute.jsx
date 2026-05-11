@@ -44,7 +44,8 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
   // If not authenticated, redirect to login
   if (!currentUser || !currentUser.token) {
     if (isLoggingOut) {
-      return <Navigate to="/" replace />
+      // Preserve the logout notification state
+      return <Navigate to="/" replace state={location.state?.isLogout ? location.state : undefined} />
     }
 
     // Only show "Access Denied" if we were trying to access a specific page (location.pathname !== '/')

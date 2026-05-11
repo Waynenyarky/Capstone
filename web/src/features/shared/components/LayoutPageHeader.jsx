@@ -23,6 +23,7 @@ import { getNotifications, getUnreadCount, markAsRead } from '@/features/user/se
 import { useNotificationStream } from '@/features/user/hooks/useNotificationStream'
 import { useAppTheme, THEMES } from '@/shared/theme/ThemeProvider'
 import { logoutApi } from '@/features/authentication/services/authService'
+import { setIsLoggingOut, setLogoutNotification } from '@/features/authentication/lib/authEvents.js'
 
 dayjs.extend(relativeTime)
 
@@ -107,6 +108,13 @@ export default function LayoutPageHeader({
   const { open, show, hide, confirming, handleConfirm } = useConfirmLogoutModal({
     onConfirm: async () => {
       try {
+        const logoutNotification = {
+          type: 'success',
+          message: 'Logged out',
+          description: 'You have been signed out successfully.'
+        }
+        setLogoutNotification(logoutNotification)
+        setIsLoggingOut(true)
         await logoutApi().catch(() => {})
         if (logout) await logout()
         navigate('/', { replace: true })

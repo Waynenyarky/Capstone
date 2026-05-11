@@ -13,11 +13,11 @@ const errorHandlerMiddleware = require('./middleware/errorHandler');
 const http = require('http');
 
 dotenv.config();
-// Load project root .env so EMAIL_API_PROVIDER/EMAIL_API_KEY from root override any local .env (e.g. from CREATE_ENV_FILES.sh)
-const rootEnv = path.join(__dirname, '..', '..', '..', '..', '..', '.env');
-if (fs.existsSync(rootEnv)) {
-  dotenv.config({ path: rootEnv });
-}
+// Load .env from project root when running from backend/services/auth-service (so MONGO_URI etc. are found)
+const projectRootEnv = path.join(__dirname, '..', '..', '..', '..', '.env');
+try {
+  require('dotenv').config({ path: projectRootEnv });
+} catch (_) { /* optional */ }
 
 // In test mode, establish database connection immediately when app is required
 // This ensures middleware can access the database

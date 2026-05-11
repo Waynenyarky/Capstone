@@ -9,6 +9,17 @@ export default function Login() {
   const location = useLocation()
   const { logout } = useAuthSession()
 
+  // Clear any existing location state notifications on login page load
+  React.useEffect(() => {
+    if (location.state?.notification) {
+      const state = { ...window.history.state }
+      if (state.usr) {
+        delete state.usr.notification
+        window.history.replaceState(state, '')
+      }
+    }
+  }, [location])
+
   const handleLoginSuccess = React.useCallback((user) => {
     const role = String(user?.role?.slug || user?.role || '').toLowerCase()
     const needsOnboarding = !!(user?.mustChangeCredentials || user?.mustSetupMfa)

@@ -194,27 +194,47 @@ export default function MfaSetup({ embedded = false, onComplete }) {
             {!embedded && <SafetyCertificateOutlined style={{ fontSize: 48, color: token.colorPrimary }} />}
             <Title level={4} style={{ color: token.colorPrimary, marginTop: embedded ? 0 : 16 }}>Secure Your Account</Title>
             <Paragraph type="secondary" style={{ fontSize: 16, maxWidth: 420, margin: '0 auto' }}>
-              Choose how you want to sign in securely: use an authenticator app (e.g. Google Authenticator) or a passkey (e.g. Windows Hello, Face ID).
+              Protect your account from unauthorized access. This takes less than a minute.
             </Paragraph>
           </div>
 
           <Space direction="vertical" style={{ width: '100%', justifyContent: 'center', alignItems: 'center' }} size="middle">
             
             <Button 
-              type="primary" 
-              onClick={onSetupClick} 
-              loading={loading} 
-              icon={<MobileOutlined />}
-            >
-              Use authenticator app
-            </Button>
-            <Button 
               type="default"
               onClick={onPasskeySetup} 
               loading={passkeyRegistering} 
               icon={<KeyOutlined />}
+              style={{ width: 280, height: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}
             >
-              Use passkey
+              <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Use passkey</span>
+                <span style={{ fontSize: 12, color: token.colorPrimary, fontWeight: 600, background: token.colorPrimaryBg, padding: '2px 8px', borderRadius: 4 }}>Recommended</span>
+              </div>
+              <Text type="secondary" style={{ fontSize: 12, marginTop: 4 }}>Use your fingerprint, face, or PIN to sign in</Text>
+            </Button>
+            <Button 
+              type="primary" 
+              onClick={onSetupClick} 
+              loading={loading} 
+              icon={<MobileOutlined />}
+              style={{ width: 280, height: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}
+            >
+              <span>Use authenticator app</span>
+              <Text type="secondary" style={{ fontSize: 12, marginTop: 4 }}>Enter a 6-digit code when signing in</Text>
+            </Button>
+            <Button 
+              type="link"
+              onClick={() => {
+                if (embedded && typeof onComplete === 'function') {
+                  onComplete()
+                } else {
+                  navigate(-1)
+                }
+              }}
+              style={{ fontSize: 14 }}
+            >
+              Skip for now (set up later in Settings)
             </Button>
           </Space>
           

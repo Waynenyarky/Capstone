@@ -8,13 +8,8 @@ const BusinessProfile = require('../models/BusinessProfile')
 const logger = require('../lib/logger')
 
 // Cross-claim: when claiming an application, also claim related requests for the same business
+// Disabled in microservices deployment to avoid Mongoose model conflicts
 let crossClaimForBusiness = null
-try {
-  crossClaimForBusiness = require('../../business-service/src/lib/crossClaimService').crossClaimForBusiness
-} catch (err) {
-  // Fallback: cross-claim not available (separate deployment)
-  console.warn('[permitApplications] crossClaimService not available:', err.message)
-}
 
 // Socket service for realtime updates (lazy-loaded)
 let socketService = null
