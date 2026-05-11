@@ -5,13 +5,35 @@ const respond = require('../middleware/respond')
 const Announcement = require('../models/Announcement')
 const { createAuditLog } = require('../lib/auditLogger')
 
+router.get('/public', async (req, res) => {
+  try {
+    const now = new Date()
+    const announcements = await Announcement.find({
+      status: 'published',
+      isActive: true,
+      $and: [
+        { $or: [{ publishAt: null }, { publishAt: { $lte: now } }] },
+        { $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] },
+      ],
+    }).sort({ priority: -1, createdAt: -1 })
+    return respond.success(res, 200, announcements)
+  } catch (err) {
+    logger.error('Failed to fetch public announcements', { error: err, correlationId: req.correlationId })
+    return respond.error(res, 500, 'fetch_failed', 'Failed to fetch announcements')
+  }
+})
+
 router.get('/', optionalJwt, async (req, res) => {
   try {
     const isAdmin = req._userRole === 'admin'
     const now = new Date()
     let filter = {
       status: 'published',
-      $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
+      isActive: true,
+      $and: [
+        { $or: [{ publishAt: null }, { publishAt: { $lte: now } }] },
+        { $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] },
+      ],
     }
     if (isAdmin) {
       filter = {}
@@ -26,19 +48,32 @@ router.get('/', optionalJwt, async (req, res) => {
 
 router.post('/', requireJwt, requireRole(['admin']), async (req, res) => {
   try {
-    const { title, body, priority, isActive, expiresAt, status } = req.body
+    const { title, body, priority, isActive, expiresAt, publishAt, status } = req.body
     const isDraft = status === 'draft'
     if (!isDraft && (!title || !body)) {
       return respond.error(res, 400, 'missing_fields', 'Title and body are required for published announcements')
     }
 
+    const publishDate = publishAt ? new Date(publishAt) : null
+    const expiryDate = expiresAt ? new Date(expiresAt) : null
+    if (!isDraft && expiryDate) {
+      const publishMoment = publishDate || new Date()
+      const sameDay = expiryDate.toDateString() === publishMoment.toDateString()
+      if (sameDay || expiryDate <= publishMoment) {
+        return respond.error(res, 400, 'invalid_dates', 'Published announcements must expire after the publish date and cannot expire on the same day')
+      }
+    }
+
+    const now = new Date()
     const announcement = await Announcement.create({
       title: title || '',
       body: body || '',
       priority: priority || 'normal',
       status: status || 'draft',
       isActive: isDraft ? false : isActive !== false,
-      expiresAt: expiresAt || null,
+      publishAt: publishDate,
+      publishedAt: !isDraft && (!publishDate || publishDate <= now) ? now : null,
+      expiresAt: expiryDate,
       createdBy: req._userId,
     })
 
@@ -48,7 +83,7 @@ router.post('/', requireJwt, requireRole(['admin']), async (req, res) => {
       'announcement_created',
       'announcement',
       null,
-      JSON.stringify({ title, body, priority, status, isActive, expiresAt }),
+      JSON.stringify({ title, body, priority, status, isActive, publishAt, expiresAt }),
       req._userRole,
       {
         announcementId: announcement._id,
@@ -66,10 +101,20 @@ router.post('/', requireJwt, requireRole(['admin']), async (req, res) => {
 
 router.put('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
   try {
-    const { title, body, priority, isActive, expiresAt, status } = req.body
+    const { title, body, priority, isActive, expiresAt, publishAt, status } = req.body
     const isDraft = status === 'draft'
     if (!isDraft && (!title || !body)) {
       return respond.error(res, 400, 'missing_fields', 'Title and body are required for published announcements')
+    }
+
+    const publishDate = publishAt ? new Date(publishAt) : null
+    const expiryDate = expiresAt ? new Date(expiresAt) : null
+    if (!isDraft && expiryDate) {
+      const publishMoment = publishDate || new Date()
+      const sameDay = expiryDate.toDateString() === publishMoment.toDateString()
+      if (sameDay || expiryDate <= publishMoment) {
+        return respond.error(res, 400, 'invalid_dates', 'Published announcements must expire after the publish date and cannot expire on the same day')
+      }
     }
 
     // Get the current announcement for audit logging
@@ -84,12 +129,26 @@ router.put('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
       priority: currentAnnouncement.priority,
       status: currentAnnouncement.status,
       isActive: currentAnnouncement.isActive,
+      publishAt: currentAnnouncement.publishAt,
       expiresAt: currentAnnouncement.expiresAt,
     }
 
+    const now = new Date()
+    const publishedAt = currentAnnouncement.publishedAt || ((status === 'published' && (!publishDate || publishDate <= now)) ? now : null)
+
     const announcement = await Announcement.findByIdAndUpdate(
       req.params.id,
-      { title, body, priority, status, isActive, expiresAt, updatedBy: req._userId },
+      {
+        title,
+        body,
+        priority,
+        status,
+        isActive,
+        publishAt: publishDate,
+        publishedAt,
+        expiresAt: expiryDate,
+        updatedBy: req._userId,
+      },
       { new: true }
     )
     if (!announcement) return respond.error(res, 404, 'not_found', 'Announcement not found')
@@ -100,7 +159,7 @@ router.put('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
       'announcement_updated',
       'announcement',
       JSON.stringify(oldValues),
-      JSON.stringify({ title, body, priority, status, isActive, expiresAt }),
+      JSON.stringify({ title, body, priority, status, isActive, publishAt, expiresAt }),
       req._userRole,
       {
         announcementId: announcement._id,
@@ -121,6 +180,12 @@ router.delete('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
     const announcement = await Announcement.findById(req.params.id)
     if (!announcement) return respond.error(res, 404, 'not_found', 'Announcement not found')
 
+    const now = new Date()
+    const hasBeenPosted = announcement.publishedAt || (announcement.status === 'published' && (!announcement.publishAt || announcement.publishAt <= now))
+    if (hasBeenPosted) {
+      return respond.error(res, 403, 'delete_forbidden', 'Published or previously posted announcements cannot be deleted. Unpublish to make them inactive instead.')
+    }
+
     // Create audit log before deletion
     await createAuditLog(
       req._userId,
@@ -132,6 +197,7 @@ router.delete('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
         priority: announcement.priority,
         status: announcement.status,
         isActive: announcement.isActive,
+        publishAt: announcement.publishAt,
         expiresAt: announcement.expiresAt,
       }),
       null,

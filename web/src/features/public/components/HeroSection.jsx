@@ -1,5 +1,5 @@
 import { Typography, Grid, theme, Collapse, Card, Button } from 'antd'
-import { NotificationOutlined, DownloadOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons'
+import { DownloadOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons'
 import { BRAND_COLORS } from '@/shared/theme/ThemeProvider'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { get } from '@/lib/http.js'
@@ -217,7 +217,7 @@ export default function HeroSection() {
     const fetchLandingData = async () => {
       try {
         const [res, maintenance, permitFormsRes] = await Promise.all([
-          get('/api/admin/announcements', { skipAuth: true }),
+          get('/api/admin/announcements/public'),
           getMaintenanceStatus().catch(() => ({ active: false, scheduled: false })),
           get('/api/admin/permit-forms', { skipAuth: true }).catch(() => null),
         ])
@@ -270,12 +270,7 @@ export default function HeroSection() {
 
   const announcementItems = announcements.map((ann, idx) => ({
     key: `announcement-${idx + 1}`,
-    label: (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <NotificationOutlined />
-        <span>{ann.title}</span>
-      </div>
-    ),
+    label: <span>{ann.title}</span>,
     children: (
       <div>
         <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>

@@ -12,6 +12,10 @@ const User = require('../models/User');
 
 const router = express.Router();
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 const SERVICE_URLS = [
   { key: 'auth', name: 'Auth Service', url: process.env.AUTH_SERVICE_URL || 'http://localhost:3001' },
   { key: 'business', name: 'Business Service', url: process.env.BUSINESS_SERVICE_URL || 'http://localhost:3002' },
@@ -164,11 +168,21 @@ router.get('/audit-logs', requireJwt, requireRole(['admin']), async (req, res) =
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
     const skip = (page - 1) * limit;
     const adminId = req.query.adminId ? String(req.query.adminId).trim() : null;
+    const eventType = req.query.eventType ? String(req.query.eventType).trim() : null;
+    const resourceType = req.query.resourceType ? String(req.query.resourceType).trim() : null;
     const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom) : null;
     const dateTo = req.query.dateTo ? new Date(req.query.dateTo) : null;
 
     const query = {};
     if (adminId) query.userId = adminId;
+    if (eventType) query.eventType = eventType;
+    if (resourceType) {
+      const regex = new RegExp(`^${escapeRegExp(resourceType)}`, 'i');
+      query.$or = [
+        { eventType: regex },
+        { fieldChanged: regex },
+      ];
+    }
     if (dateFrom || dateTo) {
       query.createdAt = {};
       if (dateFrom) query.createdAt.$gte = dateFrom;
@@ -186,15 +200,7 @@ router.get('/audit-logs', requireJwt, requireRole(['admin']), async (req, res) =
 
     const safeLogs = logs.map((log) => {
       const user = userMap.get(String(log.userId));
-      let details = [log.fieldChanged, log.oldValue, log.newValue].filter(Boolean).join(' · ');
-      if (!details && log.metadata) {
-        try {
-          details = JSON.stringify(log.metadata).slice(0, 100);
-        } catch {
-          details = '';
-        }
-      }
-      details = details || '';
+      const details = [log.fieldChanged, log.oldValue, log.newValue].filter(Boolean).join(' · ') || '';
       return {
         _id: log._id,
         id: String(log._id),
@@ -202,7 +208,10 @@ router.get('/audit-logs', requireJwt, requireRole(['admin']), async (req, res) =
         userId: String(log.userId),
         action: log.eventType || '—',
         resource: log.fieldChanged || log.eventType || '—',
-        resourceType: log.fieldChanged || log.eventType,
+        resourceType: log.resource || log.fieldChanged || log.eventType,
+        fieldChanged: log.fieldChanged || '',
+        oldValue: log.oldValue || '',
+        newValue: log.newValue || '',
         createdAt: log.createdAt,
         details: details.slice(0, 200),
         description: details.slice(0, 200),
@@ -216,6 +225,80 @@ router.get('/audit-logs', requireJwt, requireRole(['admin']), async (req, res) =
   } catch (err) {
     logger.error('Failed to get audit logs', { error: err, correlationId: req.correlationId });
     return respond.error(res, 500, 'audit_logs_failed', 'Failed to retrieve audit logs');
+  }
+});
+
+router.get('/audit-logs/export', requireJwt, requireRole(['admin']), async (req, res) => {
+  try {
+    const eventType = req.query.eventType ? String(req.query.eventType).trim() : null;
+    const resourceType = req.query.resourceType ? String(req.query.resourceType).trim() : null;
+    const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom) : null;
+    const dateTo = req.query.dateTo ? new Date(req.query.dateTo) : null;
+    const format = String(req.query.format || 'csv').toLowerCase();
+
+    const query = {};
+    if (eventType) query.eventType = eventType;
+    if (resourceType) {
+      const regex = new RegExp(`^${escapeRegExp(resourceType)}`, 'i');
+      query.$or = [
+        { eventType: regex },
+        { fieldChanged: regex },
+      ];
+    }
+    if (dateFrom || dateTo) {
+      query.createdAt = {};
+      if (dateFrom) query.createdAt.$gte = dateFrom;
+      if (dateTo) query.createdAt.$lte = dateTo;
+    }
+
+    const logs = await AuditLog.find(query).sort({ createdAt: -1 }).lean();
+    const userIds = [...new Set(logs.map((l) => String(l.userId)))];
+    const users = await User.find({ _id: { $in: userIds } }).select('_id email').lean();
+    const userMap = new Map(users.map((u) => [String(u._id), u]));
+
+    const rows = logs.map((log) => {
+      const user = userMap.get(String(log.userId));
+      const details = [log.fieldChanged, log.oldValue, log.newValue].filter(Boolean).join(' · ') || '';
+      return {
+        id: String(log._id),
+        eventType: log.eventType,
+        userEmail: user ? user.email : (log.userId || '—'),
+        createdAt: log.createdAt ? log.createdAt.toISOString() : '',
+        fieldChanged: log.fieldChanged || '',
+        oldValue: log.oldValue || '',
+        newValue: log.newValue || '',
+        details,
+        resource: log.resource || log.fieldChanged || '',
+        role: log.role || '',
+      };
+    });
+
+    if (format === 'json') {
+      res.setHeader('Content-Type', 'application/json')
+      return res.send(JSON.stringify(rows))
+    }
+
+    const csvRows = [
+      ['Date & Time', 'Event Type', 'Changed By', 'User Email', 'Resource', 'Field Changed', 'Old Value', 'New Value', 'Details'],
+      ...rows.map((row) => [
+        row.createdAt,
+        row.eventType,
+        row.role,
+        row.userEmail,
+        row.resource,
+        row.fieldChanged,
+        row.oldValue.replace(/"/g, '""'),
+        row.newValue.replace(/"/g, '""'),
+        row.details.replace(/"/g, '""'),
+      ]),
+    ].map((cells) => cells.map((cell) => `"${String(cell || '')}"`).join(',')).join('\n')
+
+    res.setHeader('Content-Type', 'text/csv')
+    res.setHeader('Content-Disposition', `attachment; filename="audit-logs-${Date.now()}.csv"`)
+    return res.send(csvRows)
+  } catch (err) {
+    logger.error('Failed to export audit logs', { error: err, correlationId: req.correlationId });
+    return respond.error(res, 500, 'audit_logs_export_failed', 'Failed to export audit logs');
   }
 });
 

@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { App, Button, Input, Select, Tag, Tooltip, Splitter, Grid, Pagination, theme, Empty, Typography, Form, Switch, DatePicker, Popconfirm, Descriptions, Spin, Modal, Tabs, Table, Space } from 'antd'
-import { PlusOutlined, FilterOutlined, SearchOutlined, CloseOutlined, NotificationOutlined, DeleteOutlined, SaveOutlined, SendOutlined, FileTextOutlined, ArrowLeftOutlined, RollbackOutlined, HistoryOutlined } from '@ant-design/icons'
+import { App, Button, Input, Select, Tag, Tooltip, Splitter, Grid, Pagination, theme, Empty, Typography, Form, DatePicker, Spin, Modal, Tabs, Table } from 'antd'
+import { PlusOutlined, FilterOutlined, SearchOutlined, CloseOutlined, NotificationOutlined, DeleteOutlined, SaveOutlined, SendOutlined, FileTextOutlined, ArrowLeftOutlined, RollbackOutlined, HistoryOutlined, InfoCircleOutlined, DownloadOutlined } from '@ant-design/icons'
 import AdminLayout from '../components/AdminLayout'
 import HomeHeader from '@/features/public/components/HomeHeader'
 import HomeFooter from '@/features/public/components/HomeFooter'
 import { Layout, Collapse } from 'antd'
 import { BRAND_COLORS } from '@/shared/theme/ThemeProvider'
-import { get, post, put, del } from '@/lib/http.js'
+import { get, post, put, del, fetchWithFallback } from '@/lib/http.js'
 import dayjs from 'dayjs'
 
 const { Text, Title, Paragraph } = Typography
@@ -25,6 +25,10 @@ export default function AdminAnnouncements({ embedded = false }) {
   const [form] = Form.useForm()
   const [formValues, setFormValues] = useState({})
   const [unpublishModalVisible, setUnpublishModalVisible] = useState(false)
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false)
+  const [infoOpen, setInfoOpen] = useState(false)
+  const [auditLogModalVisible, setAuditLogModalVisible] = useState(false)
+  const [selectedAuditLog, setSelectedAuditLog] = useState(null)
 
   const [search, setSearch] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
@@ -55,15 +59,9 @@ export default function AdminAnnouncements({ embedded = false }) {
   const fetchAuditLogs = useCallback(async (page = 1) => {
     try {
       setAuditLogsLoading(true)
-      const res = await get(`/api/admin/monitoring/audit-logs?page=${page}&limit=20`)
+      const res = await get(`/api/admin/monitoring/audit-logs?page=${page}&limit=20&resourceType=announcement`)
       const logs = res?.data?.logs || []
-      // Filter for announcement-related events
-      const announcementLogs = logs.filter(log => 
-        log.action?.includes('announcement') || 
-        log.resource?.includes('announcement') ||
-        log.resourceType?.includes('announcement')
-      )
-      setAuditLogs(announcementLogs)
+      setAuditLogs(logs)
       setAuditLogsTotal(res?.meta?.total || 0)
     } catch (err) {
       message.error('Failed to load audit logs')
@@ -84,6 +82,7 @@ export default function AdminAnnouncements({ embedded = false }) {
           body: updated.body || '',
           priority: updated.priority || 'normal',
           isActive: updated.isActive !== false,
+          publishAt: updated.publishAt ? dayjs(updated.publishAt) : null,
           expiresAt: updated.expiresAt ? dayjs(updated.expiresAt) : null,
         })
       }
@@ -172,11 +171,16 @@ export default function AdminAnnouncements({ embedded = false }) {
         priority: values.priority || 'normal',
         status: publish ? 'published' : selected.status,
         isActive: publish ? true : (selected.isActive !== false),
+        publishAt: values.publishAt?.toISOString() || null,
         expiresAt: values.expiresAt?.toISOString() || null,
       }
-      await put(`/api/admin/announcements/${selected._id}`, payload)
+      const updatedAnnouncement = await put(`/api/admin/announcements/${selected._id}`, payload)
+      setAnnouncements(prev => prev.map(a => a._id === selected._id ? updatedAnnouncement : a))
+      setSelected(updatedAnnouncement)
       message.success(publish ? 'Announcement published' : 'Draft saved')
-      fetchAnnouncements()
+      if (publish) {
+        setSelected(null)
+      }
     } catch (err) {
       if (err?.errorFields) return
       message.error(err?.message || 'Failed to save announcement')
@@ -192,6 +196,7 @@ export default function AdminAnnouncements({ embedded = false }) {
       body: 'This is a test announcement created for demonstration purposes. It showcases the announcement system functionality and allows testing of various features including publishing, editing, and deletion.',
       priority: 'normal',
       isActive: true,
+      publishAt: dayjs().add(1, 'day'),
       expiresAt: dayjs().add(7, 'days')
     }
     form.setFieldsValue(testValues)
@@ -232,10 +237,37 @@ export default function AdminAnnouncements({ embedded = false }) {
       await del(`/api/admin/announcements/${selected._id}`)
       message.success('Announcement deleted')
       setSelected(null)
+      setDeleteModalVisible(false)
       fetchAnnouncements()
     } catch {
       message.error('Failed to delete announcement')
     }
+  }
+
+  const handleExportAuditLogs = async () => {
+    try {
+      const response = await fetchWithFallback('/api/admin/monitoring/audit-logs/export?resourceType=announcement&format=csv', { method: 'GET' })
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(errorText || 'Failed to export audit logs')
+      }
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `announcement-audit-logs-${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(link)
+      link.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(link)
+    } catch (err) {
+      message.error(err?.message || 'Failed to export audit logs')
+    }
+  }
+
+  const openAuditLog = (log) => {
+    setSelectedAuditLog(log)
+    setAuditLogModalVisible(true)
   }
 
   const handleUnpublish = async () => {
@@ -264,6 +296,7 @@ export default function AdminAnnouncements({ embedded = false }) {
       body: record.body || '',
       priority: record.priority || 'normal',
       isActive: record.isActive !== false,
+      publishAt: record.publishAt ? dayjs(record.publishAt) : null,
       expiresAt: record.expiresAt ? dayjs(record.expiresAt) : null,
     }
     form.setFieldsValue(values)
@@ -364,9 +397,14 @@ export default function AdminAnnouncements({ embedded = false }) {
             )}
           </div>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateDraft} loading={saving}>
-          Add
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <Tooltip title="About announcements">
+            <Button icon={<InfoCircleOutlined />} onClick={() => setInfoOpen(true)} aria-label="Announcement info" />
+          </Tooltip>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateDraft} loading={saving}>
+            Add
+          </Button>
+        </div>
       </div>
 
       <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: 'flex', flexDirection: 'column', ['--row-selected-bg']: token.colorPrimaryBg }}>
@@ -426,7 +464,18 @@ export default function AdminAnnouncements({ embedded = false }) {
 
   const detailContent = selected ? (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: token.colorBgContainer }}>
-      <div style={{ padding: 16, borderBottom: `1px solid ${token.colorBorderSecondary}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+      <div
+        style={{
+          padding: 16,
+          borderBottom: `1px solid ${token.colorBorderSecondary}`,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          flexWrap: 'wrap',
+          gap: 12,
+          flexShrink: 0,
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -443,7 +492,14 @@ export default function AdminAnnouncements({ embedded = false }) {
             )}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            flexWrap: 'wrap',
+            justifyContent: 'flex-end',
+          }}
+        >
           {selected.status === 'draft' && (
             <>
               <Button icon={<FileTextOutlined />} onClick={handleFillTestData}>
@@ -455,14 +511,9 @@ export default function AdminAnnouncements({ embedded = false }) {
               <Button type="primary" icon={<SendOutlined />} onClick={() => handleSave(true)} loading={saving}>
                 Publish
               </Button>
-              <Popconfirm
-                title="Delete this announcement?"
-                onConfirm={handleDelete}
-                okText="Delete"
-                okType="danger"
-              >
-                <Button danger icon={<DeleteOutlined />}>Delete</Button>
-              </Popconfirm>
+              <Button danger icon={<DeleteOutlined />} onClick={() => setDeleteModalVisible(true)}>
+                Delete
+              </Button>
             </>
           )}
           {selected.status === 'published' && (
@@ -473,8 +524,16 @@ export default function AdminAnnouncements({ embedded = false }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflow: 'auto' }}>
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          minHeight: 0,
+        }}
+      >
         <Tabs
+          tabBarGutter={16}
           defaultActiveKey="details"
           onChange={(key) => {
             if (key === 'audit-logs' && auditLogs.length === 0) {
@@ -502,7 +561,7 @@ export default function AdminAnnouncements({ embedded = false }) {
                     >
                       <TextArea rows={6} placeholder="Announcement content" disabled={selected.status === 'published'} />
                     </Form.Item>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: screens.sm ? '1fr 1fr' : '1fr', gap: 24, alignItems: 'start' }}>
                       <Form.Item name="priority" label="Priority">
                         <Select
                           disabled={selected.status === 'published'}
@@ -514,7 +573,14 @@ export default function AdminAnnouncements({ embedded = false }) {
                           ]}
                         />
                       </Form.Item>
-                      <Form.Item name="expiresAt" label="Expires At">
+                      <Form.Item name="publishAt" label="Publish At">
+                        <DatePicker
+                          showTime
+                          style={{ width: '100%' }}
+                          disabled={selected.status === 'published'}
+                        />
+                      </Form.Item>
+                      <Form.Item name="expiresAt" label="Expires At" style={{ gridColumn: screens.sm ? 'span 2' : 'auto' }}>
                         <DatePicker style={{ width: '100%' }} disabled={selected.status === 'published'} />
                       </Form.Item>
                     </div>
@@ -525,8 +591,9 @@ export default function AdminAnnouncements({ embedded = false }) {
                     <div style={{
                       border: `1px solid ${token.colorBorderSecondary}`,
                       borderRadius: 8,
-                      overflow: 'hidden',
-                      height: 600,
+                      overflow: 'auto',
+                      height: isMobile ? 500 : 600,
+                      maxHeight: '70vh',
                       position: 'relative'
                     }}>
                       
@@ -650,8 +717,7 @@ export default function AdminAnnouncements({ embedded = false }) {
                                       marginBottom: '8px', 
                                       fontSize: screens.md ? '56px' : '36px',
                                       fontWeight: 700,
-                                      lineHeight: 1.1,
-                                      whiteSpace: 'nowrap'
+                                      lineHeight: 1.1
                                     }}>
                                       <span style={{ color: BRAND_COLORS.blue }}>Business </span>
                                       <span style={{ color: BRAND_COLORS.red }}>Permit </span>
@@ -661,8 +727,7 @@ export default function AdminAnnouncements({ embedded = false }) {
                                       margin: 0, 
                                       fontSize: screens.md ? '40px' : '28px',
                                       fontWeight: 700,
-                                      color: token.colorText,
-                                      whiteSpace: 'nowrap'
+                                      color: token.colorText
                                     }}>
                                       Made Simpler.
                                     </Title>
@@ -711,15 +776,18 @@ export default function AdminAnnouncements({ embedded = false }) {
               label: (
                 <span>
                   <HistoryOutlined style={{ marginRight: 8 }} />
-                  Audit Logs
+                  History
                 </span>
               ),
               children: (
                 <div style={{ padding: 16 }}>
-                  <div style={{ marginBottom: 16 }}>
+                  <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
                     <Text type="secondary">
-                      Audit logs for announcement operations (create, edit, delete)
+                      History for announcement operations (create, edit, delete). Click a row for full audit details.
                     </Text>
+                    <Button icon={<DownloadOutlined />} onClick={handleExportAuditLogs}>
+                      Export CSV
+                    </Button>
                   </div>
                   
                   {auditLogsLoading ? (
@@ -727,51 +795,77 @@ export default function AdminAnnouncements({ embedded = false }) {
                       <Spin />
                     </div>
                   ) : auditLogs.length === 0 ? (
-                    <Empty description="No audit logs found" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                    <Empty description="No history found" image={Empty.PRESENTED_IMAGE_SIMPLE} />
                   ) : (
                     <>
                       <Table
                         dataSource={auditLogs}
+                        scroll={{ x: 1000 }}
                         columns={[
                           {
-                            title: 'Action',
+                            title: 'Date & Time',
+                            dataIndex: 'createdAt',
+                            key: 'createdAt',
+                            render: (date) => date ? dayjs(date).format('YYYY-MM-DD HH:mm:ss') : '-',
+                            width: 180,
+                          },
+                          {
+                            title: 'Event Type',
                             dataIndex: 'action',
                             key: 'action',
                             render: (action) => {
                               const actionColors = {
-                                'announcement_created': 'green',
-                                'announcement_updated': 'blue', 
-                                'announcement_deleted': 'red'
+                                announcement_created: 'green',
+                                announcement_updated: 'blue',
+                                announcement_deleted: 'red',
                               }
                               return (
                                 <Tag color={actionColors[action] || 'default'}>
-                                  {action?.replace('announcement_', '').toUpperCase() || 'UNKNOWN'}
+                                  {action?.replace('announcement_', '').replace(/_/g, ' ').toUpperCase() || 'UNKNOWN'}
                                 </Tag>
                               )
                             }
                           },
                           {
-                            title: 'User',
+                            title: 'Changed By',
                             dataIndex: 'userEmail',
                             key: 'userEmail',
-                            render: (email) => email || 'Unknown'
+                            render: (email, record) => (
+                              <div>
+                                <Text>{email || 'Unknown'}</Text>
+                                <br />
+                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                  {record.role || 'Admin'}
+                                </Text>
+                              </div>
+                            ),
                           },
                           {
-                            title: 'Date & Time',
-                            dataIndex: 'createdAt',
-                            key: 'createdAt',
-                            render: (date) => date ? dayjs(date).format('MMM D, YYYY h:mm A') : '-'
+                            title: 'Field',
+                            dataIndex: 'fieldChanged',
+                            key: 'fieldChanged',
+                            render: (field) => field || '-',
                           },
                           {
-                            title: 'Details',
-                            dataIndex: 'details',
-                            key: 'details',
-                            render: (details) => (
-                              <Text ellipsis={{ tooltip: details }} style={{ maxWidth: 300 }}>
-                                {details || '-'}
+                            title: 'Old Value',
+                            dataIndex: 'oldValue',
+                            key: 'oldValue',
+                            render: (value) => (
+                              <Text ellipsis={{ tooltip: value }} style={{ maxWidth: 220 }}>
+                                {value || '-'}
                               </Text>
-                            )
-                          }
+                            ),
+                          },
+                          {
+                            title: 'New Value',
+                            dataIndex: 'newValue',
+                            key: 'newValue',
+                            render: (value) => (
+                              <Text ellipsis={{ tooltip: value }} style={{ maxWidth: 220 }}>
+                                {value || '-'}
+                              </Text>
+                            ),
+                          },
                         ]}
                         pagination={{
                           current: auditLogsPage,
@@ -785,6 +879,10 @@ export default function AdminAnnouncements({ embedded = false }) {
                         }}
                         rowKey="_id"
                         size="small"
+                        onRow={(record) => ({
+                          onClick: () => openAuditLog(record),
+                          style: { cursor: 'pointer' },
+                        })}
                       />
                     </>
                   )}
@@ -826,13 +924,109 @@ export default function AdminAnnouncements({ embedded = false }) {
     </Modal>
   )
 
+  const deleteModal = (
+    <Modal
+      title="Delete Announcement"
+      open={deleteModalVisible}
+      onOk={handleDelete}
+      onCancel={() => setDeleteModalVisible(false)}
+      okText="Delete"
+      cancelText="Cancel"
+      okButtonProps={{ danger: true }}
+      confirmLoading={saving}
+    >
+      <p>Are you sure you want to delete this announcement draft?</p>
+      <p>This action cannot be undone.</p>
+      {selected && (
+        <div style={{ marginTop: 16, padding: 12, background: token.colorBgLayout, borderRadius: 6 }}>
+          <Text strong>{selected.title || '(Untitled)'}</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Created: {selected.createdAt ? dayjs(selected.createdAt).format('MMM D, YYYY') : '-'}
+          </Text>
+        </div>
+      )}
+    </Modal>
+  )
+
+  const auditLogModal = (
+    <Modal
+      title="Audit Entry Details"
+      open={auditLogModalVisible}
+      onOk={() => setAuditLogModalVisible(false)}
+      onCancel={() => setAuditLogModalVisible(false)}
+      footer={null}
+    >
+      {selectedAuditLog ? (
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div>
+            <Text strong>Event:</Text> {selectedAuditLog.action}
+          </div>
+          <div>
+            <Text strong>User:</Text> {selectedAuditLog.userEmail || 'Unknown'}
+          </div>
+          <div>
+            <Text strong>Date:</Text> {selectedAuditLog.createdAt ? dayjs(selectedAuditLog.createdAt).format('MMM D, YYYY h:mm A') : '-'}
+          </div>
+          <div>
+            <Text strong>Field:</Text> {selectedAuditLog.fieldChanged || '-'}
+          </div>
+          <div>
+            <Text strong>Old Value:</Text>
+            <div style={{ marginTop: 4 }}>
+              <Text code>{selectedAuditLog.oldValue || '-'}</Text>
+            </div>
+          </div>
+          <div>
+            <Text strong>New Value:</Text>
+            <div style={{ marginTop: 4 }}>
+              <Text code>{selectedAuditLog.newValue || '-'}</Text>
+            </div>
+          </div>
+          <div>
+            <Text strong>Details:</Text>
+            <div style={{ marginTop: 4 }}>
+              <Text>{selectedAuditLog.details || '-'}</Text>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <Empty description="No audit details available" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+      )}
+    </Modal>
+  )
+
+  const infoModal = (
+    <Modal
+      title="Announcements"
+      open={infoOpen}
+      onOk={() => setInfoOpen(false)}
+      onCancel={() => setInfoOpen(false)}
+      footer={null}
+    >
+      <p>Use announcements to post important updates to the public landing page. Drafts can be prepared, scheduled for future publication, and set to expire after they are no longer relevant.</p>
+      <p>Once an announcement is posted or becomes visible, it can no longer be deleted. Published announcements can be unpublished to remove them from public view.</p>
+      <p>Announcements can also be filtered by status and priority while editing.</p>
+    </Modal>
+  )
+
   if (isMobile) {
     const mobileBody = (
       <div style={{ padding: 16 }}>
         {selected ? (
-          <div>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              height: 'calc(100vh - 120px)',
+              overflow: 'hidden',
+            }}
+          >
             <Button onClick={() => setSelected(null)} style={{ marginBottom: 16 }}>← Back to list</Button>
-            {detailContent}
+
+            <div style={{ flex: 1, minHeight: 0 }}>
+              {detailContent}
+            </div>
           </div>
         ) : (
           listContent
@@ -844,6 +1038,9 @@ export default function AdminAnnouncements({ embedded = false }) {
       <>
         {mobileBody}
         {unpublishModal}
+        {deleteModal}
+        {auditLogModal}
+        {infoModal}
       </>
     ) : (
       <>
@@ -851,14 +1048,31 @@ export default function AdminAnnouncements({ embedded = false }) {
           {mobileBody}
         </AdminLayout>
         {unpublishModal}
+        {deleteModal}
+        {auditLogModal}
+        {infoModal}
       </>
     )
   }
 
   const desktopBody = (
-    <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <Splitter style={{ flex: 1, minHeight: 0 }}>
-        <Splitter.Panel min="25%" defaultSize="20%" max="40%" style={{ overflow: 'hidden', background: token.colorBgContainer }}>
+    <div
+      style={{
+        height: 'calc(100vh - 120px)',
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      <Splitter
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflow: 'hidden',
+        }}
+      >
+        <Splitter.Panel min="280px" defaultSize="30%" max="40%" style={{ overflow: 'hidden', background: token.colorBgContainer }}>
           {listContent}
         </Splitter.Panel>
         <Splitter.Panel min="60%" defaultSize="80%" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', background: token.colorBgContainer }}>
@@ -872,6 +1086,9 @@ export default function AdminAnnouncements({ embedded = false }) {
     <>
       {desktopBody}
       {unpublishModal}
+      {deleteModal}
+      {auditLogModal}
+      {infoModal}
     </>
   ) : (
     <>
@@ -879,6 +1096,9 @@ export default function AdminAnnouncements({ embedded = false }) {
         {desktopBody}
       </AdminLayout>
       {unpublishModal}
+      {deleteModal}
+      {auditLogModal}
+      {infoModal}
     </>
   )
 }
