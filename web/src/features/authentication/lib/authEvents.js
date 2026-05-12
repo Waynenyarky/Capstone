@@ -1,5 +1,6 @@
 let currentUser = null
 let isLoggingOut = false
+let logoutNotification = null
 const listeners = new Set()
 
 export function getCurrentUser() {
@@ -14,11 +15,24 @@ export function setIsLoggingOut(value) {
   isLoggingOut = !!value
 }
 
+export function getLogoutNotification() {
+  return logoutNotification
+}
+
+export function setLogoutNotification(notification) {
+  logoutNotification = notification
+}
+
+export function clearLogoutNotification() {
+  logoutNotification = null
+}
+
 export function setCurrentUser(user) {
   currentUser = user || null
   // If we are setting a user (logging in), reset the logging out flag
   if (currentUser) {
     isLoggingOut = false
+    logoutNotification = null
   }
   listeners.forEach((l) => {
     try { l(currentUser) } catch (err) { void err }

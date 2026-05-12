@@ -107,7 +107,7 @@ export default function MaintenanceHistoryDetailPanel({ approval, token: tokenPr
           )}
           <Descriptions.Item label="Action">{actionLabel}</Descriptions.Item>
           {details.message != null && details.message !== '' && (
-            <Descriptions.Item label="Message">{details.message}</Descriptions.Item>
+            <Descriptions.Item label="Public Announcement Message">{details.message}</Descriptions.Item>
           )}
           {details.expectedResumeAt && (
             <Descriptions.Item label="Expected resume">

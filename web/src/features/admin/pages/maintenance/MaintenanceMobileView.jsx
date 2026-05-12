@@ -1,35 +1,42 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Card, Tabs, Button, Tag, Drawer, Select, Empty, Typography, theme, Space, Tooltip, DatePicker, Input } from 'antd'
+import { Card, Tabs, Button, Tag, Drawer, Select, Typography, theme, Space, Tooltip, DatePicker, Input } from 'antd'
 import { StopOutlined, ClockCircleOutlined, ArrowLeftOutlined, FilterOutlined, DownloadOutlined, InfoCircleOutlined, SearchOutlined } from '@ant-design/icons'
-import MaintenanceOverviewTab from './components/MaintenanceOverviewTab.jsx'
 import MaintenanceRequestDetailPanel from './components/MaintenanceRequestDetailPanel'
 import MaintenanceInfoModal from './components/MaintenanceInfoModal'
 import MaintenanceRequestList from './components/MaintenanceRequestList'
 import { TAB_ITEMS, HISTORY_PAGE_SIZE, HISTORY_REASON_OPTIONS } from './constants/maintenance.constants'
 import { isDefaultVisible, filterApprovalsBySearch, filterApprovalsByStatus, filterApprovalsByReason } from './utils/maintenance.utils'
-import { useMaintenanceFilters, useMaintenancePagination, useMaintenanceExport } from './hooks'
+import { useMaintenanceFilters, useMaintenancePagination, useMaintenanceExport, useMaintenance } from './hooks'
+import RequestMaintenanceModal from './components/RequestMaintenanceModal'
 
 const { Text } = Typography
 const { RangePicker } = DatePicker
 
 export default function MaintenanceMobileView({
-  tabKey,
-  setTabKey,
-  current,
-  loading,
-  approvals,
-  onApprove,
-  onUndoVote,
-  onCancelApproved,
-  onOpenRequestModal,
-  onRefresh,
-  announcementsTab,
   onBackToMenu,
-  infoOpen,
-  setInfoOpen,
 }) {
+  const [tabKey, setTabKey] = useState('requests')
+  const [infoOpen, setInfoOpen] = useState(false)
   const { token } = theme.useToken()
   const [selectedApproval, setSelectedApproval] = useState(null)
+
+  const {
+    form,
+    current,
+    approvals,
+    loading,
+    submitting,
+    requestModalOpen,
+    setRequestModalOpen,
+    requestModalOptions,
+    load,
+    handleConfirmSubmit,
+    handleApprove,
+    handleUndoVote,
+    handleCancelApproved,
+    openRequestModalOrBlock,
+    stepUpModal,
+  } = useMaintenance()
 
   const {
     historySearch,
@@ -82,15 +89,6 @@ export default function MaintenanceMobileView({
     return () => window.removeEventListener('devtools:maintenance-select-first', handler)
   }, [scopedApprovals])
 
-  const overviewTab = (
-    <MaintenanceOverviewTab
-      current={current}
-      approvals={approvals}
-      setTabKey={setTabKey}
-      onOpenRequestModal={onOpenRequestModal}
-    />
-  )
-
   const requestsTab = (
     <div style={{ padding: '0 16px 12px 16px', background: token.colorBgContainer, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
@@ -141,13 +139,9 @@ export default function MaintenanceMobileView({
   )
 
   const tabChildren = {
-    overview: overviewTab,
-    announcements: announcementsTab || <Empty description="Announcements tab unavailable" style={{ marginTop: 24 }} />,
     requests: requestsTab,
     history: requestsTab,
   }
-
-  const selectedLabel = TAB_ITEMS.find((i) => i.key === tabKey)?.label ?? tabKey
 
   return (
     <Card styles={{ body: { background: 'transparent', padding: 0, height: '100%', display: 'flex', flexDirection: 'column' } }} style={{ background: 'transparent', border: 'none', height: '100%' }}>
@@ -162,7 +156,7 @@ export default function MaintenanceMobileView({
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <Button icon={<ArrowLeftOutlined />} onClick={onBackToMenu} />
               <Text strong style={{ fontSize: 16 }}>
-                {selectedLabel}
+                Maintenance
               </Text>
               {tabKey === 'requests' && (
                 <Tag color={current?.isActive ? 'cyan' : 'default'}>{current?.isActive ? 'Active' : 'Inactive'}</Tag>
@@ -177,11 +171,11 @@ export default function MaintenanceMobileView({
                 )}
                 {current?.isActive && (
                   <Tooltip title="Schedule">
-                    <Button icon={<ClockCircleOutlined />} onClick={() => onOpenRequestModal({ forceScheduleMode: true })} />
+                    <Button icon={<ClockCircleOutlined />} onClick={() => openRequestModalOrBlock({ forceScheduleMode: true })} />
                   </Tooltip>
                 )}
                 <Tooltip title={current?.isActive ? 'Disable' : 'Schedule'}>
-                  <Button type="primary" icon={current?.isActive ? <StopOutlined /> : <ClockCircleOutlined />} onClick={onOpenRequestModal}>
+                  <Button type="primary" icon={current?.isActive ? <StopOutlined /> : <ClockCircleOutlined />} onClick={openRequestModalOrBlock}>
                     {current?.isActive ? 'Disable' : 'Schedule'}
                   </Button>
                 </Tooltip>
@@ -215,16 +209,14 @@ export default function MaintenanceMobileView({
             approval={selectedApproval}
             allApprovals={approvals}
             onApprove={async (approvalId, approved, comment) => {
-              await onApprove(approvalId, approved, comment)
-              onRefresh?.()
+              await handleApprove(approvalId, approved, comment)
             }}
-            onUndoVote={onUndoVote}
+            onUndoVote={handleUndoVote}
             onCancelApproved={async (approvalId) => {
-              await onCancelApproved?.(approvalId)
-              onRefresh?.()
+              await handleCancelApproved(approvalId)
               setSelectedApproval(null)
             }}
-            onRefresh={onRefresh}
+            onRefresh={load}
           />
         )}
       </Drawer>
@@ -308,6 +300,19 @@ export default function MaintenanceMobileView({
       </Drawer>
 
       {setInfoOpen && <MaintenanceInfoModal open={infoOpen} onClose={() => setInfoOpen(false)} />}
+
+      <RequestMaintenanceModal
+        open={requestModalOpen}
+        onCancel={() => setRequestModalOpen(false)}
+        form={form}
+        forceScheduleMode={requestModalOptions.forceScheduleMode}
+        onSubmit={handleConfirmSubmit}
+        submitting={submitting}
+        maintenanceActive={current?.isActive === true}
+        isMobile={true}
+      />
+
+      {stepUpModal}
     </Card>
   )
 }

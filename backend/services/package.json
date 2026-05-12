@@ -15,10 +15,8 @@
     "dev:audit": "cd audit-service && npm run dev",
     "install:all": "npm install && cd auth-service && npm install && cd ../business-service && npm install && cd ../admin-service && npm install && cd ../audit-service && npm install"
   },
-  "dependencies": {
-    "concurrently": "^8.2.2"
-  },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "nodemon": "^3.0.1"
   }
 }

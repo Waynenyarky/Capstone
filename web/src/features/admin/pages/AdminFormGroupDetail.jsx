@@ -64,7 +64,7 @@ export default function AdminFormGroupDetail() {
       setGroup(res.group)
       setVersions(res.versions || [])
     } catch (err) {
-      // eslint-disable-next-line no-console
+       
       console.error('Failed to load form group:', err)
       message.error('Failed to load form group')
       navigate('/admin/form-definitions')
@@ -87,7 +87,7 @@ export default function AdminFormGroupDetail() {
         navigate(`/admin/form-definitions/${res.definition._id}`)
       }
     } catch (err) {
-      // eslint-disable-next-line no-console
+       
       console.error('Failed to create version:', err)
       message.error(err.message || 'Failed to create version')
     } finally {
@@ -102,7 +102,7 @@ export default function AdminFormGroupDetail() {
       message.success('Version set as active')
       loadGroup()
     } catch (err) {
-      // eslint-disable-next-line no-console
+       
       console.error('Failed to set version active:', err)
       message.error(err.message || 'Failed to set version active')
     } finally {
@@ -132,7 +132,7 @@ export default function AdminFormGroupDetail() {
           message.success('Form group retired')
           navigate('/admin/form-definitions')
         } catch (err) {
-          // eslint-disable-next-line no-console
+           
           console.error('Failed to retire form group:', err)
           message.error(err.message || 'Failed to retire form group')
         } finally {

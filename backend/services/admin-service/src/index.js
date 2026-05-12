@@ -13,11 +13,11 @@ const http = require('http');
 const mongoose = require('mongoose');
 
 dotenv.config();
-// Load project root .env so EMAIL_API_PROVIDER/EMAIL_API_KEY from root override any local .env
-const rootEnv = path.join(__dirname, '..', '..', '..', '..', '..', '.env');
-if (fs.existsSync(rootEnv)) {
-  dotenv.config({ path: rootEnv });
-}
+// Load .env from project root when running from backend/services/admin-service (so MONGO_URI etc. are found)
+const projectRootEnv = path.join(__dirname, '..', '..', '..', '..', '.env');
+try {
+  require('dotenv').config({ path: projectRootEnv });
+} catch (_) { /* optional */ }
 
 const app = express();
 
@@ -134,6 +134,7 @@ require('./models/FormDefinition');
 require('./models/PenaltyConfiguration');
 require('./models/TamperIncident');
 require('./models/Notification');
+require('./models/PermitFormsSection');
 
 // Admin routes
 const adminRouter = require('./routes/approvals');
@@ -165,6 +166,8 @@ app.use('/api/lgus', lgusRouter);
 app.use('/api/forms', publicFormsRouter);
 const announcementsRouter = require('./routes/announcements');
 app.use('/api/admin/announcements', announcementsRouter);
+const permitFormsRouter = require('./routes/permitForms');
+app.use('/api/admin/permit-forms', permitFormsRouter);
 
 // LGU Officer permit applications routes
 app.use('/api/lgu-officer/permit-applications', lguOfficerPermitRouter);
@@ -310,6 +313,19 @@ async function start() {
         }
       } catch (error) {
         logger.warn('Announcements seed failed', { error: error.message })
+      }
+    }
+
+    // Seed permit forms when SEED_PERMIT_FORMS or SEED_DEV is set (idempotent)
+    if (process.env.NODE_ENV !== 'test' && (process.env.SEED_PERMIT_FORMS === 'true' || process.env.SEED_DEV === 'true')) {
+      try {
+        const { seedPermitFormsIfEmpty } = require('./seed/seedPermitForms')
+        const result = await seedPermitFormsIfEmpty()
+        if (result.seeded) {
+          logger.info('Permit forms seeded', { created: result.created })
+        }
+      } catch (error) {
+        logger.warn('Permit forms seed failed', { error: error.message })
       }
     }
 

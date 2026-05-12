@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react'
-import { Typography, Space, Button, Empty, Drawer, Modal, Form, Input, Select, App, theme, Badge } from 'antd'
+import { Typography, Space, Button, Drawer, Modal, Form, Input, Select, App, theme } from 'antd'
 import { 
-  IdcardOutlined, ReloadOutlined, PlusOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined,
-  WifiOutlined
+  IdcardOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined
 } from '@ant-design/icons'
 import { LayoutPageHeader } from '@/features/shared'
+import { SiteStatusPill } from '@/features/shared/components'
 import BizClearLogo from '@/shared/components/BizClearLogo.jsx'
 import { useAuthSession } from '@/features/authentication'
 import { useThemeSettings } from '@/features/user/hooks/useThemeSettings'
@@ -13,7 +13,6 @@ import OfficerLeftPanel from '../components/OfficerLeftPanel'
 import OfficerRightPanel from './OfficerRightPanel'
 import useOfficerData from '../hooks/useOfficerData'
 import { useSocketConnection, useApplicationEvents } from '@/hooks/useSocket'
-import dayjs from 'dayjs'
 
 const { Text } = Typography
 
@@ -228,25 +227,12 @@ export default function OfficerDashboard() {
         pageTitle="Officer Dashboard"
         pageIcon={<IdcardOutlined />}
         headerActions={
-          <Space size="middle">
-            {lastUpdated && (
-              <Space size="small" align="center" style={{ 
-                background: socketConnected ? 'rgba(82, 196, 26, 0.1)' : 'rgba(0,0,0,0.04)', 
-                padding: '4px 12px', 
-                borderRadius: 16,
-                border: `1px solid ${socketConnected ? 'rgba(82, 196, 26, 0.3)' : 'rgba(0,0,0,0.1)'}`
-              }}>
-                <Badge 
-                  status={socketConnected ? 'success' : 'default'} 
-                  text={socketConnected ? 'Live' : 'Offline'}
-                />
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Updated {dayjs(lastUpdated).format('h:mm A')}
-                </Text>
-              </Space>
-            )}
-            <Button icon={<ReloadOutlined />} onClick={refresh} />
-          </Space>
+          <SiteStatusPill
+            lastUpdated={lastUpdated}
+            socketConnected={socketConnected}
+            onRefresh={refresh}
+            loading={false}
+          />
         }
         viewNotificationsPath="/notifications"
         showPageHeader

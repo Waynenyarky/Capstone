@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { Typography, Spin, theme, Space, Empty, Button, App, Tag, Pagination, Input, Select, Card, Modal, Tabs, Badge } from 'antd'
-import { PlusOutlined, ReloadOutlined, ShopOutlined, ArrowLeftOutlined, BugOutlined, DeleteOutlined, SearchOutlined, FilterOutlined, SettingOutlined, LogoutOutlined, CloseOutlined } from '@ant-design/icons'
+import { Typography, Spin, theme, Space, Empty, Button, App, Tag, Pagination, Input, Select, Card, Modal, Tabs } from 'antd'
+import { PlusOutlined, ShopOutlined, ArrowLeftOutlined, BugOutlined, DeleteOutlined, SearchOutlined, FilterOutlined, SettingOutlined, LogoutOutlined, CloseOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import dayjs from 'dayjs'
 import BusinessOwnerLayout from '../components/BusinessOwnerLayout'
 import BusinessListPanel from '../components/dashboard/BusinessListPanel'
 import BusinessCard from '../components/BusinessCard'
@@ -15,8 +14,9 @@ import { useAuthSession } from '@/features/authentication'
 import { useThemeSettings } from '@/features/user/hooks/useThemeSettings'
 import { getBusinesses, getBusinessesPaginated, updateBusiness, deleteBusiness } from '../services/businessProfileService'
 import { useSocketConnection, useSocketEvent } from '@/hooks/useSocket'
+import { SiteStatusPill } from '@/features/shared/components'
 
-const { Title, Text } = Typography
+const { Title } = Typography
 const { Search } = Input
 const { Option } = Select
 
@@ -384,31 +384,13 @@ export default function BusinessOwnerDashboard() {
       pageTitle="Business Dashboard"
       pageIcon={<ShopOutlined />}
       headerActions={
-        <Space size="middle" wrap data-testid="dashboard-header-actions">
-          {lastUpdatedAt && (
-            <Space size="small" align="center" style={{ 
-              background: socketConnected ? 'rgba(82, 196, 26, 0.1)' : 'rgba(0,0,0,0.04)', 
-              padding: '4px 12px', 
-              borderRadius: 16,
-              border: `1px solid ${socketConnected ? 'rgba(82, 196, 26, 0.3)' : 'rgba(0,0,0,0.1)'}`
-            }}>
-              <Badge 
-                status={socketConnected ? 'success' : 'default'} 
-                text={socketConnected ? 'Live' : 'Offline'}
-              />
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Updated {dayjs(lastUpdatedAt).format('h:mm A')}
-              </Text>
-            </Space>
-          )}
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={fetchBusinesses}
-            loading={loading}
-            data-testid="refresh-button"
-          >
-          </Button>
-        </Space>
+        <SiteStatusPill
+          lastUpdated={lastUpdatedAt}
+          socketConnected={socketConnected}
+          onRefresh={fetchBusinesses}
+          loading={loading}
+          data-testid="dashboard-header-actions"
+        />
       }
       onSettingsClick={() => setShowSettings(true)} // Open settings in dashboard
     >

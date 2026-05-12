@@ -2,12 +2,28 @@ import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { App as AntdApp } from 'antd'
 import { LockOutlined } from '@ant-design/icons'
+import { getLogoutNotification, clearLogoutNotification } from '@/features/authentication/lib/authEvents.js'
 
 export default function useNavigationNotifications() {
   const location = useLocation()
   const { notification } = AntdApp.useApp()
 
   useEffect(() => {
+    // Check for logout notification from global state first
+    const logoutNotif = getLogoutNotification()
+    if (logoutNotif) {
+      notification[logoutNotif.type]({
+        message: logoutNotif.message,
+        description: logoutNotif.description,
+        placement: 'top',
+        duration: 4.5,
+        key: `logout-notification-${Date.now()}`,
+      })
+      clearLogoutNotification()
+      return
+    }
+
+    // Then check for location state notifications
     if (location.state?.notification) {
       const { type = 'info', message, description } = location.state.notification
       

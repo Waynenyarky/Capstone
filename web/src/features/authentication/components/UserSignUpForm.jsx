@@ -323,7 +323,7 @@ export default function UserSignUpForm({ extraContent }) {
         {/* ── Step 2: PIS (Personal Information Sheet) ── */}
         <div style={{ display: currentStep === 1 ? 'block' : 'none' }}>
           
-          <Row gutter={16}>
+          <Row gutter={0}>
             <PhilippineAddressFields form={form} required namePrefix="address" />
           </Row>
 

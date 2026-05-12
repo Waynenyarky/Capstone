@@ -333,7 +333,7 @@ export default function MaintenanceRequestDetailPanel({ approval, allApprovals, 
             </Descriptions.Item>
           )}
           {details.message != null && details.message !== '' && details.message !== details.reason && (
-            <Descriptions.Item label="Message">{details.message}</Descriptions.Item>
+            <Descriptions.Item label="Public Announcement Message">{details.message}</Descriptions.Item>
           )}
           {approval.executedAt && (
             <Descriptions.Item label="Executed at">
