@@ -60,6 +60,7 @@ services:
       - AUDIT_SERVICE_URL=${DOCKER_AUDIT_SERVICE_URL}
       - BUSINESS_SERVICE_URL=${DOCKER_BUSINESS_SERVICE_URL}
       - SEED_FORM_DEFINITIONS=true
+      - SEED_DEV=true
 
   audit-service:
     environment:
