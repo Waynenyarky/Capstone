@@ -4,8 +4,7 @@
 }
 
 .application-detail-tabs .ant-tabs-nav-wrap {
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: auto hidden;
 }
 
 .application-detail-tabs .ant-tabs-nav-list {
