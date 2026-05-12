@@ -66,6 +66,23 @@ describe('ProtectedRoute', () => {
     expect(screen.getByText('secure content')).toBeInTheDocument()
   })
 
+  it('accepts business owner role aliases', () => {
+    mockUseAuthSession.mockReturnValue({
+      currentUser: { token: 'token', role: 'owner' },
+      role: { slug: 'owner' },
+      isLoading: false,
+    })
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/owner" element={<ProtectedRoute allowedRoles={['business_owner']}><Secure /></ProtectedRoute>} />
+      </Routes>,
+      { initialEntries: ['/owner'] }
+    )
+
+    expect(screen.getByText('secure content')).toBeInTheDocument()
+  })
+
   it('redirects unauthenticated users to login with warning for sensitive routes', () => {
     mockUseAuthSession.mockReturnValue({
       currentUser: null,

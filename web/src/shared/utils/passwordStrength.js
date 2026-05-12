@@ -50,7 +50,9 @@ export function getPasswordStrength(password) {
  * @param {string} password - Password to check
  * @returns {{valid: boolean, checks: {length: boolean, lowercase: boolean, uppercase: boolean, number: boolean, special: boolean}}}
  */
-export function validatePasswordRequirements(password) {
+export function validatePasswordRequirements(password, options = {}) {
+  const { minLength = 8 } = options
+
   if (!password) {
     return {
       valid: false,
@@ -65,7 +67,7 @@ export function validatePasswordRequirements(password) {
   }
   
   const checks = {
-    length: password.length >= 8,
+    length: password.length >= minLength,
     lowercase: /[a-z]/.test(password),
     uppercase: /[A-Z]/.test(password),
     number: /\d/.test(password),
@@ -81,10 +83,14 @@ export function validatePasswordRequirements(password) {
 /**
  * Get requirement labels
  */
-export const REQUIREMENT_LABELS = {
-  length: 'At least 8 characters',
-  lowercase: 'One lowercase letter',
-  uppercase: 'One uppercase letter',
-  number: 'One number',
-  special: 'One special character'
+export function getRequirementLabels(minLength = 8) {
+  return {
+    length: `At least ${minLength} characters`,
+    lowercase: 'One lowercase letter',
+    uppercase: 'One uppercase letter',
+    number: 'One number',
+    special: 'One special character',
+  }
 }
+
+export const REQUIREMENT_LABELS = getRequirementLabels(8)

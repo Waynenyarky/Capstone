@@ -31,7 +31,9 @@ export const pisZipCodeRules = [
   { pattern: /^\d{4}$/, message: 'Zip code must be exactly 4 digits' },
 ]
 
-export const pisSexRules = []
+export const pisSexRules = [
+  { required: true, message: 'Please select your sex' },
+]
 
 export const pisMaritalStatusRules = [
   { required: true, message: 'Please select your marital status' },

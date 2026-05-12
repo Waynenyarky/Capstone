@@ -4,6 +4,14 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthSession } from '@/features/authentication/hooks/useAuthSession'
 import { Alert } from 'antd'
 
+function normalizeRoleKey(value) {
+  const raw = String(value?.slug ?? value ?? '').trim().toLowerCase()
+  if (['owner', 'business-owner', 'business owner', 'businessowner'].includes(raw)) {
+    return 'business_owner'
+  }
+  return raw
+}
+
 export default function Login() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -21,7 +29,7 @@ export default function Login() {
   }, [location])
 
   const handleLoginSuccess = React.useCallback((user) => {
-    const role = String(user?.role?.slug || user?.role || '').toLowerCase()
+    const role = normalizeRoleKey(user?.role)
     const needsOnboarding = !!(user?.mustChangeCredentials || user?.mustSetupMfa)
 
     // Success notification shown on destination page (Option A)

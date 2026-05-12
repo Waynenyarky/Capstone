@@ -11,6 +11,7 @@ export const lastNameRules = [
 ]
 
 export const middleNameRules = [
+  { required: true, message: 'Please enter your middle name' },
   { max: 100, message: 'Middle name must be at most 100 characters' },
   namePatternRule,
 ]
@@ -42,7 +43,7 @@ export const passwordRules = [
   () => ({
     validator(_, value) {
       if (!value) return Promise.resolve()
-      if (value.length < 8) return Promise.reject(new Error('Password must be at least 8 characters'))
+      if (value.length < 12) return Promise.reject(new Error('Password must be at least 12 characters long'))
       if (!/[a-z]/.test(value)) return Promise.reject(new Error('Password must contain a lowercase letter'))
       if (!/[A-Z]/.test(value)) return Promise.reject(new Error('Password must contain an uppercase letter'))
       if (!/\d/.test(value)) return Promise.reject(new Error('Password must contain a number'))
