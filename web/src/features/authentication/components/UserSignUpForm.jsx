@@ -1,7 +1,7 @@
 // UserSignUpForm.jsx — Two-step signup: Account info → PIS fields
 import React, { useState, useCallback } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Input, Button, Checkbox, Typography, Row, Col, Grid, Steps, Select, DatePicker, Divider, message } from 'antd'
+import { Input, Button, Checkbox, Typography, Row, Col, Grid, Select, DatePicker, Divider, message } from 'antd'
 import { useNavigate, Link } from 'react-router-dom'
 import dayjs from 'dayjs'
 
@@ -263,16 +263,6 @@ export default function UserSignUpForm({ extraContent }) {
             Step 2: Click Next to complete your Personal Info, then submit your registration.
           </Text>
         </div>
-
-        <Steps
-          current={currentStep}
-          size="small"
-          style={{ marginBottom: 24 }}
-          items={[
-            { title: 'Account' },
-            { title: 'Personal Info' },
-          ]}
-        />
 
         {/* ── Step 1: Account Information ── */}
         <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
