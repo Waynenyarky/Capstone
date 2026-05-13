@@ -1,6 +1,7 @@
 import { Layout, theme } from 'antd'
 import HomeHeader from '../components/HomeHeader'
 import HeroSection from '../components/HeroSection'
+import OfficeLocationSection from '../components/OfficeLocationSection'
 import HomeFooter from '../components/HomeFooter'
 
 const { Content } = Layout
@@ -13,6 +14,7 @@ export default function Home() {
       <HomeHeader />
       <Content style={{ display: 'flex', flexDirection: 'column' }}>
         <HeroSection />
+        <OfficeLocationSection />
       </Content>
       <HomeFooter />
     </Layout>
