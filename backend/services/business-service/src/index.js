@@ -183,6 +183,10 @@ app.use('/api/inspections', inspectionSchedulingRouter);
 const adminStatsRouter = require('./routes/adminStats');
 app.use('/api/business/admin', adminStatsRouter);
 
+// Public transparency stats for landing page
+const publicStatsRouter = require('./routes/publicStats');
+app.use('/api/public/business', publicStatsRouter);
+
 // Inspector routes
 const inspectorRouter = require('./routes/inspector/index');
 app.use('/api/inspector', inspectorRouter);
