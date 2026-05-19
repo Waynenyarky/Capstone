@@ -1,5 +1,5 @@
 import { Typography, Grid, theme, Collapse, Alert, Card, Button } from 'antd'
-import { NotificationOutlined, WarningOutlined, SettingOutlined, SearchOutlined } from '@ant-design/icons'
+import { NotificationOutlined, WarningOutlined, SettingOutlined, SearchOutlined, ShopOutlined } from '@ant-design/icons'
 import { BRAND_COLORS } from '@/shared/theme/ThemeProvider'
 import { useState, useEffect } from 'react'
 import { get } from '@/lib/http.js'
@@ -260,6 +260,7 @@ export default function HeroSection() {
               borderRadius: token.borderRadius,
               cursor: 'pointer',
               transition: 'all 0.2s',
+              marginBottom: 12,
             }}
             hoverable
             onClick={() => navigate('/application-tracker')}
@@ -282,6 +283,40 @@ export default function HeroSection() {
                 </Text>
                 <Text type="secondary" style={{ fontSize: 13 }}>
                   Enter your reference number to track your application
+                </Text>
+              </div>
+            </div>
+          </Card>
+
+          <Card
+            style={{
+              background: token.colorBgContainer,
+              border: `1px solid ${token.colorBorder}`,
+              borderRadius: token.borderRadius,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            hoverable
+            onClick={() => navigate('/business-search')}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{
+                width: 48,
+                height: 48,
+                borderRadius: token.borderRadiusLG,
+                background: token.colorBgLayout,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <ShopOutlined style={{ fontSize: 24, color: token.colorPrimary }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Text strong style={{ fontSize: 16, display: 'block' }}>
+                  Business Search
+                </Text>
+                <Text type="secondary" style={{ fontSize: 13 }}>
+                  Search for verified businesses in Alaminos City
                 </Text>
               </div>
             </div>
