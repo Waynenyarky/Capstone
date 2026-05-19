@@ -1,10 +1,11 @@
-import { Typography, Grid, theme, Collapse, Alert } from 'antd'
-import { NotificationOutlined, WarningOutlined, SettingOutlined } from '@ant-design/icons'
+import { Typography, Grid, theme, Collapse, Alert, Card, Button } from 'antd'
+import { NotificationOutlined, WarningOutlined, SettingOutlined, SearchOutlined } from '@ant-design/icons'
 import { BRAND_COLORS } from '@/shared/theme/ThemeProvider'
 import { useState, useEffect } from 'react'
 import { get } from '@/lib/http.js'
 import { getMaintenanceStatus } from '@/features/public/services/maintenanceService.js'
 import dayjs from 'dayjs'
+import { useNavigate } from 'react-router-dom'
 
 const { Title, Paragraph, Text } = Typography
 const { useBreakpoint } = Grid
@@ -12,6 +13,7 @@ const { useBreakpoint } = Grid
 export default function HeroSection() {
   const screens = useBreakpoint()
   const { token } = theme.useToken()
+  const navigate = useNavigate()
   const [announcements, setAnnouncements] = useState([])
   const [maintenanceStatus, setMaintenanceStatus] = useState({ active: false, scheduled: false })
 
@@ -223,6 +225,69 @@ export default function HeroSection() {
       </div>
 
       <section style={{ width: '100%', maxWidth: 1280, margin: '0 auto' }}>
+        <div
+          style={{
+            border: `1px solid ${token.colorBorderSecondary}`,
+            borderRadius: token.borderRadiusLG,
+            padding: screens.md ? '24px 28px' : '18px 14px',
+            background: token.colorBgLayout,
+            marginBottom: 24,
+          }}
+        >
+          <Title
+            level={4}
+            style={{
+              marginTop: 0,
+              marginBottom: 8,
+              textAlign: screens.md ? 'left' : 'center',
+            }}
+          >
+            Track Your Application
+          </Title>
+          <Paragraph
+            type="secondary"
+            style={{
+              marginBottom: 16,
+              textAlign: screens.md ? 'left' : 'center',
+            }}
+          >
+            Check the status of your business permit application in real-time.
+          </Paragraph>
+          <Card
+            style={{
+              background: token.colorBgContainer,
+              border: `1px solid ${token.colorBorder}`,
+              borderRadius: token.borderRadius,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            hoverable
+            onClick={() => navigate('/application-tracker')}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{
+                width: 48,
+                height: 48,
+                borderRadius: token.borderRadiusLG,
+                background: token.colorBgLayout,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <SearchOutlined style={{ fontSize: 24, color: token.colorPrimary }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Text strong style={{ fontSize: 16, display: 'block' }}>
+                  Application Tracker
+                </Text>
+                <Text type="secondary" style={{ fontSize: 13 }}>
+                  Enter your reference number to track your application
+                </Text>
+              </div>
+            </div>
+          </Card>
+        </div>
+
         <div
           style={{
             border: `1px solid ${token.colorBorderSecondary}`,
