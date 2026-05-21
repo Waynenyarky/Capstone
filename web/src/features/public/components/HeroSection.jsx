@@ -1,6 +1,6 @@
 import React from 'react'
 import { Typography, Grid, theme, Collapse, Card, Button, Divider, Modal, Drawer, Timeline } from 'antd'
-import { LeftOutlined, RightOutlined, ClockCircleOutlined, UnorderedListOutlined, DownloadOutlined, CheckCircleOutlined, UserOutlined, FormOutlined, SearchOutlined, QuestionCircleOutlined, ShopOutlined } from '@ant-design/icons'
+import { LeftOutlined, RightOutlined, ClockCircleOutlined, NotificationOutlined, UnorderedListOutlined, DownloadOutlined, CheckCircleOutlined, UserOutlined, FormOutlined, SearchOutlined, QuestionCircleOutlined, ShopOutlined } from '@ant-design/icons'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { get } from '@/lib/http.js'
 import { getMaintenanceStatus } from '@/features/public/services/maintenanceService.js'
@@ -386,6 +386,7 @@ export default function HeroSection() {
   })
   const [hoveredCard, setHoveredCard] = useState(null)
   const [announcementsModalOpen, setAnnouncementsModalOpen] = useState(false)
+  const [publicStats, setPublicStats] = useState(null)
 
   // Inject CSS animation keyframes
   useEffect(() => {
@@ -449,7 +450,7 @@ export default function HeroSection() {
     const fetchLandingData = async () => {
       try {
         const [res, maintenance, permitFormsRes] = await Promise.all([
-          get('/api/admin/announcements/public'),
+          get('/api/admin/announcements', { skipAuth: true }),
           getMaintenanceStatus().catch(() => ({ active: false, scheduled: false })),
           get('/api/admin/permit-forms', { skipAuth: true }).catch(() => null),
         ])
@@ -501,7 +502,12 @@ export default function HeroSection() {
 
   const announcementItems = announcements.map((ann, idx) => ({
     key: `announcement-${idx + 1}`,
-    label: <span>{ann.title}</span>,
+    label: (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <NotificationOutlined />
+        <span>{ann.title}</span>
+      </div>
+    ),
     children: (
       <div>
         <Paragraph style={{ marginBottom: 0 }}>
@@ -527,6 +533,20 @@ export default function HeroSection() {
 
   const hasAnnouncementPanel = announcementItems.length > 0 || hasMaintenanceNotice
   const defaultOpenKey = hasAnnouncementPanel && announcementItems.length > 0 ? ['announcement-1'] : []
+
+  useEffect(() => {
+    // Fetch public transparency stats (no auth required)
+    const fetchPublicStats = async () => {
+      try {
+        const res = await get('/api/public/business/stats', { skipAuth: true }).catch(() => null)
+        const stats = res?.data ?? res ?? null
+        setPublicStats(stats)
+      } catch {
+        setPublicStats(null)
+      }
+    }
+    fetchPublicStats()
+  }, [])
 
   return (
     <div style={{ 
@@ -920,6 +940,37 @@ export default function HeroSection() {
               </div>
             </div>
           </Card>
+        </div>
+      </section>
+
+      {/* Transparency Dashboard */}
+      <section style={{ width: '100%', maxWidth: 1280, margin: '0 auto' }}>
+        <div
+          style={{
+            border: `1px solid ${token.colorBorderSecondary}`,
+            borderRadius: token.borderRadiusLG,
+            padding: screens.md ? '20px 24px' : '14px 12px',
+            background: token.colorBgLayout,
+            marginBottom: 16,
+          }}
+        >
+          <Title level={4} style={{ marginTop: 0, marginBottom: 8, textAlign: screens.md ? 'left' : 'center' }}>
+            Transparency Dashboard
+          </Title>
+          <div style={{ display: 'flex', gap: 12, justifyContent: screens.md ? 'flex-start' : 'center', flexWrap: 'wrap' }}>
+            <Card size="small" style={{ minWidth: 200 }}>
+              <Text type="secondary" style={{ display: 'block' }}>Total registered businesses this year</Text>
+              <Text strong style={{ fontSize: 20 }}>{publicStats?.totalRegisteredThisYear ?? '—'}</Text>
+            </Card>
+            <Card size="small" style={{ minWidth: 200 }}>
+              <Text type="secondary" style={{ display: 'block' }}>Applications processed this year</Text>
+              <Text strong style={{ fontSize: 20 }}>{publicStats?.applicationsProcessedThisYear ?? '—'}</Text>
+            </Card>
+            <Card size="small" style={{ minWidth: 200 }}>
+              <Text type="secondary" style={{ display: 'block' }}>Pending applications</Text>
+              <Text strong style={{ fontSize: 20 }}>{publicStats?.pendingApplications ?? '—'}</Text>
+            </Card>
+          </div>
         </div>
       </section>
 
