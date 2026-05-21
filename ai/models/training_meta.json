@@ -1,6 +1,6 @@
 {
   "algorithm": "LinearSVC",
-  "trainedAt": "2026-05-03T04:15:28.022711+00:00",
+  "trainedAt": "2026-05-13T10:24:16.970597+00:00",
   "cv_accuracy": 0.9993943064809206,
   "n_train_samples": 8255,
   "n_base_samples": 4025,

@@ -1,12 +1,13 @@
 import React from 'react'
 import { Typography, Grid, theme, Collapse, Card, Button, Divider, Modal, Drawer, Timeline } from 'antd'
-import { LeftOutlined, RightOutlined, ClockCircleOutlined, UnorderedListOutlined, DownloadOutlined, CheckCircleOutlined, UserOutlined, FormOutlined, SearchOutlined, QuestionCircleOutlined } from '@ant-design/icons'
+import { LeftOutlined, RightOutlined, ClockCircleOutlined, UnorderedListOutlined, DownloadOutlined, CheckCircleOutlined, UserOutlined, FormOutlined, SearchOutlined, QuestionCircleOutlined, ShopOutlined } from '@ant-design/icons'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { get } from '@/lib/http.js'
 import { getMaintenanceStatus } from '@/features/public/services/maintenanceService.js'
 import BizClearLogo from '@/shared/components/BizClearLogo.jsx'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
+import { useNavigate } from 'react-router-dom'
 
 dayjs.extend(relativeTime)
 
@@ -368,6 +369,7 @@ function PermitFormsCarousel({ cards, sectionDescription, screens, token }) {
 export default function HeroSection() {
   const { token } = theme.useToken()
   const screens = useBreakpoint()
+  const navigate = useNavigate()
 
   const [announcements, setAnnouncements] = useState([])
   const [maintenanceStatus, setMaintenanceStatus] = useState({
@@ -820,41 +822,143 @@ export default function HeroSection() {
         </div>
       )}
 
+      {/* Track Your Application */}
       <section style={{ width: '100%', maxWidth: 1280, margin: '0 auto' }}>
-            <div
-              style={{
-                border: `1px solid ${token.colorBorderSecondary}`,
+        <div
+          style={{
+            border: `1px solid ${token.colorBorderSecondary}`,
+            borderRadius: token.borderRadiusLG,
+            padding: screens.md ? '24px 28px' : '18px 14px',
+            background: token.colorBgLayout,
+            marginBottom: 24,
+          }}
+        >
+          <Title
+            level={4}
+            style={{
+              marginTop: 0,
+              marginBottom: 8,
+              textAlign: screens.md ? 'left' : 'center',
+            }}
+          >
+            Track Your Application
+          </Title>
+          <Paragraph
+            type="secondary"
+            style={{
+              marginBottom: 16,
+              textAlign: screens.md ? 'left' : 'center',
+            }}
+          >
+            Check the status of your business permit application in real-time.
+          </Paragraph>
+          <Card
+            style={{
+              background: token.colorBgContainer,
+              border: `1px solid ${token.colorBorder}`,
+              borderRadius: token.borderRadius,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              marginBottom: 12,
+            }}
+            hoverable
+            onClick={() => navigate('/application-tracker')}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{
+                width: 48,
+                height: 48,
                 borderRadius: token.borderRadiusLG,
-                padding: screens.md ? '24px 28px' : '18px 14px',
                 background: token.colorBgLayout,
-              }}
-            >
-              <Title
-                level={4}
-                style={{
-                  marginTop: 0,
-                  marginBottom: 8,
-                  textAlign: screens.md ? 'left' : 'center',
-                }}
-              >
-                Frequently Asked Questions
-              </Title>
-              <Paragraph
-                type="secondary"
-                style={{
-                  marginBottom: 16,
-                  textAlign: screens.md ? 'left' : 'center',
-                }}
-              >
-                Quick answers about application timelines, updates, and submission best practices.
-              </Paragraph>
-              <Collapse
-                items={faqItems}
-                defaultActiveKey={['faq-1']}
-                style={{ background: token.colorBgContainer, textAlign: 'left' }}
-              />
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <SearchOutlined style={{ fontSize: 24, color: token.colorPrimary }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Text strong style={{ fontSize: 16, display: 'block' }}>
+                  Application Tracker
+                </Text>
+                <Text type="secondary" style={{ fontSize: 13 }}>
+                  Enter your reference number to track your application
+                </Text>
+              </div>
             </div>
-          </section>
+          </Card>
+
+          <Card
+            style={{
+              background: token.colorBgContainer,
+              border: `1px solid ${token.colorBorder}`,
+              borderRadius: token.borderRadius,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            hoverable
+            onClick={() => navigate('/business-search')}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{
+                width: 48,
+                height: 48,
+                borderRadius: token.borderRadiusLG,
+                background: token.colorBgLayout,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <ShopOutlined style={{ fontSize: 24, color: token.colorPrimary }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Text strong style={{ fontSize: 16, display: 'block' }}>
+                  Business Search
+                </Text>
+                <Text type="secondary" style={{ fontSize: 13 }}>
+                  Search for verified businesses in Alaminos City
+                </Text>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      {/* Frequently Asked Questions */}
+      <section style={{ width: '100%', maxWidth: 1280, margin: '0 auto' }}>
+        <div
+          style={{
+            border: `1px solid ${token.colorBorderSecondary}`,
+            borderRadius: token.borderRadiusLG,
+            padding: screens.md ? '24px 28px' : '18px 14px',
+            background: token.colorBgLayout,
+          }}
+        >
+          <Title
+            level={4}
+            style={{
+              marginTop: 0,
+              marginBottom: 8,
+              textAlign: screens.md ? 'left' : 'center',
+            }}
+          >
+            Frequently Asked Questions
+          </Title>
+          <Paragraph
+            type="secondary"
+            style={{
+              marginBottom: 16,
+              textAlign: screens.md ? 'left' : 'center',
+            }}
+          >
+            Quick answers about application timelines, updates, and submission best practices.
+          </Paragraph>
+          <Collapse
+            items={faqItems}
+            defaultActiveKey={['faq-1']}
+            style={{ background: token.colorBgContainer, textAlign: 'left' }}
+          />
+        </div>
+      </section>
 
       <Modal
         title="All Announcements"

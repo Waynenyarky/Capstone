@@ -12,6 +12,8 @@ const TermsOfService = lazy(() => import("@/features/public").then(m => ({ defau
 const PrivacyPolicy = lazy(() => import("@/features/public").then(m => ({ default: m.PrivacyPolicy })))
 const Maintenance = lazy(() => import("@/features/public").then(m => ({ default: m.Maintenance })))
 const VerifyPermitPage = lazy(() => import("@/features/public/pages/VerifyPermitPage.jsx"))
+const ApplicationTracker = lazy(() => import("@/features/public/pages/ApplicationTracker.jsx"))
+const BusinessSearch = lazy(() => import("@/features/public/pages/BusinessSearch.jsx"))
 const PasskeyMobileAuth = lazy(() => import("@/features/authentication/pages/PasskeyMobileAuth.jsx"))
 const MfaSetup = lazy(() => import("@/features/authentication/components/MfaSetup.jsx"))
 const Dashboard = lazy(() => import("@/features/user").then(m => ({ default: m.Dashboard })))
@@ -78,6 +80,8 @@ function App() {
       <Route path="/privacy" element={<PublicRoute><PrivacyPolicy /></PublicRoute>} />
       <Route path="/maintenance" element={<PublicRoute><Maintenance /></PublicRoute>} />
       <Route path="/verify-permit/:permitNumber" element={<VerifyPermitPage />} />
+      <Route path="/application-tracker" element={<PublicRoute><ApplicationTracker /></PublicRoute>} />
+      <Route path="/business-search" element={<PublicRoute><BusinessSearch /></PublicRoute>} />
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
       <Route path="/sign-up" element={<PublicRoute><SignUp /></PublicRoute>} />

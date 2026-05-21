@@ -1,5 +1,5 @@
 {
-  "lob_vectorizer.joblib": "96f06abcc64a1d781a323b3fb86b005a5bb5fe7bb68dad3f4d9f59d90aca1469",
-  "lob_model.joblib": "1664051e826f484f1cfe86345b4330681fcdecfd3c37dab48dc4034e4a6165e1",
+  "lob_vectorizer.joblib": "494b2bf5337c24bb691f2d99a35585942d3a96fe1962d2245082812b68513b6d",
+  "lob_model.joblib": "0c90807fc76b2e1aa04f38ea0f08df472db0cd591835f64be79991d932ad05c2",
   "lob_labels.json": "13b1e83af5ea08849c08102301cfffa01f530e2d60f9bdc7c00b63c589b993fa"
 }
