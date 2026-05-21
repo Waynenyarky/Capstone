@@ -46,6 +46,7 @@ services:
   admin-service:
     environment:
       - SEED_FORM_DEFINITIONS=true
+      - SEED_DEV=true
     volumes:
       - ./backend/shared:/backend/shared:ro
       - ./backend/services/admin-service/src:/backend/services/admin-service/src

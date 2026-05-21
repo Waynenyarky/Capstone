@@ -29,6 +29,7 @@ export default function AdminAnnouncements({ embedded = false }) {
   const [infoOpen, setInfoOpen] = useState(false)
   const [auditLogModalVisible, setAuditLogModalVisible] = useState(false)
   const [selectedAuditLog, setSelectedAuditLog] = useState(null)
+  const [lastUpdated, setLastUpdated] = useState(null)
 
   const [search, setSearch] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
@@ -49,6 +50,7 @@ export default function AdminAnnouncements({ embedded = false }) {
       setLoading(true)
       const res = await get('/api/admin/announcements')
       setAnnouncements(Array.isArray(res) ? res : (res?.data || []))
+      setLastUpdated(new Date())
     } catch {
       message.error('Failed to load announcements')
     } finally {
@@ -318,15 +320,16 @@ export default function AdminAnnouncements({ embedded = false }) {
       <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, padding: 12, paddingBottom: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
           <Input
-            placeholder="Search announcements"
+            placeholder="Search announcements..."
             prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
             allowClear
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{ flex: 1, minWidth: 0 }}
+            size="large"
           />
           <div style={{ position: 'relative' }} ref={filterWrapperRef}>
-            <Tooltip title="Filter">
+            <Tooltip title="Filter announcements">
               <Button
                 icon={<FilterOutlined />}
                 type={activeFilterCount > 0 ? 'primary' : 'default'}
@@ -408,8 +411,8 @@ export default function AdminAnnouncements({ embedded = false }) {
           <Tooltip title="About announcements">
             <Button icon={<InfoCircleOutlined />} onClick={() => setInfoOpen(true)} aria-label="Announcement info" />
           </Tooltip>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateDraft} loading={saving}>
-            Add
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateDraft} loading={saving} size="large">
+            New Announcement
           </Button>
         </div>
       </div>
@@ -421,7 +424,7 @@ export default function AdminAnnouncements({ embedded = false }) {
               <Spin />
             </div>
           ) : paginatedAnnouncements.length === 0 ? (
-            <Empty description="No announcements" style={{ marginTop: 40 }} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            <Empty description="No announcements found" style={{ marginTop: 40 }} image={Empty.PRESENTED_IMAGE_SIMPLE} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {paginatedAnnouncements.map((item) => (
@@ -438,19 +441,27 @@ export default function AdminAnnouncements({ embedded = false }) {
                     borderBottom: `1px solid ${token.colorBorderSecondary}`,
                     background: selected?._id === item._id ? token.colorPrimaryBg : 'transparent',
                     transition: 'background 0.2s',
+                    ':hover': {
+                      background: token.colorBgTextHover,
+                    }
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                    <Text strong ellipsis style={{ flex: 1 }}>{item.title || '(Untitled)'}</Text>
-                    <Tag color={statusColors[item.status] || 'default'} style={{ margin: 0 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <Text strong ellipsis style={{ fontSize: 13, display: 'block' }}>{item.title || '(Untitled)'}</Text>
+                      <Text type="secondary" ellipsis style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+                        {item.body?.substring(0, 60)}...
+                      </Text>
+                    </div>
+                    <Tag color={statusColors[item.status] || 'default'} style={{ margin: 0, flexShrink: 0 }}>
                       {(item.status || 'draft').toUpperCase()}
                     </Tag>
                   </div>
-                  <div style={{ marginTop: 4, display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <Tag color={priorityColors[item.priority] || 'default'} style={{ margin: 0 }}>
+                  <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Tag color={priorityColors[item.priority] || 'default'} style={{ margin: 0, fontSize: 10 }}>
                       {(item.priority || 'normal').toUpperCase()}
                     </Tag>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
+                    <Text type="secondary" style={{ fontSize: 11 }}>
                       {item.createdAt ? dayjs(item.createdAt).format('MMM D, YYYY') : '-'}
                     </Text>
                   </div>
@@ -459,7 +470,7 @@ export default function AdminAnnouncements({ embedded = false }) {
             </div>
           )}
         </div>
-        <div style={{ padding: '12px 0', display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ padding: '12px 0', display: 'flex', justifyContent: 'flex-end', borderTop: `1px solid ${token.colorBorderSecondary}` }}>
           <Pagination
             current={currentPage}
             total={filteredAnnouncements?.length || 0}
@@ -481,27 +492,24 @@ export default function AdminAnnouncements({ embedded = false }) {
           borderBottom: `1px solid ${token.colorBorderSecondary}`,
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'flex-start',
+          alignItems: 'center',
           flexWrap: 'wrap',
           gap: 12,
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Tag color={statusColors[selected.status] || 'default'}>
-              {(selected.status || 'draft').toUpperCase()}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
+          <Tag color={statusColors[selected.status] || 'default'}>
+            {(selected.status || 'draft').toUpperCase()}
+          </Tag>
+          <Tag color="blue">
+            Created {selected.createdAt ? dayjs(selected.createdAt).format('MMM D, YYYY') : '-'}
+          </Tag>
+          {selected.updatedAt && selected.updatedAt !== selected.createdAt && (
+            <Tag color="green">
+              Updated {dayjs(selected.updatedAt).format('MMM D, h:mm A')}
             </Tag>
-            <Tag color="blue">
-              Created {selected.createdAt ? dayjs(selected.createdAt).format('MMM D, YYYY') : '-'}
-            </Tag>
-            {selected.updatedAt && selected.updatedAt !== selected.createdAt && (
-              <Tag color="green">
-                Updated {dayjs(selected.updatedAt).format('MMM D, h:mm A')}
-              </Tag>
-            )}
-          </div>
+          )}
         </div>
         <div
           style={{
@@ -509,27 +517,29 @@ export default function AdminAnnouncements({ embedded = false }) {
             gap: 8,
             flexWrap: 'wrap',
             justifyContent: 'flex-end',
+            alignItems: 'center',
+            minWidth: 0,
           }}
         >
           {selected.status === 'draft' && (
             <>
-              <Button icon={<FileTextOutlined />} onClick={handleFillTestData}>
-                Fill with test data
+              <Button icon={<FileTextOutlined />} onClick={handleFillTestData} size={isMobile ? 'middle' : 'middle'}>
+                {!isMobile && 'Fill with test data'}
               </Button>
-              <Button icon={<SaveOutlined />} onClick={() => handleSave(false)} loading={saving}>
-                Save Draft
+              <Button icon={<SaveOutlined />} onClick={() => handleSave(false)} loading={saving} size={isMobile ? 'middle' : 'middle'}>
+                {!isMobile && 'Save Draft'}
               </Button>
-              <Button type="primary" icon={<SendOutlined />} onClick={() => handleSave(true)} loading={saving}>
-                Publish
+              <Button type="primary" icon={<SendOutlined />} onClick={() => handleSave(true)} loading={saving} size={isMobile ? 'middle' : 'middle'}>
+                {!isMobile && 'Publish'}
               </Button>
-              <Button danger icon={<DeleteOutlined />} onClick={() => setDeleteModalVisible(true)}>
-                Delete
+              <Button danger icon={<DeleteOutlined />} onClick={() => setDeleteModalVisible(true)} size={isMobile ? 'middle' : 'middle'}>
+                {!isMobile && 'Delete'}
               </Button>
             </>
           )}
           {selected.status === 'published' && (
-            <Button icon={<RollbackOutlined />} onClick={() => setUnpublishModalVisible(true)} loading={saving}>
-              Unpublish
+            <Button icon={<RollbackOutlined />} onClick={() => setUnpublishModalVisible(true)} loading={saving} size={isMobile ? 'middle' : 'middle'}>
+              {!isMobile && 'Unpublish'}
             </Button>
           )}
         </div>
@@ -563,25 +573,34 @@ export default function AdminAnnouncements({ embedded = false }) {
                       label="Title"
                       rules={[{ required: true, message: 'Title is required' }]}
                     >
-                      <Input placeholder="Announcement title" disabled={selected.status === 'published'} />
+                      <Input 
+                        placeholder="Announcement title" 
+                        disabled={selected.status === 'published'}
+                        size="large"
+                      />
                     </Form.Item>
                     <Form.Item
                       name="body"
                       label="Content"
                       rules={[{ required: true, message: 'Content is required' }]}
                     >
-                      <TextArea rows={6} placeholder="Announcement content" disabled={selected.status === 'published'} />
+                      <TextArea 
+                        rows={8} 
+                        placeholder="Announcement content. Include detailed information, deadlines, and instructions." 
+                        disabled={selected.status === 'published'}
+                      />
                     </Form.Item>
                     <div style={{ display: 'grid', gridTemplateColumns: screens.sm ? '1fr 1fr' : '1fr', gap: 24, alignItems: 'start' }}>
                       <Form.Item name="priority" label="Priority">
                         <Select
                           disabled={selected.status === 'published'}
                           options={[
-                            { value: 'urgent', label: 'Urgent' },
-                            { value: 'high', label: 'High' },
-                            { value: 'normal', label: 'Normal' },
-                            { value: 'low', label: 'Low' },
+                            { value: 'urgent', label: '🔴 Urgent' },
+                            { value: 'high', label: '🟠 High' },
+                            { value: 'normal', label: '🟡 Normal' },
+                            { value: 'low', label: '🟢 Low' },
                           ]}
+                          placeholder="Select priority level"
                         />
                       </Form.Item>
                       <Form.Item name="publishAt" label="Publish At">
@@ -589,23 +608,32 @@ export default function AdminAnnouncements({ embedded = false }) {
                           showTime
                           style={{ width: '100%' }}
                           disabled={selected.status === 'published'}
+                          placeholder="Optional: schedule for future"
                         />
                       </Form.Item>
                       <Form.Item name="expiresAt" label="Expires At" style={{ gridColumn: screens.sm ? 'span 2' : 'auto' }}>
-                        <DatePicker style={{ width: '100%' }} disabled={selected.status === 'published'} />
+                        <DatePicker 
+                          style={{ width: '100%' }} 
+                          disabled={selected.status === 'published'}
+                          placeholder="Optional: auto-hide after this date"
+                        />
                       </Form.Item>
                     </div>
                   </Form>
 
-                  <div style={{ padding: 16, borderTop: `1px solid ${token.colorBorderSecondary}` }}>
-                    <Title level={5} style={{ marginBottom: 16 }}>Live Preview - Landing Page</Title>
+                  <div style={{ padding: 16, borderTop: `1px solid ${token.colorBorderSecondary}`, marginTop: 24 }}>
+                    <Text strong style={{ display: 'block', marginBottom: 16, fontSize: 14 }}>
+                      <NotificationOutlined style={{ marginRight: 8 }} />
+                      Live Preview - Landing Page
+                    </Text>
                     <div style={{
                       border: `1px solid ${token.colorBorderSecondary}`,
                       borderRadius: 8,
                       overflow: 'auto',
-                      height: isMobile ? 500 : 600,
-                      maxHeight: '70vh',
-                      position: 'relative'
+                      height: isMobile ? 400 : 500,
+                      maxHeight: '60vh',
+                      position: 'relative',
+                      background: token.colorBgLayout
                     }}>
                       
                       {/* Actual Home Page Components with live preview */}
@@ -796,10 +824,12 @@ export default function AdminAnnouncements({ embedded = false }) {
               children: (
                 <div style={{ padding: 16 }}>
                   <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
-                    <Text type="secondary">
-                      History for announcement operations (create, edit, delete). Click a row for full audit details.
-                    </Text>
-                    <Button icon={<DownloadOutlined />} onClick={handleExportAuditLogs}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <Text type="secondary" style={{ fontSize: 13 }}>
+                        Complete audit trail showing all announcement operations including creation, modifications, and deletions. Click any row to view full details.
+                      </Text>
+                    </div>
+                    <Button icon={<DownloadOutlined />} onClick={handleExportAuditLogs} size="middle">
                       Export CSV
                     </Button>
                   </div>
@@ -809,9 +839,9 @@ export default function AdminAnnouncements({ embedded = false }) {
                       <Spin />
                     </div>
                   ) : auditLogs.length === 0 ? (
-                    <Empty description="No history found" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                    <Empty description="No history found" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ marginTop: 40 }} />
                   ) : (
-                    <>
+                    <div style={{ borderRadius: 8, border: `1px solid ${token.colorBorderSecondary}`, overflow: 'hidden' }}>
                       <Table
                         dataSource={auditLogs}
                         scroll={{ x: 1000 }}
@@ -820,22 +850,25 @@ export default function AdminAnnouncements({ embedded = false }) {
                             title: 'Date & Time',
                             dataIndex: 'createdAt',
                             key: 'createdAt',
-                            render: (date) => date ? dayjs(date).format('YYYY-MM-DD HH:mm:ss') : '-',
+                            render: (date) => date ? dayjs(date).format('MMM D, YYYY HH:mm:ss') : '-',
                             width: 180,
+                            sorter: (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
                           },
                           {
                             title: 'Event Type',
                             dataIndex: 'action',
                             key: 'action',
+                            width: 130,
                             render: (action) => {
                               const actionColors = {
                                 announcement_created: 'green',
                                 announcement_updated: 'blue',
                                 announcement_deleted: 'red',
                               }
+                              const actionLabel = action?.replace('announcement_', '').replace(/_/g, ' ').toUpperCase() || 'UNKNOWN'
                               return (
-                                <Tag color={actionColors[action] || 'default'}>
-                                  {action?.replace('announcement_', '').replace(/_/g, ' ').toUpperCase() || 'UNKNOWN'}
+                                <Tag color={actionColors[action] || 'default'} style={{ fontSize: 11 }}>
+                                  {actionLabel}
                                 </Tag>
                               )
                             }
@@ -844,11 +877,12 @@ export default function AdminAnnouncements({ embedded = false }) {
                             title: 'Changed By',
                             dataIndex: 'userEmail',
                             key: 'userEmail',
+                            width: 150,
                             render: (email, record) => (
                               <div>
-                                <Text>{email || 'Unknown'}</Text>
+                                <Text style={{ fontSize: 12 }}>{email || 'Unknown'}</Text>
                                 <br />
-                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                <Text type="secondary" style={{ fontSize: 11 }}>
                                   {record.role || 'Admin'}
                                 </Text>
                               </div>
@@ -858,14 +892,16 @@ export default function AdminAnnouncements({ embedded = false }) {
                             title: 'Field',
                             dataIndex: 'fieldChanged',
                             key: 'fieldChanged',
-                            render: (field) => field || '-',
+                            width: 100,
+                            render: (field) => <Text style={{ fontSize: 12 }}>{field || '-'}</Text>,
                           },
                           {
                             title: 'Old Value',
                             dataIndex: 'oldValue',
                             key: 'oldValue',
+                            width: 150,
                             render: (value) => (
-                              <Text ellipsis={{ tooltip: value }} style={{ maxWidth: 220 }}>
+                              <Text ellipsis={{ tooltip: value }} style={{ maxWidth: 220, fontSize: 12 }}>
                                 {value || '-'}
                               </Text>
                             ),
@@ -874,8 +910,9 @@ export default function AdminAnnouncements({ embedded = false }) {
                             title: 'New Value',
                             dataIndex: 'newValue',
                             key: 'newValue',
+                            width: 150,
                             render: (value) => (
-                              <Text ellipsis={{ tooltip: value }} style={{ maxWidth: 220 }}>
+                              <Text ellipsis={{ tooltip: value }} style={{ maxWidth: 220, fontSize: 12 }}>
                                 {value || '-'}
                               </Text>
                             ),
@@ -889,7 +926,8 @@ export default function AdminAnnouncements({ embedded = false }) {
                             setAuditLogsPage(page)
                             fetchAuditLogs(page)
                           },
-                          showSizeChanger: false
+                          showSizeChanger: false,
+                          size: 'small',
                         }}
                         rowKey="_id"
                         size="small"
@@ -897,8 +935,9 @@ export default function AdminAnnouncements({ embedded = false }) {
                           onClick: () => openAuditLog(record),
                           style: { cursor: 'pointer' },
                         })}
+                        bordered={false}
                       />
-                    </>
+                    </div>
                   )}
                 </div>
               ),
@@ -1026,19 +1065,28 @@ export default function AdminAnnouncements({ embedded = false }) {
 
   if (isMobile) {
     const mobileBody = (
-      <div style={{ padding: 16 }}>
+      <div style={{ padding: 12, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
         {selected ? (
           <div
             style={{
               display: 'flex',
               flexDirection: 'column',
-              height: 'calc(100vh - 120px)',
-              overflow: 'hidden',
+              height: 'calc(100vh - 100px)',
+              minHeight: 0,
             }}
           >
-            <Button onClick={() => setSelected(null)} style={{ marginBottom: 16 }}>← Back to list</Button>
+            <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Button 
+                type="text" 
+                icon={<ArrowLeftOutlined />} 
+                onClick={() => setSelected(null)} 
+                size="large"
+              >
+                Back
+              </Button>
+            </div>
 
-            <div style={{ flex: 1, minHeight: 0 }}>
+            <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
               {detailContent}
             </div>
           </div>
@@ -1106,7 +1154,21 @@ export default function AdminAnnouncements({ embedded = false }) {
     </>
   ) : (
     <>
-      <AdminLayout pageTitle="Announcements" pageIcon={<NotificationOutlined />}>
+      <AdminLayout 
+        pageTitle="Announcements" 
+        pageIcon={<NotificationOutlined />}
+        headerActions={
+          <>
+            {lastUpdated && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Last updated: {lastUpdated.toLocaleTimeString()}
+              </Text>
+            )}
+            <Button icon={<ReloadOutlined />} onClick={fetchAnnouncements} aria-label="Refresh" />
+            <Button icon={<InfoCircleOutlined />} onClick={() => setInfoOpen(true)} aria-label="About" />
+          </>
+        }
+      >
         {desktopBody}
       </AdminLayout>
       {unpublishModal}

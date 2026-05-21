@@ -223,6 +223,7 @@ services:
       - BUSINESS_SERVICE_URL=${DOCKER_BUSINESS_SERVICE_URL}
       - AI_SERVICE_URL=http://lob-model:5050
       - SEED_FORM_DEFINITIONS=true
+      - SEED_DEV=true
     volumes:
       - contract_addresses:/app/contract-addresses:ro
     restart: unless-stopped
