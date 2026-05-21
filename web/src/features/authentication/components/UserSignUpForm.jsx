@@ -1,7 +1,7 @@
 // UserSignUpForm.jsx — Two-step signup: Account info → PIS fields
 import React, { useState, useCallback } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Input, Button, Checkbox, Typography, Row, Col, Grid, Steps, Select, DatePicker, Divider, message } from 'antd'
+import { Input, Button, Checkbox, Typography, Row, Col, Grid, Select, DatePicker, Divider, message } from 'antd'
 import { useNavigate, Link } from 'react-router-dom'
 import dayjs from 'dayjs'
 
@@ -167,8 +167,6 @@ export default function UserSignUpForm({ extraContent }) {
     },
   })
 
-  const maritalStatus = Form.useWatch('maritalStatus', form)
-
   const showPrefillButton = import.meta.env.DEV === true
 
   const handleFillDemoData = useCallback(async () => {
@@ -238,22 +236,33 @@ export default function UserSignUpForm({ extraContent }) {
           }
         }}
         size="default"
-        requiredMark={false}
+        requiredMark="*"
         style={{ maxWidth: 500, width: '100%' }}
       >
         <Title level={isMobile ? 4 : 3} style={{ marginBottom: 48, textAlign: 'center' }}>
           Register An Account
         </Title>
 
-        <Steps
-          current={currentStep}
-          size="small"
-          style={{ marginBottom: 24 }}
-          items={[
-            { title: 'Account' },
-            { title: 'Personal Info' },
-          ]}
-        />
+        <div
+          style={{
+            marginTop: -24,
+            marginBottom: 24,
+            padding: '12px 14px',
+            background: '#f5f8ff',
+            border: '1px solid #d6e4ff',
+            borderRadius: 8,
+          }}
+        >
+          <Text style={{ display: 'block', color: '#1f2937', fontSize: 13 }}>
+            Please complete the form in order.
+          </Text>
+          <Text style={{ display: 'block', color: '#4b5563', fontSize: 12 }}>
+            Step 1: Fill out all required Account fields marked with * and set a strong password.
+          </Text>
+          <Text style={{ display: 'block', color: '#4b5563', fontSize: 12 }}>
+            Step 2: Click Next to complete your Personal Info, then submit your registration.
+          </Text>
+        </div>
 
         {/* ── Step 1: Account Information ── */}
         <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
@@ -263,7 +272,7 @@ export default function UserSignUpForm({ extraContent }) {
           <Form.Item name="lastName" label="Last Name" rules={lastNameRules}>
             <Input placeholder="Last name" />
           </Form.Item>
-          <Form.Item name="middleName" label="Middle Name (optional)" rules={middleNameRules}>
+          <Form.Item name="middleName" label="Middle Name" rules={middleNameRules}>
             <Input placeholder="Middle name" />
           </Form.Item>
           <Form.Item name="suffix" label="Suffix (optional)" rules={suffixRules}>
@@ -282,13 +291,18 @@ export default function UserSignUpForm({ extraContent }) {
               onInput={sanitizePhoneInput}
             />
           </Form.Item>
-          <Form.Item name="password" label="Password" rules={passwordRules}>
+          <Form.Item
+            name="password"
+            label="Password"
+            rules={passwordRules}
+            extra="Password must be at least 12 characters long to proceed to Personal Info."
+          >
             <Input.Password
               placeholder="Create password"
               onChange={(e) => setPasswordValue(e?.target?.value ?? '')}
             />
           </Form.Item>
-          <PasswordStrengthIndicator value={passwordValue} />
+          <PasswordStrengthIndicator value={passwordValue} minLength={12} />
           <Form.Item
             name="confirmPassword"
             label="Confirm Password"
@@ -312,6 +326,26 @@ export default function UserSignUpForm({ extraContent }) {
               <Link to="/privacy" style={{ color: '#001529', textDecoration: 'underline' }}>Privacy Policy</Link>.
             </Checkbox>
           </Form.Item>
+
+          <div
+            style={{
+              marginBottom: 20,
+              padding: '12px 14px',
+              background: '#f8fafc',
+              border: '1px solid #e5e7eb',
+              borderRadius: 8,
+            }}
+          >
+            <Text strong style={{ display: 'block', color: '#1f2937', fontSize: 13, marginBottom: 4 }}>
+              Why we ask for this information
+            </Text>
+            <Text style={{ display: 'block', color: '#4b5563', fontSize: 12 }}>
+              We use your details only to create and protect your account, verify your identity, and process permit-related requests in this system.
+            </Text>
+            <Text style={{ display: 'block', color: '#4b5563', fontSize: 12 }}>
+              For full details on handling and protection of your data, please see our <Link to="/privacy" style={{ color: '#001529', textDecoration: 'underline' }}>Privacy Policy</Link>.
+            </Text>
+          </div>
 
           <Form.Item style={{ marginBottom: isMobile ? 16 : 20 }}>
             <Button type="primary" onClick={handleNextStep} block size="default">

@@ -1,7 +1,7 @@
 import React from 'react'
 import { Progress, Space, Typography } from 'antd'
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
-import { getPasswordStrength, validatePasswordRequirements, REQUIREMENT_LABELS } from '@/shared/utils/passwordStrength.js'
+import { getPasswordStrength, validatePasswordRequirements, getRequirementLabels } from '@/shared/utils/passwordStrength.js'
 
 const { Text } = Typography
 
@@ -9,9 +9,10 @@ const { Text } = Typography
  * Reusable password strength + requirements indicator.
  * Always visible; shows weak/empty state when value is empty.
  */
-export default function PasswordStrengthIndicator({ value = '' }) {
+export default function PasswordStrengthIndicator({ value = '', minLength = 8 }) {
   const strength = getPasswordStrength(value)
-  const validation = validatePasswordRequirements(value)
+  const validation = validatePasswordRequirements(value, { minLength })
+  const requirementLabels = getRequirementLabels(minLength)
 
   return (
     <div style={{ marginBottom: 24 }}>
@@ -41,7 +42,7 @@ export default function PasswordStrengthIndicator({ value = '' }) {
                 color: passed ? '#52c41a' : '#8c8c8c',
               }}
             >
-              {REQUIREMENT_LABELS[key]}
+              {requirementLabels[key]}
             </Text>
           </div>
         ))}

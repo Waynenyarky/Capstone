@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Layout, Button, Input, Spin, Space, Tooltip, Typography, Alert, theme, Result } from 'antd'
 import { 
   SafetyCertificateOutlined, 
@@ -56,6 +56,40 @@ export default function MfaSetup({ embedded = false, onComplete }) {
   }, [embedded, isAdmin, currentUser?.mustChangeCredentials, needsOnboarding])
 
   const [navigating, setNavigating] = useState(false)
+  const handleBackToSecureAccount = useCallback(() => {
+    setCurrentStep(0)
+  }, [])
+  const handleSkipForNow = useCallback(() => {
+    if (embedded && typeof onComplete === 'function') {
+      onComplete()
+      return
+    }
+    navigate(-1)
+  }, [embedded, onComplete, navigate])
+  const handleShowVerifyStep = useCallback(() => setCurrentStep(2), [])
+  const handleBackToQrStep = useCallback(() => setCurrentStep(1), [])
+  const handleOtpChange = useCallback((val) => {
+    const numericValue = String(val || '').replace(/[^0-9]/g, '').slice(0, 6)
+    setCode(numericValue)
+  }, [setCode])
+  const handleOtpPaste = useCallback((e) => {
+    e.preventDefault()
+    const pastedText = (e.clipboardData || window.clipboardData).getData('text')
+    const numericOnly = pastedText.replace(/[^0-9]/g, '').slice(0, 6)
+    if (numericOnly) {
+      setCode(numericOnly)
+    }
+  }, [setCode])
+  const handleOtpKeyDown = useCallback((e) => {
+    const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
+    if (allowedKeys.includes(e.key)) return
+    if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
+    if (!/^[0-9]$/.test(e.key)) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+  }, [])
+
   const refreshAndContinue = React.useCallback(async () => {
     setNavigating(true)
     try {
@@ -86,7 +120,10 @@ export default function MfaSetup({ embedded = false, onComplete }) {
 
   const goToPostMfa = refreshAndContinue
 
-  // Sync step with state and detect returning users
+  // Sync step with state and detect returning users.
+  // Important: do not depend on currentStep here, otherwise pressing Back from
+  // Scan QR (step 1) to intro (step 0) immediately auto-jumps to step 1 again
+  // when a secret already exists.
   useEffect(() => {
     if (enabled) {
       // Check if this is a returning user (MFA already enabled before this page load)
@@ -94,12 +131,12 @@ export default function MfaSetup({ embedded = false, onComplete }) {
       setIsReturningUser(wasEnabledInitially)
       setCurrentStep(wasEnabledInitially ? 4 : 3) // 4=management, 3=completed
     } else if (secret) {
-      if (currentStep === 0) setCurrentStep(1) // Move to scan if secret exists
+      setCurrentStep((prev) => (prev === 0 ? 1 : prev)) // Move to scan once if secret exists
     } else {
       setCurrentStep(0) // Reset to start if no secret and disabled
       setIsReturningUser(false)
     }
-  }, [enabled, secret, currentStep, currentUser?.mfaEnabled])
+  }, [enabled, secret, currentUser?.mfaEnabled])
 
   const onSetupClick = async () => {
     await handleSetup()
@@ -205,34 +242,48 @@ export default function MfaSetup({ embedded = false, onComplete }) {
               onClick={onPasskeySetup} 
               loading={passkeyRegistering} 
               icon={<KeyOutlined />}
-              style={{ width: 280, height: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}
+              style={{
+                width: 280,
+                height: 'auto',
+                padding: '12px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                borderColor: token.colorBorder,
+                background: token.colorBgContainer,
+              }}
             >
               <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>Use passkey</span>
+                <span style={{ color: token.colorText, fontWeight: 600 }}>Use passkey</span>
                 <span style={{ fontSize: 12, color: token.colorPrimary, fontWeight: 600, background: token.colorPrimaryBg, padding: '2px 8px', borderRadius: 4 }}>Recommended</span>
               </div>
-              <Text type="secondary" style={{ fontSize: 12, marginTop: 4 }}>Use your fingerprint, face, or PIN to sign in</Text>
+              <Text style={{ fontSize: 12, marginTop: 4, color: token.colorTextSecondary }}>Use your fingerprint, face, or PIN to sign in</Text>
             </Button>
             <Button 
               type="primary" 
               onClick={onSetupClick} 
               loading={loading} 
               icon={<MobileOutlined />}
-              style={{ width: 280, height: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}
-            >
-              <span>Use authenticator app</span>
-              <Text type="secondary" style={{ fontSize: 12, marginTop: 4 }}>Enter a 6-digit code when signing in</Text>
-            </Button>
-            <Button 
-              type="link"
-              onClick={() => {
-                if (embedded && typeof onComplete === 'function') {
-                  onComplete()
-                } else {
-                  navigate(-1)
-                }
+              style={{
+                width: 280,
+                height: 'auto',
+                padding: '12px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                background: token.colorPrimary,
+                borderColor: token.colorPrimary,
               }}
-              style={{ fontSize: 14 }}
+            >
+              <span style={{ color: token.colorTextLightSolid, fontWeight: 600 }}>Use authenticator app</span>
+              <Text style={{ fontSize: 12, marginTop: 4, color: token.colorTextLightSolid, opacity: 0.9 }}>
+                Enter a 6-digit code when signing in
+              </Text>
+            </Button>
+            <Button
+              type="link"
+              onClick={handleSkipForNow}
+              style={{ fontSize: 14, color: token.colorPrimary, fontWeight: 500 }}
             >
               Skip for now (set up later in Settings)
             </Button>
@@ -267,7 +318,7 @@ export default function MfaSetup({ embedded = false, onComplete }) {
              <Alert
                message={
                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                   <Text strong style={{ color: token.colorPrimary }}>Can't scan the code?</Text>
+                   <Text strong style={{ color: token.colorPrimary }}>Can&apos;t scan the code?</Text>
                    <Button type="link" size="small" onClick={toggleShowSecret}>
                      {showSecret ? 'Hide Key' : 'View Key'}
                    </Button>
@@ -292,9 +343,14 @@ export default function MfaSetup({ embedded = false, onComplete }) {
              />
           </div>
 
-          <Button type="primary" onClick={() => setCurrentStep(2)} >
-            Next Step
-          </Button>
+          <Space style={{ width: '100%', justifyContent: 'center', display: 'flex' }}>
+            <Button onClick={handleBackToSecureAccount}>
+              Back
+            </Button>
+            <Button type="primary" onClick={handleShowVerifyStep}>
+              Next Step
+            </Button>
+          </Space>
         </div>
       )
     }
@@ -313,39 +369,17 @@ export default function MfaSetup({ embedded = false, onComplete }) {
 
           <div style={{ maxWidth: 320, margin: '0 auto 32px' }}>
             <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-              <div
-                style={{ width: '100%', maxWidth: 280 }}
-                onKeyDown={(e) => {
-                  const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
-                  if (allowedKeys.includes(e.key)) return
-                  if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return
-                  if (!/^[0-9]$/.test(e.key)) {
-                    e.preventDefault()
-                    e.stopPropagation()
-                  }
-                }}
-                onPaste={(e) => {
-                  e.preventDefault()
-                  const pastedText = (e.clipboardData || window.clipboardData).getData('text')
-                  const numericOnly = pastedText.replace(/[^0-9]/g, '').slice(0, 6)
-                  if (numericOnly) {
-                    setCode(numericOnly)
-                  }
-                }}
-              >
-                <Input.OTP 
-                  length={6} 
-                  value={code} 
-                  onChange={(val) => {
-                    const numericValue = val.replace(/[^0-9]/g, '').slice(0, 6)
-                    setCode(numericValue)
-                  }} 
-                  autoFocus
-                  inputType="numeric"
-                  mask={false}
-                  style={{ width: '100%', justifyContent: 'center', gap: 8 }}
-                />
-              </div>
+              <Input.OTP
+                aria-label="Verification code"
+                length={6}
+                value={code}
+                onChange={handleOtpChange}
+                onKeyDown={handleOtpKeyDown}
+                onPaste={handleOtpPaste}
+                inputType="numeric"
+                mask={false}
+                style={{ width: '100%', maxWidth: 280, justifyContent: 'center', gap: 8 }}
+              />
             </div>
           </div>
 
@@ -359,7 +393,7 @@ export default function MfaSetup({ embedded = false, onComplete }) {
             >
               Verify & Enable
             </Button>
-            <Button type="text" block onClick={() => setCurrentStep(1)}>
+            <Button type="text" block onClick={handleBackToQrStep}>
               Back to QR Code
             </Button>
           </Space>
@@ -378,13 +412,13 @@ export default function MfaSetup({ embedded = false, onComplete }) {
           <Text style={{ color: token.colorTextSecondary }}>Protect your account with Two-Factor Authentication</Text>
         </div>
       )}
-      <div 
-        style={{ 
-          width: '100%', 
-          maxWidth: 500, 
-          overflow: 'hidden'
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 500,
+          overflow: 'hidden',
+          padding: embedded ? 24 : 40,
         }}
-        styles={{ body: { padding: embedded ? 24 : 40 } }}
       >
         {renderContent()}
       </div>

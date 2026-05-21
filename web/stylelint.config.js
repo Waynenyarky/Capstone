@@ -6,5 +6,5 @@ export default {
     'selector-class-pattern': null,
     'custom-property-pattern': null,
   },
-  ignores: ['dist', 'coverage', 'node_modules', '**/*.{js,jsx,ts,tsx}'],
+  ignoreFiles: ['dist', 'coverage', 'node_modules', '**/*.{js,jsx,ts,tsx}'],
 }

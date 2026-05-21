@@ -2,18 +2,27 @@ import React from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { Spin } from 'antd'
 import { useAuthSession, useMaintenanceStatus } from '@/features/authentication'
-import { getIsLoggingOut } from '@/features/authentication/lib/authEvents.js'
-import DeletionPendingScreen from './DeletionPendingScreen.jsx'
+import { getCurrentUser as getAuthEventCurrentUser, getIsLoggingOut } from '@/features/authentication/lib/authEvents.js'
+
+function normalizeRoleKey(value) {
+  const raw = String(value?.slug ?? value ?? '').trim().toLowerCase()
+  if (['owner', 'business-owner', 'business owner', 'businessowner'].includes(raw)) {
+    return 'business_owner'
+  }
+  return raw
+}
 
 export default function ProtectedRoute({ children, allowedRoles = [] }) {
   const { currentUser, role, isLoading } = useAuthSession()
   const location = useLocation()
   const maintenance = useMaintenanceStatus()
   const isLoggingOut = getIsLoggingOut()
+  const authEventUser = getAuthEventCurrentUser()
+  const effectiveUser = currentUser || authEventUser
 
-  const roleKey = String(role?.slug || role || '').toLowerCase()
+  const roleKey = normalizeRoleKey(role)
   const allowed = allowedRoles.map((r) => String(r || '').toLowerCase())
-  const isUnauthorized = !isLoading && currentUser && allowed.length > 0 && !allowed.includes(roleKey)
+  const isUnauthorized = !isLoading && effectiveUser && allowed.length > 0 && !allowed.includes(roleKey)
 
   if (isLoading) {
     return (
@@ -37,12 +46,12 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
     )
   }
 
-  if (maintenance.active && currentUser?.token && roleKey !== 'admin' && !isLoggingOut) {
+  if (maintenance.active && effectiveUser?.token && roleKey !== 'admin' && !isLoggingOut) {
     return <Navigate to="/maintenance" replace state={{ from: location }} />
   }
 
   // If not authenticated, redirect to login
-  if (!currentUser || !currentUser.token) {
+  if (!effectiveUser || !effectiveUser.token) {
     if (isLoggingOut) {
       // Preserve the logout notification state
       return <Navigate to="/" replace state={location.state?.isLogout ? location.state : undefined} />
@@ -169,7 +178,7 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
   const staffRoles = ['staff', 'lgu_manager', 'lgu_officer', 'inspector', 'cso']
 
   // Handle Deletion Pending State
-  if (currentUser?.deletionPending) {
+  if (effectiveUser?.deletionPending) {
     if (location.pathname !== '/deletion-pending') {
       return <Navigate to="/deletion-pending" replace state={{ from: location }} />
     }
@@ -177,7 +186,7 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
   }
 
   // Prevent access to Deletion Pending screen if not pending
-  if (!currentUser?.deletionPending && location.pathname === '/deletion-pending') {
+  if (!effectiveUser?.deletionPending && location.pathname === '/deletion-pending') {
     // Try to restore the previous location if available
     if (location.state?.from?.pathname) {
       return <Navigate to={location.state.from.pathname} replace />
@@ -196,9 +205,9 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
   // Dev bypass only applies to business owner; staff and admin always must complete MFA when mustSetupMfa is set
   const bypassMfaDev = import.meta.env.VITE_BYPASS_MFA_DEV === 'true'
   const isStaffOrAdmin = staffRoles.includes(roleKey) || roleKey === 'admin'
-  const mustSetupMfaEffective = isStaffOrAdmin ? !!currentUser?.mustSetupMfa : (bypassMfaDev ? false : !!currentUser?.mustSetupMfa)
-  const needsOnboarding = (staffRoles.includes(roleKey) || roleKey === 'admin') && (currentUser?.mustChangeCredentials || mustSetupMfaEffective)
-  const businessOwnerMustChangePassword = roleKey === 'business_owner' && currentUser?.mustChangeCredentials
+  const mustSetupMfaEffective = isStaffOrAdmin ? !!effectiveUser?.mustSetupMfa : (bypassMfaDev ? false : !!effectiveUser?.mustSetupMfa)
+  const needsOnboarding = (staffRoles.includes(roleKey) || roleKey === 'admin') && (effectiveUser?.mustChangeCredentials || mustSetupMfaEffective)
+  const businessOwnerMustChangePassword = roleKey === 'business_owner' && effectiveUser?.mustChangeCredentials
   const onboardingAllowedPaths = ['/staff/onboarding', '/admin/onboarding', '/account/security']
   const needsPasswordOrOnboarding = needsOnboarding || businessOwnerMustChangePassword
   if (needsPasswordOrOnboarding && !onboardingAllowedPaths.includes(location.pathname)) {
@@ -207,8 +216,8 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
       from: location.pathname, 
       to: onboardingTarget, 
       roleKey, 
-      mustSetupMfa: currentUser?.mustSetupMfa, 
-      mustChangeCredentials: currentUser?.mustChangeCredentials 
+      mustSetupMfa: effectiveUser?.mustSetupMfa,
+      mustChangeCredentials: effectiveUser?.mustChangeCredentials 
     })
     return <Navigate to={onboardingTarget} replace state={{ from: location }} />
   }

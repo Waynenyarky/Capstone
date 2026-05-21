@@ -1,11 +1,22 @@
 import React from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuthSession, useMaintenanceStatus } from '@/features/authentication'
+import { getCurrentUser as getAuthEventCurrentUser } from '@/features/authentication/lib/authEvents.js'
+
+function normalizeRoleKey(value) {
+  const raw = String(value?.slug ?? value ?? '').trim().toLowerCase()
+  if (['owner', 'business-owner', 'business owner', 'businessowner'].includes(raw)) {
+    return 'business_owner'
+  }
+  return raw
+}
 
 export default function PublicRoute({ children }) {
   const { currentUser, role, isLoading } = useAuthSession()
   const location = useLocation()
   const maintenance = useMaintenanceStatus()
+  const authEventUser = getAuthEventCurrentUser()
+  const effectiveUser = currentUser || authEventUser
 
   if (isLoading || maintenance.loading) {
     return null
@@ -13,7 +24,7 @@ export default function PublicRoute({ children }) {
 
   // If maintenance mode is active, redirect to maintenance page (except for admin users and allowed public pages)
   if (maintenance.active && location.pathname !== '/maintenance') {
-    const roleKey = String(role?.slug || role || '').toLowerCase()
+    const roleKey = normalizeRoleKey(role)
     const allowedPublicPages = ['/', '/login', '/forgot-password', '/sign-up', '/terms', '/privacy']
     
     // Allow admin users and specific public pages during maintenance
@@ -26,12 +37,12 @@ export default function PublicRoute({ children }) {
     return children
   }
 
-  if (currentUser && currentUser.token) {
-    const r = String(role?.slug || role || '').toLowerCase()
+  if (effectiveUser && effectiveUser.token) {
+    const r = normalizeRoleKey(role)
     const state = location.state // Preserve state (e.g. notifications) during redirect
 
     if (r === 'admin') {
-      if (currentUser?.mustChangeCredentials || currentUser?.mustSetupMfa) {
+      if (effectiveUser?.mustChangeCredentials || effectiveUser?.mustSetupMfa) {
         return <Navigate to="/admin/onboarding" replace state={{ ...state, from: '/admin/dashboard' }} />
       }
       return <Navigate to="/admin/dashboard" replace state={state} />
@@ -43,7 +54,7 @@ export default function PublicRoute({ children }) {
 
     const staffRoles = ['staff', 'lgu_manager', 'lgu_officer', 'inspector', 'cso']
     if (staffRoles.includes(r)) {
-      if (currentUser?.mustChangeCredentials || currentUser?.mustSetupMfa) {
+      if (effectiveUser?.mustChangeCredentials || effectiveUser?.mustSetupMfa) {
         return <Navigate to="/staff/onboarding" replace state={state} />
       }
       return <Navigate to="/staff" replace state={state} />
