@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { message } from 'antd'
+import { App } from 'antd'
 import {
   getPermitForms,
   saveDraft,
@@ -10,6 +10,7 @@ import {
 import { createEmptyCard } from '../utils'
 
 export default function usePermitForms() {
+  const { message } = App.useApp()
   const [section, setSection] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -60,7 +61,7 @@ export default function usePermitForms() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [message])
 
   useEffect(() => { fetch() }, [fetch])
 
@@ -90,7 +91,7 @@ export default function usePermitForms() {
     } finally {
       setPublishing(false)
     }
-  }, [])
+  }, [message])
 
   const revert = useCallback(async () => {
     try {
@@ -107,11 +108,15 @@ export default function usePermitForms() {
       message.success('Reverted to last published version')
     } catch (err) {
       console.error('Failed to revert:', err)
-      message.error('Failed to revert permit forms')
+      if (err?.response?.data?.error === 'no_published') {
+        message.warning('No published version to revert to. Publish the current draft first.')
+      } else {
+        message.error('Failed to revert permit forms')
+      }
     } finally {
       setSaving(false)
     }
-  }, [])
+  }, [message])
 
   const toggle = useCallback(async (enabled) => {
     try {
@@ -122,7 +127,7 @@ export default function usePermitForms() {
       console.error('Failed to toggle:', err)
       message.error('Failed to toggle permit forms')
     }
-  }, [])
+  }, [message])
 
   const updateCards = useCallback((newCards) => {
     setDraftCards(newCards)
@@ -139,7 +144,7 @@ export default function usePermitForms() {
     const newCards = [...draftCards, newCard]
     updateCards(newCards)
     message.success('Card added successfully')
-  }, [draftCards, updateCards])
+  }, [draftCards, updateCards, message])
 
   const deleteCard = useCallback((cardId) => {
     const newCards = draftCards
@@ -147,11 +152,11 @@ export default function usePermitForms() {
       .map((c, idx) => ({ ...c, order: idx }))
     updateCards(newCards)
     message.success('Card removed successfully')
-  }, [draftCards, updateCards])
+  }, [draftCards, updateCards, message])
 
   const updateCard = useCallback((cardId, updates) => {
     const newCards = draftCards.map((c) =>
-      c.cardId === cardId ? { ...c, ...updates } : c
+      c.cardId === cardId ? { ...c, ...updates, lastUpdatedAt: new Date().toISOString() } : c
     )
     updateCards(newCards)
   }, [draftCards, updateCards])
@@ -163,7 +168,7 @@ export default function usePermitForms() {
     setDraftCards(JSON.parse(JSON.stringify(entry.cards)))
     setDraftDescription(entry.description)
     message.success('Undo successful')
-  }, [])
+  }, [message])
 
   const redo = useCallback(() => {
     if (historyIndexRef.current >= historyRef.current.length - 1) return
@@ -172,7 +177,7 @@ export default function usePermitForms() {
     setDraftCards(JSON.parse(JSON.stringify(entry.cards)))
     setDraftDescription(entry.description)
     message.success('Redo successful')
-  }, [])
+  }, [message])
 
   const canUndo = historyIndexRef.current > 0
   const canRedo = historyRef.current && historyIndexRef.current < historyRef.current.length - 1

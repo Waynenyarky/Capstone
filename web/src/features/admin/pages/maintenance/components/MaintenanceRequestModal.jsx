@@ -1,6 +1,7 @@
 import React from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Modal, Input, DatePicker, Select, Button, Typography, Drawer, Collapse, Tag } from 'antd'
+import { Modal, Input, DatePicker, Select, Button, Typography, Drawer } from 'antd'
+import { theme } from 'antd'
 import dayjs from 'dayjs'
 import { getMaintenanceConflicts } from '../../../services'
 import { get } from '@/lib/http.js'
@@ -17,10 +18,12 @@ import {
   MAX_MAINTENANCE_DURATION_DAYS,
   MAX_SCHEDULING_HORIZON_DAYS,
 } from '../constants/requestMaintenance.constants.js'
+import MaintenancePreview from './MaintenancePreview.jsx'
 
-const { Text, Paragraph } = Typography
+const { Text } = Typography
 
-export default function RequestMaintenanceModal({ open, onCancel, form, onSubmit, submitting, maintenanceActive, isMobile = false, forceScheduleMode = false }) {
+export default function MaintenanceRequestModal({ open, onCancel, form, onSubmit, submitting, maintenanceActive, isMobile = false, forceScheduleMode = false }) {
+  const { token } = theme.useToken()
   const action = Form.useWatch('action', form)
   const whenToStart = Form.useWatch('whenToStart', form) || (forceScheduleMode ? 'scheduled' : undefined)
   const reasonPreset = Form.useWatch('reasonPreset', form)
@@ -29,7 +32,6 @@ export default function RequestMaintenanceModal({ open, onCancel, form, onSubmit
   const isReasonOther = reasonPreset === REASON_PRESET_OTHER
   const scheduledStartAt = Form.useWatch('scheduledStartAt', form)
   const expectedResumeAt = Form.useWatch('expectedResumeAt', form)
-  const message = Form.useWatch('message', form)
   const [conflicts, setConflicts] = React.useState([])
   const [currentMaintenance, setCurrentMaintenance] = React.useState({ active: false, scheduled: false })
   const [formValues, setFormValues] = React.useState({})
@@ -132,9 +134,8 @@ export default function RequestMaintenanceModal({ open, onCancel, form, onSubmit
 
   React.useEffect(() => {
     if (!open) return
-    const values = form.getFieldsValue()
-    setFormValues(values)
-  }, [open, form])
+    setFormValues(form.getFieldsValue())
+  }, [whenToStart, scheduledStartAt, expectedResumeAt, reasonPreset, action, open, form])
 
   const isEndMaintenanceFlow = maintenanceActive && !forceScheduleMode
 
@@ -382,41 +383,7 @@ export default function RequestMaintenanceModal({ open, onCancel, form, onSubmit
             <>
               <div style={{ marginTop: 16 }}>
                 <Text style={{ marginBottom: 12, display: 'block' }}>Live Landing Page Preview</Text>
-                <Collapse
-                  items={[
-                    {
-                      key: 'maintenance-preview',
-                      label: (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span>{isScheduled ? 'Scheduled Maintenance' : 'Maintenance Underway'}</span>
-                          <Tag color="blue" size="small">PREVIEW</Tag>
-                        </div>
-                      ),
-                      children: (
-                        <div>
-                          <Paragraph style={{ marginBottom: 12 }}>
-                            {formValues.message || message || 'No message'}
-                          </Paragraph>
-                          {isScheduled && (formValues.scheduledStartAt || scheduledStartAt) && (
-                            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-                              Starts: {dayjs(formValues.scheduledStartAt || scheduledStartAt).format('MMM D, YYYY h:mm A')}
-                            </Text>
-                          )}
-                          {!isScheduled && (
-                            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-                              Starts: After approval
-                            </Text>
-                          )}
-                          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 0 }}>
-                            Expected resume time: {formValues.expectedResumeAt || expectedResumeAt ? dayjs(formValues.expectedResumeAt || expectedResumeAt).format('MMM D, YYYY h:mm A') : 'Not set'}
-                          </Text>
-                        </div>
-                      ),
-                    },
-                  ]}
-                  defaultActiveKey={['maintenance-preview']}
-                  style={{ background: '#fafafa' }}
-                />
+                <MaintenancePreview formValues={formValues} token={token} />
               </div>
             </>
           )}

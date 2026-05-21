@@ -260,7 +260,7 @@ export default function PermitFormsAuditTab() {
           title={selectedLog ? actionLabel(selectedLog.eventType) : 'Log Detail'}
           open={!!selectedLog}
           onClose={() => setSelectedLog(null)}
-          destroyOnClose
+          destroyOnHidden
           placement="bottom"
           height="100%"
           styles={{

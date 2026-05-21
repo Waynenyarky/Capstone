@@ -10,6 +10,14 @@ const PermitFormCardSchema = new mongoose.Schema({
     fileName: { type: String, default: '' },
     size: { type: Number, default: 0 },
   },
+  processingSteps: [{
+    stepId: { type: String, required: true },
+    title: { type: String, trim: true, default: '' },
+    description: { type: String, default: '' },
+    estimatedDurationDays: { type: Number, default: 1 },
+    order: { type: Number, default: 0 },
+  }],
+  lastUpdatedAt: { type: Date, default: null },
   order: { type: Number, default: 0 },
 }, { _id: false })
 

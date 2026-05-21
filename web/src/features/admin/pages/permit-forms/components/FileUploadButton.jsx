@@ -95,7 +95,7 @@ export default function FileUploadButton({ value, onChange, token }) {
         footer={null}
         width="80%"
         style={{ top: 20 }}
-        destroyOnClose
+        destroyOnHidden
       >
         {hasFile && (
           <iframe

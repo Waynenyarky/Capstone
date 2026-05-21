@@ -1,55 +1,72 @@
 import React, { useState, useRef, useCallback } from 'react'
 import { Card, Typography, Button, Empty, Grid } from 'antd'
-import { DownloadOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons'
-import { resolveIpfsUrl } from '../utils'
+import { LeftOutlined, RightOutlined, ClockCircleOutlined, UnorderedListOutlined } from '@ant-design/icons'
+import PermitFormDetailModal from './PermitFormDetailModal'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+
+dayjs.extend(relativeTime)
 
 const { Title, Paragraph, Text } = Typography
 
-function PermitFormCard({ card }) {
+function PermitFormCard({ card, onViewDetails, token }) {
+  const stepsCount = (card.processingSteps || []).length
+  const totalDays = (card.processingSteps || []).reduce(
+    (sum, s) => sum + (s.estimatedDurationDays || 0),
+    0
+  )
+
   return (
     <Card
-      title={card.title || 'Untitled'}
       size="small"
-      style={{ display: 'flex', flexDirection: 'column', minWidth: 320, height: '100%' }}
-      styles={{ body: { flex: 1, display: 'flex', flexDirection: 'column' } }}
+      onClick={() => onViewDetails(card)}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        minWidth: 320,
+        height: '100%',
+        cursor: 'pointer',
+        border: `1px solid ${token.colorBorderSecondary}`,
+        transition: 'border-color 0.2s',
+      }}
+      styles={{
+        body: { flex: 1, display: 'flex', flexDirection: 'column' },
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = token.colorPrimary
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = token.colorBorderSecondary
+      }}
     >
+      <Title level={5} style={{ margin: 0, marginBottom: 8 }}>
+        {card.title || 'Untitled'}
+      </Title>
       {card.description && (
         <Paragraph
           type="secondary"
+          ellipsis={{ rows: 3 }}
           style={{ marginBottom: 8, fontSize: 13 }}
         >
           {card.description}
         </Paragraph>
       )}
 
-      {card.requirements && card.requirements.length > 0 && (
-        <div style={{ marginBottom: 8 }}>
-          <Text strong style={{ fontSize: 12, marginBottom: 4, display: 'block' }}>
-            Requirements:
+      <div style={{ marginTop: 'auto', paddingTop: 8, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        {stepsCount > 0 && (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            <UnorderedListOutlined style={{ marginRight: 4 }} />
+            {stepsCount} step{stepsCount !== 1 ? 's' : ''}
+            {totalDays > 0 && <span> · <ClockCircleOutlined style={{ marginRight: 4 }} />~{totalDays} day{totalDays !== 1 ? 's' : ''}</span>}
           </Text>
-          <ul style={{ paddingLeft: 20, margin: 0 }}>
-            {card.requirements.filter(Boolean).map((req, i) => (
-              <li key={i} style={{ fontSize: 13, marginBottom: 2 }}>
-                {req}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {card.downloadableFile?.cid && (
-        <div style={{ marginTop: 'auto', paddingTop: 8 }}>
-          <Button
-            type="primary"
-            icon={<DownloadOutlined />}
-            href={resolveIpfsUrl(card.downloadableFile.cid)}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Download Form
-          </Button>
-        </div>
-      )}
+        )}
+        {card.lastUpdatedAt && (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            <ClockCircleOutlined style={{ marginRight: 4 }} />
+            Updated {dayjs(card.lastUpdatedAt).fromNow()}
+          </Text>
+        )}
+      </div>
     </Card>
   )
 }
@@ -60,6 +77,7 @@ export default function PermitFormsPreview({ cards, sectionDescription, token })
   const scrollRef = useRef(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
+  const [selectedCard, setSelectedCard] = useState(null)
 
   const updateScrollState = useCallback(() => {
     const el = scrollRef.current
@@ -106,7 +124,7 @@ export default function PermitFormsPreview({ cards, sectionDescription, token })
           textAlign: 'left',
         }}
       >
-        Permit Forms
+        Forms and Requirements
       </Title>
       {sectionDescription && (
         <Paragraph
@@ -151,7 +169,7 @@ export default function PermitFormsPreview({ cards, sectionDescription, token })
                   scrollSnapAlign: 'start',
                 }}
               >
-                <PermitFormCard card={card} />
+                <PermitFormCard card={card} onViewDetails={setSelectedCard} token={token} />
               </div>
             ))}
           </div>
@@ -173,6 +191,12 @@ export default function PermitFormsPreview({ cards, sectionDescription, token })
           )}
         </div>
       )}
+
+      <PermitFormDetailModal
+        card={selectedCard}
+        open={!!selectedCard}
+        onClose={() => setSelectedCard(null)}
+      />
     </div>
   )
 }

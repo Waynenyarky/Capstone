@@ -1,18 +1,181 @@
-import { Typography, Grid, theme, Collapse, Card, Button } from 'antd'
-import { DownloadOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons'
-import { BRAND_COLORS } from '@/shared/theme/ThemeProvider'
+import React from 'react'
+import { Typography, Grid, theme, Collapse, Card, Button, Divider, Modal, Drawer, Timeline } from 'antd'
+import { LeftOutlined, RightOutlined, ClockCircleOutlined, UnorderedListOutlined, DownloadOutlined, CheckCircleOutlined, UserOutlined, FormOutlined, SearchOutlined, QuestionCircleOutlined } from '@ant-design/icons'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { get } from '@/lib/http.js'
 import { getMaintenanceStatus } from '@/features/public/services/maintenanceService.js'
+import BizClearLogo from '@/shared/components/BizClearLogo.jsx'
 import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+
+dayjs.extend(relativeTime)
 
 const { Title, Paragraph, Text } = Typography
 const { useBreakpoint } = Grid
+
+const LOGOS = [
+  { src: '/government-logos/republic-of-philippines.png', alt: 'Republic of the Philippines' },
+  { src: '/government-logos/bagong-pilipinas.png', alt: 'Bagong Pilipinas' },
+  { src: '/government-logos/alaminos-city.png', alt: 'City of Alaminos' },
+  { src: '/government-logos/pangasinan-province.png', alt: 'Province of Pangasinan' },
+]
+
+const BENTO_CARDS = [
+  {
+    id: 'bizclear',
+    title: 'BizClear',
+    description: 'An online business permit processing system of Business Permits and Licensing Office (BPLO) of Alaminos City, Pangasinan',
+    icon: 'bizclear',
+    span: 12,
+    isTall: true,
+  },
+  {
+    id: 'login',
+    title: 'Login',
+    icon: UserOutlined,
+    span: 12,
+    link: '/login',
+    linkText: 'Access account →',
+  },
+  {
+    id: 'apply-now',
+    title: 'Apply Now',
+    icon: FormOutlined,
+    span: 12,
+    link: '/apply',
+    linkText: 'Begin →',
+  },
+  {
+    id: 'track-application',
+    title: 'Track Application',
+    icon: SearchOutlined,
+    span: 12,
+    link: '/track',
+    linkText: 'Check your application status →',
+  },
+  {
+    id: 'get-help',
+    title: 'Get Help',
+    icon: QuestionCircleOutlined,
+    span: 12,
+    link: '/help',
+    linkText: 'Learn More →',
+  },
+]
+
+function resolveIpfsUrl(cid) {
+  if (!cid) return ''
+  if (cid.startsWith('http')) return cid
+  const gateway = import.meta.env.VITE_IPFS_GATEWAY_URL || 'https://gateway.pinata.cloud/ipfs/'
+  return `${gateway}${cid}`
+}
+
+function PermitFormDetailContent({ card }) {
+  const totalDays = (card.processingSteps || []).reduce(
+    (sum, s) => sum + (s.estimatedDurationDays || 0),
+    0
+  )
+
+  const timelineItems = (card.processingSteps || [])
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .map((step, idx, arr) => {
+      const isFirst = idx === 0
+      const isLast = idx === arr.length - 1
+      return {
+        color: isFirst ? 'blue' : isLast ? 'green' : 'gray',
+        dot: isLast ? <CheckCircleOutlined /> : undefined,
+        children: (
+          <div style={{ paddingBottom: 4 }}>
+            <Text strong>{step.title}</Text>
+            {step.description && (
+              <Paragraph type="secondary" style={{ marginBottom: 0, marginTop: 2, fontSize: 13 }}>
+                {step.description}
+              </Paragraph>
+            )}
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              <ClockCircleOutlined style={{ marginRight: 4 }} />
+              {step.estimatedDurationDays === 0
+                ? 'Same day'
+                : `~${step.estimatedDurationDays} day${step.estimatedDurationDays !== 1 ? 's' : ''}`}
+            </Text>
+          </div>
+        ),
+      }
+    })
+
+  return (
+    <div>
+      <Title level={4} style={{ margin: 0, marginBottom: 16 }}>
+        {card.title || 'Untitled'}
+      </Title>
+      {card.description && (
+        <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+          {card.description}
+        </Paragraph>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+        {card.processingSteps && card.processingSteps.length > 0 && (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            <UnorderedListOutlined style={{ marginRight: 4 }} />
+            {card.processingSteps.length} step{card.processingSteps.length !== 1 ? 's' : ''}
+          </Text>
+        )}
+        {totalDays > 0 && (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            <ClockCircleOutlined style={{ marginRight: 4 }} />
+            ~{totalDays} day{totalDays !== 1 ? 's' : ''}
+          </Text>
+        )}
+        {card.lastUpdatedAt && (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            <ClockCircleOutlined style={{ marginRight: 4 }} />
+            Updated {dayjs(card.lastUpdatedAt).fromNow()}
+          </Text>
+        )}
+      </div>
+      {card.requirements?.filter(Boolean).length > 0 && (
+        <>
+          <Title level={5} style={{ marginTop: 32, marginBottom: 8 }}>Requirements</Title>
+          <ul style={{ paddingLeft: 20, margin: 0, marginBottom: 32 }}>
+            {card.requirements.filter(Boolean).map((req, i) => (
+              <li key={i} style={{ fontSize: 13, marginBottom: 4 }}>{req}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      {timelineItems.length > 0 && (
+        <>
+          <Title level={5} style={{ margin: 0, marginBottom: 12, marginTop: 32 }}>Processing Steps</Title>
+          <div style={{ padding: 16 }}>
+            <Timeline items={timelineItems} />
+          </div>
+        </>
+      )}
+      {card.downloadableFile?.cid && (
+        <>
+          <Divider style={{ margin: '16px 0' }} />
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            href={resolveIpfsUrl(card.downloadableFile.cid)}
+            target="_blank"
+            rel="noopener noreferrer"
+            block
+          >
+            Download Form{card.downloadableFile.fileName ? ` — ${card.downloadableFile.fileName}` : ''}
+          </Button>
+        </>
+      )}
+    </div>
+  )
+}
 
 function PermitFormsCarousel({ cards, sectionDescription, screens, token }) {
   const scrollRef = useRef(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
+  const [selectedCard, setSelectedCard] = useState(null)
+  const isMobile = !screens.md
 
   const updateScrollState = useCallback(() => {
     const el = scrollRef.current
@@ -59,7 +222,7 @@ function PermitFormsCarousel({ cards, sectionDescription, screens, token }) {
             textAlign: 'left',
           }}
         >
-          Permit Forms
+          Forms and Requirements
         </Title>
         {sectionDescription && (
           <Paragraph
@@ -91,7 +254,11 @@ function PermitFormsCarousel({ cards, sectionDescription, screens, token }) {
             }}
           >
             {cards.map((card) => {
-              const reqs = card.requirements?.filter(Boolean) || []
+              const stepsCount = (card.processingSteps || []).length
+              const totalDays = (card.processingSteps || []).reduce(
+                (sum, s) => sum + (s.estimatedDurationDays || 0),
+                0
+              )
               return (
                 <div
                   key={card.cardId || card._id}
@@ -103,43 +270,50 @@ function PermitFormsCarousel({ cards, sectionDescription, screens, token }) {
                   }}
                 >
                   <Card
-                    title={card.title || 'Untitled'}
                     size="small"
-                    style={{ display: 'flex', flexDirection: 'column', minWidth: 320, height: '100%' }}
-                    styles={{ body: { flex: 1, display: 'flex', flexDirection: 'column' } }}
+                    onClick={() => setSelectedCard(card)}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      minWidth: 320,
+                      height: '100%',
+                      cursor: 'pointer',
+                      border: `1px solid ${token.colorBorderSecondary}`,
+                      transition: 'border-color 0.2s',
+                    }}
+                    styles={{
+                      body: { flex: 1, display: 'flex', flexDirection: 'column' },
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = token.colorPrimary
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = token.colorBorderSecondary
+                    }}
                   >
+                    <Title level={5} style={{ margin: 0, marginBottom: 16 }}>
+                      {card.title || 'Untitled'}
+                    </Title>
                     {card.description && (
-                      <Paragraph type="secondary" style={{ marginBottom: 8, fontSize: 13 }}>
+                      <Paragraph type="secondary" ellipsis={{ rows: 3 }} style={{ marginBottom: 8, fontSize: 13 }}>
                         {card.description}
                       </Paragraph>
                     )}
-                    {reqs.length > 0 && (
-                      <div style={{ marginBottom: 8 }}>
-                        <Text strong style={{ fontSize: 12, marginBottom: 4, display: 'block' }}>
-                          Requirements:
+                    <div style={{ marginTop: 'auto', paddingTop: 8, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      {stepsCount > 0 && (
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          <UnorderedListOutlined style={{ marginRight: 4 }} />
+                          {stepsCount} step{stepsCount !== 1 ? 's' : ''}
+                          {totalDays > 0 && <> · <ClockCircleOutlined style={{ marginRight: 4 }} />~{totalDays} day{totalDays !== 1 ? 's' : ''}</>}
                         </Text>
-                        <ul style={{ paddingLeft: 20, margin: 0 }}>
-                          {reqs.map((req, i) => (
-                            <li key={i} style={{ fontSize: 13, marginBottom: 2 }}>{req}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {card.downloadableFile?.cid && (
-                      <div style={{ marginTop: 'auto', paddingTop: 8 }}>
-                        <Button
-                          type="primary"
-                          icon={<DownloadOutlined />}
-                          href={card.downloadableFile.cid.startsWith('http')
-                            ? card.downloadableFile.cid
-                            : `${import.meta.env.VITE_IPFS_GATEWAY_URL || 'https://gateway.pinata.cloud/ipfs/'}${card.downloadableFile.cid}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Download Form
-                        </Button>
-                      </div>
-                    )}
+                      )}
+                      {card.lastUpdatedAt && (
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          <ClockCircleOutlined style={{ marginRight: 4 }} />
+                          Updated {dayjs(card.lastUpdatedAt).fromNow()}
+                        </Text>
+                      )}
+                    </div>
                   </Card>
                 </div>
               )
@@ -163,16 +337,72 @@ function PermitFormsCarousel({ cards, sectionDescription, screens, token }) {
           )}
         </div>
       </div>
+
+      {isMobile ? (
+        <Drawer
+          title={null}
+          placement="bottom"
+          open={!!selectedCard}
+          onClose={() => setSelectedCard(null)}
+          height="100%"
+          styles={{ body: { paddingTop: 12 } }}
+        >
+          {selectedCard && <PermitFormDetailContent card={selectedCard} />}
+        </Drawer>
+      ) : (
+        <Modal
+          title={null}
+          open={!!selectedCard}
+          onCancel={() => setSelectedCard(null)}
+          footer={null}
+          width={600}
+          styles={{ body: { maxHeight: '70vh', overflowY: 'auto' } }}
+        >
+          {selectedCard && <PermitFormDetailContent card={selectedCard} />}
+        </Modal>
+      )}
     </section>
   )
 }
 
 export default function HeroSection() {
-  const screens = useBreakpoint()
   const { token } = theme.useToken()
+  const screens = useBreakpoint()
+
   const [announcements, setAnnouncements] = useState([])
-  const [maintenanceStatus, setMaintenanceStatus] = useState({ active: false, scheduled: false })
-  const [permitForms, setPermitForms] = useState({ cards: [], sectionDescription: '', isEnabled: false })
+  const [maintenanceStatus, setMaintenanceStatus] = useState({
+    active: false,
+    scheduled: false,
+    message: '',
+    expectedResumeAt: null,
+    scheduledStartAt: null,
+  })
+  const [permitForms, setPermitForms] = useState({
+    cards: [],
+    sectionDescription: '',
+    isEnabled: false,
+  })
+  const [hoveredCard, setHoveredCard] = useState(null)
+  const [announcementsModalOpen, setAnnouncementsModalOpen] = useState(false)
+
+  // Inject CSS animation keyframes
+  useEffect(() => {
+    const style = document.createElement('style')
+    style.textContent = `
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    `
+    document.head.appendChild(style)
+    return () => document.head.removeChild(style)
+  }, [])
 
   const faqItems = [
     {
@@ -256,15 +486,14 @@ export default function HeroSection() {
             isEnabled: true,
           })
         }
-      } catch {
+      } catch (err) {
+        console.error('[HeroSection] fetchLandingData error:', err)
         setAnnouncements([])
         setMaintenanceStatus({ active: false, scheduled: false })
       }
     }
     fetchLandingData()
   }, [])
-
-  const fontSize = 'clamp(28px, 5vw, 56px)'
 
   const hasMaintenanceNotice = maintenanceStatus.active
 
@@ -273,12 +502,23 @@ export default function HeroSection() {
     label: <span>{ann.title}</span>,
     children: (
       <div>
-        <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-          {ann.createdAt ? dayjs(ann.createdAt).format('MMM D, YYYY h:mm A') : '-'}
-        </Text>
         <Paragraph style={{ marginBottom: 0 }}>
           {ann.body}
         </Paragraph>
+        {ann.metadata?.scheduledStartAt && (
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+            Starting at: {dayjs(ann.metadata.scheduledStartAt).format('MMM D, YYYY h:mm A')}
+          </Text>
+        )}
+        {ann.metadata?.expectedResumeAt && (
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+            Back online at: {dayjs(ann.metadata.expectedResumeAt).format('MMM D, YYYY h:mm A')}
+          </Text>
+        )}
+        <Divider style={{ margin: '12px 0' }} />
+        <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
+          Posted on {ann.createdAt ? dayjs(ann.createdAt).format('MMM D, YYYY h:mm A') : '-'}
+        </Text>
       </div>
     ),
   }))
@@ -289,136 +529,380 @@ export default function HeroSection() {
   return (
     <div style={{ 
       background: token.colorBgContainer,
-      padding: screens.md ? '56px clamp(24px, 8vw, 140px)' : '36px 16px',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'stretch',
-      gap: screens.md ? 44 : 28,
-      flex: 1,
     }}>
-      <div style={{ 
-        width: '100%',
-        maxWidth: 1280,
-        margin: '0 auto',
-        display: 'grid',
-        gridTemplateColumns: hasAnnouncementPanel && screens.lg ? 'minmax(0, 1.15fr) minmax(320px, 0.85fr)' : '1fr',
-        gap: screens.lg ? 56 : 32,
-        alignItems: 'start'
-      }}>
-        {/* Left Panel - Hero Text */}
-        <div style={{ 
-          textAlign: hasAnnouncementPanel && screens.lg ? 'left' : 'center',
-          minHeight: screens.lg ? 280 : 'auto',
+      {/* Hero Section with Mosaic Background */}
+      <div 
+        data-hero-section
+        style={{
+          width: '100vw',
+          height: '100vh',
+          display: 'flex',
+          flexDirection: screens.md ? 'row' : 'column',
+        }}>
+        {/* Left Panel - Art (60% on desktop, dynamic height on mobile) */}
+        <div style={{
+          width: screens.md ? '60%' : '100%',
+          height: screens.md ? '100%' : 'auto',
+          flex: screens.md ? 'none' : 1,
+          backgroundImage: 'url(/Mosaic.png)',
+          backgroundRepeat: 'repeat',
+          backgroundSize: screens.md ? '800px' : '400px',
+          backgroundPosition: 'center',
+          minHeight: screens.md ? 'none' : '30vh',
+        }} />
+
+        {/* Right Panel - Content (40% on desktop, 100% on mobile) */}
+        <div style={{
+          width: screens.md ? '40%' : '100%',
+          background: token.colorBgContainer,
+          padding: screens.md ? '32px' : '24px',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'center'
+          alignItems: 'flex-start',
+          justifyContent: hasAnnouncementPanel ? 'flex-start' : 'center',
+          overflowY: 'auto',
+          paddingTop: hasAnnouncementPanel && screens.md ? 48 : undefined,
         }}>
-          <Title level={1} style={{ 
-            marginBottom: '8px', 
-            fontSize,
-            fontWeight: 700,
-            lineHeight: 1.1,
-            whiteSpace: screens.sm ? 'nowrap' : 'normal'
+          {/* Bento Grid */}
+          <div style={{ 
+            width: '100%',
+            display: 'grid',
+            gridTemplateColumns: screens.md ? 'repeat(2, 1fr)' : 'repeat(2, 1fr)',
+            gridAutoRows: screens.md ? '140px' : '120px',
+            gap: screens.md ? 12 : 8,
+            paddingTop: screens.md ? 0 : 24,
           }}>
-            <span style={{ color: BRAND_COLORS.blue }}>Business </span>
-            <span style={{ color: BRAND_COLORS.red }}>Permit </span>
-            <span style={{ color: BRAND_COLORS.yellow }}>Processing</span>
-          </Title>
-          <Title level={2} style={{ 
-            margin: 0, 
-            fontSize: 'clamp(20px, 4vw, 40px)',
-            fontWeight: 700,
-            color: token.colorText,
-            textAlign: 'inherit'
-          }}>
-            Made Simpler.
-          </Title>
-        </div>
-
-        {/* Right Panel - Announcements Collapsible */}
-        {hasAnnouncementPanel && (
-          <div style={{ height: '100%', minWidth: 0 }}>
-            <Title level={5} style={{ marginBottom: 16 }}>
-              Announcements
-            </Title>
-
-            {/* Maintenance Notice - Prominent Card */}
-            {hasMaintenanceNotice && (
-              <div
+            {BENTO_CARDS.map((card) => (
+              <div 
+                key={card.id}
                 style={{
-                  marginBottom: 16,
-                  padding: 16,
-                  border: `1px solid ${token.colorBorder}`,
-                  borderRadius: token.borderRadius,
-                  background: token.colorBgContainer,
+                  gridColumn: card.span === 24 ? 'span 2' : 'span 1',
+                  gridRow: card.isTall ? 'span 2' : 'span 1',
                 }}
               >
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
-                  
-                  <div>
-                    {maintenanceStatus.active ? 'System Maintenance Underway' : 'Scheduled Maintenance'}
-                  </div>
-                  {(maintenanceStatus.scheduledStartAt || maintenanceStatus.expectedResumeAt) && (
-                    <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 10}}>
-                      {maintenanceStatus.scheduledStartAt
-                        ? `Starts: ${dayjs(maintenanceStatus.scheduledStartAt).format('MMM D, YYYY h:mm A')}`
-                        : `Expected back: ${dayjs(maintenanceStatus.expectedResumeAt).format('MMM D, YYYY h:mm A')}`}
-                    </Text>
-                  )}
-                  <Paragraph style={{ marginBottom: 0, fontSize: 14 }}>
-                    {maintenanceStatus.message || "We're performing scheduled maintenance. Some features may be temporarily unavailable."}
-                  </Paragraph>
-                </div>
+                <Card
+                  size="small"
+                  style={{ 
+                    height: '100%',
+                    background: token.colorBgContainer,
+                    border: card.link && hoveredCard === card.id 
+                      ? `1px solid ${token.colorPrimary}` 
+                      : `1px solid ${token.colorBorder}`,
+                    borderRadius: token.borderRadiusLG,
+                    cursor: card.link ? 'pointer' : 'default',
+                    transition: 'border-color 0.2s, box-shadow 0.2s, transform 0.2s',
+                    boxShadow: card.link && hoveredCard === card.id 
+                      ? `0 4px 12px rgba(0, 0, 0, 0.15)` 
+                      : 'none',
+                    transform: card.link && hoveredCard === card.id ? 'scale(1.02)' : 'scale(1)',
+                  }}
+                  bodyStyle={{ 
+                    padding: screens.md ? 16 : 12, 
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'flex-end',
+                    alignItems: 'flex-start',
+                  }}
+                  onMouseEnter={() => setHoveredCard(card.id)}
+                  onMouseLeave={() => setHoveredCard(null)}
+                  onClick={() => card.link && (window.location.href = card.link)}
+                >
+                    {card.icon === 'bizclear' ? (
+                      <div style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'flex-start',
+                        transition: 'transform 0.3s ease-out',
+                      }}>
+                        <BizClearLogo width={screens.md ? 32 : 28} style={{ marginBottom: 8 }} />
+                        <Title level={5} style={{ margin: 0, fontSize: screens.md ? 20 : 18 }}>
+                          {card.title}
+                        </Title>
+                        <Text type="secondary" style={{ display: 'block', marginTop: 4, wordWrap: 'break-word', overflowWrap: 'break-word' }}>
+                          {card.description}
+                        </Text>
+                      </div>
+                    ) : card.icon === 'government' ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {/* Row 1 — Logos */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          {LOGOS.map((logo) => (
+                            <img
+                              key={logo.alt}
+                              src={logo.src}
+                              alt={logo.alt}
+                              style={{
+                                height: 32,
+                                width: 32,
+                                objectFit: 'contain',
+                              }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                              }}
+                            />
+                          ))}
+                        </div>
+                        {/* Row 2 — Text */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                          <Text style={{ fontSize: 11, color: '#555', lineHeight: 1.4 }}>
+                            Republic of the Philippines
+                          </Text>
+                          <Text style={{ fontSize: 11, color: '#333', lineHeight: 1.4 }}>
+                            Business Permits and Licensing Office (BPLO)
+                          </Text>
+                          <Text style={{ fontSize: 11, color: '#333', lineHeight: 1.4 }}>
+                            Alaminos City, Pangasinan
+                          </Text>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'flex-start',
+                      }}>
+                        {React.createElement(card.icon, { 
+                          style: { fontSize: screens.md ? 24 : 20, color: token.colorTextSecondary, marginBottom: 8 } 
+                        })}
+                        <Title level={5} style={{ margin: 0 }}>
+                          {card.title}
+                        </Title>
+                        {card.description && (
+                          <Text type="secondary" style={{ display: 'block', marginTop: 4, wordWrap: 'break-word', overflowWrap: 'break-word' }}>
+                            {card.description}
+                          </Text>
+                        )}
+                        {card.link && (
+                          <div style={{
+                            maxHeight: hoveredCard === card.id ? 30 : 0,
+                            overflow: 'hidden',
+                            transition: 'max-height 0.15s ease-out',
+                          }}>
+                            <Text 
+                              style={{ 
+                                display: 'block', 
+                                marginTop: 8, 
+                                color: token.colorPrimary, 
+                                fontSize: 12,
+                                fontWeight: 500,
+                                opacity: hoveredCard === card.id ? 1 : 0,
+                                transform: hoveredCard === card.id ? 'translateY(0)' : 'translateY(10px)',
+                                transition: 'opacity 0.15s ease-out, transform 0.15s ease-out',
+                              }}
+                            >
+                              {card.linkText || 'Learn more →'}
+                            </Text>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                </Card>
               </div>
-            )}
-
-            {/* Regular Announcements Collapsible */}
-            {announcementItems.length > 0 && (
-              <Collapse
-                items={announcementItems}
-                defaultActiveKey={defaultOpenKey}
-                style={{ background: token.colorBgContainer }}
-              />
-            )}
+            ))}
           </div>
-        )}
+
+          {/* Announcements Collapsible - Desktop only */}
+          {screens.md && hasAnnouncementPanel && (
+            <div style={{ 
+              width: '100%', 
+              minWidth: 0, 
+              marginTop: 12, 
+            }}>
+              {/* Maintenance Notice - Prominent Card */}
+              {hasMaintenanceNotice && (
+                <div
+                  style={{
+                    marginBottom: 12,
+                    padding: 12,
+                    border: `0.5px solid ${token.colorBorderSecondary}`,
+                    borderRadius: token.borderRadius,
+                    background: token.colorBgContainer,
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+                    
+                    <div style={{ color: token.colorPrimary, fontSize: 13, fontWeight: 600 }}>
+                      {maintenanceStatus.active ? 'System Maintenance Underway' : 'Scheduled Maintenance'}
+                    </div>
+                    <Paragraph style={{ marginBottom: 0, fontSize: 12 }}>
+                      {(maintenanceStatus.message || "We're performing scheduled maintenance. Some features may be temporarily unavailable.").replace(/^Upcoming:\s*/i, '')}
+                    </Paragraph>
+                    {maintenanceStatus.scheduledStartAt && (
+                      <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
+                        Starting at: {dayjs(maintenanceStatus.scheduledStartAt).format('MMM D, YYYY h:mm A')}
+                      </Text>
+                    )}
+                    {maintenanceStatus.expectedResumeAt && (
+                      <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 2 }}>
+                        Back online at: {dayjs(maintenanceStatus.expectedResumeAt).format('MMM D, YYYY h:mm A')}
+                      </Text>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {announcementItems.length > 0 && (
+                <>
+                  <Collapse
+                    items={announcementItems.slice(0, screens.md && announcementItems.length >= 4 ? 3 : announcementItems.length)}
+                    defaultActiveKey={defaultOpenKey}
+                    style={{ background: token.colorBgContainer }}
+                  />
+                  {screens.md && announcementItems.length >= 4 && (
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={() => setAnnouncementsModalOpen(true)}
+                      style={{ marginTop: 8, padding: 0, height: 'auto' }}
+                    >
+                      View all {announcementItems.length} announcements
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      <section style={{ width: '100%', maxWidth: 1280, margin: '0 auto' }}>
-        <div
-          style={{
-            border: `1px solid ${token.colorBorderSecondary}`,
-            borderRadius: token.borderRadiusLG,
-            padding: screens.md ? '24px 28px' : '18px 14px',
-            background: token.colorBgLayout,
-          }}
-        >
-          <Title
-            level={4}
-            style={{
-              marginTop: 0,
-              marginBottom: 8,
-              textAlign: screens.md ? 'left' : 'center',
-            }}
-          >
-            Frequently Asked Questions
+      {/* Announcements Collapsible - Mobile only */}
+      {!screens.md && hasAnnouncementPanel && (
+        <div style={{ width: '100%', maxWidth: 1280, margin: '0 auto', padding: screens.md ? '24px 32px' : '16px 24px' }}>
+          <Title level={5} style={{ marginBottom: 12 }}>
+            Announcements
           </Title>
-          <Paragraph
-            type="secondary"
-            style={{
-              marginBottom: 16,
-              textAlign: screens.md ? 'left' : 'center',
-            }}
-          >
-            Quick answers about application timelines, updates, and submission best practices.
-          </Paragraph>
-          <Collapse
-            items={faqItems}
-            defaultActiveKey={['faq-1']}
-            style={{ background: token.colorBgContainer, textAlign: 'left' }}
-          />
+
+          {/* Maintenance Notice - Prominent Card */}
+          {hasMaintenanceNotice && (
+            <div
+              style={{
+                marginBottom: 12,
+                padding: 12,
+                border: `0.5px solid ${token.colorBorderSecondary}`,
+                borderRadius: token.borderRadius,
+                background: token.colorBgContainer,
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+                
+                <div style={{ color: token.colorPrimary, fontSize: 13, fontWeight: 600 }}>
+                  {maintenanceStatus.active ? 'System Maintenance Underway' : 'Scheduled Maintenance'}
+                </div>
+                <Paragraph style={{ marginBottom: 0, fontSize: 12 }}>
+                  {(maintenanceStatus.message || "We're performing scheduled maintenance. Some features may be temporarily unavailable.").replace(/^Upcoming:\s*/i, '')}
+                </Paragraph>
+                {maintenanceStatus.scheduledStartAt && (
+                  <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
+                    Starting at: {dayjs(maintenanceStatus.scheduledStartAt).format('MMM D, YYYY h:mm A')}
+                  </Text>
+                )}
+                {maintenanceStatus.expectedResumeAt && (
+                  <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 2 }}>
+                    Back online at: {dayjs(maintenanceStatus.expectedResumeAt).format('MMM D, YYYY h:mm A')}
+                  </Text>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Regular Announcements Collapsible */}
+          {announcementItems.length > 0 && (
+            <Collapse
+              items={announcementItems}
+              defaultActiveKey={defaultOpenKey}
+              style={{ background: token.colorBgContainer }}
+            />
+          )}
         </div>
-      </section>
+      )}
+
+      <section style={{ width: '100%', maxWidth: 1280, margin: '0 auto' }}>
+            <div
+              style={{
+                border: `1px solid ${token.colorBorderSecondary}`,
+                borderRadius: token.borderRadiusLG,
+                padding: screens.md ? '24px 28px' : '18px 14px',
+                background: token.colorBgLayout,
+              }}
+            >
+              <Title
+                level={4}
+                style={{
+                  marginTop: 0,
+                  marginBottom: 8,
+                  textAlign: screens.md ? 'left' : 'center',
+                }}
+              >
+                Frequently Asked Questions
+              </Title>
+              <Paragraph
+                type="secondary"
+                style={{
+                  marginBottom: 16,
+                  textAlign: screens.md ? 'left' : 'center',
+                }}
+              >
+                Quick answers about application timelines, updates, and submission best practices.
+              </Paragraph>
+              <Collapse
+                items={faqItems}
+                defaultActiveKey={['faq-1']}
+                style={{ background: token.colorBgContainer, textAlign: 'left' }}
+              />
+            </div>
+          </section>
+
+      <Modal
+        title="All Announcements"
+        open={announcementsModalOpen}
+        onCancel={() => setAnnouncementsModalOpen(false)}
+        footer={null}
+        width={600}
+        styles={{ body: { maxHeight: '70vh', overflowY: 'auto' } }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {hasMaintenanceNotice && (
+            <div
+              style={{
+                padding: 12,
+                border: `0.5px solid ${token.colorBorderSecondary}`,
+                borderRadius: token.borderRadius,
+                background: token.colorBgContainer,
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+                <div style={{ color: token.colorPrimary, fontSize: 13, fontWeight: 600 }}>
+                  {maintenanceStatus.active ? 'System Maintenance Underway' : 'Scheduled Maintenance'}
+                </div>
+                <Paragraph style={{ marginBottom: 0, fontSize: 12 }}>
+                  {(maintenanceStatus.message || "We're performing scheduled maintenance. Some features may be temporarily unavailable.").replace(/^Upcoming:\s*/i, '')}
+                </Paragraph>
+                {maintenanceStatus.scheduledStartAt && (
+                  <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
+                    Starting at: {dayjs(maintenanceStatus.scheduledStartAt).format('MMM D, YYYY h:mm A')}
+                  </Text>
+                )}
+                {maintenanceStatus.expectedResumeAt && (
+                  <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 2 }}>
+                    Back online at: {dayjs(maintenanceStatus.expectedResumeAt).format('MMM D, YYYY h:mm A')}
+                  </Text>
+                )}
+              </div>
+            </div>
+          )}
+          {announcementItems.length > 0 && (
+            <Collapse
+              items={announcementItems}
+              defaultActiveKey={defaultOpenKey}
+              style={{ background: token.colorBgContainer }}
+            />
+          )}
+        </div>
+      </Modal>
 
       {permitForms.isEnabled && permitForms.cards.length > 0 && (
         <PermitFormsCarousel

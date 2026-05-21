@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { App, Button, Input, Select, Tag, Tooltip, Splitter, Grid, Pagination, theme, Empty, Typography, Form, DatePicker, Spin, Modal, Tabs, Table } from 'antd'
-import { PlusOutlined, FilterOutlined, SearchOutlined, CloseOutlined, NotificationOutlined, DeleteOutlined, SaveOutlined, SendOutlined, FileTextOutlined, ArrowLeftOutlined, RollbackOutlined, HistoryOutlined, InfoCircleOutlined, DownloadOutlined } from '@ant-design/icons'
+import { PlusOutlined, FilterOutlined, SearchOutlined, CloseOutlined, NotificationOutlined, DeleteOutlined, SaveOutlined, SendOutlined, FileTextOutlined,  RollbackOutlined, HistoryOutlined, InfoCircleOutlined, DownloadOutlined } from '@ant-design/icons'
 import AdminLayout from '../components/AdminLayout'
 import HomeHeader from '@/features/public/components/HomeHeader'
 import HomeFooter from '@/features/public/components/HomeFooter'
@@ -63,7 +63,7 @@ export default function AdminAnnouncements({ embedded = false }) {
       const logs = res?.data?.logs || []
       setAuditLogs(logs)
       setAuditLogsTotal(res?.meta?.total || 0)
-    } catch (err) {
+    } catch {
       message.error('Failed to load audit logs')
     } finally {
       setAuditLogsLoading(false)
@@ -87,7 +87,7 @@ export default function AdminAnnouncements({ embedded = false }) {
         })
       }
     }
-  }, [announcements])
+  }, [announcements, form, selected])
 
   useEffect(() => {
     if (!filterOpen) return
@@ -303,6 +303,13 @@ export default function AdminAnnouncements({ embedded = false }) {
     setFormValues(values)
   }
 
+  const handleKeyDown = (e, record) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      handleSelect(record)
+    }
+  }
+
   const priorityColors = { high: 'red', urgent: 'magenta', normal: 'blue', low: 'default' }
   const statusColors = { draft: 'orange', published: 'green' }
 
@@ -420,7 +427,11 @@ export default function AdminAnnouncements({ embedded = false }) {
               {paginatedAnnouncements.map((item) => (
                 <div
                   key={item._id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleSelect(item)}
+                  onKeyDown={(e) => handleKeyDown(e, item)}
+                  aria-label={`Select announcement: ${item.title || '(Untitled)'}`}
                   style={{
                     padding: '12px 16px',
                     cursor: 'pointer',
@@ -640,16 +651,19 @@ export default function AdminAnnouncements({ embedded = false }) {
                                   ),
                                   children: (
                                     <div>
-                                      {(previewMaintenance.scheduledStartAt || previewMaintenance.expectedResumeAt) && (
-                                        <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-                                          {previewMaintenance.scheduledStartAt
-                                            ? `Starts: ${dayjs(previewMaintenance.scheduledStartAt).format('MMM D, YYYY h:mm A')}`
-                                            : `Expected back: ${dayjs(previewMaintenance.expectedResumeAt).format('MMM D, YYYY h:mm A')}`}
+                                      <Paragraph style={{ marginBottom: 0 }}>
+                                        {(previewMaintenance.message || "We're performing scheduled maintenance. Some features may be temporarily unavailable.").replace(/^Upcoming:\s*/i, '')}
+                                      </Paragraph>
+                                      {previewMaintenance.scheduledStartAt && (
+                                        <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+                                          Starting at: {dayjs(previewMaintenance.scheduledStartAt).format('MMM D, YYYY h:mm A')}
                                         </Text>
                                       )}
-                                      <Paragraph style={{ marginBottom: 0 }}>
-                                        {previewMaintenance.message || "We're performing scheduled maintenance. Some features may be temporarily unavailable."}
-                                      </Paragraph>
+                                      {previewMaintenance.expectedResumeAt && (
+                                        <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+                                          Back online at: {dayjs(previewMaintenance.expectedResumeAt).format('MMM D, YYYY h:mm A')}
+                                        </Text>
+                                      )}
                                     </div>
                                   ),
                                 })

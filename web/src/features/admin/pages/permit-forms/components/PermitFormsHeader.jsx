@@ -81,7 +81,7 @@ export default function PermitFormsHeader({
       >
         {onBackToMenu && onBackToMenu}
         <Text strong style={{ fontSize: 16 }}>
-          Permit Forms
+          Forms and Requirements
         </Text>
         {statusTag}
       </div>

@@ -3,13 +3,6 @@ export const REQUESTS_PAGE_SIZE = 20
 export const REQUEST_EXPIRY_HOURS = 48
 export const HISTORY_PAGE_SIZE = 20
 
-// Navigation items
-export const NAV_ITEMS = [
-  { key: 'overview', label: 'Overview', icon: 'DashboardOutlined' },
-  { key: 'announcements', label: 'Announcements', icon: 'NotificationOutlined' },
-  { key: 'requests', label: 'Maintenance', icon: 'ToolOutlined' },
-]
-
 export const TAB_ITEMS = [
   { key: 'requests', label: 'Requests' },
   { key: 'history', label: 'History' },

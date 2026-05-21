@@ -121,7 +121,7 @@ export default function EditOwnerModal({ open, owner, onClose, onSuccess }) {
       okText="Save Changes"
       confirmLoading={loading}
       width={600}
-      destroyOnClose
+      destroyOnHidden
     >
       {fetching ? (
         <div style={{ textAlign: 'center', padding: 48 }}>

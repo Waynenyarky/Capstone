@@ -1,23 +1,22 @@
-import React, { useState, useMemo, useRef } from 'react'
-import { theme, Button, Tag, Splitter, Space, Tooltip } from 'antd'
+import React, { useState, useRef, useMemo } from 'react'
+import { Button, Space, theme, Typography, Tag, Tooltip, Splitter } from 'antd'
 import { StopOutlined, ClockCircleOutlined, ArrowLeftOutlined, InfoCircleOutlined } from '@ant-design/icons'
-import MaintenanceRequestDetailPanel from './components/MaintenanceRequestDetailPanel'
-import MaintenanceInfoModal from './components/MaintenanceInfoModal'
-import MaintenanceSidebar from './components/MaintenanceSidebar'
-import MaintenanceHeader from './components/MaintenanceHeader'
-import MaintenanceFilterPanel from './components/MaintenanceFilterPanel'
+import MaintenanceToolbar from './components/MaintenanceToolbar'
 import MaintenanceRequestList from './components/MaintenanceRequestList'
+import MaintenanceRequestDetailPanel from './components/MaintenanceRequestDetailPanel'
+import MaintenanceRequestModal from './components/MaintenanceRequestModal'
 import MaintenanceExportModal from './components/MaintenanceExportModal'
-import RequestMaintenanceModal from './components/RequestMaintenanceModal'
-import { NAV_ITEMS, REQUESTS_PAGE_SIZE } from './constants/maintenance.constants'
+import MaintenanceInfoModal from './components/MaintenanceInfoModal'
+import { REQUESTS_PAGE_SIZE } from './constants/maintenance.constants'
 import { isDefaultVisible, filterApprovalsBySearch, filterApprovalsByStatus, filterApprovalsByReason } from './utils/maintenance.utils'
 import { useMaintenanceFilters, useMaintenancePagination, useMaintenanceExport, useMaintenance } from './hooks'
+
+const { Text } = Typography
 
 
 export default function MaintenanceDesktopView({
   onBackToMenu,
 }) {
-  const [tabKey, setTabKey] = useState('requests')
   const [infoOpen, setInfoOpen] = useState(false)
   const { token } = theme.useToken()
   const [selectedApproval, setSelectedApproval] = useState(null)
@@ -77,7 +76,7 @@ export default function MaintenanceDesktopView({
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, padding: 12, paddingBottom: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-          <MaintenanceFilterPanel
+          <MaintenanceToolbar
             searchValue={historySearch}
             onSearchChange={setHistorySearch}
             statusFilter={historyStatusFilter}
@@ -141,83 +140,79 @@ export default function MaintenanceDesktopView({
     </Splitter>
   )
 
-  const tabChildren = {
-    requests: statusTabContent,
-    history: statusTabContent,
-  }
-
-  const selectedLabel = NAV_ITEMS.find((i) => i.key === tabKey)?.label ?? tabKey
   const requestButtonLabel = current?.isActive
     ? 'Disable'
     : 'Schedule'
   const requestButtonIcon = current?.isActive ? <StopOutlined /> : <ClockCircleOutlined />
-  const rightPanelHeaderActions =
-    tabKey === 'requests' ? (
-      <Space>
-        {setInfoOpen && (
-          <Tooltip title="About">
-            <Button icon={<InfoCircleOutlined />} onClick={() => setInfoOpen(true)} />
-          </Tooltip>
-        )}
-        {current?.isActive && (
-          <Button icon={<ClockCircleOutlined />} onClick={() => openRequestModalOrBlock({ forceScheduleMode: true })}>
-            Schedule
-          </Button>
-        )}
-        <Button type="primary" icon={requestButtonIcon} onClick={openRequestModalOrBlock}>
-          {requestButtonLabel}
+  const rightPanelHeaderActions = (
+    <Space>
+      {setInfoOpen && (
+        <Tooltip title="About">
+          <Button icon={<InfoCircleOutlined />} onClick={() => setInfoOpen(true)} />
+        </Tooltip>
+      )}
+      {current?.isActive && (
+        <Button icon={<ClockCircleOutlined />} onClick={() => openRequestModalOrBlock({ forceScheduleMode: true })}>
+          Schedule
         </Button>
-      </Space>
-    ) : null
+      )}
+      <Button type="primary" icon={requestButtonIcon} onClick={openRequestModalOrBlock}>
+        {requestButtonLabel}
+      </Button>
+    </Space>
+  )
 
-  const statusTag = tabKey === 'requests' ? (
+  const statusTag = (
     <Tag color={current?.isActive ? 'cyan' : 'default'}>{current?.isActive ? 'Active' : 'Inactive'}</Tag>
-  ) : null
+  )
 
   return (
     <div
       style={{
         display: 'flex',
+        flexDirection: 'column',
         height: '100%',
         minHeight: 400,
         borderRadius: onBackToMenu ? 0 : token.borderRadiusLG,
         overflow: 'hidden',
+        background: token.colorBgContainer,
       }}
     >
-      {!onBackToMenu && (
-        <MaintenanceSidebar
-          selectedKey={tabKey}
-          onSelect={setTabKey}
-          token={token}
-        />
-      )}
-
       <div
         style={{
-          flex: 1,
-          minWidth: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          background: token.colorBgContainer,
-          overflow: 'hidden',
+          flexShrink: 0,
+          padding: '16px 16px',
+          borderBottom: `1px solid ${token.colorBorderSecondary}`,
+          zIndex: 1,
         }}
       >
-        <MaintenanceHeader
-          title={selectedLabel}
-          statusTag={statusTag}
-          actions={rightPanelHeaderActions}
-          onBackToMenu={onBackToMenu ? <Button icon={<ArrowLeftOutlined />} onClick={onBackToMenu} /> : null}
-          token={token}
-        />
-
-        <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-          {tabChildren[tabKey]}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {onBackToMenu && <Button icon={<ArrowLeftOutlined />} onClick={onBackToMenu} />}
+            <Text strong style={{ fontSize: 16 }}>
+              Maintenance
+            </Text>
+            {statusTag}
+          </div>
+          {rightPanelHeaderActions}
         </div>
+      </div>
+
+      <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+        {statusTabContent}
       </div>
 
       {setInfoOpen && <MaintenanceInfoModal open={infoOpen} onClose={() => setInfoOpen(false)} />}
 
-      <RequestMaintenanceModal
+      <MaintenanceRequestModal
         open={requestModalOpen}
         onCancel={() => setRequestModalOpen(false)}
         form={form}

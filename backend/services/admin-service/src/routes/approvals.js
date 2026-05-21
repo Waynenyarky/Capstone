@@ -352,7 +352,7 @@ router.post('/approvals/:approvalId/approve', requireJwt, requireRole(['admin'])
 
               const announcement = await Announcement.create({
                 title: isUpcoming ? 'Upcoming Maintenance' : 'Scheduled Maintenance',
-                body: isUpcoming ? `Upcoming: ${message}` : message,
+                body: message,
                 priority: 'high',
                 status: 'published',
                 isActive: true,

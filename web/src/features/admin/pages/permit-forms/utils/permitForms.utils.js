@@ -6,7 +6,19 @@ export function createEmptyCard(order = 0) {
     title: '',
     description: '',
     requirements: [],
+    processingSteps: [],
     downloadableFile: { cid: '', fileName: '', size: 0 },
+    lastUpdatedAt: new Date().toISOString(),
+    order,
+  }
+}
+
+export function createEmptyStep(order = 0) {
+  return {
+    stepId: uuidv4(),
+    title: '',
+    description: '',
+    estimatedDurationDays: 1,
     order,
   }
 }

@@ -1,13 +1,14 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Card, Tabs, Button, Tag, Drawer, Select, Typography, theme, Space, Tooltip, DatePicker, Input } from 'antd'
-import { StopOutlined, ClockCircleOutlined, ArrowLeftOutlined, FilterOutlined, DownloadOutlined, InfoCircleOutlined, SearchOutlined } from '@ant-design/icons'
+import { Card, Tabs, Button, Tag, Drawer, Typography, theme, Space, Tooltip, DatePicker } from 'antd'
+import { StopOutlined, ClockCircleOutlined, ArrowLeftOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import MaintenanceRequestDetailPanel from './components/MaintenanceRequestDetailPanel'
 import MaintenanceInfoModal from './components/MaintenanceInfoModal'
 import MaintenanceRequestList from './components/MaintenanceRequestList'
-import { TAB_ITEMS, HISTORY_PAGE_SIZE, HISTORY_REASON_OPTIONS } from './constants/maintenance.constants'
+import MaintenanceToolbar from './components/MaintenanceToolbar'
+import { TAB_ITEMS, HISTORY_PAGE_SIZE } from './constants/maintenance.constants'
 import { isDefaultVisible, filterApprovalsBySearch, filterApprovalsByStatus, filterApprovalsByReason } from './utils/maintenance.utils'
 import { useMaintenanceFilters, useMaintenancePagination, useMaintenanceExport, useMaintenance } from './hooks'
-import RequestMaintenanceModal from './components/RequestMaintenanceModal'
+import MaintenanceRequestModal from './components/MaintenanceRequestModal'
 
 const { Text } = Typography
 const { RangePicker } = DatePicker
@@ -91,36 +92,25 @@ export default function MaintenanceMobileView({
 
   const requestsTab = (
     <div style={{ padding: '0 16px 12px 16px', background: token.colorBgContainer, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-          <Input
-            placeholder="Search by requester, reason, message, or ID"
-            prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-            allowClear
-            value={historySearch}
-            onChange={(e) => setHistorySearch(e.target.value)}
-            style={{ flex: 1, minWidth: 0 }}
-          />
-        </div>
-        <div>
-          <Tooltip title="Filter">
-            <Button
-              icon={<FilterOutlined />}
-              type={historyActiveFilterCount > 0 ? 'primary' : 'default'}
-              ghost={historyActiveFilterCount > 0}
-              onClick={() => setFilterDrawerOpen(true)}
-              aria-label="Toggle filters"
-            />
-          </Tooltip>
-        </div>
-        <Tooltip title="Download filtered requests">
-          <Button
-            icon={<DownloadOutlined />}
-            onClick={() => setHistoryExportOpen(true)}
-            disabled={paginatedApprovals.length === 0}
-            aria-label="Download requests"
-          />
-        </Tooltip>
+      <div style={{ flexShrink: 0, marginBottom: 12 }}>
+        <MaintenanceToolbar
+          searchValue={historySearch}
+          onSearchChange={setHistorySearch}
+          statusFilter={historyStatusFilter}
+          onStatusChange={setHistoryStatusFilter}
+          reasonFilter={historyReasonFilter}
+          onReasonChange={setHistoryReasonFilter}
+          showAllRequests={showAllRequests}
+          onToggleShowAll={() => setShowAllRequests((prev) => !prev)}
+          filterOpen={filterDrawerOpen}
+          onToggleFilter={() => setFilterDrawerOpen((prev) => !prev)}
+          onClearFilters={clearFilters}
+          activeFilterCount={historyActiveFilterCount}
+          onExport={() => setHistoryExportOpen(true)}
+          exportDisabled={paginatedApprovals.length === 0}
+          token={token}
+          isMobile={true}
+        />
       </div>
       <MaintenanceRequestList
         requests={filteredApprovals}
@@ -222,55 +212,6 @@ export default function MaintenanceMobileView({
       </Drawer>
 
       <Drawer
-        title="Filters"
-        open={filterDrawerOpen}
-        onClose={() => setFilterDrawerOpen(false)}
-        placement="bottom"
-        height="50%"
-        styles={{ body: { padding: 16 } }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>Status</Text>
-            <Select
-              placeholder="All statuses"
-              allowClear
-              value={historyStatusFilter}
-              onChange={setHistoryStatusFilter}
-              style={{ width: '100%' }}
-              options={[
-                { value: 'pending', label: 'Pending' },
-                { value: 'approved_upcoming', label: 'Approved - upcoming' },
-                { value: 'approved', label: 'Approved' },
-                { value: 'rejected', label: 'Rejected' },
-                { value: 'expired', label: 'Expired' },
-                { value: 'cancelled', label: 'Cancelled' },
-              ]}
-            />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>Reason</Text>
-            <Select
-              placeholder="All reasons"
-              allowClear
-              value={historyReasonFilter}
-              onChange={setHistoryReasonFilter}
-              style={{ width: '100%' }}
-              options={HISTORY_REASON_OPTIONS}
-            />
-          </div>
-          <Button onClick={() => setShowAllRequests((prev) => !prev)}>
-            {showAllRequests ? 'Show default view' : 'Show all'}
-          </Button>
-          {historyActiveFilterCount > 0 && (
-            <Button size="small" type="link" onClick={() => clearFilters()} style={{ alignSelf: 'flex-start', padding: 0 }}>
-              Clear all filters
-            </Button>
-          )}
-        </div>
-      </Drawer>
-
-      <Drawer
         title="Download requests"
         open={historyExportOpen}
         onClose={() => setHistoryExportOpen(false)}
@@ -301,7 +242,7 @@ export default function MaintenanceMobileView({
 
       {setInfoOpen && <MaintenanceInfoModal open={infoOpen} onClose={() => setInfoOpen(false)} />}
 
-      <RequestMaintenanceModal
+      <MaintenanceRequestModal
         open={requestModalOpen}
         onCancel={() => setRequestModalOpen(false)}
         form={form}

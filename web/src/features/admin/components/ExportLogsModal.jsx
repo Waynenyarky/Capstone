@@ -43,7 +43,7 @@ function exportTypeLabel (exportType) {
   if (exportType === 'users') return 'User management'
   if (exportType === 'forms') return 'Form definitions'
   if (exportType === 'security') return 'Security'
-  if (exportType === 'permit-forms') return 'Permit forms'
+  if (exportType === 'permit-forms') return 'Forms and Requirements'
   return 'Fee configuration'
 }
 

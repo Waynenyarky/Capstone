@@ -1,21 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Form, App } from 'antd'
-import {
-  requestMaintenance,
-  getMaintenanceCurrent,
-  getMaintenanceApprovals,
-  approveMaintenance,
-  undoVote,
-  cancelApprovedMaintenance,
-  getMaintenancePublicStatus,
-} from '@/features/admin/services'
+import { requestMaintenance, getMaintenanceCurrent, getMaintenanceApprovals, approveMaintenance, undoVote,  cancelApprovedMaintenance, getMaintenancePublicStatus } from '@/features/admin/services'
 import { useAdminStepUp } from '@/features/admin/hooks/useAdminStepUp'
-import {
-  REASON_PRESET_OTHER,
-  REASON_PRESET_OPTIONS,
-  DISABLE_REASON_PRESET_OPTIONS,
-  DISABLE_PRESET_REASONS,
-} from '../constants/maintenance.constants.js'
+import { REASON_PRESET_OTHER, REASON_PRESET_OPTIONS, DISABLE_REASON_PRESET_OPTIONS, DISABLE_PRESET_REASONS } from '../constants/maintenance.constants.js'
 
 export default function useMaintenance() {
   const { modal } = App.useApp()
@@ -28,7 +15,7 @@ export default function useMaintenance() {
   const [requestModalOpen, setRequestModalOpen] = useState(false)
   const [requestModalOptions, setRequestModalOptions] = useState({})
   const [lastUpdated, setLastUpdated] = useState(null)
-  const { success, error } = App.useApp()
+  const { message } = App.useApp()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -56,11 +43,11 @@ export default function useMaintenance() {
       setLastUpdated(new Date())
     } catch (err) {
       console.error('Load maintenance data failed', err)
-      error(err, 'Failed to load maintenance data')
+      message.error('Failed to load maintenance data. Please try refreshing the page.')
     } finally {
       setLoading(false)
     }
-  }, [error])
+  }, [message])
 
   useEffect(() => {
     load()
@@ -101,20 +88,20 @@ export default function useMaintenance() {
         await runWithStepUp(async (stepUpToken) => {
           await requestMaintenance(payload, { stepUpToken })
         })
-        success('Maintenance request submitted for approval')
+        message.success('Maintenance request submitted for approval')
         form.resetFields()
         setRequestModalOpen(false)
         await load()
       } catch (err) {
         if (err?.message !== 'Step-up cancelled') {
           console.error('Maintenance request failed', err)
-          error(err, 'Failed to submit request')
+          message.error('Failed to submit request. Please try again.')
         }
       } finally {
         setSubmitting(false)
       }
     },
-    [form, success, error, load, runWithStepUp]
+    [form, message, load, runWithStepUp]
   )
 
   const handleConfirmSubmit = useCallback(async () => {
@@ -133,16 +120,16 @@ export default function useMaintenance() {
         await runWithStepUp(async (stepUpToken) => {
           await approveMaintenance(approvalId, approved, comment, { stepUpToken })
         })
-        success(approved ? 'Approved maintenance change' : 'Rejected maintenance change')
+        message.success(approved ? 'Approved maintenance request' : 'Rejected maintenance request')
         await load()
       } catch (err) {
         if (err?.message !== 'Step-up cancelled') {
           console.error('Approve maintenance failed', err)
-          error(err, 'Failed to process approval')
+          message.error('Failed to process approval. Please try again.')
         }
       }
     },
-    [success, error, load, runWithStepUp]
+    [message, load, runWithStepUp]
   )
 
   const handleCancelApproved = useCallback(
@@ -151,16 +138,16 @@ export default function useMaintenance() {
         await runWithStepUp(async (stepUpToken) => {
           await cancelApprovedMaintenance(approvalId, { stepUpToken })
         })
-        success('Cancellation request submitted for approval')
+        message.success('Cancellation request submitted for approval')
         await load()
       } catch (err) {
         if (err?.message !== 'Step-up cancelled') {
           console.error('Cancel approved maintenance failed', err)
-          error(err, 'Failed to request cancellation')
+          message.error('Failed to request cancellation. Please try again.')
         }
       }
     },
-    [success, error, load, runWithStepUp]
+    [message, load, runWithStepUp]
   )
 
   const hasPendingDisableRequest = useMemo(

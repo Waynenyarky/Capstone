@@ -59,12 +59,12 @@ export default function Maintenance() {
             </Title>
 
             <Paragraph>
-              {message || "We're performing scheduled maintenance to improve our services. Please check back soon."}
+              {(message || "We're performing scheduled maintenance to improve our services. Please check back soon.").replace(/^Upcoming:\s*/i, '')}
             </Paragraph>
 
             {expectedResumeAt && (
               <Text type="secondary" style={{ display: 'block', marginBottom: '24px' }}>
-                Expected back: {new Date(expectedResumeAt).toLocaleString()}
+                Back online at: {new Date(expectedResumeAt).toLocaleString()}
               </Text>
             )}
 

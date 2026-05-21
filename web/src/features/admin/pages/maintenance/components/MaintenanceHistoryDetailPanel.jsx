@@ -32,7 +32,7 @@ export default function MaintenanceHistoryDetailPanel({ approval, token: tokenPr
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 24 }}>
         <Empty
-          image={<HistoryOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />}
+          image={<HistoryOutlined style={{ fontSize: 48, color: t.colorTextQuaternary }} />}
           styles={{ image: { height: 60 } }}
           description={<Text type="secondary">Select a record to view details</Text>}
         />

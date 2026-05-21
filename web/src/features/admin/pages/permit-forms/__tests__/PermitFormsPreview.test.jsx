@@ -44,7 +44,7 @@ describe('PermitFormsPreview', () => {
     renderWithConfig(
       <PermitFormsPreview cards={mockCards} sectionDescription="Test desc" token={mockToken} />
     )
-    expect(screen.getByText('Permit Forms')).toBeInTheDocument()
+    expect(screen.getByText('Forms and Requirements')).toBeInTheDocument()
   })
 
   it('renders section description', () => {

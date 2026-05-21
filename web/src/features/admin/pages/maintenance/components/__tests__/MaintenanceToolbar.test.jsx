@@ -2,7 +2,7 @@ import React from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ConfigProvider } from 'antd'
-import MaintenanceFilterPanel from '../MaintenanceFilterPanel.jsx'
+import MaintenanceToolbar from '../MaintenanceToolbar.jsx'
 
 const mockToken = {
   colorTextQuaternary: '#bfbfbf',
@@ -19,7 +19,7 @@ const renderWithConfig = (ui) => {
   )
 }
 
-describe('MaintenanceFilterPanel', () => {
+describe('MaintenanceToolbar', () => {
   const defaultProps = {
     searchValue: '',
     onSearchChange: vi.fn(),
@@ -39,21 +39,21 @@ describe('MaintenanceFilterPanel', () => {
   }
 
   it('renders search input', () => {
-    renderWithConfig(<MaintenanceFilterPanel {...defaultProps} />)
+    renderWithConfig(<MaintenanceToolbar {...defaultProps} />)
 
     const searchInput = screen.getByPlaceholderText(/search by requester/i)
     expect(searchInput).toBeInTheDocument()
   })
 
   it('renders filter button', () => {
-    renderWithConfig(<MaintenanceFilterPanel {...defaultProps} />)
+    renderWithConfig(<MaintenanceToolbar {...defaultProps} />)
 
     const filterButton = screen.getByRole('button', { name: /filter/i })
     expect(filterButton).toBeInTheDocument()
   })
 
   it('renders export button', () => {
-    renderWithConfig(<MaintenanceFilterPanel {...defaultProps} />)
+    renderWithConfig(<MaintenanceToolbar {...defaultProps} />)
 
     const exportButton = screen.getByRole('button', { name: /download/i })
     expect(exportButton).toBeInTheDocument()
@@ -61,7 +61,7 @@ describe('MaintenanceFilterPanel', () => {
 
   it('calls onSearchChange when typing in search', () => {
     const onSearchChange = vi.fn()
-    renderWithConfig(<MaintenanceFilterPanel {...defaultProps} onSearchChange={onSearchChange} />)
+    renderWithConfig(<MaintenanceToolbar {...defaultProps} onSearchChange={onSearchChange} />)
 
     const searchInput = screen.getByPlaceholderText(/search by requester/i)
     fireEvent.change(searchInput, { target: { value: 'test' } })
@@ -71,7 +71,7 @@ describe('MaintenanceFilterPanel', () => {
 
   it('calls onToggleFilter when filter button clicked', () => {
     const onToggleFilter = vi.fn()
-    renderWithConfig(<MaintenanceFilterPanel {...defaultProps} onToggleFilter={onToggleFilter} />)
+    renderWithConfig(<MaintenanceToolbar {...defaultProps} onToggleFilter={onToggleFilter} />)
 
     const filterButton = screen.getByRole('button', { name: /filter/i })
     fireEvent.click(filterButton)
@@ -81,7 +81,7 @@ describe('MaintenanceFilterPanel', () => {
 
   it('calls onExport when export button clicked', () => {
     const onExport = vi.fn()
-    renderWithConfig(<MaintenanceFilterPanel {...defaultProps} onExport={onExport} />)
+    renderWithConfig(<MaintenanceToolbar {...defaultProps} onExport={onExport} />)
 
     const exportButton = screen.getByRole('button', { name: /download/i })
     fireEvent.click(exportButton)
@@ -90,14 +90,14 @@ describe('MaintenanceFilterPanel', () => {
   })
 
   it('disables export button when exportDisabled is true', () => {
-    renderWithConfig(<MaintenanceFilterPanel {...defaultProps} exportDisabled={true} />)
+    renderWithConfig(<MaintenanceToolbar {...defaultProps} exportDisabled={true} />)
 
     const exportButton = screen.getByRole('button', { name: /download/i })
     expect(exportButton).toBeDisabled()
   })
 
   it('shows filter dropdown when filterOpen is true', () => {
-    renderWithConfig(<MaintenanceFilterPanel {...defaultProps} filterOpen={true} />)
+    renderWithConfig(<MaintenanceToolbar {...defaultProps} filterOpen={true} />)
 
     const statusElements = screen.getAllByText(/status/i)
     const reasonElements = screen.getAllByText(/reason/i)
@@ -106,7 +106,7 @@ describe('MaintenanceFilterPanel', () => {
   })
 
   it('does not show filter dropdown when filterOpen is false', () => {
-    renderWithConfig(<MaintenanceFilterPanel {...defaultProps} filterOpen={false} />)
+    renderWithConfig(<MaintenanceToolbar {...defaultProps} filterOpen={false} />)
 
     const statusElements = screen.queryAllByText(/status/i)
     const reasonElements = screen.queryAllByText(/reason/i)
@@ -116,7 +116,7 @@ describe('MaintenanceFilterPanel', () => {
 
   it('calls onStatusChange when status filter changes', () => {
     const onStatusChange = vi.fn()
-    renderWithConfig(<MaintenanceFilterPanel {...defaultProps} filterOpen={true} onStatusChange={onStatusChange} />)
+    renderWithConfig(<MaintenanceToolbar {...defaultProps} filterOpen={true} onStatusChange={onStatusChange} />)
 
     const statusElements = screen.getAllByText(/status/i)
     expect(statusElements.length).toBeGreaterThan(0)
@@ -124,7 +124,7 @@ describe('MaintenanceFilterPanel', () => {
 
   it('calls onReasonChange when reason filter changes', () => {
     const onReasonChange = vi.fn()
-    renderWithConfig(<MaintenanceFilterPanel {...defaultProps} filterOpen={true} onReasonChange={onReasonChange} />)
+    renderWithConfig(<MaintenanceToolbar {...defaultProps} filterOpen={true} onReasonChange={onReasonChange} />)
 
     const reasonElements = screen.getAllByText(/reason/i)
     expect(reasonElements.length).toBeGreaterThan(0)
@@ -132,7 +132,7 @@ describe('MaintenanceFilterPanel', () => {
 
   it('calls onToggleShowAll when toggle button clicked', () => {
     const onToggleShowAll = vi.fn()
-    renderWithConfig(<MaintenanceFilterPanel {...defaultProps} filterOpen={true} onToggleShowAll={onToggleShowAll} />)
+    renderWithConfig(<MaintenanceToolbar {...defaultProps} filterOpen={true} onToggleShowAll={onToggleShowAll} />)
 
     const toggleButton = screen.getByRole('button', { name: /show all/i })
     fireEvent.click(toggleButton)
@@ -142,7 +142,7 @@ describe('MaintenanceFilterPanel', () => {
 
   it('calls onClearFilters when clear button clicked', () => {
     const onClearFilters = vi.fn()
-    renderWithConfig(<MaintenanceFilterPanel {...defaultProps} filterOpen={true} activeFilterCount={2} onClearFilters={onClearFilters} />)
+    renderWithConfig(<MaintenanceToolbar {...defaultProps} filterOpen={true} activeFilterCount={2} onClearFilters={onClearFilters} />)
 
     const clearButton = screen.getByRole('button', { name: /clear all filters/i })
     fireEvent.click(clearButton)
@@ -151,7 +151,7 @@ describe('MaintenanceFilterPanel', () => {
   })
 
   it('does not show clear button when no active filters', () => {
-    renderWithConfig(<MaintenanceFilterPanel {...defaultProps} filterOpen={true} activeFilterCount={0} />)
+    renderWithConfig(<MaintenanceToolbar {...defaultProps} filterOpen={true} activeFilterCount={0} />)
 
     expect(screen.queryByText(/clear all filters/i)).not.toBeInTheDocument()
   })
