@@ -11,7 +11,7 @@ export default function HomeFooter() {
 
   const linkStyle = {
     color: token.colorTextSecondary,
-    fontSize: screens.md ? '13px' : '12px',
+    fontSize: '13px',
     display: 'block',
     textDecoration: 'none',
     transition: 'color 0.3s',
@@ -21,52 +21,62 @@ export default function HomeFooter() {
     <Footer style={{
       background: token.colorBgContainer,
       color: token.colorText,
-      padding: screens.md ? '40px 48px 40px' : '32px 20px 32px',
+      padding: screens.md ? '40px 48px 40px' : '40px 20px 30px',
     }}>
-      <div style={{ margin: '0 auto', maxWidth: '1280px' }}>
+      <div style={{ margin: '0 auto' }}>
         <div style={{
           display: 'flex',
-          flexDirection: screens.md ? 'row' : 'column',
+          flexDirection: screens.xs ? 'column' : 'row',
           justifyContent: 'space-between',
-          alignItems: screens.md ? 'flex-start' : 'flex-start',
-          gap: screens.md ? '24px' : '20px',
-          marginBottom: screens.md ? '24px' : '20px',
+          alignItems: screens.xs ? 'flex-start' : 'center',
+          gap: '16px'
         }}>
-          <div style={{ flex: 1 }}>
-            <Space direction="vertical" size={screens.md ? 'small' : 8}>
-              <Link
-                to="/terms"
-                style={linkStyle}
-                onMouseEnter={(e) => e.target.style.color = token.colorPrimary}
-                onMouseLeave={(e) => e.target.style.color = token.colorTextSecondary}
-              >
-                Terms of Service
-              </Link>
-              <Link
-                to="/privacy"
-                style={linkStyle}
-                onMouseEnter={(e) => e.target.style.color = token.colorPrimary}
-                onMouseLeave={(e) => e.target.style.color = token.colorTextSecondary}
-              >
-                Privacy Policy
-              </Link>
-              <a
-                href="https://www.alaminoscity.gov.ph/citizens-charter"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={linkStyle}
-                onMouseEnter={(e) => e.target.style.color = token.colorPrimary}
-                onMouseLeave={(e) => e.target.style.color = token.colorTextSecondary}
-              >
-                Alaminos Citizen&apos;s Charter
-              </a>
-            </Space>
-          </div>
-          <div style={{ flex: 1 }}>
-            <Text style={{ fontSize: screens.md ? '13px' : '12px', color: token.colorTextSecondary, display: 'block', marginBottom: 8 }}>
-              © 2026 BizClear. All Rights Reserved.
-            </Text>
-          </div>
+          <Space direction="horizontal">
+            <Link
+              to="/terms"
+              style={linkStyle}
+              onMouseEnter={(e) => e.target.style.color = token.colorPrimary}
+              onMouseLeave={(e) => e.target.style.color = token.colorTextSecondary}
+            >
+              Terms of Service
+            </Link>
+            <Link
+              to="/privacy"
+              style={linkStyle}
+              onMouseEnter={(e) => e.target.style.color = token.colorPrimary}
+              onMouseLeave={(e) => e.target.style.color = token.colorTextSecondary}
+            >
+              Privacy Policy
+            </Link>
+            <a
+              href="https://www.alaminoscity.gov.ph/citizens-charter"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={linkStyle}
+              onMouseEnter={(e) => e.target.style.color = token.colorPrimary}
+              onMouseLeave={(e) => e.target.style.color = token.colorTextSecondary}
+            >
+              Alaminos Citizen&apos;s Charter
+            </a>
+            <a
+              href="https://www.alaminoscity.gov.ph/index.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                ...linkStyle,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+              onMouseEnter={(e) => e.target.style.color = token.colorPrimary}
+              onMouseLeave={(e) => e.target.style.color = token.colorTextSecondary}
+            >
+              Official City Website
+            </a>
+          </Space>
+          <Text style={{ fontSize: '12px', color: token.colorTextTertiary }}>
+            © 2026 BizClear. All Rights Reserved.
+          </Text>
         </div>
 
         <Divider style={{ margin: screens.md ? '16px 0' : '12px 0', borderColor: token.colorBorderSecondary }} />
@@ -93,3 +103,4 @@ export default function HomeFooter() {
     </Footer>
   )
 }
+
