@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Modal, Typography, theme, Button, Space, Grid } from 'antd'
 import { ShopOutlined, CalendarOutlined, ArrowRightOutlined } from '@ant-design/icons'
 
 const { Title, Text, Paragraph } = Typography
 const { useBreakpoint } = Grid
-
-const STORAGE_KEY = 'bizclear_onboarding_skipped'
 
 const BUSINESS_TYPES = [
   {
@@ -26,32 +24,13 @@ export default function WelcomeModal({ visible, onSelect, onClose }) {
   const { token } = theme.useToken()
   const screens = useBreakpoint()
   const [currentPage, setCurrentPage] = useState(1)
-  const [showSkipConfirm, setShowSkipConfirm] = useState(false)
-
-  // Check if user has previously skipped onboarding
-  useEffect(() => {
-    const hasSkipped = localStorage.getItem(STORAGE_KEY)
-    if (hasSkipped === 'true' && visible) {
-      onClose()
-    }
-  }, [visible, onClose])
 
   const handleNext = () => {
     setCurrentPage(2)
   }
 
   const handleSkip = () => {
-    setShowSkipConfirm(true)
-  }
-
-  const handleConfirmSkip = () => {
-    localStorage.setItem(STORAGE_KEY, 'true')
-    setShowSkipConfirm(false)
     onClose()
-  }
-
-  const handleCancelSkip = () => {
-    setShowSkipConfirm(false)
   }
 
   const handleSelectBusiness = (type) => {
@@ -210,19 +189,6 @@ export default function WelcomeModal({ visible, onSelect, onClose }) {
         {currentPage === 1 ? renderPage1() : renderPage2()}
       </Modal>
 
-      <Modal
-        title="Skip the guide?"
-        open={showSkipConfirm}
-        onOk={handleConfirmSkip}
-        onCancel={handleCancelSkip}
-        okText="Yes, skip"
-        cancelText="No, continue"
-        centered
-      >
-        <Paragraph>
-          Are you sure you want to skip the onboarding guide? You can always access it later from your dashboard settings.
-        </Paragraph>
-      </Modal>
     </>
   )
 }

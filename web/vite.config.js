@@ -254,7 +254,7 @@ const SECURITY_HEADERS = {
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: http://localhost:8080 http://127.0.0.1:8080 http://*.ipfs.localhost:8080",
     `connect-src ${CSP_CONNECT_SRC}`,
-    "frame-src 'self' blob: https://challenges.cloudflare.com http://challenges.cloudflare.com http://localhost:8080 http://127.0.0.1:8080 http://*.ipfs.localhost:8080",
+    "frame-src 'self' blob: https://challenges.cloudflare.com http://challenges.cloudflare.com http://localhost:8080 http://127.0.0.1:8080 http://*.ipfs.localhost:8080 https://maps.google.com https://www.google.com",
     "frame-ancestors 'self'",
     "base-uri 'self'",
     "form-action 'self'",

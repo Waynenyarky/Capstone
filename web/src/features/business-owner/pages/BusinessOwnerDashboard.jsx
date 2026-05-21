@@ -201,8 +201,11 @@ export default function BusinessOwnerDashboard() {
     }
   }, [currentPage, pageSize, searchTerm, statusFilter, sortBy, sortOrder]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Clean up stale localStorage key from previous implementation
+  useEffect(() => { localStorage.removeItem('bizclear_onboarding_skipped') }, [])
+
   // Show welcome modal for new users (empty businesses list)
-  // But don't show if user has explicitly closed it
+  // But don't show if user has explicitly closed it (session-only)
   useEffect(() => {
     if (!loading && businesses.length === 0 && !showAddForm && !showWelcomeModal && !hasClosedWelcomeModal) {
       setShowWelcomeModal(true)

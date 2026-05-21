@@ -110,52 +110,20 @@ export default function OfficeLocationSection() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <a
-              href="https://www.google.com/maps/search/?api=1&query=Alaminos+City+Hall+Pangasinan"
-              target="_blank"
-              rel="noopener noreferrer"
+            <iframe
+              title="Alaminos City Hall BPLO Location"
+              src="https://maps.google.com/maps?q=Alaminos+City+Hall,+Pangasinan,+Philippines&t=&z=16&ie=UTF8&iwloc=&output=embed"
+              width="100%"
+              height={screens.md ? 280 : 220}
               style={{
-                display: 'block',
-                width: '100%',
-                height: screens.md ? '280px' : '220px',
+                border: 'none',
                 borderRadius: token.borderRadius,
-                overflow: 'hidden',
-                border: `1px solid ${token.colorBorderSecondary}`,
-                background: token.colorBgContainer,
-                textDecoration: 'none',
-                position: 'relative',
+                display: 'block',
               }}
-            >
-              <div style={{
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 12,
-                padding: 20,
-              }}>
-                <EnvironmentOutlined style={{ 
-                  color: token.colorTextSecondary, 
-                  fontSize: screens.md ? '48px' : '36px',
-                }} />
-                <Text style={{ 
-                  fontSize: '14px',
-                  color: token.colorText,
-                  textAlign: 'center',
-                }}>
-                  View on Google Maps
-                </Text>
-                <Text style={{ 
-                  fontSize: '13px',
-                  color: token.colorTextSecondary,
-                  textAlign: 'center',
-                }}>
-                  Alaminos City Hall, Pangasinan
-                </Text>
-              </div>
-            </a>
+              allowFullScreen
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
           </div>
         </div>
       </div>
