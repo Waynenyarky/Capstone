@@ -1,17 +1,33 @@
-import { Layout, theme } from 'antd'
+import { Layout, Grid, theme } from 'antd'
 import HomeHeader from '../components/HomeHeader'
 import HeroSection from '../components/HeroSection'
+import TransparencyDashboard from '../components/TransparencyDashboard'
+import FaqSection from '../components/FaqSection'
+import PermitFormsCarousel from '../components/PermitFormsCarousel'
 import ApplicationProcessTimeline from '../components/ApplicationProcessTimeline'
 import DownloadableFormsSection from '../components/DownloadableFormsSection'
 import OfficeLocationSection from '../components/OfficeLocationSection'
 import HomeFooter from '../components/HomeFooter'
+import useLandingData from '../hooks/useLandingData.jsx'
 import { useState, useEffect } from 'react'
 
 const { Content } = Layout
+const { useBreakpoint } = Grid
 
 export default function Home() {
   const { token } = theme.useToken()
+  const screens = useBreakpoint()
   const [showHeader, setShowHeader] = useState(false)
+
+  const {
+    announcements,
+    maintenanceStatus,
+    permitForms,
+    publicStats,
+    announcementItems,
+    hasAnnouncementPanel,
+    defaultOpenKey,
+  } = useLandingData()
 
   useEffect(() => {
     const handleScroll = () => {
@@ -30,9 +46,27 @@ export default function Home() {
   
   return (
     <Layout style={{ minHeight: '100vh', background: token.colorBgContainer }}>
-      {showHeader && <HomeHeader />}
+      <HomeHeader visible={showHeader} />
       <Content style={{ display: 'flex', flexDirection: 'column' }}>
-        <HeroSection />
+        <HeroSection
+          announcements={announcements}
+          announcementItems={announcementItems}
+          maintenanceStatus={maintenanceStatus}
+          hasAnnouncementPanel={hasAnnouncementPanel}
+          defaultOpenKey={defaultOpenKey}
+        />
+        <div style={{ height: '56px' }} />
+        <TransparencyDashboard publicStats={publicStats} />
+        <FaqSection />
+        <div style={{ height: '56px' }} />
+        {permitForms.isEnabled && permitForms.cards.length > 0 && (
+          <PermitFormsCarousel
+            cards={permitForms.cards}
+            sectionDescription={permitForms.sectionDescription}
+            screens={screens}
+            token={token}
+          />
+        )}
         <div style={{ height: '56px' }} />
         <ApplicationProcessTimeline />
         <div style={{ height: '56px' }} />

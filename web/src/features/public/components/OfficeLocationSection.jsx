@@ -10,9 +10,11 @@ export default function OfficeLocationSection() {
   const { token } = theme.useToken()
 
   return (
-    <section style={{ 
-      width: '100%', 
-      maxWidth: 1280, 
+    <section
+      id="office-location-section"
+      style={{
+      width: '100%',
+      maxWidth: 1280,
       margin: '0 auto',
     }}>
       <div

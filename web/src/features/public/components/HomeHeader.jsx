@@ -6,7 +6,7 @@ const { Header } = Layout
 const { Title } = Typography
 const { useBreakpoint } = Grid
 
-export default function HomeHeader() {
+export default function HomeHeader({ visible = true }) {
   const screens = useBreakpoint()
   const { token } = theme.useToken()
   return (
@@ -17,9 +17,15 @@ export default function HomeHeader() {
       justifyContent: 'space-between',
       padding: screens.md ? '0 48px' : '0 16px',
       height: '72px',
-      position: 'sticky',
+      position: 'fixed',
       top: 0,
-      zIndex: 1000
+      left: 0,
+      right: 0,
+      zIndex: 1000,
+      opacity: visible ? 1 : 0,
+      transform: visible ? 'translateY(0)' : 'translateY(-20px)',
+      transition: 'opacity 0.3s ease-out, transform 0.3s ease-out',
+      pointerEvents: visible ? 'auto' : 'none',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <BizClearLogo width={screens.sm ? 40 : 32} />
