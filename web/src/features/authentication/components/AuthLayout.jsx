@@ -2,6 +2,7 @@ import React from 'react'
 import { Layout, Grid } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import BizClearLogo from '@/shared/components/BizClearLogo.jsx'
+import { usePageSlide } from '@/shared/hooks/usePageSlide.js'
 
 const { useBreakpoint } = Grid
 
@@ -14,8 +15,17 @@ export default function AuthLayout({
   formMaxWidth = 440
 }) {
   const navigate = useNavigate()
+  const pageSlide = usePageSlide()
   const screens = useBreakpoint()
   const isMobile = !screens.md
+
+  const handleGoHome = () => {
+    if (pageSlide) {
+      pageSlide.exit('/')
+    } else {
+      navigate('/')
+    }
+  }
 
   return (
     <Layout
@@ -48,7 +58,7 @@ export default function AuthLayout({
         >
           <button
             type="button"
-            onClick={() => navigate('/')}
+            onClick={handleGoHome}
             style={{
               padding: 0,
               border: 'none',

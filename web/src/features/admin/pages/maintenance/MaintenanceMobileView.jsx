@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { Card, Tabs, Button, Tag, Drawer, Typography, theme, Space, Tooltip, DatePicker } from 'antd'
 import { StopOutlined, ClockCircleOutlined, ArrowLeftOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import MaintenanceRequestDetailPanel from './components/MaintenanceRequestDetailPanel'
-import MaintenanceInfoModal from './components/MaintenanceInfoModal'
+import DynamicInfoModal from '@/shared/components/DynamicInfoModal'
 import MaintenanceRequestList from './components/MaintenanceRequestList'
 import MaintenanceToolbar from './components/MaintenanceToolbar'
 import { TAB_ITEMS, HISTORY_PAGE_SIZE } from './constants/maintenance.constants'
@@ -240,7 +240,7 @@ export default function MaintenanceMobileView({
         </div>
       </Drawer>
 
-      {setInfoOpen && <MaintenanceInfoModal open={infoOpen} onClose={() => setInfoOpen(false)} />}
+      {setInfoOpen && <DynamicInfoModal slotId="maintenance-info" open={infoOpen} onClose={() => setInfoOpen(false)} title="About Maintenance" />}
 
       <MaintenanceRequestModal
         open={requestModalOpen}

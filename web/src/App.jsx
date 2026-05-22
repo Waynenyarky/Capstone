@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { ProtectedRoute, PublicRoute } from "@/features/authentication"
 import { useNavigationNotifications, useSessionActivity } from "@/features/authentication/hooks"
+import PageSlide from "@/shared/components/PageTransition.jsx"
 
 // Eager-load only the homepage (LCP) and auth shell - everything else is lazy
 import Home from "@/features/public/pages/Home"
@@ -22,6 +23,7 @@ const NotificationHistoryPage = lazy(() => import("@/features/user/pages/Notific
 const AdminOnboarding = lazy(() => import("@/features/admin/pages/AdminOnboarding.jsx"))
 const AdminDashboard = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminDashboard })))
 const AdminUsers = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminUsers })))
+const AdminContentManagement = lazy(() => import("@/features/admin/pages/content-management").then(m => ({ default: m.ContentManagementPage })))
 const AdminSiteSettings = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminSiteSettings })))
 const AdminFormDefinitions = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminFormDefinitions })))
 const AdminFormGroupDetail = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminFormGroupDetail })))
@@ -74,17 +76,17 @@ function App() {
 
   return (
     <Suspense fallback={<PageFallback />}>
-    <Routes>
-      <Route path="/" element={<PublicRoute><Home /></PublicRoute>} />
+      <Routes>
+        <Route path="/" element={<PublicRoute><Home /></PublicRoute>} />
       <Route path="/terms" element={<PublicRoute><TermsOfService /></PublicRoute>} />
       <Route path="/privacy" element={<PublicRoute><PrivacyPolicy /></PublicRoute>} />
       <Route path="/maintenance" element={<PublicRoute><Maintenance /></PublicRoute>} />
       <Route path="/verify-permit/:permitNumber" element={<VerifyPermitPage />} />
       <Route path="/application-tracker" element={<PublicRoute><ApplicationTracker /></PublicRoute>} />
       <Route path="/business-search" element={<PublicRoute><BusinessSearch /></PublicRoute>} />
-      <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-      <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
-      <Route path="/sign-up" element={<PublicRoute><SignUp /></PublicRoute>} />
+      <Route path="/login" element={<PublicRoute><PageSlide><Login /></PageSlide></PublicRoute>} />
+      <Route path="/forgot-password" element={<PublicRoute><PageSlide><ForgotPassword /></PageSlide></PublicRoute>} />
+      <Route path="/sign-up" element={<PublicRoute><PageSlide><SignUp /></PageSlide></PublicRoute>} />
       <Route path="/signup/mfa-setup" element={<SignUpMfaSetup />} />
       <Route path="/auth/passkey-mobile" element={<PublicRoute><PasskeyMobileAuth /></PublicRoute>} />
       <Route path="/deletion-pending" element={<ProtectedRoute><DeletionPendingScreen /></ProtectedRoute>} />
@@ -97,6 +99,7 @@ function App() {
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="requests" element={<AdminRequests />} />
+        <Route path="content-management" element={<AdminContentManagement />} />
         <Route path="site-settings" element={<AdminSiteSettings />} />
         <Route path="maintenance" element={<Navigate to="/admin/site-settings" replace />} />
         <Route path="form-definitions" element={<AdminFormDefinitions />} />

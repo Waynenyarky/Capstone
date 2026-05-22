@@ -11,6 +11,7 @@ router.get('/public', async (req, res) => {
     const announcements = await Announcement.find({
       status: 'published',
       isActive: true,
+      audience: 'public',
       $and: [
         { $or: [{ publishAt: null }, { publishAt: { $lte: now } }] },
         { $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] },
@@ -18,7 +19,7 @@ router.get('/public', async (req, res) => {
     }).sort({ priority: -1, createdAt: -1 })
     return respond.success(res, 200, announcements)
   } catch (err) {
-    logger.error('Failed to fetch public announcements', { error: err, correlationId: req.correlationId })
+    console.error('Failed to fetch public announcements', err)
     return respond.error(res, 500, 'fetch_failed', 'Failed to fetch announcements')
   }
 })
@@ -30,6 +31,7 @@ router.get('/', optionalJwt, async (req, res) => {
     let filter = {
       status: 'published',
       isActive: true,
+      $or: [{ audience: 'public' }, { audience: { $exists: false } }],
       $and: [
         { $or: [{ publishAt: null }, { publishAt: { $lte: now } }] },
         { $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] },
@@ -37,6 +39,10 @@ router.get('/', optionalJwt, async (req, res) => {
     }
     if (isAdmin) {
       filter = {}
+      // Admin can filter by audience
+      if (req.query.audience && ['public', 'staff'].includes(req.query.audience)) {
+        filter.audience = req.query.audience
+      }
     }
     const announcements = await Announcement.find(filter).sort({ createdAt: -1 }).limit(50).lean()
     return respond.success(res, 200, announcements)
@@ -65,11 +71,13 @@ router.post('/', requireJwt, requireRole(['admin']), async (req, res) => {
     }
 
     const now = new Date()
+    const audience = req.body.audience && ['public', 'staff'].includes(req.body.audience) ? req.body.audience : 'public'
     const announcement = await Announcement.create({
       title: title || '',
       body: body || '',
       priority: priority || 'normal',
       status: status || 'draft',
+      audience,
       isActive: isDraft ? false : isActive !== false,
       publishAt: publishDate,
       publishedAt: !isDraft && (!publishDate || publishDate <= now) ? now : null,
@@ -136,6 +144,7 @@ router.put('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
     const now = new Date()
     const publishedAt = currentAnnouncement.publishedAt || ((status === 'published' && (!publishDate || publishDate <= now)) ? now : null)
 
+    const audience = req.body.audience && ['public', 'staff'].includes(req.body.audience) ? req.body.audience : currentAnnouncement.audience
     const announcement = await Announcement.findByIdAndUpdate(
       req.params.id,
       {
@@ -143,6 +152,7 @@ router.put('/:id', requireJwt, requireRole(['admin']), async (req, res) => {
         body,
         priority,
         status,
+        audience,
         isActive,
         publishAt: publishDate,
         publishedAt,

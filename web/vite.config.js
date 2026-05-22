@@ -321,6 +321,9 @@ export default defineConfig({
       // Public Form Definition endpoints -> Admin Service (port 3003)
       '/api/forms': createProxyConfig('/api/forms', `http://localhost:${MICROSERVICES.admin}`),
       
+      // Public CMS endpoints -> Admin Service (port 3003)
+      '/api/cms': createProxyConfig('/api/cms', `http://localhost:${MICROSERVICES.admin}`),
+      
       // Uploads -> Business Service (port 3002)
       '/uploads': createProxyConfig('/uploads', `http://localhost:${MICROSERVICES.business}`),
       
@@ -342,6 +345,7 @@ export default defineConfig({
       '/api/lgu-manager': createProxyConfig('/api/lgu-manager', UNIFIED_BACKEND_TARGET),
       '/api/lgus': createProxyConfig('/api/lgus', UNIFIED_BACKEND_TARGET),
       '/api/forms': createProxyConfig('/api/forms', UNIFIED_BACKEND_TARGET),
+      '/api/cms': createProxyConfig('/api/cms', UNIFIED_BACKEND_TARGET),
       '/uploads': createProxyConfig('/uploads', UNIFIED_BACKEND_TARGET),
       // SSE stream (long-lived) — no proxy timeout
       '/api/notifications/stream': createSSEProxyConfig('/api/notifications/stream', UNIFIED_BACKEND_TARGET),

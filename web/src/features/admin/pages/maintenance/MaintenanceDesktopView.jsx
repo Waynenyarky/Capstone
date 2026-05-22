@@ -6,7 +6,7 @@ import MaintenanceRequestList from './components/MaintenanceRequestList'
 import MaintenanceRequestDetailPanel from './components/MaintenanceRequestDetailPanel'
 import MaintenanceRequestModal from './components/MaintenanceRequestModal'
 import MaintenanceExportModal from './components/MaintenanceExportModal'
-import MaintenanceInfoModal from './components/MaintenanceInfoModal'
+import DynamicInfoModal from '@/shared/components/DynamicInfoModal'
 import { REQUESTS_PAGE_SIZE } from './constants/maintenance.constants'
 import { isDefaultVisible, filterApprovalsBySearch, filterApprovalsByStatus, filterApprovalsByReason } from './utils/maintenance.utils'
 import { useMaintenanceFilters, useMaintenancePagination, useMaintenanceExport, useMaintenance } from './hooks'
@@ -210,7 +210,7 @@ export default function MaintenanceDesktopView({
         {statusTabContent}
       </div>
 
-      {setInfoOpen && <MaintenanceInfoModal open={infoOpen} onClose={() => setInfoOpen(false)} />}
+      {setInfoOpen && <DynamicInfoModal slotId="maintenance-info" open={infoOpen} onClose={() => setInfoOpen(false)} title="About Maintenance" />}
 
       <MaintenanceRequestModal
         open={requestModalOpen}

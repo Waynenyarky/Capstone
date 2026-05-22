@@ -17,6 +17,7 @@ export default function HeroSection({
   maintenanceStatus,
   hasAnnouncementPanel,
   defaultOpenKey,
+  onNavigate,
 }) {
   const { token } = theme.useToken()
   const screens = useBreakpoint()
@@ -120,7 +121,7 @@ export default function HeroSection({
                 onMouseLeave={screens.md ? () => setHoveredCard(null) : undefined}
                 onClick={() => {
                   if (card.link) {
-                    window.location.href = card.link
+                    if (onNavigate) { onNavigate(card.link) } else { window.location.href = card.link }
                   } else if (card.scrollTo) {
                     const element = document.getElementById(card.scrollTo)
                     if (element) {
