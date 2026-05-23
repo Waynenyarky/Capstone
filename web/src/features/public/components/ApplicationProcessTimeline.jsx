@@ -78,12 +78,12 @@ export default function ApplicationProcessTimeline() {
   }))
 
   return (
-    <section style={{ width: '100%', maxWidth: 1280, margin: '0 auto' }}>
+    <section id="application-process-timeline" style={{ width: '100%', maxWidth: 1280, margin: '0 auto', padding: screens.md ? '0 20px' : '0 16px' }}>
       <div
         style={{
           border: `1px solid ${token.colorBorderSecondary}`,
           borderRadius: token.borderRadiusLG,
-          padding: screens.md ? '24px 28px' : '18px 14px',
+          padding: screens.md ? '32px 36px' : '24px 20px',
           background: token.colorBgLayout,
         }}
       >
@@ -91,8 +91,9 @@ export default function ApplicationProcessTimeline() {
           level={4}
           style={{
             marginTop: 0,
-            marginBottom: 8,
-            textAlign: 'left',
+            marginBottom: screens.md ? 12 : 8,
+            textAlign: screens.md ? 'left' : 'center',
+            fontSize: screens.md ? 20 : 18,
           }}
         >
           Application Process Timeline
@@ -100,8 +101,10 @@ export default function ApplicationProcessTimeline() {
         <Paragraph
           type="secondary"
           style={{
-            marginBottom: 24,
-            textAlign: 'left',
+            marginBottom: screens.md ? 24 : 16,
+            textAlign: screens.md ? 'left' : 'center',
+            fontSize: screens.md ? 14 : 13,
+            lineHeight: 1.6,
           }}
         >
           Understand the step-by-step process before registering your business.
@@ -111,6 +114,7 @@ export default function ApplicationProcessTimeline() {
           current={-1}
           items={stepItems}
           style={{ textAlign: 'left' }}
+          size={screens.md ? 'default' : 'small'}
         />
       </div>
     </section>
