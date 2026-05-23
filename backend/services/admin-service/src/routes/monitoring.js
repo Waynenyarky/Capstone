@@ -170,12 +170,20 @@ router.get('/audit-logs', requireJwt, requireRole(['admin']), async (req, res) =
     const adminId = req.query.adminId ? String(req.query.adminId).trim() : null;
     const eventType = req.query.eventType ? String(req.query.eventType).trim() : null;
     const resourceType = req.query.resourceType ? String(req.query.resourceType).trim() : null;
+    const announcementId = req.query.announcementId ? String(req.query.announcementId).trim() : null;
     const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom) : null;
     const dateTo = req.query.dateTo ? new Date(req.query.dateTo) : null;
 
     const query = {};
     if (adminId) query.userId = adminId;
     if (eventType) query.eventType = eventType;
+    if (announcementId) {
+      if (mongoose.Types.ObjectId.isValid(announcementId)) {
+        query['metadata.announcementId'] = new mongoose.Types.ObjectId(announcementId);
+      } else {
+        query['metadata.announcementId'] = announcementId;
+      }
+    }
     if (resourceType) {
       const regex = new RegExp(`^${escapeRegExp(resourceType)}`, 'i');
       query.$or = [
@@ -232,12 +240,20 @@ router.get('/audit-logs/export', requireJwt, requireRole(['admin']), async (req,
   try {
     const eventType = req.query.eventType ? String(req.query.eventType).trim() : null;
     const resourceType = req.query.resourceType ? String(req.query.resourceType).trim() : null;
+    const announcementId = req.query.announcementId ? String(req.query.announcementId).trim() : null;
     const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom) : null;
     const dateTo = req.query.dateTo ? new Date(req.query.dateTo) : null;
     const format = String(req.query.format || 'csv').toLowerCase();
 
     const query = {};
     if (eventType) query.eventType = eventType;
+    if (announcementId) {
+      if (mongoose.Types.ObjectId.isValid(announcementId)) {
+        query['metadata.announcementId'] = new mongoose.Types.ObjectId(announcementId);
+      } else {
+        query['metadata.announcementId'] = announcementId;
+      }
+    }
     if (resourceType) {
       const regex = new RegExp(`^${escapeRegExp(resourceType)}`, 'i');
       query.$or = [
