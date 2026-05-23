@@ -1,9 +1,12 @@
 import React, { useState } from 'react'
-import { Typography, Input, Button, theme, Grid } from 'antd'
-import { useNavigate } from 'react-router-dom'
+import { Typography, Input, Button, theme, Grid, Layout } from 'antd'
+import HomeHeader from '../components/HomeHeader'
+import FaqSection from '../components/FaqSection'
+import HomeFooter from '../components/HomeFooter'
 
 const { Title, Text, Paragraph } = Typography
 const { useBreakpoint } = Grid
+const { Content } = Layout
 
 const MOCK_APPLICATION = {
   referenceNumber: 'BPLO-2024-001234',
@@ -17,7 +20,6 @@ const MOCK_APPLICATION = {
 export default function ApplicationTracker() {
   const { token } = theme.useToken()
   const screens = useBreakpoint()
-  const navigate = useNavigate()
   const [referenceNumber, setReferenceNumber] = useState('')
   const [showResult, setShowResult] = useState(false)
   const [currentApplication, setCurrentApplication] = useState(null)
@@ -35,38 +37,24 @@ export default function ApplicationTracker() {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: token.colorBgLayout,
-      padding: screens.md ? '40px 20px' : '20px 16px',
-    }}>
-      <div style={{
-        maxWidth: 800,
-        margin: '0 auto',
-      }}>
+    <Layout style={{ minHeight: '100vh', background: '#fff' }}>
+      <HomeHeader visible={true} />
+      <Content style={{ padding: screens.md ? '120px 20px 60px' : '100px 16px 40px' }}>
         <div style={{
-          background: token.colorBgContainer,
-          borderRadius: token.borderRadiusLG,
-          padding: screens.md ? '48px 40px' : '32px 24px',
-          boxShadow: token.boxShadow,
+          maxWidth: 400,
+          margin: '0 auto',
         }}>
           {!showResult ? (
             <div>
-              <Title level={2} style={{ marginBottom: 8, fontSize: screens.md ? 32 : 24 }}>
-                Case Status Online
-              </Title>
-              <Title level={3} style={{ marginBottom: 24, fontSize: screens.md ? 24 : 20, color: token.colorPrimary }}>
-                Check Case Status
+              <Title level={2} style={{ marginBottom: 16, fontSize: screens.md ? 32 : 24 }}>
+                Application Tracker
               </Title>
               <Paragraph style={{ marginBottom: 32, lineHeight: 1.6, color: token.colorTextSecondary }}>
-                Use this tool to track the status of a business permit application, petition, or request.
-              </Paragraph>
-              <Paragraph style={{ marginBottom: 32, lineHeight: 1.6, color: token.colorTextSecondary }}>
-                The receipt number is a unique 13-character identifier that consists of three letters and 10 numbers. Omit dashes (&ldquo;-&rdquo;) when entering a receipt number. However, you can include all other characters, including asterisks (&ldquo;*&rdquo;), if they are listed on your notice as part of the receipt number. When a receipt number is entered, the &ldquo;Check Status&rdquo; button will be enabled and you can check the status.
+                Enter your receipt number to track the status of your business permit application.
               </Paragraph>
 
               <div style={{ marginBottom: 24 }}>
-                <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
+                <Text style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
                   Enter a Receipt Number
                 </Text>
                 <Input
@@ -87,19 +75,11 @@ export default function ApplicationTracker() {
                 </Button>
               </div>
 
-              <div style={{ marginTop: 32, paddingTop: 24, borderTop: `1px solid ${token.colorBorder}` }}>
-                <Text style={{ display: 'block', marginBottom: 8 }}>
-                  Already have an Account? <Button type="link" onClick={() => navigate('/login')} style={{ padding: 0, height: 'auto' }}>Login</Button>
-                </Text>
-                <Paragraph type="secondary" style={{ fontSize: 13, marginBottom: 0 }}>
-                  Case Status Online account logins will now be routed through the MyAccount service. Existing account holders can find updated login instructions here.
-                </Paragraph>
-              </div>
             </div>
           ) : (
             <div>
               <Title level={2} style={{ marginBottom: 24, fontSize: screens.md ? 32 : 24 }}>
-                Case Status
+                Application Status
               </Title>
 
               <div style={{
@@ -151,7 +131,11 @@ export default function ApplicationTracker() {
             </div>
           )}
         </div>
-      </div>
-    </div>
+        <div style={{ marginTop: screens.md ? '60px' : '40px' }}>
+          <FaqSection />
+        </div>
+      </Content>
+      <HomeFooter />
+    </Layout>
   )
 }
