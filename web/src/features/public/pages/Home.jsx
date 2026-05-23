@@ -5,7 +5,7 @@ import TransparencyDashboard from '../components/TransparencyDashboard'
 import FaqSection from '../components/FaqSection'
 import PermitFormsCarousel from '../components/PermitFormsCarousel'
 import ApplicationProcessTimeline from '../components/ApplicationProcessTimeline'
-import DownloadableFormsSection from '../components/DownloadableFormsSection'
+import DownloadCenter from '../components/DownloadCenter'
 import OfficeLocationSection from '../components/OfficeLocationSection'
 import HomeFooter from '../components/HomeFooter'
 import useLandingData from '../hooks/useLandingData.jsx'
@@ -70,7 +70,7 @@ export default function Home() {
         <div style={{ height: '56px' }} />
         <ApplicationProcessTimeline />
         <div style={{ height: '56px' }} />
-        <DownloadableFormsSection />
+        <DownloadCenter />
         <div style={{ height: '56px' }} />
         <OfficeLocationSection />
       </Content>
