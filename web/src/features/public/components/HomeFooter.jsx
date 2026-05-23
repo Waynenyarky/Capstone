@@ -1,8 +1,8 @@
-import { Layout, Typography, Space, Grid, theme, Divider } from 'antd'
+import { Layout, Typography, Space, Grid, theme } from 'antd'
 import { Link } from 'react-router-dom'
 
 const { Footer } = Layout
-const { Text, Paragraph } = Typography
+const { Text } = Typography
 const { useBreakpoint } = Grid
 
 export default function HomeFooter() {
@@ -29,9 +29,9 @@ export default function HomeFooter() {
           flexDirection: screens.xs ? 'column' : 'row',
           justifyContent: 'space-between',
           alignItems: screens.xs ? 'flex-start' : 'center',
-          gap: '16px'
+          gap: screens.xs ? '24px' : '16px'
         }}>
-          <Space direction="horizontal">
+          <Space direction={screens.xs ? 'vertical' : 'horizontal'} size={screens.xs ? 'small' : 'middle'} style={{ width: screens.xs ? '100%' : 'auto' }}>
             <Link
               to="/terms"
               style={linkStyle}
@@ -49,7 +49,7 @@ export default function HomeFooter() {
               Privacy Policy
             </Link>
             <a
-              href="https://www.alaminoscity.gov.ph/citizens-charter"
+              href="https://alaminoscity.gov.ph/public-service/city-services/City%20Government%20of%20Alaminos,%20Pangasinan%20Citizen's%20Charter.pdf"
               target="_blank"
               rel="noopener noreferrer"
               style={linkStyle}
@@ -79,26 +79,6 @@ export default function HomeFooter() {
           </Text>
         </div>
 
-        <Divider style={{ margin: screens.md ? '16px 0' : '12px 0', borderColor: token.colorBorderSecondary }} />
-
-        <div style={{
-          background: token.colorBgLayout,
-          padding: screens.md ? '16px' : '12px',
-          borderRadius: token.borderRadius,
-          border: `1px solid ${token.colorBorderSecondary}`,
-        }}>
-          <Paragraph
-            style={{
-              fontSize: screens.md ? '12px' : '11px',
-              color: token.colorTextSecondary,
-              marginBottom: 0,
-              lineHeight: 1.5,
-              textAlign: screens.md ? 'left' : 'left',
-            }}
-          >
-            <Text strong style={{ color: token.colorText }}>Anti-Red Tape Compliance Notice:</Text> This platform complies with Republic Act No. 11032 (Ease of Doing Business Act) and the Anti-Red Tape Act. We are committed to providing efficient, transparent, and citizen-friendly services. For complaints or feedback regarding service delivery, please contact the BPLO office or visit the City Hall.
-          </Paragraph>
-        </div>
       </div>
     </Footer>
   )
