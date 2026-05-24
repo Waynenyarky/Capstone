@@ -1,9 +1,6 @@
-import { Grid, Button, Typography, theme } from 'antd'
-import { InfoCircleOutlined, NotificationOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Grid, theme } from 'antd'
 import AdminLayout from '../components/AdminLayout'
 import { useAnnouncements, AnnouncementDesktopView, AnnouncementMobileView, AnnouncementModals } from './announcements'
-
-const { Text } = Typography
 
 export default function AdminAnnouncements({ embedded = false }) {
   const { token } = theme.useToken()
@@ -16,7 +13,9 @@ export default function AdminAnnouncements({ embedded = false }) {
     ...announcementsState,
     isMobile,
     onSelect: announcementsState.handleSelect,
+    onBack: () => announcementsState.setSelected(null),
     onCreateDraft: announcementsState.handleCreateDraft,
+    onRefresh: announcementsState.fetchAnnouncements,
     onOpenInfo: () => announcementsState.setInfoOpen(true),
     onToggleFilter: (value) => announcementsState.setFilterOpen(value),
     onSearchChange: (value) => announcementsState.setSearch(value),
@@ -38,9 +37,6 @@ export default function AdminAnnouncements({ embedded = false }) {
     onOpenAuditLog: announcementsState.openAuditLog,
     onExportAuditLogs: announcementsState.handleExportAuditLogs,
     onAuditTabChange: announcementsState.setActiveAuditTab,
-    settings: {
-      refreshLabel: 'Refresh',
-    },
   }
 
   const modals = (
@@ -75,21 +71,7 @@ export default function AdminAnnouncements({ embedded = false }) {
 
   return (
     <>
-      <AdminLayout
-        pageTitle="Announcements"
-        pageIcon={<NotificationOutlined />}
-        headerActions={
-          <>
-            {announcementsState.lastUpdated && (
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Last updated: {announcementsState.lastUpdated.toLocaleTimeString()}
-              </Text>
-            )}
-            <Button icon={<ReloadOutlined />} onClick={announcementsState.fetchAnnouncements} aria-label="Refresh" />
-            <Button icon={<InfoCircleOutlined />} onClick={() => announcementsState.setInfoOpen(true)} aria-label="About" />
-          </>
-        }
-      >
+      <AdminLayout showPageHeader={false}>
         {body}
       </AdminLayout>
       {modals}

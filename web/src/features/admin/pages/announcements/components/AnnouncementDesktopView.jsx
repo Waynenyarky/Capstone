@@ -1,4 +1,5 @@
 import { Splitter, theme } from 'antd'
+import AnnouncementHeader from './AnnouncementHeader.jsx'
 import AnnouncementList from './AnnouncementList.jsx'
 import AnnouncementDetailPanel from './AnnouncementDetailPanel.jsx'
 
@@ -15,6 +16,15 @@ export default function AnnouncementDesktopView(props) {
         overflow: 'hidden',
       }}
     >
+      <AnnouncementHeader
+        selected={props.selected}
+        onBack={props.onBack}
+        onCreateDraft={props.onCreateDraft}
+        onRefresh={props.onRefresh}
+        onOpenInfo={props.onOpenInfo}
+        lastUpdated={props.lastUpdated}
+        isMobile={props.isMobile}
+      />
       <Splitter style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <Splitter.Panel min="280px" defaultSize="30%" max="40%" style={{ overflow: 'hidden', background: token.colorBgContainer }}>
           <AnnouncementList {...props} />

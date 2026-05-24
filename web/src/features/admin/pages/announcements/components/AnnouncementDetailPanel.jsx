@@ -1,9 +1,7 @@
-import { Button, Collapse, DatePicker, Empty, Form, Grid, Input, Layout, Select, Spin, Table, Tabs, Tag, Typography, theme } from 'antd'
-import { DeleteOutlined, DownloadOutlined, FileTextOutlined, HistoryOutlined, NotificationOutlined, RollbackOutlined, SaveOutlined, SearchOutlined, SendOutlined } from '@ant-design/icons'
-import HomeHeader from '@/features/public/components/HomeHeader'
-import HomeFooter from '@/features/public/components/HomeFooter'
+import { Button, Card, DatePicker, Empty, Form, Grid, Input, Select, Spin, Table, Tabs, Tag, Typography, theme } from 'antd'
+import { DeleteOutlined, DownloadOutlined, FileTextOutlined, HistoryOutlined, NotificationOutlined, RollbackOutlined, SaveOutlined, SearchOutlined, SendOutlined, WarningOutlined } from '@ant-design/icons'
 import { BRAND_COLORS } from '@/shared/theme/ThemeProvider'
-import { ANNOUNCEMENT_PRIORITY_SELECT_OPTIONS, AUDIT_ACTION_COLORS } from '../constants/announcements.constants.js'
+import { ANNOUNCEMENT_PRIORITY_SELECT_OPTIONS, AUDIT_ACTION_COLORS, STATUS_COLORS } from '../constants/announcements.constants.js'
 import { formatAnnouncementDate, getAuditActionLabel } from '../utils/announcements.utils.js'
 
 const { Paragraph, Text, Title } = Typography
@@ -138,26 +136,34 @@ export default function AnnouncementDetailPanel({
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: token.colorBgContainer }}>
       <div
         style={{
-          padding: 16,
-          borderBottom: `1px solid ${token.colorBorderSecondary}`,
+          padding: '16px 16px 0',
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
+          flexDirection: 'column',
           gap: 12,
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
-          <Tag color={selected.status === 'published' ? 'green' : 'orange'}>
-            {(selected.status || 'draft').toUpperCase()}
-          </Tag>
-          <Tag color="blue">Created {formatAnnouncementDate(selected.createdAt, 'MMM D, YYYY')}</Tag>
-          {selected.updatedAt && selected.updatedAt !== selected.createdAt && (
-            <Tag color="green">Updated {formatAnnouncementDate(selected.updatedAt, 'MMM D, h:mm A')}</Tag>
-          )}
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', minWidth: 0 }}>
+        {selected && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <Tag color={STATUS_COLORS[selected.status] || 'default'}>
+              {(selected.status || 'draft').toUpperCase()}
+            </Tag>
+            <Tag color="blue">Created {formatAnnouncementDate(selected.createdAt, 'MMM D, YYYY')}</Tag>
+            {selected.updatedAt && selected.updatedAt !== selected.createdAt && (
+              <Tag color="green">Updated {formatAnnouncementDate(selected.updatedAt, 'MMM D, h:mm A')}</Tag>
+            )}
+          </div>
+        )}
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 8,
+          }}
+        >
           {selected.status === 'draft' && (
             <>
               <Button icon={<FileTextOutlined />} onClick={onFillTestData}>
@@ -218,72 +224,150 @@ export default function AnnouncementDetailPanel({
                   </Form>
 
                   <div style={{ padding: 16, borderTop: `1px solid ${token.colorBorderSecondary}`, marginTop: 24 }}>
-                    <Title level={4} style={{ marginBottom: 16 }}>
-                      <NotificationOutlined style={{ marginRight: 8 }} />
-                      Live Preview - Landing Page
-                    </Title>
+                    <div style={{ marginBottom: 16 }}>
+                      <Title level={4} style={{ marginBottom: 8 }}>
+                        <NotificationOutlined style={{ marginRight: 8 }} />
+                        Live Preview - Landing Page
+                      </Title>
+                      <Text type="secondary" style={{ fontSize: 13 }}>
+                        This mirrors the current public landing page hero and announcements card styling.
+                      </Text>
+                    </div>
                     <div
                       style={{
                         border: `1px solid ${token.colorBorderSecondary}`,
                         borderRadius: 8,
-                        overflow: 'auto',
-                        height: isMobile ? 400 : 500,
-                        maxHeight: '60vh',
-                        position: 'relative',
+                        overflow: 'hidden',
+                        minHeight: isMobile ? 420 : 520,
                         background: token.colorBgLayout,
                       }}
                     >
-                      <Layout style={{ minHeight: '100%', background: token.colorBgContainer }}>
-                        <div style={{ position: 'relative' }}>
-                          <HomeHeader />
-                          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1101, cursor: 'not-allowed', pointerEvents: 'auto' }} />
-                        </div>
-                        <Layout.Content style={{ display: 'flex', flexDirection: 'column' }}>
-                          <div
-                            style={{
-                              background: token.colorBgContainer,
-                              padding: screens.md ? '60px 50px' : '40px 24px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flex: 1,
-                              position: 'relative',
-                            }}
-                          >
-                            <div
-                              style={{
-                                maxWidth: '1200px',
-                                width: '100%',
-                                display: 'grid',
-                                gridTemplateColumns: hasAnnouncements && screens.md ? '1fr 1fr' : '1fr',
-                                gap: screens.md ? 60 : 40,
-                                alignItems: 'start',
-                              }}
-                            >
-                              <div style={{ textAlign: hasAnnouncements && screens.md ? 'left' : 'center' }}>
-                                <Title level={1} style={{ marginBottom: '8px', fontSize: screens.md ? '56px' : '36px', fontWeight: 700, lineHeight: 1.1 }}>
-                                  <span style={{ color: BRAND_COLORS.blue }}>Business </span>
-                                  <span style={{ color: BRAND_COLORS.red }}>Permit </span>
-                                  <span style={{ color: BRAND_COLORS.yellow }}>Processing</span>
-                                </Title>
-                                <Title level={2} style={{ margin: 0, fontSize: screens.md ? '40px' : '28px', fontWeight: 700, color: token.colorText }}>
-                                  Made Simpler.
-                                </Title>
-                              </div>
-                              {hasAnnouncements && (
-                                <div>
-                                  <Title level={4} style={{ marginBottom: 16 }}>Announcements</Title>
-                                  <Collapse items={previewCollapseItems} defaultActiveKey={defaultActiveKey} style={{ background: token.colorBgContainer }} />
-                                </div>
-                              )}
-                            </div>
+                      <div
+                        style={{
+                          padding: screens.md ? '40px 32px' : '24px 20px',
+                          background: token.colorBgContainer,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: screens.md ? '1.2fr 0.8fr' : '1fr',
+                            gap: screens.md ? 24 : 16,
+                            alignItems: 'stretch',
+                          }}
+                        >
+                          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                            <Text strong style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: token.colorPrimary }}>
+                              Business Permit Processing
+                            </Text>
+                            <Title level={1} style={{ margin: '8px 0 12px', fontSize: screens.md ? '56px' : '34px', fontWeight: 700, lineHeight: 1.1 }}>
+                              <span style={{ color: BRAND_COLORS.blue }}>Business </span>
+                              <span style={{ color: BRAND_COLORS.red }}>Permit </span>
+                              <span style={{ color: BRAND_COLORS.yellow }}>Processing</span>
+                            </Title>
+                            <Title level={2} style={{ margin: 0, fontSize: screens.md ? '40px' : '26px', fontWeight: 700, color: token.colorText }}>
+                              Made Simpler.
+                            </Title>
+                            <Text type="secondary" style={{ display: 'block', marginTop: 16, fontSize: 14, lineHeight: 1.7 }}>
+                              This preview reflects the same hero area and announcements panel used on the public landing page.
+                            </Text>
                           </div>
-                        </Layout.Content>
-                        <div style={{ position: 'relative' }}>
-                          <HomeFooter />
-                          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, cursor: 'not-allowed', pointerEvents: 'auto' }} />
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            {previewMaintenance.active || previewMaintenance.scheduled ? (
+                              <Card
+                                size="small"
+                                style={{
+                                  width: '100%',
+                                  background: token.colorBgContainer,
+                                  border: `1px solid ${token.colorBorder}`,
+                                  borderRadius: token.borderRadiusLG,
+                                }}
+                                bodyStyle={{ padding: screens.md ? 16 : 12, paddingTop: screens.md ? 48 : 32 }}
+                              >
+                                <WarningOutlined style={{ fontSize: screens.md ? 24 : 20, color: token.colorTextSecondary, marginBottom: 8 }} />
+                                <Title level={5} style={{ margin: 0 }}>
+                                  {previewMaintenance.active ? 'System Maintenance' : 'Scheduled Maintenance'}
+                                </Title>
+                                <Text style={{ display: 'block', marginTop: 4, wordWrap: 'break-word', overflowWrap: 'break-word' }}>
+                                  {(previewMaintenance.message || "We're performing scheduled maintenance. Some features may be temporarily unavailable.").replace(/^Upcoming:\s*/i, '')}
+                                </Text>
+                                {previewMaintenance.scheduledStartAt && (
+                                  <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+                                    Starting at: {formatAnnouncementDate(previewMaintenance.scheduledStartAt, 'MMM D, YYYY h:mm A')}
+                                  </Text>
+                                )}
+                                {previewMaintenance.expectedResumeAt && (
+                                  <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 2 }}>
+                                    Back online at: {formatAnnouncementDate(previewMaintenance.expectedResumeAt, 'MMM D, YYYY h:mm A')}
+                                  </Text>
+                                )}
+                              </Card>
+                            ) : null}
+
+                            {(previewAnnouncements.length > 0 || (selected && formValues.title)) ? (
+                              <Card
+                                size="small"
+                                style={{
+                                  width: '100%',
+                                  background: token.colorBgContainer,
+                                  border: `1px solid ${token.colorBorder}`,
+                                  borderRadius: token.borderRadiusLG,
+                                }}
+                                bodyStyle={{ padding: screens.md ? '16px 16px 16px 16px' : '12px', paddingTop: screens.md ? 48 : 32 }}
+                              >
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+                                  <NotificationOutlined style={{ fontSize: 20, color: token.colorTextSecondary }} />
+                                  <Title level={5} style={{ margin: 0, fontSize: 16 }}>
+                                    Announcements
+                                  </Title>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                  {[...(selected && formValues.title ? [{ title: formValues.title, body: formValues.body || 'No content', createdAt: selected.createdAt }] : []), ...previewAnnouncements].slice(0, 2).map((announcement, index) => (
+                                    <Button
+                                      key={`preview-announcement-${index}`}
+                                      type="default"
+                                      size="small"
+                                      disabled
+                                      style={{
+                                        textAlign: 'left',
+                                        height: 'auto',
+                                        padding: '8px 12px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 8,
+                                        justifyContent: 'flex-start',
+                                        whiteSpace: 'normal',
+                                      }}
+                                    >
+                                      {announcement.title}
+                                    </Button>
+                                  ))}
+                                  {[...(selected && formValues.title ? [{ title: formValues.title, body: formValues.body || 'No content', createdAt: selected.createdAt }] : []), ...previewAnnouncements].length > 2 && (
+                                    <Button
+                                      type="default"
+                                      size="small"
+                                      disabled
+                                      style={{
+                                        textAlign: 'left',
+                                        height: 'auto',
+                                        padding: '8px 12px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 8,
+                                        justifyContent: 'flex-start',
+                                        whiteSpace: 'normal',
+                                      }}
+                                    >
+                                      View all {[...(selected && formValues.title ? [{ title: formValues.title, body: formValues.body || 'No content', createdAt: selected.createdAt }] : []), ...previewAnnouncements].length} announcements →
+                                    </Button>
+                                  )}
+                                </div>
+                              </Card>
+                            ) : null}
+                          </div>
                         </div>
-                      </Layout>
+                      </div>
                     </div>
                   </div>
                 </div>

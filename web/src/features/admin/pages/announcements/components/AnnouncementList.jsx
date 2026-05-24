@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Button, Card, Empty, Input, Pagination, Select, Spin, Tag, Tooltip, Typography, theme } from 'antd'
-import { CloseOutlined, FilterOutlined, InfoCircleOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons'
+import { CloseOutlined, FilterOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { PRIORITY_COLORS, STATUS_COLORS, ANNOUNCEMENT_STATUS_OPTIONS, ANNOUNCEMENT_PRIORITY_OPTIONS } from '../constants/announcements.constants.js'
 import { getAnnouncementTitle } from '../utils/announcements.utils.js'
@@ -12,8 +12,6 @@ export default function AnnouncementList({
   loading,
   selectedId,
   onSelect,
-  onCreateDraft,
-  onOpenInfo,
   search,
   onSearchChange,
   filterOpen,
@@ -28,7 +26,6 @@ export default function AnnouncementList({
   onPageChange,
   totalCount,
   pageSize,
-  saving,
   onKeyDown,
 }) {
   const { token } = theme.useToken()
@@ -50,34 +47,6 @@ export default function AnnouncementList({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: token.colorBgContainer }}>
-      <div
-        style={{
-          flexShrink: 0,
-          padding: '16px 16px 12px',
-          borderBottom: `1px solid ${token.colorBorderSecondary}`,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 12,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div>
-          <Text strong style={{ fontSize: 16, display: 'block' }}>Announcements</Text>
-          <Text type="secondary" style={{ fontSize: 13 }}>
-            Manage announcement drafts, publishing, and updates.
-          </Text>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <Tooltip title="About announcements">
-            <Button icon={<InfoCircleOutlined />} onClick={onOpenInfo} aria-label="Announcement info" />
-          </Tooltip>
-          <Button type="primary" icon={<PlusOutlined />} onClick={onCreateDraft} loading={saving}>
-            New Announcement
-          </Button>
-        </div>
-      </div>
-
       <div style={{ flexShrink: 0, padding: '12px 16px 0', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <Input
           placeholder="Search announcements..."
