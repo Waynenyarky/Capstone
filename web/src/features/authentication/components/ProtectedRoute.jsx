@@ -2,7 +2,7 @@ import React from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { Spin } from 'antd'
 import { useAuthSession, useMaintenanceStatus } from '@/features/authentication'
-import { getCurrentUser as getAuthEventCurrentUser, getIsLoggingOut } from '@/features/authentication/lib/authEvents.js'
+import { getCurrentUser as getAuthEventCurrentUser, getIsLoggingOut, getLogoutNotification } from '@/features/authentication/lib/authEvents.js'
 
 function normalizeRoleKey(value) {
   const raw = String(value?.slug ?? value ?? '').trim().toLowerCase()
@@ -52,9 +52,12 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
 
   // If not authenticated, redirect to login
   if (!effectiveUser || !effectiveUser.token) {
-    if (isLoggingOut) {
-      // Preserve the logout notification state
-      return <Navigate to="/" replace state={location.state?.isLogout ? location.state : undefined} />
+    const logoutNotification = getLogoutNotification()
+
+    if (isLoggingOut || logoutNotification) {
+      // Voluntary logout should not show an access warning.
+      // Let the logout flow's success notification handle the feedback.
+      return <Navigate to="/login" replace />
     }
 
     // Only show "Access Denied" if we were trying to access a specific page (location.pathname !== '/')

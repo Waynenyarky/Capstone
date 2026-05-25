@@ -14,9 +14,10 @@ function normalizeRoleKey(value) {
 export default function PublicRoute({ children }) {
   const { currentUser, role, isLoading } = useAuthSession()
   const location = useLocation()
-  const maintenance = useMaintenanceStatus()
   const authEventUser = getAuthEventCurrentUser()
   const effectiveUser = currentUser || authEventUser
+  const publicPages = ['/', '/login', '/forgot-password', '/sign-up', '/terms', '/privacy', '/maintenance']
+  const maintenance = useMaintenanceStatus({ enabled: !publicPages.includes(location.pathname) })
 
   if (isLoading || maintenance.loading) {
     return null

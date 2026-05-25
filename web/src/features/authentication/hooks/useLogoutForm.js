@@ -26,7 +26,7 @@ export function useLogoutForm() {
       setIsLoggingOut(true)
       await logoutApi().catch(() => {})
       logout()
-      navigate('/', { replace: true })
+      navigate('/login', { replace: true })
     } catch (err) {
       console.error('Logout error:', err)
       error(err, 'Failed to logout')

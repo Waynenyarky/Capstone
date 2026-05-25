@@ -192,7 +192,6 @@ ClearanceSchema.plugin(encryptionPlugin, {
 
 // Indexes for performance
 ClearanceSchema.index({ businessId: 1, applicationId: 1 });
-ClearanceSchema.index({ referenceNumber: 1 });
 ClearanceSchema.index({ overallStatus: 1 });
 ClearanceSchema.index({ 'clearances.agency': 1, 'clearances.status': 1 });
 ClearanceSchema.index({ currentAgency: 1, queuePosition: 1 });

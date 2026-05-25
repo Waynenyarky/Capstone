@@ -117,7 +117,7 @@ export default function LayoutPageHeader({
         setIsLoggingOut(true)
         await logoutApi().catch(() => {})
         if (logout) await logout()
-        navigate('/', { replace: true })
+        navigate('/login', { replace: true })
       } catch (err) {
         console.error('Logout error:', err)
       }
