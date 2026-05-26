@@ -243,27 +243,6 @@ export default function UserSignUpForm({ extraContent }) {
           Register An Account
         </Title>
 
-        {/* <div
-          style={{
-            marginTop: -24,
-            marginBottom: 24,
-            padding: '14px 16px',
-            background: '#f5f8ff',
-            border: '1px solid #d6e4ff',
-            borderRadius: 8,
-          }}
-        >
-          <Text style={{ display: 'block', color: '#1f2937', fontSize: 15, lineHeight: 1.5, marginBottom: 6 }}>
-            Please complete the form in order.
-          </Text>
-          <Text style={{ display: 'block', color: '#4b5563', fontSize: 14, lineHeight: 1.5 }}>
-            Step 1: Fill out all required Account fields marked with * and set a strong password.
-          </Text>
-          <Text style={{ display: 'block', color: '#4b5563', fontSize: 14, lineHeight: 1.5 }}>
-            Step 2: Click Next to complete your Personal Info, then submit your registration.
-          </Text>
-        </div> */}
-
         {/* ── Step 1: Account Information ── */}
         <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
           <Form.Item name="firstName" label="First Name" rules={firstNameRules}>

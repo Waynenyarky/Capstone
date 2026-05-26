@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react'
+import React, { useState } from 'react'
 import dayjs from 'dayjs'
 import { Form } from '@/shared/components/AppForm'
 import {
@@ -308,7 +308,7 @@ function DynamicField({ field, form, token, readOnly, businessId, onDocumentCid,
   const label = (
     <span>
       {field.label || '(Untitled field)'}
-      {field.required && <span style={{ color: '#ff4d4f' }}> *</span>}
+      
       {field.helpText && (
         <Text type="secondary" style={{ fontSize: 12, display: 'block', fontWeight: 'normal', marginTop: 2 }}>
           {field.helpText}
@@ -320,21 +320,21 @@ function DynamicField({ field, form, token, readOnly, businessId, onDocumentCid,
   switch (field.type) {
     case 'text':
       return (
-        <Form.Item name={fieldName} label={label} rules={effectiveReadOnly ? [] : rules} required={false}>
+        <Form.Item name={fieldName} label={label} rules={effectiveReadOnly ? [] : rules} required={field.required}>
           <Input placeholder={field.placeholder || ''} disabled={effectiveReadOnly} readOnly={effectiveReadOnly} />
         </Form.Item>
       )
 
     case 'textarea':
       return (
-        <Form.Item name={fieldName} label={label} rules={effectiveReadOnly ? [] : rules} required={false}>
+        <Form.Item name={fieldName} label={label} rules={effectiveReadOnly ? [] : rules} required={field.required}>
           <Input.TextArea placeholder={field.placeholder || ''} autoSize={{ minRows: 2, maxRows: 6 }} disabled={effectiveReadOnly} readOnly={effectiveReadOnly} />
         </Form.Item>
       )
 
     case 'number':
       return (
-        <Form.Item name={fieldName} label={label} rules={effectiveReadOnly ? [] : rules} required={false}>
+        <Form.Item name={fieldName} label={label} rules={effectiveReadOnly ? [] : rules} required={field.required}>
           <InputNumber
             placeholder={field.placeholder || ''}
             style={{ width: '100%' }}
@@ -351,7 +351,7 @@ function DynamicField({ field, form, token, readOnly, businessId, onDocumentCid,
         <Form.Item 
           name={fieldName} 
           label={label}
-          required={false}
+          required={field.required}
           rules={effectiveReadOnly ? [] : [
             ...rules,
             {
@@ -396,7 +396,7 @@ function DynamicField({ field, form, token, readOnly, businessId, onDocumentCid,
 
     case 'select':
       return (
-        <Form.Item name={fieldName} label={label} rules={effectiveReadOnly ? [] : rules} required={false}>
+        <Form.Item name={fieldName} label={label} rules={effectiveReadOnly ? [] : rules} required={field.required}>
           <Select
             placeholder={field.placeholder || 'Select...'}
             style={{ width: '100%' }}
@@ -412,7 +412,7 @@ function DynamicField({ field, form, token, readOnly, businessId, onDocumentCid,
 
     case 'multiselect':
       return (
-        <Form.Item name={fieldName} label={label} rules={effectiveReadOnly ? [] : rules} required={false}>
+        <Form.Item name={fieldName} label={label} rules={effectiveReadOnly ? [] : rules} required={field.required}>
           <Select
             mode="multiple"
             placeholder={field.placeholder || 'Select one or more...'}
@@ -577,7 +577,7 @@ function DynamicField({ field, form, token, readOnly, businessId, onDocumentCid,
           ) : (
             <>
               {previewableFiles.length === 0 && (
-                <Form.Item label={label} rules={rules} required={false}>
+                <Form.Item label={label} rules={rules} required={field.required}>
                   <Upload
                     beforeUpload={canUpload ? async (file) => {
                       try {
@@ -613,10 +613,9 @@ function DynamicField({ field, form, token, readOnly, businessId, onDocumentCid,
           )}
 
           {previewableFiles.length > 0 && !effectiveReadOnly && (
-            <div style={{ marginBottom: 16 }}>
+            <Form.Item label={label} required={field.required} style={{ marginBottom: 16 }}>
               <div style={{ marginBottom: 4 }}>
                 <Text>{field.label}</Text>
-                {field.required && <Text type="danger"> *</Text>}
               </div>
               {field.helpText && (
                 <div style={{ marginBottom: 8 }}>
@@ -647,7 +646,7 @@ function DynamicField({ field, form, token, readOnly, businessId, onDocumentCid,
                   </Button>
                 ))}
               </Space>
-            </div>
+            </Form.Item>
           )}
 
           <Modal
@@ -773,7 +772,7 @@ function DynamicField({ field, form, token, readOnly, businessId, onDocumentCid,
 
     case 'checkbox':
       return (
-        <Form.Item name={fieldName} valuePropName="checked" rules={effectiveReadOnly ? [] : rules} required={false}>
+        <Form.Item name={fieldName} valuePropName="checked" rules={effectiveReadOnly ? [] : rules} required={field.required}>
           <Checkbox disabled={effectiveReadOnly}>{field.placeholder || field.label}</Checkbox>
         </Form.Item>
       )
@@ -818,7 +817,7 @@ function DynamicField({ field, form, token, readOnly, businessId, onDocumentCid,
 
     default:
       return (
-        <Form.Item name={fieldName} label={label} rules={effectiveReadOnly ? [] : rules} required={false}>
+        <Form.Item name={fieldName} label={label} rules={effectiveReadOnly ? [] : rules} required={field.required}>
           <Input
             placeholder={field.placeholder || `Unsupported field type: ${field.type || 'unknown'}`}
             disabled={effectiveReadOnly}
@@ -895,7 +894,6 @@ export default function DynamicFormRenderer({
   form,
   formValues = {},
   isMobile = false,
-  onValuesChange,
   activeSectionIndex,
   readOnly = false,
   businessId = null,

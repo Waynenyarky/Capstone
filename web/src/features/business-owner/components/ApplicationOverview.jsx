@@ -12,9 +12,32 @@ export default function ApplicationOverview({ visibleSections, sectionCompleteMa
     <div>
       <Title level={5} style={{ marginBottom: 12 }}>Overview</Title>
       <div style={{ marginBottom: 16 }}>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          Fill out all required sections to submit your Business Permit application. Each section contains specific information needed for processing. You can save your progress at any time and return later to complete your application.
+        <Text style={{ display: 'block', marginBottom: 8 }}>
+          You&apos;re about to apply for a Business Permit. This form is divided into sections you can complete at your own pace.
         </Text>
+
+        <Text strong>How this works:</Text>
+        <ul style={{ paddingLeft: 20, marginTop: 8, marginBottom: 12 }}>
+          <li>Select a section below to start filling out your details</li>
+          <li>Complete all required sections to proceed</li>
+          <li>You can save your progress anytime</li>
+        </ul>
+
+        <Text strong>Before you begin:</Text>
+        <ul style={{ paddingLeft: 20, marginTop: 8, marginBottom: 12 }}>
+          <li>You may want to check the Required Documents tab to prepare your files in advance.</li>
+        </ul>
+
+        <Text strong>What happens next:</Text>
+        <ul style={{ paddingLeft: 20, marginTop: 8, marginBottom: 12 }}>
+          <li>Once all sections are completed, you&apos;ll be able to review and submit your application.</li>
+        </ul>
+
+        <Text strong>Estimated time:</Text>
+        <div style={{ marginTop: 8, marginBottom: 12 }}>10–15 minutes</div>
+
+        <Text strong>Need help?:</Text>
+        <div style={{ marginTop: 8, marginBottom: 12 }}>Check the FAQ below.</div>
       </div>
       
       <div style={{ marginBottom: 16 }}>
