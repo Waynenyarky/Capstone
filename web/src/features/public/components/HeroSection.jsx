@@ -39,7 +39,8 @@ export default function HeroSection({
       data-hero-section
       style={{
         width: '100vw',
-        height: '100vh',
+        height: screens.md ? '100vh' : 'auto',
+        minHeight: screens.md ? '800px' : '100vh',
         display: 'flex',
         flexDirection: screens.md ? 'row' : 'column',
       }}
@@ -50,7 +51,7 @@ export default function HeroSection({
         style={{
           width: screens.md ? '60%' : '100%',
           height: screens.md ? '100%' : 'auto',
-          flex: screens.md ? 'none' : 1,
+          flex: screens.md ? 1 : 1,
           minHeight: screens.md ? 'none' : '120px',
         }}
       >
@@ -65,12 +66,13 @@ export default function HeroSection({
       {/* Right Panel - Content (40% on desktop, 100% on mobile) */}
       <div style={{
         width: screens.md ? '40%' : '100%',
+        height: screens.md ? 'auto' : 'auto',
         background: token.colorBgContainer,
         padding: screens.md ? '32px' : '24px',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'flex-start',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
         overflowY: 'auto',
         flex: screens.md ? 'none' : '0 0 auto',
       }}>

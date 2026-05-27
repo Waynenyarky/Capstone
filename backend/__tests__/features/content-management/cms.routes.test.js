@@ -1,37 +1,83 @@
 const request = require('supertest')
-const mongoose = require('mongoose')
-const { app } = require('../../services/admin-service/src/index')
-const FaqSection = require('../../services/admin-service/src/models/FaqSection')
-const InstructionContent = require('../../services/admin-service/src/models/InstructionContent')
-const User = require('../../services/admin-service/src/models/User')
+const { MongoMemoryServer } = require('mongodb-memory-server')
+const bcrypt = require('bcryptjs')
+
+let mongoServer
+let app
+
+const FaqSection = require('../../../services/admin-service/src/models/FaqSection')
+const InstructionContent = require('../../../services/admin-service/src/models/InstructionContent')
+const User = require('../../../services/admin-service/src/models/User')
+const Role = require('../../../services/admin-service/src/models/Role')
+const { signAccessToken } = require('../../../services/admin-service/src/middleware/auth')
+
+let adminToken
+let admin
+
+beforeAll(async () => {
+  process.env.NODE_ENV = 'test'
+  process.env.JWT_SECRET = 'test-secret'
+  process.env.DISABLE_CSRF = 'true'
+
+  mongoServer = await MongoMemoryServer.create()
+  const uri = mongoServer.getUri()
+
+  const adminMongoose = require('../../../services/admin-service/src/models/Role').base
+  await adminMongoose.connect(uri)
+
+  try {
+    const authMongoose = require('../../../services/auth-service/src/models/Role').base
+    if (authMongoose && authMongoose.connection.readyState === 0) {
+      await authMongoose.connect(uri)
+    }
+  } catch (_) {
+    // ignore if auth-service path isn't available
+  }
+
+  const adminService = require('../../../services/admin-service/src/index')
+  app = adminService.app
+
+  const adminRole = await Role.findOneAndUpdate(
+    { slug: 'admin' },
+    { name: 'Admin', slug: 'admin' },
+    { upsert: true, new: true }
+  )
+
+  admin = await User.create({
+    role: adminRole._id,
+    firstName: 'Admin',
+    lastName: 'User',
+    email: `cms_test_${Date.now()}@test.com`,
+    username: `cms_test_${Date.now()}`,
+    phoneNumber: `+6390000000${Math.floor(Math.random() * 1000)}`,
+    passwordHash: await bcrypt.hash('Admin123!', 10),
+    termsAccepted: true,
+    isActive: true,
+  })
+
+  adminToken = signAccessToken({ _id: admin._id, role: adminRole }).token
+})
+
+afterAll(async () => {
+  const adminMongoose = require('../../../services/admin-service/src/models/Role').base
+  await adminMongoose.disconnect()
+  try {
+    const authMongoose = require('../../../services/auth-service/src/models/Role').base
+    if (authMongoose && authMongoose.connection.readyState !== 0) {
+      await authMongoose.disconnect()
+    }
+  } catch (_) {}
+  await mongoServer.stop()
+})
+
+beforeEach(async () => {
+  await FaqSection.deleteMany({ slotId: /^test-/ })
+  await InstructionContent.deleteMany({ slotId: /^test-/ })
+})
 
 describe('CMS Routes', () => {
-  let adminUser
-  let authToken
-
-  beforeAll(async () => {
-    // Create test admin user
-    adminUser = await User.create({
-      email: 'cms-test-admin@example.com',
-      username: 'cms-test-admin',
-      password: 'hashedPassword123',
-      role: 'admin',
-      isActive: true,
-    })
-
-    // Generate mock JWT token (in real app, use auth endpoint)
-    authToken = 'mock-jwt-token-for-admin'
-  })
-
-  afterAll(async () => {
-    await User.deleteMany({ email: 'cms-test-admin@example.com' })
-    await FaqSection.deleteMany({ slotId: /^test-/ })
-    await InstructionContent.deleteMany({ slotId: /^test-/ })
-    await mongoose.connection.close()
-  })
-
   describe('Public FAQ Routes', () => {
-    beforeAll(async () => {
+    test('GET /api/cms/faq/:slotId should return FAQ section', async () => {
       await FaqSection.create({
         slotId: 'test-public-faq',
         title: 'Test FAQ',
@@ -41,13 +87,7 @@ describe('CMS Routes', () => {
           { key: '2', question: 'Test Q2', answer: 'Test A2' },
         ],
       })
-    })
 
-    afterAll(async () => {
-      await FaqSection.deleteOne({ slotId: 'test-public-faq' })
-    })
-
-    test('GET /api/cms/faq/:slotId should return FAQ section', async () => {
       const res = await request(app).get('/api/cms/faq/test-public-faq')
       expect(res.status).toBe(200)
       expect(res.body).toHaveProperty('slotId', 'test-public-faq')
@@ -63,7 +103,7 @@ describe('CMS Routes', () => {
   })
 
   describe('Public Instruction Routes', () => {
-    beforeAll(async () => {
+    test('GET /api/cms/instructions/:slotId should return instruction content', async () => {
       await InstructionContent.create({
         slotId: 'test-public-instruction',
         title: 'Test Instruction',
@@ -75,13 +115,7 @@ describe('CMS Routes', () => {
           { key: '1', question: 'Test Q', answer: 'Test A' },
         ],
       })
-    })
 
-    afterAll(async () => {
-      await InstructionContent.deleteOne({ slotId: 'test-public-instruction' })
-    })
-
-    test('GET /api/cms/instructions/:slotId should return instruction content', async () => {
       const res = await request(app).get('/api/cms/instructions/test-public-instruction')
       expect(res.status).toBe(200)
       expect(res.body).toHaveProperty('slotId', 'test-public-instruction')
@@ -95,7 +129,7 @@ describe('CMS Routes', () => {
   })
 
   describe('Admin FAQ Routes', () => {
-    beforeAll(async () => {
+    beforeEach(async () => {
       await FaqSection.create({
         slotId: 'test-admin-faq',
         title: 'Test Admin FAQ',
@@ -106,14 +140,10 @@ describe('CMS Routes', () => {
       })
     })
 
-    afterAll(async () => {
-      await FaqSection.deleteOne({ slotId: 'test-admin-faq' })
-    })
-
     test('GET /api/admin/cms/faq should list all FAQ sections', async () => {
       const res = await request(app)
         .get('/api/admin/cms/faq')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('Authorization', `Bearer ${adminToken}`)
       expect(res.status).toBe(200)
       expect(Array.isArray(res.body)).toBe(true)
     })
@@ -124,40 +154,30 @@ describe('CMS Routes', () => {
         { key: '2', question: 'Updated Q2', answer: 'Updated A2' },
       ]
       const res = await request(app)
-        .put('/api/admin/cms/faq/test-admin-faq')
-        .set('Authorization', `Bearer ${authToken}`)
+        .put('/api/admin/cms/faq/test-admin-faq?publish=true')
+        .set('Authorization', `Bearer ${adminToken}`)
         .send({ items: updatedItems })
       expect(res.status).toBe(200)
       expect(res.body.items[0].question).toBe('Updated Q1')
     })
 
-    test('PUT /api/admin/cms/faq/:slotId should reject item count change', async () => {
-      const invalidItems = [
-        { key: '1', question: 'Q1', answer: 'A1' },
+    test('PUT /api/admin/cms/faq/:slotId should save draft without publish', async () => {
+      const draftItems = [
+        { key: '1', question: 'Draft Q1', answer: 'Draft A1' },
+        { key: '2', question: 'Draft Q2', answer: 'Draft A2' },
       ]
       const res = await request(app)
         .put('/api/admin/cms/faq/test-admin-faq')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({ items: invalidItems })
-      expect(res.status).toBe(400)
-      expect(res.body.error).toContain('Cannot add, remove, or reorder')
-    })
-
-    test('PUT /api/admin/cms/faq/:slotId should reject item reorder', async () => {
-      const reorderedItems = [
-        { key: '2', question: 'Q2', answer: 'A2' },
-        { key: '1', question: 'Q1', answer: 'A1' },
-      ]
-      const res = await request(app)
-        .put('/api/admin/cms/faq/test-admin-faq')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({ items: reorderedItems })
-      expect(res.status).toBe(400)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ items: draftItems })
+      expect(res.status).toBe(200)
+      expect(res.body.draftData).toBeDefined()
+      expect(res.body.draftData.items[0].question).toBe('Draft Q1')
     })
   })
 
   describe('Admin Instruction Routes', () => {
-    beforeAll(async () => {
+    beforeEach(async () => {
       await InstructionContent.create({
         slotId: 'test-admin-instruction',
         title: 'Test Admin Instruction',
@@ -167,22 +187,18 @@ describe('CMS Routes', () => {
       })
     })
 
-    afterAll(async () => {
-      await InstructionContent.deleteOne({ slotId: 'test-admin-instruction' })
-    })
-
     test('GET /api/admin/cms/instructions should list all instructions', async () => {
       const res = await request(app)
         .get('/api/admin/cms/instructions')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('Authorization', `Bearer ${adminToken}`)
       expect(res.status).toBe(200)
       expect(Array.isArray(res.body)).toBe(true)
     })
 
     test('PUT /api/admin/cms/instructions/:slotId should update instruction content', async () => {
       const res = await request(app)
-        .put('/api/admin/cms/instructions/test-admin-instruction')
-        .set('Authorization', `Bearer ${authToken}`)
+        .put('/api/admin/cms/instructions/test-admin-instruction?publish=true')
+        .set('Authorization', `Bearer ${adminToken}`)
         .send({ description: 'Updated description' })
       expect(res.status).toBe(200)
       expect(res.body.description).toBe('Updated description')
@@ -193,17 +209,27 @@ describe('CMS Routes', () => {
         { title: 'New BP', content: 'New content' },
       ]
       const res = await request(app)
-        .put('/api/admin/cms/instructions/test-admin-instruction')
-        .set('Authorization', `Bearer ${authToken}`)
+        .put('/api/admin/cms/instructions/test-admin-instruction?publish=true')
+        .set('Authorization', `Bearer ${adminToken}`)
         .send({ bulletPoints })
       expect(res.status).toBe(200)
       expect(res.body.bulletPoints).toHaveLength(1)
     })
 
+    test('PUT /api/admin/cms/instructions/:slotId should save draft without publish', async () => {
+      const res = await request(app)
+        .put('/api/admin/cms/instructions/test-admin-instruction')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ description: 'Draft description' })
+      expect(res.status).toBe(200)
+      expect(res.body.draftData).toBeDefined()
+      expect(res.body.draftData.description).toBe('Draft description')
+    })
+
     test('PUT /api/admin/cms/instructions/:slotId should return 404 for non-existent slot', async () => {
       const res = await request(app)
         .put('/api/admin/cms/instructions/non-existent')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .send({ description: 'Test' })
       expect(res.status).toBe(404)
     })

@@ -221,7 +221,7 @@ export default function ContentManagementPage() {
   if (isMobile) {
     // Mobile view: select field + list, then drawer for details
     return (
-      <AdminLayout pageTitle="Content Management" pageIcon={null}>
+      <AdminLayout pageTitle="Content Management" pageIcon={<FileTextOutlined />}>
         <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: token.colorBgContainer, overflow: 'hidden' }}>
           <div style={{ padding: 16, flexShrink: 0 }}>
             <Select

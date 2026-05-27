@@ -9,6 +9,7 @@ import DownloadableFormsSection from '../components/DownloadableFormsSection'
 import OfficeLocationSection from '../components/OfficeLocationSection'
 import HomeFooter from '../components/HomeFooter'
 import useLandingData from '../hooks/useLandingData.jsx'
+import BlurFade from '@/shared/components/BlurFade.jsx'
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -74,7 +75,9 @@ export default function Home() {
         />
         <div style={{ height: '56px' }} />
         <TransparencyDashboard publicStats={publicStats} />
-        <FaqSection />
+        <BlurFade delay={0.3} duration={0.5} triggerOnViewport>
+          <FaqSection />
+        </BlurFade>
         <div style={{ height: '56px' }} />
         {permitForms.isEnabled && permitForms.cards.length > 0 && (
           <PermitFormsCarousel

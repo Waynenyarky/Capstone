@@ -10,7 +10,8 @@ export default function HomeHeader({ visible = true, onNavigate }) {
   const { token } = theme.useToken()
   return (
     <Header style={{
-      background: '#fff',
+      background: token.colorBgContainer,
+      borderBottom: `1px solid ${token.colorBorder}`,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
