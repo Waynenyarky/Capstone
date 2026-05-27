@@ -38,7 +38,7 @@ export default function MfaSetup({ embedded = false, onComplete }) {
   const { open, show, hide, confirming, handleConfirm } = useConfirmLogoutModal({
     onConfirm: async () => {
       if (logout) logout()
-      navigate('/', { replace: true })
+      navigate('/login', { replace: true })
     },
   })
   const [currentStep, setCurrentStep] = useState(0)

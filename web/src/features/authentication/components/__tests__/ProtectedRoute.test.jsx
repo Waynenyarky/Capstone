@@ -15,6 +15,7 @@ vi.mock('@/shared/theme/ThemeProvider.jsx', () => ({
 const mockUseAuthSession = vi.fn()
 const mockUseMaintenanceStatus = vi.fn()
 const mockGetIsLoggingOut = vi.fn(() => false)
+const mockGetLogoutNotification = vi.fn(() => null)
 
 vi.mock('@/features/authentication', async () => {
   const actual = await vi.importActual('@/features/authentication')
@@ -30,6 +31,7 @@ vi.mock('@/features/authentication/lib/authEvents.js', async () => {
   return {
     ...actual,
     getIsLoggingOut: () => mockGetIsLoggingOut(),
+    getLogoutNotification: () => mockGetLogoutNotification(),
   }
 })
 
@@ -48,6 +50,7 @@ describe('ProtectedRoute', () => {
   beforeEach(() => {
     mockUseMaintenanceStatus.mockReturnValue({ loading: false, active: false })
     mockGetIsLoggingOut.mockReturnValue(false)
+    mockGetLogoutNotification.mockReturnValue(null)
   })
 
   it('renders children when authenticated and allowed', () => {
@@ -102,6 +105,54 @@ describe('ProtectedRoute', () => {
     )
 
     expect(screen.getByTestId('location').textContent).toContain('/login::Restricted Access')
+  })
+
+  it('redirects while logging out without showing a restricted-access warning', () => {
+    mockUseAuthSession.mockReturnValue({
+      currentUser: null,
+      role: null,
+      isLoading: false,
+    })
+    mockGetIsLoggingOut.mockReturnValue(true)
+
+    renderWithProviders(
+      <Routes>
+        <Route
+          path="/dashboard"
+          element={<ProtectedRoute><Secure /></ProtectedRoute>}
+        />
+        <Route path="/login" element={<LocationEcho />} />
+      </Routes>,
+      { initialEntries: ['/dashboard'] }
+    )
+
+    expect(screen.getByTestId('location').textContent).toBe('/login::')
+  })
+
+  it('redirects with a queued logout notification without showing a restricted-access warning', () => {
+    mockUseAuthSession.mockReturnValue({
+      currentUser: null,
+      role: null,
+      isLoading: false,
+    })
+    mockGetLogoutNotification.mockReturnValue({
+      type: 'success',
+      message: 'Logged out',
+      description: 'You have been signed out successfully.',
+    })
+
+    renderWithProviders(
+      <Routes>
+        <Route
+          path="/dashboard"
+          element={<ProtectedRoute><Secure /></ProtectedRoute>}
+        />
+        <Route path="/login" element={<LocationEcho />} />
+      </Routes>,
+      { initialEntries: ['/dashboard'] }
+    )
+
+    expect(screen.getByTestId('location').textContent).toBe('/login::')
   })
 
   it('redirects non-admin users to maintenance page when maintenance mode is active', () => {

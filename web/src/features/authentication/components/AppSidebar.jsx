@@ -86,7 +86,7 @@ export default function AppSidebar({ hiddenKeys = [], renamedKeys = {}, itemOver
         setLogoutNotification(logoutNotification)
         setIsLoggingOut(true)
         logout()
-        navigate('/', { replace: true })
+        navigate('/login', { replace: true })
       } catch (err) {
         void err
       }
