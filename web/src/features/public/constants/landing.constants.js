@@ -37,7 +37,7 @@ export const BENTO_CARDS = [
     title: 'Track Application',
     icon: SearchOutlined,
     span: 12,
-    link: '/track',
+    link: '/application-tracker',
     linkText: 'Check status →',
   },
   {
