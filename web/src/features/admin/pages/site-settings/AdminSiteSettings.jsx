@@ -1,5 +1,5 @@
-import { Grid, Typography, Card, Row, Col, Button } from 'antd'
-import { SettingOutlined } from '@ant-design/icons'
+import { Grid, Typography, Card, Row, Col, Button, theme } from 'antd'
+import { ArrowLeftOutlined, SettingOutlined } from '@ant-design/icons'
 import AdminLayout from '../../components/AdminLayout'
 import useSiteSettings from './hooks/useSiteSettings'
 import { SITE_SETTINGS_MENU_ITEMS } from './constants/siteSettings.constants.js'
@@ -66,6 +66,7 @@ export default function AdminSiteSettings() {
     handleMenuSelect,
     handleBackToMenu,
   } = useSiteSettings()
+  const { token } = theme.useToken()
 
   const IconMenu = () => (
     <div style={{
@@ -147,8 +148,23 @@ export default function AdminSiteSettings() {
           />
         ) : tabKey === 'announcements' ? (
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '16px 16px 0', borderBottom: '1px solid #f0f0f0' }}>
-              <Button onClick={handleBackToMenu} type="text">← Back</Button>
+            <div
+              style={{
+                padding: '12px 16px',
+                borderBottom: `1px solid ${token.colorBorderSecondary}`,
+                display: 'flex',
+                alignItems: 'center',
+                minHeight: 56,
+              }}
+            >
+              <Button
+                onClick={handleBackToMenu}
+                type="default"
+                icon={<ArrowLeftOutlined />}
+                style={{ border: `1px solid ${token.colorBorder}` }}
+              >
+                Site Settings
+              </Button>
             </div>
             <div style={{ flex: 1, overflow: 'hidden' }}>
               <AdminAnnouncements embedded />
