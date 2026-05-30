@@ -1,13 +1,11 @@
 import {
   UserOutlined,
   SafetyCertificateOutlined,
-  BgColorsOutlined,
   TabletOutlined,
   LockOutlined,
   MailOutlined,
   DesktopOutlined,
   DeleteOutlined,
-  SettingOutlined,
   HomeOutlined,
   IdcardOutlined,
 } from '@ant-design/icons'

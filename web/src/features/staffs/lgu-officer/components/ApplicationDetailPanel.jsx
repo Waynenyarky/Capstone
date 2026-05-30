@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Typography, Tag, Button, Descriptions, Space, theme, Empty, Radio, Input, Alert, Badge, Spin, Image, Modal, App, Select, Popover, Progress, Collapse, message, Card, Tooltip, Table } from 'antd'
+import { Typography, Tag, Button, Space, theme, Empty, Radio, Input, Alert, Image, Modal, App, Select, Popover, Progress, Collapse, message, Card, Tooltip, Table } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { post } from '@/lib/http'
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
-  EditOutlined,
   FileTextOutlined,
-  RobotOutlined,
   UserOutlined,
   ShopOutlined,
   DownloadOutlined,
@@ -315,7 +314,7 @@ function AppealCard({ application, onAppealResolved }) {
   if (loading) {
     return (
       <Card title="Appeal" size="small" style={{ marginBottom: 16 }}>
-        <Spin size="small" />
+        <LottieSpinner size="small" />
       </Card>
     )
   }
@@ -1372,7 +1371,7 @@ export default function ApplicationDetailPanel({
       children: (
         <div style={{ padding: 16, overflow: 'auto' }}>
           {formDefLoading ? (
-            <Spin tip="Loading..." />
+            <LottieSpinner tip="Loading..." />
           ) : isLobSection ? (
             <LobReviewBlock
               formData={formData}
@@ -1461,7 +1460,7 @@ export default function ApplicationDetailPanel({
           {paymentStatusAlert}
           {formDefLoading && (
             <div style={{ marginBottom: 16 }}>
-              <Spin size="small" tip="Loading form sections..." />
+              <LottieSpinner size="small" tip="Loading form sections..." />
             </div>
           )}
           {!formDefLoading && !formDefinition && (
@@ -1905,6 +1904,7 @@ export default function ApplicationDetailPanel({
   const activeContent = tabItems.find((t) => t.key === activeTab)?.children
 
   return (
+    <>
     <div className="application-detail-panel-root" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }}>
       <style>{`
         /* Spin wraps content in .ant-spin-nested-loading and .ant-spin-container; make them pass through flex/height */
@@ -1925,11 +1925,11 @@ export default function ApplicationDetailPanel({
           overflow: hidden !important;
         }
       `}</style>
-      <Spin
-        spinning={loading || startingReview}
-        wrapperClassName="application-detail-panel-root"
-        style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', height: '100%' }}
-      >
+      {(loading || startingReview) ? (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+          <LottieSpinner size="large" />
+        </div>
+      ) : (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', height: '100%' }}>
         {/* Closed business warning */}
         {application?.businessStatus === 'closed' && (
@@ -2179,7 +2179,7 @@ export default function ApplicationDetailPanel({
         )}
         </div>
         </div>
-      </Spin>
+      )}
       <Modal
         title={documentModal.label}
         open={documentModal.open}
@@ -2265,5 +2265,6 @@ export default function ApplicationDetailPanel({
         )}
       </Modal>
     </div>
+    </>
   )
 }

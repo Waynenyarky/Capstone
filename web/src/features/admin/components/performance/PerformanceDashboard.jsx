@@ -1,15 +1,14 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Card, Row, Col, Statistic, Table, Progress, Alert, 
   Typography, Space, Button, Tabs, Select, DatePicker,
-  Line, Column, Area, Tooltip
+  Line, Area
 } from 'antd'
 import { 
   ReloadOutlined, DownloadOutlined, AlertOutlined,
-  ClockCircleOutlined, DatabaseOutlined, ApiOutlined,
-  MemoryOutlined, UserOutlined
+  ClockCircleOutlined, DatabaseOutlined, ApiOutlined
 } from '@ant-design/icons'
-import { Line, Column, Area } from '@ant-design/plots'
+import { Line, Area } from '@ant-design/plots'
 import dayjs from 'dayjs'
 
 const { Title, Text } = Typography

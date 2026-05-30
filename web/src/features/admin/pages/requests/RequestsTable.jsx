@@ -1,4 +1,3 @@
-import React from 'react'
 import { Table, Tag, Typography, Select, Pagination, theme, Empty } from 'antd'
 import { getRequestTypeLabel } from '@/features/admin/services/approvalService'
 

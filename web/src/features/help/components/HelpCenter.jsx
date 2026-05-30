@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { 
   Card, Input, List, Button, Space, Typography, Tag, 
-  Modal, Tabs, Steps, Divider, Alert, Badge, Tooltip,
+  Modal, Tabs, Steps, Divider, Badge,
   Collapse, Row, Col, Progress, Avatar, Empty
 } from 'antd'
 import { 
-  SearchOutlined, QuestionCircleOutlined, BookOutlined,
-  VideoCameraOutlined, FileTextOutlined, BulbOutlined,
-  CheckOutlined, PlayCircleOutlined, CloseOutlined,
-  RightOutlined, LeftOutlined, StarOutlined
+  SearchOutlined, BookOutlined,
+  VideoCameraOutlined,
+  CheckOutlined, PlayCircleOutlined, StarOutlined
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 

@@ -1,14 +1,13 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Input, Button, Typography, Spin, Alert, theme } from 'antd'
+import { Input, Button, Typography, Alert, theme } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
-  SafetyCertificateOutlined,
-  LockOutlined,
   CheckCircleOutlined,
   SecurityScanOutlined,
 } from '@ant-design/icons'
-import { passwordRules, confirmPasswordRules } from '@/features/authentication/validations/changePasswordRules.js'
-import MfaSetup from '@/features/authentication/components/MfaSetup.jsx'
+import { passwordRules, confirmPasswordRules } from '@/features/authentication/utils/validations/changePasswordRules.js'
+import MfaSetup from '@/features/authentication/mfa/components/MfaSetup.jsx'
 import PasswordStrengthIndicator from '@/features/authentication/components/PasswordStrengthIndicator.jsx'
 
 const { Title, Paragraph } = Typography
@@ -37,8 +36,6 @@ export default function OnboardingStepContent({
   currentStep,
   setCurrentStep,
   mustChange,
-  mustMfa,
-  currentUser,
   form,
   handleCredentialsFinish,
   submitting,
@@ -70,7 +67,7 @@ export default function OnboardingStepContent({
   // STEP 1: Set new password (password only; username is derived server-side or from currentUser)
   if (currentStep === 1) {
     return (
-      <div style={{ maxWidth: 600, margin: '0 auto' }}>
+      <div style={{ maxWidth: 300, margin: '0 auto' }}>
         {passwordExpired && (
           <Alert
             type="warning"
@@ -115,16 +112,16 @@ export default function OnboardingStepContent({
   if (currentStep === 2) {
     if (checkingMfa) {
       return (
-        <div style={{ maxWidth: 600, margin: '0 auto' }}>
+        <div style={{ maxWidth: 300, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-            <Spin tip="Checking MFA status..." />
+            <LottieSpinner tip="Checking MFA status..." />
           </div>
         </div>
       )
     }
     if (mfaEnabled) {
       return (
-        <div style={{ maxWidth: 600, margin: '0 auto' }}>
+        <div style={{ maxWidth: 300, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', padding: '24px 0' }}>
             <Alert
               type="success"
@@ -141,8 +138,8 @@ export default function OnboardingStepContent({
       )
     }
     return (
-      <div style={{ maxWidth: 600, margin: '0 auto' }}>
-        <MfaSetup embedded onComplete={() => setCurrentStep(3)} />
+      <div style={{ maxWidth: 300, margin: '0 auto' }}>
+        <MfaSetup onComplete={() => setCurrentStep(3)} />
       </div>
     )
   }
@@ -150,7 +147,7 @@ export default function OnboardingStepContent({
   // STEP 3: Complete
   if (currentStep === 3) {
     return (
-      <div style={{ maxWidth: 600, margin: '0 auto' }}>
+      <div style={{ maxWidth: 300, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', padding: '24px 0' }}>
           <CheckCircleOutlined style={{ fontSize: 48, color: token.colorPrimary, marginBottom: 24 }} />
           <Title level={4}>Setup Complete!</Title>

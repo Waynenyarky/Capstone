@@ -1,4 +1,3 @@
-import React from 'react'
 import { Typography, theme } from 'antd'
 import {
   DashboardOutlined,

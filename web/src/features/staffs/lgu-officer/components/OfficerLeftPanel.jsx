@@ -1,4 +1,3 @@
-import React from 'react'
 import { Typography, Badge, theme } from 'antd'
 import {
   FileTextOutlined, AuditOutlined, EditOutlined, StopOutlined,

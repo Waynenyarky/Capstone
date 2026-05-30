@@ -1,9 +1,6 @@
-import React from 'react'
-import { Form, Input, Select, Typography, Alert } from 'antd'
+import { Form, Input, Select, Typography } from 'antd'
 import { useEditUserProfileForm } from "@/features/user/hooks/useEditUserProfileForm.jsx"
 import {
-  pisSexRules,
-  pisDateOfBirthRules,
   pisMaritalStatusRules,
   pisPlaceOfBirthRules,
   pisNationalityRules,

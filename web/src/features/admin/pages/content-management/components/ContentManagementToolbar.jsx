@@ -1,4 +1,3 @@
-import React from 'react'
 import { Input, Button, Tooltip, Select, Typography } from 'antd'
 import { SearchOutlined, FilterOutlined, PlusOutlined, CloseOutlined } from '@ant-design/icons'
 

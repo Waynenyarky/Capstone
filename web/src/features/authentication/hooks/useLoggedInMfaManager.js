@@ -12,7 +12,7 @@ import {
 import { authenticateComplete } from '@/features/authentication/services/webauthnService'
 import { base64ToBuffer, bufferToBase64 } from '@/features/authentication/lib/webauthnBuffers'
 import { useAuthNotification, useNotifier } from '@/shared/notifications'
-import { usePasskeyManager } from '@/features/authentication/presentation/passkey/hooks/usePasskeyManager'
+import { usePasskeyManager } from '@/features/authentication/passkey/hooks/usePasskeyManager'
 
 async function verifyWithPasskeyForDisable() {
   const start = await mfaDisableRequestStart()

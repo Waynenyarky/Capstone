@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Table, Button, Alert, Tag, Modal, Descriptions, Space, Typography, message } from 'antd';
-import { ExclamationCircleOutlined, CheckCircleOutlined, SyncOutlined } from '@ant-design/icons';
+import { ExclamationCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { getBusinessConflicts, resolveConflict } from '../../services/businessConflictService';
 import { useBusiness } from '@/hooks/useBusiness';
 

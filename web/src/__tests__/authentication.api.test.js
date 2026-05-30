@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 // Root authentication barrel
 import * as auth from '@/features/authentication'
 // Validations barrel
-import * as validations from '@/features/authentication/validations'
+import * as validations from '@/features/authentication/utils/validations'
 
 describe('Authentication public API', () => {
   it('exposes expected components and flows', () => {
@@ -11,13 +11,10 @@ describe('Authentication public API', () => {
       'LoginForm',
       'LogoutForm',
       'UserSignUpForm',
-      'LoginVerificationForm',
-      'SignUpVerificationForm',
       'ChangeEmailForm',
       'ChangePasswordForm',
       'ForgotPasswordForm',
       'VerificationForm',
-      'SendCodeForCurrentUserConfirm',
       'PasswordResetFlow',
       'DeleteAccountFlow',
       'LoggedInEmailChangeFlow',
@@ -30,24 +27,30 @@ describe('Authentication public API', () => {
     const expectedHooks = [
       'useAuthSession',
       'useLogin',
+      'useLoginFlow',
       'useLogoutForm',
       'useRememberedEmail',
-      'useChangeEmailForm',
-      'useChangePasswordForm',
-      'useForgotPasswordForm',
+      'useMfaVerificationForm',
       'useLoginVerificationForm',
-      'useSendVerificationCode',
+      'useTotpVerificationForm',
+      'useMfaSetup',
+      'useCooldown',
+      'useResendLoginCode',
+      'useResendSignupCode',
       'useSignUpVerificationForm',
+      'useVerificationForm',
       'useUserSignUp',
       'useUserSignUpFlow',
-      'usePasswordResetFlow',
-      'useLoggedInEmailChangeFlow',
-      'useLoggedInPasswordChangeFlow',
-      'useConfirmDeleteAccountForm',
-      'useCancelDeleteAccount',
-      'useLoggedInDeleteAccountFlow',
-      'useSendDeleteAccountCode',
+      'useConfirmLogoutModal',
+      'useVerifyChangeEmailForm',
       'useVerifyDeleteAccountCode',
+      'useEmailChangeTotpVerification',
+      'usePasswordChangeTotpVerification',
+      'useDeleteAccountTotpVerification',
+      'usePasswordResetFlow',
+      'useForgotPasswordForm',
+      'usePasswordResetTotpVerification',
+      'useResendForgotPasswordCode',
     ]
     expect(Object.keys(auth)).toEqual(expect.arrayContaining(expectedHooks))
   })

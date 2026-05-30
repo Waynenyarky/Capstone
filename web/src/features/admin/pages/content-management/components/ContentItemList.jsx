@@ -1,4 +1,3 @@
-import React from 'react'
 import { Row, Empty, Pagination, Typography } from 'antd'
 import { PAGE_SIZE } from '../constants/contentManagement.constants'
 import ContentItemCard from './ContentItemCard.jsx'

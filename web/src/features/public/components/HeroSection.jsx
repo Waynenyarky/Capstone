@@ -107,7 +107,7 @@ export default function HeroSection({
                   cursor: (card.link || card.scrollTo) ? 'pointer' : 'default',
                   transition: screens.md ? 'border-color 0.2s, box-shadow 0.2s, transform 0.2s' : 'none',
                   boxShadow: (card.link || card.scrollTo) && screens.md && hoveredCard === card.id
-                    ? '0 4px 12px rgba(0, 0, 0, 0.15)'
+                    ? token.boxShadowCard
                     : 'none',
                   transform: (card.link || card.scrollTo) && screens.md && hoveredCard === card.id ? 'scale(1.02)' : 'scale(1)',
                 }}
@@ -275,10 +275,17 @@ export default function HeroSection({
                         alignItems: 'center',
                         gap: 8,
                         justifyContent: 'flex-start',
-                        whiteSpace: 'normal',
                       }}
                     >
-                      {ann.title}
+                      <span style={{
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        maxWidth: '100%',
+                        display: 'block',
+                      }}>
+                        {ann.title}
+                      </span>
                     </Button>
                   ))}
                   <Button
@@ -293,10 +300,17 @@ export default function HeroSection({
                       alignItems: 'center',
                       gap: 8,
                       justifyContent: 'flex-start',
-                      whiteSpace: 'normal',
                     }}
                   >
-                    View all {announcementItems.length} announcements →
+                    <span style={{
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      maxWidth: '100%',
+                      display: 'block',
+                    }}>
+                      View all {announcementItems.length} announcements →
+                    </span>
                   </Button>
                 </Space.Compact>
               )}

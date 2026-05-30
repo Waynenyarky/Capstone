@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
-  Table, Card, Button, Modal, Form, Input, Select, DatePicker, Space, Tag,
-  Typography, Spin, Empty, Drawer, Descriptions, Badge, Row, Col, message, Grid
+  Table, Card, Button, Modal, Form, Select, DatePicker, Space, Tag,
+  Typography, Empty, Drawer, Descriptions, Row, Col, Grid
 } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
-  AuditOutlined, PlusOutlined, ReloadOutlined, EyeOutlined,
-  FilterOutlined, UserOutlined
+  AuditOutlined, PlusOutlined, ReloadOutlined, EyeOutlined
 } from '@ant-design/icons'
 import StaffLayout from '../../components/StaffLayout.jsx'
-import { get, post, put } from '@/lib/http.js'
+import { get, post } from '@/lib/http.js'
 import { useNotifier } from '@/shared/notifications.js'
 import dayjs from 'dayjs'
 
@@ -236,7 +236,7 @@ export default function InspectionManagementPage() {
                   value: b.businessId,
                   label: `${b.businessName || 'Unnamed'} (${b.businessId})`,
                 }))}
-                notFoundContent={lookupsLoading ? <Spin size="small" /> : <Empty description="No approved businesses" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+                notFoundContent={lookupsLoading ? <LottieSpinner size="small" /> : <Empty description="No approved businesses" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
               />
             </Form.Item>
             <Form.Item name="inspectorId" label="Inspector" rules={[{ required: true, message: 'Select an inspector' }]}>
@@ -251,7 +251,7 @@ export default function InspectionManagementPage() {
                   value: i._id,
                   label: `${i.name}${i.email ? ` (${i.email})` : ''}`,
                 }))}
-                notFoundContent={lookupsLoading ? <Spin size="small" /> : <Empty description="No inspectors found" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+                notFoundContent={lookupsLoading ? <LottieSpinner size="small" /> : <Empty description="No inspectors found" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
               />
             </Form.Item>
             <Row gutter={12}>

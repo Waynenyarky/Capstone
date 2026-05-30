@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Typography, Tag, Button, Descriptions, Space, theme, Empty, Table, Input, Select, Tooltip, Modal, DatePicker, Alert } from 'antd'
 import {
   EditOutlined,
@@ -9,7 +9,6 @@ import {
   SearchOutlined,
   CloseOutlined,
   ClockCircleOutlined,
-  CheckCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { getAuditHistoryAdmin } from '../../services'

@@ -158,7 +158,7 @@ export function useAuthSession() {
         }
       }
     } catch { /* ignore */ }
-  }, [])
+  }, [validateToken])
 
   useEffect(() => {
     // Validate token on app load with fail-safe timeout
@@ -194,7 +194,7 @@ export function useAuthSession() {
         clearInterval(validationIntervalRef.current)
       }
     }
-  }, [])
+  }, [checkTokenExpiration, validateToken])
 
   const login = useCallback((user, options = {}) => {
     const remember = options.remember === true

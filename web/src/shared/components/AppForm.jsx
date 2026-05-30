@@ -1,4 +1,3 @@
-import React from 'react'
 import { Form as AntdForm } from 'antd'
 
 function AppForm(props) {

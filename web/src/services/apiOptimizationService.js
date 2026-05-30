@@ -266,15 +266,15 @@ class ApiOptimizationService {
   compressString(str) {
     // Simple compression simulation
     // In a real implementation, you'd use a proper compression library
-    return Buffer.from(str).toString('base64')
+    return btoa(str)
   }
 
   decompressPayload(compressedPayload) {
     try {
       // Simple decompression simulation
-      const decompressed = Buffer.from(compressedPayload, 'base64').toString()
+      const decompressed = atob(compressedPayload)
       return JSON.parse(decompressed)
-    } catch (error) {
+    } catch {
       return compressedPayload
     }
   }
@@ -452,7 +452,6 @@ export const apiOptimizationService = new ApiOptimizationService()
 export const createOptimizedApiClient = (baseClient, options = {}) => {
   const {
     enableCaching = true,
-    enableDeduplication = true,
     enableRetry = true,
     enableCompression = false,
     defaultTtl = 5 * 60 * 1000
@@ -460,22 +459,19 @@ export const createOptimizedApiClient = (baseClient, options = {}) => {
 
   return {
     async get(url, config = {}) {
-      const cacheKey = `GET:${url}:${JSON.stringify(config)}`
-      
       if (enableCaching) {
+        const cacheKey = `GET:${url}:${JSON.stringify(config)}`
         return apiOptimizationService.cachedRequest(
           cacheKey,
           () => baseClient.get(url, config),
           { ttl: defaultTtl }
         )
       }
-      
+
       return baseClient.get(url, config)
     },
 
     async post(url, data, config = {}) {
-      const cacheKey = `POST:${url}:${JSON.stringify(data)}:${JSON.stringify(config)}`
-      
       let optimizedData = data
       if (enableCompression) {
         optimizedData = apiOptimizationService.compressPayload(data)

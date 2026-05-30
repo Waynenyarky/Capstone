@@ -3,12 +3,13 @@
  * Public page for verifying business permits via QR code scan
  * Displays permit details and validity status without requiring authentication
  */
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { 
-  Card, Typography, Descriptions, Tag, Spin, Result, Space, Divider, 
+  Card, Typography, Descriptions, Tag, Result, Space, Divider, 
   Alert, theme 
 } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { 
   SafetyCertificateOutlined, CheckCircleOutlined, CloseCircleOutlined,
   ShopOutlined, CalendarOutlined, EnvironmentOutlined
@@ -63,9 +64,9 @@ export default function VerifyPermitPage() {
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center',
-        background: '#f5f5f5'
+        background: token.colorFillAlter
       }}>
-        <Spin size="large" tip="Verifying permit..." />
+        <LottieSpinner size="large" tip="Verifying permit..." />
       </div>
     )
   }
@@ -77,7 +78,7 @@ export default function VerifyPermitPage() {
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center',
-        background: '#f5f5f5',
+        background: token.colorFillAlter,
         padding: 24
       }}>
         <Card style={{ maxWidth: 500, width: '100%' }}>
@@ -105,7 +106,7 @@ export default function VerifyPermitPage() {
   return (
     <div style={{ 
       minHeight: '100vh', 
-      background: '#f5f5f5',
+      background: token.colorFillAlter,
       padding: '24px 16px'
     }}>
       <div style={{ maxWidth: 600, margin: '0 auto' }}>

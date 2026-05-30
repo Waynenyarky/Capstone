@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { message } from 'antd';
 import { vi, describe, it, expect, beforeEach } from 'vitest';

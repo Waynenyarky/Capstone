@@ -1,4 +1,3 @@
-import React from 'react'
 import { Typography, Tag, Descriptions, theme, Empty } from 'antd'
 import { HistoryOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, List, Button, Alert, Progress, Tag, Modal, Form, Input, Select, Space, Typography, message, Timeline } from 'antd';
-import { CalendarOutlined, FileTextOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { FileTextOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { getOccupationalPermits, getLabExamResults, scheduleLabExam } from '../../services/occupationalPermitService';
 import { useBusiness } from '@/hooks/useBusiness';
 

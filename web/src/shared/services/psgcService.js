@@ -1,6 +1,6 @@
 /**
  * Philippine Standard Geographic Code (PSGC) Service
- * 
+ *
  * Fetches Philippine location data from the PSGC API
  * API Documentation: https://psgc.gitlab.io/api/
  */
@@ -13,6 +13,50 @@ const cache = {
   provinces: null,
   citiesMunicipalities: {},
   barangays: {},
+}
+
+/**
+ * Normalize text for comparison
+ */
+const normalizeText = (text) => {
+  if (!text) return ''
+  return text
+    .toUpperCase()
+    .replace(/[^A-Z0-9\s]/g, '') // Remove special chars
+    .replace(/\s+/g, ' ')        // Normalize spaces
+    .trim()
+}
+
+/**
+ * Calculate similarity between two strings (Jaccard similarity on character pairs)
+ */
+const calculateSimilarity = (str1, str2) => {
+  if (!str1 || !str2) return 0
+  if (str1 === str2) return 1
+
+  // Create character bigrams
+  const getBigrams = (str) => {
+    const bigrams = new Set()
+    for (let i = 0; i < str.length - 1; i++) {
+      bigrams.add(str.substring(i, i + 2))
+    }
+    return bigrams
+  }
+
+  const bigrams1 = getBigrams(str1)
+  const bigrams2 = getBigrams(str2)
+
+  // Calculate intersection
+  let intersection = 0
+  for (const bigram of bigrams1) {
+    if (bigrams2.has(bigram)) {
+      intersection++
+    }
+  }
+
+  // Jaccard similarity
+  const union = bigrams1.size + bigrams2.size - intersection
+  return union === 0 ? 0 : intersection / union
 }
 
 /**
@@ -185,50 +229,6 @@ export const fuzzyMatchLocation = (searchText, locations, threshold = 0.65) => {
   }
 
   return bestMatch
-}
-
-/**
- * Normalize text for comparison
- */
-const normalizeText = (text) => {
-  if (!text) return ''
-  return text
-    .toUpperCase()
-    .replace(/[^A-Z0-9\s]/g, '') // Remove special chars
-    .replace(/\s+/g, ' ')        // Normalize spaces
-    .trim()
-}
-
-/**
- * Calculate similarity between two strings (Jaccard similarity on character pairs)
- */
-const calculateSimilarity = (str1, str2) => {
-  if (!str1 || !str2) return 0
-  if (str1 === str2) return 1
-
-  // Create character bigrams
-  const getBigrams = (str) => {
-    const bigrams = new Set()
-    for (let i = 0; i < str.length - 1; i++) {
-      bigrams.add(str.substring(i, i + 2))
-    }
-    return bigrams
-  }
-
-  const bigrams1 = getBigrams(str1)
-  const bigrams2 = getBigrams(str2)
-
-  // Calculate intersection
-  let intersection = 0
-  for (const bigram of bigrams1) {
-    if (bigrams2.has(bigram)) {
-      intersection++
-    }
-  }
-
-  // Jaccard similarity
-  const union = bigrams1.size + bigrams2.size - intersection
-  return union === 0 ? 0 : intersection / union
 }
 
 /**

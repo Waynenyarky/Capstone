@@ -1,6 +1,5 @@
-import React from 'react'
-import { Layout, Typography, Button, theme } from 'antd'
-import { AppSidebar as Sidebar, useAuthSession } from '@/features/authentication'
+import { Layout, Typography, theme } from 'antd'
+import { AppSidebar as Sidebar } from '@/features/authentication'
 import { LayoutPageHeader } from '@/features/shared'
 
 const { Content } = Layout

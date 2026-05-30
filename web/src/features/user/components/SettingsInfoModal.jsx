@@ -1,4 +1,3 @@
-import React from 'react'
 import { Modal, Button, Typography } from 'antd'
 
 export default function SettingsInfoModal({ open, onClose }) {

@@ -1,4 +1,3 @@
-import React from 'react'
 import { Result, Typography } from 'antd'
 import { MobileOutlined } from '@ant-design/icons'
 import StaffLayout from '../../components/StaffLayout'

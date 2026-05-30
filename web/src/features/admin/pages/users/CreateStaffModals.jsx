@@ -1,4 +1,3 @@
-import React from 'react'
 import { Form } from '@/shared/components/AppForm'
 import { Modal, Input, Select, Button, Space, Typography, Grid } from 'antd'
 import { roleLabel, officeLabel } from './useAdminUsersPage'

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Typography, message, List } from 'antd';
 import { getRiskFactors } from '../../services/riskProfileService';
 import { useBusiness } from '@/hooks/useBusiness';

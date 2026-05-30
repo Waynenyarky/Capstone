@@ -2,7 +2,6 @@
  * Presentation Component: PermitApplicationsList
  * Pure presentation - no business logic
  */
-import React from 'react'
 import { Card, List, Tag, Button, Space, Typography } from 'antd'
 import { FileTextOutlined, CheckOutlined, CloseOutlined, EditOutlined } from '@ant-design/icons'
 

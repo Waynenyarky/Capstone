@@ -2,9 +2,8 @@
  * Presentation Component: InspectionForm
  * Pure presentation - no business logic
  */
-import React from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Input, DatePicker, Select, Button, Space, Typography } from 'antd'
+import { Input, DatePicker, Button, Typography } from 'antd'
 import { SaveOutlined } from '@ant-design/icons'
 
 const { TextArea } = Input

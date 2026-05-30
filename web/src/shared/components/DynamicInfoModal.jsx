@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Modal, Typography, Collapse, Space, Divider, theme } from 'antd'
 import { get } from '@/lib/http.js'
 

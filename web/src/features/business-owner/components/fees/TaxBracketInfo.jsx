@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   Typography,
@@ -12,35 +12,20 @@ import {
   Progress,
   Tooltip,
   Alert,
-  Timeline,
-  List,
   Statistic,
   Modal,
-  Descriptions,
   Badge,
   Slider,
-  Switch,
   InputNumber,
   Select
 } from 'antd';
 import {
   CalculatorOutlined,
   InfoCircleOutlined,
-  FileTextOutlined,
   HistoryOutlined,
-  TrendingUpOutlined,
-  EyeOutlined,
   DownloadOutlined,
-  QuestionCircleOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  ExclamationCircleOutlined,
   BarChartOutlined,
-  PieChartOutlined,
-  DollarOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
-  MinusOutlined
+  DollarOutlined
 } from '@ant-design/icons';
 
 const { Title, Text, Paragraph } = Typography;

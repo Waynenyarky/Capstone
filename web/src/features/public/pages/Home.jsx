@@ -3,15 +3,12 @@ import HomeHeader from '../components/HomeHeader'
 import HeroSection from '../components/HeroSection'
 import TransparencyDashboard from '../components/TransparencyDashboard'
 import FaqSection from '../components/FaqSection'
-import PermitFormsCarousel from '../components/PermitFormsCarousel'
-import ApplicationProcessTimeline from '../components/ApplicationProcessTimeline'
-import DownloadCenter from '../components/DownloadCenter'
 import OfficeLocationSection from '../components/OfficeLocationSection'
 import HomeFooter from '../components/HomeFooter'
 import useLandingData from '../hooks/useLandingData.jsx'
 import BlurFade from '@/shared/components/BlurFade.jsx'
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 const { Content } = Layout
 const { useBreakpoint } = Grid
@@ -21,14 +18,22 @@ export default function Home() {
   const screens = useBreakpoint()
   const [showHeader, setShowHeader] = useState(false)
   const [isExiting, setIsExiting] = useState(false)
+  const [headerFadingOut, setHeaderFadingOut] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
 
   const navigateWithFade = useCallback((path) => {
+    // Don't fade if navigating to the same route
+    if (location.pathname === path) {
+      navigate(path)
+      return
+    }
     setIsExiting(true)
+    setHeaderFadingOut(true)
     setTimeout(() => {
       navigate(path)
     }, 300)
-  }, [navigate])
+  }, [navigate, location.pathname])
 
   const {
     announcements,
@@ -57,7 +62,7 @@ export default function Home() {
   
   return (
     <>
-      <HomeHeader visible={showHeader} onNavigate={navigateWithFade} />
+      <HomeHeader visible={showHeader} onNavigate={navigateWithFade} fadingOut={headerFadingOut} />
       <Layout style={{
         minHeight: '100vh',
         background: token.colorBgContainer,
@@ -79,20 +84,9 @@ export default function Home() {
           <FaqSection />
         </BlurFade>
         <div style={{ height: '56px' }} />
-        {permitForms.isEnabled && permitForms.cards.length > 0 && (
-          <PermitFormsCarousel
-            cards={permitForms.cards}
-            sectionDescription={permitForms.sectionDescription}
-            screens={screens}
-            token={token}
-          />
-        )}
-        <div style={{ height: '56px' }} />
-        <ApplicationProcessTimeline />
-        <div style={{ height: '56px' }} />
-        <DownloadCenter />
-        <div style={{ height: '56px' }} />
-        <OfficeLocationSection />
+        <BlurFade delay={0.4} duration={0.5} triggerOnViewport>
+          <OfficeLocationSection />
+        </BlurFade>
       </Content>
       <HomeFooter />
     </Layout>

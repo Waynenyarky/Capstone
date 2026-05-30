@@ -5,8 +5,8 @@ import {
   Space,
   Tabs,
   Input,
-  Spin,
 } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
   SaveOutlined,
   SendOutlined,
@@ -52,7 +52,7 @@ export default function FormDefinitionEditorPanel({
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
-        <Spin size="large" />
+        <LottieSpinner size="large" />
         <Form form={form} style={{ display: 'none' }} />
         <Form form={deactivateForm} style={{ display: 'none' }} />
       </div>

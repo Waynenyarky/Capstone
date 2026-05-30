@@ -1,4 +1,3 @@
-import React from 'react'
 import { Input, Typography, Empty, Button, Tooltip } from 'antd'
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons'
 import PermitFormCardEditor from './PermitFormCardEditor'

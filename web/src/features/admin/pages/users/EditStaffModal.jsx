@@ -1,7 +1,6 @@
-import React from 'react'
 import { Form } from '@/shared/components/AppForm'
 import { Modal, Input, Select, Switch } from 'antd'
-import { namePatternRule } from '@/features/authentication/validations'
+import { namePatternRule } from '@/features/authentication/utils/validations'
 
 const REASON_OPTIONS = [
   { value: 'correction_typo', label: 'Correction of typo or error' },

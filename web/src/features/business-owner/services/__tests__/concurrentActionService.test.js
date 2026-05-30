@@ -1,6 +1,6 @@
 import { getConcurrentActions, cancelAction, queueAction } from '../concurrentActionService';
 import { get, post, del } from '@/lib/http';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, expect, beforeEach } from 'vitest';
 
 vi.mock('@/lib/http');
 const mockGet = vi.mocked(get);

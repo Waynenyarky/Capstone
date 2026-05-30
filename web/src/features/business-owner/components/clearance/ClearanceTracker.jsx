@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
   Card,
   Steps,
   Timeline,
   Tag,
   Progress,
-  Spin,
   Alert,
   Empty,
   Button,
@@ -13,9 +13,7 @@ import {
   Descriptions,
   Space,
   Typography,
-  Collapse,
-  List,
-  Tooltip
+  Collapse
 } from 'antd';
 import {
   CheckCircleOutlined,
@@ -28,7 +26,6 @@ import {
   HomeOutlined,
   BankOutlined,
   UserOutlined,
-  InfoCircleOutlined,
   FileSearchOutlined,
   WarningOutlined
 } from '@ant-design/icons';
@@ -278,7 +275,7 @@ const ClearanceTracker = () => {
     return (
       <BusinessOwnerLayout pageTitle="Clearance Tracker" pageIcon={<FileTextOutlined />}>
         <div style={{ textAlign: 'center', padding: '48px' }}>
-          <Spin size="large" />
+          <LottieSpinner size="large" />
           <p>Loading clearance information...</p>
         </div>
       </BusinessOwnerLayout>

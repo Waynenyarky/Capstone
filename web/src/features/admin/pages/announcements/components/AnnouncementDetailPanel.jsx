@@ -1,4 +1,5 @@
-import { Button, Card, DatePicker, Empty, Form, Grid, Input, Select, Spin, Table, Tabs, Tag, Typography, theme } from 'antd'
+import { Button, Card, DatePicker, Empty, Form, Grid, Input, Select, Table, Tabs, Tag, Typography, theme } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { DeleteOutlined, DownloadOutlined, FileTextOutlined, HistoryOutlined, NotificationOutlined, RollbackOutlined, SaveOutlined, SearchOutlined, SendOutlined, WarningOutlined } from '@ant-design/icons'
 import { BRAND_COLORS } from '@/shared/theme/ThemeProvider'
 import { ANNOUNCEMENT_PRIORITY_SELECT_OPTIONS, AUDIT_ACTION_COLORS, STATUS_COLORS } from '../constants/announcements.constants.js'
@@ -399,7 +400,7 @@ export default function AnnouncementDetailPanel({
 
                   {auditLogsLoading ? (
                     <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
-                      <Spin />
+                      <LottieSpinner />
                     </div>
                   ) : filteredAuditLogs.length === 0 ? (
                     <Empty description="No history found" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ marginTop: 40 }} />

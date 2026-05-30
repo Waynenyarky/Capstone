@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react'
-import { Card, Descriptions, Alert, Spin } from 'antd'
+import { useState, useEffect } from 'react'
+import { Card, Descriptions, Alert } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { DollarOutlined } from '@ant-design/icons'
 import { getFeePreview } from '../../services/feeService'
 
@@ -17,7 +18,7 @@ function FeePreviewCard({ lob }) {
   }, [lob])
 
   if (!lob) return null
-  if (loading) return <Card size="small" style={{ marginBottom: 16 }}><Spin size="small" /> Loading fee estimate...</Card>
+  if (loading) return <Card size="small" style={{ marginBottom: 16 }}><LottieSpinner size="small" /> Loading fee estimate...</Card>
   if (!feeData?.feeConfig) return null
 
   const cfg = feeData.feeConfig

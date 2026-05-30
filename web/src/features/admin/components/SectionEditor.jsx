@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import {
   Card,
   Button,
@@ -16,7 +16,6 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  DragOutlined,
 } from '@ant-design/icons'
 
 const { Text } = Typography

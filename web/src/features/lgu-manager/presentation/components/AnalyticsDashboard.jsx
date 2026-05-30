@@ -2,8 +2,8 @@
  * Presentation Component: AnalyticsDashboard
  * Pure presentation - no business logic
  */
-import React from 'react'
-import { Card, Row, Col, Statistic, Typography, Spin } from 'antd'
+import { Card, Row, Col, Statistic, Typography } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { BarChartOutlined, RiseOutlined, FallOutlined } from '@ant-design/icons'
 
 const { Title } = Typography
@@ -12,7 +12,7 @@ export default function AnalyticsDashboard({ analytics, loading }) {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 40 }}>
-        <Spin size="large" />
+        <LottieSpinner size="large" />
       </div>
     )
   }

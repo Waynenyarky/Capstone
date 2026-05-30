@@ -1,4 +1,3 @@
-import React from 'react'
 import { Typography, Progress, Collapse } from 'antd'
 
 const { Title, Text } = Typography

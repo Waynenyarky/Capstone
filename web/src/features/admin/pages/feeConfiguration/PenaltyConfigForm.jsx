@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { InputNumber, DatePicker, Button, Spin, Alert, Space, Popconfirm, message, Card, Typography, Divider, Splitter, theme } from 'antd'
+import { InputNumber, DatePicker, Button, Alert, Space, Popconfirm, message, Card, Typography, Divider, Splitter, theme } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { CalculatorOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { get, post, put } from '@/lib/http.js'
@@ -148,9 +149,9 @@ export default function PenaltyConfigForm() {
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: 64 }}>
-        <Spin tip="Loading penalty configuration...">
+        <LottieSpinner tip="Loading penalty configuration...">
           <div style={{ minHeight: 80 }} />
-        </Spin>
+        </LottieSpinner>
       </div>
     )
   }

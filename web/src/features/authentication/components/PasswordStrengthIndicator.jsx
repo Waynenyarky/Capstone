@@ -1,16 +1,21 @@
-import React from 'react'
-import { Progress, Space, Typography } from 'antd'
+import { Progress, Space, Typography, theme } from 'antd'
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { getPasswordStrength, validatePasswordRequirements, getRequirementLabels } from '@/shared/utils/passwordStrength.js'
 
 const { Text } = Typography
+const { useToken } = theme
 
 /**
  * Reusable password strength + requirements indicator.
  * Always visible; shows weak/empty state when value is empty.
  */
 export default function PasswordStrengthIndicator({ value = '', minLength = 8 }) {
-  const strength = getPasswordStrength(value)
+  const { token } = useToken()
+  const strength = getPasswordStrength(value, {
+    colorError: token.colorError,
+    colorWarning: token.colorWarning,
+    colorSuccess: token.colorSuccess,
+  })
   const validation = validatePasswordRequirements(value, { minLength })
   const requirementLabels = getRequirementLabels(minLength)
 
@@ -32,14 +37,14 @@ export default function PasswordStrengthIndicator({ value = '', minLength = 8 })
         {Object.entries(validation.checks).map(([key, passed]) => (
           <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {passed ? (
-              <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 14 }} />
+              <CheckCircleOutlined style={{ color: token.colorSuccess, fontSize: 14 }} />
             ) : (
-              <CloseCircleOutlined style={{ color: '#d9d9d9', fontSize: 14 }} />
+              <CloseCircleOutlined style={{ color: token.colorBorder, fontSize: 14 }} />
             )}
             <Text
               style={{
                 fontSize: 12,
-                color: passed ? '#52c41a' : '#8c8c8c',
+                color: passed ? token.colorSuccess : token.colorTextTertiary,
               }}
             >
               {requirementLabels[key]}

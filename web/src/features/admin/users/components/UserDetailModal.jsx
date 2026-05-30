@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Modal, Typography, Tag, Descriptions, Table, Input, Select, Tooltip, Button, theme } from 'antd'
-import { UserOutlined, FilterOutlined, SearchOutlined, CloseOutlined } from '@ant-design/icons'
+import { FilterOutlined, SearchOutlined, CloseOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { getAuditHistoryAdmin } from '../../services'
 

@@ -1,4 +1,3 @@
-import React from 'react'
 import { Card, Typography, Button, Space, Grid } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 

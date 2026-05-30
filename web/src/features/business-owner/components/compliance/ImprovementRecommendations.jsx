@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, List, Button, Alert, Tag, Progress, Space, Typography, message, Collapse, Divider } from 'antd';
 import { BulbOutlined, CheckCircleOutlined, ClockCircleOutlined, TrophyOutlined } from '@ant-design/icons';
-import { getImprovementRecommendations, implementRecommendation, trackRecommendationProgress } from '../../services/complianceMonitoringService';
+import { getImprovementRecommendations, implementRecommendation } from '../../services/complianceMonitoringService';
 import { useBusiness } from '@/hooks/useBusiness';
 
 const { Title, Text } = Typography;

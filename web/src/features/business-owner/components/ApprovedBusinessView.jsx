@@ -1,19 +1,18 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Typography, Card, Tag, Space, Button, theme, Table, Empty, Modal,
-  Input, Drawer, Select, Descriptions, Alert, Checkbox, App, Spin, Upload,
-  Statistic, Row, Col, Segmented, Popconfirm, Calendar, Badge, Steps, Collapse,
+  Input, Drawer, Select, Descriptions, Alert, Checkbox, App, Upload,
+  Statistic, Row, Col, Segmented, Calendar, Badge, Steps, Collapse,
 } from 'antd'
 import {
-  SafetyCertificateOutlined, DollarOutlined, CheckCircleOutlined,
-  WarningOutlined, ClockCircleOutlined, DownloadOutlined, ReloadOutlined,
-  FileTextOutlined, StopOutlined, EditOutlined,
-  AppstoreOutlined, UploadOutlined, AuditOutlined, FileDoneOutlined,
-  EyeOutlined, SendOutlined, SolutionOutlined,
+  SafetyCertificateOutlined, DollarOutlined, CheckCircleOutlined, ClockCircleOutlined, DownloadOutlined,
+  FileTextOutlined, StopOutlined, EditOutlined, UploadOutlined, FileDoneOutlined,
+  EyeOutlined, SolutionOutlined,
   ExclamationCircleOutlined, InfoCircleOutlined, SearchOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { getPayments, processPayment, generateReceiptForPayment } from '../services/paymentsService'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
+import { getPayments, generateReceiptForPayment } from '../services/paymentsService'
 import { getInspections, getInspection as getInspectionDetail, acknowledgeInspection } from '../services/inspectionsService'
 import { getViolations, acknowledgeViolation, getViolationSummary } from '../services/violationsService'
 import { submitRetirement } from '../services/retirementService'
@@ -191,7 +190,7 @@ function ApplicationFormTab({ business }) {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 48 }}>
-        <Spin size="large" />
+        <LottieSpinner size="large" />
         <div style={{ marginTop: 16 }}>
           <Text type="secondary">Loading application form...</Text>
         </div>
@@ -713,7 +712,7 @@ function ComplianceTab({ businessId }) {
     },
   ]
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
+  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}><LottieSpinner /></div>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -772,7 +771,7 @@ function ComplianceTab({ businessId }) {
       </div>
 
       <Drawer title="Inspection Detail" open={detailOpen} onClose={() => setDetailOpen(false)} width={520}>
-        {detailLoading ? <Spin /> : detailData ? (() => {
+        {detailLoading ? <LottieSpinner /> : detailData ? (() => {
           const d = detailData
           const isAck = d.ownerAcknowledged || d.ownerAcknowledgment?.acknowledged
           const checklist = d.checklist || []

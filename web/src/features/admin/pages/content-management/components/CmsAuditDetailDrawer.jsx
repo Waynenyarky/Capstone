@@ -1,4 +1,3 @@
-import React from 'react'
 import { Drawer, theme } from 'antd'
 import CmsAuditDetailPanel from './CmsAuditDetailPanel'
 

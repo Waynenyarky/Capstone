@@ -1,4 +1,3 @@
-import React from 'react'
 import { Card, Tag, Space, Typography, theme } from 'antd'
 import dayjs from 'dayjs'
 import { ShopOutlined } from '@ant-design/icons'

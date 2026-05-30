@@ -3,11 +3,10 @@
  * Main page component for cross-device authentication
  * Follows Clean Architecture: Presentation Layer only
  */
-import React from 'react'
 import { Card, Typography, Space, Alert } from 'antd'
 import { AuthLayout } from '@/features/authentication'
-import { useCrossDeviceAuth } from '@/features/authentication/presentation/passkey/hooks/useCrossDeviceAuth'
-import CrossDeviceAuthStatus from '@/features/authentication/presentation/passkey/components/CrossDeviceAuthStatus'
+import { useCrossDeviceAuth } from '@/features/authentication/passkey/hooks/useCrossDeviceAuth'
+import CrossDeviceAuthStatus from '@/features/authentication/passkey/components/CrossDeviceAuthStatus'
 
 const { Title } = Typography
 
@@ -31,7 +30,7 @@ export default function PasskeyMobileAuth() {
 
   return (
     <AuthLayout>
-      <Card style={{ maxWidth: 400, margin: '0 auto' }}>
+      <Card style={{ maxWidth: 300, margin: '0 auto' }}>
         <Space direction="vertical" size="large" style={{ width: '100%', textAlign: 'center' }}>
           <Title level={3}>Approve Sign-In</Title>
           

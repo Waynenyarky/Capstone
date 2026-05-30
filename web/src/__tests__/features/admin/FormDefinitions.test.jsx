@@ -1,4 +1,3 @@
-import React, { createRef } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderWithProviders, screen, fireEvent, waitFor } from '@/test/utils/renderWithProviders.jsx'
 

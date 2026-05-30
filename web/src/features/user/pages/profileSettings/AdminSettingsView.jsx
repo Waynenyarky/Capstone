@@ -1,4 +1,3 @@
-import React from 'react'
 import { Typography, Card, Button, theme } from 'antd'
 import { SettingOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import AdminLayout from '@/features/admin/components/AdminLayout'

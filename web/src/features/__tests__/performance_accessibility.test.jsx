@@ -15,9 +15,9 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { ConfigProvider, App, Button, Input, Form, Card, Typography } from 'antd';
+import { ConfigProvider, App, Button, Input } from 'antd';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 // Mock performance API

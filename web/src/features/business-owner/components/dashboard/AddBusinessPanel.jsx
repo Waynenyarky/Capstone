@@ -1,4 +1,3 @@
-import React from 'react'
 import AddBusinessForm from '../AddBusinessForm'
 
 function AddBusinessPanel({ onBack, onDraftCreated }) {

@@ -5,9 +5,10 @@
  * Province → City/Municipality → Barangay
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Select, Input, Row, Col, Spin } from 'antd'
+import { Select, Input, Row, Col } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
   fetchProvinces,
   fetchCitiesMunicipalities,
@@ -70,49 +71,8 @@ export default function PhilippineAddressFields({
   const provinceCode = Form.useWatch(fieldName('province'), form)
   const cityCode = Form.useWatch(fieldName('city'), form)
 
-  // Sync when province/city are set externally (e.g. prefill)
-  useEffect(() => {
-    if (provinceCode && provinceCode !== selectedProvince) {
-      setSelectedProvince(provinceCode)
-      loadCities(provinceCode)
-    }
-  }, [provinceCode])
-
-  useEffect(() => {
-    if (cityCode && cityCode !== selectedCity) {
-      setSelectedCity(cityCode)
-      loadBarangays(cityCode)
-    }
-  }, [cityCode])
-
-  // Load provinces on mount
-  useEffect(() => {
-    loadProvinces()
-  }, [])
-
-  // Auto-match OCR values when provinces load
-  useEffect(() => {
-    if (provinces.length > 0 && initialProvince) {
-      autoMatchProvince(initialProvince)
-    }
-  }, [provinces, initialProvince])
-
-  // Auto-match city when cities load
-  useEffect(() => {
-    if (cities.length > 0 && initialCity) {
-      autoMatchCity(initialCity)
-    }
-  }, [cities, initialCity])
-
-  // Auto-match barangay when barangays load
-  useEffect(() => {
-    if (barangays.length > 0 && initialBarangay) {
-      autoMatchBarangay(initialBarangay)
-    }
-  }, [barangays, initialBarangay])
-
   // Load provinces
-  const loadProvinces = async () => {
+  const loadProvinces = useCallback(async () => {
     setLoadingProvinces(true)
     try {
       const data = await fetchProvinces()
@@ -122,15 +82,15 @@ export default function PhilippineAddressFields({
     } finally {
       setLoadingProvinces(false)
     }
-  }
+  }, [])
 
   // Load cities for a province
-  const loadCities = async (provinceCode) => {
+  const loadCities = useCallback(async (provinceCode) => {
     if (!provinceCode) {
       setCities([])
       return
     }
-    
+
     setLoadingCities(true)
     try {
       const data = await fetchCitiesMunicipalities(provinceCode)
@@ -140,15 +100,15 @@ export default function PhilippineAddressFields({
     } finally {
       setLoadingCities(false)
     }
-  }
+  }, [])
 
   // Load barangays for a city
-  const loadBarangays = async (cityCode) => {
+  const loadBarangays = useCallback(async (cityCode) => {
     if (!cityCode) {
       setBarangays([])
       return
     }
-    
+
     setLoadingBarangays(true)
     try {
       const data = await fetchBarangays(cityCode)
@@ -158,10 +118,10 @@ export default function PhilippineAddressFields({
     } finally {
       setLoadingBarangays(false)
     }
-  }
+  }, [])
 
   // Auto-match province from OCR text
-  const autoMatchProvince = async (provinceName) => {
+  const autoMatchProvince = useCallback(async (provinceName) => {
     const match = await findProvinceByName(provinceName)
     if (match) {
       console.log(`Province matched: "${provinceName}" → "${match.name}"`)
@@ -172,10 +132,10 @@ export default function PhilippineAddressFields({
     } else {
       console.log(`Province not matched: "${provinceName}" - user needs to select manually`)
     }
-  }
+  }, [form, fieldName, loadCities])
 
   // Auto-match city from OCR text
-  const autoMatchCity = async (cityName) => {
+  const autoMatchCity = useCallback(async (cityName) => {
     if (!selectedProvince) return
 
     // Clean up city name - handle common OCR issues
@@ -195,10 +155,10 @@ export default function PhilippineAddressFields({
     } else {
       console.log(`City not matched: "${cityName}" - user needs to select manually`)
     }
-  }
+  }, [selectedProvince, form, fieldName, loadBarangays])
 
   // Auto-match barangay from OCR text
-  const autoMatchBarangay = async (barangayName) => {
+  const autoMatchBarangay = useCallback(async (barangayName) => {
     if (!selectedCity) return
     const match = await findBarangayByName(barangayName, selectedCity)
     if (match) {
@@ -208,7 +168,48 @@ export default function PhilippineAddressFields({
     } else {
       console.log(`Barangay not matched: "${barangayName}" - user needs to select manually`)
     }
-  }
+  }, [selectedCity, form, fieldName])
+
+  // Sync when province/city are set externally (e.g. prefill)
+  useEffect(() => {
+    if (provinceCode && provinceCode !== selectedProvince) {
+      setSelectedProvince(provinceCode)
+      loadCities(provinceCode)
+    }
+  }, [provinceCode, selectedProvince, loadCities])
+
+  useEffect(() => {
+    if (cityCode && cityCode !== selectedCity) {
+      setSelectedCity(cityCode)
+      loadBarangays(cityCode)
+    }
+  }, [cityCode, selectedCity, loadBarangays])
+
+  // Load provinces on mount
+  useEffect(() => {
+    loadProvinces()
+  }, [loadProvinces])
+
+  // Auto-match OCR values when provinces load
+  useEffect(() => {
+    if (provinces.length > 0 && initialProvince) {
+      autoMatchProvince(initialProvince)
+    }
+  }, [provinces, initialProvince, autoMatchProvince])
+
+  // Auto-match city when cities load
+  useEffect(() => {
+    if (cities.length > 0 && initialCity) {
+      autoMatchCity(initialCity)
+    }
+  }, [cities, initialCity, autoMatchCity])
+
+  // Auto-match barangay when barangays load
+  useEffect(() => {
+    if (barangays.length > 0 && initialBarangay) {
+      autoMatchBarangay(initialBarangay)
+    }
+  }, [barangays, initialBarangay, autoMatchBarangay])
 
   // Handle province change
   const handleProvinceChange = (value, option) => {
@@ -289,7 +290,7 @@ export default function PhilippineAddressFields({
             disabled={disabled || loadingProvinces}
             onChange={handleProvinceChange}
             filterOption={filterOption}
-            notFoundContent={loadingProvinces ? <Spin size="small" /> : 'No provinces found'}
+            notFoundContent={loadingProvinces ? <LottieSpinner size="small" /> : 'No provinces found'}
             variant={variant}
           >
             {provinces.map((province) => (
@@ -316,7 +317,7 @@ export default function PhilippineAddressFields({
             onChange={handleCityChange}
             filterOption={filterOption}
             notFoundContent={
-              loadingCities ? <Spin size="small" /> :
+              loadingCities ? <LottieSpinner size="small" /> :
               !selectedProvince ? 'Select province first' :
               'No cities found'
             }
@@ -346,7 +347,7 @@ export default function PhilippineAddressFields({
             onChange={handleBarangayChange}
             filterOption={filterOption}
             notFoundContent={
-              loadingBarangays ? <Spin size="small" /> :
+              loadingBarangays ? <LottieSpinner size="small" /> :
               !selectedCity ? 'Select city first' :
               'No barangays found'
             }
@@ -412,7 +413,7 @@ export default function PhilippineAddressFields({
             disabled={disabled || loadingProvinces}
             onChange={handleProvinceChange}
             filterOption={filterOption}
-            notFoundContent={loadingProvinces ? <Spin size="small" /> : 'No provinces found'}
+            notFoundContent={loadingProvinces ? <LottieSpinner size="small" /> : 'No provinces found'}
             variant={variant}
           >
             {provinces.map((province) => (
@@ -441,7 +442,7 @@ export default function PhilippineAddressFields({
             onChange={handleCityChange}
             filterOption={filterOption}
             notFoundContent={
-              loadingCities ? <Spin size="small" /> :
+              loadingCities ? <LottieSpinner size="small" /> :
               !selectedProvince ? 'Select province first' :
               'No cities found'
             }
@@ -473,7 +474,7 @@ export default function PhilippineAddressFields({
             onChange={handleBarangayChange}
             filterOption={filterOption}
             notFoundContent={
-              loadingBarangays ? <Spin size="small" /> :
+              loadingBarangays ? <LottieSpinner size="small" /> :
               !selectedCity ? 'Select city first' :
               'No barangays found'
             }

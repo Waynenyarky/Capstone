@@ -3,7 +3,7 @@
  * Main dashboard page for LGU Manager
  * Clean, functional layout matching Admin/Officer dashboard style
  */
-import React, { useMemo } from 'react'
+import { useMemo } from 'react'
 import { Row, Col, Card, Typography, theme, Space, Tag, List, Divider } from 'antd'
 import {
   DashboardOutlined, FileTextOutlined, CheckCircleOutlined, WarningOutlined,

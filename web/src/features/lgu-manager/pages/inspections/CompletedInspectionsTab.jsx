@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Table, Input, Tag, Typography, Splitter, Empty, Pagination,
   Grid, theme, Descriptions,

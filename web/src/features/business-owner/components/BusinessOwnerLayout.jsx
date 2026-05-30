@@ -1,4 +1,3 @@
-import React from 'react'
 import { Layout, Typography, Grid, theme } from 'antd'
 import { LayoutPageHeader } from '@/features/shared'
 import BizClearLogo from '@/shared/components/BizClearLogo.jsx'

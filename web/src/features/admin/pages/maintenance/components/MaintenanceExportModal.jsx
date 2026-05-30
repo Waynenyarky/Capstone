@@ -1,4 +1,3 @@
-import React from 'react'
 import { Modal, DatePicker, Typography } from 'antd'
 
 const { Text } = Typography

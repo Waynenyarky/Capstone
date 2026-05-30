@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   Progress,
@@ -13,7 +13,6 @@ import {
   Modal,
   Form,
   Input,
-  Select,
   message,
   Tooltip,
   Row,
@@ -23,7 +22,6 @@ import {
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
-  ExclamationCircleOutlined,
   UploadOutlined,
   InfoCircleOutlined,
   FileTextOutlined,

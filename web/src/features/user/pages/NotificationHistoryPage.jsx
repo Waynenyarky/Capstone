@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { List, Typography, Card, Tag, Space, Button, theme, Empty, Divider, message, Select, Grid } from 'antd'
-import { ArrowLeftOutlined, CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, InfoCircleOutlined, DeleteOutlined, ClearOutlined, BellOutlined, DollarOutlined, CalendarOutlined, WarningOutlined, StopOutlined, FileTextOutlined, SolutionOutlined, EditOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, InfoCircleOutlined, DeleteOutlined, ClearOutlined, BellOutlined, DollarOutlined, CalendarOutlined, WarningOutlined, FileTextOutlined, SolutionOutlined, EditOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { getNotifications, markAsRead, markAllAsRead, deleteNotification, deleteAllNotifications } from '../services/notificationService'
 import dayjs from 'dayjs'

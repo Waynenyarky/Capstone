@@ -1,4 +1,3 @@
-import React from 'react'
 import { Form } from '@/shared/components/AppForm'
 import { Modal, Input, Select } from 'antd'
 

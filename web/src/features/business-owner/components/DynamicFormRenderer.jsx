@@ -9,7 +9,6 @@ import {
   Upload,
   Checkbox,
   Typography,
-  Divider,
   Button,
   Row,
   Col,

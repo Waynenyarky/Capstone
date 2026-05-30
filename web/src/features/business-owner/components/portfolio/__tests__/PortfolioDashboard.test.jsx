@@ -1,5 +1,4 @@
-import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 import { vi, describe, it, expect, beforeEach } from 'vitest';

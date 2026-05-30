@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { ProtectedRoute, PublicRoute } from "@/features/authentication"
-import { useNavigationNotifications, useSessionActivity } from "@/features/authentication/hooks"
+import { useNavigationNotifications, useSessionActivity, useAuthSync, useSessionTimeout, useAuthSession } from "@/features/authentication/hooks"
 import PageSlide from "@/shared/components/PageTransition.jsx"
 
 // Eager-load only the homepage (LCP) and auth shell - everything else is lazy
@@ -16,7 +16,7 @@ const VerifyPermitPage = lazy(() => import("@/features/public/pages/VerifyPermit
 const ApplicationTracker = lazy(() => import("@/features/public/pages/ApplicationTracker.jsx"))
 const BusinessSearch = lazy(() => import("@/features/public/pages/BusinessSearch.jsx"))
 const PasskeyMobileAuth = lazy(() => import("@/features/authentication/pages/PasskeyMobileAuth.jsx"))
-const MfaSetup = lazy(() => import("@/features/authentication/components/MfaSetup.jsx"))
+const MfaSetup = lazy(() => import("@/features/authentication/mfa/components/MfaSetup.jsx"))
 const Dashboard = lazy(() => import("@/features/user").then(m => ({ default: m.Dashboard })))
 const ProfileSettings = lazy(() => import("@/features/user").then(m => ({ default: m.ProfileSettings })))
 const NotificationHistoryPage = lazy(() => import("@/features/user/pages/NotificationHistoryPage.jsx"))
@@ -73,6 +73,18 @@ function PageFallback() {
 function App() {
   useNavigationNotifications()
   useSessionActivity()
+  useAuthSync()
+  
+  const { logout } = useAuthSession()
+  
+  useSessionTimeout({
+    timeoutMs: 60 * 60 * 1000, // 1 hour
+    warningMs: 5 * 60 * 1000, // 5 minutes
+    onTimeout: () => logout(),
+    onWarning: () => {
+      // Warning message shown by the hook
+    }
+  })
 
   return (
     <Suspense fallback={<PageFallback />}>

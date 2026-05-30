@@ -1,7 +1,6 @@
 import React from 'react'
-import { Typography, Card, Tag, Space, theme, Divider, Button, Alert, Modal, Image, App, Form, Select, Input, Steps, Collapse } from 'antd'
+import { Typography, Card, Space, theme, Button, Alert, Modal, Image, App, Form, Select, Input, Steps, Collapse } from 'antd'
 import {
-  FileTextOutlined,
   ClockCircleOutlined,
   SearchOutlined,
   ExclamationCircleOutlined,

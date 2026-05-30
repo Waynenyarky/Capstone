@@ -1,4 +1,3 @@
-import React from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuthSession, useMaintenanceStatus } from '@/features/authentication'
 import { getCurrentUser as getAuthEventCurrentUser } from '@/features/authentication/lib/authEvents.js'

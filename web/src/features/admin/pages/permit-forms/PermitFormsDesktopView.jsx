@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { theme, Segmented, Spin, Button, Tag } from 'antd'
+import { theme, Segmented, Button, Tag } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { PermitFormsEditor, PermitFormsPreview, PermitFormsAuditTab, PermitFormsHeader } from './components'
 import { usePermitForms, usePermitFormsAutosave } from './hooks'
@@ -51,7 +52,7 @@ export default function PermitFormsDesktopView({ onBackToMenu }) {
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: 300 }}>
-        <Spin size="large" />
+        <LottieSpinner size="large" />
       </div>
     )
   }

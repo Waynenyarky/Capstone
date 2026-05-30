@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Card, List, Button, Calendar, Modal, Form, Input, Select, Upload, Tag, Progress, Space, Typography, message, Alert } from 'antd';
-import { CalendarOutlined, UploadOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { useState, useEffect } from 'react';
+import { Card, List, Button, Modal, Form, Input, Select, Upload, Tag, Progress, Space, Typography, message, Alert } from 'antd';
+import { CalendarOutlined, UploadOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { getOngoingRequirements, updateRequirement, getRequirementHistory } from '../../services/complianceMonitoringService';
 import { useBusiness } from '@/hooks/useBusiness';
 

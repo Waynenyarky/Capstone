@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Card, Row, Col, Statistic, Table, Progress, Alert, 
   Typography, Space, Button, Tabs, Select, DatePicker,
-  Line, Column, Area, Tooltip, Tag, Badge, Spin
+  Line, Tag
 } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { 
-  TrendingUpOutlined, TrendingDownOutlined, 
-  AlertOutlined, CheckCircleOutlined, ClockCircleOutlined,
-  BarChartOutlined, LineChartOutlined, PieChartOutlined,
+  TrendingUpOutlined, TrendingDownOutlined, CheckCircleOutlined, ClockCircleOutlined,
+  BarChartOutlined, LineChartOutlined,
   RocketOutlined, BulbOutlined, TargetOutlined
 } from '@ant-design/icons'
-import { Line, Column, Area, Pie } from '@ant-design/plots'
+import { Line } from '@ant-design/plots'
 import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
@@ -753,7 +753,7 @@ function AdvancedAnalyticsDashboard() {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '50px' }}>
-        <Spin size="large" />
+        <LottieSpinner size="large" />
         <div style={{ marginTop: 16 }}>
           <Text>Loading analytics data...</Text>
         </div>

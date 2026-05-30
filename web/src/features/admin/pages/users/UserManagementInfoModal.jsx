@@ -1,4 +1,3 @@
-import React from 'react'
 import { Modal, Drawer, Typography, Space, Divider, Collapse, Button } from 'antd'
 
 const { Text } = Typography

@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
-import { App, Select, Card, Spin, theme, Grid, Col, Splitter, Typography, Drawer } from 'antd'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import { App, Select, Card, theme, Grid, Col, Splitter, Typography, Drawer } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { FileTextOutlined } from '@ant-design/icons'
 import AdminLayout from '../../components/AdminLayout'
 import useContentManagement from './hooks/useContentManagement'
@@ -250,7 +251,7 @@ export default function ContentManagementPage() {
           </div>
           {filteredItems.loading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
-              <Spin />
+              <LottieSpinner />
             </div>
           ) : (
             <ContentItemList

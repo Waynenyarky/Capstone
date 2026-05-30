@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, List, Button, Alert, Modal, Form, Input, Checkbox, Space, Typography, message, Tooltip } from 'antd';
 import { QuestionCircleOutlined, ExclamationCircleOutlined, UndoOutlined } from '@ant-design/icons';
 import { getUserErrorPatterns, preventError, undoAction } from '../../services/userErrorService';

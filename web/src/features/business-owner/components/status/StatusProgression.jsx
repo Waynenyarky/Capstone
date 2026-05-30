@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   Typography,
@@ -9,12 +9,10 @@ import {
   Progress,
   Timeline,
   Tag,
-  Tooltip,
   Row,
   Col,
   List,
-  Avatar,
-  Divider
+  Avatar
 } from 'antd';
 import {
   CheckCircleOutlined,
@@ -23,12 +21,9 @@ import {
   RocketOutlined,
   FileTextOutlined,
   SyncOutlined,
-  CalendarOutlined,
-  AlertOutlined,
   InfoCircleOutlined,
   WarningOutlined,
-  PlayCircleOutlined,
-  PauseCircleOutlined
+  PlayCircleOutlined
 } from '@ant-design/icons';
 import { useBusiness } from '../../../../hooks/useBusiness';
 

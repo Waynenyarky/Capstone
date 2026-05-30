@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { theme } from 'antd'
 import { getApprovals, getApproval } from '@/features/admin/services/approvalService'
 import { useNotifier } from '@/shared/notifications'

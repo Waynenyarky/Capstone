@@ -1,4 +1,3 @@
-import React from 'react'
 import { Form, Input, Select, DatePicker, Typography } from 'antd'
 import { useEditUserProfileForm } from "@/features/user/hooks/useEditUserProfileForm.jsx"
 import {
@@ -7,7 +6,7 @@ import {
   middleNameRules,
   suffixRules,
   phoneNumberRules,
-} from "@/features/authentication/validations"
+} from "@/features/authentication/utils/validations"
 import { useAuthSession } from "@/features/authentication"
 
 const { Title } = Typography

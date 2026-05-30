@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { Button, Card, Empty, Input, Pagination, Select, Spin, Tag, Tooltip, Typography, theme } from 'antd'
+import { Button, Card, Empty, Input, Pagination, Select, Tag, Tooltip, Typography, theme } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { CloseOutlined, FilterOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { PRIORITY_COLORS, STATUS_COLORS, ANNOUNCEMENT_STATUS_OPTIONS, ANNOUNCEMENT_PRIORITY_OPTIONS } from '../constants/announcements.constants.js'
@@ -132,7 +133,7 @@ export default function AnnouncementList({
         <div style={{ borderBottom: `1px solid ${token.colorBorderSecondary}`, borderTop: `1px solid ${token.colorBorderSecondary}`, overflow: 'auto', flex: 1, minHeight: 0, padding: '12px 16px' }}>
           {loading ? (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
-              <Spin />
+              <LottieSpinner />
             </div>
           ) : announcements.length === 0 ? (
             <Empty description="No announcements found" style={{ marginTop: 40 }} image={Empty.PRESENTED_IMAGE_SIMPLE} />

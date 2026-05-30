@@ -1,4 +1,3 @@
-import React from 'react'
 import { Card, Typography, Tag, Space, theme } from 'antd'
 import dayjs from 'dayjs'
 import { CMS_AUDIT_FIELD_LABELS } from '../constants/cmsAudit.constants'

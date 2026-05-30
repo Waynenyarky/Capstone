@@ -1,4 +1,3 @@
-import React from 'react'
 import { Button, Input } from 'antd'
 import { SearchOutlined, DownloadOutlined } from '@ant-design/icons'
 import { Tooltip } from 'antd'

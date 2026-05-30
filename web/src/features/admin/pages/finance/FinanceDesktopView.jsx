@@ -1,9 +1,7 @@
-import React from 'react'
 import { Typography, theme } from 'antd'
 import {
   DashboardOutlined,
   UnorderedListOutlined,
-  SettingOutlined,
   BarChartOutlined,
 } from '@ant-design/icons'
 

@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   Table,
   Button,
   Space,
   Tag,
-  Badge,
   Modal,
   Form,
   Input,
@@ -17,15 +16,14 @@ import {
   Tabs,
   Descriptions,
   message,
-  Spin,
   Empty,
   Typography
 } from 'antd';
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx';
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   BankOutlined,
-  DollarOutlined,
   FileTextOutlined,
   ReloadOutlined,
   DownloadOutlined,
@@ -261,7 +259,7 @@ const TreasuryDashboard = () => {
               
               {loading ? (
                 <div style={{ textAlign: 'center', padding: '48px' }}>
-                  <Spin />
+                  <LottieSpinner />
                 </div>
               ) : pendingPayments.length === 0 ? (
                 <Empty description="No pending verifications" />

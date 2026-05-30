@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Typography } from 'antd'
+import { Typography, theme } from 'antd'
 import { NotificationOutlined } from '@ant-design/icons'
 import { get } from '@/lib/http.js'
 import { getMaintenanceStatus } from '@/features/public/services/maintenanceService.js'
@@ -9,8 +9,10 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 dayjs.extend(relativeTime)
 
 const { Paragraph, Text } = Typography
+const { useToken } = theme
 
 export default function useLandingData() {
+  const { token } = useToken()
   const [announcements, setAnnouncements] = useState([])
   const [maintenanceStatus, setMaintenanceStatus] = useState({
     active: false,
@@ -117,7 +119,7 @@ export default function useLandingData() {
             Back online at: {dayjs(ann.metadata.expectedResumeAt).format('MMM D, YYYY h:mm A')}
           </Text>
         )}
-        <div style={{ borderTop: '1px solid #f0f0f0', margin: '12px 0' }} />
+        <div style={{ borderTop: `1px solid ${token.colorBorder}`, margin: '12px 0' }} />
         <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
           Posted on {ann.createdAt ? dayjs(ann.createdAt).format('MMM D, YYYY h:mm A') : '-'}
         </Text>

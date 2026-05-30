@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Typography, Input, Button, theme, Grid, Layout } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
 import HomeHeader from '../components/HomeHeader'
@@ -46,7 +46,7 @@ export default function BusinessSearch() {
   }
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#fff' }}>
+    <Layout style={{ minHeight: '100vh', background: token.colorBgContainer }}>
       <HomeHeader visible={true} />
       <Content style={{ padding: screens.md ? '120px 20px 60px' : '100px 16px 40px' }}>
         <div style={{

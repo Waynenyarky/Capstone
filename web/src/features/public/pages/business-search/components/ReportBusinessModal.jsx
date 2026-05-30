@@ -1,4 +1,3 @@
-import React from 'react'
 import { Modal, Drawer, Form, Select, Upload, Button, Input, Typography } from 'antd'
 import { UploadOutlined } from '@ant-design/icons'
 

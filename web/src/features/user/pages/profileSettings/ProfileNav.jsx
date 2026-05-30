@@ -1,4 +1,3 @@
-import React from 'react'
 import { Typography } from 'antd'
 import { theme } from 'antd'
 import { PROFILE_NAV_ITEMS } from './constants'

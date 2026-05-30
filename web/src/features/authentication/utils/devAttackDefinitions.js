@@ -201,7 +201,7 @@ export function getSignUpVerifyAttackDefinitions(getEmail) {
 }
 
 // ----- Registration (signup) page attacks -----
-export function getSignUpAttackDefinitions(getForm) {
+export function getSignUpAttackDefinitions() {
   return [
     {
       key: 'xss-name',

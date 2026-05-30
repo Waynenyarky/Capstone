@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Card, Table, Tag, Button, Space, Typography, message, Tooltip, Empty } from 'antd'
 import {
   fetchTamperIncidents,

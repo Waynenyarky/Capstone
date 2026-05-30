@@ -1,4 +1,3 @@
-import React from 'react'
 import { Typography, Card, Grid, theme } from 'antd'
 import { GENERAL_PERMIT_CATEGORIES } from '../constants/businessFormConstants'
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Progress, Button, Space, Typography, Card, Tag, Alert } from 'antd'
 import { 
   SyncOutlined, 

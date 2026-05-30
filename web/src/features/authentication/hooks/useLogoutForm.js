@@ -1,4 +1,3 @@
-import { useAuthNotification } from '@/shared/notifications.js'
 import { useAuthSession } from "@/features/authentication/hooks/useAuthSession.js"
 import { useNavigate } from 'react-router-dom'
 import { useNotifier } from '@/shared/notifications.js'
@@ -7,7 +6,6 @@ import { setIsLoggingOut, setLogoutNotification } from '@/features/authenticatio
 
 export function useLogoutForm() {
   const { currentUser, role, logout } = useAuthSession()
-  const { notificationSuccess } = useAuthNotification()
   const { error } = useNotifier()
   const navigate = useNavigate()
 

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Card, List, Button, Alert, Tag, Modal, Progress, Space, Typography, message } from 'antd';
-import { SyncOutlined, WarningOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { useState, useEffect } from 'react';
+import { Card, List, Button, Alert, Tag, Progress, Space, Typography, message } from 'antd';
+import { SyncOutlined, WarningOutlined } from '@ant-design/icons';
 import { getConcurrentActions, cancelAction } from '../../services/concurrentActionService';
 import { useBusiness } from '@/hooks/useBusiness';
 

@@ -1,4 +1,3 @@
-import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Routes, Route, useLocation } from 'react-router-dom'
 import ProtectedRoute from '../ProtectedRoute.jsx'
@@ -175,5 +174,85 @@ describe('ProtectedRoute', () => {
     )
 
     expect(screen.getByTestId('location').textContent).toContain('/maintenance::')
+  })
+
+  it('allows admin users during maintenance mode', () => {
+    mockUseAuthSession.mockReturnValue({
+      currentUser: { token: 'token', role: 'admin' },
+      role: { slug: 'admin' },
+      isLoading: false,
+    })
+    mockUseMaintenanceStatus.mockReturnValue({ loading: false, active: true })
+
+    renderWithProviders(
+      <Routes>
+        <Route
+          path="/admin/dashboard"
+          element={<ProtectedRoute><Secure /></ProtectedRoute>}
+        />
+      </Routes>,
+      { initialEntries: ['/admin/dashboard'] }
+    )
+
+    expect(screen.getByText('secure content')).toBeInTheDocument()
+  })
+
+  it('shows loading state while checking authentication', () => {
+    mockUseAuthSession.mockReturnValue({
+      currentUser: null,
+      role: null,
+      isLoading: true,
+    })
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/" element={<ProtectedRoute><Secure /></ProtectedRoute>} />
+      </Routes>
+    )
+
+    // Should not render content while loading
+    expect(screen.queryByText('secure content')).not.toBeInTheDocument()
+  })
+
+  it('handles multiple allowed roles', () => {
+    mockUseAuthSession.mockReturnValue({
+      currentUser: { token: 'token', role: 'staff' },
+      role: { slug: 'staff' },
+      isLoading: false,
+    })
+
+    renderWithProviders(
+      <Routes>
+        <Route
+          path="/staff"
+          element={<ProtectedRoute allowedRoles={['admin', 'staff', 'lgu_officer']}><Secure /></ProtectedRoute>}
+        />
+      </Routes>,
+      { initialEntries: ['/staff'] }
+    )
+
+    expect(screen.getByText('secure content')).toBeInTheDocument()
+  })
+
+  it('blocks users with disallowed roles', () => {
+    mockUseAuthSession.mockReturnValue({
+      currentUser: { token: 'token', role: 'user' },
+      role: { slug: 'user' },
+      isLoading: false,
+    })
+
+    renderWithProviders(
+      <Routes>
+        <Route
+          path="/admin"
+          element={<ProtectedRoute allowedRoles={['admin']}><Secure /></ProtectedRoute>}
+        />
+        <Route path="*" element={<LocationEcho />} />
+      </Routes>,
+      { initialEntries: ['/admin'] }
+    )
+
+    expect(screen.queryByText('secure content')).not.toBeInTheDocument()
+    expect(screen.getByTestId('location').textContent).toContain('Restricted Access')
   })
 })

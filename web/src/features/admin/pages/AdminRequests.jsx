@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { Button, Grid, Typography } from 'antd'
 import { ReloadOutlined, CheckCircleOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import AdminLayout from '../components/AdminLayout'

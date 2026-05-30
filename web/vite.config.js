@@ -1,4 +1,5 @@
 /// <reference types="vitest/config" />
+/* global process */
 import { defineConfig } from 'vite';
 import path from 'path';
 import fs from 'fs';
@@ -75,7 +76,7 @@ function createSSEProxyConfig(path, target) {
     selfHandleResponse: false,
     configure: (proxy, _options) => {
       console.log(`[Proxy SSE] ${path} -> ${target}`);
-      proxy.on('proxyReq', (proxyReq, req, _res) => {
+      proxy.on('proxyReq', (proxyReq, _req, _res) => {
         // Disable keep-alive compression so chunks flush immediately
         proxyReq.setHeader('Accept-Encoding', 'identity')
       })
@@ -83,7 +84,7 @@ function createSSEProxyConfig(path, target) {
         // Disable buffering on the proxy response side
         proxyRes.headers['x-accel-buffering'] = 'no'
         proxyRes.headers['cache-control'] = 'no-cache'
-        res.setHeader && res.setHeader('X-Accel-Buffering', 'no')
+        if (res.setHeader) res.setHeader('X-Accel-Buffering', 'no')
       })
       proxy.on('error', (err, _req, res) => {
         console.error(`[Proxy SSE Error] ${path} to ${target}:`, err.message)
@@ -147,6 +148,7 @@ function createProxyConfig(path, target, customConfig = {}) {
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
 const vitestProjects = [
   {
+    plugins: [react()],
     test: {
       name: 'unit',
       environment: 'jsdom',

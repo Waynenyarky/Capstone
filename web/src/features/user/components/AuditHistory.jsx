@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Card, Table, Typography, Space, Button, DatePicker, Select, Tag, Tooltip } from 'antd'
-import { DownloadOutlined, HistoryOutlined, EyeOutlined } from '@ant-design/icons'
+import { Table, Typography, Space, Button, DatePicker, Select, Tag } from 'antd'
+import { DownloadOutlined, HistoryOutlined } from '@ant-design/icons'
 import { useAuthSession } from '@/features/authentication'
 import { getAuditHistory, exportAuditHistory } from '@/features/user/services/auditService.js'
 import { useNotifier } from '@/shared/notifications.js'

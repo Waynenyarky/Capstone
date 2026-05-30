@@ -1,5 +1,4 @@
 import {
-  EditOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
   InboxOutlined,

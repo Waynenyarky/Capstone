@@ -3,10 +3,9 @@
  * Tests system optimization features and performance improvements
  */
 
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ConfigProvider } from 'antd'
-import dayjs from 'dayjs'
 
 // Import components to test
 import PerformanceDashboard from '../../features/admin/components/performance/PerformanceDashboard'

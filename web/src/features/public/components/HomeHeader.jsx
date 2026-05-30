@@ -1,13 +1,36 @@
 import { Layout, Button, Typography, Space, Grid, theme } from 'antd'
-import BizClearLogo from '@/shared/components/BizClearLogo.jsx'
+import { useLottie } from 'lottie-react'
+import { useState, useEffect } from 'react'
 
 const { Header } = Layout
 const { Title } = Typography
 const { useBreakpoint } = Grid
 
-export default function HomeHeader({ visible = true, onNavigate }) {
+export default function HomeHeader({ visible = true, onNavigate, fadingOut = false }) {
   const screens = useBreakpoint()
   const { token } = theme.useToken()
+  const [animationData, setAnimationData] = useState(null)
+  
+  useEffect(() => {
+    fetch('/LogoLottie.json')
+      .then((res) => res.json())
+      .then((data) => setAnimationData(data))
+      .catch((err) => console.error('Failed to load logo animation:', err))
+  }, [])
+  
+  const options = {
+    animationData,
+    loop: false,
+    autoplay: false,
+  }
+  
+  const { View, play, goToAndStop } = useLottie(options)
+  
+  const handleMouseEnter = () => {
+    goToAndStop(0)
+    play()
+  }
+  
   return (
     <Header style={{
       background: token.colorBgContainer,
@@ -22,14 +45,28 @@ export default function HomeHeader({ visible = true, onNavigate }) {
       left: 0,
       right: 0,
       zIndex: 1000,
-      opacity: visible ? 1 : 0,
-      transform: visible ? 'translateY(0)' : 'translateY(-20px)',
+      opacity: fadingOut ? 0 : (visible ? 1 : 0),
+      transform: fadingOut ? 'translateY(-20px)' : (visible ? 'translateY(0)' : 'translateY(-20px)'),
       transition: 'opacity 0.3s ease-out, transform 0.3s ease-out',
-      pointerEvents: visible ? 'auto' : 'none',
+      pointerEvents: fadingOut ? 'none' : (visible ? 'auto' : 'none'),
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <BizClearLogo width={screens.sm ? 40 : 32} />
-        <Title level={4} style={{ margin: 0, lineHeight: 1.2, color: token.colorPrimary, fontSize: screens.sm ? '20px' : '18px' }}>BizClear</Title>
+      <div
+        role="button"
+        tabIndex={0}
+        style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
+        onClick={() => onNavigate?.('/')}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onNavigate?.('/')
+          }
+        }}
+        onMouseEnter={handleMouseEnter}
+      >
+        <div style={{ width: screens.sm ? 40 : 32, height: screens.sm ? 40 : 32 }}>
+          {View}
+        </div>
+        <Title level={4} style={{ margin: 0, lineHeight: 1.2, color: token.colorText, fontSize: screens.sm ? '20px' : '18px' }}>BizClear</Title>
       </div>
       <Space size={screens.sm ? 'middle' : 'small'}>
         <Button onClick={() => onNavigate?.('/login') }>Log In</Button>

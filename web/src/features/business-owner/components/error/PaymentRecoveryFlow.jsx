@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
   Modal,
   Button,
@@ -10,32 +11,21 @@ import {
   List,
   Tag,
   Divider,
-  Row,
-  Col,
-  Spin,
   Result,
   Select,
   Input,
   DatePicker,
   Progress,
-  Badge,
-  Tooltip
+  Badge
 } from 'antd';
 import {
   CreditCardOutlined,
   BankOutlined,
   MobileOutlined,
-  ExclamationCircleOutlined,
-  CheckCircleOutlined,
   ClockCircleOutlined,
-  WarningOutlined,
-  InfoCircleOutlined,
-  ArrowRightOutlined,
   SyncOutlined,
   DollarOutlined,
-  CalendarOutlined,
-  PhoneOutlined,
-  MailOutlined
+  PhoneOutlined
 } from '@ant-design/icons';
 
 const { Title, Text, Paragraph } = Typography;
@@ -437,7 +427,7 @@ const PaymentRecoveryFlow = ({
     
     return (
       <div style={{ textAlign: 'center', padding: '40px 0' }}>
-        <Spin size="large" />
+        <LottieSpinner size="large" />
         <div style={{ marginTop: '24px' }}>
           <Title level={4}>Processing Payment</Title>
           <Paragraph type="secondary">

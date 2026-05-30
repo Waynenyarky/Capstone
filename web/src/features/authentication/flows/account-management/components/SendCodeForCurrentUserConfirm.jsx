@@ -1,0 +1,47 @@
+import { Button, Typography, Alert, theme } from 'antd'
+import { useSendCodeForCurrentUserConfirm } from '../hooks/useSendCodeForCurrentUserConfirm.js'
+import { MailOutlined } from '@ant-design/icons'
+import { useEffect } from 'react'
+
+export default function SendCodeForCurrentUserConfirm({ email, onSent, title, subtitle, autoSend = false } = {}) {
+  const { isSending, handleSend } = useSendCodeForCurrentUserConfirm({ email, onSent })
+  const { token } = theme.useToken()
+
+  useEffect(() => {
+    if (autoSend && email && !isSending) {
+      handleSend()
+    }
+  }, [autoSend, email, isSending, handleSend])
+  
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ marginBottom: 24 }}>
+        <MailOutlined style={{ fontSize: 48, color: token.colorPrimary, marginBottom: 16 }} />
+        <Typography.Title level={3} style={{ margin: '0 0 8px' }}>
+          {title || 'Send Verification Code'}
+        </Typography.Title>
+        <Typography.Paragraph type="secondary" style={{ maxWidth: 400, margin: '0 auto' }}>
+          {subtitle || 'We will send a verification code to your current email to confirm it\'s you.'}
+        </Typography.Paragraph>
+      </div>
+
+      <Alert 
+        message={email || 'Unknown email'} 
+        type="info" 
+        showIcon 
+        style={{ maxWidth: 350, margin: '0 auto 24px', textAlign: 'left' }} 
+      />
+
+      <Button
+        type="primary"
+        onClick={handleSend}
+        loading={isSending}
+        disabled={isSending || !email}
+        block
+        style={{ marginBottom: 16 }}
+      >
+        Send Verification Code
+      </Button>
+    </div>
+  )
+}

@@ -1,4 +1,3 @@
-import React from 'react'
 import { Typography, Row, Col, Button, Tooltip, ColorPicker, Grid, Space } from 'antd'
 import { theme } from 'antd'
 import { CheckCircleFilled } from '@ant-design/icons'

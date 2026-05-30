@@ -1,4 +1,3 @@
-import React from 'react'
 import { Typography, Grid, theme } from 'antd'
 import { ShopOutlined, CalendarOutlined } from '@ant-design/icons'
 

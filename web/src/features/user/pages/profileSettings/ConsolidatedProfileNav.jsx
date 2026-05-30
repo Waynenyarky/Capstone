@@ -1,4 +1,3 @@
-import React from 'react'
 import { Typography, Divider } from 'antd'
 import { theme } from 'antd'
 import { CONSOLIDATED_NAV_ITEMS } from './constants'

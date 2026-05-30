@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
-  Calendar,
   Badge,
   Timeline,
   Button,
@@ -11,14 +10,12 @@ import {
   Divider,
   List,
   Tag,
-  Progress,
   Modal,
   Descriptions,
   Row,
   Col,
   Statistic,
-  Empty,
-  Tooltip
+  Empty
 } from 'antd';
 import {
   CalendarOutlined,
@@ -27,9 +24,6 @@ import {
   ClockCircleOutlined,
   FileTextOutlined,
   EyeOutlined,
-  MessageOutlined,
-  AlertOutlined,
-  InfoCircleOutlined,
   WarningOutlined
 } from '@ant-design/icons';
 import { useBusiness } from '../../../../hooks/useBusiness';
@@ -38,9 +32,6 @@ import {
   getUpcomingInspections, 
   getInspectionViolations,
   acknowledgeInspection,
-  INSPECTION_STATUSES,
-  INSPECTION_TYPES,
-  INSPECTION_RESULTS,
   getStatusLabel,
   getTypeLabel,
   getResultLabel,

@@ -1,4 +1,3 @@
-import React from 'react'
 import { Row, Col, Card, Button, Typography, Space } from 'antd'
 import { Link } from 'react-router-dom'
 import { StaffLayout } from '../../components'

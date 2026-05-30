@@ -1,4 +1,3 @@
-import React from 'react'
 import DynamicFaqSection from '@/shared/components/DynamicFaqSection'
 
 export default function FaqSection() {

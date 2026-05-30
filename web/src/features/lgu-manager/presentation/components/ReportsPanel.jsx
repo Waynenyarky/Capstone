@@ -2,7 +2,6 @@
  * Presentation Component: ReportsPanel
  * Pure presentation - no business logic
  */
-import React from 'react'
 import { Card, Button, Table, Space, Typography } from 'antd'
 import { FileTextOutlined, DownloadOutlined } from '@ant-design/icons'
 

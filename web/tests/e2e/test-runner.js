@@ -5,6 +5,7 @@
  * Provides comprehensive testing with reporting and analytics
  */
 
+/* eslint-disable no-undef, @typescript-eslint/no-require-imports */
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -157,7 +158,7 @@ class E2ETestRunner {
             try {
               const report = JSON.parse(fs.readFileSync(reportFile, 'utf8'));
               resolve(this.parsePlaywrightResults(report));
-            } catch (parseError) {
+            } catch {
               // Fallback to parsing stdout
               resolve(this.parseStdoutResults(stdout));
             }
@@ -564,33 +565,6 @@ class E2ETestRunner {
     console.log(`✅ ${testFile}: ${result.passed}/${result.total} passed`);
     return result;
   }
-
-  /**
-   * Run tests in watch mode
-   */
-  async runWatchMode(options = {}) {
-    console.log('👀 Starting E2E tests in watch mode...');
-    
-    const config = { ...this.config, ...options };
-    
-    // Watch for file changes and re-run tests
-    const chokidar = require('chokidar');
-    
-    const watcher = chokidar.watch(config.testDir, {
-      ignored: /node_modules/,
-      persistent: true
-    });
-
-    watcher.on('change', async (filePath) => {
-      console.log(`📝 File changed: ${filePath}`);
-      console.log('🔄 Re-running tests...');
-      
-      await this.runAllTests(config);
-    });
-
-    console.log('👀 Watching for changes in', config.testDir);
-    console.log('Press Ctrl+C to stop watching');
-  }
 }
 
 // CLI interface
@@ -604,12 +578,8 @@ if (require.main === module) {
     case 'run':
       runner.runAllTests().catch(console.error);
       break;
-      
-    case 'watch':
-      runner.runWatchMode().catch(console.error);
-      break;
-      
-    case 'file':
+
+    case 'file': {
       const testFile = args[1];
       if (testFile) {
         runner.runTestFile(testFile).catch(console.error);
@@ -618,11 +588,11 @@ if (require.main === module) {
         process.exit(1);
       }
       break;
-      
+    }
+
     default:
       console.log('Usage:');
       console.log('  node test-runner.js run          - Run all tests');
-      console.log('  node test-runner.js watch        - Run in watch mode');
       console.log('  node test-runner.js file <path> - Run specific test file');
       break;
   }

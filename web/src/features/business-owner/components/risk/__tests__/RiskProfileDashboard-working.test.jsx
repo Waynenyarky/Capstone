@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { ConfigProvider, App, Card, Typography, Tabs } from 'antd';
+import { ConfigProvider, App } from 'antd';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 // Mock all services and dependencies

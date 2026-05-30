@@ -1,4 +1,3 @@
-import React from 'react'
 import { Modal, Table, Button, Typography, Space, Grid } from 'antd'
 import { EyeOutlined, DeleteOutlined } from '@ant-design/icons'
 

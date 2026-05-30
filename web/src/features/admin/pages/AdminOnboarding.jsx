@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Form } from '@/shared/components/AppForm'
 import { Row, Col, theme } from 'antd'
 import { useLocation, useNavigate } from 'react-router-dom'

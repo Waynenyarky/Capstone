@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { 
-  Spin, Skeleton, Alert, Button, Space, Typography, 
-  Progress, Empty, Result, Card, Badge, Tooltip,
-  message, notification, Modal, Drawer
+  Skeleton, Alert, Button, Space, Typography, 
+  Progress, Empty, Result, Card, Badge, Tooltip, notification, Modal, Drawer
 } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { 
   ReloadOutlined, CloseOutlined, WarningOutlined,
   CheckCircleOutlined, InfoCircleOutlined, LoadingOutlined
@@ -66,7 +66,7 @@ export const LoadingState = ({
   children 
 }) => {
   const loadingComponents = {
-    spinner: <Spin size={size} tip={tip} />,
+    spinner: <LottieSpinner size={size} tip={tip} />,
     dots: (
       <div style={{ textAlign: 'center', padding: '20px' }}>
         <LoadingOutlined style={{ fontSize: size === 'large' ? 32 : 24 }} spin />

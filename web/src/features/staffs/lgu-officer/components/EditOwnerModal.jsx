@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react'
-import { Modal, Form, Input, Select, DatePicker, Divider, message, Spin } from 'antd'
+import { useEffect, useState } from 'react'
+import { Modal, Form, Input, Select, DatePicker, Divider, message } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import PhilippineAddressFields from '@/shared/components/PhilippineAddressFields'
 import { get, patch } from '@/lib/http'
 import dayjs from 'dayjs'
@@ -125,7 +126,7 @@ export default function EditOwnerModal({ open, owner, onClose, onSuccess }) {
     >
       {fetching ? (
         <div style={{ textAlign: 'center', padding: 48 }}>
-          <Spin size="large" />
+          <LottieSpinner size="large" />
         </div>
       ) : (
         <Form form={form} layout="vertical" style={{ maxHeight: '60vh', overflow: 'auto', paddingRight: 8 }}>

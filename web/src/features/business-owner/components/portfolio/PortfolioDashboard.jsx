@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { 
   Card, 
   Row, 
@@ -11,7 +11,6 @@ import {
   Input, 
   Select, 
   Tag, 
-  Progress, 
   Statistic,
   Tooltip,
   Avatar,
@@ -21,7 +20,6 @@ import {
 import {
   ShopOutlined,
   SearchOutlined,
-  FilterOutlined,
   PlusOutlined,
   EditOutlined,
   EyeOutlined,
@@ -30,8 +28,6 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
-  BankOutlined,
-  FileTextOutlined,
   CalendarOutlined,
   DollarOutlined
 } from '@ant-design/icons';

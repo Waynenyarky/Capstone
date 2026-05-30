@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -8,22 +8,17 @@ import {
   Typography,
   Divider,
   Tag,
-  Progress,
   Modal,
   Descriptions,
   Row,
   Col,
   Statistic,
   Empty,
-  Tooltip,
   Badge,
-  Timeline,
   Form,
   Input,
   Select,
-  DatePicker,
   message,
-  Spin,
   Tabs,
   List,
   Avatar
@@ -31,18 +26,12 @@ import {
 import {
   ExclamationCircleOutlined,
   WarningOutlined,
-  InfoCircleOutlined,
   CalculatorOutlined,
-  ClockCircleOutlined,
   CheckCircleOutlined,
   DollarOutlined,
-  FileTextOutlined,
   EyeOutlined,
   PayCircleOutlined,
-  AlertOutlined,
-  ReloadOutlined,
-  CalendarOutlined,
-  BankOutlined
+  ReloadOutlined
 } from '@ant-design/icons';
 import { useBusiness } from '../../../../hooks/useBusiness';
 import { 
@@ -50,12 +39,8 @@ import {
   getOpenViolations,
   getViolationSummary,
   acknowledgeViolation,
-  VIOLATION_STATUSES,
-  VIOLATION_SEVERITIES,
   getStatusLabel,
-  getSeverityLabel,
-  getStatusColor,
-  getSeverityColor
+  getSeverityLabel
 } from '@/features/business-owner/services/violationsService';
 
 const { Title, Text, Paragraph } = Typography;

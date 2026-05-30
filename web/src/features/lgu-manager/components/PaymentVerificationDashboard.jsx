@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Card, Table, Button, Modal, Form, Input, Space, Tag, Typography, 
-  App, Spin, Empty, Row, Col, Statistic, Alert, Select, DatePicker,
+  App, Empty, Row, Col, Statistic, Alert, DatePicker,
   Descriptions, Image
 } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { 
-  CheckCircleOutlined, CloseCircleOutlined, DollarOutlined,
-  EyeOutlined, ReloadOutlined, DownloadOutlined, FileTextOutlined
+  CheckCircleOutlined, CloseCircleOutlined,
+  EyeOutlined, ReloadOutlined, DownloadOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { 
@@ -210,7 +211,7 @@ export default function PaymentVerificationDashboard() {
   if (loading) {
     return (
       <Card>
-        <Spin tip="Loading payment data..." />
+        <LottieSpinner tip="Loading payment data..." />
       </Card>
     )
   }

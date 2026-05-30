@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Row, Col, Card, Typography, theme, Button, Table, Tag } from 'antd'
 import {
   SafetyCertificateOutlined,
@@ -10,8 +10,6 @@ import {
 import { Link, useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { fetchTamperIncidents } from '../../services/tamperService'
-import DevSimulatedAttackPanel from '@/features/authentication/components/DevSimulatedAttackPanel'
-import { getRisk9AttackDefinitions, getRisk10AttackDefinitions } from '@/features/authentication/utils/devAttackDefinitions'
 
 const { Text } = Typography
 

@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { Modal, DatePicker, Button, Typography, Alert, Spin } from 'antd'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Modal, DatePicker, Button, Typography, Alert } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { DownloadOutlined, CalendarOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { getAllAuditLogsAdmin } from '../services/auditService'
@@ -308,7 +309,7 @@ export default function ExportLogsModal ({ open, onClose, exportType, title }) {
         </div>
         {loading && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Spin size="small" />
+            <LottieSpinner size="small" />
             <Text type="secondary">Checking availability…</Text>
           </div>
         )}
