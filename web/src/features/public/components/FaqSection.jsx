@@ -20,7 +20,7 @@ export default function FaqSection() {
   }))
 
   return (
-    <section id="faq-section" style={{ width: '100%', maxWidth: 1280, margin: '0 auto' }}>
+    <section id="faq-section" style={{ width: '100%', maxWidth: 400, margin: '0 auto' }}>
       <div
         style={{
           border: `1px solid ${token.colorBorderSecondary}`,

@@ -98,7 +98,6 @@ export default function BusinessProfile({ business, onReport, onBack, token, scr
           icon={<ExclamationCircleOutlined />}
           onClick={onReport}
           block
-          size="large"
         >
           Report Business
         </Button>

@@ -64,7 +64,6 @@ export default function BusinessSearch() {
             </Paragraph>
 
             <Input
-              size="large"
               placeholder="Search by business name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -73,7 +72,6 @@ export default function BusinessSearch() {
             />
             <Button
               type="primary"
-              size="large"
               block
               onClick={handleSearch}
             >
