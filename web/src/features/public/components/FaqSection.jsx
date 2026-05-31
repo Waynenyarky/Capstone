@@ -71,7 +71,7 @@ export default function FaqSection() {
               display: 'flex',
               paddingTop: screens.lg ? 90 : 48,
               flexDirection: 'column',
-              justifyContent: 'center',
+              justifyContent: 'flex-end',
               alignItems: 'flex-start',
             }}
             onMouseEnter={screens.lg ? () => setHoveredCard('help') : undefined}

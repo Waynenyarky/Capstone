@@ -3,6 +3,7 @@ import HomeHeader from '../components/HomeHeader'
 import HeroSection from '../components/HeroSection'
 import TransparencyDashboard from '../components/TransparencyDashboard'
 import FaqSection from '../components/FaqSection'
+import ApplicationProcessSection from '../components/ApplicationProcessSection'
 import OfficeLocationSection from '../components/OfficeLocationSection'
 import HomeFooter from '../components/HomeFooter'
 import useLandingData from '../hooks/useLandingData.jsx'
@@ -78,6 +79,9 @@ export default function Home() {
           defaultOpenKey={defaultOpenKey}
           onNavigate={navigateWithFade}
         />
+        <BlurFade delay={0.2} duration={0.5} triggerOnViewport>
+          <ApplicationProcessSection />
+        </BlurFade>
         <BlurFade delay={0.3} duration={0.5} triggerOnViewport>
           <OfficeLocationSection />
         </BlurFade>
