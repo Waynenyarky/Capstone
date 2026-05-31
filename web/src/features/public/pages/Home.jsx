@@ -78,14 +78,13 @@ export default function Home() {
           defaultOpenKey={defaultOpenKey}
           onNavigate={navigateWithFade}
         />
-        <div style={{ height: '56px' }} />
-        <TransparencyDashboard publicStats={publicStats} />
         <BlurFade delay={0.3} duration={0.5} triggerOnViewport>
-          <FaqSection />
+          <OfficeLocationSection />
         </BlurFade>
         <div style={{ height: '56px' }} />
+        <TransparencyDashboard publicStats={publicStats} />
         <BlurFade delay={0.4} duration={0.5} triggerOnViewport>
-          <OfficeLocationSection />
+          <FaqSection />
         </BlurFade>
       </Content>
       <HomeFooter />

@@ -4,7 +4,7 @@ import { get } from '@/lib/http.js'
 
 const { Paragraph } = Typography
 
-export default function DynamicFaqSection({ slotId, style }) {
+export default function DynamicFaqSection({ slotId, style, hideWrapper = false, hideHeader = false }) {
   const [faqData, setFaqData] = useState(null)
   const [loading, setLoading] = useState(true)
   const { token } = theme.useToken()
@@ -46,16 +46,9 @@ export default function DynamicFaqSection({ slotId, style }) {
     ),
   }))
 
-  return (
-    <section style={{ width: '100%', maxWidth: 1280, margin: '0 auto', ...style }}>
-      <div
-        style={{
-          border: `1px solid ${token.colorBorderSecondary}`,
-          borderRadius: token.borderRadiusLG,
-          padding: '24px 28px',
-          background: token.colorBgLayout,
-        }}
-      >
+  const content = (
+    <>
+      {!hideHeader && (
         <Typography.Title
           level={4}
           style={{
@@ -66,22 +59,41 @@ export default function DynamicFaqSection({ slotId, style }) {
         >
           {faqData.title || 'Frequently Asked Questions'}
         </Typography.Title>
-        {faqData.subtitle && (
-          <Paragraph
-            type="secondary"
-            style={{
-              marginBottom: 16,
-              textAlign: 'left',
-            }}
-          >
-            {faqData.subtitle}
-          </Paragraph>
-        )}
-        <Collapse
-          items={faqItems}
-          defaultActiveKey={faqItems[0]?.key}
-          style={{ background: token.colorBgContainer, textAlign: 'left' }}
-        />
+      )}
+      {!hideHeader && faqData.subtitle && (
+        <Paragraph
+          type="secondary"
+          style={{
+            marginBottom: 8,
+            textAlign: 'left',
+          }}
+        >
+          {faqData.subtitle}
+        </Paragraph>
+      )}
+      <Collapse
+        items={faqItems}
+        defaultActiveKey={faqItems[0]?.key}
+        style={{ background: token.colorBgContainer, textAlign: 'left', width: '100%', height: '100%' }}
+      />
+    </>
+  )
+
+  if (hideWrapper) {
+    return <div style={style}>{content}</div>
+  }
+
+  return (
+    <section style={{ width: '100%', maxWidth: 1280, margin: '0 auto', ...style }}>
+      <div
+        style={{
+          border: `1px solid ${token.colorBorderSecondary}`,
+          borderRadius: token.borderRadiusLG,
+          padding: '24px 28px',
+          background: token.colorBgLayout,
+        }}
+      >
+        {content}
       </div>
     </section>
   )
