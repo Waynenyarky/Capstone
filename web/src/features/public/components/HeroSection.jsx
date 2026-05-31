@@ -39,10 +39,11 @@ export default function HeroSection({
       data-hero-section
       style={{
         width: '100vw',
+        minHeight: screens.md ? '100vh' : 'auto',
         height: screens.md ? '100vh' : 'auto',
-        minHeight: screens.md ? '800px' : '100vh',
         display: 'flex',
         flexDirection: screens.md ? 'row' : 'column',
+        overflow: 'hidden',
       }}
     >
       {/* Left Panel - Art (60% on desktop, remaining space on mobile) */}
@@ -72,9 +73,11 @@ export default function HeroSection({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'flex-start',
-        justifyContent: 'flex-start',
-        overflowY: 'auto',
+        justifyContent: screens.md ? 'center' : 'flex-start',
+        overflowX: 'hidden',
+        overflowY: screens.md ? 'auto' : 'visible',
         flex: screens.md ? 'none' : '0 0 auto',
+        minHeight: screens.md ? '100vh' : 'auto',
       }}>
         {/* Bento Grid */}
         <div style={{
