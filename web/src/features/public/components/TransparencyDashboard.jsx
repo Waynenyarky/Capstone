@@ -48,66 +48,58 @@ export default function TransparencyDashboard({ publicStats }) {
     return () => obs.disconnect()
   }, [])
 
+  const horizontalPadding = screens.xl ? '192px' : screens.lg ? '128px' : screens.md ? '64px' : '24px'
+
   return (
     <section
       ref={ref}
       style={{
         width: '100%',
-        maxWidth: 1280,
-        margin: '0 auto',
-        padding: screens.md ? '0 24px 24px' : '0 12px 16px',
+        padding: `80px ${horizontalPadding}`,
+        boxSizing: 'border-box',
       }}
     >
-      <BlurFade delay={0.05} duration={0.45} onViewport={true}>
-        <div
-          style={{
-            border: `1px solid ${token.colorBorderSecondary}`,
-            borderRadius: token.borderRadiusLG,
-            padding: screens.md ? '24px 28px' : '18px 14px',
-            background: token.colorBgContainer,
-            marginBottom: 16,
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: screens.md ? 'row' : 'column',
-              alignItems: screens.md ? 'flex-end' : 'flex-start',
-              justifyContent: 'space-between',
-              gap: 12,
-              marginBottom: 14,
-            }}
-          >
-            <div style={{ flex: 1, textAlign: screens.md ? 'left' : 'center' }}>
-              <Title
-                level={4}
-                style={{
-                  marginTop: 0,
-                  marginBottom: 8,
-                  fontSize: screens.md ? 20 : 18,
-                  lineHeight: 1.25,
-                  color: token.colorTextHeading,
-                  textAlign: screens.md ? 'left' : 'center',
-                }}
-              >
-                Trusted public progress
-              </Title>
-              <Text
-                style={{
-                  display: 'block',
-                  marginTop: 0,
-                  marginBottom: 8,
-                  fontSize: screens.md ? 13 : 13,
-                  lineHeight: 1.25,
-                  color: token.colorTextSecondary,
-                  textAlign: screens.md ? 'left' : 'center',
-                }}
-              >
-                See the momentum behind every business permit and approval.
-              </Text>
-            </div>
+      <div style={{ maxWidth: 1200 }}>
+        <BlurFade delay={0.05} duration={0.45} onViewport={true}>
+          <div style={{ marginBottom: 14, textAlign: screens.md ? 'left' : 'center' }}>
+            <Title
+              level={4}
+              style={{
+                marginTop: 0,
+                marginBottom: 8,
+                fontSize: screens.md ? 20 : 18,
+                lineHeight: 1.25,
+                color: token.colorTextHeading,
+                textAlign: screens.md ? 'left' : 'center',
+              }}
+            >
+              Trusted public progress
+            </Title>
+            <Text
+              style={{
+                display: 'block',
+                marginTop: 0,
+                marginBottom: 8,
+                fontSize: screens.md ? 13 : 13,
+                lineHeight: 1.25,
+                color: token.colorTextSecondary,
+                textAlign: screens.md ? 'left' : 'center',
+              }}
+            >
+              See the momentum behind every business permit and approval.
+            </Text>
           </div>
 
+          <div
+            style={{
+              border: `1px solid ${token.colorBorderSecondary}`,
+              borderRadius: token.borderRadiusLG,
+              padding: screens.md ? '24px 28px' : '18px 14px',
+              background: token.colorBgContainer,
+              marginBottom: 16,
+              marginLeft: 0,
+            }}
+          >
           <div
             style={{
               display: 'flex',
@@ -173,6 +165,7 @@ export default function TransparencyDashboard({ publicStats }) {
           </div>
         </div>
       </BlurFade>
+      </div>
     </section>
   )
 }
