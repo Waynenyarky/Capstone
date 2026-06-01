@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef } from 'react'
 
 export default function BlurFade({
   children,
@@ -8,39 +8,13 @@ export default function BlurFade({
   blur = '6px',
   className = '',
   fullHeight = true,
-  triggerOnViewport = false,
+  onViewport = false,
+  rootMargin = '0px 0px -20% 0px',
 }) {
   const ref = useRef(null)
-  const [isVisible, setIsVisible] = useState(!triggerOnViewport)
 
+  // Inject keyframes once
   useEffect(() => {
-    if (!triggerOnViewport) return
-
-    const element = ref.current
-    if (!element) return
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true)
-          observer.disconnect()
-        }
-      },
-      { threshold: 0.1 }
-    )
-
-    observer.observe(element)
-
-    return () => observer.disconnect()
-  }, [triggerOnViewport])
-
-  useEffect(() => {
-    if (!isVisible) return
-
-    const element = ref.current
-    if (!element) return
-
-    // Inject keyframes if not already present
     if (!document.getElementById('blur-fade-keyframes')) {
       const style = document.createElement('style')
       style.id = 'blur-fade-keyframes'
@@ -60,8 +34,12 @@ export default function BlurFade({
       `
       document.head.appendChild(style)
     }
+  }, [])
 
-    // Set CSS variables for animation
+  useEffect(() => {
+    const element = ref.current
+    if (!element) return
+
     const translateMap = {
       up: '-20px',
       down: '20px',
@@ -71,14 +49,35 @@ export default function BlurFade({
 
     element.style.setProperty('--blur', blur)
     element.style.setProperty('--translate-y', translateMap[direction] || '20px')
-    element.style.animation = `blur-fade-in ${duration}s ease-out ${delay}s forwards`
     element.style.opacity = '0'
+
+    const playAnimation = () => {
+      // Ensure we don't override if already set
+      element.style.animation = `blur-fade-in ${duration}s ease-out ${delay}s forwards`
+    }
+
+    if (onViewport && 'IntersectionObserver' in window) {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            playAnimation()
+            observer.unobserve(element)
+          }
+        })
+      }, { root: null, rootMargin })
+
+      observer.observe(element)
+      return () => observer.disconnect()
+    }
+
+    // Default behavior: play immediately
+    playAnimation()
 
     return () => {
       element.style.animation = ''
       element.style.opacity = ''
     }
-  }, [delay, duration, direction, blur, isVisible])
+  }, [delay, duration, direction, blur, onViewport, rootMargin])
 
   return (
     <div ref={ref} className={className} style={{ height: fullHeight ? '100%' : 'auto', width: '100%' }}>

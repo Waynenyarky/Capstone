@@ -40,7 +40,8 @@ export default function ScrambleText({
       const next = targetText
         .split('')
         .map((char, index) => {
-          if (char === ' ') return ' '
+          // Only animate digits; leave other characters as-is
+          if (!/\d/.test(char)) return char
           if (index < revealCount) return char
           return chars[Math.floor(Math.random() * chars.length)]
         })
