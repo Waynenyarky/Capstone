@@ -1,4 +1,5 @@
 import { Layout, Button, Typography, Space, Grid, theme } from 'antd'
+import { Link } from 'react-router-dom'
 import BizClearLogo from '@/shared/components/BizClearLogo.jsx'
 
 const { Header } = Layout
@@ -31,8 +32,12 @@ export default function HomeHeader({ visible = true }) {
         <Title level={4} style={{ margin: 0, lineHeight: 1.2, color: token.colorPrimary, fontSize: screens.sm ? '20px' : '18px' }}>BizClear</Title>
       </div>
       <Space size={screens.sm ? 'middle' : 'small'}>
-        <Button onClick={() => {}}>Log In</Button>
-        <Button type="primary" onClick={() => {}}>{screens.sm ? 'Register Now' : 'Register'}</Button>
+        <Link to="/login">
+          <Button>Log In</Button>
+        </Link>
+        <Link to="/sign-up">
+          <Button type="primary">{screens.sm ? 'Register Now' : 'Register'}</Button>
+        </Link>
       </Space>
     </Header>
   )
