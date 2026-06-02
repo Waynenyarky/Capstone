@@ -28,8 +28,12 @@ export default function HomeHeader({ visible = true }) {
       pointerEvents: visible ? 'auto' : 'none',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <BizClearLogo width={screens.sm ? 40 : 32} />
-        <Title level={4} style={{ margin: 0, lineHeight: 1.2, color: token.colorPrimary, fontSize: screens.sm ? '20px' : '18px' }}>BizClear</Title>
+        <Link to="/">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+            <BizClearLogo width={screens.sm ? 40 : 32} />
+            <Title level={4} style={{ margin: 0, lineHeight: 1.2, color: token.colorPrimary, fontSize: screens.sm ? '20px' : '18px' }}>BizClear</Title>
+          </div>
+        </Link>
       </div>
       <Space size={screens.sm ? 'middle' : 'small'}>
         <Link to="/login">

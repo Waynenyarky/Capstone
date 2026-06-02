@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Typography, Grid, theme, Card, Button, Modal, Collapse, Space, Drawer } from 'antd'
 import { NotificationOutlined, WarningOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import BizClearLogo from '@/shared/components/BizClearLogo.jsx'
 import BlurFade from '@/shared/components/BlurFade.jsx'
 import ZipperReveal from '@/shared/components/MosaicArt.jsx'
@@ -20,6 +21,7 @@ export default function HeroSection({
 }) {
   const { token } = theme.useToken()
   const screens = useBreakpoint()
+  const navigate = useNavigate()
   const [hoveredCard, setHoveredCard] = useState(null)
   const [announcementsModalOpen, setAnnouncementsModalOpen] = useState(false)
 
@@ -120,7 +122,7 @@ export default function HeroSection({
                 onMouseLeave={screens.md ? () => setHoveredCard(null) : undefined}
                 onClick={() => {
                   if (card.link) {
-                    window.location.href = card.link
+                    navigate(card.link)
                   } else if (card.scrollTo) {
                     const element = document.getElementById(card.scrollTo)
                     if (element) {

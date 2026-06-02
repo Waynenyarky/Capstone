@@ -42,46 +42,47 @@ export default function ApplicationTracker() {
   return (
     <Layout style={{ minHeight: '100vh', background: '#fff' }}>
       <HomeHeader visible={true} />
-      <Content style={{ display: 'flex', flexDirection: 'column' }}>
+      <Content style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 72px)' }}>
         {/* Two Panel Design */}
         <div
           style={{
             width: '100vw',
-            height: screens.md ? 'calc(100vh - 64px)' : 'auto',
+            height: screens.md ? 'calc(100vh - 72px)' : 'auto',
             display: 'flex',
             flexDirection: screens.md ? 'row' : 'column',
+            gap: screens.md ? '48px' : '16px',
           }}
         >
           {/* Left Panel - Form (40% on desktop, 100% on mobile) */}
           <div style={{
             width: screens.md ? '40%' : '100%',
             background: token.colorBgContainer,
-            padding: screens.md ? '48px 32px' : '32px 24px',
+            padding: screens.md ? '32px 48px 32px 48px' : '32px 24px 32px 16px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'flex-start',
-            justifyContent: 'center',
-            overflowY: 'auto',
+            justifyContent: 'flex-start',
+            overflowY: screens.md ? 'auto' : 'visible',
           }}>
             {!showResult ? (
               <BlurFade delay={0.2} duration={0.5} fullHeight={false}>
                 <div style={{ width: '100%', maxWidth: 400 }}>
-                  <Title level={2} style={{ marginBottom: 16, marginTop: 8, fontSize: screens.md ? 32 : 24 }}>
+                  <Title level={2} style={{ marginBottom: 16, marginTop: 24, fontSize: screens.md ? 32 : 24 }}>
                     Application Tracker
                   </Title>
-                  <Paragraph style={{ marginBottom: 32, lineHeight: 1.6, color: token.colorTextSecondary }}>
+                  <Paragraph style={{ marginBottom: 24, lineHeight: 1.6, color: token.colorTextSecondary }}>
                     Enter your receipt number to track the status of your business permit application.
                   </Paragraph>
 
-                  <div style={{ marginBottom: 24 }}>
-                    <Text style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
+                  <div style={{ marginBottom: 16 }}>
+                    <Text style={{ display: 'block', marginBottom: 8, fontSize: 14, marginTop: 8 }}>
                       Enter a Receipt Number
                     </Text>
                     <Input
                       placeholder="EAC1234567890"
                       value={referenceNumber}
                       onChange={(e) => setReferenceNumber(e.target.value)}
-                      style={{ marginBottom: 16 }}
+                      style={{ marginBottom: 12 }}
                     />
                     <Button
                       type="primary"
@@ -97,15 +98,16 @@ export default function ApplicationTracker() {
             ) : (
               <BlurFade delay={0.2} duration={0.5} fullHeight={false}>
                 <div style={{ width: '100%', maxWidth: 400 }}>
-                  <Title level={2} style={{ marginBottom: 24, marginTop: 8, fontSize: screens.md ? 32 : 24 }}>
-                    Application Status
+                  <Title level={2} style={{ marginBottom: 24, marginTop: 24, fontSize: screens.md ? 32 : 24 }}>
+                    Application Status Checker
                   </Title>
 
                   <div style={{
                     padding: 24,
-                    background: token.colorBgLayout,
+                    background: '#fff',
                     borderRadius: token.borderRadius,
-                    marginBottom: 24,
+                    marginBottom: 16,
+                    border: `1px solid ${token.colorBorder}`,
                   }}>
                     <div style={{ marginBottom: 16 }}>
                       <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
@@ -147,6 +149,10 @@ export default function ApplicationTracker() {
                   <Button onClick={handleReset} block>
                     Check Another Case
                   </Button>
+
+                  <div style={{ marginTop: 24 }}>
+                    <FaqSection />
+                  </div>
                 </div>
               </BlurFade>
             )}
@@ -169,11 +175,6 @@ export default function ApplicationTracker() {
               />
             </ZipperReveal>
           )}
-        </div>
-
-        {/* FAQ Section */}
-        <div style={{ padding: screens.md ? '60px 20px' : '40px 16px', maxWidth: 400, margin: '0 auto' }}>
-          <FaqSection />
         </div>
       </Content>
       <HomeFooter />
