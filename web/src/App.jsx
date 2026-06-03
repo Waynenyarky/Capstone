@@ -11,9 +11,11 @@ import { Login, SignUp, SignUpMfaSetup, ForgotPassword, DeletionPendingScreen } 
 // Lazy load routes - chunks load on navigation
 const TermsOfService = lazy(() => import("@/features/public").then(m => ({ default: m.TermsOfService })))
 const PrivacyPolicy = lazy(() => import("@/features/public").then(m => ({ default: m.PrivacyPolicy })))
+const BizClearManual = lazy(() => import("@/features/public").then(m => ({ default: m.BizClearManual })))
 const Maintenance = lazy(() => import("@/features/public").then(m => ({ default: m.Maintenance })))
 const VerifyPermitPage = lazy(() => import("@/features/public/pages/VerifyPermitPage.jsx"))
 const ApplicationTracker = lazy(() => import("@/features/public/pages/ApplicationTracker.jsx"))
+const HelpPage = lazy(() => import("@/features/public/pages/HelpPage.jsx"))
 const BusinessSearch = lazy(() => import("@/features/public/pages/BusinessSearch.jsx"))
 const PasskeyMobileAuth = lazy(() => import("@/features/authentication/pages/PasskeyMobileAuth.jsx"))
 const MfaSetup = lazy(() => import("@/features/authentication/mfa/components/MfaSetup.jsx"))
@@ -92,9 +94,11 @@ function App() {
         <Route path="/" element={<PublicRoute><Home /></PublicRoute>} />
       <Route path="/terms" element={<PublicRoute><TermsOfService /></PublicRoute>} />
       <Route path="/privacy" element={<PublicRoute><PrivacyPolicy /></PublicRoute>} />
+      <Route path="/manual" element={<PublicRoute><BizClearManual /></PublicRoute>} />
       <Route path="/maintenance" element={<PublicRoute><Maintenance /></PublicRoute>} />
       <Route path="/verify-permit/:permitNumber" element={<VerifyPermitPage />} />
       <Route path="/application-tracker" element={<PublicRoute><ApplicationTracker /></PublicRoute>} />
+      <Route path="/help" element={<PublicRoute><HelpPage /></PublicRoute>} />
       <Route path="/business-search" element={<PublicRoute><BusinessSearch /></PublicRoute>} />
       <Route path="/login" element={<PublicRoute><PageSlide><Login /></PageSlide></PublicRoute>} />
       <Route path="/forgot-password" element={<PublicRoute><PageSlide><ForgotPassword /></PageSlide></PublicRoute>} />

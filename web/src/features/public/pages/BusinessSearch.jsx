@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Typography, Input, Button, theme, Grid, Layout } from 'antd'
+import React, { useState } from 'react'
+import { Typography, Input, Button, theme, Grid, Layout, Pagination } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
 import HomeHeader from '../components/HomeHeader'
 import FaqSection from '../components/FaqSection'

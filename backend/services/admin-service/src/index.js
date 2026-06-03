@@ -339,6 +339,7 @@ async function start() {
         const result = await seedCmsContentIfEmpty()
         if (result.faq?.seeded) logger.info('CMS FAQ sections seeded', { created: result.faq.created })
         if (result.instructions?.seeded) logger.info('CMS instructions seeded', { created: result.instructions.created })
+        if (result.pages?.seeded) logger.info('CMS page content seeded', { created: result.pages.created })
       } catch (error) {
         logger.warn('CMS content seed failed', { error: error.message })
       }

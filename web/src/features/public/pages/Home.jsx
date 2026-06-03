@@ -1,4 +1,4 @@
-import { Layout, Grid, theme } from 'antd'
+import { Layout, theme } from 'antd'
 import HomeHeader from '../components/HomeHeader'
 import HeroSection from '../components/HeroSection'
 import TransparencyDashboard from '../components/TransparencyDashboard'
@@ -12,11 +12,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 const { Content } = Layout
-const { useBreakpoint } = Grid
 
 export default function Home() {
   const { token } = theme.useToken()
-  const screens = useBreakpoint()
   const [showHeader, setShowHeader] = useState(false)
   const [isExiting, setIsExiting] = useState(false)
   const [headerFadingOut, setHeaderFadingOut] = useState(false)
@@ -39,7 +37,6 @@ export default function Home() {
   const {
     announcements,
     maintenanceStatus,
-    permitForms,
     publicStats,
     announcementItems,
     hasAnnouncementPanel,

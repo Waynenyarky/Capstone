@@ -298,6 +298,7 @@ export default defineConfig({
       
       // Business endpoints -> Business Service (port 3002)
       '/api/business': createProxyConfig('/api/business', `http://localhost:${MICROSERVICES.business}`),
+      '/api/help-requests': createProxyConfig('/api/help-requests', `http://localhost:${MICROSERVICES.business}`),
       '/api/lgu-manager': createProxyConfig('/api/lgu-manager', `http://localhost:${MICROSERVICES.business}`),
 
       // Admin endpoints -> Admin Service (port 3003)
@@ -340,6 +341,7 @@ export default defineConfig({
       // All API endpoints -> Unified Backend (port 3000)
       '/api/auth': createProxyConfig('/api/auth', UNIFIED_BACKEND_TARGET),
       '/api/business': createProxyConfig('/api/business', UNIFIED_BACKEND_TARGET),
+      '/api/help-requests': createProxyConfig('/api/help-requests', UNIFIED_BACKEND_TARGET),
       '/api/admin': createProxyConfig('/api/admin', UNIFIED_BACKEND_TARGET),
       '/api/audit': createProxyConfig('/api/audit', UNIFIED_BACKEND_TARGET),
       '/api/maintenance': createProxyConfig('/api/maintenance', UNIFIED_BACKEND_TARGET),

@@ -11,6 +11,7 @@ import ContentItemList from './components/ContentItemList'
 import AnnouncementEditor from './components/AnnouncementEditor'
 import FaqSectionEditor from './components/FaqSectionEditor'
 import InstructionEditor from './components/InstructionEditor'
+import PageSectionEditor from './components/PageSectionEditor'
 import ApplicationProcessPlaceholder from './components/ApplicationProcessPlaceholder'
 import { get, put } from '@/lib/http.js'
 
@@ -88,6 +89,29 @@ export default function ContentManagementPage() {
     await fetchInstructions()
   }, [fetchInstructions])
 
+  // ─── Pages data ─────────────────────────────────────────────────────────────
+  const [pages, setPages] = useState([])
+  const [pagesLoading, setPagesLoading] = useState(true)
+
+  const fetchPages = useCallback(async () => {
+    try {
+      setPagesLoading(true)
+      const res = await get('/api/admin/cms/pages')
+      setPages(Array.isArray(res) ? res : [])
+    } catch {
+      message.error('Failed to load page content')
+    } finally {
+      setPagesLoading(false)
+    }
+  }, [message])
+
+  useEffect(() => { fetchPages() }, [fetchPages])
+
+  const handleSavePage = useCallback(async (slotId, values, publish = false) => {
+    await put(`/api/admin/cms/pages/${slotId}?publish=${publish}`, values)
+    await fetchPages()
+  }, [fetchPages])
+
   // ─── Filtered items based on content type ───────────────────────────────────────
   const filteredItems = useMemo(() => {
     let items = []
@@ -110,6 +134,14 @@ export default function ContentManagementPage() {
         items = instructions
         loading = instructionsLoading
         break
+      case 'privacy-policy':
+      case 'terms-of-service':
+      case 'bizclear-manual': {
+        const pageSlot = pages.find(p => p.slotId === contentType)
+        items = pageSlot ? [pageSlot] : []
+        loading = pagesLoading
+        break
+      }
       case 'application-processes':
         items = []
         loading = false
@@ -137,7 +169,7 @@ export default function ContentManagementPage() {
     }
 
     return { items, loading }
-  }, [contentType, search, statusFilter, priorityFilter, announcementsPublic, announcementsStaff, faqSections, faqLoading, instructions, instructionsLoading])
+  }, [contentType, search, statusFilter, priorityFilter, announcementsPublic, announcementsStaff, faqSections, faqLoading, instructions, instructionsLoading, pages, pagesLoading])
 
   useEffect(() => { setCurrentPage(1) }, [search, contentType, statusFilter, priorityFilter])
 
@@ -176,7 +208,7 @@ export default function ContentManagementPage() {
           }}
         >
           <Paragraph type="secondary" ellipsis={{ rows: 4 }} style={{ fontSize: 12, marginBottom: 0 }}>
-            {item.body || item.description || ''}
+            {item.body || item.description || item.introText || ''}
           </Paragraph>
         </Card>
       </Col>
@@ -214,10 +246,14 @@ export default function ContentManagementPage() {
         return <FaqSectionEditor selected={selectedItem} onSave={handleSaveFaq} />
       case 'instructions':
         return <InstructionEditor selected={selectedItem} onSave={handleSaveInstruction} />
+      case 'privacy-policy':
+      case 'terms-of-service':
+      case 'bizclear-manual':
+        return <PageSectionEditor selected={selectedItem} onSave={handleSavePage} />
       default:
         return null
     }
-  }, [contentType, config, selectedItem, announcementsPublic, announcementsStaff, handleSaveFaq, handleSaveInstruction])
+  }, [contentType, config, selectedItem, announcementsPublic, announcementsStaff, handleSaveFaq, handleSaveInstruction, handleSavePage])
 
   if (isMobile) {
     // Mobile view: select field + list, then drawer for details

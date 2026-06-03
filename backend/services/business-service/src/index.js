@@ -180,6 +180,10 @@ app.use('/api/business/permits', permitsRouter);
 app.use('/api/treasury', treasuryRouter);
 app.use('/api/inspections', inspectionSchedulingRouter);
 
+// Help Requests (public + officer)
+const helpRequestsRouter = require('./routes/helpRequests');
+app.use('/api/help-requests', helpRequestsRouter);
+
 const adminStatsRouter = require('./routes/adminStats');
 app.use('/api/business/admin', adminStatsRouter);
 

@@ -1,6 +1,7 @@
 const express = require('express')
 const FaqSection = require('../models/FaqSection')
 const InstructionContent = require('../models/InstructionContent')
+const PageContent = require('../models/PageContent')
 const AuditLog = require('../models/AuditLog')
 const { requireJwt } = require('../middleware/auth')
 const logger = require('../lib/logger')
@@ -39,6 +40,24 @@ publicRouter.get('/instructions/:slotId', async (req, res) => {
     return res.json(responseData)
   } catch (err) {
     logger.error('GET /api/cms/instructions/:slotId failed', { error: err.message })
+    return res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// GET /api/cms/pages/:slotId — public fetch of page content
+publicRouter.get('/pages/:slotId', async (req, res) => {
+  try {
+    const doc = await PageContent.findOne({ slotId: req.params.slotId }).lean()
+    if (!doc) return res.status(404).json({ error: 'Page content not found' })
+    const hasPublishedData = doc.isPublished && doc.publishedData && (
+      doc.publishedData.introText || (doc.publishedData.sections && doc.publishedData.sections.length > 0)
+    )
+    const responseData = hasPublishedData
+      ? { ...doc, introText: doc.publishedData.introText, sections: doc.publishedData.sections }
+      : { ...doc, introText: doc.introText, sections: doc.sections }
+    return res.json(responseData)
+  } catch (err) {
+    logger.error('GET /api/cms/pages/:slotId failed', { error: err.message })
     return res.status(500).json({ error: 'Internal server error' })
   }
 })
@@ -245,6 +264,81 @@ adminRouter.put('/instructions/:slotId', requireJwt, async (req, res) => {
   }
 })
 
+// GET /api/admin/cms/pages — list all page content slots
+adminRouter.get('/pages', requireJwt, async (req, res) => {
+  try {
+    const docs = await PageContent.find().sort({ slotId: 1 }).lean()
+    const responseData = docs.map(doc => {
+      const hasDraftData = doc.draftData && (
+        doc.draftData.introText || (doc.draftData.sections && doc.draftData.sections.length > 0)
+      )
+      return {
+        ...doc,
+        introText: hasDraftData ? doc.draftData.introText : doc.introText,
+        sections: hasDraftData ? doc.draftData.sections : doc.sections,
+      }
+    })
+    return res.json(responseData)
+  } catch (err) {
+    logger.error('GET /api/admin/cms/pages failed', { error: err.message })
+    return res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// PUT /api/admin/cms/pages/:slotId — update page content (edit only, no create/delete slots)
+adminRouter.put('/pages/:slotId', requireJwt, async (req, res) => {
+  try {
+    const { introText, sections } = req.body
+    const { publish = false } = req.query
+
+    const doc = await PageContent.findOne({ slotId: req.params.slotId })
+    if (!doc) return res.status(404).json({ error: 'Page content not found' })
+
+    if (sections !== undefined && !Array.isArray(sections)) {
+      return res.status(400).json({ error: 'sections must be an array' })
+    }
+
+    if (publish) {
+      const previousState = { ...doc.toObject() }
+      doc.publishedData = { introText, sections }
+      doc.isPublished = true
+      doc.introText = introText
+      doc.sections = sections
+      doc.updatedBy = req._userId
+      await doc.save()
+
+      const newState = doc.toObject()
+      const changedFields = []
+      if (previousState.introText !== newState.introText) changedFields.push('introText')
+      if (JSON.stringify(previousState.sections) !== JSON.stringify(newState.sections)) changedFields.push('sections')
+
+      createAuditLog(
+        req._userId,
+        'page_updated',
+        null,
+        JSON.stringify(previousState),
+        JSON.stringify(newState),
+        'admin',
+        {
+          slotId: doc.slotId,
+          contentType: 'page',
+          changedFields,
+        },
+        doc.slotId
+      ).catch((err) => logger.warn('Failed to create audit log for page update', { error: err.message }))
+    } else {
+      doc.draftData = { introText, sections }
+      doc.updatedBy = req._userId
+      await doc.save()
+    }
+
+    return res.json(doc.toObject())
+  } catch (err) {
+    logger.error('PUT /api/admin/cms/pages/:slotId failed', { error: err.message })
+    return res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // GET /api/admin/cms/audit/:slotId — fetch audit logs for a specific CMS slot
 adminRouter.get('/audit/:slotId', requireJwt, async (req, res) => {
   try {
@@ -257,7 +351,7 @@ adminRouter.get('/audit/:slotId', requireJwt, async (req, res) => {
 
     const filter = {
       slotId,
-      eventType: { $in: ['faq_updated', 'instruction_updated'] },
+      eventType: { $in: ['faq_updated', 'instruction_updated', 'page_updated'] },
     }
     logger.info('Query filter before find', { filter })
 

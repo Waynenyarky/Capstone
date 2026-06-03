@@ -11,6 +11,8 @@ import BusinessOwnerDetailPanel from '../components/BusinessOwnerDetailPanel'
 import EditOwnerModal from '../components/EditOwnerModal'
 import LogDetailPanel from '../components/LogDetailPanel'
 import LogsTable from '../components/LogsTable'
+import HelpRequestsPanel from '../components/HelpRequestsPanel'
+import HelpRequestDetailPanel from '../components/HelpRequestDetailPanel'
 import ClaimBar from '../components/ClaimBar'
 import OfficerItemCard from '../components/OfficerItemCard'
 import OwnersListPanel from '../components/OwnersListPanel'
@@ -106,6 +108,7 @@ export default function OfficerRightPanel({
       renewals: officerData.renewals,
       cessation: officerData.cessations,
       inspections: officerData.inspections,
+      helpRequests: officerData.helpRequests,
       owners: officerData.owners,
       drafts: officerData.drafts,
       logs: officerData.logs,
@@ -728,6 +731,34 @@ export default function OfficerRightPanel({
       <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Empty description="Unknown item type" />
       </div>
+    )
+  }
+
+  // Help Requests tab - dedicated panel layout
+  if (activeTab === 'helpRequests' && !showSettings) {
+    return (
+      <Splitter style={{ height: '100%' }}>
+        <Splitter.Panel min="30%" defaultSize="30%" style={{ overflow: 'hidden' }}>
+          <HelpRequestsPanel
+            helpRequests={officerData?.helpRequests || []}
+            isLoading={officerData?.loadingMap?.helpRequests}
+            onSelectRequest={(req) => onItemSelect({ ...req, _itemType: 'helpRequests', _itemId: req.requestId })}
+          />
+        </Splitter.Panel>
+        <Splitter.Panel min="40%" defaultSize="70%" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          {selectedItem?._itemType === 'helpRequests' ? (
+            <HelpRequestDetailPanel
+              request={selectedItem}
+              onBack={() => onItemSelect(null)}
+              onRefresh={() => officerData?.refreshHelpRequests?.()}
+            />
+          ) : (
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Select a help request to view details" />
+            </div>
+          )}
+        </Splitter.Panel>
+      </Splitter>
     )
   }
 

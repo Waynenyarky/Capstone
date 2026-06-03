@@ -48,6 +48,14 @@ export default function HomeFooter() {
             >
               Privacy Policy
             </Link>
+            <Link
+              to="/manual"
+              style={linkStyle}
+              onMouseEnter={(e) => e.target.style.color = token.colorPrimary}
+              onMouseLeave={(e) => e.target.style.color = token.colorTextSecondary}
+            >
+              BizClear Manual
+            </Link>
             <a
               href="https://alaminoscity.gov.ph/public-service/city-services/City%20Government%20of%20Alaminos,%20Pangasinan%20Citizen's%20Charter.pdf"
               target="_blank"

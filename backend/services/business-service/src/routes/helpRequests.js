@@ -1,0 +1,438 @@
+const express = require('express')
+const crypto = require('crypto')
+const { requireJwt, requireRole } = require('../middleware/auth')
+const respond = require('../middleware/respond')
+const HelpRequest = require('../models/HelpRequest')
+const logger = require('../lib/logger')
+const {
+  sendHelpRequestConfirmation,
+  sendOfficerReplyNotification,
+  sendRequestClosedNotification,
+  sendRequestInvalidNotification,
+} = require('../lib/helpRequestMailer')
+
+const router = express.Router()
+
+function generateRequestId() {
+  const ts = Date.now().toString(36)
+  const rand = crypto.randomBytes(3).toString('hex')
+  return `HR-${ts}-${rand}`.toUpperCase()
+}
+
+const VALID_STATUSES = ['open', 'in_progress', 'needs_response', 'waiting_for_business_owner', 'closed', 'invalid']
+const VALID_PRIORITIES = ['low', 'normal', 'high']
+const PRIORITY_ORDER = { high: 0, normal: 1, low: 2 }
+
+// ─── PUBLIC: Submit Help Request ─────────────────────────────────────────────
+// POST /api/help-requests
+router.post('/', async (req, res) => {
+  try {
+    const { subject, message, contactEmail, businessPermitNumber, attachments } = req.body || {}
+
+    if (!subject || !subject.trim()) {
+      return respond.error(res, 400, 'validation_error', 'Subject is required')
+    }
+    if (!message || !message.trim()) {
+      return respond.error(res, 400, 'validation_error', 'Message is required')
+    }
+    if (!contactEmail || !contactEmail.includes('@')) {
+      return respond.error(res, 400, 'validation_error', 'A valid contact email is required')
+    }
+
+    const requestId = generateRequestId()
+
+    const helpRequest = await HelpRequest.create({
+      requestId,
+      subject: subject.trim(),
+      message: message.trim(),
+      contactEmail: contactEmail.trim().toLowerCase(),
+      businessPermitNumber: (businessPermitNumber || '').trim(),
+      attachments: Array.isArray(attachments) ? attachments.filter(Boolean) : [],
+      status: 'open',
+      priority: 'low',
+    })
+
+    // Send confirmation email (fire-and-forget)
+    sendHelpRequestConfirmation(contactEmail.trim().toLowerCase(), requestId, subject.trim())
+      .catch((err) => logger.error('Help request confirmation email failed', { error: err.message }))
+
+    return res.status(201).json({
+      success: true,
+      requestId: helpRequest.requestId,
+      message: 'Help request submitted successfully. A confirmation email has been sent.',
+    })
+  } catch (err) {
+    logger.error('POST /api/help-requests error', { error: err.message })
+    return respond.error(res, 500, 'help_request_failed', 'Failed to submit help request')
+  }
+})
+
+// ─── PUBLIC: Business owner reply ────────────────────────────────────────────
+// POST /api/help-requests/:requestId/reply
+router.post('/:requestId/reply', async (req, res) => {
+  try {
+    const { requestId } = req.params
+    const { content, contactEmail, attachments } = req.body || {}
+
+    if (!content || !content.trim()) {
+      return respond.error(res, 400, 'validation_error', 'Message content is required')
+    }
+    if (!contactEmail || !contactEmail.includes('@')) {
+      return respond.error(res, 400, 'validation_error', 'Contact email is required for verification')
+    }
+
+    const helpRequest = await HelpRequest.findOne({ requestId })
+    if (!helpRequest) {
+      return respond.error(res, 404, 'not_found', 'Help request not found')
+    }
+
+    // Verify email matches the original submitter
+    if (helpRequest.contactEmail.toLowerCase() !== contactEmail.trim().toLowerCase()) {
+      return respond.error(res, 403, 'email_mismatch', 'Contact email does not match the original request')
+    }
+
+    // Don't allow replies on closed/invalid requests
+    if (['closed', 'invalid'].includes(helpRequest.status)) {
+      return respond.error(res, 400, 'request_closed', 'This help request is closed and cannot receive new replies')
+    }
+
+    helpRequest.messages.push({
+      sender: 'business_owner',
+      senderName: contactEmail.trim(),
+      content: content.trim(),
+      attachments: Array.isArray(attachments) ? attachments.filter(Boolean) : [],
+    })
+
+    helpRequest.status = 'waiting_for_business_owner'
+    await helpRequest.save()
+
+    return res.json({
+      success: true,
+      message: 'Reply sent successfully',
+    })
+  } catch (err) {
+    logger.error('POST /api/help-requests/:requestId/reply error', { error: err.message })
+    return respond.error(res, 500, 'reply_failed', 'Failed to send reply')
+  }
+})
+
+// ─── PUBLIC: Get request details (by requestId + contactEmail) ────────────────
+// GET /api/help-requests/:requestId/public
+router.get('/:requestId/public', async (req, res) => {
+  try {
+    const { requestId } = req.params
+    const { email } = req.query
+
+    if (!email || !email.includes('@')) {
+      return respond.error(res, 400, 'validation_error', 'Email is required')
+    }
+
+    const helpRequest = await HelpRequest.findOne({ requestId })
+    if (!helpRequest) {
+      return respond.error(res, 404, 'not_found', 'Help request not found')
+    }
+
+    if (helpRequest.contactEmail.toLowerCase() !== email.trim().toLowerCase()) {
+      return respond.error(res, 403, 'email_mismatch', 'Email does not match')
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        requestId: helpRequest.requestId,
+        subject: helpRequest.subject,
+        message: helpRequest.message,
+        status: helpRequest.status,
+        priority: helpRequest.priority,
+        contactEmail: helpRequest.contactEmail,
+        businessPermitNumber: helpRequest.businessPermitNumber,
+        attachments: helpRequest.attachments,
+        messages: helpRequest.messages.map((m) => ({
+          sender: m.sender,
+          senderName: m.senderName,
+          content: m.content,
+          attachments: m.attachments,
+          createdAt: m.createdAt,
+        })),
+        createdAt: helpRequest.createdAt,
+        updatedAt: helpRequest.updatedAt,
+      },
+    })
+  } catch (err) {
+    logger.error('GET /api/help-requests/:requestId/public error', { error: err.message })
+    return respond.error(res, 500, 'fetch_failed', 'Failed to fetch help request')
+  }
+})
+
+// ─── OFFICER: List Help Requests ─────────────────────────────────────────────
+// GET /api/help-requests
+router.get('/', requireJwt, requireRole(['lgu_officer', 'admin']), async (req, res) => {
+  try {
+    const { status, priority, limit = 100 } = req.query
+    const filter = {}
+
+    if (status && VALID_STATUSES.includes(status)) {
+      filter.status = status
+    }
+    if (priority && VALID_PRIORITIES.includes(priority)) {
+      filter.priority = priority
+    }
+
+    const requests = await HelpRequest.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(Number(limit))
+      .lean()
+
+    // Sort by priority then by date
+    requests.sort((a, b) => {
+      const pa = PRIORITY_ORDER[a.priority] ?? 2
+      const pb = PRIORITY_ORDER[b.priority] ?? 2
+      if (pa !== pb) return pa - pb
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    })
+
+    // Count by status for badge
+    const counts = await HelpRequest.aggregate([
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ])
+    const countMap = {}
+    for (const c of counts) {
+      countMap[c._id] = c.count
+    }
+    const openCount = (countMap.open || 0) + (countMap.in_progress || 0) + (countMap.needs_response || 0) + (countMap.waiting_for_business_owner || 0)
+
+    return res.json({
+      success: true,
+      data: requests.map((r) => ({
+        _id: r._id,
+        requestId: r.requestId,
+        subject: r.subject,
+        contactEmail: r.contactEmail,
+        businessPermitNumber: r.businessPermitNumber,
+        status: r.status,
+        priority: r.priority,
+        claimedBy: r.claimedBy,
+        claimedByName: r.claimedByName,
+        claimedAt: r.claimedAt,
+        messageCount: (r.messages || []).length,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      })),
+      counts: countMap,
+      openCount,
+    })
+  } catch (err) {
+    logger.error('GET /api/help-requests error', { error: err.message })
+    return respond.error(res, 500, 'fetch_failed', 'Failed to fetch help requests')
+  }
+})
+
+// ─── OFFICER: Get Single Help Request ────────────────────────────────────────
+// GET /api/help-requests/:requestId
+router.get('/:requestId', requireJwt, requireRole(['lgu_officer', 'admin']), async (req, res) => {
+  try {
+    const { requestId } = req.params
+    const helpRequest = await HelpRequest.findOne({ requestId })
+    if (!helpRequest) {
+      return respond.error(res, 404, 'not_found', 'Help request not found')
+    }
+
+    return res.json({
+      success: true,
+      data: helpRequest.toObject(),
+    })
+  } catch (err) {
+    logger.error('GET /api/help-requests/:requestId error', { error: err.message })
+    return respond.error(res, 500, 'fetch_failed', 'Failed to fetch help request')
+  }
+})
+
+// ─── OFFICER: Claim Request ──────────────────────────────────────────────────
+// PUT /api/help-requests/:requestId/claim
+router.put('/:requestId/claim', requireJwt, requireRole(['lgu_officer', 'admin']), async (req, res) => {
+  try {
+    const { requestId } = req.params
+    const helpRequest = await HelpRequest.findOne({ requestId })
+    if (!helpRequest) {
+      return respond.error(res, 404, 'not_found', 'Help request not found')
+    }
+
+    if (helpRequest.claimedBy && String(helpRequest.claimedBy) !== req._userId) {
+      return respond.error(res, 409, 'already_claimed', 'This request is already claimed by another officer')
+    }
+
+    helpRequest.claimedBy = req._userId
+    helpRequest.claimedByName = req._userEmail || ''
+    helpRequest.claimedAt = new Date()
+    if (helpRequest.status === 'open') {
+      helpRequest.status = 'in_progress'
+    }
+    await helpRequest.save()
+
+    return res.json({ success: true, data: helpRequest.toObject() })
+  } catch (err) {
+    logger.error('PUT /api/help-requests/:requestId/claim error', { error: err.message })
+    return respond.error(res, 500, 'claim_failed', 'Failed to claim help request')
+  }
+})
+
+// ─── OFFICER: Release Request ────────────────────────────────────────────────
+// PUT /api/help-requests/:requestId/release
+router.put('/:requestId/release', requireJwt, requireRole(['lgu_officer', 'admin']), async (req, res) => {
+  try {
+    const { requestId } = req.params
+    const helpRequest = await HelpRequest.findOne({ requestId })
+    if (!helpRequest) {
+      return respond.error(res, 404, 'not_found', 'Help request not found')
+    }
+
+    if (helpRequest.claimedBy && String(helpRequest.claimedBy) !== req._userId) {
+      return respond.error(res, 403, 'not_owner', 'Only the claiming officer can release this request')
+    }
+
+    helpRequest.claimedBy = null
+    helpRequest.claimedByName = ''
+    helpRequest.claimedAt = null
+    if (helpRequest.status === 'in_progress') {
+      helpRequest.status = 'open'
+    }
+    await helpRequest.save()
+
+    return res.json({ success: true, data: helpRequest.toObject() })
+  } catch (err) {
+    logger.error('PUT /api/help-requests/:requestId/release error', { error: err.message })
+    return respond.error(res, 500, 'release_failed', 'Failed to release help request')
+  }
+})
+
+// ─── OFFICER: Update Status ──────────────────────────────────────────────────
+// PUT /api/help-requests/:requestId/status
+router.put('/:requestId/status', requireJwt, requireRole(['lgu_officer', 'admin']), async (req, res) => {
+  try {
+    const { requestId } = req.params
+    const { status } = req.body || {}
+
+    if (!status || !VALID_STATUSES.includes(status)) {
+      return respond.error(res, 400, 'validation_error', `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}`)
+    }
+
+    const helpRequest = await HelpRequest.findOne({ requestId })
+    if (!helpRequest) {
+      return respond.error(res, 404, 'not_found', 'Help request not found')
+    }
+
+    helpRequest.status = status
+    await helpRequest.save()
+
+    // Send email notifications for terminal statuses
+    if (status === 'closed') {
+      sendRequestClosedNotification(helpRequest.contactEmail, requestId, helpRequest.subject)
+        .catch((err) => logger.error('Failed to send closed notification', { error: err.message }))
+    } else if (status === 'invalid') {
+      sendRequestInvalidNotification(helpRequest.contactEmail, requestId, helpRequest.subject)
+        .catch((err) => logger.error('Failed to send invalid notification', { error: err.message }))
+    }
+
+    return res.json({ success: true, data: helpRequest.toObject() })
+  } catch (err) {
+    logger.error('PUT /api/help-requests/:requestId/status error', { error: err.message })
+    return respond.error(res, 500, 'status_update_failed', 'Failed to update status')
+  }
+})
+
+// ─── OFFICER: Update Priority ────────────────────────────────────────────────
+// PUT /api/help-requests/:requestId/priority
+router.put('/:requestId/priority', requireJwt, requireRole(['lgu_officer', 'admin']), async (req, res) => {
+  try {
+    const { requestId } = req.params
+    const { priority } = req.body || {}
+
+    if (!priority || !VALID_PRIORITIES.includes(priority)) {
+      return respond.error(res, 400, 'validation_error', `Invalid priority. Must be one of: ${VALID_PRIORITIES.join(', ')}`)
+    }
+
+    const helpRequest = await HelpRequest.findOne({ requestId })
+    if (!helpRequest) {
+      return respond.error(res, 404, 'not_found', 'Help request not found')
+    }
+
+    helpRequest.priority = priority
+    await helpRequest.save()
+
+    return res.json({ success: true, data: helpRequest.toObject() })
+  } catch (err) {
+    logger.error('PUT /api/help-requests/:requestId/priority error', { error: err.message })
+    return respond.error(res, 500, 'priority_update_failed', 'Failed to update priority')
+  }
+})
+
+// ─── OFFICER: Add Message (Reply) ────────────────────────────────────────────
+// POST /api/help-requests/:requestId/messages
+router.post('/:requestId/messages', requireJwt, requireRole(['lgu_officer', 'admin']), async (req, res) => {
+  try {
+    const { requestId } = req.params
+    const { content, attachments } = req.body || {}
+
+    if (!content || !content.trim()) {
+      return respond.error(res, 400, 'validation_error', 'Message content is required')
+    }
+
+    const helpRequest = await HelpRequest.findOne({ requestId })
+    if (!helpRequest) {
+      return respond.error(res, 404, 'not_found', 'Help request not found')
+    }
+
+    helpRequest.messages.push({
+      sender: 'officer',
+      senderName: req._userEmail || 'Officer',
+      content: content.trim(),
+      attachments: Array.isArray(attachments) ? attachments.filter(Boolean) : [],
+    })
+
+    // Update status to needs_response (waiting for business owner reply)
+    helpRequest.status = 'needs_response'
+    await helpRequest.save()
+
+    // Send email notification to business owner
+    const preview = content.trim().substring(0, 200) + (content.trim().length > 200 ? '...' : '')
+    sendOfficerReplyNotification(helpRequest.contactEmail, requestId, preview)
+      .catch((err) => logger.error('Failed to send officer reply email', { error: err.message }))
+
+    return res.json({ success: true, data: helpRequest.toObject() })
+  } catch (err) {
+    logger.error('POST /api/help-requests/:requestId/messages error', { error: err.message })
+    return respond.error(res, 500, 'message_failed', 'Failed to add message')
+  }
+})
+
+// ─── OFFICER: Add Internal Note ──────────────────────────────────────────────
+// POST /api/help-requests/:requestId/internal-notes
+router.post('/:requestId/internal-notes', requireJwt, requireRole(['lgu_officer', 'admin']), async (req, res) => {
+  try {
+    const { requestId } = req.params
+    const { content } = req.body || {}
+
+    if (!content || !content.trim()) {
+      return respond.error(res, 400, 'validation_error', 'Note content is required')
+    }
+
+    const helpRequest = await HelpRequest.findOne({ requestId })
+    if (!helpRequest) {
+      return respond.error(res, 404, 'not_found', 'Help request not found')
+    }
+
+    helpRequest.internalNotes.push({
+      content: content.trim(),
+      addedBy: req._userId,
+      addedByName: req._userEmail || 'Officer',
+    })
+    await helpRequest.save()
+
+    return res.json({ success: true, data: helpRequest.toObject() })
+  } catch (err) {
+    logger.error('POST /api/help-requests/:requestId/internal-notes error', { error: err.message })
+    return respond.error(res, 500, 'note_failed', 'Failed to add internal note')
+  }
+})
+
+module.exports = router

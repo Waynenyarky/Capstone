@@ -69,6 +69,7 @@ export default function useOfficerData(activeTab, refreshTrigger) {
   const [inspections, setInspections] = useState([])
   const [owners, setOwners] = useState([])
   const [drafts, setDrafts] = useState([])
+  const [helpRequests, setHelpRequests] = useState([])
   const [logs, setLogs] = useState([])
 
   // Loading states
@@ -435,6 +436,21 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     finally { setTabLoading('inspections', false) }
   }, [])
 
+  const fetchHelpRequests = useCallback(async () => {
+    setTabLoading('helpRequests', true)
+    try {
+      const res = await get('/api/help-requests', { skipAutoLogout: true })
+      const list = res?.data || []
+      const openCount = res?.openCount || 0
+      setHelpRequests(list)
+      setCounts(prev => ({ ...prev, helpRequests: openCount }))
+    } catch {
+      setHelpRequests([])
+      setCounts(prev => ({ ...prev, helpRequests: 0 }))
+    }
+    finally { setTabLoading('helpRequests', false) }
+  }, [])
+
   const fetchLogs = useCallback(async () => {
     setTabLoading('logs', true)
     try {
@@ -457,10 +473,11 @@ export default function useOfficerData(activeTab, refreshTrigger) {
       case 'cessation': return fetchCessations()
       case 'inspections': return fetchInspections()
       case 'owners': return fetchOwners(ownerSearch)
+      case 'helpRequests': return fetchHelpRequests()
       case 'drafts': return fetchDrafts()
       case 'logs': return fetchLogs()
     }
-  }, [activeTab, fetchToReview, fetchApplications, fetchAppeals, fetchEditRequests, fetchRenewals, fetchCessations, fetchInspections, fetchOwners, fetchDrafts, fetchLogs, ownerSearch])
+  }, [activeTab, fetchToReview, fetchApplications, fetchAppeals, fetchEditRequests, fetchRenewals, fetchCessations, fetchInspections, fetchOwners, fetchHelpRequests, fetchDrafts, fetchLogs, ownerSearch])
 
   // Fetch on tab change
   useEffect(() => {
@@ -476,6 +493,7 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     fetchRenewals()
     fetchCessations()
     fetchInspections()
+    fetchHelpRequests()
     fetchDrafts()
   }, [currentUser?.id])
 
@@ -505,6 +523,7 @@ export default function useOfficerData(activeTab, refreshTrigger) {
       renewals, 
       cessation: cessations,
       inspections,
+      helpRequests,
       owners, 
       drafts, 
       logs 
@@ -528,6 +547,7 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     renewals,
     cessations,
     inspections,
+    helpRequests,
     owners,
     drafts,
     logs,
@@ -547,5 +567,6 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     refreshEditRequests: fetchEditRequests,
     refreshCessations: fetchCessations,
     refreshInspections: fetchInspections,
+    refreshHelpRequests: fetchHelpRequests,
   }
 }

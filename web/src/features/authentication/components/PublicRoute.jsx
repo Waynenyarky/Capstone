@@ -15,7 +15,7 @@ export default function PublicRoute({ children }) {
   const location = useLocation()
   const authEventUser = getAuthEventCurrentUser()
   const effectiveUser = currentUser || authEventUser
-  const publicPages = ['/', '/login', '/forgot-password', '/sign-up', '/terms', '/privacy', '/maintenance']
+  const publicPages = ['/', '/login', '/forgot-password', '/sign-up', '/terms', '/privacy', '/manual', '/maintenance']
   const maintenance = useMaintenanceStatus({ enabled: !publicPages.includes(location.pathname) })
 
   if (isLoading || maintenance.loading) {
@@ -25,7 +25,7 @@ export default function PublicRoute({ children }) {
   // If maintenance mode is active, redirect to maintenance page (except for admin users and allowed public pages)
   if (maintenance.active && location.pathname !== '/maintenance') {
     const roleKey = normalizeRoleKey(role)
-    const allowedPublicPages = ['/', '/login', '/forgot-password', '/sign-up', '/terms', '/privacy']
+    const allowedPublicPages = ['/', '/login', '/forgot-password', '/sign-up', '/terms', '/privacy', '/manual']
     
     // Allow admin users and specific public pages during maintenance
     if (roleKey !== 'admin' && !allowedPublicPages.includes(location.pathname)) {
