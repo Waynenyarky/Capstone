@@ -7,11 +7,11 @@ export default function BusinessProfile({ business, onReport, onBack, token, scr
   return (
     <div>
       <Button
-        type="text"
+        type="default"
         onClick={onBack}
-        style={{ marginBottom: 16, padding: 0 }}
+        style={{ marginBottom: 16, marginTop: 48 }}
       >
-        &larr; Back to Results
+        Back to Results
       </Button>
 
       <div
@@ -19,6 +19,7 @@ export default function BusinessProfile({ business, onReport, onBack, token, scr
           border: `1px solid ${token.colorBorderSecondary}`,
           borderRadius: token.borderRadius,
           padding: screens.md ? '32px' : '24px',
+          marginTop: 32,
         }}
       >
         <div style={{
@@ -33,23 +34,20 @@ export default function BusinessProfile({ business, onReport, onBack, token, scr
             <Title level={3} style={{ marginBottom: 8 }}>
               {business?.name}
             </Title>
-            <Tag color="success" style={{ fontSize: 13, fontWeight: 500, padding: '4px 12px' }}>
-              {business?.verificationBadge}
-            </Tag>
           </div>
-          <div style={{
-            padding: '8px 16px',
-            borderRadius: token.borderRadius,
-            background: token.colorBgLayout,
-            border: `1px solid ${token.colorBorder}`,
-          }}>
-            <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
-              Verification ID
-            </Text>
-            <Text strong style={{ fontSize: 14 }}>
-              {business?.id}
-            </Text>
-          </div>
+        </div>
+
+        <div style={{ marginBottom: 24 }}>
+          <Tag color={
+            business?.verificationBadge === 'Active' ? 'success' :
+            business?.verificationBadge === 'For Renewal' ? 'warning' :
+            business?.verificationBadge === 'Expired' ? 'error' :
+            business?.verificationBadge === 'Suspended' ? 'error' :
+            business?.verificationBadge === 'Retired' ? 'default' :
+            'default'
+          }>
+            {business?.verificationBadge}
+          </Tag>
         </div>
 
         <div style={{
@@ -58,6 +56,30 @@ export default function BusinessProfile({ business, onReport, onBack, token, scr
           gap: 16,
           marginBottom: 24,
         }}>
+          <div>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+              Permit ID
+            </Text>
+            <Text strong style={{ fontSize: 16 }}>
+              {business?.permitNo}
+            </Text>
+          </div>
+          <div>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+              Name of Owner/Proprietor/Company Representative
+            </Text>
+            <Text strong style={{ fontSize: 16 }}>
+              {business?.ownerName}
+            </Text>
+          </div>
+          <div>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+              Address of Owner/Proprietor/Company Representative
+            </Text>
+            <Text strong style={{ fontSize: 16 }}>
+              {business?.ownerAddress}
+            </Text>
+          </div>
           <div>
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
               Status
@@ -70,23 +92,55 @@ export default function BusinessProfile({ business, onReport, onBack, token, scr
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
               Permit Validity
             </Text>
-            <Text strong style={{ fontSize: 16 }}>
+            <Text strong>
               {business?.permitValidity}
+            </Text>
+          </div>
+          <div>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+              Issued on:
+            </Text>
+            <Text strong style={{ fontSize: 16 }}>
+              {business?.issuedOn}
+            </Text>
+          </div>
+          <div>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+              Issued at:
+            </Text>
+            <Text strong style={{ fontSize: 16 }}>
+              {business?.issuedAt}
+            </Text>
+          </div>
+          <div>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+              Paid Under O.R. No.:
+            </Text>
+            <Text strong style={{ fontSize: 16 }}>
+              {business?.orNumber}
+            </Text>
+          </div>
+          <div>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+              Amount Paid:
+            </Text>
+            <Text strong style={{ fontSize: 16 }}>
+              {business?.amountPaid}
             </Text>
           </div>
           <div>
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
               Business Type
             </Text>
-            <Text strong style={{ fontSize: 16 }}>
+            <Text strong>
               {business?.businessType}
             </Text>
           </div>
           <div>
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
-              Barangay
+              Business Address
             </Text>
-            <Text strong style={{ fontSize: 16 }}>
+            <Text strong>
               {business?.barangay}
             </Text>
           </div>
@@ -94,6 +148,7 @@ export default function BusinessProfile({ business, onReport, onBack, token, scr
 
         <Button
           danger
+          size="middle"
           icon={<ExclamationCircleOutlined />}
           onClick={onReport}
           block

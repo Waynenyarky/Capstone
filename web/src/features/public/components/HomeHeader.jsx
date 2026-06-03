@@ -1,6 +1,8 @@
 import { Layout, Button, Typography, Space, Grid, theme } from 'antd'
 import { useLottie } from 'lottie-react'
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
+import BizClearLogo from '@/shared/components/BizClearLogo.jsx'
 
 const { Header } = Layout
 const { Title } = Typography
