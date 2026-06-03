@@ -296,12 +296,14 @@ router.post('/forgot-password/resend', sendCodeLimiter, validateBody(emailOnlySc
     const userAgent = req.headers['user-agent'] || 'unknown'
 
     // Check existence — always return generic response to prevent email enumeration
-    const user = await User.findOne({ email: emailKey }).populate('role').lean()
+    const user = await User.findOne({ email: emailKey }).populate('role').select('+mfaSecret').lean()
     if (!user) return res.json({ sent: true })
 
     const roleSlug = user.role?.slug || 'user'
+    const hasMfa = user.mfaEnabled && user.mfaSecret && user.mfaSecret.trim() !== ''
+
     if (!isBusinessOwnerRole(roleSlug)) {
-      // Admin/staff: send "not available" email (no code), alert admins, return resetNotAvailable so UI skips verify step
+      // Admin/staff: send "not available" email (no code), alert admins
       await createAuditLog(
         user._id,
         'security_event',
@@ -312,16 +314,54 @@ router.post('/forgot-password/resend', sendCodeLimiter, validateBody(emailOnlySc
         { ip: ipAddress, userAgent, reason: 'recovery_not_available_for_role' }
       )
       await createSecurityIncidentForForgotPasswordAttempt({ userId: user._id, userEmail: emailKey, roleSlug, ipAddress, userAgent })
-      await sendStaffOrAdminForgotPasswordAlertEmail({ to: process.env.DEFAULT_FROM_EMAIL, adminName: 'Admin', userId: user._id, userEmail: emailKey, roleSlug, ipAddress, userAgent })
-      return res.json({ resetNotAvailable: true })
+      const emailResult = await sendForgotPasswordNotAvailableEmail({
+        to: email,
+        roleSlug,
+      })
+      if (!emailResult || !emailResult.success) {
+        console.error(`[Password Reset Resend] Failed to send not-available email to ${email}:`, emailResult?.error || 'Unknown error')
+        return respond.error(res, 500, 'email_send_failed', `Failed to send email: ${emailResult?.error || 'Please check your email configuration'}`)
+      }
+      return res.json({ sent: true })
     }
 
-    // Business owner: generate and send reset code
-    const code = generateSecureOtp()
-    const hashedCode = await bcrypt.hash(code, 10)
+    // If user has MFA enabled, don't send email OTP - require MFA verification
+    if (hasMfa) {
+      const payload = { sent: true, requiresMfa: true }
+      return res.json(payload)
+    }
 
-    // Store hashed code with expiration (15 minutes)
-    await storeResetCode(emailKey, hashedCode, 15 * 60 * 1000)
+    // Business owner without MFA: generate and send reset code
+    const code = generateCode()
+    const expiresAtMs = Date.now() + 10 * 60 * 1000 // 10 minutes
+    const useDB = mongoose.connection && mongoose.connection.readyState === 1
+    if (useDB) {
+      await ResetRequest.findOneAndUpdate(
+        { email: emailKey },
+        {
+          code,
+          expiresAt: new Date(expiresAtMs),
+          verified: false,
+          resetToken: null,
+          metadata: {
+            ipAddress,
+            userAgent,
+          },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      )
+    } else {
+      resetRequests.set(emailKey, {
+        code,
+        expiresAt: expiresAtMs,
+        verified: false,
+        resetToken: null,
+        metadata: {
+          ipAddress,
+          userAgent,
+        },
+      })
+    }
 
     // Create audit log
     await createAuditLog(
@@ -335,18 +375,13 @@ router.post('/forgot-password/resend', sendCodeLimiter, validateBody(emailOnlySc
     )
 
     // Send email
-    try {
-      const emailResult = await sendOtp({ to: emailKey, code, subject: 'Password Reset Code (Resend)', purpose: 'password_reset' })
-      if (!emailResult || !emailResult.success) {
-        console.error(`[Forgot Password Resend] Failed to send OTP email to ${emailKey}:`, emailResult?.error || 'Unknown error')
-        return respond.error(res, 500, 'email_send_failed', `Failed to send reset email: ${emailResult?.error || 'Please check your email configuration'}`)
-      }
-    } catch (mailErr) {
-      console.error('Failed to resend forgot password email:', mailErr)
-      return respond.error(res, 500, 'email_failed', `Failed to send email: ${mailErr.message}`)
+    const emailResult = await sendOtp({ to: email, code, subject: 'Password Reset Code (Resend)', purpose: 'password_reset' })
+    if (!emailResult || !emailResult.success) {
+      console.error(`[Forgot Password Resend] Failed to send OTP email to ${email}:`, emailResult?.error || 'Unknown error')
+      return respond.error(res, 500, 'email_send_failed', `Failed to send reset email: ${emailResult?.error || 'Please check your email configuration'}`)
     }
 
-    const payload = { sent: true }
+    const payload = { sent: true, requiresMfa: false }
     if (process.env.NODE_ENV !== 'production') payload.devCode = code
     return res.json(payload)
   } catch (err) {

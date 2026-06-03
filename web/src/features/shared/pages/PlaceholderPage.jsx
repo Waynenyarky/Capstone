@@ -1,5 +1,4 @@
-import React from 'react'
-import { Layout, Typography, Button, Result, theme } from 'antd'
+import { Layout, Button, Result, theme } from 'antd'
 import { useNavigate } from 'react-router-dom'
 
 const { Content } = Layout

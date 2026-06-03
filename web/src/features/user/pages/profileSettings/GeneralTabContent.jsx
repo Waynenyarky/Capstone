@@ -1,4 +1,3 @@
-import React from 'react'
 import EditUserProfileForm from '@/features/user/components/EditUserProfileForm.jsx'
 import PendingApprovalAlert from '@/features/user/components/PendingApprovalAlert.jsx'
 

@@ -1,4 +1,4 @@
-import { get, post, fetchWithFallback } from '@/lib/http.js'
+import { get, post } from '@/lib/http.js'
 
 const BASE_PATH = '/api/staffs/walk-in'
 

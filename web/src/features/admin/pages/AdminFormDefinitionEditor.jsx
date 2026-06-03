@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Card,
@@ -11,7 +12,6 @@ import {
   Select,
   Tag,
   App,
-  Spin,
   Divider,
   Alert,
   DatePicker,
@@ -196,7 +196,7 @@ export default function AdminFormDefinitionEditor() {
     return (
       <AdminLayout showPageHeader={false}>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 320 }}>
-          <Spin size="large" />
+          <LottieSpinner size="large" />
         </div>
       </AdminLayout>
     )

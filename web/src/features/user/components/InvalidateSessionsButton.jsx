@@ -1,4 +1,3 @@
-import React from 'react'
 import { Button, Popconfirm } from 'antd'
 import { invalidateAllSessions } from '@/features/authentication/services/sessionService.js'
 import { useAuthNotification, useNotifier } from '@/shared/notifications.js'

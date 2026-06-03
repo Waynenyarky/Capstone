@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
   Card,
   Table,
@@ -14,11 +15,9 @@ import {
   Input,
   Upload,
   message,
-  Spin,
   Empty,
   Typography,
   Tabs,
-  Divider,
   Statistic,
   Row,
   Col
@@ -28,7 +27,6 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   CloseCircleOutlined,
-  FileTextOutlined,
   UploadOutlined,
   EyeOutlined,
   HistoryOutlined,
@@ -39,7 +37,6 @@ import BusinessOwnerLayout from '../BusinessOwnerLayout';
 import { useBusiness } from '@/hooks/useBusiness';
 import {
   getViolations,
-  getViolationDetails,
   submitCompliance,
   appealViolation
 } from '../services/violationService';
@@ -293,7 +290,7 @@ const ViolationTracker = () => {
             >
               {loading ? (
                 <div style={{ textAlign: 'center', padding: '48px' }}>
-                  <Spin />
+                  <LottieSpinner />
                 </div>
               ) : violations.length === 0 ? (
                 <Empty description="No violations found" />

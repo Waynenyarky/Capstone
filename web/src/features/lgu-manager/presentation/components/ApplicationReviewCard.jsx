@@ -2,7 +2,6 @@
  * Presentation Component: ApplicationReviewCard
  * Pure presentation - no business logic
  */
-import React from 'react'
 import { Card, Button, Space, Tag, Typography } from 'antd'
 import { CheckOutlined, CloseOutlined, EditOutlined } from '@ant-design/icons'
 

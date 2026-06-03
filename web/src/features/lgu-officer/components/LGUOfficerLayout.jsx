@@ -2,7 +2,6 @@
  * View Component: LGUOfficerLayout
  * Layout wrapper for LGU Officer pages
  */
-import React from 'react'
 import { Layout, Grid, Typography, Button, theme } from 'antd'
 import { LayoutPageHeader } from '@/features/shared'
 import { AppSidebar as Sidebar, useAuthSession } from '@/features/authentication'

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import { useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Sidebar } from '@/features/shared'
 import useSidebar from '../hooks/useSidebar'
@@ -9,7 +9,7 @@ import { setIsLoggingOut, setLogoutNotification } from '../lib/authEvents.js'
 
 export default function AppSidebar({ hiddenKeys = [], renamedKeys = {}, itemOverrides = {}, headerContent, ...siderProps }) {
   const { items: rawItems, selected, onSelect } = useSidebar()
-  const { currentUser, logout } = useAuthSession()
+  const { logout } = useAuthSession()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -86,7 +86,7 @@ export default function AppSidebar({ hiddenKeys = [], renamedKeys = {}, itemOver
         setLogoutNotification(logoutNotification)
         setIsLoggingOut(true)
         logout()
-        navigate('/', { replace: true })
+        navigate('/login', { replace: true })
       } catch (err) {
         void err
       }

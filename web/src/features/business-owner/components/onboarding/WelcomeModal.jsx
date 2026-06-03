@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Modal, Typography, theme, Button, Space, Grid } from 'antd'
 import { ShopOutlined, CalendarOutlined, ArrowRightOutlined } from '@ant-design/icons'
 

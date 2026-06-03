@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Select, Button, Typography, theme, Space, Badge, Empty, Modal, Spin, message, Alert, Tag, Row, Col, Card, Table } from 'antd' // Select still used for version dropdown
+import { Select, Button, Typography, theme, Space, Badge, Empty, Modal, message, Alert, Tag, Row, Col, Card, Table } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx' // Select still used for version dropdown
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import {
@@ -862,7 +863,7 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
 
               {loading ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-                  <Spin />
+                  <LottieSpinner />
                 </div>
               ) : isEditingDraft && currentDefinition ? (
                 /* ── Editing a draft ── */

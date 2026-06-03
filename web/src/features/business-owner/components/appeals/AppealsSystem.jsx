@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -23,12 +23,10 @@ import {
   Select,
   Upload,
   message,
-  Spin,
   Tabs,
   List,
   Avatar,
-  Steps,
-  Rate
+  Steps
 } from 'antd';
 import {
   ExclamationCircleOutlined,
@@ -40,19 +38,13 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   CloseCircleOutlined,
-  WarningOutlined,
-  InfoCircleOutlined,
   PaperClipOutlined,
-  UserOutlined,
-  CalendarOutlined,
-  FilterOutlined,
   SearchOutlined
 } from '@ant-design/icons';
 import { useBusiness } from '../../../../hooks/useBusiness';
 import { 
   getAppeals,
   submitAppeal,
-  updateAppeal,
   APPEAL_TYPES,
   APPEAL_STATUSES,
   getAppealTypeLabel,

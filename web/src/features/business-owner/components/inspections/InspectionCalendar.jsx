@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
   Card,
   Calendar,
@@ -7,23 +8,16 @@ import {
   Modal,
   Form,
   Select,
-  TimePicker,
   Alert,
-  Spin,
   Empty,
   Tag,
   Space,
   Typography,
   List,
-  message,
-  Divider,
-  Descriptions,
-  Row,
-  Col
+  message
 } from 'antd';
 import {
   CalendarOutlined,
-  ClockCircleOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   EnvironmentOutlined,
@@ -180,7 +174,7 @@ const InspectionCalendar = () => {
     return (
       <BusinessOwnerLayout pageTitle="Schedule Inspection" pageIcon={<CalendarOutlined />}>
         <div style={{ textAlign: 'center', padding: '48px' }}>
-          <Spin size="large" />
+          <LottieSpinner size="large" />
           <p>Loading inspection calendar...</p>
         </div>
       </BusinessOwnerLayout>

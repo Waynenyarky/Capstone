@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Card,
@@ -8,7 +9,6 @@ import {
   List,
   Tag,
   App,
-  Spin,
   Empty,
 } from 'antd'
 import {
@@ -146,7 +146,7 @@ export default function AdminFormGroupDetail() {
     return (
       <AdminLayout showPageHeader={false}>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 320 }}>
-          <Spin size="large" />
+          <LottieSpinner size="large" />
         </div>
       </AdminLayout>
     )

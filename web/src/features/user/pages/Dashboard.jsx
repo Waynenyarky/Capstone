@@ -1,7 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Row, Col, Layout, Button, Space, Grid } from 'antd'
-import { Link } from 'react-router-dom'
+import { Row, Col, Layout, Grid } from 'antd'
 import { LogoutForm, DeletionScheduledBanner, useAuthSession } from "@/features/authentication"
 import { UserWorkspaceGate } from "@/features/user"
 import { AppSidebar as Sidebar } from '@/features/authentication'

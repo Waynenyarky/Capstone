@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export default function BlurFade({
   children,
@@ -8,10 +8,35 @@ export default function BlurFade({
   blur = '6px',
   className = '',
   fullHeight = true,
+  triggerOnViewport = false,
 }) {
   const ref = useRef(null)
+  const [isVisible, setIsVisible] = useState(!triggerOnViewport)
 
   useEffect(() => {
+    if (!triggerOnViewport) return
+
+    const element = ref.current
+    if (!element) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+          observer.disconnect()
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    observer.observe(element)
+
+    return () => observer.disconnect()
+  }, [triggerOnViewport])
+
+  useEffect(() => {
+    if (!isVisible) return
+
     const element = ref.current
     if (!element) return
 
@@ -53,7 +78,7 @@ export default function BlurFade({
       element.style.animation = ''
       element.style.opacity = ''
     }
-  }, [delay, duration, direction, blur])
+  }, [delay, duration, direction, blur, isVisible])
 
   return (
     <div ref={ref} className={className} style={{ height: fullHeight ? '100%' : 'auto', width: '100%' }}>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Tabs, Empty, Select, Button, Space, Spin, App, Typography, Dropdown } from 'antd'
+import { Tabs, Empty, Select, Button, Space, App, Typography, Dropdown } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { PlusOutlined, StopOutlined, PauseCircleOutlined, PlayCircleOutlined, DownOutlined, EditOutlined } from '@ant-design/icons'
 import { getFormGroup, createFormGroupVersion, retireFormGroup, deactivateFormGroup, reactivateFormGroup } from '../services'
 import FormDefinitionEditorPanel from './FormDefinitionEditorPanel'
@@ -177,7 +178,7 @@ function FormTypeTabContent({
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
-        <Spin size="large" />
+        <LottieSpinner size="large" />
       </div>
     )
   }

@@ -1,4 +1,3 @@
-import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Routes, Route, useLocation } from 'react-router-dom'
 import ProtectedRoute from '../ProtectedRoute.jsx'
@@ -15,6 +14,7 @@ vi.mock('@/shared/theme/ThemeProvider.jsx', () => ({
 const mockUseAuthSession = vi.fn()
 const mockUseMaintenanceStatus = vi.fn()
 const mockGetIsLoggingOut = vi.fn(() => false)
+const mockGetLogoutNotification = vi.fn(() => null)
 
 vi.mock('@/features/authentication', async () => {
   const actual = await vi.importActual('@/features/authentication')
@@ -30,6 +30,7 @@ vi.mock('@/features/authentication/lib/authEvents.js', async () => {
   return {
     ...actual,
     getIsLoggingOut: () => mockGetIsLoggingOut(),
+    getLogoutNotification: () => mockGetLogoutNotification(),
   }
 })
 
@@ -48,6 +49,7 @@ describe('ProtectedRoute', () => {
   beforeEach(() => {
     mockUseMaintenanceStatus.mockReturnValue({ loading: false, active: false })
     mockGetIsLoggingOut.mockReturnValue(false)
+    mockGetLogoutNotification.mockReturnValue(null)
   })
 
   it('renders children when authenticated and allowed', () => {
@@ -104,6 +106,54 @@ describe('ProtectedRoute', () => {
     expect(screen.getByTestId('location').textContent).toContain('/login::Restricted Access')
   })
 
+  it('redirects while logging out without showing a restricted-access warning', () => {
+    mockUseAuthSession.mockReturnValue({
+      currentUser: null,
+      role: null,
+      isLoading: false,
+    })
+    mockGetIsLoggingOut.mockReturnValue(true)
+
+    renderWithProviders(
+      <Routes>
+        <Route
+          path="/dashboard"
+          element={<ProtectedRoute><Secure /></ProtectedRoute>}
+        />
+        <Route path="/login" element={<LocationEcho />} />
+      </Routes>,
+      { initialEntries: ['/dashboard'] }
+    )
+
+    expect(screen.getByTestId('location').textContent).toBe('/login::')
+  })
+
+  it('redirects with a queued logout notification without showing a restricted-access warning', () => {
+    mockUseAuthSession.mockReturnValue({
+      currentUser: null,
+      role: null,
+      isLoading: false,
+    })
+    mockGetLogoutNotification.mockReturnValue({
+      type: 'success',
+      message: 'Logged out',
+      description: 'You have been signed out successfully.',
+    })
+
+    renderWithProviders(
+      <Routes>
+        <Route
+          path="/dashboard"
+          element={<ProtectedRoute><Secure /></ProtectedRoute>}
+        />
+        <Route path="/login" element={<LocationEcho />} />
+      </Routes>,
+      { initialEntries: ['/dashboard'] }
+    )
+
+    expect(screen.getByTestId('location').textContent).toBe('/login::')
+  })
+
   it('redirects non-admin users to maintenance page when maintenance mode is active', () => {
     mockUseAuthSession.mockReturnValue({
       currentUser: { token: 'token', role: 'user' },
@@ -124,5 +174,85 @@ describe('ProtectedRoute', () => {
     )
 
     expect(screen.getByTestId('location').textContent).toContain('/maintenance::')
+  })
+
+  it('allows admin users during maintenance mode', () => {
+    mockUseAuthSession.mockReturnValue({
+      currentUser: { token: 'token', role: 'admin' },
+      role: { slug: 'admin' },
+      isLoading: false,
+    })
+    mockUseMaintenanceStatus.mockReturnValue({ loading: false, active: true })
+
+    renderWithProviders(
+      <Routes>
+        <Route
+          path="/admin/dashboard"
+          element={<ProtectedRoute><Secure /></ProtectedRoute>}
+        />
+      </Routes>,
+      { initialEntries: ['/admin/dashboard'] }
+    )
+
+    expect(screen.getByText('secure content')).toBeInTheDocument()
+  })
+
+  it('shows loading state while checking authentication', () => {
+    mockUseAuthSession.mockReturnValue({
+      currentUser: null,
+      role: null,
+      isLoading: true,
+    })
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/" element={<ProtectedRoute><Secure /></ProtectedRoute>} />
+      </Routes>
+    )
+
+    // Should not render content while loading
+    expect(screen.queryByText('secure content')).not.toBeInTheDocument()
+  })
+
+  it('handles multiple allowed roles', () => {
+    mockUseAuthSession.mockReturnValue({
+      currentUser: { token: 'token', role: 'staff' },
+      role: { slug: 'staff' },
+      isLoading: false,
+    })
+
+    renderWithProviders(
+      <Routes>
+        <Route
+          path="/staff"
+          element={<ProtectedRoute allowedRoles={['admin', 'staff', 'lgu_officer']}><Secure /></ProtectedRoute>}
+        />
+      </Routes>,
+      { initialEntries: ['/staff'] }
+    )
+
+    expect(screen.getByText('secure content')).toBeInTheDocument()
+  })
+
+  it('blocks users with disallowed roles', () => {
+    mockUseAuthSession.mockReturnValue({
+      currentUser: { token: 'token', role: 'user' },
+      role: { slug: 'user' },
+      isLoading: false,
+    })
+
+    renderWithProviders(
+      <Routes>
+        <Route
+          path="/admin"
+          element={<ProtectedRoute allowedRoles={['admin']}><Secure /></ProtectedRoute>}
+        />
+        <Route path="*" element={<LocationEcho />} />
+      </Routes>,
+      { initialEntries: ['/admin'] }
+    )
+
+    expect(screen.queryByText('secure content')).not.toBeInTheDocument()
+    expect(screen.getByTestId('location').textContent).toContain('Restricted Access')
   })
 })

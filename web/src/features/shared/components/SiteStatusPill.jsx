@@ -1,4 +1,3 @@
-import React from 'react'
 import { Space, Badge, Typography, Button } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'

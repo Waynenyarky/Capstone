@@ -80,13 +80,13 @@ export default function Login() {
   const showInvalidCredentials = location.state?.inspectorBlocked === true
 
   return (
-    <AuthLayout formMaxWidth={800}>
+    <AuthLayout>
       {showInvalidCredentials && (
         <Alert
           type="error"
           message="Invalid credentials."
           showIcon
-          style={{ marginBottom: 24, maxWidth: 440 }}
+          style={{ marginBottom: 24, maxWidth: 300 }}
         />
       )}
       <LoginForm onSubmit={handleLoginSuccess} />

@@ -1,7 +1,7 @@
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { AuthLayout } from '@/features/authentication'
-import SignUpMfaSetupStep from '@/features/authentication/components/SignUpMfaSetupStep.jsx'
+import SignUpMfaSetupStep from '@/features/authentication/signup/components/SignUpMfaSetupStep.jsx'
 import { useAuthSession } from '@/features/authentication/hooks'
 
 export default function SignUpMfaSetup() {
@@ -31,7 +31,7 @@ export default function SignUpMfaSetup() {
   if (!pendingUser?.token && !currentUser?.token) return null
 
   return (
-    <AuthLayout formMaxWidth={560}>
+    <AuthLayout>
       <SignUpMfaSetupStep onSkip={goToDashboard} onComplete={goToDashboard} />
     </AuthLayout>
   )

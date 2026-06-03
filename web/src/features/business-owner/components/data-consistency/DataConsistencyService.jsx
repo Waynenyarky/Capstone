@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
   Card,
   Table,
@@ -8,20 +9,16 @@ import {
   Typography,
   Divider,
   Tag,
-  Progress,
   Modal,
   Descriptions,
   Row,
   Col,
   Statistic,
   Empty,
-  Tooltip,
   Badge,
-  Timeline,
   Form,
   Select,
   message,
-  Spin
 } from 'antd';
 import {
   SyncOutlined,
@@ -29,24 +26,14 @@ import {
   ExclamationCircleOutlined,
   ClockCircleOutlined,
   WarningOutlined,
-  InfoCircleOutlined,
   ReloadOutlined,
-  SettingOutlined,
   DatabaseOutlined,
   CloudSyncOutlined,
-  BugOutlined,
-  ToolOutlined,
-  EyeOutlined,
-  EditOutlined
+  EyeOutlined
 } from '@ant-design/icons';
 import { useBusiness } from '../../../../hooks/useBusiness';
 import { 
-  statusReconciliationService,
-  UNIFIED_STATUS,
-  LEGACY_STATUS_MAPPINGS,
-  RECONCILIATION_RULES,
-  mapStatusToUnified,
-  getUnifiedStatusPriority
+  statusReconciliationService
 } from '@/features/business-owner/services/statusReconciliationService';
 
 const { Title, Text, Paragraph } = Typography;
@@ -699,7 +686,7 @@ const DataConsistencyService = ({ businessId, className }) => {
           
           {syncing && (
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
-              <Spin size="large" />
+              <LottieSpinner size="large" />
               <div style={{ marginTop: 16 }}>
                 <Text>Synchronizing data across systems...</Text>
               </div>

@@ -22,13 +22,21 @@ const wizardHandlers = [
   http.get('/api/business/profile', () => HttpResponse.json(mockBusinessProfile)),
   http.post('/api/business/profile', () => HttpResponse.json(mockBusinessProfile)),
   http.get('/api/auth/me', () => HttpResponse.json(mockUser)),
-  http.get('/api/auth/mfa/status', () => HttpResponse.json({ enabled: false }))
+  http.get('/api/auth/mfa/status', () => HttpResponse.json({ enabled: false })),
+  http.get('/api/auth/profile/email/change-status', () => HttpResponse.json({
+    pendingChange: true,
+    oldEmail: 'old@example.com',
+    newEmail: 'new@example.com',
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    canRevert: true
+  }))
 ]
 
 function AppDecorator(Story, context) {
   if (typeof window !== 'undefined' && context.parameters?.seedAuth) {
     const expiresAt = Date.now() + 86400000
     try {
+      localStorage.setItem('auth__currentUser', JSON.stringify({ user: mockUser, expiresAt }))
       sessionStorage.setItem('auth__sessionUser', JSON.stringify({ user: mockUser, expiresAt }))
     } catch (_) { /* ignore */ }
   }
@@ -51,7 +59,7 @@ const preview = {
     controls: {
       matchers: {
         color: /(background|color)$/i,
-        date: /Date$/i,
+        date: /Date$/,
       },
     },
     a11y: {

@@ -1,4 +1,3 @@
-import React from 'react'
 import { Typography, theme } from 'antd'
 import { DashboardOutlined, TeamOutlined, UserOutlined, SafetyCertificateOutlined, ApartmentOutlined, FileTextOutlined } from '@ant-design/icons'
 const { Text } = Typography

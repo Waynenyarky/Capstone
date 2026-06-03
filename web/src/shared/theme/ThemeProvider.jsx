@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { ConfigProvider, theme } from 'antd';
 import { useLocation } from 'react-router-dom';
-import { getCurrentUser, setCurrentUser, subscribeAuth } from '@/features/authentication/lib/authEvents.js';
+import { getCurrentUser, subscribeAuth } from '@/features/authentication/lib/authEvents.js';
 
 const ThemeContext = createContext();
 
@@ -25,6 +25,7 @@ export const THEMES = {
   ROYAL: 'royal',
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const BRAND_COLORS = {
   blue: '#0038A8',
   red: '#CE1126',
@@ -347,6 +348,7 @@ export function ThemeProvider({ children }) {
 
   // Save theme to user-specific storage when theme or user changes
   // Save for both logged-in users and guests to ensure persistence
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     // Always save theme, even for guest users (null currentUser)
     saveUserTheme(currentUser, currentTheme);

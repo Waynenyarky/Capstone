@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { Form } from '@/shared/components/AppForm'
 import { Table, Button, Tag, Typography, Input, Select, Tooltip, Splitter, Grid, Pagination, Modal, Space, Alert, theme, Empty } from 'antd'
 import { FilterOutlined, SearchOutlined, CloseOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
@@ -6,7 +6,7 @@ import AdminDetailPanel from './AdminDetailPanel'
 import { getAdminList, requestAdminChange } from '../../services/staffService'
 import { useNotifier } from '@/shared/notifications'
 import { useAdminStepUp } from '../../hooks/useAdminStepUp'
-import { namePatternRule } from '@/features/authentication/validations'
+import { namePatternRule } from '@/features/authentication/utils/validations'
 
 const { Text } = Typography
 

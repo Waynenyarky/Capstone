@@ -1,8 +1,10 @@
-import React from 'react'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { Navigate, useLocation } from 'react-router-dom'
-import { Spin } from 'antd'
 import { useAuthSession, useMaintenanceStatus } from '@/features/authentication'
-import { getCurrentUser as getAuthEventCurrentUser, getIsLoggingOut } from '@/features/authentication/lib/authEvents.js'
+import { getCurrentUser as getAuthEventCurrentUser, getIsLoggingOut, getLogoutNotification } from '@/features/authentication/lib/authEvents.js'
+import { theme } from 'antd'
+
+const { useToken } = theme
 
 function normalizeRoleKey(value) {
   const raw = String(value?.slug ?? value ?? '').trim().toLowerCase()
@@ -13,6 +15,7 @@ function normalizeRoleKey(value) {
 }
 
 export default function ProtectedRoute({ children, allowedRoles = [] }) {
+  const { token } = useToken()
   const { currentUser, role, isLoading } = useAuthSession()
   const location = useLocation()
   const maintenance = useMaintenanceStatus()
@@ -26,22 +29,22 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
 
   if (isLoading) {
     return (
-      <div style={{ 
+      <div style={{
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
         flexDirection: 'column',
         gap: 16,
-        background: '#fff',
+        background: token.colorBgContainer,
         zIndex: 9999
       }}>
-        <Spin size="large" />
-        <div style={{ color: '#666', fontSize: 14 }}>Loading...</div>
+        <LottieSpinner size="large" />
+        <div style={{ color: token.colorTextSecondary, fontSize: 14 }}>Loading...</div>
       </div>
     )
   }
@@ -52,9 +55,12 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
 
   // If not authenticated, redirect to login
   if (!effectiveUser || !effectiveUser.token) {
-    if (isLoggingOut) {
-      // Preserve the logout notification state
-      return <Navigate to="/" replace state={location.state?.isLogout ? location.state : undefined} />
+    const logoutNotification = getLogoutNotification()
+
+    if (isLoggingOut || logoutNotification) {
+      // Voluntary logout should not show an access warning.
+      // Let the logout flow's success notification handle the feedback.
+      return <Navigate to="/login" replace />
     }
 
     // Only show "Access Denied" if we were trying to access a specific page (location.pathname !== '/')

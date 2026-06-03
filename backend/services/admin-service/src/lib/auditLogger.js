@@ -29,7 +29,7 @@ function calculateAuditHash(userId, eventType, fieldChanged, oldValue, newValue,
  * Create audit log
  * Non-blocking - operation succeeds even if logging fails
  */
-async function createAuditLog(userId, eventType, fieldChanged, oldValue, newValue, role, metadata = {}) {
+async function createAuditLog(userId, eventType, fieldChanged, oldValue, newValue, role, metadata = {}, slotId = null) {
   try {
     // Prepare metadata
     const fullMetadata = {
@@ -37,7 +37,7 @@ async function createAuditLog(userId, eventType, fieldChanged, oldValue, newValu
       ip: metadata.ip || 'unknown',
       userAgent: metadata.userAgent || 'unknown',
     }
-    
+
     // Calculate hash before creating document
     const timestamp = new Date().toISOString()
     const hash = calculateAuditHash(
@@ -50,7 +50,7 @@ async function createAuditLog(userId, eventType, fieldChanged, oldValue, newValu
       fullMetadata,
       timestamp
     )
-    
+
     // Create audit log entry
     const auditLog = await AuditLog.create({
       userId,
@@ -59,6 +59,7 @@ async function createAuditLog(userId, eventType, fieldChanged, oldValue, newValu
       oldValue: oldValue || '',
       newValue: newValue || '',
       role,
+      slotId,
       metadata: fullMetadata,
       hash,
       blockchainStatus: 'pending',

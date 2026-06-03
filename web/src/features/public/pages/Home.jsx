@@ -3,13 +3,13 @@ import HomeHeader from '../components/HomeHeader'
 import HeroSection from '../components/HeroSection'
 import TransparencyDashboard from '../components/TransparencyDashboard'
 import FaqSection from '../components/FaqSection'
-import PermitFormsCarousel from '../components/PermitFormsCarousel'
-import ApplicationProcessTimeline from '../components/ApplicationProcessTimeline'
-import DownloadCenter from '../components/DownloadCenter'
+import ApplicationProcessSection from '../components/ApplicationProcessSection'
 import OfficeLocationSection from '../components/OfficeLocationSection'
 import HomeFooter from '../components/HomeFooter'
 import useLandingData from '../hooks/useLandingData.jsx'
-import { useState, useEffect } from 'react'
+import BlurFade from '@/shared/components/BlurFade.jsx'
+import { useState, useEffect, useCallback } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 const { Content } = Layout
 const { useBreakpoint } = Grid
@@ -18,6 +18,23 @@ export default function Home() {
   const { token } = theme.useToken()
   const screens = useBreakpoint()
   const [showHeader, setShowHeader] = useState(false)
+  const [isExiting, setIsExiting] = useState(false)
+  const [headerFadingOut, setHeaderFadingOut] = useState(false)
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const navigateWithFade = useCallback((path) => {
+    // Don't fade if navigating to the same route
+    if (location.pathname === path) {
+      navigate(path)
+      return
+    }
+    setIsExiting(true)
+    setHeaderFadingOut(true)
+    setTimeout(() => {
+      navigate(path)
+    }, 300)
+  }, [navigate, location.pathname])
 
   const {
     announcements,
@@ -42,11 +59,17 @@ export default function Home() {
     handleScroll() // Check initial state
 
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+  }, [isExiting])
   
   return (
-    <Layout style={{ minHeight: '100vh', background: token.colorBgContainer }}>
-      <HomeHeader visible={showHeader} />
+    <>
+      <HomeHeader visible={showHeader} onNavigate={navigateWithFade} fadingOut={headerFadingOut} />
+      <Layout style={{
+        minHeight: '100vh',
+        background: token.colorBgContainer,
+        opacity: isExiting ? 0 : 1,
+        transition: 'opacity 0.3s ease-out',
+      }}>
       <Content style={{ display: 'flex', flexDirection: 'column' }}>
         <HeroSection
           announcements={announcements}
@@ -54,27 +77,22 @@ export default function Home() {
           maintenanceStatus={maintenanceStatus}
           hasAnnouncementPanel={hasAnnouncementPanel}
           defaultOpenKey={defaultOpenKey}
+          onNavigate={navigateWithFade}
         />
+        <BlurFade delay={0.2} duration={0.5} triggerOnViewport>
+          <ApplicationProcessSection />
+        </BlurFade>
+        <BlurFade delay={0.3} duration={0.5} triggerOnViewport>
+          <OfficeLocationSection />
+        </BlurFade>
         <div style={{ height: '56px' }} />
         <TransparencyDashboard publicStats={publicStats} />
-        <FaqSection />
-        <div style={{ height: '56px' }} />
-        {permitForms.isEnabled && permitForms.cards.length > 0 && (
-          <PermitFormsCarousel
-            cards={permitForms.cards}
-            sectionDescription={permitForms.sectionDescription}
-            screens={screens}
-            token={token}
-          />
-        )}
-        <div style={{ height: '56px' }} />
-        <ApplicationProcessTimeline />
-        <div style={{ height: '56px' }} />
-        <DownloadCenter />
-        <div style={{ height: '56px' }} />
-        <OfficeLocationSection />
+        <BlurFade delay={0.4} duration={0.5} triggerOnViewport>
+          <FaqSection />
+        </BlurFade>
       </Content>
       <HomeFooter />
     </Layout>
+    </>
   )
 }

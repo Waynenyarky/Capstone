@@ -2,7 +2,7 @@
  * Cloudflare Turnstile widget (IAS-2: Rate + CAPTCHA).
  * Renders when VITE_TURNSTILE_SITE_KEY is set; exposes getToken() and reset() for form submit.
  */
-import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
+import { useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 
 const SCRIPT_URL = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
 
@@ -66,7 +66,9 @@ const TurnstileWidget = forwardRef(function TurnstileWidget({ siteKey }, ref) {
       if (widgetIdRef.current != null && window.turnstile && window.turnstile.remove) {
         try {
           window.turnstile.remove(widgetIdRef.current)
-        } catch (_) {}
+        } catch {
+          // Ignore cleanup errors
+        }
         widgetIdRef.current = null
       }
     }

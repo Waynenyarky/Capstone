@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
   Modal,
   Button,
   Space,
   Typography,
   List,
-  Card,
   Progress,
   Alert,
   Checkbox,
@@ -14,7 +14,6 @@ import {
   Divider,
   Steps,
   Result,
-  Spin,
   Select,
   Input,
   DatePicker,
@@ -23,15 +22,11 @@ import {
 import {
   CheckCircleOutlined,
   ExclamationCircleOutlined,
-  ClockCircleOutlined,
-  SyncOutlined,
   DownloadOutlined,
-  UploadOutlined,
   CalendarOutlined,
   DollarOutlined,
   FileTextOutlined,
-  AlertOutlined,
-  RocketOutlined
+  AlertOutlined
 } from '@ant-design/icons';
 import { useBusiness } from '../../../../hooks/useBusiness';
 
@@ -470,7 +465,7 @@ const BulkOperations = ({
   const renderProcessingStep = () => {
     return (
       <div style={{ textAlign: 'center', padding: '40px' }}>
-        <Spin size="large" />
+        <LottieSpinner size="large" />
         <div style={{ marginTop: '16px' }}>
           <Title level={4}>Processing {config.title}</Title>
           <Paragraph type="secondary">

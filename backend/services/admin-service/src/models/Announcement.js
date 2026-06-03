@@ -5,6 +5,7 @@ const AnnouncementSchema = new mongoose.Schema({
   body: { type: String, default: '' },
   priority: { type: String, enum: ['low', 'normal', 'high', 'urgent'], default: 'normal' },
   status: { type: String, enum: ['draft', 'published'], default: 'draft' },
+  audience: { type: String, enum: ['public', 'staff'], default: 'public' },
   isActive: { type: Boolean, default: true },
   publishAt: { type: Date, default: null },
   publishedAt: { type: Date, default: null },
@@ -15,6 +16,7 @@ const AnnouncementSchema = new mongoose.Schema({
 }, { timestamps: true })
 
 AnnouncementSchema.index({ isActive: 1, createdAt: -1 })
+AnnouncementSchema.index({ audience: 1, status: 1 })
 AnnouncementSchema.index({ 'metadata.maintenanceApprovalId': 1 })
 
 module.exports = mongoose.model('Announcement', AnnouncementSchema)

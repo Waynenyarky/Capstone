@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
-import { Row, Col, Card, Typography, theme, Table, Statistic, Spin } from 'antd'
-import { DollarOutlined, TransactionOutlined, ClockCircleOutlined, BankOutlined } from '@ant-design/icons'
+import { useState, useEffect } from 'react'
+import { Row, Col, Card, Typography, theme, Table, Statistic } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { Link, useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { get } from '@/lib/http.js'
@@ -40,7 +40,7 @@ export default function FinanceOverviewTab() {
       <Text strong style={{ display: 'block', marginBottom: 12, fontSize: 15 }}>Summary</Text>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
+        <div style={{ textAlign: 'center', padding: 40 }}><LottieSpinner /></div>
       ) : (
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} md={6}>

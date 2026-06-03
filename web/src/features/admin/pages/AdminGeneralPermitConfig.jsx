@@ -1,8 +1,9 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
-  Card, Tabs, Table, Button, Form, Input, Space, Typography, Alert, Empty, Tag, Spin
+  Card, Tabs, Table, Button, Input, Space, Typography, Empty, Tag
 } from 'antd'
-import { SettingOutlined, PlusOutlined, DeleteOutlined, SaveOutlined, ReloadOutlined } from '@ant-design/icons'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
+import { SettingOutlined, PlusOutlined, DeleteOutlined, SaveOutlined } from '@ant-design/icons'
 import AdminLayout from '../components/AdminLayout.jsx'
 import { useNotifier } from '@/shared/notifications.js'
 import { get, put } from '@/lib/http.js'
@@ -102,86 +103,88 @@ export default function AdminGeneralPermitConfig() {
   return (
     <AdminLayout pageTitle="General Permit Configuration" pageIcon={<SettingOutlined />}>
       {stepUpModal}
-      <Spin spinning={loading} size="large">
-      <div style={{ padding: 16 }}>
-        <Paragraph type="secondary">
-          Configure the requirements for each general permit category. These requirements will be shown to applicants.
-        </Paragraph>
+      {loading ? (
+        <LottieSpinner size="large" />
+      ) : (
+        <div style={{ padding: 16 }}>
+          <Paragraph type="secondary">
+            Configure the requirements for each general permit category. These requirements will be shown to applicants.
+          </Paragraph>
 
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          tabPosition="left"
-          items={PERMIT_CATEGORIES.map((cat) => ({
-            key: cat.key,
-            label: (
-              <Space>
-                <span>{cat.label}</span>
-                <Tag>{(requirements[cat.key] || []).length}</Tag>
-              </Space>
-            ),
-            children: (
-              <Card
-                title={`${cat.label} Requirements`}
-                extra={
-                  <Space>
-                    <Button icon={<PlusOutlined />} onClick={() => addRequirement(cat.key)}>
-                      Add Requirement
-                    </Button>
-                    <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving}>
-                      Save Changes
-                    </Button>
-                  </Space>
-                }
-              >
-                {(requirements[cat.key] || []).length === 0 ? (
-                  <Empty description="No requirements configured. Add your first requirement." />
-                ) : (
-                  <Table
-                    aria-label="Permit requirements"
-                    dataSource={(requirements[cat.key] || []).map((r, i) => ({ key: i, requirement: r }))}
-                    scroll={{ x: 'max-content' }}
-                    columns={[
-                      {
-                        title: '#',
-                        width: 50,
-                        render: (_, __, idx) => idx + 1,
-                      },
-                      {
-                        title: 'Requirement',
-                        dataIndex: 'requirement',
-                        render: (val, _, idx) => (
-                          <Input
-                            value={val}
-                            placeholder="Enter requirement name"
-                            onChange={(e) => updateRequirement(cat.key, idx, e.target.value)}
-                          />
-                        ),
-                      },
-                      {
-                        title: '',
-                        width: 60,
-                        render: (_, __, idx) => (
-                          <Button
-                            type="text"
-                            danger
-                            icon={<DeleteOutlined />}
-                            aria-label="Remove requirement"
-                            onClick={() => removeRequirement(cat.key, idx)}
-                          />
-                        ),
-                      },
-                    ]}
-                    pagination={false}
-                    size="small"
-                  />
-                )}
-              </Card>
-            ),
-          }))}
-        />
-      </div>
-      </Spin>
+          <Tabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            tabPosition="left"
+            items={PERMIT_CATEGORIES.map((cat) => ({
+              key: cat.key,
+              label: (
+                <Space>
+                  <span>{cat.label}</span>
+                  <Tag>{(requirements[cat.key] || []).length}</Tag>
+                </Space>
+              ),
+              children: (
+                <Card
+                  title={`${cat.label} Requirements`}
+                  extra={
+                    <Space>
+                      <Button icon={<PlusOutlined />} onClick={() => addRequirement(cat.key)}>
+                        Add Requirement
+                      </Button>
+                      <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving}>
+                        Save Changes
+                      </Button>
+                    </Space>
+                  }
+                >
+                  {(requirements[cat.key] || []).length === 0 ? (
+                    <Empty description="No requirements configured. Add your first requirement." />
+                  ) : (
+                    <Table
+                      aria-label="Permit requirements"
+                      dataSource={(requirements[cat.key] || []).map((r, i) => ({ key: i, requirement: r }))}
+                      scroll={{ x: 'max-content' }}
+                      columns={[
+                        {
+                          title: '#',
+                          width: 50,
+                          render: (_, __, idx) => idx + 1,
+                        },
+                        {
+                          title: 'Requirement',
+                          dataIndex: 'requirement',
+                          render: (val, _, idx) => (
+                            <Input
+                              value={val}
+                              placeholder="Enter requirement name"
+                              onChange={(e) => updateRequirement(cat.key, idx, e.target.value)}
+                            />
+                          ),
+                        },
+                        {
+                          title: '',
+                          width: 60,
+                          render: (_, __, idx) => (
+                            <Button
+                              type="text"
+                              danger
+                              icon={<DeleteOutlined />}
+                              aria-label="Remove requirement"
+                              onClick={() => removeRequirement(cat.key, idx)}
+                            />
+                          ),
+                        },
+                      ]}
+                      pagination={false}
+                      size="small"
+                    />
+                  )}
+                </Card>
+              ),
+            }))}
+          />
+        </div>
+      )}
     </AdminLayout>
   )
 }

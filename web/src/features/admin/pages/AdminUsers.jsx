@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Button, Grid, Typography } from 'antd'
 import { InfoCircleOutlined, ReloadOutlined, TeamOutlined } from '@ant-design/icons'

@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Select, Button, Typography, theme, Space, Badge, Empty, Modal, Spin, message, Alert, Tag, Row, Col, Card } from 'antd'
+import { Select, Button, Typography, theme, Space, Badge, Empty, Modal, message, Alert, Tag, Row, Col, Card } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
   ArrowLeftOutlined,
   SaveOutlined,
@@ -649,7 +650,7 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
 
             {loading ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
-                <Spin />
+                <LottieSpinner />
               </div>
             ) : isEditingDraft && currentDefinition ? (
               /* ── Editing a draft ── */

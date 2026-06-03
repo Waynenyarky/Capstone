@@ -1,9 +1,8 @@
-import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { message } from 'antd';
 import TimelineEdgeCaseHandler from '../TimelineEdgeCaseHandler';
-import { getTimelineEdgeCases, submitExtensionRequest } from '../../../services/timelineService';
+import { getTimelineEdgeCases } from '../../../services/timelineService';
 import { useBusiness } from '@/hooks/useBusiness';
 
 // Mock dependencies

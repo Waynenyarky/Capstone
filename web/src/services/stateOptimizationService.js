@@ -4,7 +4,7 @@
  */
 
 // State normalization utilities
-export const normalizeState = (state, schema) => {
+export const normalizeState = (state, _schema) => {
   const normalized = {
     entities: {},
     ids: []
@@ -263,14 +263,7 @@ export const createStateValidator = (schema) => {
 }
 
 // State optimization hooks
-export const useOptimizedState = (initialState, options = {}) => {
-  const {
-    persistKey,
-    validator,
-    onChange,
-    debounceMs = 0
-  } = options
-  
+export const useOptimizedState = (initialState, _options = {}) => {
   // Implementation would depend on React hooks
   // This is a placeholder for the hook implementation
   return {

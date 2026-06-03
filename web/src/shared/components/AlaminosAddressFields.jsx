@@ -5,9 +5,10 @@
  * Postal code is optional. Uses PSGC API for Alaminos City barangays.
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Select, Input, Row, Col, Spin } from 'antd'
+import { Select, Input, Col } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { fetchBarangays } from '@/shared/services/psgcService'
 
 const { Option } = Select
@@ -24,8 +25,6 @@ export default function AlaminosAddressFields({
   required = false,
   disabled = false,
   initialStreet = '',
-  initialBarangay = '',
-  initialBarangayName = '',
   initialPostalCode = '',
   onAddressChange,
 }) {
@@ -91,7 +90,7 @@ export default function AlaminosAddressFields({
             filterOption={(input, option) =>
               (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
             }
-            notFoundContent={loadingBarangays ? <Spin size="small" /> : 'No barangays found'}
+            notFoundContent={loadingBarangays ? <LottieSpinner size="small" /> : 'No barangays found'}
           >
             {barangays.map((brgy) => (
               <Option key={brgy.code} value={brgy.code}>

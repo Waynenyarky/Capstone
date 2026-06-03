@@ -1,4 +1,3 @@
-import React from 'react'
 import { Typography, Button, Tag } from 'antd'
 import { ExclamationCircleOutlined } from '@ant-design/icons'
 

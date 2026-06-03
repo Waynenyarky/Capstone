@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Modal,
   Tabs,
@@ -12,11 +12,8 @@ import {
   Radio,
   Input,
   Alert,
-  List,
   Badge,
   Divider,
-  Spin,
-  Checkbox,
   Row,
   Col,
   Grid,
@@ -24,6 +21,7 @@ import {
   Image,
   App
 } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -38,8 +36,6 @@ import {
   EnvironmentOutlined,
   BankOutlined,
   SafetyOutlined,
-  CheckOutlined,
-  CloseOutlined,
   FilePdfOutlined,
   FileImageOutlined,
   FileOutlined
@@ -987,7 +983,12 @@ export default function PermitApplicationDetail({
       width={isMobile ? '95%' : 1400}
       style={{ top: 20 }}
     >
-      <Spin spinning={loading || startingReview}>
+      {(loading || startingReview) ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200 }}>
+          <LottieSpinner size="large" />
+        </div>
+      ) : (
+        <>
         {isFinalDecision && (
           <Alert
             message={`Application has been ${application.status === 'approved' ? 'approved' : 'rejected'}`}
@@ -1639,7 +1640,8 @@ export default function PermitApplicationDetail({
             {renderReviewPanel()}
           </Col>
         </Row>
-      </Spin>
+        </>
+        )}
     </Modal>
   )
 }

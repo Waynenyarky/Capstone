@@ -3,7 +3,7 @@
  * Reports / Analytics page for LGU Manager
  * Secure, read-only intelligence module
  */
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { 
   Card, 
   Typography, 
@@ -16,10 +16,8 @@ import {
   Row,
   Col,
   Statistic,
-  Divider,
   Table,
   Tag,
-  Tooltip,
   Badge
 } from 'antd'
 import { 
@@ -29,7 +27,6 @@ import {
   DownloadOutlined,
   WarningOutlined,
   RiseOutlined,
-  FallOutlined,
   ClockCircleOutlined,
   FileTextOutlined,
   ExclamationCircleOutlined,

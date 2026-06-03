@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Row, Col, Card, Typography, theme, Table, Tag } from 'antd'
 import { DollarOutlined, UnorderedListOutlined, LinkOutlined } from '@ant-design/icons'
 import { Link, useNavigate } from 'react-router-dom'

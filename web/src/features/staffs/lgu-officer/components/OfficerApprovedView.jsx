@@ -10,12 +10,13 @@
  * exported individually, so we replicate the collapsible structure here while
  * reusing the same service calls and lightweight sub-components.
  */
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
-  Typography, Card, Tag, Space, theme, Table, Empty, App, Spin,
+  Typography, Card, Tag, theme, Table, Empty, App,
   Descriptions, Alert, Collapse, Statistic, Row, Col, Segmented, Drawer,
   Select, Button,
 } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
   DollarOutlined, FileTextOutlined, SafetyCertificateOutlined,
   SolutionOutlined, FileDoneOutlined, UserOutlined, EyeOutlined,
@@ -144,7 +145,7 @@ function ApplicationFormTab({ business }) {
     [formData, formDefinition]
   )
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /><div style={{ marginTop: 16 }}><Text type="secondary">Loading application form...</Text></div></div>
+  if (loading) return <div style={{ textAlign: 'center', padding: 48 }}><LottieSpinner size="large" /><div style={{ marginTop: 16 }}><Text type="secondary">Loading application form...</Text></div></div>
   if (!formDefinition) return <div style={{ textAlign: 'center', padding: 48 }}><Empty image={<FileTextOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />} description={<Text type="secondary">Application form not available</Text>} /></div>
 
   return (
@@ -320,11 +321,11 @@ function ComplianceTab({ businessId }) {
     { title: 'Status', dataIndex: 'status', key: 'status', width: 100, render: v => <Tag color={v === 'resolved' ? 'success' : v === 'open' ? 'error' : 'processing'}>{v || 'N/A'}</Tag> },
   ]
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
+  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}><LottieSpinner /></div>
 
   // Render detail content for the drawer
   const renderDetailDrawer = () => {
-    if (detailLoading) return <Spin />
+    if (detailLoading) return <LottieSpinner />
     if (!detailData) return <Empty />
 
     const d = detailData

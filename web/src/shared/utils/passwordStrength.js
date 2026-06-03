@@ -29,19 +29,27 @@ export function calculatePasswordStrength(password) {
 /**
  * Get password strength level
  * @param {string} password - Password to evaluate
+ * @param {object} themeColors - Optional theme colors object
  * @returns {{level: 'weak'|'fair'|'good'|'strong', score: number, color: string}}
  */
-export function getPasswordStrength(password) {
+export function getPasswordStrength(password, themeColors = {}) {
   const score = calculatePasswordStrength(password)
   
+  // Use theme colors if provided, otherwise fall back to hardcoded values
+  const {
+    colorError = '#ff4d4f',
+    colorWarning = '#faad14',
+    colorSuccess = '#52c41a',
+  } = themeColors
+  
   if (score <= 2) {
-    return { level: 'weak', score, color: '#ff4d4f' }
+    return { level: 'weak', score, color: colorError }
   } else if (score === 3) {
-    return { level: 'fair', score, color: '#faad14' }
+    return { level: 'fair', score, color: colorWarning }
   } else if (score === 4) {
-    return { level: 'good', score, color: '#52c41a' }
+    return { level: 'good', score, color: colorSuccess }
   } else {
-    return { level: 'strong', score, color: '#52c41a' }
+    return { level: 'strong', score, color: colorSuccess }
   }
 }
 

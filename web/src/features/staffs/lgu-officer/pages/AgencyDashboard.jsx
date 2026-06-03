@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -13,15 +13,11 @@ import {
   Alert,
   Badge,
   Tabs,
-  Timeline,
-  Spin,
-  Empty,
   Tooltip,
   message,
   Row,
   Col,
-  Statistic,
-  Divider
+  Statistic
 } from 'antd';
 import {
   CheckCircleOutlined,
@@ -32,10 +28,7 @@ import {
   EyeOutlined,
   CheckOutlined,
   CloseOutlined,
-  WarningOutlined,
-  ReloadOutlined,
-  FileTextOutlined,
-  UserOutlined
+  WarningOutlined
 } from '@ant-design/icons';
 import StaffLayout from '@/features/staffs/components/StaffLayout';
 import {
@@ -44,7 +37,6 @@ import {
   approveAgencyClearance,
   rejectAgencyClearance,
   raiseDeficiency,
-  resolveDeficiency,
   AGENCY_NAMES,
   STATUS_COLORS,
   STATUS_LABELS

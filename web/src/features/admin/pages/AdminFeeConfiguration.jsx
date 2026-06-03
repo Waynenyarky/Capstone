@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Button, Spin, Alert, Grid, Tabs, Typography, Modal, Space, Divider, Collapse } from 'antd'
+import { Button, Alert, Grid, Tabs, Typography, Modal, Space, Divider, Collapse } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { DollarOutlined, PlusOutlined, ReloadOutlined, InfoCircleOutlined, DownloadOutlined } from '@ant-design/icons'
 import ExportLogsModal from '../components/ExportLogsModal'
 import AdminLayout from '../components/AdminLayout.jsx'
@@ -196,9 +197,9 @@ export default function AdminFeeConfiguration() {
     return (
       <AdminLayout pageTitle="Fee Configuration" pageIcon={<DollarOutlined />} headerActions={mainHeaderActions}>
         <div style={{ display: 'flex', justifyContent: 'center', padding: 64 }}>
-          <Spin tip="Loading fee configurations...">
+          <LottieSpinner tip="Loading fee configurations...">
             <div style={{ minHeight: 48 }} />
-          </Spin>
+          </LottieSpinner>
         </div>
       </AdminLayout>
     )

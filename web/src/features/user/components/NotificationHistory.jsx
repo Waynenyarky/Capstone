@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react'
-import { Typography, Tag, Empty, Spin, Space, theme, Timeline, Button, Grid } from 'antd'
+import { useState, useEffect } from 'react'
+import { Typography, Tag, Empty, Space, theme, Timeline, Button, Grid } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { BellOutlined, MailOutlined, LockOutlined, SafetyCertificateOutlined, UserOutlined, ReloadOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { getNotifications } from '@/features/user/services/notificationService'
 import dayjs from 'dayjs'
@@ -106,7 +107,7 @@ export default function NotificationHistory() {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '40px 0' }}>
-        <Spin size="large" />
+        <LottieSpinner size="large" />
         <div style={{ marginTop: 16 }}>
           <Text type="secondary">Loading notification history...</Text>
         </div>

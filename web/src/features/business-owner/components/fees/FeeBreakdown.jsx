@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   Typography,
@@ -17,18 +17,15 @@ import {
   Statistic,
   Modal,
   Descriptions,
-  Badge,
-  Switch
+  Badge
 } from 'antd';
 import {
   DollarOutlined,
   InfoCircleOutlined,
   FileTextOutlined,
-  HistoryOutlined,
   TrendingUpOutlined,
   EyeOutlined,
   DownloadOutlined,
-  QuestionCircleOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { postSessionActivity, invalidateAllSessions } from '../services/sessionService.js'
+import { getCurrentUser } from '../lib/authEvents.js'
 
 /**
  * Simple session timeout hook
@@ -31,7 +32,13 @@ export function useSessionTimeout({ timeoutMs = 60 * 60 * 1000, warningMs = 2 * 
     const start = () => { interval = setInterval(tick, 1000) }
     const stop = () => { if (interval) { clearInterval(interval); interval = null } }
 
-    const onVisibility = () => { document.hidden ? stop() : start() }
+    const onVisibility = () => {
+      if (document.hidden) {
+        stop()
+      } else {
+        start()
+      }
+    }
     document.addEventListener('visibilitychange', onVisibility)
     start()
 
@@ -42,8 +49,11 @@ export function useSessionTimeout({ timeoutMs = 60 * 60 * 1000, warningMs = 2 * 
   }, [warningMs, onTimeout, onWarning])
 
   useEffect(() => {
-    // refresh server activity on mount
-    postSessionActivity().catch(() => null)
+    // refresh server activity on mount, but only if user is logged in
+    const currentUser = getCurrentUser()
+    if (currentUser) {
+      postSessionActivity().catch(() => null)
+    }
   }, [])
 
   return { remaining }

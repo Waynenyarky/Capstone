@@ -1,10 +1,9 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
 import { useAuthSession } from '@/features/authentication'
 import { 
   DashboardOutlined, 
   FileTextOutlined, 
   StopOutlined, 
-  CreditCardOutlined, 
   AuditOutlined, 
   UserOutlined, 
   LogoutOutlined,
@@ -14,11 +13,8 @@ import {
   BarChartOutlined,
   CustomerServiceOutlined,
   FormOutlined,
-  ShopOutlined,
   DollarOutlined,
-  IdcardOutlined,
   EditOutlined,
-  FileProtectOutlined,
   CheckCircleOutlined,
   AccountBookOutlined,
   SettingOutlined,
@@ -43,6 +39,7 @@ export default function useSidebar() {
         { key: 'dashboard', label: 'Dashboard', to: '/admin/dashboard', icon: <DashboardOutlined /> },
         { key: 'admin-users', label: 'User Management', to: '/admin/users', icon: <TeamOutlined /> },
         { key: 'admin-requests', label: 'Requests', to: '/admin/requests', icon: <CheckCircleOutlined /> },
+        { key: 'content-management', label: 'Content Management', to: '/admin/content-management', icon: <FileTextOutlined /> },
         { key: 'form-definitions', label: 'Form Definitions', to: '/admin/form-definitions', icon: <FormOutlined /> },
         { key: 'fee-configuration', label: 'Fee Configuration', to: '/admin/fee-configuration', icon: <DollarOutlined /> },
         { key: 'finance', label: 'Finance', to: '/admin/finance', icon: <AccountBookOutlined /> },

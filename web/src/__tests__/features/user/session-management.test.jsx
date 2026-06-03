@@ -1,6 +1,5 @@
-import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderWithProviders, screen } from '@/test/utils/renderWithProviders.jsx'
+import { renderWithProviders } from '@/test/utils/renderWithProviders.jsx'
 import ActiveSessions from '@/features/user/components/ActiveSessions.jsx'
 
 // Mock ThemeProvider to avoid localStorage usage in tests (ThemeProvider calls localStorage.getItem on init)

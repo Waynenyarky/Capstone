@@ -203,6 +203,7 @@ app.use('/api/lgu-manager', lguManagerRouter);
 app.use(errorHandlerMiddleware);
 
 const PORT = Number(process.env.BUSINESS_SERVICE_PORT || 3002);
+let shutdownHooksRegistered = false;
 
 async function start() {
   const uri = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URL || ''
@@ -210,6 +211,19 @@ async function start() {
 
   // START SERVER EARLY - create server first for socket.io attachment
   const server = http.createServer(app);
+
+  server.on('error', (err) => {
+    if (err && err.code === 'EADDRINUSE') {
+      logger.error(`Business Service port ${PORT} is already in use.`);
+      logger.error('Resolve by stopping the conflicting process/container or set BUSINESS_SERVICE_PORT to a free port.');
+      if (process.env.NODE_ENV !== 'production') {
+        logger.error('If you started Docker with ./start.sh, do not run backend/services npm run dev at the same time.');
+      }
+    } else {
+      logger.error('Business Service server error', { error: err });
+    }
+    process.exit(1);
+  });
 
   // Initialize Socket.io for realtime updates (can work without DB)
   try {
@@ -230,6 +244,29 @@ async function start() {
       lobModelServiceUrl: process.env.LOB_MODEL_SERVICE_URL ? '(set)' : '(not set)',
     });
   });
+
+  if (!shutdownHooksRegistered) {
+    shutdownHooksRegistered = true;
+    const shutdown = (signal) => {
+      logger.info(`Business Service received ${signal}, shutting down...`);
+      server.close(async () => {
+        try {
+          if (mongoose.connection.readyState !== 0) {
+            await mongoose.disconnect();
+          }
+        } catch (err) {
+          logger.warn('Error during mongoose disconnect on shutdown', { error: err.message });
+        }
+        process.exit(0);
+      });
+      setTimeout(() => {
+        logger.error('Forced shutdown after timeout');
+        process.exit(1);
+      }, 5000).unref();
+    };
+    process.once('SIGINT', () => shutdown('SIGINT'));
+    process.once('SIGTERM', () => shutdown('SIGTERM'));
+  }
 
   // Connect to DB in background
   try {

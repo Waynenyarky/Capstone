@@ -1,4 +1,3 @@
-import React from 'react'
 import EditStaffModal from './EditStaffModal'
 import ResetPasswordModal from './ResetPasswordModal'
 import DisableAccountModal from './DisableAccountModal'

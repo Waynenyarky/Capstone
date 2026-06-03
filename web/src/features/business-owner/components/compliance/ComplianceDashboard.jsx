@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Row, Col, Statistic, Progress, Alert, List, Tag, Button, Space, Typography, message } from 'antd';
 import { TrophyOutlined, ExclamationCircleOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { getComplianceOverview, getUpcomingDeadlines, getActiveViolations } from '../../services/complianceMonitoringService';

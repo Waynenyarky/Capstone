@@ -3,8 +3,8 @@
  * Violations & Inspections Overview page for LGU Manager
  * Read-only oversight module — correctly maps backend response
  */
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
-import { Card, Typography, theme, Space, Button, Select, Row, Col, Table, Tag, Empty, Alert, Tabs } from 'antd'
+import { useState, useCallback, useEffect, useMemo } from 'react'
+import { Card, Typography, theme, Space, Button, Select, Row, Col, Table, Tag, Empty, Alert } from 'antd'
 import { SolutionOutlined, ReloadOutlined, WarningOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import LGUManagerLayout from '../components/LGUManagerLayout'
 import { get } from '@/lib/http.js'

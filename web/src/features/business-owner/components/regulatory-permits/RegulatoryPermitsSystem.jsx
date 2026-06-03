@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -15,7 +15,6 @@ import {
   Col,
   Statistic,
   Empty,
-  Tooltip,
   Badge,
   Timeline,
   Form,
@@ -23,19 +22,11 @@ import {
   Select,
   Upload,
   message,
-  Spin,
   Tabs,
-  List,
-  Avatar,
   Steps,
-  Rate,
   DatePicker,
-  InputNumber,
-  Checkbox,
   Radio,
-  Collapse,
-  Tree,
-  Transfer
+  Collapse
 } from 'antd';
 import {
   FileTextOutlined,
@@ -46,18 +37,10 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   CloseCircleOutlined,
-  WarningOutlined,
-  InfoCircleOutlined,
-  PaperClipOutlined,
-  UserOutlined,
-  CalendarOutlined,
-  FilterOutlined,
   SearchOutlined,
   BranchesOutlined,
   SafetyCertificateOutlined,
-  IdcardOutlined,
   HomeOutlined,
-  CarOutlined,
   ShopOutlined,
   EnvironmentOutlined,
   FireOutlined,
@@ -68,10 +51,8 @@ import { useBusiness } from '../../../../hooks/useBusiness';
 import { 
   getGeneralPermits,
   createGeneralPermit,
-  updateGeneralPermit,
   getOccupationalPermits,
   createOccupationalPermit,
-  updateOccupationalPermit,
   PERMIT_STATUSES,
   getPermitStatusLabel
 } from '@/features/business-owner/services/permitsService';

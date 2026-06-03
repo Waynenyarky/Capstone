@@ -74,6 +74,8 @@ const AuditLogSchema = new mongoose.Schema(
         'permit_forms_published',
         'permit_forms_reverted',
         'permit_forms_toggled',
+        'faq_updated',
+        'instruction_updated',
       ],
       index: true,
     },
@@ -108,6 +110,11 @@ const AuditLogSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    slotId: {
+      type: String,
+      required: false,
+      index: true,
+    },
     metadata: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
@@ -138,7 +145,7 @@ AuditLogSchema.index({ eventType: 1, createdAt: -1 })
 const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
 AuditLogSchema.plugin(encryptionPlugin, {
   fields: ['oldValue', 'newValue', 'role', 'blockchainError'],
-  deterministicFields: ['hash'],
+  deterministicFields: ['hash', 'slotId'],
   nestedPaths: [],
   arrayPaths: [],
   mixedPaths: ['metadata'],

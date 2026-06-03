@@ -1,5 +1,5 @@
-import React from 'react'
-import { Typography, Spin, Empty, Space, Button, Pagination } from 'antd'
+import { Typography, Space, Button, Pagination } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { PlusOutlined } from '@ant-design/icons'
 import BusinessCard from '../BusinessCard'
 
@@ -37,7 +37,7 @@ function BusinessListPanel({
       
       {loading ? (
         <div style={{ textAlign: 'center', padding: 24 }}>
-          <Spin />
+          <LottieSpinner />
         </div>
       ) : businesses.length === 0 ? (
         <div></div>

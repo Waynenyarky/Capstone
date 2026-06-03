@@ -1,4 +1,3 @@
-import React from 'react'
 import { Typography, Tag, Card, Col } from 'antd'
 import dayjs from 'dayjs'
 import { getDisplayStatus, getDisplayTagColor, requestedByDisplay, getRequestExpiryText } from '../utils/maintenance.utils.js'

@@ -1,4 +1,3 @@
-import React from 'react'
 import { Typography, Button, theme } from 'antd'
 import { SettingOutlined } from '@ant-design/icons'
 import { Link } from 'react-router-dom'

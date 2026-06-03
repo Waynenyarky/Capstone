@@ -1,4 +1,3 @@
-import React from 'react'
 import { Layout, theme } from 'antd'
 import { AppSidebar as Sidebar } from '@/features/authentication'
 import { LayoutPageHeader } from '@/features/shared'

@@ -1,4 +1,3 @@
-import React from 'react'
 import { Typography, Grid, theme, Collapse, Button } from 'antd'
 import { DownloadOutlined, EditOutlined, FileTextOutlined, CopyOutlined, BookOutlined, DollarOutlined, ReadOutlined, CheckSquareOutlined } from '@ant-design/icons'
 

@@ -1,6 +1,5 @@
-import React, { useMemo, useState, useEffect } from 'react'
-import { Row, Col, Card, Typography, theme, Table, Tag, Spin, Empty } from 'antd'
-import { Pie } from '@ant-design/charts'
+import { useMemo, useState, useEffect } from 'react'
+import { Row, Col, Card, Typography, theme, Table, Tag, Empty } from 'antd'
 import {
   UserAddOutlined,
   ClockCircleOutlined,

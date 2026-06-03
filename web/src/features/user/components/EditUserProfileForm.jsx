@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Form } from '@/shared/components/AppForm'
 import { Input, Card, Button, Row, Col, Space, Alert, Skeleton, Select, DatePicker, Typography, theme, Grid } from 'antd'
 import { SaveOutlined, UndoOutlined, InfoCircleOutlined, UserOutlined, HomeOutlined, IdcardOutlined } from '@ant-design/icons'
@@ -9,7 +9,7 @@ import {
   middleNameRules,
   suffixRules,
   phoneNumberRules,
-} from "@/features/authentication/validations"
+} from "@/features/authentication/utils/validations"
 import {
   pisSexRules,
   pisDateOfBirthRules,

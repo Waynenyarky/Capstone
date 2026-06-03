@@ -1,5 +1,5 @@
-import React from 'react'
-import { Row, Col, Card, Typography, theme, Table, Spin } from 'antd'
+import { Row, Col, Card, Typography, theme, Table } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { Link } from 'react-router-dom'
 import { useSiteSettingsOverview } from '../hooks/useSiteSettingsOverview.jsx'
 
@@ -46,7 +46,7 @@ export default function SiteSettingsOverviewTab({
                   <Card size="small" style={{ height: '100%' }}>
                     {key === 'loading' ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Spin size="small" />
+                        <LottieSpinner size="small" />
                         <span style={{ fontSize: 13, color: token.colorTextSecondary }}>{label}</span>
                       </div>
                     ) : (

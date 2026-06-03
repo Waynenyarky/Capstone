@@ -3,8 +3,9 @@
  * LGU Manager assigns inspections to inspectors
  * Two-panel layout matching Admin User Management design
  */
-import React, { useState, useCallback } from 'react'
-import { Typography, Button, Grid, Tabs, theme, Spin } from 'antd'
+import { useState, useCallback } from 'react'
+import { Typography, Button, Grid, Tabs, theme } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
   SafetyCertificateOutlined, ReloadOutlined,
   CalendarOutlined, ScheduleOutlined, ClockCircleOutlined, CheckCircleOutlined,
@@ -180,7 +181,7 @@ export default function AssignInspectionPage() {
         <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
           {loading && allInspections.length === 0 ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-              <Spin size="large" />
+              <LottieSpinner size="large" />
             </div>
           ) : (
             tabChildren[tabKey]
@@ -199,7 +200,7 @@ export default function AssignInspectionPage() {
           key,
           label,
           children: loading && allInspections.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>
+            <div style={{ textAlign: 'center', padding: 48 }}><LottieSpinner size="large" /></div>
           ) : (
             tabChildren[key]
           ),

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Card, List, Button, Input, Select, Badge, Tag, Modal, Space, Typography, message, Tabs, Empty } from 'antd';
-import { BellOutlined, SearchOutlined, FilterOutlined, DeleteOutlined, CheckOutlined } from '@ant-design/icons';
-import { getNotifications, markNotificationAsRead, deleteNotification, updateNotificationPreferences } from '../../services/notificationService';
+import { useState, useEffect, useMemo } from 'react';
+import { Card, Button, Input, Select, Badge, Tag, Modal, Space, Typography, message, Empty } from 'antd';
+import { BellOutlined, SearchOutlined, DeleteOutlined, CheckOutlined } from '@ant-design/icons';
+import { getNotifications, markNotificationAsRead, deleteNotification } from '../../services/notificationService';
 import { useBusiness } from '@/hooks/useBusiness';
 import { useDebounce, useMemoizedSearch, usePagination } from '../../utils/performanceHooks.jsx';
 

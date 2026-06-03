@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Card, Row, Col, Statistic, Progress, Select, DatePicker, Space, Typography, message, Alert } from 'antd';
 import { TrendingUpOutlined, TrendingDownOutlined, DollarOutlined, CalendarOutlined } from '@ant-design/icons';
 import { Line, Column, Pie } from '@ant-design/charts';

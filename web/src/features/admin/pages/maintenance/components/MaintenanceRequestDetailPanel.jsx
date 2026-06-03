@@ -1,13 +1,5 @@
 import { useState, useEffect } from 'react'
-import {
-  Typography,
-  Tag,
-  Button,
-  Descriptions,
-  Space,
-  theme,
-  Empty,
-} from 'antd'
+import { Typography, Tag, Button, Descriptions, Space, theme, Empty } from 'antd'
 import { ToolOutlined } from '@ant-design/icons'
 import { useAuthSession } from '@/features/authentication'
 import { getAdminList } from '../../../services/staffService'
@@ -23,7 +15,6 @@ export default function MaintenanceRequestDetailPanel({ approval, allApprovals, 
   const { currentUser } = useAuthSession()
   const [admins, setAdmins] = useState([])
   const [submitting, setSubmitting] = useState(false)
-
   const scheduledStart = approval?.requestDetails?.scheduledStartAt ? dayjs(approval.requestDetails.scheduledStartAt) : null
   const isApprovedUpcoming = approval?.status === 'approved' && scheduledStart?.isValid() && scheduledStart.isAfter(dayjs())
 

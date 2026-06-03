@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react'
-import { Typography, Descriptions, Card, Space, Tag, Button, Empty, Spin, theme, Modal } from 'antd'
+import { useState, useEffect } from 'react'
+import { Typography, Descriptions, Card, Space, Tag, Button, Empty, theme, Modal } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { UserOutlined, ShopOutlined, FormOutlined, EditOutlined } from '@ant-design/icons'
 import { get } from '@/lib/http.js'
 import dayjs from 'dayjs'
@@ -146,7 +147,7 @@ export default function BusinessOwnerDetailPanel({ owner, onCreateWalkIn, onEdit
 
       <Text strong style={{ display: 'block', marginBottom: 12 }}>Businesses / Applications ({businesses.length})</Text>
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 24 }}><Spin /></div>
+        <div style={{ textAlign: 'center', padding: 24 }}><LottieSpinner /></div>
       ) : businesses.length === 0 ? (
         <Empty description="No businesses found for this owner" image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (

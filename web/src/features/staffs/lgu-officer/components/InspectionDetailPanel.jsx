@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Typography, Card, Tag, Descriptions, Button, Select, DatePicker,
-  Space, Alert, List, Spin, Empty, message, theme, Image,
+  Space, Alert, List, Empty, message, theme, Image,
 } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
   UserOutlined, CalendarOutlined, SafetyCertificateOutlined,
   CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined,
@@ -163,8 +164,13 @@ export default function InspectionDetailPanel({ inspection: inspectionProp, onRe
   const hasAcknowledged = Boolean(ack.acknowledged)
 
   return (
-    <Spin spinning={detailLoading} tip="Loading inspection details...">
-    <div style={{ height: '100%', overflow: 'auto', padding: 20 }}>
+    <>
+    {detailLoading ? (
+      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <LottieSpinner tip="Loading inspection details..." />
+      </div>
+    ) : (
+      <div style={{ height: '100%', overflow: 'auto', padding: 20 }}>
       {/* Status + type header */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
@@ -322,7 +328,7 @@ export default function InspectionDetailPanel({ inspection: inspectionProp, onRe
           style={{ marginBottom: 16 }}
         >
           {loadingViolations ? (
-            <Spin size="small" />
+            <LottieSpinner size="small" />
           ) : (
             <List
               size="small"
@@ -479,6 +485,7 @@ export default function InspectionDetailPanel({ inspection: inspectionProp, onRe
         </Card>
       )}
     </div>
-    </Spin>
+    )}
+    </>
   )
 }

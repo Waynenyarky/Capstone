@@ -1,11 +1,11 @@
 import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react'
-import { Empty, Typography, Splitter, Input, Spin, Button, Tooltip, Select, Tag, theme } from 'antd'
+import { Empty, Typography, Splitter, Input, Button, Tooltip, Select, Tag, theme } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { SearchOutlined, PlusOutlined, FormOutlined, FilterOutlined, CloseOutlined, FileTextOutlined, AuditOutlined, EditOutlined, StopOutlined, SafetyCertificateOutlined, ClockCircleFilled, MinusCircleOutlined } from '@ant-design/icons'
 import ApplicationDetailPanel from '../components/ApplicationDetailPanel'
 import AppealDetailPanel from '../components/AppealDetailPanel'
 import EditRequestDetailPanel from '../components/EditRequestDetailPanel'
 import CessationDetailPanel from '../components/CessationDetailPanel'
-import BusinessReviewPanel from '../components/BusinessReviewPanel'
 import InspectionDetailPanel from '../components/InspectionDetailPanel'
 import BusinessOwnerDetailPanel from '../components/BusinessOwnerDetailPanel'
 import EditOwnerModal from '../components/EditOwnerModal'
@@ -20,7 +20,6 @@ import ConsolidatedContentRenderer from '@/features/user/pages/profileSettings/C
 import { CONSOLIDATED_NAV_ITEMS } from '@/features/user/pages/profileSettings/constants'
 import { usePermitApplications } from '@/features/lgu-officer/presentation/hooks/usePermitApplications'
 import { put } from '@/lib/http.js'
-import dayjs from 'dayjs'
 
 const { Text } = Typography
 
@@ -316,7 +315,7 @@ export default function OfficerRightPanel({
       {/* Item list */}
       <div style={{ flex: 1, overflow: 'auto', padding: '8px' }}>
         {isLoading ? (
-          <div style={{ textAlign: 'center', padding: 32 }}><Spin /></div>
+          <div style={{ textAlign: 'center', padding: 32 }}><LottieSpinner /></div>
         ) : currentList.length === 0 ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}

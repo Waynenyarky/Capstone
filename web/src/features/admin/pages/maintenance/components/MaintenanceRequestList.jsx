@@ -1,4 +1,3 @@
-import React from 'react'
 import { Typography, Empty, Row, Pagination, Grid } from 'antd'
 import MaintenanceRequestCard from './MaintenanceRequestCard.jsx'
 

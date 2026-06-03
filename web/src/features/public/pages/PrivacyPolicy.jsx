@@ -1,5 +1,4 @@
-import React from 'react'
-import { Layout, Typography, Divider, Collapse, Alert, Tag, theme } from 'antd'
+import { Layout, Typography, Divider, Collapse, Tag, theme } from 'antd'
 import { Link } from 'react-router-dom'
 import HomeHeader from '../components/HomeHeader'
 import HomeFooter from '../components/HomeFooter'

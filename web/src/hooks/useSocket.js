@@ -2,7 +2,7 @@
  * React hook for Socket.io realtime updates
  */
 
-import { useEffect, useCallback, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuthSession } from '@/features/authentication/hooks/useAuthSession'
 import {
   initializeSocket,
@@ -11,7 +11,6 @@ import {
   subscribeToApplications,
   subscribeToBusiness,
   unsubscribeFromBusiness,
-  isConnected,
 } from '@/lib/socketService'
 
 /**

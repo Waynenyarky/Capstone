@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Form } from '@/shared/components/AppForm'
-import { Typography, Button, Card, Space, Spin, Alert, App, Input, Select, Upload, Checkbox, Row, Col } from 'antd'
+import { Typography, Button, Card, Space, Alert, App, Input, Select, Upload, Checkbox, Row, Col } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { ArrowLeftOutlined, ShopOutlined, FileProtectOutlined, CheckCircleOutlined, UploadOutlined } from '@ant-design/icons'
 import BusinessOwnerLayout from '../components/BusinessOwnerLayout'
 import { addBusiness, submitBusinessApplication } from '../services/businessProfileService'
@@ -271,7 +272,7 @@ export default function ApplicationNewPage() {
 
           {submitting && (
             <div style={{ textAlign: 'center', padding: 24 }} data-testid="submitting-indicator">
-              <Spin size="large" />
+              <LottieSpinner size="large" />
               <p>Submitting your application...</p>
             </div>
           )}

@@ -1,4 +1,4 @@
-import { get, post, put } from '@/lib/http.js'
+import { get, put } from '@/lib/http.js'
 
 const BASE_PATH = '/api/business/post-requirements'
 

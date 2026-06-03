@@ -1,6 +1,6 @@
 import { post, get, clearBusinessCsrfToken } from '@/lib/http.js'
 import { createPayment } from './paymentsService'
-import { getBusinesses, getPrimaryBusiness, updatePaymentGenerationStatus } from './businessProfileService'
+import { updatePaymentGenerationStatus } from './businessProfileService'
 import { LINE_OF_BUSINESS_BY_CATEGORY, LINE_OF_BUSINESS_BY_TAX_CODE } from '@/constants/lineOfBusiness'
 import dayjs from 'dayjs'
 

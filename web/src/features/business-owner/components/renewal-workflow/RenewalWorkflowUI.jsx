@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -15,29 +15,17 @@ import {
   Col,
   Statistic,
   Empty,
-  Tooltip,
   Badge,
   Timeline,
   Form,
   Input,
-  Select,
   Upload,
   message,
-  Spin,
   Tabs,
-  List,
-  Avatar,
   Steps,
-  Rate,
   DatePicker,
-  InputNumber,
-  Checkbox,
-  Radio,
   Collapse,
-  Tree,
-  Transfer,
-  Calendar,
-  Alert as AntAlert
+  Calendar
 } from 'antd';
 import {
   ReloadOutlined,
@@ -45,39 +33,18 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   CloseCircleOutlined,
-  WarningOutlined,
-  InfoCircleOutlined,
-  PaperClipOutlined,
-  UserOutlined,
   CalendarOutlined,
   FileTextOutlined,
-  UploadOutlined,
-  DownloadOutlined,
-  PayCircleOutlined,
   ExclamationCircleOutlined,
   SyncOutlined,
-  FileSearchOutlined,
-  CalculatorOutlined,
-  BankOutlined,
-  SafetyCertificateOutlined,
-  HomeOutlined,
-  CarOutlined,
-  ShopOutlined
+  FileSearchOutlined
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBusiness } from '../../../../hooks/useBusiness';
 import { 
   getRenewalPeriod,
   startRenewal,
-  acknowledgePeriod,
-  downloadRequirementsPdf,
-  submitGrossReceipts,
-  uploadDocuments,
-  uploadFile,
-  getAssessment,
-  processPayment,
-  submitRenewal,
-  getRenewalStatus
+  acknowledgePeriod
 } from '@/features/business-owner/services/businessRenewalService';
 
 const { Title, Text, Paragraph } = Typography;

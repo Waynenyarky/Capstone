@@ -1,18 +1,17 @@
-import React, { useState, useEffect } from 'react'
-import { Typography, Grid, Select, Alert, Button } from 'antd'
+import { useState, useEffect } from 'react'
+import { Typography, Alert, Button } from 'antd'
 import { theme } from 'antd'
-import { InfoCircleOutlined, LockOutlined, MailOutlined, DeleteOutlined } from '@ant-design/icons'
+import { LockOutlined, MailOutlined, DeleteOutlined } from '@ant-design/icons'
 
 // Import all the individual section components
-import LoggedInMfaManager from '@/features/authentication/components/LoggedInMfaManager.jsx'
-import MfaSetup from '@/features/authentication/components/MfaSetup.jsx'
-import LoggedInPasswordChangeFlow from '@/features/authentication/flows/LoggedInPasswordChangeFlow.jsx'
-import LoggedInEmailChangeFlow from '@/features/authentication/flows/LoggedInEmailChangeFlow.jsx'
-import EmailChangeGracePeriod from '@/features/authentication/components/EmailChangeGracePeriod.jsx'
-import MfaReenrollmentAlert from '@/features/authentication/components/MfaReenrollmentAlert.jsx'
+import LoggedInMfaManager from '@/features/authentication/mfa/components/LoggedInMfaManager.jsx'
+import MfaSetup from '@/features/authentication/mfa/components/MfaSetup.jsx'
+import LoggedInPasswordChangeFlow from '@/features/authentication/flows/account-management/components/LoggedInPasswordChangeFlow.jsx'
+import LoggedInEmailChangeFlow from '@/features/authentication/flows/account-management/components/LoggedInEmailChangeFlow.jsx'
+import EmailChangeGracePeriod from '@/features/authentication/flows/account-management/components/EmailChangeGracePeriod.jsx'
+import MfaReenrollmentAlert from '@/features/authentication/flows/account-management/components/MfaReenrollmentAlert.jsx'
 import ActiveSessions from '@/features/user/components/ActiveSessions.jsx'
-import { usePasskeyManager } from '@/features/authentication/presentation/passkey/hooks/usePasskeyManager'
-import { useLoggedInMfaManager } from '@/features/authentication/hooks'
+import { usePasskeyManager } from '@/features/authentication/passkey/hooks/usePasskeyManager'
 import { DeleteAccountFlow, DeletionScheduledBanner, useAuthSession } from '@/features/authentication'
 
 // Import General section components
@@ -20,34 +19,20 @@ import BasicInfoSection from './GeneralSections/BasicInfoSection.jsx'
 import AddressSection from './GeneralSections/AddressSection.jsx'
 import PersonalInfoSection from './GeneralSections/PersonalInfoSection.jsx'
 
-// Import other tab content components
-import EditUserProfileForm from '@/features/user/components/EditUserProfileForm.jsx'
-import PendingApprovalAlert from '@/features/user/components/PendingApprovalAlert.jsx'
-
 const { Title, Paragraph } = Typography
 
-/** Centered content width for section detail (login-style consistency) */
-const CENTERED_CONTENT_MAX_WIDTH = 300
-
 export default function ConsolidatedContentRenderer({ 
-  selectedKey, 
-  themeSettings,
-  isBusinessOwner,
-  isStaffOrAdmin 
+  selectedKey 
 }) {
   const { token } = theme.useToken()
-  const [selectedSecurityKey, setSelectedSecurityKey] = useState('mfa')
   const [emailShowingFlow, setEmailShowingFlow] = useState(false)
   const [passwordShowingFlow, setPasswordShowingFlow] = useState(false)
   const [deleteAccountShowingFlow, setDeleteAccountShowingFlow] = useState(false)
   const [mfaShowingSetup, setMfaShowingSetup] = useState(false)
-  const screens = Grid.useBreakpoint()
-  const isMobile = !screens.md
 
   // Security-specific state and effects
   const { currentUser } = useAuthSession()
   const { credentials: passkeys } = usePasskeyManager()
-  const { effectiveEnabled } = useLoggedInMfaManager()
   
   // Calculate hasPasskeys from the actual passkey credentials
   const hasPasskeys = Array.isArray(passkeys) && passkeys.length > 0
@@ -55,13 +40,6 @@ export default function ConsolidatedContentRenderer({
   // Double-check business owner status for consistency
   const userRole = typeof currentUser?.role === 'string' ? currentUser?.role : currentUser?.role?.slug || 'user'
   const isActuallyBusinessOwner = userRole === 'business_owner'
-
-  // Auto-select MFA section if deleteAccount is selected but not available
-  useEffect(() => {
-    if (selectedKey === 'deleteAccount' && !isActuallyBusinessOwner) {
-      setSelectedSecurityKey('mfa')
-    }
-  }, [selectedKey, isActuallyBusinessOwner])
 
   // Reset email flow state when switching away from email tab
   useEffect(() => {
@@ -134,9 +112,8 @@ export default function ConsolidatedContentRenderer({
         if (mfaShowingSetup) {
           return (
             <div style={{ ...centeredWrapperStyle }}>
-              <MfaSetup 
-                embedded={true} 
-                onComplete={() => setMfaShowingSetup(false)} 
+              <MfaSetup
+                onComplete={() => setMfaShowingSetup(false)}
               />
             </div>
           )
@@ -172,7 +149,7 @@ export default function ConsolidatedContentRenderer({
                 <div>
                   <Title level={5} style={{ margin: 0, marginBottom: 4 }}>Password</Title>
                   <Paragraph type="secondary" style={{ margin: 0 }}>
-                    Change your password to keep your account secure. We'll send a verification code to your email first.
+                    Change your password to keep your account secure. We&apos;ll send a verification code to your email first.
                   </Paragraph>
                 </div>
                 <Button type="primary" onClick={() => setPasswordShowingFlow(true)} icon={<LockOutlined />}>
@@ -203,7 +180,7 @@ export default function ConsolidatedContentRenderer({
                 <div>
                   <Title level={5} style={{ margin: 0, marginBottom: 4 }}>Email Address</Title>
                   <Paragraph type="secondary" style={{ margin: 0 }}>
-                    Update the email address used for sign-in and account notifications. We'll verify your current email first.
+                    Update the email address used for sign-in and account notifications. We&apos;ll verify your current email first.
                   </Paragraph>
                 </div>
                 <Button type="primary" onClick={() => setEmailShowingFlow(true)} icon={<MailOutlined />}>

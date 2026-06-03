@@ -3,8 +3,9 @@
  * Basic information, Address (separate fields), Other information — same section titles and field labels.
  * Used in the application review detail Owner tab. Does NOT include Identity documents or Position & TIN.
  */
-import React, { useState, useEffect } from 'react'
-import { Descriptions, Typography, Card, Tag, Spin, Empty } from 'antd'
+import { useState, useEffect } from 'react'
+import { Descriptions, Typography, Card, Tag, Empty } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { ShopOutlined, RightOutlined } from '@ant-design/icons'
 import { get } from '@/lib/http'
 import dayjs from 'dayjs'
@@ -186,7 +187,7 @@ export default function OwnerInfoReadOnlyView({
         <Text strong style={{ display: 'block', marginBottom: 12 }}>Other Business Applications</Text>
         {loadingOthers ? (
           <div style={{ textAlign: 'center', padding: 24 }}>
-            <Spin size="small" />
+            <LottieSpinner size="small" />
           </div>
         ) : otherApplications.length === 0 ? (
           <Empty

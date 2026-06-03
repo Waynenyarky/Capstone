@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { 
-  Card, Input, Button, List, Avatar, Typography, Space, 
-  Upload, Modal, Form, Select, Tag, Divider, Tooltip,
-  Badge, Dropdown, Menu, Empty, Spin, message
+import { useState, useEffect, useRef } from 'react'
+import { Input, Button, List, Avatar, Typography, Space, 
+  Upload, Modal, Form, Select, Tag,
+  Badge, Dropdown, Menu, Empty, message
 } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { 
   SendOutlined, PaperClipOutlined, MoreOutlined,
-  PhoneOutlined, MailOutlined, VideoCameraOutlined,
+  PhoneOutlined, VideoCameraOutlined,
   ExclamationCircleOutlined, ClockCircleOutlined,
   CheckCircleOutlined, UserOutlined
 } from '@ant-design/icons'
@@ -377,7 +377,7 @@ function CommunicationHub() {
           <div style={{ flex: 1, overflow: 'auto' }}>
             {loading ? (
               <div style={{ textAlign: 'center', padding: 32 }}>
-                <Spin />
+                <LottieSpinner />
               </div>
             ) : (
               <List

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { Card, List, Button, Space, Typography, Collapse, Divider } from 'antd'
+import { useEffect, useState } from 'react'
+import { List, Typography, Collapse, Divider } from 'antd'
 import SessionCard from './SessionCard.jsx'
 import InvalidateSessionsButton from './InvalidateSessionsButton.jsx'
 import { getActiveSessions, getSessionHistory } from '@/features/authentication/services/sessionService.js'

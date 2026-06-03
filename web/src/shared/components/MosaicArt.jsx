@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
 export default function ZipperReveal({
   children,
@@ -55,7 +55,8 @@ export default function ZipperReveal({
 
     return () => {
       clearTimeout(timer)
-      const strips = containerRef.current?.querySelectorAll('.zipper-strip')
+      const container = containerRef.current
+      const strips = container?.querySelectorAll('.zipper-strip')
       if (!strips) return
       strips.forEach((strip) => {
         strip.style.animation = ''

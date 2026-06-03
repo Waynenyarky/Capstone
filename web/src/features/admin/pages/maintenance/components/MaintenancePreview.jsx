@@ -1,4 +1,3 @@
-import React from 'react'
 import { Collapse, Typography, Tag } from 'antd'
 import dayjs from 'dayjs'
 

@@ -1,4 +1,3 @@
-import React from 'react'
 import {
   Input,
   Select,
@@ -23,7 +22,6 @@ import {
   PlusOutlined,
   DeleteOutlined,
 } from '@ant-design/icons'
-import { FIELD_TYPES } from '../constants'
 
 const { Text, Title } = Typography
 

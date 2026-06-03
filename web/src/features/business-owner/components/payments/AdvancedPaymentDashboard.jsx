@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Statistic, Table, Button, Modal, Form, Input, Select, Tag, Progress, Space, Typography, message, Alert } from 'antd';
-import { CreditCardOutlined, BankOutlined, CalendarOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { useState, useEffect } from 'react';
+import { Card, Row, Col, Statistic, Table, Button, Modal, Form, Input, Select, Tag, Space, Typography, message, Alert } from 'antd';
+import { CreditCardOutlined, BankOutlined, CalendarOutlined } from '@ant-design/icons';
 import { getPaymentMethods, getPaymentHistory, setupRecurringPayment, submitPaymentDispute } from '../../services/paymentService';
 import { useBusiness } from '@/hooks/useBusiness';
 

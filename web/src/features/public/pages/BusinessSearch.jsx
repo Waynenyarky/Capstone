@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Typography, Input, Button, theme, Grid, Layout, Pagination } from 'antd'
+import { useState } from 'react'
+import { Typography, Input, Button, theme, Grid, Layout } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
 import HomeHeader from '../components/HomeHeader'
 import FaqSection from '../components/FaqSection'
@@ -63,7 +63,7 @@ export default function BusinessSearch() {
   const endIndex = Math.min(currentPage * pageSize, MOCK_BUSINESSES.length)
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#fff' }}>
+    <Layout style={{ minHeight: '100vh', background: token.colorBgContainer }}>
       <HomeHeader visible={true} />
       <Content style={{ display: 'flex', flexDirection: 'column' }}>
         {/* Two Panel Design */}

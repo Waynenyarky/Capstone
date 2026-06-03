@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Modal,
   Button,
   Typography,
   message,
-  Spin,
 } from 'antd';
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { CheckCircleOutlined, DollarOutlined } from '@ant-design/icons';
 import { post } from '@/lib/http.js';
 
@@ -126,7 +126,7 @@ const PaymentGatewayModal = ({ visible, onCancel, onSuccess, amount, description
           justifyContent: 'center',
           zIndex: 1000
         }}>
-          <Spin size="large" tip="Processing payment..." />
+          <LottieSpinner size="large" tip="Processing payment..." />
         </div>
       )}
     </Modal>

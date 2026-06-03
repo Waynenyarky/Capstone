@@ -1,5 +1,4 @@
-import React from 'react';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { ConfigProvider, App } from 'antd';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
@@ -7,7 +6,6 @@ import userEvent from '@testing-library/user-event';
 
 // Import Phase 2 components for UAT
 import RiskProfileDashboard from '../../risk/RiskProfileDashboard';
-import BusinessConflictResolver from '../../edge-case/BusinessConflictResolver';
 import GeneralPermitApplication from '../../permits/GeneralPermitApplication';
 import ComplianceDashboard from '../../compliance/ComplianceDashboard';
 import NotificationCenter from '../../notifications/NotificationCenter';

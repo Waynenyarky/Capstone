@@ -10,6 +10,7 @@ import prettier from 'eslint-plugin-prettier'
 import prettierConfig from 'eslint-config-prettier'
 import { defineConfig, globalIgnores } from 'eslint/config'
 import importPlugin from 'eslint-plugin-import'
+import unusedImports from 'eslint-plugin-unused-imports'
 
 export default defineConfig([
   globalIgnores(['dist', 'coverage']),
@@ -29,6 +30,7 @@ export default defineConfig([
       'react-perf': reactPerf,
       prettier: prettier,
       import: importPlugin,
+      'unused-imports': unusedImports,
     },
     languageOptions: {
       ecmaVersion: 2020,
@@ -52,12 +54,19 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      'unused-imports/no-unused-imports': 'error',
+      'unused-imports/no-unused-vars': ['error', { 
+        vars: 'all', 
+        varsIgnorePattern: '^[A-Z_]', 
+        args: 'after-used', 
+        argsIgnorePattern: '^_' 
+      }],
       'no-use-before-define': ['error', { variables: true, functions: true, classes: true }],
       'react/prop-types': 'off', // Using TypeScript instead of prop-types
       'react/react-in-jsx-scope': 'off', // React 17+ doesn't require React in scope
       'react/jsx-filename-extension': ['error', { extensions: ['.jsx', '.tsx'] }], // Enforce JSX files to have .jsx or .tsx extension
-      '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^(React|use[A-Z])', argsIgnorePattern: '^_' }],
       'import/no-unresolved': ['error', {
         commonjs: true,
         caseSensitive: true,
@@ -97,6 +106,9 @@ export default defineConfig([
         afterEach: 'readonly',
         beforeAll: 'readonly',
         afterAll: 'readonly',
+      },
+      parserOptions: {
+        project: null, // Disable TypeScript project for JSX test files
       },
     },
   },

@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
-import { Select, Button, Typography, Card, Space, message } from 'antd'
+import { useState } from 'react'
+import { Select, Button, Typography, Card, Space, message, theme } from 'antd'
 import { CodeOutlined, PlayCircleOutlined } from '@ant-design/icons'
 
 const { Text } = Typography
+const { useToken } = theme
 
 /**
  * Dev-only panel to simulate security attacks. Shows a list of attacks;
@@ -10,6 +11,7 @@ const { Text } = Typography
  * Renders nothing when not in DEV or when VITE_DEMO_UI is true.
  */
 export default function DevSimulatedAttackPanel({ attacks = [], context = {}, title = 'Simulate Attack' }) {
+  const { token } = useToken()
   const [selectedKey, setSelectedKey] = useState(null)
   const [running, setRunning] = useState(false)
 
@@ -73,8 +75,8 @@ export default function DevSimulatedAttackPanel({ attacks = [], context = {}, ti
                 style={{
                   margin: 0,
                   padding: 10,
-                  background: '#1e1e1e',
-                  color: '#d4d4d4',
+                  background: token.colorBgLayout,
+                  color: token.colorText,
                   borderRadius: 6,
                   fontSize: 11,
                   overflow: 'auto',

@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Typography, Button, Empty, Badge, theme } from 'antd'
 import {
   FileTextOutlined, EditOutlined, AuditOutlined, StopOutlined,
   SafetyCertificateOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  ClockCircleOutlined, ReloadOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons'
 import ApplicationDetailPanel from './ApplicationDetailPanel'
 import EditRequestDetailPanel from './EditRequestDetailPanel'

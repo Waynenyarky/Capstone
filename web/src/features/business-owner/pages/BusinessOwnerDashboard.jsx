@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { Typography, Spin, theme, Space, Empty, Button, App, Tag, Pagination, Input, Select, Card, Modal, Tabs } from 'antd'
-import { PlusOutlined, ShopOutlined, ArrowLeftOutlined, BugOutlined, DeleteOutlined, SearchOutlined, FilterOutlined, SettingOutlined, LogoutOutlined, CloseOutlined } from '@ant-design/icons'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Typography, theme, Space, Empty, Button, App, Input, Select } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
+import { ShopOutlined, BugOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import BusinessOwnerLayout from '../components/BusinessOwnerLayout'
 import BusinessListPanel from '../components/dashboard/BusinessListPanel'
-import BusinessCard from '../components/BusinessCard'
 import AddBusinessForm from '../components/AddBusinessForm'
 import PendingApplicationView from '../components/PendingApplicationView'
 import ApprovedBusinessView from '../components/ApprovedBusinessView'
@@ -12,7 +12,7 @@ import UserSettingsView from '@/features/user/pages/profileSettings/UserSettings
 import WelcomeModal from '../components/onboarding/WelcomeModal'
 import { useAuthSession } from '@/features/authentication'
 import { useThemeSettings } from '@/features/user/hooks/useThemeSettings'
-import { getBusinesses, getBusinessesPaginated, updateBusiness, deleteBusiness } from '../services/businessProfileService'
+import { getBusinesses, getBusinessesPaginated, deleteBusiness } from '../services/businessProfileService'
 import { useSocketConnection, useSocketEvent } from '@/hooks/useSocket'
 import { SiteStatusPill } from '@/features/shared/components'
 
@@ -369,7 +369,7 @@ export default function BusinessOwnerDashboard() {
   if (authLoading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <Spin size="large" />
+        <LottieSpinner size="large" />
       </div>
     )
   }
@@ -377,7 +377,7 @@ export default function BusinessOwnerDashboard() {
   if (!currentUser || roleSlug !== 'business_owner') {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <Spin size="large" tip="Redirecting..."><div style={{ minHeight: 48 }} /></Spin>
+        <LottieSpinner size="large" tip="Redirecting..."><div style={{ minHeight: 48 }} /></LottieSpinner>
       </div>
     )
   }

@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Modal, Input, Button, Typography, Alert, Space } from 'antd'
-import { SafetyCertificateOutlined, KeyOutlined } from '@ant-design/icons'
+import { KeyOutlined } from '@ant-design/icons'
 import { stepUpWithTotp, stepUpWithPasskey } from '../services/stepUpService'
 import { useNotifier } from '@/shared/notifications'
 
@@ -82,39 +82,38 @@ export default function AdminStepUpModal({ open, onCancel, onVerified, mfaMethod
       width={400}
     >
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        <Text type="secondary">
-          {isPasskey
-            ? 'Use your passkey to confirm your identity.'
-            : 'Enter the 6-digit code from your authenticator app to confirm your identity.'}
-        </Text>
-        {error && <Alert type="error" message={error} showIcon />}
-        {isPasskey ? (
-          <Button
-            type="primary"
-            icon={<SafetyCertificateOutlined />}
-            block
-            loading={loading}
-            onClick={handlePasskeyClick}
-          >
-            Use passkey
-          </Button>
-        ) : (
-          <>
-            <Input
-              prefix={<KeyOutlined />}
-              placeholder="6-digit code"
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              onPressEnter={handleTotpSubmit}
-              maxLength={6}
-              autoComplete="one-time-code"
-            />
-            <Button type="primary" block loading={loading} onClick={handleTotpSubmit}>
-              Verify
+          <Text type="secondary">
+            {isPasskey
+              ? 'Use your passkey to confirm your identity.'
+              : 'Enter the 6-digit code from your authenticator app to confirm your identity.'}
+          </Text>
+          {error && <Alert type="error" message={error} showIcon />}
+          {isPasskey ? (
+            <Button
+              type="primary"
+              block
+              loading={loading}
+              onClick={handlePasskeyClick}
+            >
+              Use passkey
             </Button>
-          </>
-        )}
-      </Space>
+          ) : (
+            <>
+              <Input
+                prefix={<KeyOutlined />}
+                placeholder="6-digit code"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onPressEnter={handleTotpSubmit}
+                maxLength={6}
+                autoComplete="one-time-code"
+              />
+              <Button type="primary" block loading={loading} onClick={handleTotpSubmit}>
+                Verify
+              </Button>
+            </>
+          )}
+        </Space>
     </Modal>
   )
 }

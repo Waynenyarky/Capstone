@@ -1,42 +1,62 @@
-import '@testing-library/jest-dom/vitest'
 import { afterAll, afterEach, beforeAll, vi } from 'vitest'
-import { cleanup } from '@testing-library/react'
-import React from 'react'
 
-// Global React hooks mock to fix scope issues
-vi.mock('react', async () => {
-  const actual = await vi.importActual('react');
-  return {
-    ...actual,
-    // Mock named imports
-    useState: vi.fn((initial) => {
-      const state = typeof initial === 'function' ? initial() : initial;
-      const setState = vi.fn();
-      return [state, setState];
+// Mock lottie-web at the VERY TOP before any other code
+vi.mock('lottie-web', () => ({
+  default: {
+    loadAnimation: () => ({
+      destroy: () => {},
+      play: () => {},
+      stop: () => {},
+      setSpeed: () => {},
+      goToAndPlay: () => {},
+      goToAndStop: () => {},
     }),
-    useEffect: vi.fn(),
-    useMemo: vi.fn((fn) => fn()),
-    useCallback: vi.fn((fn) => fn),
-    useRef: vi.fn(() => ({ current: null })),
-    createContext: vi.fn((defaultValue) => ({
-      _defaultValue: defaultValue,
-      Provider: ({ value, children }) => children,
-      Consumer: ({ children }) => children({ value: defaultValue })
-    })),
-    useContext: vi.fn((context) => context._defaultValue),
-    useReducer: vi.fn((reducer, initialState) => [initialState, vi.fn()]),
-    useLayoutEffect: vi.fn(),
-    useImperativeHandle: vi.fn(),
-    useInsertionEffect: vi.fn(),
-    useId: vi.fn(() => 'test-id'),
-    useSyncExternalStore: vi.fn(),
-    useTransition: vi.fn(() => [false, vi.fn()]),
-    useDeferredValue: vi.fn((value) => value),
-    startTransition: vi.fn(),
-    // Keep default export for compatibility
-    default: actual.default,
-  };
-});
+  },
+}))
+
+// Polyfill HTMLCanvasElement BEFORE any imports to prevent lottie-web canvas errors
+if (typeof window !== 'undefined') {
+  const originalCanvas = window.HTMLCanvasElement
+  if (!originalCanvas || originalCanvas.name !== 'HTMLCanvasElement') {
+    window.HTMLCanvasElement = class {
+      constructor() {
+        this.width = 0
+        this.height = 0
+      }
+      getContext() {
+        return {
+          fillStyle: null,
+          strokeStyle: null,
+          lineWidth: 1,
+          fillRect: () => {},
+          strokeRect: () => {},
+          clearRect: () => {},
+          beginPath: () => {},
+          closePath: () => {},
+          moveTo: () => {},
+          lineTo: () => {},
+          arc: () => {},
+          save: () => {},
+          restore: () => {},
+          drawImage: () => {},
+          scale: () => {},
+          translate: () => {},
+          rotate: () => {},
+          transform: () => {},
+          setTransform: () => {},
+          createLinearGradient: () => ({ addColorStop: () => {} }),
+          createRadialGradient: () => ({ addColorStop: () => {} }),
+        }
+      }
+      toDataURL() {
+        return ''
+      }
+    }
+  }
+}
+
+import '@testing-library/jest-dom/vitest'
+import { cleanup } from '@testing-library/react'
 
 // Global useBusiness hook mock
 vi.mock('@/hooks/useBusiness', () => ({
@@ -133,7 +153,8 @@ vi.mock('@/features/business-owner/utils/performanceHooks.jsx', () => ({
   const setCurrentPage = (newPage) => {
     currentPage = typeof newPage === 'function' ? newPage(currentPage) : newPage;
   };
-  
+
+  /* eslint-disable no-use-before-define */
   const updateState = () => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
@@ -148,6 +169,7 @@ vi.mock('@/features/business-owner/utils/performanceHooks.jsx', () => ({
       hasPrevPage: currentPage > 1
     });
   };
+  /* eslint-enable no-use-before-define */
   
   const state = {
     currentPage: 1,
@@ -165,13 +187,12 @@ vi.mock('@/features/business-owner/utils/performanceHooks.jsx', () => ({
     },
     goToPage: (page) => {
       setCurrentPage(page);
-      updateState();
     }
   };
   
   return state;
 }),
-  usePerformanceMonitor: vi.fn((componentName) => {
+  usePerformanceMonitor: vi.fn((_componentName) => {
     const renderCount = { current: 0 };
     const renderTimes = [];
     let startTime = Date.now();
@@ -236,6 +257,11 @@ afterEach(() => {
 })
 
 vi.mock('@/features/authentication/components/PasskeySignInOptions.jsx', () => ({
+  default: () => null,
+}))
+
+// Mock LottieSpinner to prevent canvas errors in headless test environment
+vi.mock('@/shared/components/LottieSpinner.jsx', () => ({
   default: () => null,
 }))
 

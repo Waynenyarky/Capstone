@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Card, Input, Button, List, Typography, Space, Tabs, 
   Select, Tag, Divider, Alert, Collapse, Modal, Form,
-  message, Row, Col, Avatar, Badge, Progress
+  message, Row, Col, Avatar
 } from 'antd'
 import { 
   SearchOutlined, QuestionCircleOutlined, BookOutlined,
   VideoCameraOutlined, FileTextOutlined, MessageOutlined,
-  StarOutlined, ClockCircleOutlined, CheckCircleOutlined,
-  ExclamationCircleOutlined, BulbOutlined
+  StarOutlined, ClockCircleOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 

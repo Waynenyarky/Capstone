@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo, useRef, forwardRef, useImperativeHandle, useCallback } from 'react'
+import { useState, useEffect, useMemo, useRef, forwardRef, useImperativeHandle, useCallback } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Typography, Button, Space, Spin, Result, Grid, theme, App, Empty } from 'antd'
+import { Typography, Button, Space, Result, Grid, theme, App, Empty } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { BugOutlined, CheckCircleOutlined, DashboardOutlined } from '@ant-design/icons'
 import { getActiveFormDefinition } from '@/features/admin/services/formDefinitionService'
 import { addBusiness } from '../services/businessProfileService'
@@ -11,7 +12,6 @@ import GeneralPermitCategorySelector from './GeneralPermitCategorySelector'
 import ApplicationOverview from './ApplicationOverview'
 import { generateTestDataForDefinition, formDataWithDayjs } from '../utils/businessFormUtils'
 import { GENERAL_PERMIT_CATEGORIES } from '../constants/businessFormConstants'
-import useDraftInitialization from '../hooks/useDraftInitialization'
 import useBusinessFormSubmit from '../hooks/useBusinessFormSubmit'
 
 const { Title, Text, Paragraph } = Typography
@@ -956,7 +956,7 @@ export default forwardRef(function AddBusinessForm({
           <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
             {loading ? (
               <div style={{ textAlign: 'center', padding: 48 }}>
-                <Spin size="large" />
+                <LottieSpinner size="large" />
                 <div style={{ marginTop: 16 }}>
                   <Text type="secondary">Loading form...</Text>
                 </div>

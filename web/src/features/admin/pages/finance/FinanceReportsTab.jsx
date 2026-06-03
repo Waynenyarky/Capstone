@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react'
-import { Typography, theme, Select, Button, Card, Statistic, Row, Col, Space, Spin, App } from 'antd'
+import { useState, useEffect } from 'react'
+import { Typography, theme, Select, Button, Card, Statistic, Row, Col, Space, App } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { DownloadOutlined } from '@ant-design/icons'
 import { get } from '@/lib/http.js'
 
@@ -71,7 +72,7 @@ export default function FinanceReportsTab() {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
+        <div style={{ textAlign: 'center', padding: 40 }}><LottieSpinner /></div>
       ) : report ? (
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={8}>

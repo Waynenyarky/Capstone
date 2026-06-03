@@ -3,13 +3,13 @@
  * Main dashboard page for LGU Officer
  * Orchestrates presentation components and hooks
  */
-import React, { useEffect, useState } from 'react'
-import { Row, Col, Card, Typography, Spin, theme, Space, Statistic, Tag } from 'antd'
+import { useEffect, useState } from 'react'
+import { Row, Col, Card, Typography, theme, Space, Statistic, Tag } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { 
   SafetyCertificateOutlined, 
   WarningOutlined, 
   FileTextOutlined,
-  CheckCircleOutlined,
   ClockCircleOutlined
 } from '@ant-design/icons'
 import LGUOfficerLayout from '../components/LGUOfficerLayout'
@@ -68,7 +68,7 @@ export default function LGUOfficerDashboard() {
 
         {loading && !dashboardData ? (
           <div style={{ textAlign: 'center', padding: 50 }}>
-            <Spin size="large" />
+            <LottieSpinner size="large" />
           </div>
         ) : (
           <>

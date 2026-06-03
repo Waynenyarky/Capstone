@@ -1,6 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../../../hooks/useAuth';
-import { useBusiness } from '../../../../hooks/useBusiness';
+import { useState, useEffect } from 'react';
 import { Tour, Button, Card, Typography, Space, Badge } from 'antd';
 import { 
   InfoCircleOutlined, 

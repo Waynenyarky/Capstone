@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Card, List, Button, Alert, Modal, Form, Input, Select, Space, Typography, message, Progress } from 'antd';
-import { ExclamationCircleOutlined, SafetyOutlined, HistoryOutlined } from '@ant-design/icons';
+import { useState, useEffect } from 'react';
+import { Card, List, Button, Alert, Modal, Form, Input, Select, Space, Typography, message } from 'antd';
+import { ExclamationCircleOutlined, SafetyOutlined } from '@ant-design/icons';
 import { getDataCorruptionEvents, restoreBackup, validateIntegrity } from '../../services/dataRecoveryService';
 import { useBusiness } from '@/hooks/useBusiness';
 

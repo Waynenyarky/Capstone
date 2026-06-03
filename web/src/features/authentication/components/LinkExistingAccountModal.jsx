@@ -1,6 +1,6 @@
-import React, { useState, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Modal, Input, Button, Typography, Steps, Result, Spin } from 'antd'
+import { Modal, Input, Button, Typography, Steps, Result } from 'antd'
 import { useAuthNotification, useNotifier } from '@/shared/notifications.js'
 import { post } from '@/lib/http.js'
 
@@ -58,7 +58,7 @@ export default function LinkExistingAccountModal({ open, onClose }) {
     } finally {
       setLoading(false)
     }
-  }, [linkEmail, linkBp, success, error])
+  }, [linkEmail, linkBp, error, notificationSuccess])
 
   return (
     <Modal

@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react'
-import { Card, Button, Tag, Space, Typography, App, Spin, Empty, Descriptions } from 'antd'
+import { useState, useEffect } from 'react'
+import { Button, Tag, Typography, App, Empty } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { DownloadOutlined, SafetyCertificateOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { 
   getBusinessPermits, 
   downloadPermitPDF, 
-  isPermitValid, 
-  getPermitStatusColor,
+  isPermitValid,
   issuePermit 
 } from '../../services/permitIssuanceService'
 
@@ -95,7 +95,7 @@ export default function PermitDownloadCard({ businessId, businessName, onPermitD
   if (loading || issuing) {
     return (
       <div style={{ textAlign: 'center', padding: 24 }}>
-        <Spin tip={issuing ? "Generating permit..." : "Loading permits..."} />
+        <LottieSpinner tip={issuing ? "Generating permit..." : "Loading permits..."} />
       </div>
     )
   }

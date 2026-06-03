@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Grid, Space, Typography, Button, Dropdown, Badge, Spin, theme } from 'antd'
+import { Grid, Space, Typography, Button, Dropdown, Badge, theme } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
   EllipsisOutlined,
   SettingOutlined,
@@ -10,7 +11,6 @@ import {
   CloseCircleOutlined,
   ExclamationCircleOutlined,
   InfoCircleOutlined,
-  BulbOutlined,
   SunOutlined,
   MoonOutlined,
 } from '@ant-design/icons'
@@ -117,7 +117,7 @@ export default function LayoutPageHeader({
         setIsLoggingOut(true)
         await logoutApi().catch(() => {})
         if (logout) await logout()
-        navigate('/', { replace: true })
+        navigate('/login', { replace: true })
       } catch (err) {
         console.error('Logout error:', err)
       }
@@ -242,7 +242,7 @@ export default function LayoutPageHeader({
       <div style={{ padding: 8 }}>
         {loadingNotifications ? (
           <div style={{ textAlign: 'center', padding: 24 }}>
-            <Spin size="small" />
+            <LottieSpinner size="small" />
           </div>
         ) : notifications.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 24 }}>

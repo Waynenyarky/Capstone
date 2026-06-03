@@ -3,7 +3,7 @@
  * Cessation Orders Overview page for LGU Manager
  * Read-only oversight module — correctly maps backend response
  */
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { Card, Typography, theme, Space, Button, Select, Row, Col, Table, Tag, Empty, Alert } from 'antd'
 import { StopOutlined, ReloadOutlined } from '@ant-design/icons'
 import LGUManagerLayout from '../components/LGUManagerLayout'

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Steps, Button, Form, Input, Select, Upload, Table, Tag, Space, Typography, message, Progress } from 'antd';
-import { UploadOutlined, FileTextOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { UploadOutlined, FileTextOutlined } from '@ant-design/icons';
 import { getPermitCategories, submitPermitApplication, getPermitApplications } from '../../services/permitService';
 import { useBusiness } from '@/hooks/useBusiness';
 

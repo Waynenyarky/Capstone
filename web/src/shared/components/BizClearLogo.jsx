@@ -1,4 +1,3 @@
-import React from 'react'
 import { BRAND_COLORS } from '@/shared/theme/ThemeProvider'
 
 /**

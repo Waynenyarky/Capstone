@@ -6,7 +6,7 @@ import {
   updatePermitApplication 
 } from '../permitService';
 import { get, post } from '@/lib/http';
-import { vi, describe, it, expect, beforeEach, test } from 'vitest';
+import { vi, describe, expect, beforeEach, test } from 'vitest';
 
 vi.mock('@/lib/http');
 const mockGet = vi.mocked(get);

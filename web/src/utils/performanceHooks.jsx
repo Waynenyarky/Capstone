@@ -80,10 +80,11 @@ export const useAsyncData = (asyncFn, dependencies = [], options = {}) => {
     if (immediate) {
       debouncedExecute()
     }
-    
+
     return () => {
       debouncedExecute.cancel()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, dependencies)
 
   return { data, loading, error, refetch: debouncedExecute }
@@ -341,13 +342,14 @@ export const useResourceLoader = (resourceFn, dependencies = []) => {
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, dependencies)
 
   return { resource, loading, error }
 }
 
 // Optimized image loading hook
-export const useImageLoader = (src, options = {}) => {
+export const useImageLoader = (src, _options = {}) => {
   const [imageState, setImageState] = useState({
     loading: true,
     loaded: false,
@@ -413,7 +415,7 @@ export const useArrayOperations = (initialArray = []) => {
   const operations = useMemo(() => ({
     addItem: (item) => setArray(prev => [...prev, item]),
     removeItem: (index) => setArray(prev => prev.filter((_, i) => i !== index)),
-    updateItem: (index, item) => setArray(prev => prev.map((item, i) => i === index ? item : item)),
+    updateItem: (index, newItem) => setArray(prev => prev.map((item, i) => i === index ? newItem : item)),
     clearArray: () => setArray([]),
     filterArray: (predicate) => setArray(prev => prev.filter(predicate)),
     sortArray: (compareFn) => setArray(prev => [...prev].sort(compareFn))
@@ -447,12 +449,12 @@ export const useFormState = (initialState = {}, schema = null) => {
 
   const validateField = useCallback((name, value) => {
     if (!schema) return true
-    
-    const fieldSchema = schema[name]
-    if (!fieldSchema) return true
-    
+
+    const _fieldSchema = schema[name]
+    if (!_fieldSchema) return true
+
     try {
-      fieldSchema.parse(value)
+      _fieldSchema.parse(value)
       setError(name, null)
       return true
     } catch (validationError) {
@@ -463,15 +465,15 @@ export const useFormState = (initialState = {}, schema = null) => {
 
   const validateForm = useCallback(() => {
     if (!schema) return true
-    
+
     let isValid = true
-    
-    for (const [name, fieldSchema] of Object.entries(schema)) {
+
+    for (const [name] of Object.entries(schema)) {
       if (!validateField(name, values[name])) {
         isValid = false
       }
     }
-    
+
     return isValid
   }, [schema, values, validateField])
 

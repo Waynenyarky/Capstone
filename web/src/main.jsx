@@ -11,7 +11,6 @@ import { initializeGlobalErrorHandlers } from "@/shared/errors/globalErrorHandle
 import GlobalNotificationInit from "@/shared/errors/GlobalNotificationInit.jsx"
 import { ThemeProvider } from "@/shared/theme/ThemeProvider.jsx"
 import { DevToolsProvider } from "@/features/devtools/DevToolsProvider.jsx"
-import DevFab from "@/features/devtools/DevFab.jsx"
 
 // Initialize browser-wide error listeners so you get toasts without DevTools
 initializeGlobalErrorHandlers()

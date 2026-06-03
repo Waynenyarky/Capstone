@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   Steps,
@@ -17,7 +17,6 @@ import {
   Descriptions,
   Row,
   Col,
-  Empty,
   message,
   Tooltip
 } from 'antd';
@@ -25,19 +24,14 @@ import {
   FileTextOutlined,
   UploadOutlined,
   CheckCircleOutlined,
-  ClockCircleOutlined,
-  ExclamationCircleOutlined,
   InfoCircleOutlined,
-  WarningOutlined,
   ToolOutlined,
-  BankOutlined,
   FileSearchOutlined,
   UserOutlined
 } from '@ant-design/icons';
 import { useBusiness } from '../../../../hooks/useBusiness';
 import { 
   submitRetirement,
-  RETIREMENT_STATUSES,
   getStatusLabel,
   getStatusColor
 } from '@/features/business-owner/services/retirementService';

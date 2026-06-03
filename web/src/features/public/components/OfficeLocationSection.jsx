@@ -1,4 +1,5 @@
-import { Typography, Grid, theme } from 'antd'
+import { useState } from 'react'
+import { Typography, Grid, theme, Card } from 'antd'
 import { EnvironmentOutlined, PhoneOutlined, ClockCircleOutlined } from '@ant-design/icons'
 
 const { Title, Paragraph, Text } = Typography
@@ -7,130 +8,199 @@ const { useBreakpoint } = Grid
 export default function OfficeLocationSection() {
   const screens = useBreakpoint()
   const { token } = theme.useToken()
+  const [hoveredCard, setHoveredCard] = useState(null)
+
+  const horizontalPadding = screens.xl ? '192px' : screens.lg ? '128px' : screens.md ? '64px' : '24px'
 
   return (
     <section
       id="office-location-section"
       style={{
-      width: '100%',
-      maxWidth: 1280,
-      margin: '0 auto',
-      padding: screens.md ? '0 20px' : '0 16px',
-    }}>
-      <div
-        style={{
-          border: `1px solid ${token.colorBorderSecondary}`,
-          borderRadius: token.borderRadiusLG,
-          padding: screens.md ? '32px 36px' : '24px 20px',
-          background: token.colorBgLayout,
-        }}
-      >
+        width: '100%',
+        padding: `80px ${horizontalPadding}`,
+      }}
+    >
+      <div style={{ maxWidth: screens.lg ? 1200 : '100%' }}>
         <Title
           level={4}
           style={{
             marginTop: 0,
-            marginBottom: screens.md ? 20 : 16,
+            marginBottom: 32,
             textAlign: 'left',
-            fontSize: screens.md ? 20 : 18,
+            color: token.colorTextHeading,
           }}
         >
           Office Location
         </Title>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: screens.md ? '1fr 1fr' : '1fr',
-          gap: screens.md ? 40 : 32,
-        }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: screens.md ? 20 : 16 }}>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-              <EnvironmentOutlined style={{ 
-                color: token.colorPrimary, 
-                fontSize: screens.md ? '18px' : '16px',
-                marginTop: 3,
-                flexShrink: 0,
-              }} />
-              <div>
-                <Text strong style={{ fontSize: screens.md ? '15px' : '14px', display: 'block', marginBottom: 6, color: token.colorText }}>
-                  Alaminos Business Permit and Licensing Office (BPLO)
-                </Text>
-                <Paragraph style={{ 
-                  marginBottom: 0, 
-                  fontSize: screens.md ? '14px' : '13px',
-                  color: token.colorTextSecondary,
-                  lineHeight: 1.6,
-                }}>
-                  City Hall Complex, Lucap Road<br />
-                  Alaminos City, Pangasinan 2404<br />
-                  Philippines
-                </Paragraph>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-              <PhoneOutlined style={{ 
-                color: token.colorPrimary, 
-                fontSize: screens.md ? '18px' : '16px',
-                marginTop: 3,
-                flexShrink: 0,
-              }} />
-              <div>
-                <Text strong style={{ fontSize: screens.md ? '15px' : '14px', display: 'block', marginBottom: 6, color: token.colorText }}>
-                  Contact Information
-                </Text>
-                <Paragraph style={{ 
-                  marginBottom: 0, 
-                  fontSize: screens.md ? '14px' : '13px',
-                  color: token.colorTextSecondary,
-                  lineHeight: 1.6,
-                }}>
-                  Phone: (075) 551-1234<br />
-                  Email: bplo@alaminoscity.gov.ph
-                </Paragraph>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-              <ClockCircleOutlined style={{ 
-                color: token.colorPrimary, 
-                fontSize: screens.md ? '18px' : '16px',
-                marginTop: 3,
-                flexShrink: 0,
-              }} />
-              <div>
-                <Text strong style={{ fontSize: screens.md ? '15px' : '14px', display: 'block', marginBottom: 6, color: token.colorText }}>
-                  Office Hours
-                </Text>
-                <Paragraph style={{ 
-                  marginBottom: 0, 
-                  fontSize: screens.md ? '14px' : '13px',
-                  color: token.colorTextSecondary,
-                  lineHeight: 1.6,
-                }}>
-                  Monday - Friday: 8:00 AM - 5:00 PM<br />
-                  Saturday: 8:00 AM - 12:00 PM<br />
-                  Sunday: Closed
-                </Paragraph>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: screens.lg ? '2fr 1fr' : screens.md ? '1fr' : '1fr',
+            gridTemplateRows: screens.lg ? 'repeat(3, 1fr)' : 'auto',
+            gap: 16,
+          }}
+        >
+          <Card
+            size="small"
+            style={{
+              gridRow: screens.lg ? '1 / 4' : 'auto',
+              gridColumn: screens.lg ? '1 / 2' : 'auto',
+              border: `1px solid ${token.colorBorder}`,
+              borderRadius: token.borderRadiusLG,
+              padding: 0,
+              overflow: 'hidden',
+              background: token.colorBgContainer,
+              cursor: 'default',
+              transition: screens.lg ? 'border-color 0.2s, box-shadow 0.2s, transform 0.2s' : 'none',
+              boxShadow: screens.lg && hoveredCard === 'map' ? token.boxShadowCard : 'none',
+              transform: screens.lg && hoveredCard === 'map' ? 'scale(1.02)' : 'scale(1)',
+            }}
+            bodyStyle={{
+              padding: 0,
+              height: '100%',
+            }}
+            onMouseEnter={screens.lg ? () => setHoveredCard('map') : undefined}
+            onMouseLeave={screens.lg ? () => setHoveredCard(null) : undefined}
+          >
             <iframe
               title="Alaminos City Hall BPLO Location"
               src="https://maps.google.com/maps?q=Alaminos+City+Hall,+Pangasinan,+Philippines&t=&z=16&ie=UTF8&iwloc=&output=embed"
               width="100%"
-              height={screens.md ? 300 : 240}
+              height={screens.lg ? '100%' : 300}
               style={{
-                border: `1px solid ${token.colorBorder}`,
-                borderRadius: token.borderRadiusLG,
+                border: 'none',
                 display: 'block',
+                minHeight: screens.lg ? 400 : 300,
               }}
               allowFullScreen
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
             />
-          </div>
+          </Card>
+
+          <Card
+            size="small"
+            style={{
+              border: `1px solid ${token.colorBorder}`,
+              borderRadius: token.borderRadiusLG,
+              background: token.colorBgContainer,
+              cursor: 'default',
+              transition: screens.lg ? 'border-color 0.2s, box-shadow 0.2s, transform 0.2s' : 'none',
+              boxShadow: screens.lg && hoveredCard === 'address' ? token.boxShadowCard : 'none',
+              transform: screens.lg && hoveredCard === 'address' ? 'scale(1.02)' : 'scale(1)',
+            }}
+            bodyStyle={{
+              padding: screens.lg ? '16px 20px' : '12px',
+              paddingTop: screens.lg ? 90 : 48,
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'flex-end',
+              alignItems: 'flex-start',
+            }}
+            onMouseEnter={screens.lg ? () => setHoveredCard('address') : undefined}
+            onMouseLeave={screens.lg ? () => setHoveredCard(null) : undefined}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <EnvironmentOutlined
+                style={{
+                  color: token.colorTextSecondary,
+                  fontSize: screens.lg ? 24 : 20,
+                  marginBottom: 8,
+                }}
+              />
+              <Title level={5} style={{ margin: 0 }}>
+                Address
+              </Title>
+              <Text type="secondary" style={{ display: 'block', marginTop: 4, wordWrap: 'break-word', overflowWrap: 'break-word' }}>
+                City Hall Complex, Lucap Road<br />
+                Alaminos City, Pangasinan 2404
+              </Text>
+            </div>
+          </Card>
+
+          <Card
+            size="small"
+            style={{
+              border: `1px solid ${token.colorBorder}`,
+              borderRadius: token.borderRadiusLG,
+              background: token.colorBgContainer,
+              cursor: 'default',
+              transition: screens.lg ? 'border-color 0.2s, box-shadow 0.2s, transform 0.2s' : 'none',
+              boxShadow: screens.lg && hoveredCard === 'contact' ? token.boxShadowCard : 'none',
+              transform: screens.lg && hoveredCard === 'contact' ? 'scale(1.02)' : 'scale(1)',
+            }}
+            bodyStyle={{
+              padding: screens.lg ? '16px 20px' : '12px',
+              paddingTop: screens.lg ? 90 : 48,
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'flex-end',
+              alignItems: 'flex-start',
+            }}
+            onMouseEnter={screens.lg ? () => setHoveredCard('contact') : undefined}
+            onMouseLeave={screens.lg ? () => setHoveredCard(null) : undefined}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <PhoneOutlined
+                style={{
+                  color: token.colorTextSecondary,
+                  fontSize: screens.lg ? 24 : 20,
+                  marginBottom: 8,
+                }}
+              />
+              <Title level={5} style={{ margin: 0 }}>
+                Contact
+              </Title>
+              <Text type="secondary" style={{ display: 'block', marginTop: 4, wordWrap: 'break-word', overflowWrap: 'break-word' }}>
+                Phone: (075) 551-1234<br />
+                Email: bplo@alaminoscity.gov.ph
+              </Text>
+            </div>
+          </Card>
+
+          <Card
+            size="small"
+            style={{
+              border: `1px solid ${token.colorBorder}`,
+              borderRadius: token.borderRadiusLG,
+              background: token.colorBgContainer,
+              cursor: 'default',
+              transition: screens.lg ? 'border-color 0.2s, box-shadow 0.2s, transform 0.2s' : 'none',
+              boxShadow: screens.lg && hoveredCard === 'hours' ? token.boxShadowCard : 'none',
+              transform: screens.lg && hoveredCard === 'hours' ? 'scale(1.02)' : 'scale(1)',
+            }}
+            bodyStyle={{
+              padding: screens.lg ? '16px 20px' : '12px',
+              paddingTop: screens.lg ? 90 : 48,
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'flex-end',
+              alignItems: 'flex-start',
+            }}
+            onMouseEnter={screens.lg ? () => setHoveredCard('hours') : undefined}
+            onMouseLeave={screens.lg ? () => setHoveredCard(null) : undefined}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <ClockCircleOutlined
+                style={{
+                  color: token.colorTextSecondary,
+                  fontSize: screens.lg ? 24 : 20,
+                  marginBottom: 8,
+                }}
+              />
+              <Title level={5} style={{ margin: 0 }}>
+                Hours
+              </Title>
+              <Text type="secondary" style={{ display: 'block', marginTop: 4, wordWrap: 'break-word', overflowWrap: 'break-word' }}>
+                Mon-Fri: 8:00 AM - 5:00 PM<br />
+                Sat: 8:00 AM - 12:00 PM
+              </Text>
+            </div>
+          </Card>
         </div>
       </div>
     </section>

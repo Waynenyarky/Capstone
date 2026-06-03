@@ -17,6 +17,7 @@ export default function HeroSection({
   maintenanceStatus,
   hasAnnouncementPanel,
   defaultOpenKey,
+  onNavigate,
 }) {
   const { token } = theme.useToken()
   const screens = useBreakpoint()
@@ -38,19 +39,21 @@ export default function HeroSection({
       data-hero-section
       style={{
         width: '100vw',
-        height: '100vh',
+        minHeight: screens.lg ? '100vh' : 'auto',
+        height: screens.lg ? '100vh' : 'auto',
         display: 'flex',
-        flexDirection: screens.md ? 'row' : 'column',
+        flexDirection: screens.lg ? 'row' : 'column',
+        overflow: 'hidden',
       }}
     >
       {/* Left Panel - Art (60% on desktop, remaining space on mobile) */}
       <ZipperReveal
         screens={screens}
         style={{
-          width: screens.md ? '60%' : '100%',
-          height: screens.md ? '100%' : 'auto',
-          flex: screens.md ? 'none' : 1,
-          minHeight: screens.md ? 'none' : '120px',
+          width: screens.lg ? '60%' : '100%',
+          height: screens.lg ? '100%' : 'auto',
+          flex: screens.lg ? 1 : 1,
+          minHeight: screens.lg ? 'none' : '120px',
         }}
       >
         <PanAnimation
@@ -63,24 +66,27 @@ export default function HeroSection({
 
       {/* Right Panel - Content (40% on desktop, 100% on mobile) */}
       <div style={{
-        width: screens.md ? '40%' : '100%',
+        width: screens.lg ? '40%' : '100%',
+        height: screens.lg ? 'auto' : 'auto',
         background: token.colorBgContainer,
-        padding: screens.md ? '32px' : '24px',
+        padding: screens.lg ? '32px' : '24px',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'flex-start',
-        justifyContent: 'center',
-        overflowY: 'auto',
-        flex: screens.md ? 'none' : '0 0 auto',
+        justifyContent: screens.lg ? 'center' : 'flex-start',
+        overflowX: 'hidden',
+        overflowY: screens.lg ? 'auto' : 'visible',
+        flex: screens.lg ? 'none' : '0 0 auto',
+        minHeight: screens.lg ? '100vh' : 'auto',
       }}>
         {/* Bento Grid */}
         <div style={{
           width: '100%',
           display: 'grid',
           gridTemplateColumns: 'repeat(2, 1fr)',
-          gridAutoRows: screens.md ? '140px' : '120px',
-          gap: screens.md ? 12 : 8,
-          paddingTop: screens.md ? 0 : 24,
+          gridAutoRows: screens.lg ? '140px' : '120px',
+          gap: screens.lg ? 12 : 8,
+          paddingTop: screens.lg ? 0 : 0,
         }}>
           {visibleBentoCards.map((card, index) => (
             <div
@@ -97,30 +103,30 @@ export default function HeroSection({
                 style={{
                   height: '100%',
                   background: token.colorBgContainer,
-                  border: (card.link || card.scrollTo) && screens.md && hoveredCard === card.id
+                  border: (card.link || card.scrollTo) && screens.lg && hoveredCard === card.id
                     ? `1px solid ${token.colorPrimary}`
                     : `1px solid ${token.colorBorder}`,
                   borderRadius: token.borderRadiusLG,
                   cursor: (card.link || card.scrollTo) ? 'pointer' : 'default',
-                  transition: screens.md ? 'border-color 0.2s, box-shadow 0.2s, transform 0.2s' : 'none',
-                  boxShadow: (card.link || card.scrollTo) && screens.md && hoveredCard === card.id
-                    ? '0 4px 12px rgba(0, 0, 0, 0.15)'
+                  transition: screens.lg ? 'border-color 0.2s, box-shadow 0.2s, transform 0.2s' : 'none',
+                  boxShadow: (card.link || card.scrollTo) && screens.lg && hoveredCard === card.id
+                    ? token.boxShadowCard
                     : 'none',
-                  transform: (card.link || card.scrollTo) && screens.md && hoveredCard === card.id ? 'scale(1.02)' : 'scale(1)',
+                  transform: (card.link || card.scrollTo) && screens.lg && hoveredCard === card.id ? 'scale(1.02)' : 'scale(1)',
                 }}
                 bodyStyle={{
-                  padding: screens.md ? 16 : 12,
+                  padding: screens.lg ? 16 : 12,
                   height: '100%',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'flex-end',
                   alignItems: 'flex-start',
                 }}
-                onMouseEnter={screens.md ? () => setHoveredCard(card.id) : undefined}
-                onMouseLeave={screens.md ? () => setHoveredCard(null) : undefined}
+                onMouseEnter={screens.lg ? () => setHoveredCard(card.id) : undefined}
+                onMouseLeave={screens.lg ? () => setHoveredCard(null) : undefined}
                 onClick={() => {
                   if (card.link) {
-                    window.location.href = card.link
+                    if (onNavigate) { onNavigate(card.link) } else { window.location.href = card.link }
                   } else if (card.scrollTo) {
                     const element = document.getElementById(card.scrollTo)
                     if (element) {
@@ -136,8 +142,8 @@ export default function HeroSection({
                     alignItems: 'flex-start',
                     transition: 'transform 0.3s ease-out',
                   }}>
-                    <BizClearLogo width={screens.md ? 32 : 28} style={{ marginBottom: 8 }} />
-                    <Title level={5} style={{ margin: 0, fontSize: screens.md ? 20 : 18 }}>
+                    <BizClearLogo width={screens.lg ? 32 : 28} style={{ marginBottom: 8 }} />
+                    <Title level={5} style={{ margin: 0, fontSize: screens.lg ? 20 : 18 }}>
                       {card.title}
                     </Title>
                     <Text type="secondary" style={{ display: 'block', marginTop: 4, wordWrap: 'break-word', overflowWrap: 'break-word' }}>
@@ -151,7 +157,7 @@ export default function HeroSection({
                     alignItems: 'flex-start',
                   }}>
                     {React.createElement(card.icon, {
-                      style: { fontSize: screens.md ? 24 : 20, color: token.colorTextSecondary, marginBottom: 8 }
+                      style: { fontSize: screens.lg ? 24 : 20, color: token.colorTextSecondary, marginBottom: 8 }
                     })}
                     <Title level={5} style={{ margin: 0 }}>
                       {card.title}
@@ -163,9 +169,9 @@ export default function HeroSection({
                     )}
                     {(card.link || card.scrollTo) && (
                       <div style={{
-                        maxHeight: screens.md && hoveredCard === card.id ? 30 : 0,
+                        maxHeight: screens.lg && hoveredCard === card.id ? 30 : 0,
                         overflow: 'hidden',
-                        transition: screens.md ? 'max-height 0.15s ease-out' : 'none',
+                        transition: screens.lg ? 'max-height 0.15s ease-out' : 'none',
                       }}>
                         <Text
                           style={{
@@ -174,9 +180,9 @@ export default function HeroSection({
                             color: token.colorPrimary,
                             fontSize: 12,
                             fontWeight: 500,
-                            opacity: screens.md && hoveredCard === card.id ? 1 : 0,
-                            transform: screens.md && hoveredCard === card.id ? 'translateY(0)' : 'translateY(10px)',
-                            transition: screens.md ? 'opacity 0.15s ease-out, transform 0.15s ease-out' : 'none',
+                            opacity: screens.lg && hoveredCard === card.id ? 1 : 0,
+                            transform: screens.lg && hoveredCard === card.id ? 'translateY(0)' : 'translateY(10px)',
+                            transition: screens.lg ? 'opacity 0.15s ease-out, transform 0.15s ease-out' : 'none',
                           }}
                         >
                           {card.linkText || 'Learn more →'}
@@ -198,14 +204,14 @@ export default function HeroSection({
               size="small"
               style={{
                 width: '100%',
-                marginTop: screens.md ? 12 : 8,
+                marginTop: screens.lg ? 12 : 8,
                 background: token.colorBgContainer,
                 border: `1px solid ${token.colorBorder}`,
                 borderRadius: token.borderRadiusLG,
               }}
               bodyStyle={{
-                padding: screens.md ? 16 : 12,
-                paddingTop: screens.md ? 48 : 32,
+                padding: screens.lg ? 16 : 12,
+                paddingTop: screens.lg ? 48 : 32,
                 height: 'auto',
                 display: 'flex',
                 flexDirection: 'column',
@@ -213,7 +219,7 @@ export default function HeroSection({
                 alignItems: 'flex-start',
               }}
             >
-              <WarningOutlined style={{ fontSize: screens.md ? 24 : 20, color: token.colorTextSecondary, marginBottom: 8 }} />
+              <WarningOutlined style={{ fontSize: screens.lg ? 24 : 20, color: token.colorTextSecondary, marginBottom: 8 }} />
               <Title level={5} style={{ margin: 0 }}>
                 {maintenanceStatus.active ? 'System Maintenance' : 'Scheduled Maintenance'}
               </Title>
@@ -241,12 +247,12 @@ export default function HeroSection({
               size="small"
               style={{
                 width: '100%',
-                marginTop: screens.md ? 12 : 8,
+                marginTop: screens.lg ? 12 : 8,
                 background: token.colorBgContainer,
                 border: `1px solid ${token.colorBorder}`,
                 borderRadius: token.borderRadiusLG,
               }}
-              bodyStyle={{ padding: screens.md ? '16px 16px 16px 16px' : '12px', paddingTop: screens.md ? 48 : 32 }}
+              bodyStyle={{ padding: screens.lg ? '16px 16px 16px 16px' : '12px', paddingTop: screens.lg ? 90 : 48 }}
             >
               {/* Card Header */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
@@ -272,10 +278,17 @@ export default function HeroSection({
                         alignItems: 'center',
                         gap: 8,
                         justifyContent: 'flex-start',
-                        whiteSpace: 'normal',
                       }}
                     >
-                      {ann.title}
+                      <span style={{
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        maxWidth: '100%',
+                        display: 'block',
+                      }}>
+                        {ann.title}
+                      </span>
                     </Button>
                   ))}
                   <Button
@@ -290,10 +303,17 @@ export default function HeroSection({
                       alignItems: 'center',
                       gap: 8,
                       justifyContent: 'flex-start',
-                      whiteSpace: 'normal',
                     }}
                   >
-                    View all {announcementItems.length} announcements →
+                    <span style={{
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      maxWidth: '100%',
+                      display: 'block',
+                    }}>
+                      View all {announcementItems.length} announcements →
+                    </span>
                   </Button>
                 </Space.Compact>
               )}
@@ -303,7 +323,7 @@ export default function HeroSection({
       </div>
 
       {/* All Announcements Modal/Drawer */}
-      {screens.md ? (
+      {screens.lg ? (
         <Modal
           title="All Announcements"
           open={announcementsModalOpen}

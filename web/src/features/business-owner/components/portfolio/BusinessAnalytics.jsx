@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Card,
   Row,
@@ -10,18 +10,12 @@ import {
   Table,
   Progress,
   Statistic,
-  Divider,
-  Tooltip,
   Button,
   Tag
 } from 'antd';
 import {
   LineChart,
   Line,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
   PieChart,
   Pie,
   Cell,
@@ -37,12 +31,9 @@ import {
   LineChartOutlined,
   PieChartOutlined,
   DownloadOutlined,
-  CalendarOutlined,
   DollarOutlined,
-  ShopOutlined,
   TrendingUpOutlined,
-  TrendingDownOutlined,
-  FileTextOutlined
+  TrendingDownOutlined
 } from '@ant-design/icons';
 import { useBusiness } from '../../../../hooks/useBusiness';
 

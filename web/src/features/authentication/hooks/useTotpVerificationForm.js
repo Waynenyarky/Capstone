@@ -1,7 +1,6 @@
-import { App } from 'antd'
 import { useState, useCallback, useRef } from 'react'
 import { verifyLoginTotp } from '@/features/authentication/services/authService'
-import { useNotifier } from '@/shared/notifications.js'
+import { useNotifier, useAuthNotification } from '@/shared/notifications.js'
 
 export function useTotpVerificationForm({ onSubmit, email, onSessionExpired } = {}) {
   const [code, setCode] = useState('')
@@ -9,7 +8,7 @@ export function useTotpVerificationForm({ onSubmit, email, onSessionExpired } = 
   const [isSubmitting, setSubmitting] = useState(false)
   const codeRef = useRef('')
   const { success, error } = useNotifier()
-  const { notification } = App.useApp()
+  const { notificationError } = useAuthNotification()
 
   const handleCodeChange = useCallback((val) => {
     const raw = Array.isArray(val) ? val.join('') : String(val ?? '')
@@ -55,41 +54,11 @@ export function useTotpVerificationForm({ onSubmit, email, onSessionExpired } = 
         setCodeError('Account deletion scheduled - please use email OTP code instead')
       } else if (lower.includes('invalid')) {
         const invalidMsg = 'The authenticator code is incorrect. Please try again.'
-        notification.error({
-          message: 'Incorrect Code',
-          description: invalidMsg,
-          placement: 'top',
-          top: 24,
-          duration: 4,
-          style: { 
-            width: 400, 
-            margin: '0 auto',
-            borderRadius: '8px',
-            border: '1px solid #ffccc7',
-            backgroundColor: '#fff1f0',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
-          },
-          key: `totp-error-${Date.now()}`,
-        })
+        notificationError('Incorrect Code', invalidMsg)
         setCodeError(invalidMsg)
       } else if (lower.includes('expired')) {
         const expiredMsg = 'The authenticator code has expired. Please generate a new code.'
-        notification.error({
-          message: 'Code Expired',
-          description: expiredMsg,
-          placement: 'top',
-          top: 24,
-          duration: 4,
-          style: { 
-            width: 400, 
-            margin: '0 auto',
-            borderRadius: '8px',
-            border: '1px solid #ffccc7',
-            backgroundColor: '#fff1f0',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
-          },
-          key: `totp-expired-${Date.now()}`,
-        })
+        notificationError('Code Expired', expiredMsg)
         setCodeError(expiredMsg)
       } else if (errCode === 'mfa_not_enabled' || errCode === 'request_not_found' || errCode === 'user_not_found') {
         error('Your verification session is no longer valid. Please sign in again.', 'Session expired')
@@ -104,7 +73,7 @@ export function useTotpVerificationForm({ onSubmit, email, onSessionExpired } = 
     } finally {
       setSubmitting(false)
     }
-  }, [email, onSubmit, onSessionExpired, success, error, notification])
+  }, [email, onSubmit, onSessionExpired, success, error, notificationError])
 
   return { code, setCode: handleCodeChange, codeError, handleVerify, isSubmitting }
 }

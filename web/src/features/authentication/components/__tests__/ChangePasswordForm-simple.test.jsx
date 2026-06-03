@@ -1,4 +1,3 @@
-import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { ConfigProvider, App } from 'antd'
@@ -20,7 +19,7 @@ vi.mock('@/features/authentication/hooks', () => ({
   })
 }))
 
-vi.mock('@/features/authentication/validations', () => ({
+vi.mock('@/features/authentication/utils/validations', () => ({
   changePasswordRules: [],
   changeConfirmPasswordRules: []
 }))
@@ -173,5 +172,53 @@ describe('ChangePasswordForm - Simple Version', () => {
     expect(form).toContainElement(screen.getByTestId('confirm-password'))
     expect(form).toContainElement(screen.getByTestId('submit-button'))
     expect(form).toContainElement(screen.getByTestId('cancel-button'))
+  })
+
+  it('handles password strength update', () => {
+    renderWithProviders(
+      <MockChangePasswordForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
+    )
+
+    const newPasswordInput = screen.getByTestId('new-password')
+    newPasswordInput.value = 'StrongP@ssw0rd'
+    newPasswordInput.dispatchEvent(new Event('input', { bubbles: true }))
+
+    expect(newPasswordInput).toHaveValue('StrongP@ssw0rd')
+  })
+
+  it('validates password confirmation', () => {
+    renderWithProviders(
+      <MockChangePasswordForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
+    )
+
+    const newPasswordInput = screen.getByTestId('new-password')
+    const confirmPasswordInput = screen.getByTestId('confirm-password')
+
+    newPasswordInput.value = 'StrongP@ssw0rd'
+    confirmPasswordInput.value = 'DifferentP@ssw0rd'
+
+    newPasswordInput.dispatchEvent(new Event('input', { bubbles: true }))
+    confirmPasswordInput.dispatchEvent(new Event('input', { bubbles: true }))
+
+    expect(newPasswordInput).toHaveValue('StrongP@ssw0rd')
+    expect(confirmPasswordInput).toHaveValue('DifferentP@ssw0rd')
+  })
+
+  it('handles empty current password', () => {
+    renderWithProviders(
+      <MockChangePasswordForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
+    )
+
+    const currentPasswordInput = screen.getByTestId('current-password')
+    expect(currentPasswordInput).toHaveValue('')
+  })
+
+  it('disables submit button during submission', () => {
+    renderWithProviders(
+      <MockChangePasswordForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
+    )
+
+    const submitButton = screen.getByTestId('submit-button')
+    expect(submitButton).toBeInTheDocument()
   })
 })

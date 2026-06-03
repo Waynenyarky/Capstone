@@ -168,6 +168,9 @@ const announcementsRouter = require('./routes/announcements');
 app.use('/api/admin/announcements', announcementsRouter);
 const permitFormsRouter = require('./routes/permitForms');
 app.use('/api/admin/permit-forms', permitFormsRouter);
+const { publicRouter: cmsPublicRouter, adminRouter: cmsAdminRouter } = require('./routes/cms');
+app.use('/api/cms', cmsPublicRouter);
+app.use('/api/admin/cms', cmsAdminRouter);
 
 // LGU Officer permit applications routes
 app.use('/api/lgu-officer/permit-applications', lguOfficerPermitRouter);
@@ -326,6 +329,18 @@ async function start() {
         }
       } catch (error) {
         logger.warn('Permit forms seed failed', { error: error.message })
+      }
+    }
+
+    // Seed CMS content (FAQ sections + Instructions) when SEED_CMS or SEED_DEV is set (idempotent)
+    if (process.env.NODE_ENV !== 'test' && (process.env.SEED_CMS === 'true' || process.env.SEED_DEV === 'true')) {
+      try {
+        const { seedCmsContentIfEmpty } = require('./seed/seedCmsContent')
+        const result = await seedCmsContentIfEmpty()
+        if (result.faq?.seeded) logger.info('CMS FAQ sections seeded', { created: result.faq.created })
+        if (result.instructions?.seeded) logger.info('CMS instructions seeded', { created: result.instructions.created })
+      } catch (error) {
+        logger.warn('CMS content seed failed', { error: error.message })
       }
     }
 

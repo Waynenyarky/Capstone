@@ -1,14 +1,13 @@
 import { Form } from '@/shared/components/AppForm'
-import { App } from 'antd'
 import { useState, useCallback } from 'react'
 import { verifyResetCode } from "@/features/authentication/services"
-import { useNotifier } from '@/shared/notifications.js'
+import { useNotifier, useAuthNotification } from '@/shared/notifications.js'
 
 export function useVerificationForm({ onSubmit, email, devCode } = {}) {
   const [form] = Form.useForm()
   const [isSubmitting, setSubmitting] = useState(false)
-  const { success, error } = useNotifier()
-  const { notification } = App.useApp()
+  const { success } = useNotifier()
+  const { notificationError } = useAuthNotification()
 
   const prefillDevCode = useCallback(() => {
     if (!devCode) return
@@ -42,22 +41,7 @@ export function useVerificationForm({ onSubmit, email, devCode } = {}) {
     
     // Only validate that code contains numbers - let the API handle length and correctness validation
     if (!/^[0-9]+$/.test(code)) {
-      notification.error({
-        message: 'Invalid Verification Code',
-        description: 'Please enter a valid numeric code. Only numbers are allowed.',
-        placement: 'top',
-        top: 24,
-        duration: 4,
-        style: { 
-          width: 400, 
-          margin: '0 auto',
-          borderRadius: '8px',
-          border: '1px solid #ffccc7',
-          backgroundColor: '#fff1f0',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
-        },
-        key: `otp-validation-${Date.now()}`,
-      })
+      notificationError('Invalid Verification Code', 'Please enter a valid numeric code. Only numbers are allowed.')
       return
     }
     
@@ -74,7 +58,7 @@ export function useVerificationForm({ onSubmit, email, devCode } = {}) {
         let msg = ''
         try {
           msg = String(err?.error || '')
-        } catch (e) {
+        } catch {
           msg = ''
         }
         const status = res?.status
@@ -88,22 +72,7 @@ export function useVerificationForm({ onSubmit, email, devCode } = {}) {
                              !msg.includes('includes is not a function'))
             ? msg
             : 'Incorrect code. Please check and try again.'
-          notification.error({
-            message: 'Incorrect OTP Code',
-            description: friendlyMsg,
-            placement: 'top',
-            top: 24,
-            duration: 4,
-            style: { 
-              width: 400, 
-              margin: '0 auto',
-              borderRadius: '8px',
-              border: '1px solid #ffccc7',
-              backgroundColor: '#fff1f0',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
-            },
-            key: `otp-error-${Date.now()}`,
-          })
+          notificationError('Incorrect OTP Code', friendlyMsg)
           form.setFields([{ name: 'verificationCode', errors: [friendlyMsg] }])
           return
         }
@@ -114,22 +83,7 @@ export function useVerificationForm({ onSubmit, email, devCode } = {}) {
                              !msg.includes('includes is not a function'))
             ? msg
             : 'The OTP code has expired. Please request a new code.'
-          notification.error({
-            message: 'OTP Code Expired',
-            description: friendlyMsg,
-            placement: 'top',
-            top: 24,
-            duration: 4,
-            style: { 
-              width: 400, 
-              margin: '0 auto',
-              borderRadius: '8px',
-              border: '1px solid #ffccc7',
-              backgroundColor: '#fff1f0',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
-            },
-            key: `otp-expired-${Date.now()}`,
-          })
+          notificationError('OTP Code Expired', friendlyMsg)
           form.setFields([{ name: 'verificationCode', errors: [friendlyMsg] }])
           return
         }
@@ -140,22 +94,7 @@ export function useVerificationForm({ onSubmit, email, devCode } = {}) {
                              !msg.includes('includes is not a function'))
             ? msg
             : 'No active verification request found. Please request a new code.'
-          notification.error({
-            message: 'Verification Request Not Found',
-            description: friendlyMsg,
-            placement: 'top',
-            top: 24,
-            duration: 4,
-            style: { 
-              width: 400, 
-              margin: '0 auto',
-              borderRadius: '8px',
-              border: '1px solid #ffccc7',
-              backgroundColor: '#fff1f0',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
-            },
-            key: `otp-notfound-${Date.now()}`,
-          })
+          notificationError('Verification Request Not Found', friendlyMsg)
           form.setFields([{ name: 'verificationCode', errors: [friendlyMsg] }])
           return
         }
@@ -183,7 +122,7 @@ export function useVerificationForm({ onSubmit, email, devCode } = {}) {
         } else if (typeof err === 'string') {
           errorMessage = err
         }
-      } catch (e) {
+      } catch {
         errorMessage = ''
       }
       
@@ -198,41 +137,11 @@ export function useVerificationForm({ onSubmit, email, devCode } = {}) {
                            !errorMessage.includes('includes is not a function'))
           ? errorMessage
           : 'Incorrect code. Please check and try again.'
-        notification.error({
-          message: 'Incorrect OTP Code',
-          description: backendMsg,
-          placement: 'top',
-          top: 24,
-          duration: 4,
-          style: { 
-            width: 400, 
-            margin: '0 auto',
-            borderRadius: '8px',
-            border: '1px solid #ffccc7',
-            backgroundColor: '#fff1f0',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
-          },
-          key: `otp-error-${Date.now()}`,
-        })
+        notificationError('Incorrect OTP Code', backendMsg)
         form.setFields([{ name: 'verificationCode', errors: [backendMsg] }])
       } else if (lower && (lower.includes('expired') || lower.includes('410'))) {
         const expiredMsg = 'The OTP code has expired. Please request a new code.'
-        notification.error({
-          message: 'OTP Code Expired',
-          description: expiredMsg,
-          placement: 'top',
-          top: 24,
-          duration: 4,
-          style: { 
-            width: 400, 
-            margin: '0 auto',
-            borderRadius: '8px',
-            border: '1px solid #ffccc7',
-            backgroundColor: '#fff1f0',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
-          },
-          key: `otp-expired-${Date.now()}`,
-        })
+        notificationError('OTP Code Expired', expiredMsg)
         form.setFields([{ name: 'verificationCode', errors: [expiredMsg] }])
       } else {
         // Show user-friendly error message
@@ -242,22 +151,7 @@ export function useVerificationForm({ onSubmit, email, devCode } = {}) {
                            !errorMessage.includes('includes is not a function'))
           ? errorMessage
           : 'Incorrect code. Please try again.'
-        notification.error({
-          message: 'Verification Failed',
-          description: friendlyMsg,
-          placement: 'top',
-          top: 24,
-          duration: 4,
-          style: { 
-            width: 400, 
-            margin: '0 auto',
-            borderRadius: '8px',
-            border: '1px solid #ffccc7',
-            backgroundColor: '#fff1f0',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
-          },
-          key: `otp-error-${Date.now()}`,
-        })
+        notificationError('Verification Failed', friendlyMsg)
         form.setFields([{ name: 'verificationCode', errors: [friendlyMsg] }])
       }
     } finally {

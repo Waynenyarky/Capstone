@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react'
-import { Typography, Grid, Select, Alert, Button } from 'antd'
+import { useState, useEffect } from 'react'
+import { Typography, Grid, Select, Button } from 'antd'
 import { theme } from 'antd'
-import { InfoCircleOutlined, LockOutlined, MailOutlined, DeleteOutlined } from '@ant-design/icons'
-import LoggedInMfaManager from '@/features/authentication/components/LoggedInMfaManager.jsx'
-import MfaSetup from '@/features/authentication/components/MfaSetup.jsx'
-import LoggedInPasswordChangeFlow from '@/features/authentication/flows/LoggedInPasswordChangeFlow.jsx'
-import LoggedInEmailChangeFlow from '@/features/authentication/flows/LoggedInEmailChangeFlow.jsx'
-import EmailChangeGracePeriod from '@/features/authentication/components/EmailChangeGracePeriod.jsx'
-import MfaReenrollmentAlert from '@/features/authentication/components/MfaReenrollmentAlert.jsx'
+import { LockOutlined, MailOutlined, DeleteOutlined } from '@ant-design/icons'
+import LoggedInMfaManager from '@/features/authentication/mfa/components/LoggedInMfaManager.jsx'
+import MfaSetup from '@/features/authentication/mfa/components/MfaSetup.jsx'
+import LoggedInPasswordChangeFlow from '@/features/authentication/flows/account-management/components/LoggedInPasswordChangeFlow.jsx'
+import LoggedInEmailChangeFlow from '@/features/authentication/flows/account-management/components/LoggedInEmailChangeFlow.jsx'
+import EmailChangeGracePeriod from '@/features/authentication/flows/account-management/components/EmailChangeGracePeriod.jsx'
+import MfaReenrollmentAlert from '@/features/authentication/flows/account-management/components/MfaReenrollmentAlert.jsx'
 import ActiveSessions from '@/features/user/components/ActiveSessions.jsx'
-import { usePasskeyManager } from '@/features/authentication/presentation/passkey/hooks/usePasskeyManager'
+import { usePasskeyManager } from '@/features/authentication/passkey/hooks/usePasskeyManager'
 import { useLoggedInMfaManager } from '@/features/authentication/hooks'
 import { DeleteAccountFlow, DeletionScheduledBanner, useAuthSession } from '@/features/authentication'
 import { SECURITY_SECTIONS } from './constants'
@@ -104,7 +104,6 @@ export default function SecurityTabContent({ showPasswordSection = false, showDe
                 ← Back
               </Button>
               <MfaSetup
-                embedded
                 onComplete={() => {
                   setMfaShowingSetupForm(false)
                   refetchMfaStatus()
@@ -146,7 +145,7 @@ export default function SecurityTabContent({ showPasswordSection = false, showDe
               <div>
                 <Title level={5} style={{ margin: 0, marginBottom: 4 }}>Password</Title>
                 <Paragraph type="secondary" style={{ margin: 0 }}>
-                  Change your password to keep your account secure. We'll send a verification code to your email first.
+                  Change your password to keep your account secure. We&apos;ll send a verification code to your email first.
                 </Paragraph>
               </div>
               <Button type="primary" onClick={() => setPasswordShowingFlow(true)} icon={<LockOutlined />}>
@@ -177,7 +176,7 @@ export default function SecurityTabContent({ showPasswordSection = false, showDe
               <div>
                 <Title level={5} style={{ margin: 0, marginBottom: 4 }}>Email Address</Title>
                 <Paragraph type="secondary" style={{ margin: 0 }}>
-                  Update the email address used for sign-in and account notifications. We'll verify your current email first.
+                  Update the email address used for sign-in and account notifications. We&apos;ll verify your current email first.
                 </Paragraph>
               </div>
               <Button type="primary" onClick={() => setEmailShowingFlow(true)} icon={<MailOutlined />}>

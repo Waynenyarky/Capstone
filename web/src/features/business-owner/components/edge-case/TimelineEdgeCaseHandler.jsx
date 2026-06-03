@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Card, List, Button, Alert, DatePicker, Modal, Form, Input, Select, Space, Typography, message } from 'antd';
-import { CalendarOutlined, ExclamationCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { useState, useEffect } from 'react';
+import { Card, List, Button, Alert, Modal, Form, Input, Select, Space, Typography, message } from 'antd';
+import { CalendarOutlined } from '@ant-design/icons';
 import { getTimelineEdgeCases, submitExtensionRequest } from '../../services/timelineService';
 import { useBusiness } from '@/hooks/useBusiness';
 

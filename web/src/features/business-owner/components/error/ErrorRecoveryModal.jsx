@@ -1,37 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
   Modal,
   Button,
   Space,
   Typography,
   Steps,
-  Card,
   Alert,
   Progress,
   List,
   Tag,
-  Divider,
-  Row,
-  Col,
-  Spin,
   Result,
-  Tooltip,
   Badge
 } from 'antd';
 import {
   ExclamationCircleOutlined,
   ReloadOutlined,
-  CheckCircleOutlined,
   ClockCircleOutlined,
-  WarningOutlined,
-  InfoCircleOutlined,
   ArrowRightOutlined,
   SyncOutlined,
-  FileTextOutlined,
-  PhoneOutlined,
-  MailOutlined,
-  HomeOutlined,
-  BugOutlined
+  PhoneOutlined
 } from '@ant-design/icons';
 
 const { Title, Text, Paragraph } = Typography;
@@ -318,7 +306,7 @@ const ErrorRecoveryModal = ({
 
         {isRecovering ? (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <Spin size="large" />
+            <LottieSpinner size="large" />
             <div style={{ marginTop: '16px' }}>
               <Text>Recovering... {recoveryProgress.toFixed(0)}%</Text>
               <Progress

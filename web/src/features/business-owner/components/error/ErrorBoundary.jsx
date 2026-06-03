@@ -8,16 +8,13 @@ import {
   Alert,
   Collapse,
   List,
-  Tag,
-  Divider
+  Tag
 } from 'antd';
 import {
   BugOutlined,
   ReloadOutlined,
   HomeOutlined,
   ExclamationCircleOutlined,
-  InfoCircleOutlined,
-  FileTextOutlined,
   MailOutlined,
   PhoneOutlined
 } from '@ant-design/icons';

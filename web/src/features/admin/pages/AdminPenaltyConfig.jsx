@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { InputNumber, DatePicker, Button, Spin, Alert, Typography, Space, Popconfirm, message } from 'antd'
+import { InputNumber, DatePicker, Button, Alert, Typography, Space, Popconfirm, message } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { SafetyCertificateOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import AdminLayout from '../components/AdminLayout.jsx'
@@ -103,9 +104,9 @@ export default function AdminPenaltyConfig() {
     return (
       <AdminLayout pageTitle="Penalty Configuration" pageIcon={<SafetyCertificateOutlined />}>
         <div style={{ display: 'flex', justifyContent: 'center', padding: 64 }}>
-          <Spin tip="Loading penalty configuration...">
+          <LottieSpinner tip="Loading penalty configuration...">
             <div style={{ minHeight: 48 }} />
-          </Spin>
+          </LottieSpinner>
         </div>
       </AdminLayout>
     )

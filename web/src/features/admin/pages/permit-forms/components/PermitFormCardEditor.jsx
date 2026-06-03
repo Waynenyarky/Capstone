@@ -1,4 +1,3 @@
-import React from 'react'
 import { Card, Input, InputNumber, Button, Space, Typography, Tooltip, Modal } from 'antd'
 import {
   DeleteOutlined,

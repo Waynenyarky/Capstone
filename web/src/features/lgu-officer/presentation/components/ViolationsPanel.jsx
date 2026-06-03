@@ -2,9 +2,8 @@
  * Presentation Component: ViolationsPanel
  * Pure presentation - no business logic
  */
-import React from 'react'
 import { Card, Table, Tag, Button, Space, Typography, Empty } from 'antd'
-import { WarningOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
+import { WarningOutlined } from '@ant-design/icons'
 
 const { Title } = Typography
 

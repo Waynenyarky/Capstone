@@ -1,4 +1,3 @@
-import React from 'react'
 import { Button, Space, Tooltip, Typography, Dropdown } from 'antd'
 import {
   PlusOutlined,

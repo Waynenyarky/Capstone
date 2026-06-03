@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Alert, Tag, Space, Typography } from 'antd'
-import { ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
+import { ClockCircleOutlined } from '@ant-design/icons'
 import { useAuthSession } from '@/features/authentication'
 import { getPendingApprovals } from '@/features/user/services/approvalService.js'
 

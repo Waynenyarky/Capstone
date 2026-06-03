@@ -1,11 +1,12 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   Typography, Descriptions, Tag, Card, Input, InputNumber, Button,
-  Space, Empty, Alert, Divider, Statistic, Spin, message, theme,
+  Space, Empty, Alert, Divider, Statistic, theme,
 } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
   CheckCircleOutlined, CloseCircleOutlined, DollarOutlined,
-  CalculatorOutlined, FileTextOutlined,
+  CalculatorOutlined,
 } from '@ant-design/icons'
 import { get, put, post } from '@/lib/http.js'
 import { useNotifier } from '@/shared/notifications.js'
@@ -224,7 +225,7 @@ export default function CessationDetailPanel({ cessation, onReviewComplete }) {
           style={{ marginBottom: 16 }}
         >
           {loadingEstimate ? (
-            <Spin tip="Calculating tax estimate..." />
+            <LottieSpinner tip="Calculating tax estimate..." />
           ) : (
             <>
               {taxEstimate && (

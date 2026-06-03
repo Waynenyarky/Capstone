@@ -2,7 +2,6 @@
  * Presentation Component: InspectionsTable
  * Pure presentation - no business logic
  */
-import React from 'react'
 import { Table, Tag, Button, Space, Typography } from 'antd'
 import { EyeOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons'
 

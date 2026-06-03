@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react'
-import { Button, Spin, Alert, Grid, Typography, theme } from 'antd'
+import { useState, useEffect, useCallback } from 'react'
+import { Button, Alert, Grid, Typography, theme, Select } from 'antd'
+import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { get, put } from '@/lib/http.js'
 import { useNotifier } from '@/shared/notifications.js'
 import { useAdminStepUp } from '@/features/admin/hooks/useAdminStepUp'
@@ -222,9 +223,9 @@ export default function SpecialFeesTab() {
   if (loading && !config) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: 64 }}>
-        <Spin tip="Loading special fees...">
+        <LottieSpinner tip="Loading special fees...">
           <div style={{ minHeight: 80 }} />
-        </Spin>
+        </LottieSpinner>
       </div>
     )
   }

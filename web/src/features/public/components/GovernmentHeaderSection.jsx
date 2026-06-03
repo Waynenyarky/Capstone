@@ -1,7 +1,8 @@
-import { Typography, Grid } from 'antd'
+import { Typography, Grid, theme } from 'antd'
 
 const { Text } = Typography
 const { useBreakpoint } = Grid
+const { useToken } = theme
 
 const LOGOS = [
   { src: '/government-logos/republic-of-philippines.png', alt: 'Republic of the Philippines' },
@@ -11,6 +12,7 @@ const LOGOS = [
 ]
 
 export default function GovernmentHeaderSection() {
+  const { token } = useToken()
   const screens = useBreakpoint()
 
   const logoSize = 44
@@ -53,13 +55,13 @@ export default function GovernmentHeaderSection() {
           textAlign: screens.md ? 'left' : 'center',
         }}
       >
-        <Text style={{ fontSize: 13, color: '#555', lineHeight: 1.4 }}>
+        <Text style={{ fontSize: 13, color: token.colorTextSecondary, lineHeight: 1.4 }}>
           Republic of the Philippines
         </Text>
-        <Text style={{ fontSize: 13, color: '#333', lineHeight: 1.4 }}>
+        <Text style={{ fontSize: 13, color: token.colorText, lineHeight: 1.4 }}>
           Business Permits and Licensing Office (BPLO)
         </Text>
-        <Text style={{ fontSize: 13, color: '#333', lineHeight: 1.4 }}>
+        <Text style={{ fontSize: 13, color: token.colorText, lineHeight: 1.4 }}>
           Alaminos City, Pangasinan
         </Text>
       </div>

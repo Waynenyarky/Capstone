@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Typography, Input, Button, theme, Grid, Layout } from 'antd'
 import HomeHeader from '../components/HomeHeader'
 import FaqSection from '../components/FaqSection'
@@ -40,7 +40,7 @@ export default function ApplicationTracker() {
   }
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#fff' }}>
+    <Layout style={{ minHeight: '100vh', background: token.colorBgContainer }}>
       <HomeHeader visible={true} />
       <Content style={{ display: 'flex', flexDirection: 'column' }}>
         {/* Two Panel Design */}

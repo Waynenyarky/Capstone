@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal, Steps, Button, Card, Typography, Badge, Progress, Space } from 'antd';
-import { CheckCircleOutlined, RocketOutlined, DownloadOutlined, CalendarOutlined, CreditCardOutlined, BellOutlined } from '@ant-design/icons';
+import { RocketOutlined, DownloadOutlined, CalendarOutlined, CreditCardOutlined, BellOutlined } from '@ant-design/icons';
 import { useAuth } from '../../../../hooks/useAuth';
 import { useBusiness } from '../../../../hooks/useBusiness';
 
