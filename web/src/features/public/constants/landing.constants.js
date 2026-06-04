@@ -29,7 +29,7 @@ export const BENTO_CARDS = [
     title: 'Apply Now',
     icon: FormOutlined,
     span: 12,
-    link: '/apply',
+    link: '/sign-up',
     linkText: 'Begin →',
   },
   {

@@ -27,7 +27,7 @@ export default function HomeHeader({ visible = true, onNavigate, fadingOut = fal
       opacity: fadingOut ? 0 : (visible ? 1 : 0),
       transform: fadingOut ? 'translateY(-20px)' : (visible ? 'translateY(0)' : 'translateY(-20px)'),
       transition: 'opacity 0.3s ease-out, transform 0.3s ease-out',
-      pointerEvents: fadingOut ? 'none' : (visible ? 'auto' : 'none'),
+      pointerEvents: fadingOut ? 'none' : 'auto',
     }}>
       <AnimatedBrandLogo
         size={screens.sm ? 40 : 32}
@@ -35,8 +35,8 @@ export default function HomeHeader({ visible = true, onNavigate, fadingOut = fal
         onClick={() => onNavigate?.('/')}
       />
       <Space size={screens.sm ? 'middle' : 'small'}>
-        <Button onClick={() => onNavigate?.('/login') }>Log In</Button>
-        <Button type="primary" onClick={() => onNavigate?.('/sign-up')}>{screens.sm ? 'Apply Now' : 'Apply'}</Button>
+        <Button onClick={() => window.location.href = '/login'}>Log In</Button>
+        <Button type="primary" onClick={() => window.location.href = '/sign-up'}>{screens.sm ? 'Apply Now' : 'Apply'}</Button>
       </Space>
     </Header>
   )

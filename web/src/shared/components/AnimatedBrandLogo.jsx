@@ -23,6 +23,11 @@ export default function AnimatedBrandLogo({
     animationData,
     loop: false,
     autoplay: false,
+    style: {
+      width: size,
+      height: size,
+      display: 'block',
+    },
   }
 
   const { View, play, goToAndStop } = useLottie(options)
@@ -62,15 +67,11 @@ export default function AnimatedBrandLogo({
           width: size,
           height: size,
           flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'visible',
+          overflow: 'hidden',
+          borderRadius: 4,
         }}
       >
-        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {View}
-        </div>
+        {View}
       </div>
       {showBrandName && (
         <Title

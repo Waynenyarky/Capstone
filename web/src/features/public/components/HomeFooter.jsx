@@ -5,6 +5,13 @@ const { Footer } = Layout
 const { Text } = Typography
 const { useBreakpoint } = Grid
 
+const GOVERNMENT_LOGOS = [
+  { src: '/government-logos/republic-of-philippines.png', alt: 'Republic of the Philippines' },
+  { src: '/government-logos/bagong-pilipinas.png', alt: 'Bagong Pilipinas' },
+  { src: '/government-logos/alaminos-city.png', alt: 'City of Alaminos' },
+  { src: '/government-logos/pangasinan-province.png', alt: 'Province of Pangasinan' },
+]
+
 export default function HomeFooter() {
   const screens = useBreakpoint()
   const { token } = theme.useToken()
@@ -16,6 +23,8 @@ export default function HomeFooter() {
     textDecoration: 'none',
     transition: 'color 0.3s',
   }
+
+  const logoSize = screens.md ? 40 : 32
 
   return (
     <Footer style={{
@@ -31,7 +40,34 @@ export default function HomeFooter() {
           alignItems: screens.xs ? 'flex-start' : 'center',
           gap: screens.xs ? '24px' : '16px'
         }}>
-          <Space direction={screens.xs ? 'vertical' : 'horizontal'} size={screens.xs ? 'small' : 'middle'} style={{ width: screens.xs ? '100%' : 'auto' }}>
+          {/* Government Logos - Bottom Left */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: screens.md ? 12 : 8,
+            order: screens.xs ? 2 : 1,
+          }}>
+            {GOVERNMENT_LOGOS.map((logo) => (
+              <img
+                key={logo.alt}
+                src={logo.src}
+                alt={logo.alt}
+                style={{
+                  height: logoSize,
+                  width: logoSize,
+                  objectFit: 'contain',
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Links - Center */}
+          <Space direction={screens.xs ? 'vertical' : 'horizontal'} size={screens.xs ? 'small' : 'middle'} style={{ 
+            width: screens.xs ? '100%' : 'auto',
+            order: screens.xs ? 1 : 2,
+            flex: 1,
+            justifyContent: screens.xs ? 'flex-start' : 'center',
+          }}>
             <Link
               to="/terms"
               style={linkStyle}
@@ -82,7 +118,13 @@ export default function HomeFooter() {
               Official City Website
             </a>
           </Space>
-          <Text style={{ fontSize: '12px', color: token.colorTextTertiary }}>
+
+          {/* Copyright - Right */}
+          <Text style={{ 
+            fontSize: '12px', 
+            color: token.colorTextTertiary,
+            order: screens.xs ? 3 : 3,
+          }}>
             © 2026 BizClear. All Rights Reserved.
           </Text>
         </div>
