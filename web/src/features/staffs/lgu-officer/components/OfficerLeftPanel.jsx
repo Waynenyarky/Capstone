@@ -3,8 +3,10 @@ import {
   FileTextOutlined, AuditOutlined, EditOutlined, StopOutlined,
   UserOutlined, FormOutlined, HistoryOutlined, ReloadOutlined,
   EyeOutlined, SettingOutlined, SafetyCertificateOutlined,
-  CustomerServiceOutlined,
+  CustomerServiceOutlined, LogoutOutlined,
 } from '@ant-design/icons'
+import { useAuthSession } from '@/features/authentication'
+import AnimatedBrandLogo from '@/shared/components/AnimatedBrandLogo.jsx'
 
 const TABS = [
   { key: 'toReview', label: 'To Review', icon: <EyeOutlined /> },
@@ -28,12 +30,38 @@ export default function OfficerLeftPanel({
   showSettings = false,
 }) {
   const { token } = theme.useToken()
+  const { currentUser, logout } = useAuthSession()
 
   // Determine which tab should appear active
   const displayActiveTab = showSettings ? 'settings' : activeTab
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: token.colorBgContainer }}>
+      {/* Sidebar Header */}
+      <div style={{
+        padding: '16px 12px',
+        borderBottom: `1px solid ${token.colorBorderSecondary}`,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+      }}>
+        <AnimatedBrandLogo style={{ width: 32, height: 32 }} />
+        <div style={{ flex: 1 }}>
+          <Typography.Text strong style={{ fontSize: 13, display: 'block' }}>
+            Officer Dashboard
+          </Typography.Text>
+          {currentUser?.email && (
+            <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+              {currentUser.email}
+            </Typography.Text>
+          )}
+        </div>
+        <LogoutOutlined
+          style={{ cursor: 'pointer', color: token.colorTextSecondary, fontSize: 16 }}
+          onClick={logout}
+        />
+      </div>
+
       {/* Tab buttons - vertical list using settings page style */}
       <div style={{
         flex: 1,
@@ -90,9 +118,9 @@ export default function OfficerLeftPanel({
                 <Typography.Text
                   strong={isActive}
                   type={isActive ? undefined : 'secondary'}
-                  style={{ 
-                    fontSize: 13, 
-                    flex: 1, 
+                  style={{
+                    fontSize: 13,
+                    flex: 1,
                     lineHeight: 1.4,
                     ...(isActive && { color: token.colorPrimary })
                   }}
@@ -100,11 +128,11 @@ export default function OfficerLeftPanel({
                   {tab.label}
                 </Typography.Text>
                 {showCount && (
-                  <Badge 
-                    count={count} 
-                    size="small" 
+                  <Badge
+                    count={count}
+                    size="small"
                     showZero
-                    style={{ 
+                    style={{
                       backgroundColor: token.colorFillTertiary,
                       color: token.colorTextSecondary,
                       minWidth: 20,
@@ -113,7 +141,7 @@ export default function OfficerLeftPanel({
                       fontSize: 11,
                       border: 'none',
                       boxShadow: 'none'
-                    }} 
+                    }}
                   />
                 )}
               </div>

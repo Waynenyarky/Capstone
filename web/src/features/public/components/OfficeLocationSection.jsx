@@ -21,17 +21,34 @@ export default function OfficeLocationSection() {
       }}
     >
       <div style={{ maxWidth: screens.lg ? 1200 : '100%' }}>
-        <Title
-          level={4}
-          style={{
-            marginTop: 0,
-            marginBottom: 32,
-            textAlign: 'left',
-            color: token.colorTextHeading,
-          }}
-        >
-          Office Location
-        </Title>
+        <div style={{ marginBottom: 14 }}>
+          <Title
+            level={4}
+            style={{
+              marginTop: 0,
+              marginBottom: 8,
+              fontSize: screens.md ? 20 : 18,
+              lineHeight: 1.25,
+              color: token.colorTextHeading,
+              textAlign: 'left',
+            }}
+          >
+            Office Location
+          </Title>
+          <Text
+            style={{
+              display: 'block',
+              marginTop: 0,
+              marginBottom: 8,
+              fontSize: screens.md ? 13 : 13,
+              lineHeight: 1.25,
+              color: token.colorTextSecondary,
+              textAlign: 'left',
+            }}
+          >
+            Visit us in person or contact us for assistance.
+          </Text>
+        </div>
 
         <div
           style={{

@@ -1,20 +1,20 @@
-const mongoose = require('mongoose')
-const BusinessProfile = require('../models/BusinessProfile')
-const Payment = require('../models/Payment')
-const Violation = require('../models/Violation')
-const Inspection = require('../models/Inspection')
-const Permit = require('../models/Permit')
-const PDFDocument = require('pdfkit')
-const { logAuditEvent } = require('../lib/auditLogger')
+const mongoose = require("mongoose");
+const BusinessProfile = require("../models/BusinessProfile");
+const Payment = require("../models/Payment");
+const Violation = require("../models/Violation");
+const Inspection = require("../models/Inspection");
+const Permit = require("../models/Permit");
+const PDFDocument = require("pdfkit");
+const { logAuditEvent } = require("../lib/auditLogger");
 
 // Helper: build query that matches either businessId or subdoc _id
 function buildBusinessLookupQuery(identifier) {
-  const target = String(identifier || '')
-  const clauses = [{ 'businesses.businessId': target }]
+  const target = String(identifier || "");
+  const clauses = [{ "businesses.businessId": target }];
   if (mongoose.Types.ObjectId.isValid(target)) {
-    clauses.push({ 'businesses._id': new mongoose.Types.ObjectId(target) })
+    clauses.push({ "businesses._id": new mongoose.Types.ObjectId(target) });
   }
-  return clauses.length === 1 ? clauses[0] : { $or: clauses }
+  return clauses.length === 1 ? clauses[0] : { $or: clauses };
 }
 
 /**
@@ -25,56 +25,60 @@ async function checkClosurePrerequisites(businessId) {
     violations: { cleared: false, count: 0, details: [] },
     payments: { settled: false, outstanding: 0, details: [] },
     inspection: { completed: false, required: true },
-    eligible: false
-  }
-  
+    eligible: false,
+  };
+
   // Check for outstanding violations
   const openViolations = await Violation.find({
     businessId,
-    status: 'open'
-  }).lean()
-  
-  checks.violations.count = openViolations.length
-  checks.violations.cleared = openViolations.length === 0
-  checks.violations.details = openViolations.map(v => ({
+    status: "open",
+  }).lean();
+
+  checks.violations.count = openViolations.length;
+  checks.violations.cleared = openViolations.length === 0;
+  checks.violations.details = openViolations.map((v) => ({
     violationId: v.violationId,
     description: v.description,
-    severity: v.severity
-  }))
-  
+    severity: v.severity,
+  }));
+
   // Check for outstanding payments
   const outstandingPayments = await Payment.find({
     businessId,
-    status: { $in: ['pending', 'overdue'] }
-  }).lean()
-  
-  const totalOutstanding = outstandingPayments.reduce((sum, p) => sum + (p.amount || 0), 0)
-  checks.payments.outstanding = totalOutstanding
-  checks.payments.settled = totalOutstanding === 0
-  checks.payments.details = outstandingPayments.map(p => ({
+    status: { $in: ["pending", "overdue"] },
+  }).lean();
+
+  const totalOutstanding = outstandingPayments.reduce(
+    (sum, p) => sum + (p.amount || 0),
+    0,
+  );
+  checks.payments.outstanding = totalOutstanding;
+  checks.payments.settled = totalOutstanding === 0;
+  checks.payments.details = outstandingPayments.map((p) => ({
     paymentId: p._id,
     description: p.description,
     amount: p.amount,
-    dueDate: p.dueDate
-  }))
-  
+    dueDate: p.dueDate,
+  }));
+
   // Check if final inspection is required
   const lastInspection = await Inspection.findOne({
     businessId,
-    inspectionType: 'closure'
-  }).sort({ createdAt: -1 })
-  
-  if (lastInspection && lastInspection.status === 'completed') {
-    checks.inspection.completed = true
-    checks.inspection.required = false
+    inspectionType: "closure",
+  }).sort({ createdAt: -1 });
+
+  if (lastInspection && lastInspection.status === "completed") {
+    checks.inspection.completed = true;
+    checks.inspection.required = false;
   }
-  
+
   // Determine eligibility
-  checks.eligible = checks.violations.cleared && 
-                    checks.payments.settled && 
-                    (!checks.inspection.required || checks.inspection.completed)
-  
-  return checks
+  checks.eligible =
+    checks.violations.cleared &&
+    checks.payments.settled &&
+    (!checks.inspection.required || checks.inspection.completed);
+
+  return checks;
 }
 
 /**
@@ -86,53 +90,61 @@ async function calculateFinalSettlement(businessId) {
     penaltyFees: 0,
     processingFee: 500, // Fixed closure processing fee
     total: 0,
-    breakdown: []
-  }
-  
+    breakdown: [],
+  };
+
   // Get outstanding payments
   const outstandingPayments = await Payment.find({
     businessId,
-    status: { $in: ['pending', 'overdue'] }
-  }).lean()
-  
-  outstandingPayments.forEach(p => {
+    status: { $in: ["pending", "overdue"] },
+  }).lean();
+
+  outstandingPayments.forEach((p) => {
     settlement.breakdown.push({
-      type: 'outstanding_payment',
+      type: "outstanding_payment",
       description: p.description,
-      amount: p.amount
-    })
-    settlement.outstandingPayments += p.amount
-  })
-  
+      amount: p.amount,
+    });
+    settlement.outstandingPayments += p.amount;
+  });
+
   // Calculate penalty fees for overdue payments
-  const overduePayments = outstandingPayments.filter(p => 
-    p.dueDate && new Date(p.dueDate) < new Date()
-  )
-  
-  overduePayments.forEach(p => {
-    const daysOverdue = Math.floor((new Date() - new Date(p.dueDate)) / (1000 * 60 * 60 * 24))
-    const penalty = Math.min(p.amount * 0.02 * Math.floor(daysOverdue / 30), p.amount * 0.2) // 2% per month, max 20%
-    
+  const overduePayments = outstandingPayments.filter(
+    (p) => p.dueDate && new Date(p.dueDate) < new Date(),
+  );
+
+  overduePayments.forEach((p) => {
+    const daysOverdue = Math.floor(
+      (new Date() - new Date(p.dueDate)) / (1000 * 60 * 60 * 24),
+    );
+    const penalty = Math.min(
+      p.amount * 0.02 * Math.floor(daysOverdue / 30),
+      p.amount * 0.2,
+    ); // 2% per month, max 20%
+
     if (penalty > 0) {
       settlement.breakdown.push({
-        type: 'penalty',
+        type: "penalty",
         description: `Penalty for ${p.description} (${daysOverdue} days overdue)`,
-        amount: penalty
-      })
-      settlement.penaltyFees += penalty
+        amount: penalty,
+      });
+      settlement.penaltyFees += penalty;
     }
-  })
-  
+  });
+
   // Add processing fee
   settlement.breakdown.push({
-    type: 'processing_fee',
-    description: 'Closure Processing Fee',
-    amount: settlement.processingFee
-  })
-  
-  settlement.total = settlement.outstandingPayments + settlement.penaltyFees + settlement.processingFee
-  
-  return settlement
+    type: "processing_fee",
+    description: "Closure Processing Fee",
+    amount: settlement.processingFee,
+  });
+
+  settlement.total =
+    settlement.outstandingPayments +
+    settlement.penaltyFees +
+    settlement.processingFee;
+
+  return settlement;
 }
 
 /**
@@ -141,181 +153,239 @@ async function calculateFinalSettlement(businessId) {
 async function clearViolationsForClosure(businessId, userId, notes) {
   const openViolations = await Violation.find({
     businessId,
-    status: 'open'
-  })
-  
-  const clearedViolations = []
-  
+    status: "open",
+  });
+
+  const clearedViolations = [];
+
   for (const violation of openViolations) {
-    violation.status = 'resolved'
-    violation.resolvedAt = new Date()
-    violation.resolvedBy = userId
-    violation.resolutionNotes = notes || 'Cleared for business closure'
-    await violation.save()
-    
-    clearedViolations.push(violation.violationId)
+    violation.status = "resolved";
+    violation.resolvedAt = new Date();
+    violation.resolvedBy = userId;
+    violation.resolutionNotes = notes || "Cleared for business closure";
+    await violation.save();
+
+    clearedViolations.push(violation.violationId);
   }
-  
-  logAuditEvent('violations_cleared_for_closure', userId, 'Business', businessId, {
-    violationCount: clearedViolations.length,
-    violationIds: clearedViolations
-  })
-  
-  return clearedViolations
+
+  logAuditEvent(
+    "violations_cleared_for_closure",
+    userId,
+    "Business",
+    businessId,
+    {
+      violationCount: clearedViolations.length,
+      violationIds: clearedViolations,
+    },
+  );
+
+  return clearedViolations;
 }
 
 /**
  * Process final settlement payment
  */
 async function processFinalSettlement(businessId, userId) {
-  const settlement = await calculateFinalSettlement(businessId)
-  
+  const settlement = await calculateFinalSettlement(businessId);
+
   if (settlement.total === 0) {
-    return { settled: true, amount: 0 }
+    return { settled: true, amount: 0 };
   }
-  
+
   // Create final settlement payment
   const payment = await Payment.create({
     businessId,
     userId,
-    paymentType: 'closure_settlement',
-    description: 'Final Settlement for Business Closure',
+    paymentType: "closure_settlement",
+    description: "Final Settlement for Business Closure",
     amount: settlement.total,
     dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-    status: 'pending',
+    status: "pending",
     metadata: {
       breakdown: settlement.breakdown,
       outstandingPayments: settlement.outstandingPayments,
       penaltyFees: settlement.penaltyFees,
-      processingFee: settlement.processingFee
-    }
-  })
-  
+      processingFee: settlement.processingFee,
+    },
+  });
+
   return {
     settled: false,
     amount: settlement.total,
     paymentId: payment._id,
-    breakdown: settlement.breakdown
-  }
+    breakdown: settlement.breakdown,
+  };
 }
 
 /**
  * Generate closure certificate PDF
  */
 async function generateClosureCertificate(businessId, closureData) {
-  const profile = await BusinessProfile.findOne(buildBusinessLookupQuery(businessId))
-  
+  const profile = await BusinessProfile.findOne(
+    buildBusinessLookupQuery(businessId),
+  );
+
   if (!profile) {
-    throw new Error('Business not found')
+    throw new Error("Business not found");
   }
-  
-  const business = profile.businesses.find(b => b.businessId === businessId || String(b._id) === businessId)
+
+  const business = profile.businesses.find(
+    (b) => b.businessId === businessId || String(b._id) === businessId,
+  );
   if (!business) {
-    throw new Error('Business not found')
+    throw new Error("Business not found");
   }
-  
+
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({ size: 'LETTER', margin: 50 })
-      const chunks = []
-      
-      doc.on('data', chunk => chunks.push(chunk))
-      doc.on('end', () => resolve(Buffer.concat(chunks)))
-      doc.on('error', reject)
-      
+      const doc = new PDFDocument({ size: "LETTER", margin: 50 });
+      const chunks = [];
+
+      doc.on("data", (chunk) => chunks.push(chunk));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on("error", reject);
+
       // Header
-      doc.fontSize(20).font('Helvetica-Bold')
-         .text('REPUBLIC OF THE PHILIPPINES', { align: 'center' })
-      doc.fontSize(16)
-         .text('City of Alaminos, Pangasinan', { align: 'center' })
-      doc.fontSize(14)
-         .text('BUSINESS PERMIT AND LICENSING OFFICE', { align: 'center' })
-      
-      doc.moveDown(2)
-      
+      doc
+        .fontSize(20)
+        .font("Helvetica-Bold")
+        .text("REPUBLIC OF THE PHILIPPINES", { align: "center" });
+      doc
+        .fontSize(16)
+        .text("City of Alaminos, Pangasinan", { align: "center" });
+      doc
+        .fontSize(14)
+        .text("BUSINESS PERMIT AND LICENSING OFFICE", { align: "center" });
+
+      doc.moveDown(2);
+
       // Title
-      doc.fontSize(24).font('Helvetica-Bold')
-         .fillColor('#d32f2f')
-         .text('CERTIFICATE OF CLOSURE', { align: 'center' })
-      
-      doc.moveDown(2)
-      
+      doc
+        .fontSize(24)
+        .font("Helvetica-Bold")
+        .fillColor("#d32f2f")
+        .text("CERTIFICATE OF CLOSURE", { align: "center" });
+
+      doc.moveDown(2);
+
       // Certificate Number
-      doc.fontSize(14).fillColor('#000000')
-         .text(`Certificate No: ${closureData.certificateNumber}`, { align: 'center' })
-      
-      doc.moveDown(2)
-      
+      doc
+        .fontSize(14)
+        .fillColor("#000000")
+        .text(`Certificate No: ${closureData.certificateNumber}`, {
+          align: "center",
+        });
+
+      doc.moveDown(2);
+
       // Business Information
-      doc.fontSize(12).font('Helvetica')
-      
-      const leftMargin = 100
-      let y = doc.y
-      
-      doc.text('This is to certify that:', leftMargin, y)
-      
-      y += 30
-      doc.font('Helvetica-Bold')
-         .text(business.businessName || business.registeredBusinessName, leftMargin, y)
-      
-      y += 25
-      doc.font('Helvetica')
-         .text('Owner/Proprietor:', leftMargin, y, { continued: true })
-         .font('Helvetica-Bold')
-         .text(` ${profile.ownerName || `${profile.firstName} ${profile.lastName}`}`)
-      
-      y += 25
-      doc.font('Helvetica')
-         .text('Business Address:', leftMargin, y, { continued: true })
-         .font('Helvetica-Bold')
-         .text(` ${business.businessAddress || business.location?.address || 'N/A'}`)
-      
-      y += 25
-      doc.font('Helvetica')
-         .text('Permit Number:', leftMargin, y, { continued: true })
-         .font('Helvetica-Bold')
-         .text(` ${business.permitNumber || 'N/A'}`)
-      
-      doc.moveDown(2)
-      
-      doc.font('Helvetica')
-         .text('Has officially ceased operations and completed all requirements for business closure.', leftMargin, doc.y, { align: 'left', width: 400 })
-      
-      doc.moveDown(1)
-      
+      doc.fontSize(12).font("Helvetica");
+
+      const leftMargin = 100;
+      let y = doc.y;
+
+      doc.text("This is to certify that:", leftMargin, y);
+
+      y += 30;
+      doc
+        .font("Helvetica-Bold")
+        .text(
+          business.businessName || business.registeredBusinessName,
+          leftMargin,
+          y,
+        );
+
+      y += 25;
+      doc
+        .font("Helvetica")
+        .text("Owner/Proprietor:", leftMargin, y, { continued: true })
+        .font("Helvetica-Bold")
+        .text(
+          ` ${profile.ownerName || `${profile.firstName} ${profile.lastName}`}`,
+        );
+
+      y += 25;
+      doc
+        .font("Helvetica")
+        .text("Business Address:", leftMargin, y, { continued: true })
+        .font("Helvetica-Bold")
+        .text(
+          ` ${business.businessAddress || business.location?.address || "N/A"}`,
+        );
+
+      y += 25;
+      doc
+        .font("Helvetica")
+        .text("Permit Number:", leftMargin, y, { continued: true })
+        .font("Helvetica-Bold")
+        .text(` ${business.permitNumber || "N/A"}`);
+
+      doc.moveDown(2);
+
+      doc
+        .font("Helvetica")
+        .text(
+          "Has officially ceased operations and completed all requirements for business closure.",
+          leftMargin,
+          doc.y,
+          { align: "left", width: 400 },
+        );
+
+      doc.moveDown(1);
+
       // Closure Details
-      doc.text('Closure Details:', leftMargin, doc.y)
-      doc.moveDown(0.5)
-      
-      y = doc.y
-      doc.text(`Closure Date: ${new Date(closureData.closureDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, leftMargin + 20, y)
-      
-      y += 20
-      doc.text(`Reason: ${closureData.reason || 'Business cessation'}`, leftMargin + 20, y)
-      
-      y += 20
-      doc.text(`All violations cleared: Yes`, leftMargin + 20, y)
-      
-      y += 20
-      doc.text(`All payments settled: Yes`, leftMargin + 20, y)
-      
-      doc.moveDown(3)
-      
+      doc.text("Closure Details:", leftMargin, doc.y);
+      doc.moveDown(0.5);
+
+      y = doc.y;
+      doc.text(
+        `Closure Date: ${new Date(closureData.closureDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`,
+        leftMargin + 20,
+        y,
+      );
+
+      y += 20;
+      doc.text(
+        `Reason: ${closureData.reason || "Business cessation"}`,
+        leftMargin + 20,
+        y,
+      );
+
+      y += 20;
+      doc.text(`All violations cleared: Yes`, leftMargin + 20, y);
+
+      y += 20;
+      doc.text(`All payments settled: Yes`, leftMargin + 20, y);
+
+      doc.moveDown(3);
+
       // Footer
-      doc.fontSize(10).font('Helvetica-Oblique')
-         .text('This certificate is issued upon completion of all closure requirements.', { align: 'center' })
-      doc.text('Not valid without the official seal and signature.', { align: 'center' })
-      
-      doc.moveDown(2)
-      
-      doc.fontSize(10).font('Helvetica')
-         .text(`Issued on: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, { align: 'center' })
-      
-      doc.end()
+      doc
+        .fontSize(10)
+        .font("Helvetica-Oblique")
+        .text(
+          "This certificate is issued upon completion of all closure requirements.",
+          { align: "center" },
+        );
+      doc.text("Not valid without the official seal and signature.", {
+        align: "center",
+      });
+
+      doc.moveDown(2);
+
+      doc
+        .fontSize(10)
+        .font("Helvetica")
+        .text(
+          `Issued on: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`,
+          { align: "center" },
+        );
+
+      doc.end();
     } catch (error) {
-      reject(error)
+      reject(error);
     }
-  })
+  });
 }
 
 /**
@@ -323,58 +393,55 @@ async function generateClosureCertificate(businessId, closureData) {
  */
 async function completeBusinessClosure(businessId, closureData, userId) {
   // Check prerequisites
-  const prerequisites = await checkClosurePrerequisites(businessId)
-  
+  const prerequisites = await checkClosurePrerequisites(businessId);
+
   if (!prerequisites.eligible) {
-    throw new Error('Business does not meet closure requirements')
+    throw new Error("Business does not meet closure requirements");
   }
-  
+
   // Generate certificate number
-  const certificateNumber = `CC-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`
-  
+  const certificateNumber = `CC-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
+
   // Update business status
-  await BusinessProfile.updateOne(
-    buildBusinessLookupQuery(businessId),
-    {
-      $set: {
-        'businesses.$.applicationStatus': 'closed',
-        'businesses.$.closureDate': new Date(),
-        'businesses.$.closureReason': closureData.reason,
-        'businesses.$.closureCertificateNumber': certificateNumber,
-        'businesses.$.closedBy': userId
-      }
-    }
-  )
-  
+  await BusinessProfile.updateOne(buildBusinessLookupQuery(businessId), {
+    $set: {
+      "businesses.$.applicationStatus": "closed",
+      "businesses.$.closureDate": new Date(),
+      "businesses.$.closureReason": closureData.reason,
+      "businesses.$.closureCertificateNumber": certificateNumber,
+      "businesses.$.closedBy": userId,
+    },
+  });
+
   // Revoke permit
-  const permit = await Permit.findOne({ businessId, status: 'active' })
+  const permit = await Permit.findOne({ businessId, status: "active" });
   if (permit) {
-    permit.status = 'revoked'
-    permit.revokedAt = new Date()
-    permit.revocationReason = 'Business closure'
-    permit.revokedBy = userId
-    await permit.save()
+    permit.status = "revoked";
+    permit.revokedAt = new Date();
+    permit.revocationReason = "Business closure";
+    permit.revokedBy = userId;
+    await permit.save();
   }
-  
+
   // Generate closure certificate
   const certificatePDF = await generateClosureCertificate(businessId, {
     certificateNumber,
     closureDate: new Date(),
-    reason: closureData.reason
-  })
-  
+    reason: closureData.reason,
+  });
+
   // Log audit event
-  logAuditEvent('business_closure_completed', userId, 'Business', businessId, {
+  logAuditEvent("business_closure_completed", userId, "Business", businessId, {
     certificateNumber,
-    reason: closureData.reason
-  })
-  
+    reason: closureData.reason,
+  });
+
   return {
     success: true,
     certificateNumber,
     certificatePDF,
-    closureDate: new Date()
-  }
+    closureDate: new Date(),
+  };
 }
 
 module.exports = {
@@ -383,5 +450,5 @@ module.exports = {
   clearViolationsForClosure,
   processFinalSettlement,
   generateClosureCertificate,
-  completeBusinessClosure
-}
+  completeBusinessClosure,
+};

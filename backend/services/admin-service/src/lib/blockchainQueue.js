@@ -6,9 +6,9 @@
 function queueBlockchainOperation(operation, params, id) {
   // Stub - admin service doesn't queue blockchain operations
   // Audit service handles this
-  return null
+  return null;
 }
 
 module.exports = {
   queueBlockchainOperation,
-}
+};

@@ -1,62 +1,38 @@
 import { Layout, Typography, Grid, theme } from 'antd'
 import { LayoutPageHeader } from '@/features/shared'
-import BizClearLogo from '@/shared/components/BizClearLogo.jsx'
+import AnimatedBrandLogo from '@/shared/components/AnimatedBrandLogo.jsx'
 
 const { Content } = Layout
 const { Title } = Typography
 const { useBreakpoint } = Grid
 
-function BrandHeader() {
-  const { token } = theme.useToken()
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-      <div style={{
-        width: 32,
-        height: 32,
-        flexShrink: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-        borderRadius: 8
-      }}>
-        <BizClearLogo width={24} />
-      </div>
-      <span style={{
-        fontWeight: 700,
-        fontSize: 16,
-        color: token.colorTextBase,
-        whiteSpace: 'nowrap'
-      }}>
-        {import.meta.env.VITE_APP_BRAND_NAME || 'BizClear'}
-      </span>
-    </div>
-  )
-}
-
 export default function BusinessOwnerLayout({
   children,
   pageTitle,
   pageIcon,
-  headerActions,
   showPageHeader = true,
   showBusinessSidebar = false, // New prop to control business sidebar
   sidebarContent = null, // Custom sidebar content
   onSettingsClick, // Pass through to LayoutPageHeader
+  onRefresh,
+  lastUpdated,
+  socketConnected,
+  loading,
 }) {
   const { token } = theme.useToken()
-  const leftContent = <BrandHeader />
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', margin: 0, padding: 0, overflow: 'hidden' }}>
       <LayoutPageHeader
         pageTitle={pageTitle}
         pageIcon={pageIcon}
-        headerActions={headerActions}
         viewNotificationsPath="/notifications"
         showPageHeader={showPageHeader}
         onSettingsClick={onSettingsClick}
-        leftContent={leftContent}
+        onRefresh={onRefresh}
+        lastUpdated={lastUpdated}
+        socketConnected={socketConnected}
+        loading={loading}
       />
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: token.colorBgContainer }}>
         {showBusinessSidebar ? (

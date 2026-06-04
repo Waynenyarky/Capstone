@@ -50,9 +50,7 @@ const InspectionCalendar = lazy(() => import("@/features/business-owner/componen
 
 const StaffDashboard = lazy(() => import("@/features/staffs").then(m => ({ default: m.StaffDashboard })))
 const StaffOnboarding = lazy(() => import("@/features/staffs").then(m => ({ default: m.StaffOnboarding })))
-const PermitReviewPage = lazy(() => import("@/features/staffs/lgu-officer/pages/PermitReviewPage.jsx"))
-const InspectionManagementPage = lazy(() => import("@/features/staffs/lgu-officer/pages/InspectionManagementPage.jsx"))
-const EditRequestReviewPage = lazy(() => import("@/features/staffs/lgu-officer/pages/EditRequestReviewPage.jsx"))
+const OfficerDashboard = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerDashboard.jsx"))
 const PlaceholderPage = lazy(() => import("@/features/shared/pages/PlaceholderPage.jsx"))
 const AgencyDashboard = lazy(() => import("@/features/staffs/lgu-officer/pages/AgencyDashboard.jsx"))
 const TreasuryDashboard = lazy(() => import("@/features/treasury/components/TreasuryDashboard.jsx"))
@@ -150,9 +148,16 @@ function App() {
       <Route path="/staff" element={<ProtectedRoute allowedRoles={['staff', 'lgu_officer', 'lgu_manager', 'inspector', 'cso']}><Outlet /></ProtectedRoute>}>
         <Route index element={<StaffDashboard />} />
         <Route path="onboarding" element={<StaffOnboarding />} />
-        <Route path="applications" element={<PermitReviewPage />} />
-        <Route path="inspections" element={<InspectionManagementPage />} />
-        <Route path="edit-requests" element={<EditRequestReviewPage />} />
+        <Route path="applications" element={<OfficerDashboard />} />
+        <Route path="appeals" element={<OfficerDashboard />} />
+        <Route path="edit-requests" element={<OfficerDashboard />} />
+        <Route path="renewals" element={<OfficerDashboard />} />
+        <Route path="cessation" element={<OfficerDashboard />} />
+        <Route path="inspections" element={<OfficerDashboard />} />
+        <Route path="help-requests" element={<OfficerDashboard />} />
+        <Route path="drafts" element={<OfficerDashboard />} />
+        <Route path="owners" element={<OfficerDashboard />} />
+        <Route path="logs" element={<OfficerDashboard />} />
         <Route path="agency/:agency" element={<AgencyDashboard />} />
         <Route path="treasury" element={<TreasuryDashboard />} />
       </Route>

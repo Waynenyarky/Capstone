@@ -81,7 +81,7 @@ export default function DownloadsManager({
       if (pendingFile) {
         await handleUpload(pendingFile, values.label)
       }
-    } catch (err) {
+    } catch {
       // Validation error
     }
   }

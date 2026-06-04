@@ -4,8 +4,8 @@
  * TODO: Investigate and fix the database connection/indexing issues
  */
 
-describe('FormDefinition Model Tests - DISABLED', () => {
-  it('placeholder test until database issues are resolved', () => {
-    expect(true).toBe(true)
-  })
-})
+describe("FormDefinition Model Tests - DISABLED", () => {
+  it("placeholder test until database issues are resolved", () => {
+    expect(true).toBe(true);
+  });
+});

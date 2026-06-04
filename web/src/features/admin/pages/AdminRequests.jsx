@@ -18,24 +18,8 @@ export default function AdminRequests() {
     setLastUpdated(new Date())
   }, [])
 
-  const mainHeaderActions = (
-    <>
-      {lastUpdated && (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          Last updated: {lastUpdated.toLocaleTimeString()}
-        </Text>
-      )}
-      <Button icon={<ReloadOutlined />} onClick={handleRefresh} aria-label="Refresh" />
-      <Button icon={<InfoCircleOutlined />} onClick={() => setInfoOpen(true)} aria-label="About" />
-    </>
-  )
-
   return (
-    <AdminLayout
-      pageTitle="Requests"
-      pageIcon={<CheckCircleOutlined />}
-      headerActions={mainHeaderActions}
-    >
+    <AdminLayout>
       <div
         style={
           isMobile

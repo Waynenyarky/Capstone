@@ -1,32 +1,36 @@
 /**
  * Migration Script: Migrate Users to Blockchain
- * 
+ *
  * This script migrates user data to the blockchain:
  * 1. Calculates profile data hash for each user
  * 2. Stores hash in UserRegistry contract
  * 3. Stores IPFS CID of full profile JSON in DocumentStorage contract
  * 4. Updates MongoDB with blockchain references
- * 
+ *
  * Usage:
  *   node scripts/migrateUsersToBlockchain.js [--dry-run] [--limit=N]
  */
 
-require('dotenv').config();
-const mongoose = require('mongoose');
-const crypto = require('crypto');
-const path = require('path');
+require("dotenv").config();
+const mongoose = require("mongoose");
+const crypto = require("crypto");
+const path = require("path");
 
 // Import services
-const userRegistryService = require('../services/audit-service/src/lib/userRegistryService');
-const documentStorageService = require('../services/audit-service/src/lib/documentStorageService');
-const ipfsService = require('../services/auth-service/src/lib/ipfsService') || require('../services/business-service/src/lib/ipfsService');
-const blockchainService = require('../services/audit-service/src/lib/blockchainService');
+const userRegistryService = require("../services/audit-service/src/lib/userRegistryService");
+const documentStorageService = require("../services/audit-service/src/lib/documentStorageService");
+const ipfsService =
+  require("../services/auth-service/src/lib/ipfsService") ||
+  require("../services/business-service/src/lib/ipfsService");
+const blockchainService = require("../services/audit-service/src/lib/blockchainService");
 
 // Import models
-const User = require('../services/auth-service/src/models/User');
+const User = require("../services/auth-service/src/models/User");
 
-const DRY_RUN = process.argv.includes('--dry-run');
-const LIMIT = parseInt(process.argv.find(arg => arg.startsWith('--limit='))?.split('=')[1] || '0');
+const DRY_RUN = process.argv.includes("--dry-run");
+const LIMIT = parseInt(
+  process.argv.find((arg) => arg.startsWith("--limit="))?.split("=")[1] || "0",
+);
 
 /**
  * Calculate SHA256 hash of user profile data
@@ -43,7 +47,11 @@ function calculateProfileHash(user) {
     office: user.office,
     isStaff: user.isStaff,
     isActive: user.isActive,
-    role: user.role ? (typeof user.role === 'object' ? user.role.slug : user.role) : null,
+    role: user.role
+      ? typeof user.role === "object"
+        ? user.role.slug
+        : user.role
+      : null,
     avatarIpfsCid: user.avatarIpfsCid || null,
     mfaEnabled: user.mfaEnabled,
     isEmailVerified: user.isEmailVerified,
@@ -52,8 +60,11 @@ function calculateProfileHash(user) {
   };
 
   // Convert to JSON string and hash
-  const jsonString = JSON.stringify(profileData, Object.keys(profileData).sort());
-  return crypto.createHash('sha256').update(jsonString).digest('hex');
+  const jsonString = JSON.stringify(
+    profileData,
+    Object.keys(profileData).sort(),
+  );
+  return crypto.createHash("sha256").update(jsonString).digest("hex");
 }
 
 /**
@@ -70,7 +81,11 @@ async function uploadProfileToIpfs(user) {
     office: user.office,
     isStaff: user.isStaff,
     isActive: user.isActive,
-    role: user.role ? (typeof user.role === 'object' ? user.role.slug : user.role) : null,
+    role: user.role
+      ? typeof user.role === "object"
+        ? user.role.slug
+        : user.role
+      : null,
     avatarIpfsCid: user.avatarIpfsCid || null,
     mfaEnabled: user.mfaEnabled,
     isEmailVerified: user.isEmailVerified,
@@ -81,7 +96,7 @@ async function uploadProfileToIpfs(user) {
   };
 
   const { cid } = await ipfsService.uploadJSON(profileData);
-  await ipfsService.pinFile(cid).catch(err => {
+  await ipfsService.pinFile(cid).catch((err) => {
     console.warn(`   ⚠️  Failed to pin profile: ${cid}`, err.message);
   });
 
@@ -96,7 +111,7 @@ async function uploadProfileToIpfs(user) {
 function getUserEthereumAddress(userId) {
   // For migration: generate deterministic address from userId
   // In production, this should come from user's wallet
-  const hash = crypto.createHash('sha256').update(String(userId)).digest('hex');
+  const hash = crypto.createHash("sha256").update(String(userId)).digest("hex");
   // Use first 40 chars of hash + '0x' prefix (Ethereum addresses are 42 chars)
   // Note: This is a simplified approach for migration. In production, users should connect their wallets.
   return `0x${hash.substring(0, 40)}`;
@@ -136,7 +151,11 @@ async function migrateUser(user) {
 
     // Register user in UserRegistry
     try {
-      const result = await userRegistryService.registerUser(userId, userAddress, profileHash);
+      const result = await userRegistryService.registerUser(
+        userId,
+        userAddress,
+        profileHash,
+      );
       if (result.success) {
         console.log(`   ✅ User registered in UserRegistry: ${result.txHash}`);
       } else {
@@ -152,13 +171,16 @@ async function migrateUser(user) {
     try {
       const docResult = await documentStorageService.storeDocument(
         userId,
-        'OTHER', // Profile data is stored as 'OTHER' document type
-        profileIpfsCid
+        "OTHER", // Profile data is stored as 'OTHER' document type
+        profileIpfsCid,
       );
       if (docResult.success) {
         console.log(`   ✅ Profile document stored: ${docResult.txHash}`);
       } else {
-        console.warn(`   ⚠️  Failed to store profile document:`, docResult.error);
+        console.warn(
+          `   ⚠️  Failed to store profile document:`,
+          docResult.error,
+        );
       }
     } catch (error) {
       console.warn(`   ⚠️  Error storing profile document:`, error.message);
@@ -182,15 +204,19 @@ async function migrateUser(user) {
  * Main migration function
  */
 async function main() {
-  console.log('🚀 Starting user migration to blockchain...');
-  console.log(`   Mode: ${DRY_RUN ? 'DRY RUN (no changes will be made)' : 'LIVE (changes will be saved)'}`);
-  console.log(`   Limit: ${LIMIT > 0 ? LIMIT : 'all users'}`);
+  console.log("🚀 Starting user migration to blockchain...");
+  console.log(
+    `   Mode: ${DRY_RUN ? "DRY RUN (no changes will be made)" : "LIVE (changes will be saved)"}`,
+  );
+  console.log(`   Limit: ${LIMIT > 0 ? LIMIT : "all users"}`);
 
   // Initialize blockchain services
   try {
     await blockchainService.initialize();
     if (!blockchainService.isAvailable()) {
-      console.error('❌ Blockchain service is not available. Please check configuration.');
+      console.error(
+        "❌ Blockchain service is not available. Please check configuration.",
+      );
       process.exit(1);
     }
 
@@ -198,24 +224,27 @@ async function main() {
     await documentStorageService.initialize();
 
     if (!ipfsService.isAvailable()) {
-      console.error('❌ IPFS service is not available. Please start IPFS node or configure IPFS provider.');
+      console.error(
+        "❌ IPFS service is not available. Please start IPFS node or configure IPFS provider.",
+      );
       process.exit(1);
     }
   } catch (error) {
-    console.error('❌ Failed to initialize services:', error);
+    console.error("❌ Failed to initialize services:", error);
     process.exit(1);
   }
 
   // Connect to MongoDB
-  const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URL;
+  const mongoUri =
+    process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URL;
   if (!mongoUri) {
-    console.error('❌ MONGO_URI not set in environment variables');
+    console.error("❌ MONGO_URI not set in environment variables");
     process.exit(1);
   }
 
   try {
     await mongoose.connect(mongoUri);
-    console.log('✅ Connected to MongoDB');
+    console.log("✅ Connected to MongoDB");
 
     // Get users to migrate
     let query = User.find();
@@ -260,26 +289,28 @@ async function main() {
 
       // Small delay to avoid overwhelming the blockchain
       if (!DRY_RUN && i < users.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
     // Summary
-    console.log('\n📊 Migration Summary:');
+    console.log("\n📊 Migration Summary:");
     console.log(`   Total users: ${users.length}`);
     console.log(`   Migrated: ${results.migrated}`);
     console.log(`   Skipped: ${results.skipped}`);
     console.log(`   Errors: ${results.errors}`);
 
     if (results.errors > 0) {
-      console.log('\n❌ Errors occurred during migration. Check logs above.');
+      console.log("\n❌ Errors occurred during migration. Check logs above.");
     } else {
-      console.log(`\n${DRY_RUN ? '✅ Dry run completed. Use without --dry-run to apply changes.' : '✅ Migration completed!'}`);
+      console.log(
+        `\n${DRY_RUN ? "✅ Dry run completed. Use without --dry-run to apply changes." : "✅ Migration completed!"}`,
+      );
     }
 
     await mongoose.disconnect();
   } catch (error) {
-    console.error('❌ Migration failed:', error);
+    console.error("❌ Migration failed:", error);
     await mongoose.disconnect();
     process.exit(1);
   }

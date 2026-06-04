@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 /** Single bracket for Sanitary Inspection Fee (Charter 5E.01): fee by area range (sq.m.). */
 const SanitaryBracketSchema = new mongoose.Schema(
@@ -7,8 +7,8 @@ const SanitaryBracketSchema = new mongoose.Schema(
     maxSqm: { type: Number, default: null },
     fee: { type: Number, required: true },
   },
-  { _id: false }
-)
+  { _id: false },
+);
 
 /** Single bracket for Weights and Measures (Charter 4J.01): max value + fee per unit. */
 const WeightsMeasureBracketSchema = new mongoose.Schema(
@@ -16,37 +16,46 @@ const WeightsMeasureBracketSchema = new mongoose.Schema(
     maxValue: { type: Number, required: true },
     feePerUnit: { type: Number, required: true },
   },
-  { _id: false }
-)
+  { _id: false },
+);
 
 const defaultWeightsLinear = [
   { maxValue: 1, feePerUnit: 132 },
   { maxValue: null, feePerUnit: 264 },
-]
+];
 const defaultWeightsCapacity = [
   { maxValue: 10, feePerUnit: 100 },
   { maxValue: null, feePerUnit: 132 },
-]
+];
 const defaultWeightsWeights = [
   { maxValue: 30, feePerUnit: 66 },
   { maxValue: 300, feePerUnit: 132 },
   { maxValue: 3000, feePerUnit: 264 },
   { maxValue: null, feePerUnit: 660 },
-]
+];
 
 const WeightsAndMeasuresSchema = new mongoose.Schema(
   {
     /** Linear metric measures (meters). Charter: not over 1m = 132, over 1m = 264. */
-    linear: { type: [WeightsMeasureBracketSchema], default: defaultWeightsLinear },
+    linear: {
+      type: [WeightsMeasureBracketSchema],
+      default: defaultWeightsLinear,
+    },
     /** Capacity (liters). Charter: not over 10L = 100, over 10L = 132. */
-    capacity: { type: [WeightsMeasureBracketSchema], default: defaultWeightsCapacity },
+    capacity: {
+      type: [WeightsMeasureBracketSchema],
+      default: defaultWeightsCapacity,
+    },
     /** Weights (kg). Charter: ≤30kg=66, 30–300=132, 300–3000=264, >3000=660. */
-    weights: { type: [WeightsMeasureBracketSchema], default: defaultWeightsWeights },
+    weights: {
+      type: [WeightsMeasureBracketSchema],
+      default: defaultWeightsWeights,
+    },
     retestingPerUnit: { type: Number, default: 20 },
     gasolinePerNozzle: { type: Number, default: 132 },
   },
-  { _id: false }
-)
+  { _id: false },
+);
 
 const CommunityTaxSchema = new mongoose.Schema(
   {
@@ -57,8 +66,8 @@ const CommunityTaxSchema = new mongoose.Schema(
     juridicalRatePer5000: { type: Number, default: 2 },
     juridicalCap: { type: Number, default: 10000 },
   },
-  { _id: false }
-)
+  { _id: false },
+);
 
 const SpecialPermitSchema = new mongoose.Schema(
   {
@@ -66,16 +75,16 @@ const SpecialPermitSchema = new mongoose.Schema(
     streamerDays: { type: Number, default: 15 },
     motorcadePerDay: { type: Number, default: 200 },
   },
-  { _id: false }
-)
+  { _id: false },
+);
 
 const CertificationFeeSchema = new mongoose.Schema(
   {
     fee: { type: Number, default: 60 },
     documentaryStamp: { type: Number, default: 30 },
   },
-  { _id: false }
-)
+  { _id: false },
+);
 
 /**
  * Single-document config for special/regulatory fees.
@@ -85,7 +94,7 @@ const CertificationFeeSchema = new mongoose.Schema(
  */
 const RegulatoryFeeConfigSchema = new mongoose.Schema(
   {
-    _id: { type: String, default: () => 'default' },
+    _id: { type: String, default: () => "default" },
     /** Sanitary Inspection Fee brackets (area sq.m. → fee). */
     sanitaryBrackets: {
       type: [SanitaryBracketSchema],
@@ -107,7 +116,10 @@ const RegulatoryFeeConfigSchema = new mongoose.Schema(
     fireSafetyMin: { type: Number, default: 500 },
     /** Business Plate/Sticker (Charter 4A.01). Cost determined by BPLO, not to exceed acquisition. */
     businessPlate: {
-      type: new mongoose.Schema({ feePerUnit: Number, note: String }, { _id: false }),
+      type: new mongoose.Schema(
+        { feePerUnit: Number, note: String },
+        { _id: false },
+      ),
       default: () => ({}),
     },
     /** Fee for Sealing and Licensing of Weights and Measures (Charter 4J.01). */
@@ -136,22 +148,32 @@ const RegulatoryFeeConfigSchema = new mongoose.Schema(
     /** Special Permit: Streamer, Motorcade (Charter table). */
     specialPermit: {
       type: SpecialPermitSchema,
-      default: () => ({ streamerPerSqYard: 25, streamerDays: 15, motorcadePerDay: 200 }),
+      default: () => ({
+        streamerPerSqYard: 25,
+        streamerDays: 15,
+        motorcadePerDay: 200,
+      }),
     },
     /** Certification of Business Record (Charter: P60 + P30 documentary stamp). */
-    certificationOfBusinessRecord: { type: CertificationFeeSchema, default: () => ({ fee: 60, documentaryStamp: 30 }) },
+    certificationOfBusinessRecord: {
+      type: CertificationFeeSchema,
+      default: () => ({ fee: 60, documentaryStamp: 30 }),
+    },
     /** Certified True Copy of Business Permit (Charter: P60 per document + P30). */
-    certifiedTrueCopyPerDocument: { type: CertificationFeeSchema, default: () => ({ fee: 60, documentaryStamp: 30 }) },
+    certifiedTrueCopyPerDocument: {
+      type: CertificationFeeSchema,
+      default: () => ({ fee: 60, documentaryStamp: 30 }),
+    },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-const SINGLETON_ID = 'default'
+const SINGLETON_ID = "default";
 
 const model =
   mongoose.models.RegulatoryFeeConfig ||
-  mongoose.model('RegulatoryFeeConfig', RegulatoryFeeConfigSchema)
+  mongoose.model("RegulatoryFeeConfig", RegulatoryFeeConfigSchema);
 
 /** Id of the single config document. */
-model.SINGLETON_ID = SINGLETON_ID
-module.exports = model
+model.SINGLETON_ID = SINGLETON_ID;
+module.exports = model;

@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react'
-import { Button, Space, theme, Typography, Tag, Tooltip, Splitter } from 'antd'
+import { Button, Space, theme, Typography, Tag, Splitter, Tooltip } from 'antd'
 import { StopOutlined, ClockCircleOutlined, ArrowLeftOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import MaintenanceToolbar from './components/MaintenanceToolbar'
 import MaintenanceRequestList from './components/MaintenanceRequestList'
@@ -140,28 +140,6 @@ export default function MaintenanceDesktopView({
     </Splitter>
   )
 
-  const requestButtonLabel = current?.isActive
-    ? 'Disable'
-    : 'Schedule'
-  const requestButtonIcon = current?.isActive ? <StopOutlined /> : <ClockCircleOutlined />
-  const rightPanelHeaderActions = (
-    <Space>
-      {setInfoOpen && (
-        <Tooltip title="About">
-          <Button icon={<InfoCircleOutlined />} onClick={() => setInfoOpen(true)} />
-        </Tooltip>
-      )}
-      {current?.isActive && (
-        <Button icon={<ClockCircleOutlined />} onClick={() => openRequestModalOrBlock({ forceScheduleMode: true })}>
-          Schedule
-        </Button>
-      )}
-      <Button type="primary" icon={requestButtonIcon} onClick={openRequestModalOrBlock}>
-        {requestButtonLabel}
-      </Button>
-    </Space>
-  )
-
   const statusTag = (
     <Tag color={current?.isActive ? 'cyan' : 'default'}>{current?.isActive ? 'Active' : 'Inactive'}</Tag>
   )
@@ -202,7 +180,6 @@ export default function MaintenanceDesktopView({
             </Text>
             {statusTag}
           </div>
-          {rightPanelHeaderActions}
         </div>
       </div>
 

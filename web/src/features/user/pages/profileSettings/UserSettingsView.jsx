@@ -22,9 +22,8 @@ const SECTION_PANEL_WIDTH = 260
 
 // Business sidebar component for settings page - uses actual BusinessListPanel
 function BusinessSidebarContent() {
-  const { token } = theme.useToken()
   const navigate = useNavigate()
-  const { modal, message } = AntApp.useApp()
+  const { message } = AntApp.useApp()
   const [businesses, setBusinesses] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedBusinessId, setSelectedBusinessId] = useState(null)
@@ -232,11 +231,6 @@ export default function UserSettingsView({
           <LayoutPageHeader
             pageTitle="Settings"
             pageIcon={<SettingOutlined />}
-            headerActions={
-              <Link to="/staff">
-                <Button icon={<ArrowLeftOutlined />}>Back to Dashboard</Button>
-              </Link>
-            }
             showPageHeader
           />
           <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: token.colorBgContainer }}>

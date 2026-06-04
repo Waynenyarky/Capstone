@@ -170,32 +170,9 @@ export default function AdminFeeConfiguration() {
     logs: <FeeConfigLogsTab initialLogId={searchParams.get('logId') || null} />,
   }
 
-  const desktopHeaderActions =
-    tabKey === 'fee-by-lob' ? (
-      <Button type="primary" icon={<PlusOutlined />} onClick={handleAddLob}>
-        Add Line of Business
-      </Button>
-    ) : tabKey === 'logs' ? (
-      <Button type="primary" icon={<DownloadOutlined />} onClick={() => setExportLogsOpen(true)}>
-        Export
-      </Button>
-    ) : null
-
-  const mainHeaderActions = (
-    <>
-      {lastUpdated && (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          Last updated: {lastUpdated.toLocaleTimeString()}
-        </Text>
-      )}
-      <Button icon={<ReloadOutlined />} onClick={fetchConfigs} loading={loading} aria-label="Refresh" />
-      <Button icon={<InfoCircleOutlined />} onClick={() => setInfoOpen(true)} aria-label="About" />
-    </>
-  )
-
   if (loading && !configs.length) {
     return (
-      <AdminLayout pageTitle="Fee Configuration" pageIcon={<DollarOutlined />} headerActions={mainHeaderActions}>
+      <AdminLayout>
         <div style={{ display: 'flex', justifyContent: 'center', padding: 64 }}>
           <LottieSpinner tip="Loading fee configurations...">
             <div style={{ minHeight: 48 }} />
@@ -207,7 +184,7 @@ export default function AdminFeeConfiguration() {
 
   if (isMobile) {
     return (
-      <AdminLayout pageTitle="Fee Configuration" pageIcon={<DollarOutlined />} headerActions={mainHeaderActions}>
+      <AdminLayout>
         {error ? (
           <Alert type="error" message={error} action={<Button onClick={fetchConfigs}>Retry</Button>} />
         ) : (
@@ -223,7 +200,7 @@ export default function AdminFeeConfiguration() {
   }
 
   return (
-    <AdminLayout pageTitle="Fee Configuration" pageIcon={<DollarOutlined />} headerActions={mainHeaderActions}>
+    <AdminLayout>
       {error && (
         <Alert
           type="error"
@@ -236,7 +213,6 @@ export default function AdminFeeConfiguration() {
         tabKey={tabKey}
         setTabKey={setTabKey}
         tabChildren={tabChildren}
-        headerActions={desktopHeaderActions}
       />
       <ExportLogsModal
         open={exportLogsOpen}

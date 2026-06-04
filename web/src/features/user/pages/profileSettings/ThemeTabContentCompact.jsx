@@ -33,6 +33,12 @@ export default function ThemeTabContentCompact({
                 onClick={() => onSelectTheme(option.key)}
                 onMouseEnter={() => onMouseEnterTheme(option.key)}
                 onMouseLeave={onMouseLeaveTheme}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onSelectTheme(option.key)
+                  }
+                }}
                 style={{
                   padding: 12,
                   borderRadius: token.borderRadius,
@@ -56,6 +62,12 @@ export default function ThemeTabContentCompact({
               role="button"
               tabIndex={0}
               onClick={() => onColorChange(color)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onColorChange(color)
+                }
+              }}
               style={{
                 width: 28,
                 height: 28,

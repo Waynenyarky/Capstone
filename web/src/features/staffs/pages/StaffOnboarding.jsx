@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Row, Col, theme } from 'antd'
 import { useLocation } from 'react-router-dom'
-import { SecurityScanOutlined } from '@ant-design/icons'
 import { useStaffOnboarding } from '../hooks/useStaffOnboarding'
 import StaffLayout from '../components/StaffLayout'
 import { OnboardingStepContent } from '@/features/shared'
@@ -111,9 +110,6 @@ export default function StaffOnboarding() {
   return (
     <StaffLayout
       hideSidebar
-      pageTitle="Onboarding"
-      pageIcon={<SecurityScanOutlined />}
-      headerActions={null}
       noContentWrap
     >
       <div
@@ -121,10 +117,12 @@ export default function StaffOnboarding() {
           padding: '40px 24px',
           background: token.colorBgContainer,
           flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
           overflow: 'auto',
         }}
       >
-        <Row justify="center">
+        <Row justify="center" align="middle" style={{ flex: 1 }}>
           <Col xs={24} sm={24} md={20} lg={18} xl={16}>
             <OnboardingStepContent
               variant="staff"
@@ -140,6 +138,8 @@ export default function StaffOnboarding() {
               mfaEnabled={mfaEnabled}
               onComplete={handleComplete}
               passwordExpired={!!currentUser?.passwordExpired}
+              onBack={() => setCurrentStep(Math.max(0, currentStep - 1))}
+              mode={currentUser?.passwordExpired ? 'password-expired' : 'onboarding'}
             />
           </Col>
         </Row>

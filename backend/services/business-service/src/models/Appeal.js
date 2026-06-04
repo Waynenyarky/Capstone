@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 const AppealSchema = new mongoose.Schema(
   {
@@ -8,11 +8,19 @@ const AppealSchema = new mongoose.Schema(
     },
     applicationId: {
       type: String,
-      default: '',
+      default: "",
     },
     appealType: {
       type: String,
-      enum: ['incorrect_fees', 'wrong_fees', 'wrong_violations', 'wrong_assessment', 'processing_errors', 'rejection_appeal', 'other'],
+      enum: [
+        "incorrect_fees",
+        "wrong_fees",
+        "wrong_violations",
+        "wrong_assessment",
+        "processing_errors",
+        "rejection_appeal",
+        "other",
+      ],
       required: true,
     },
     description: {
@@ -25,22 +33,22 @@ const AppealSchema = new mongoose.Schema(
     },
     requestedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       default: null,
     },
     status: {
       type: String,
-      enum: ['submitted', 'under_review', 'approved', 'rejected'],
-      default: 'submitted',
+      enum: ["submitted", "under_review", "approved", "rejected"],
+      default: "submitted",
     },
     reviewedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       default: null,
     },
     resolution: {
       type: String,
-      default: '',
+      default: "",
     },
     resolvedAt: {
       type: Date,
@@ -48,25 +56,29 @@ const AppealSchema = new mongoose.Schema(
     },
     violationId: {
       type: String,
-      default: '',
+      default: "",
     },
     inspectionId: {
       type: String,
-      default: '',
+      default: "",
     },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 AppealSchema.plugin(encryptionPlugin, {
-  fields: ['description', 'resolution'],
-  deterministicFields: ['businessId', 'applicationId', 'violationId', 'inspectionId'],
+  fields: ["description", "resolution"],
+  deterministicFields: [
+    "businessId",
+    "applicationId",
+    "violationId",
+    "inspectionId",
+  ],
   nestedPaths: [],
   arrayPaths: [],
   mixedPaths: [],
-})
+});
 
 module.exports =
-  mongoose.models.Appeal ||
-  mongoose.model('Appeal', AppealSchema)
+  mongoose.models.Appeal || mongoose.model("Appeal", AppealSchema);

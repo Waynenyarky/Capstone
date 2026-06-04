@@ -129,10 +129,12 @@ export default function AdminOnboarding() {
           padding: '40px 24px',
           background: token.colorBgContainer,
           flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
           overflow: 'auto',
         }}
       >
-        <Row justify="center">
+        <Row justify="center" align="middle" style={{ flex: 1 }}>
           <Col xs={24} sm={24} md={20} lg={18} xl={16}>
             <OnboardingStepContent
               variant="admin"
@@ -148,6 +150,8 @@ export default function AdminOnboarding() {
               mfaEnabled={mfaEnabled}
               onComplete={handleComplete}
               passwordExpired={passwordExpired}
+              onBack={() => setCurrentStep(Math.max(0, currentStep - 1))}
+              mode={passwordExpired ? 'password-expired' : 'onboarding'}
             />
           </Col>
         </Row>

@@ -39,7 +39,7 @@ export function useNotificationStream({ enabled, onNewNotification }) {
             if (payload.type === 'new' && payload.notification && onNewRef.current) {
               onNewRef.current(payload.notification)
             }
-          } catch (_) { /* ignore parse errors */ }
+          } catch { /* ignore parse errors */ }
         }
 
         es.onerror = () => {

@@ -1,22 +1,28 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 const RoleSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    description: { type: String, default: '' },
+    slug: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    description: { type: String, default: "" },
     permissions: [{ type: String }], // Future-proofing for granular permissions
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 RoleSchema.plugin(encryptionPlugin, {
-  fields: ['name', 'description'],
-  deterministicFields: ['slug'],
+  fields: ["name", "description"],
+  deterministicFields: ["slug"],
   nestedPaths: [],
   arrayPaths: [],
   mixedPaths: [],
-})
+});
 
-module.exports = mongoose.model('Role', RoleSchema)
+module.exports = mongoose.model("Role", RoleSchema);

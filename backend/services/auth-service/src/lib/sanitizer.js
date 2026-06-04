@@ -9,28 +9,31 @@
  * @returns {string} - Sanitized string
  */
 function sanitizeString(input) {
-  if (typeof input !== 'string') {
-    return String(input || '')
+  if (typeof input !== "string") {
+    return String(input || "");
   }
 
   // Remove null bytes
-  let sanitized = input.replace(/\0/g, '')
+  let sanitized = input.replace(/\0/g, "");
 
   // Strip MongoDB $-operator prefixes from values
-  sanitized = sanitized.replace(/\$[a-zA-Z]+/g, '')
+  sanitized = sanitized.replace(/\$[a-zA-Z]+/g, "");
 
   // Strip shell metacharacters that could enable command injection
-  sanitized = sanitized.replace(/[;|&`$\\]/g, '')
+  sanitized = sanitized.replace(/[;|&`$\\]/g, "");
 
   // Remove script tags and event handlers (basic XSS prevention)
-  sanitized = sanitized.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-  sanitized = sanitized.replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
-  sanitized = sanitized.replace(/on\w+\s*=\s*[^\s>]*/gi, '')
+  sanitized = sanitized.replace(
+    /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+    "",
+  );
+  sanitized = sanitized.replace(/on\w+\s*=\s*["'][^"']*["']/gi, "");
+  sanitized = sanitized.replace(/on\w+\s*=\s*[^\s>]*/gi, "");
 
   // Trim whitespace
-  sanitized = sanitized.trim()
+  sanitized = sanitized.trim();
 
-  return sanitized
+  return sanitized;
 }
 
 /**
@@ -39,21 +42,21 @@ function sanitizeString(input) {
  * @returns {string} - Sanitized email
  */
 function sanitizeEmail(email) {
-  if (typeof email !== 'string') {
-    return ''
+  if (typeof email !== "string") {
+    return "";
   }
 
   // Basic email sanitization
-  let sanitized = email.toLowerCase().trim()
+  let sanitized = email.toLowerCase().trim();
 
   // Remove any script tags or dangerous characters
-  sanitized = sanitizeString(sanitized)
+  sanitized = sanitizeString(sanitized);
 
   // Basic email format validation (will be validated properly elsewhere)
   // Just ensure no obvious XSS vectors
-  sanitized = sanitized.replace(/[<>\"']/g, '')
+  sanitized = sanitized.replace(/[<>\"']/g, "");
 
-  return sanitized
+  return sanitized;
 }
 
 /**
@@ -62,17 +65,17 @@ function sanitizeEmail(email) {
  * @returns {string} - Sanitized phone number
  */
 function sanitizePhoneNumber(phone) {
-  if (typeof phone !== 'string') {
-    return ''
+  if (typeof phone !== "string") {
+    return "";
   }
 
   // Remove all non-digit characters except +, -, spaces, and parentheses
-  let sanitized = phone.replace(/[^\d+\-() ]/g, '')
+  let sanitized = phone.replace(/[^\d+\-() ]/g, "");
 
   // Trim whitespace
-  sanitized = sanitized.trim()
+  sanitized = sanitized.trim();
 
-  return sanitized
+  return sanitized;
 }
 
 /**
@@ -81,10 +84,10 @@ function sanitizePhoneNumber(phone) {
  * @returns {boolean} - True if SQL injection pattern detected
  */
 function containsSqlInjection(input) {
-  if (typeof input !== 'string') {
-    return false
+  if (typeof input !== "string") {
+    return false;
   }
-  
+
   const sqlPatterns = [
     /(\bOR\b|\bAND\b).*(\d+\s*=\s*\d+|\'.*\'|\".*\")/i,
     /(\bUNION\b|\bSELECT\b|\bINSERT\b|\bUPDATE\b|\bDELETE\b|\bDROP\b|\bCREATE\b|\bALTER\b|\bEXEC\b|\bEXECUTE\b)/i,
@@ -98,9 +101,9 @@ function containsSqlInjection(input) {
     /(\'\s*OR\s*\'1\'=\'1)/i,
     /(\'\s*OR\s*\'1\'=\'1\'\s*--)/i,
     /(\'\s*;\s*DROP\s+TABLE)/i,
-  ]
-  
-  return sqlPatterns.some(pattern => pattern.test(input))
+  ];
+
+  return sqlPatterns.some((pattern) => pattern.test(input));
 }
 
 /**
@@ -109,10 +112,10 @@ function containsSqlInjection(input) {
  * @returns {boolean} - True if XSS pattern detected
  */
 function containsXss(input) {
-  if (typeof input !== 'string') {
-    return false
+  if (typeof input !== "string") {
+    return false;
   }
-  
+
   const xssPatterns = [
     /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
     /<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi,
@@ -122,9 +125,9 @@ function containsXss(input) {
     /javascript:/gi,
     /on\w+\s*=\s*["'][^"']*["']/gi,
     /on\w+\s*=\s*[^\s>]*/gi,
-  ]
-  
-  return xssPatterns.some(pattern => pattern.test(input))
+  ];
+
+  return xssPatterns.some((pattern) => pattern.test(input));
 }
 
 /**
@@ -133,22 +136,22 @@ function containsXss(input) {
  * @returns {string} - Sanitized name
  */
 function sanitizeName(name) {
-  if (typeof name !== 'string') {
-    return ''
+  if (typeof name !== "string") {
+    return "";
   }
 
   // Remove HTML tags and scripts
-  let sanitized = sanitizeString(name)
+  let sanitized = sanitizeString(name);
 
   // Allow letters, spaces, hyphens, apostrophes (for names like O'Brien, Mary-Jane)
-  sanitized = sanitized.replace(/[^a-zA-Z\s\-']/g, '')
+  sanitized = sanitized.replace(/[^a-zA-Z\s\-']/g, "");
 
   // Limit length
   if (sanitized.length > 100) {
-    sanitized = sanitized.substring(0, 100)
+    sanitized = sanitized.substring(0, 100);
   }
 
-  return sanitized.trim()
+  return sanitized.trim();
 }
 
 /**
@@ -157,22 +160,22 @@ function sanitizeName(name) {
  * @returns {string} - Sanitized ID number
  */
 function sanitizeIdNumber(idNumber) {
-  if (typeof idNumber !== 'string') {
-    return ''
+  if (typeof idNumber !== "string") {
+    return "";
   }
 
   // Remove HTML tags and scripts
-  let sanitized = sanitizeString(idNumber)
+  let sanitized = sanitizeString(idNumber);
 
   // Allow alphanumeric and common ID separators (hyphens, spaces)
-  sanitized = sanitized.replace(/[^a-zA-Z0-9\s\-]/g, '')
+  sanitized = sanitized.replace(/[^a-zA-Z0-9\s\-]/g, "");
 
   // Limit length
   if (sanitized.length > 50) {
-    sanitized = sanitized.substring(0, 50)
+    sanitized = sanitized.substring(0, 50);
   }
 
-  return sanitized.trim().toUpperCase()
+  return sanitized.trim().toUpperCase();
 }
 
 /**
@@ -181,29 +184,29 @@ function sanitizeIdNumber(idNumber) {
  * @returns {object} - Sanitized object
  */
 function sanitizeObject(obj) {
-  if (!obj || typeof obj !== 'object') {
-    return obj
+  if (!obj || typeof obj !== "object") {
+    return obj;
   }
 
   if (Array.isArray(obj)) {
-    return obj.map((item) => sanitizeObject(item))
+    return obj.map((item) => sanitizeObject(item));
   }
 
-  const sanitized = {}
+  const sanitized = {};
   for (const [key, value] of Object.entries(obj)) {
     // Strip keys starting with $ to prevent NoSQL operator injection
-    if (key.startsWith('$')) continue
+    if (key.startsWith("$")) continue;
 
-    if (typeof value === 'string') {
-      sanitized[key] = sanitizeString(value)
-    } else if (typeof value === 'object' && value !== null) {
-      sanitized[key] = sanitizeObject(value)
+    if (typeof value === "string") {
+      sanitized[key] = sanitizeString(value);
+    } else if (typeof value === "object" && value !== null) {
+      sanitized[key] = sanitizeObject(value);
     } else {
-      sanitized[key] = value
+      sanitized[key] = value;
     }
   }
 
-  return sanitized
+  return sanitized;
 }
 
 module.exports = {
@@ -215,4 +218,4 @@ module.exports = {
   sanitizeObject,
   containsSqlInjection,
   containsXss,
-}
+};

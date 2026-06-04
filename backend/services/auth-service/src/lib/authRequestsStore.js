@@ -2,22 +2,30 @@
 // These singletons are imported by route modules to share state.
 
 // Map: email(lowercased) -> { code, expiresAt, verified, resetToken }
-const resetRequests = new Map()
+const resetRequests = new Map();
 
 // Map: email(lowercased) -> { code, expiresAt, verified, deleteToken }
-const deleteRequests = new Map()
+const deleteRequests = new Map();
 
 // Map: email(lowercased) -> { code, expiresAt, payload }
-const signUpRequests = new Map()
+const signUpRequests = new Map();
 
 // Map: email(lowercased) -> { code, expiresAt, verified, loginToken, userId }
-const loginRequests = new Map()
+const loginRequests = new Map();
 
 // Map: email(lowercased) -> { code, expiresAt, verified, method }
-const mfaRequests = new Map()
+const mfaRequests = new Map();
 
 // Map: currentEmail(lowercased) -> { code, expiresAt, newEmail }
-const changeEmailRequests = new Map()
-const changePasswordRequests = new Map()
+const changeEmailRequests = new Map();
+const changePasswordRequests = new Map();
 
-module.exports = { resetRequests, deleteRequests, signUpRequests, loginRequests, mfaRequests, changeEmailRequests, changePasswordRequests }
+module.exports = {
+  resetRequests,
+  deleteRequests,
+  signUpRequests,
+  loginRequests,
+  mfaRequests,
+  changeEmailRequests,
+  changePasswordRequests,
+};

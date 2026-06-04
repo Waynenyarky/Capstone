@@ -61,13 +61,6 @@ export default function ApplicationNewPage() {
     <BusinessOwnerLayout
       pageTitle="New Application"
       pageIcon={<FileProtectOutlined />}
-      headerActions={
-        <Space>
-          <Button onClick={handleSaveDraft} loading={loading} data-testid="save-draft-button">
-            Save Draft
-          </Button>
-        </Space>
-      }
     >
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px' }}>
         <Card>

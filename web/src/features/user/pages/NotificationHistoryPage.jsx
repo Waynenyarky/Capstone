@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { List, Typography, Card, Tag, Space, Button, theme, Empty, Divider, message, Select, Grid } from 'antd'
-import { ArrowLeftOutlined, CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, InfoCircleOutlined, DeleteOutlined, ClearOutlined, BellOutlined, DollarOutlined, CalendarOutlined, WarningOutlined, FileTextOutlined, SolutionOutlined, EditOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, InfoCircleOutlined, DeleteOutlined, DollarOutlined, CalendarOutlined, WarningOutlined, FileTextOutlined, SolutionOutlined, EditOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { getNotifications, markAsRead, markAllAsRead, deleteNotification, deleteAllNotifications } from '../services/notificationService'
 import dayjs from 'dayjs'
@@ -24,7 +24,6 @@ export default function NotificationHistoryPage() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [limit] = useState(20)
-  const [filterType, setFilterType] = useState('all')
   const [selectedId, setSelectedId] = useState(null)
 
   const fetchNotifications = useCallback(async () => {
@@ -33,7 +32,6 @@ export default function NotificationHistoryPage() {
       const result = await getNotifications({
         page,
         limit,
-        unreadOnly: filterType === 'unread'
       })
       const list = result.notifications || []
       setNotifications(Array.isArray(list) ? list : [])
@@ -45,7 +43,7 @@ export default function NotificationHistoryPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, filterType])
+  }, [page])
 
   useEffect(() => {
     fetchNotifications()
@@ -74,19 +72,6 @@ export default function NotificationHistoryPage() {
     } catch (error) {
       console.error('Failed to delete notification:', error)
       message.error('Failed to delete notification')
-    }
-  }
-
-  const handleClearAll = async () => {
-    try {
-      await deleteAllNotifications()
-      setNotifications([])
-      setTotal(0)
-      setSelectedId(null)
-      message.success('All notifications cleared')
-    } catch (error) {
-      console.error('Failed to clear all notifications:', error)
-      message.error('Failed to clear all notifications')
     }
   }
 
@@ -152,8 +137,6 @@ export default function NotificationHistoryPage() {
   }
 
   const selectedNotification = notifications.find(n => n._id === selectedId)
-  const unreadCount = notifications.filter(n => !n.read).length
-  const hasAnyNotifications = total > 0
 
   const dashboardPath = (() => {
     const slug = (role?.slug ?? role ?? '').toLowerCase()
@@ -166,39 +149,6 @@ export default function NotificationHistoryPage() {
     const s = (role?.slug ?? role ?? '').toLowerCase()
     return s === 'business_owner'
   })()
-
-  const handleMarkAllRead = async () => {
-    try {
-      await markAllAsRead()
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
-      message.success('All notifications marked as read')
-    } catch {
-      message.error('Failed to mark all as read')
-    }
-  }
-
-  const headerActions = (
-    <Space wrap>
-      <Select value={filterType} onChange={setFilterType} style={{ width: 120 }}>
-        <Option value="all">All</Option>
-        <Option value="unread">Unread</Option>
-      </Select>
-      <Button
-        icon={<CheckCircleOutlined />}
-        onClick={handleMarkAllRead}
-        disabled={unreadCount === 0 || loading}
-      >
-        Mark all read
-      </Button>
-      <Button
-        icon={<ClearOutlined />}
-        onClick={handleClearAll}
-        disabled={!hasAnyNotifications || loading}
-      >
-        Clear all
-      </Button>
-    </Space>
-  )
 
   const leftPanelStyle = {
     width: isMobile ? '100%' : 360,
@@ -393,15 +343,9 @@ export default function NotificationHistoryPage() {
     </div>
   )
 
-  const layoutProps = {
-    pageTitle: 'Notifications',
-    pageIcon: <BellOutlined />,
-    headerActions
-  }
-
   if (role === 'admin') {
     return (
-      <AdminLayout {...layoutProps}>
+      <AdminLayout>
         {content}
       </AdminLayout>
     )
@@ -409,14 +353,14 @@ export default function NotificationHistoryPage() {
 
   if (role === 'business_owner') {
     return (
-      <BusinessOwnerLayout {...layoutProps}>
+      <BusinessOwnerLayout>
         {content}
       </BusinessOwnerLayout>
     )
   }
 
   return (
-    <AdminLayout {...layoutProps}>
+    <AdminLayout>
       {content}
     </AdminLayout>
   )

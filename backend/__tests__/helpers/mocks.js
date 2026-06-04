@@ -41,4 +41,4 @@ module.exports = {
   setupBlockchainMocks,
   setupExternalAPIMocks,
   resetMocks,
-}
+};

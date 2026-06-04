@@ -1,62 +1,41 @@
-import { Layout, theme } from 'antd'
 import { AppSidebar as Sidebar } from '@/features/authentication'
-import { LayoutPageHeader } from '@/features/shared'
-
-const { Content } = Layout
+import BaseSidebarLayout from '@/shared/components/BaseSidebarLayout.jsx'
 
 export default function StaffLayout({
   children,
-  pageTitle,
-  pageIcon,
-  headerActions,
   sidebarOverrides = {},
   hiddenSidebarKeys = [],
   hideSidebar = false,
   showPageHeader = true,
-  noContentWrap = false,
+  _noContentWrap = false,
+  onRefresh,
+  lastUpdated,
+  socketConnected,
+  loading,
+  infoSlotId,
+  infoModalTitle,
+  pageTitle,
+  pageIcon,
 }) {
-  const { token } = theme.useToken()
+  const sidebar = !hideSidebar ? (
+    <Sidebar itemOverrides={sidebarOverrides} hiddenKeys={hiddenSidebarKeys} />
+  ) : null
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      {!hideSidebar && (
-        <Sidebar
-          itemOverrides={sidebarOverrides}
-          hiddenKeys={hiddenSidebarKeys}
-        />
-      )}
-      <Layout>
-        <Content
-          style={{
-            background: token.colorBgContainer,
-            overflow: 'hidden',
-            height: '100vh',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <div
-            style={{
-              flex: 1,
-              minHeight: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-            }}
-          >
-            <LayoutPageHeader
-              pageTitle={pageTitle}
-              pageIcon={pageIcon}
-              headerActions={headerActions}
-              viewNotificationsPath="/notifications"
-              showPageHeader={showPageHeader}
-            />
-            <div style={{ flex: 1, minHeight: 0 }}>
-              {children}
-            </div>
-          </div>
-        </Content>
-      </Layout>
-    </Layout>
+    <BaseSidebarLayout
+      sidebar={sidebar}
+      showPageHeader={showPageHeader}
+      onRefresh={onRefresh}
+      lastUpdated={lastUpdated}
+      socketConnected={socketConnected}
+      loading={loading}
+      infoSlotId={infoSlotId}
+      infoModalTitle={infoModalTitle}
+      contentPadding={_noContentWrap ? 0 : undefined}
+      pageTitle={pageTitle}
+      pageIcon={pageIcon}
+    >
+      {children}
+    </BaseSidebarLayout>
   )
 }

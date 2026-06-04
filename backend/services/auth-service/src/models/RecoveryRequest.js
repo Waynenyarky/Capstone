@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 /**
  * Recovery Request Model
@@ -8,21 +8,21 @@ const RecoveryRequestSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
       index: true,
     },
     requestedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       default: null,
       // Staff user who requested recovery (if self-requested)
       // null if Admin initiated recovery
     },
     status: {
       type: String,
-      enum: ['pending', 'approved', 'denied', 'completed', 'expired'],
-      default: 'pending',
+      enum: ["pending", "approved", "denied", "completed", "expired"],
+      default: "pending",
       index: true,
     },
     office: {
@@ -35,7 +35,7 @@ const RecoveryRequestSchema = new mongoose.Schema(
     },
     reviewedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       default: null,
       // Admin who reviewed the request
     },
@@ -45,41 +45,43 @@ const RecoveryRequestSchema = new mongoose.Schema(
     },
     reviewNotes: {
       type: String,
-      default: '',
+      default: "",
     },
     denialReason: {
       type: String,
-      default: '',
+      default: "",
     },
     temporaryCredentialId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'TemporaryCredential',
+      ref: "TemporaryCredential",
       default: null,
       // Link to temporary credentials if issued
     },
     metadata: {
-      ipAddress: { type: String, default: '' },
-      userAgent: { type: String, default: '' },
+      ipAddress: { type: String, default: "" },
+      userAgent: { type: String, default: "" },
       requestedOutsideOfficeHours: { type: Boolean, default: false },
       suspiciousActivityDetected: { type: Boolean, default: false },
     },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 RecoveryRequestSchema.plugin(encryptionPlugin, {
-  fields: ['office', 'role', 'reviewNotes', 'denialReason'],
+  fields: ["office", "role", "reviewNotes", "denialReason"],
   deterministicFields: [],
-  nestedPaths: ['metadata'],
+  nestedPaths: ["metadata"],
   arrayPaths: [],
   mixedPaths: [],
-})
+});
 
 // Indexes for efficient querying
-RecoveryRequestSchema.index({ userId: 1, status: 1 })
-RecoveryRequestSchema.index({ status: 1, createdAt: -1 })
-RecoveryRequestSchema.index({ reviewedBy: 1 })
-RecoveryRequestSchema.index({ office: 1, status: 1 })
+RecoveryRequestSchema.index({ userId: 1, status: 1 });
+RecoveryRequestSchema.index({ status: 1, createdAt: -1 });
+RecoveryRequestSchema.index({ reviewedBy: 1 });
+RecoveryRequestSchema.index({ office: 1, status: 1 });
 
-module.exports = mongoose.models.RecoveryRequest || mongoose.model('RecoveryRequest', RecoveryRequestSchema)
+module.exports =
+  mongoose.models.RecoveryRequest ||
+  mongoose.model("RecoveryRequest", RecoveryRequestSchema);

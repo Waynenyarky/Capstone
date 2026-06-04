@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 const FieldChangeSchema = new mongoose.Schema(
   {
@@ -6,8 +6,8 @@ const FieldChangeSchema = new mongoose.Schema(
     before: { type: mongoose.Schema.Types.Mixed },
     after: { type: mongoose.Schema.Types.Mixed },
   },
-  { _id: false }
-)
+  { _id: false },
+);
 
 const EditRequestSchema = new mongoose.Schema(
   {
@@ -17,25 +17,25 @@ const EditRequestSchema = new mongoose.Schema(
     },
     requestedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     // Single-field edit request (Phase 2 pattern)
     fieldName: {
       type: String,
-      default: '',
+      default: "",
     },
     currentValue: {
       type: mongoose.Schema.Types.Mixed,
-      default: '',
+      default: "",
     },
     requestedValue: {
       type: mongoose.Schema.Types.Mixed,
-      default: '',
+      default: "",
     },
     reason: {
       type: String,
-      default: '',
+      default: "",
     },
     supportingDocuments: {
       type: [String],
@@ -48,18 +48,18 @@ const EditRequestSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected'],
-      default: 'pending',
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
     },
     // Review fields
     reviewedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       default: null,
     },
     reviewNotes: {
       type: String,
-      default: '',
+      default: "",
     },
     resolvedAt: {
       type: Date,
@@ -68,30 +68,30 @@ const EditRequestSchema = new mongoose.Schema(
     // Legacy fields (kept for backward compatibility)
     approvedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       default: null,
     },
     comment: {
       type: String,
-      default: '',
+      default: "",
     },
     version: {
       type: Number,
       default: 0,
     },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 EditRequestSchema.plugin(encryptionPlugin, {
-  fields: ['reason', 'reviewNotes', 'comment'],
-  deterministicFields: ['businessId', 'fieldName'],
+  fields: ["reason", "reviewNotes", "comment"],
+  deterministicFields: ["businessId", "fieldName"],
   nestedPaths: [],
-  arrayPaths: ['fieldsToChange', 'supportingDocuments'],
-  mixedPaths: ['currentValue', 'requestedValue'],
-})
+  arrayPaths: ["fieldsToChange", "supportingDocuments"],
+  mixedPaths: ["currentValue", "requestedValue"],
+});
 
 module.exports =
   mongoose.models.EditRequest ||
-  mongoose.model('EditRequest', EditRequestSchema)
+  mongoose.model("EditRequest", EditRequestSchema);

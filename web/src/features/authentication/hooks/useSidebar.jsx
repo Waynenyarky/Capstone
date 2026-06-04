@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useAuthSession } from '@/features/authentication'
+import { useLocation } from 'react-router-dom'
 import { 
   DashboardOutlined, 
   FileTextOutlined, 
@@ -19,11 +20,15 @@ import {
   AccountBookOutlined,
   SettingOutlined,
   ExperimentOutlined,
+  EyeOutlined,
+  ReloadOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons'
 
 // Role keys used across the app: 'business_owner', 'admin', 'inspector', 'lgu_officer', 'lgu_manager', 'cso', 'user'
 export default function useSidebar() {
   const { role, currentUser } = useAuthSession()
+  const location = useLocation()
 
   const items = useMemo(() => {
     // Items are objects: { key, label, to?, type?, icon? }
@@ -66,7 +71,20 @@ export default function useSidebar() {
         { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
         { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
       ],
-      lgu_officer: [],
+      lgu_officer: [
+        { key: 'to-review', label: 'To Review', to: '/staff', icon: <EyeOutlined /> },
+        { key: 'applications', label: 'Applications', to: '/staff/applications', icon: <FileTextOutlined /> },
+        { key: 'appeals', label: 'Appeals', to: '/staff/appeals', icon: <AuditOutlined /> },
+        { key: 'edit-requests', label: 'Edits', to: '/staff/edit-requests', icon: <EditOutlined /> },
+        { key: 'renewals', label: 'Renewals', to: '/staff/renewals', icon: <ReloadOutlined /> },
+        { key: 'cessation', label: 'Cessations', to: '/staff/cessation', icon: <StopOutlined /> },
+        { key: 'inspections', label: 'Inspections', to: '/staff/inspections', icon: <SafetyCertificateOutlined /> },
+        { key: 'help-requests', label: 'Help Requests', to: '/staff/help-requests', icon: <CustomerServiceOutlined /> },
+        { key: 'drafts', label: 'My Drafts', to: '/staff/drafts', icon: <FormOutlined /> },
+        { key: 'owners', label: 'Owners', to: '/staff/owners', icon: <UserOutlined /> },
+        { key: 'logs', label: 'Logs', to: '/staff/logs', icon: <HistoryOutlined /> },
+        { key: 'profile', label: 'Settings', to: '/settings-profile', icon: <SettingOutlined /> },
+      ],
       lgu_manager: [
         { key: 'dashboard', label: 'Dashboard', to: '/lgu-manager', icon: <DashboardOutlined /> },
         { key: 'reports', label: 'Reports / Analytics', to: '/lgu-manager/reports', icon: <BarChartOutlined /> },
@@ -104,5 +122,23 @@ export default function useSidebar() {
 
   const onSelect = ({ key }) => setSelected(key)
 
-  return { items, selected, onSelect, role }
+  // Get page title and icon from current route
+  const getPageInfo = useMemo(() => {
+    const pathname = location.pathname
+    // Find matching item by 'to' property — prefer exact match, then longest prefix match
+    const exactMatch = items.find(item => item.to && pathname === item.to)
+    if (exactMatch) {
+      return { pageTitle: exactMatch.label, pageIcon: exactMatch.icon }
+    }
+    // Longest prefix match (sort by path length descending to find most specific)
+    const prefixMatches = items
+      .filter(item => item.to && item.to !== '/' && pathname.startsWith(item.to))
+      .sort((a, b) => b.to.length - a.to.length)
+    if (prefixMatches.length > 0) {
+      return { pageTitle: prefixMatches[0].label, pageIcon: prefixMatches[0].icon }
+    }
+    return { pageTitle: null, pageIcon: null }
+  }, [items, location.pathname])
+
+  return { items, selected, onSelect, role, getPageInfo }
 }

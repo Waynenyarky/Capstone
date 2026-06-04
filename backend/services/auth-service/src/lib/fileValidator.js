@@ -1,5 +1,5 @@
-const fs = require('fs').promises
-const path = require('path')
+const fs = require("fs").promises;
+const path = require("path");
 
 /**
  * File Upload Validation
@@ -8,16 +8,16 @@ const path = require('path')
 
 // Allowed file types for ID uploads
 const ALLOWED_MIME_TYPES = [
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'application/pdf',
-]
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "application/pdf",
+];
 
-const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf']
+const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".pdf"];
 
 // Max file size: 5MB
-const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB in bytes
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
 
 /**
  * Validate image file
@@ -28,64 +28,67 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB in bytes
  * @returns {Promise<{valid: boolean, error?: string}>}
  */
 async function validateImageFile(file, options = {}) {
-  const maxSize = options.maxSize || MAX_FILE_SIZE
-  const allowedTypes = options.allowedTypes || ALLOWED_MIME_TYPES
+  const maxSize = options.maxSize || MAX_FILE_SIZE;
+  const allowedTypes = options.allowedTypes || ALLOWED_MIME_TYPES;
 
   if (!file) {
-    return { valid: false, error: 'No file provided' }
+    return { valid: false, error: "No file provided" };
   }
 
   // Check file size
-  const fileSize = file.size || (file.buffer ? file.buffer.length : 0)
+  const fileSize = file.size || (file.buffer ? file.buffer.length : 0);
   if (fileSize === 0) {
-    return { valid: false, error: 'File is empty' }
+    return { valid: false, error: "File is empty" };
   }
 
   if (fileSize > maxSize) {
-    const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(2)
-    return { valid: false, error: `File size exceeds maximum allowed size of ${maxSizeMB}MB` }
+    const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(2);
+    return {
+      valid: false,
+      error: `File size exceeds maximum allowed size of ${maxSizeMB}MB`,
+    };
   }
 
   // Check MIME type
-  const mimeType = file.mimetype || file.type
+  const mimeType = file.mimetype || file.type;
   if (!mimeType || !allowedTypes.includes(mimeType.toLowerCase())) {
     return {
       valid: false,
-      error: `File type not allowed. Allowed types: ${allowedTypes.join(', ')}`,
-    }
+      error: `File type not allowed. Allowed types: ${allowedTypes.join(", ")}`,
+    };
   }
 
   // Check file extension
-  const originalName = file.originalname || file.name || ''
-  const ext = path.extname(originalName).toLowerCase()
+  const originalName = file.originalname || file.name || "";
+  const ext = path.extname(originalName).toLowerCase();
   if (!ext || !ALLOWED_EXTENSIONS.includes(ext)) {
     return {
       valid: false,
-      error: `File extension not allowed. Allowed extensions: ${ALLOWED_EXTENSIONS.join(', ')}`,
-    }
+      error: `File extension not allowed. Allowed extensions: ${ALLOWED_EXTENSIONS.join(", ")}`,
+    };
   }
 
   // Verify file content (basic check)
   // For images, check magic bytes
   if (file.buffer) {
-    const isValidContent = await validateFileContent(file.buffer, mimeType)
+    const isValidContent = await validateFileContent(file.buffer, mimeType);
     if (!isValidContent) {
-      return { valid: false, error: 'File content does not match file type' }
+      return { valid: false, error: "File content does not match file type" };
     }
   } else if (file.path) {
     // If file is saved to disk, read first few bytes
     try {
-      const buffer = await fs.readFile(file.path, { start: 0, end: 12 })
-      const isValidContent = await validateFileContent(buffer, mimeType)
+      const buffer = await fs.readFile(file.path, { start: 0, end: 12 });
+      const isValidContent = await validateFileContent(buffer, mimeType);
       if (!isValidContent) {
-        return { valid: false, error: 'File content does not match file type' }
+        return { valid: false, error: "File content does not match file type" };
       }
     } catch (error) {
-      return { valid: false, error: 'Unable to read file for validation' }
+      return { valid: false, error: "Unable to read file for validation" };
     }
   }
 
-  return { valid: true }
+  return { valid: true };
 }
 
 /**
@@ -96,18 +99,18 @@ async function validateImageFile(file, options = {}) {
  */
 async function validateFileContent(buffer, mimeType) {
   if (!buffer || buffer.length < 4) {
-    return false
+    return false;
   }
 
-  const mime = mimeType.toLowerCase()
+  const mime = mimeType.toLowerCase();
 
   // JPEG: FF D8 FF
-  if (mime.includes('jpeg') || mime.includes('jpg')) {
-    return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff
+  if (mime.includes("jpeg") || mime.includes("jpg")) {
+    return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
   }
 
   // PNG: 89 50 4E 47 0D 0A 1A 0A
-  if (mime.includes('png')) {
+  if (mime.includes("png")) {
     return (
       buffer[0] === 0x89 &&
       buffer[1] === 0x50 &&
@@ -117,17 +120,17 @@ async function validateFileContent(buffer, mimeType) {
       buffer[5] === 0x0a &&
       buffer[6] === 0x1a &&
       buffer[7] === 0x0a
-    )
+    );
   }
 
   // PDF: %PDF
-  if (mime.includes('pdf')) {
-    const pdfHeader = buffer.toString('ascii', 0, 4)
-    return pdfHeader === '%PDF'
+  if (mime.includes("pdf")) {
+    const pdfHeader = buffer.toString("ascii", 0, 4);
+    return pdfHeader === "%PDF";
   }
 
   // If we can't validate, allow it (will be caught by other checks)
-  return true
+  return true;
 }
 
 /**
@@ -136,11 +139,11 @@ async function validateFileContent(buffer, mimeType) {
  * @returns {string} - File extension (with dot)
  */
 function getExtensionFromMimeType(mimeType) {
-  const mime = mimeType.toLowerCase()
-  if (mime.includes('jpeg') || mime.includes('jpg')) return '.jpg'
-  if (mime.includes('png')) return '.png'
-  if (mime.includes('pdf')) return '.pdf'
-  return '.bin'
+  const mime = mimeType.toLowerCase();
+  if (mime.includes("jpeg") || mime.includes("jpg")) return ".jpg";
+  if (mime.includes("png")) return ".png";
+  if (mime.includes("pdf")) return ".pdf";
+  return ".bin";
 }
 
 module.exports = {
@@ -150,4 +153,4 @@ module.exports = {
   ALLOWED_MIME_TYPES,
   ALLOWED_EXTENSIONS,
   MAX_FILE_SIZE,
-}
+};

@@ -16,7 +16,6 @@ export default function UserManagementDesktopView({
   setTabKey,
   tabItems = [],
   tabChildren,
-  headerActions,
 }) {
   const navItems = tabItems.map(({ key, label }) => ({ key, label, icon: KEY_TO_ICON[key] || FileTextOutlined }))
   const { token } = theme.useToken()
@@ -123,27 +122,24 @@ export default function UserManagementDesktopView({
             zIndex: 1,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {SelectedIcon && (
-                <span
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: token.borderRadius,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: token.colorFillTertiary,
-                    color: token.colorPrimary,
-                  }}
-                >
-                  <SelectedIcon style={{ fontSize: 18 }} />
-                </span>
-              )}
-              <Text strong style={{ fontSize: 16 }}>{selectedLabel}</Text>
-            </div>
-            {headerActions}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {SelectedIcon && (
+              <span
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: token.borderRadius,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: token.colorFillTertiary,
+                  color: token.colorPrimary,
+                }}
+              >
+                <SelectedIcon style={{ fontSize: 18 }} />
+              </span>
+            )}
+            <Text strong style={{ fontSize: 16 }}>{selectedLabel}</Text>
           </div>
         </div>
 

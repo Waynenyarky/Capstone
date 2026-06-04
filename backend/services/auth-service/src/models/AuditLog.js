@@ -1,11 +1,11 @@
-const mongoose = require('mongoose');
-const crypto = require('crypto');
+const mongoose = require("mongoose");
+const crypto = require("crypto");
 
 const AuditLogSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
       index: true,
     },
@@ -13,94 +13,94 @@ const AuditLogSchema = new mongoose.Schema(
       type: String,
       required: true,
       enum: [
-        'profile_update',
-        'email_change',
-        'password_change',
-        'admin_approval',
-        'admin_approval_request',
-        'admin_approval_approved',
-        'admin_approval_rejected',
-        'contact_update',
-        'name_update',
-        'id_update',
-        'id_upload',
-        'id_upload_reverted',
-        'terms_accepted',
-        'mfa_enabled',
-        'mfa_disabled',
-        'session_invalidated',
-        'email_change_reverted',
-        'restricted_field_attempt',
-        'account_lockout',
-        'account_unlock',
-        'security_event',
-        'error_critical',
-        'maintenance_mode',
+        "profile_update",
+        "email_change",
+        "password_change",
+        "admin_approval",
+        "admin_approval_request",
+        "admin_approval_approved",
+        "admin_approval_rejected",
+        "contact_update",
+        "name_update",
+        "id_update",
+        "id_upload",
+        "id_upload_reverted",
+        "terms_accepted",
+        "mfa_enabled",
+        "mfa_disabled",
+        "session_invalidated",
+        "email_change_reverted",
+        "restricted_field_attempt",
+        "account_lockout",
+        "account_unlock",
+        "security_event",
+        "error_critical",
+        "maintenance_mode",
         // Account recovery events
-        'account_recovery_initiated',
-        'account_recovery_completed',
-        'temporary_credentials_issued',
-        'temporary_credentials_used',
-        'temporary_credentials_expired',
+        "account_recovery_initiated",
+        "account_recovery_completed",
+        "temporary_credentials_issued",
+        "temporary_credentials_used",
+        "temporary_credentials_expired",
         // Account deletion events
-        'account_deletion_requested',
-        'account_deletion_approved',
-        'account_deletion_denied',
-        'account_deletion_scheduled',
-        'account_deletion_undone',
-        'account_deletion_finalized',
-        'admin_deletion_requested',
-        'admin_deletion_approved',
-        'admin_deletion_denied',
+        "account_deletion_requested",
+        "account_deletion_approved",
+        "account_deletion_denied",
+        "account_deletion_scheduled",
+        "account_deletion_undone",
+        "account_deletion_finalized",
+        "admin_deletion_requested",
+        "admin_deletion_approved",
+        "admin_deletion_denied",
         // Session events
-        'session_timeout',
+        "session_timeout",
         // Admin / form / config events (written by admin-service or business-service)
-        'form_definition_published',
-        'form_definition_deleted',
-        'form_group_retired',
-        'form_group_deactivated',
-        'form_group_reactivated',
-        'penalty_config_created',
-        'penalty_config_updated',
-        'penalty_config_reset',
-        'general_permit_config_updated',
-        'lgu_created',
-        'lgu_updated',
-        'lgu_deleted',
-        'fee_config_created',
-        'fee_config_updated',
-        'fee_config_deleted',
-        'login',
-        'login_failed',
-        'logout',
-        'signup',
-        'mfa_setup_started',
-        'mfa_verified',
-        'mfa_disable_requested',
-        'mfa_fingerprint_registered',
-        'mfa_fingerprint_removed',
-        'mfa_bootstrap_token_created',
-        'mfa_bootstrap_completed',
-        'webauthn_registered',
-        'webauthn_removed',
-        'first_login_credentials_changed',
-        'staff_created',
-        'office_created',
-        'office_updated',
-        'office_deleted',
-        'staff_role_created',
-        'staff_role_updated',
-        'staff_role_deleted',
-        'avatar_uploaded',
-        'avatar_deleted',
-        'pis_update',
+        "form_definition_published",
+        "form_definition_deleted",
+        "form_group_retired",
+        "form_group_deactivated",
+        "form_group_reactivated",
+        "penalty_config_created",
+        "penalty_config_updated",
+        "penalty_config_reset",
+        "general_permit_config_updated",
+        "lgu_created",
+        "lgu_updated",
+        "lgu_deleted",
+        "fee_config_created",
+        "fee_config_updated",
+        "fee_config_deleted",
+        "login",
+        "login_failed",
+        "logout",
+        "signup",
+        "mfa_setup_started",
+        "mfa_verified",
+        "mfa_disable_requested",
+        "mfa_fingerprint_registered",
+        "mfa_fingerprint_removed",
+        "mfa_bootstrap_token_created",
+        "mfa_bootstrap_completed",
+        "webauthn_registered",
+        "webauthn_removed",
+        "first_login_credentials_changed",
+        "staff_created",
+        "office_created",
+        "office_updated",
+        "office_deleted",
+        "staff_role_created",
+        "staff_role_updated",
+        "staff_role_deleted",
+        "avatar_uploaded",
+        "avatar_deleted",
+        "pis_update",
         // Officer work events (written by admin-service, queried by /my-actions)
-        'permit_review',
-        'permit_review_started',
-        'application_claimed',
-        'application_released',
-        'application_transferred',
-        'decision_revoked',
+        "permit_review",
+        "permit_review_started",
+        "application_claimed",
+        "application_released",
+        "application_transferred",
+        "decision_revoked",
       ],
       index: true,
     },
@@ -108,37 +108,37 @@ const AuditLogSchema = new mongoose.Schema(
       type: String,
       required: false,
       enum: [
-        'email',
-        'password',
-        'firstName',
-        'lastName',
-        'phoneNumber',
-        'id',
-        'idType',
-        'idNumber',
-        'dateOfBirth',
-        'avatar',
-        'termsAccepted',
-        'mfa',
-        'role',
-        'office',
-        'department',
-        'security',
-        'system',
-        'account',
-        'session',
-        'recovery',
-        'maintenance',
+        "email",
+        "password",
+        "firstName",
+        "lastName",
+        "phoneNumber",
+        "id",
+        "idType",
+        "idNumber",
+        "dateOfBirth",
+        "avatar",
+        "termsAccepted",
+        "mfa",
+        "role",
+        "office",
+        "department",
+        "security",
+        "system",
+        "account",
+        "session",
+        "recovery",
+        "maintenance",
       ],
     },
     oldValue: {
       type: String,
-      default: '',
+      default: "",
       // For sensitive fields like password, store hash instead of plain text
     },
     newValue: {
       type: String,
-      default: '',
+      default: "",
       // For sensitive fields like password, store hash instead of plain text
     },
     hash: {
@@ -151,7 +151,7 @@ const AuditLogSchema = new mongoose.Schema(
     },
     txHash: {
       type: String,
-      default: '',
+      default: "",
       index: true,
       // Blockchain transaction hash
     },
@@ -172,11 +172,11 @@ const AuditLogSchema = new mongoose.Schema(
     },
     blockchainStatus: {
       type: String,
-      enum: ['pending', 'anchored', 'failed', 'skipped'],
-      default: 'pending',
+      enum: ["pending", "anchored", "failed", "skipped"],
+      default: "pending",
       index: true,
     },
-    blockchainError: { type: String, default: '' },
+    blockchainError: { type: String, default: "" },
     blockchainRetries: { type: Number, default: 0 },
     verified: {
       type: Boolean,
@@ -187,17 +187,17 @@ const AuditLogSchema = new mongoose.Schema(
       default: null,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 AuditLogSchema.plugin(encryptionPlugin, {
-  fields: ['oldValue', 'newValue', 'role', 'blockchainError'],
-  deterministicFields: ['hash'],
+  fields: ["oldValue", "newValue", "role", "blockchainError"],
+  deterministicFields: ["hash"],
   nestedPaths: [],
   arrayPaths: [],
-  mixedPaths: ['metadata'],
-})
+  mixedPaths: ["metadata"],
+});
 
 // Index for efficient querying (txHash has index: true on field)
 AuditLogSchema.index({ userId: 1, createdAt: -1 });
@@ -213,16 +213,19 @@ AuditLogSchema.methods.verifyHash = function () {
   const hashableData = {
     userId: String(this.userId),
     eventType: this.eventType,
-    fieldChanged: this.fieldChanged || '',
-    oldValue: this.oldValue || '',
-    newValue: this.newValue || '',
+    fieldChanged: this.fieldChanged || "",
+    oldValue: this.oldValue || "",
+    newValue: this.newValue || "",
     role: this.role,
     metadata: JSON.stringify(this.metadata || {}),
     timestamp: this.createdAt.toISOString(),
   };
 
   const dataString = JSON.stringify(hashableData);
-  const calculatedHash = crypto.createHash('sha256').update(dataString).digest('hex');
+  const calculatedHash = crypto
+    .createHash("sha256")
+    .update(dataString)
+    .digest("hex");
   return calculatedHash === this.hash;
 };
 
@@ -234,7 +237,10 @@ AuditLogSchema.statics.createAuditLog = async function (data) {
 };
 
 // Static method to get audit history for a user
-AuditLogSchema.statics.getUserAuditHistory = async function (userId, options = {}) {
+AuditLogSchema.statics.getUserAuditHistory = async function (
+  userId,
+  options = {},
+) {
   const { limit = 50, skip = 0, eventType } = options;
   const query = { userId };
   if (eventType) {
@@ -248,4 +254,5 @@ AuditLogSchema.statics.getUserAuditHistory = async function (userId, options = {
     .lean();
 };
 
-module.exports = mongoose.models.AuditLog || mongoose.model('AuditLog', AuditLogSchema);
+module.exports =
+  mongoose.models.AuditLog || mongoose.model("AuditLog", AuditLogSchema);

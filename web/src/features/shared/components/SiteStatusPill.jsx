@@ -11,14 +11,15 @@ export default function SiteStatusPill({
   loading,
   showRefreshButton = true,
   showSocketStatus = true,
+  statusText,
 }) {
-  if (!lastUpdated && !showRefreshButton) {
+  if (!lastUpdated && !showRefreshButton && !statusText) {
     return null
   }
 
   return (
     <Space size="middle" wrap>
-      {lastUpdated && (
+      {(lastUpdated || statusText) && (
         <Space size="small" align="center" style={{
           background: showSocketStatus && socketConnected ? 'rgba(82, 196, 26, 0.1)' : 'rgba(0,0,0,0.04)',
           padding: '4px 12px',
@@ -31,9 +32,15 @@ export default function SiteStatusPill({
               text={socketConnected ? 'Live' : 'Offline'}
             />
           )}
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Updated {dayjs(lastUpdated).format('h:mm A')}
-          </Text>
+          {statusText ? (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {statusText}
+            </Text>
+          ) : lastUpdated && (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Updated {dayjs(lastUpdated).format('h:mm A')}
+            </Text>
+          )}
         </Space>
       )}
       {showRefreshButton && (

@@ -18,7 +18,7 @@ export default function HeroSection({
   maintenanceStatus,
   hasAnnouncementPanel,
   defaultOpenKey,
-  onNavigate,
+  _onNavigate,
 }) {
   const { token } = theme.useToken()
   const screens = useBreakpoint()

@@ -20,7 +20,7 @@ export default function PasswordStrengthIndicator({ value = '', minLength = 8 })
   const requirementLabels = getRequirementLabels(minLength)
 
   return (
-    <div style={{ marginBottom: 24 }}>
+    <div style={{ marginBottom: 24, textAlign: 'left' }}>
       <div style={{ marginBottom: 8 }}>
         <Text type="secondary" style={{ fontSize: 12 }}>Password Strength: </Text>
         <Text strong style={{ color: strength.color, fontSize: 12 }}>

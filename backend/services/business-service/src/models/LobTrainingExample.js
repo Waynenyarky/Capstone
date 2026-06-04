@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 const LobTrainingExampleSchema = new mongoose.Schema(
   {
@@ -22,22 +22,24 @@ const LobTrainingExampleSchema = new mongoose.Schema(
     },
     psicCode: {
       type: String,
-      default: '',
+      default: "",
     },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 LobTrainingExampleSchema.plugin(encryptionPlugin, {
-  fields: ['businessDescription', 'lineOfBusiness', 'detailedLine', 'psicCode'],
-  deterministicFields: ['taxCode'],
+  fields: ["businessDescription", "lineOfBusiness", "detailedLine", "psicCode"],
+  deterministicFields: ["taxCode"],
   nestedPaths: [],
   arrayPaths: [],
   mixedPaths: [],
-})
+});
 
-LobTrainingExampleSchema.index({ taxCode: 1, detailedLine: 1 })
-LobTrainingExampleSchema.index({ createdAt: -1 })
+LobTrainingExampleSchema.index({ taxCode: 1, detailedLine: 1 });
+LobTrainingExampleSchema.index({ createdAt: -1 });
 
-module.exports = mongoose.models.LobTrainingExample || mongoose.model('LobTrainingExample', LobTrainingExampleSchema)
+module.exports =
+  mongoose.models.LobTrainingExample ||
+  mongoose.model("LobTrainingExample", LobTrainingExampleSchema);

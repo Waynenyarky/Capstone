@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Typography, Grid, theme, Card } from 'antd'
 import BlurFade from '@/shared/components/BlurFade.jsx'
 import ScrambleText from '@/shared/components/ScrambleText.jsx'

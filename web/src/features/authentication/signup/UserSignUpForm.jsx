@@ -169,7 +169,6 @@ export default function UserSignUpForm({ extraContent }) {
             name="password"
             label="Password"
             rules={passwordRules}
-            extra="Password must be at least 12 characters long to proceed to Personal Info."
           >
             <Input.Password
               placeholder="Create password"

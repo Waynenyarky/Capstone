@@ -1,6 +1,6 @@
-const express = require('express')
+const express = require("express");
 
-const router = express.Router()
+const router = express.Router();
 
 // All profile routes have been split into separate files:
 // - profileCore.js - Core profile operations (GET /profile, GET /me, PATCH /profile)
@@ -14,4 +14,4 @@ const router = express.Router()
 // This file is kept for backward compatibility but is now empty.
 // All routes are registered in routes/index.js
 
-module.exports = router
+module.exports = router;

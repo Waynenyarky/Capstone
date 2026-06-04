@@ -65,7 +65,6 @@ export default function EditUserProfileForm({ embedded = false, simpleLayout = f
   const roleKey = String(role?.slug || role || '').toLowerCase()
   const isStaffRole = ['lgu_officer', 'lgu_manager', 'inspector', 'cso', 'staff'].includes(roleKey)
   const isBusinessOwner = roleKey === 'business_owner'
-  const maritalStatus = Form.useWatch('maritalStatus', form)
 
   const [activeSectionIndex, setActiveSectionIndex] = useState(0)
   const useSectionTabs = embedded && simpleLayout && isBusinessOwner

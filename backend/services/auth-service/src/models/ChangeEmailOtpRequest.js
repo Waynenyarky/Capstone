@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 /**
  * Stores OTP-based email change requests so they survive server restarts.
@@ -8,7 +8,7 @@ const ChangeEmailOtpRequestSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
       index: true,
     },
@@ -34,18 +34,20 @@ const ChangeEmailOtpRequestSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 ChangeEmailOtpRequestSchema.plugin(encryptionPlugin, {
-  fields: ['code'],
-  deterministicFields: ['currentEmail', 'newEmail'],
+  fields: ["code"],
+  deterministicFields: ["currentEmail", "newEmail"],
   nestedPaths: [],
   arrayPaths: [],
   mixedPaths: [],
-})
+});
 
-ChangeEmailOtpRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }) // TTL: remove when expired
+ChangeEmailOtpRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL: remove when expired
 
-module.exports = mongoose.models.ChangeEmailOtpRequest || mongoose.model('ChangeEmailOtpRequest', ChangeEmailOtpRequestSchema)
+module.exports =
+  mongoose.models.ChangeEmailOtpRequest ||
+  mongoose.model("ChangeEmailOtpRequest", ChangeEmailOtpRequestSchema);

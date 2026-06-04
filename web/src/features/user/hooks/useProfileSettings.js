@@ -9,7 +9,7 @@ import { usePasskeyStatus } from '@/features/user/hooks/usePasskeyStatus'
 
 export function useProfileSettings() {
   const { user } = useProfile()
-  const { currentUser, login, role } = useAuthSession()
+  const { currentUser, role } = useAuthSession()
   const { token } = theme.useToken()
   const [messageApi, contextHolder] = message.useMessage()
   const [selectedTab, setSelectedTab] = useState('general')

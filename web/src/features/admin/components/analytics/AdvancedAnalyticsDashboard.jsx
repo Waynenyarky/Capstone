@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
-import { 
-  Card, Row, Col, Statistic, Table, Progress, Alert, 
+import {
+  Card, Row, Col, Statistic, Table, Progress, Alert,
   Typography, Space, Button, Tabs, Select, DatePicker,
-  Line, Tag
+  Tag
 } from 'antd'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
-import { 
+import {
   TrendingUpOutlined, TrendingDownOutlined, CheckCircleOutlined, ClockCircleOutlined,
   BarChartOutlined, LineChartOutlined,
-  RocketOutlined, BulbOutlined, TargetOutlined
+  RocketOutlined, BulbOutlined, TargetOutlined, UserOutlined
 } from '@ant-design/icons'
 import { Line } from '@ant-design/plots'
 import dayjs from 'dayjs'
@@ -17,6 +17,283 @@ const { Title, Text } = Typography
 const { RangePicker } = DatePicker
 const { TabPane } = Tabs
 const { Option } = Select
+
+const generateTimeSeries = (metricType, days) => {
+  const data = []
+  const now = new Date()
+
+  let baseValue = 100
+  let trend = 0
+
+  switch (metricType) {
+    case 'response_time':
+      baseValue = 120
+      trend = -0.5
+      break
+    case 'error_rate':
+      baseValue = 0.2
+      trend = -0.01
+      break
+    case 'throughput':
+      baseValue = 1500
+      trend = 10
+      break
+    case 'active_users':
+      baseValue = 1247
+      trend = 5
+      break
+    case 'revenue':
+      baseValue = 4000
+      trend = 50
+      break
+    default:
+      baseValue = 100
+      trend = 0
+  }
+
+  for (let i = days; i >= 0; i--) {
+    const date = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000))
+    const value = baseValue + (trend * (days - i)) + (Math.random() - 0.5) * baseValue * 0.1
+
+    data.push({
+      date: date.toISOString().split('T')[0],
+      value: Math.max(0, value)
+    })
+  }
+
+  return data
+}
+
+const generateMockAnalyticsData = async () => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 1000))
+
+  return {
+    timeRange: '30d',
+    generatedAt: new Date(),
+    summary: {
+      totalUsers: 5000,
+      avgResponseTime: 120,
+      systemUptime: 99.9,
+      revenueGrowth: 12.5,
+      errorRate: 0.2
+    },
+    data: {
+      performanceMetrics: {
+        avgResponseTime: 120,
+        p95ResponseTime: 250,
+        p99ResponseTime: 450,
+        errorRate: 0.2,
+        throughput: 1500,
+        responseTimes: generateTimeSeries('response_time', 30),
+        errorRates: generateTimeSeries('error_rate', 30),
+        throughputSeries: generateTimeSeries('throughput', 30)
+      },
+      userBehaviorData: {
+        totalUsers: 5000,
+        activeUsers: 1247,
+        avgSessionDuration: 8.5,
+        bounceRate: 32,
+        pageViews: 15000,
+        activeUsersSeries: generateTimeSeries('active_users', 30),
+        sessionDuration: generateTimeSeries('session_duration', 30),
+        bounceRateSeries: generateTimeSeries('bounce_rate', 30)
+      },
+      businessMetrics: {
+        revenue: 125000,
+        registrations: 450,
+        conversions: 89,
+        churnRate: 2.3,
+        revenueSeries: generateTimeSeries('revenue', 30),
+        registrationsSeries: generateTimeSeries('registrations', 30),
+        conversionsSeries: generateTimeSeries('conversions', 30)
+      },
+      systemHealthData: {
+        uptime: 99.9,
+        cpuUsage: 45,
+        memoryUsage: 68,
+        diskUsage: 32,
+        uptimeSeries: generateTimeSeries('uptime', 30),
+        cpuUsageSeries: generateTimeSeries('cpu_usage', 30),
+        memoryUsageSeries: generateTimeSeries('memory_usage', 30)
+      },
+      revenueData: {
+        totalRevenue: 125000,
+        growthRate: 12.5,
+        avgTransactionValue: 250,
+        revenue: generateTimeSeries('revenue', 30)
+      }
+    },
+    analysis: {
+      trendAnalysis: {
+        performance: {
+          responseTime: {
+            current: 120,
+            trend: 'stable',
+            change: -2.5,
+            direction: 'down',
+            prediction: 118,
+            confidence: 75
+          },
+          errorRate: {
+            current: 0.2,
+            trend: 'decreasing',
+            change: -15.3,
+            direction: 'down',
+            prediction: 0.17,
+            confidence: 82
+          },
+          throughput: {
+            current: 1500,
+            trend: 'increasing',
+            change: 8.7,
+            direction: 'up',
+            prediction: 1630,
+            confidence: 68
+          }
+        },
+        userBehavior: {
+          activeUsers: {
+            current: 1247,
+            trend: 'increasing',
+            change: 5.2,
+            direction: 'up',
+            prediction: 1312,
+            confidence: 71
+          },
+          sessionDuration: {
+            current: 8.5,
+            trend: 'stable',
+            change: 1.1,
+            direction: 'up',
+            prediction: 8.6,
+            confidence: 64
+          },
+          bounceRate: {
+            current: 32,
+            trend: 'decreasing',
+            change: -3.8,
+            direction: 'down',
+            prediction: 30.8,
+            confidence: 59
+          }
+        },
+        businessMetrics: {
+          revenue: {
+            current: 125000,
+            trend: 'increasing',
+            change: 12.5,
+            direction: 'up',
+            prediction: 140625,
+            confidence: 78
+          },
+          registrations: {
+            current: 450,
+            trend: 'increasing',
+            change: 8.9,
+            direction: 'up',
+            prediction: 490,
+            confidence: 72
+          },
+          conversions: {
+            current: 89,
+            trend: 'stable',
+            change: 2.3,
+            direction: 'up',
+            prediction: 91,
+            confidence: 65
+          }
+        }
+      },
+      predictions: {
+        performance: {
+          responseTime: {
+            next30Days: { value: 118, confidence: 75, range: { low: 112, high: 124 } },
+            next90Days: { value: 114, confidence: 65, range: { low: 105, high: 123 } }
+          },
+          errorRate: {
+            next30Days: { value: 0.17, confidence: 82, range: { low: 0.15, high: 0.19 } },
+            next90Days: { value: 0.14, confidence: 72, range: { low: 0.12, high: 0.16 } }
+          },
+          throughput: {
+            next30Days: { value: 1630, confidence: 68, range: { low: 1520, high: 1740 } },
+            next90Days: { value: 1890, confidence: 58, range: { low: 1710, high: 2070 } }
+          }
+        },
+        userBehavior: {
+          activeUsers: { value: 1312, confidence: 71 },
+          sessionDuration: { value: 8.6, confidence: 64 },
+          bounceRate: { value: 30.8, confidence: 59 }
+        },
+        business: {
+          revenue: { value: 140625, confidence: 78 },
+          registrations: { value: 490, confidence: 72 },
+          conversions: { value: 91, confidence: 65 }
+        },
+        overallHealth: {
+          score: 88,
+          status: 'healthy',
+          factors: ['Response time', 'Error rate', 'Throughput']
+        }
+      },
+      insights: [
+        {
+          type: 'performance',
+          severity: 'positive',
+          title: 'Performance Improving',
+          description: 'Response times are stable and error rates are decreasing',
+          impact: 'positive',
+          recommendation: 'Continue current optimization strategies'
+        },
+        {
+          type: 'business',
+          severity: 'positive',
+          title: 'Revenue Growth Strong',
+          description: 'Revenue is trending upward with 12.5% growth',
+          impact: 'positive',
+          recommendation: 'Identify and scale growth drivers'
+        },
+        {
+          type: 'engagement',
+          severity: 'warning',
+          title: 'User Engagement Stable',
+          description: 'User engagement metrics are stable but could be improved',
+          impact: 'medium',
+          recommendation: 'Consider engagement optimization campaigns'
+        }
+      ],
+      recommendations: [
+        {
+          category: 'performance',
+          priority: 'medium',
+          title: 'Continue Performance Optimization',
+          description: 'Based on Performance Improving',
+          estimatedImpact: 'medium',
+          effort: 'low',
+          timeframe: 'ongoing'
+        },
+        {
+          category: 'business',
+          priority: 'high',
+          title: 'Scale Growth Initiatives',
+          description: 'Based on Revenue Growth Strong',
+          estimatedImpact: 'high',
+          effort: 'medium',
+          timeframe: '30-60 days'
+        },
+        {
+          category: 'engagement',
+          priority: 'medium',
+          title: 'Engagement Campaign',
+          description: 'Based on User Engagement Stable',
+          estimatedImpact: 'medium',
+          effort: 'low',
+          timeframe: '2-4 weeks'
+        }
+      ]
+    }
+  }
+}
 
 function AdvancedAnalyticsDashboard() {
   const [loading, setLoading] = useState(false)
@@ -27,10 +304,6 @@ function AdvancedAnalyticsDashboard() {
   ])
   const [analyticsData, setAnalyticsData] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
-
-  useEffect(() => {
-    fetchAnalyticsData()
-  }, [timeRange, dateRange])
 
   const fetchAnalyticsData = async () => {
     setLoading(true)
@@ -45,286 +318,13 @@ function AdvancedAnalyticsDashboard() {
     }
   }
 
-  const generateMockAnalyticsData = async () => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    return {
-      timeRange,
-      generatedAt: new Date(),
-      summary: {
-        totalUsers: 5000,
-        avgResponseTime: 120,
-        systemUptime: 99.9,
-        revenueGrowth: 12.5,
-        errorRate: 0.2
-      },
-      data: {
-        performanceMetrics: {
-          avgResponseTime: 120,
-          p95ResponseTime: 250,
-          p99ResponseTime: 450,
-          errorRate: 0.2,
-          throughput: 1500,
-          responseTimes: generateTimeSeries('response_time', 30),
-          errorRates: generateTimeSeries('error_rate', 30),
-          throughput: generateTimeSeries('throughput', 30)
-        },
-        userBehaviorData: {
-          totalUsers: 5000,
-          activeUsers: 1247,
-          avgSessionDuration: 8.5,
-          bounceRate: 32,
-          pageViews: 15000,
-          activeUsers: generateTimeSeries('active_users', 30),
-          sessionDuration: generateTimeSeries('session_duration', 30),
-          bounceRate: generateTimeSeries('bounce_rate', 30)
-        },
-        businessMetrics: {
-          revenue: 125000,
-          registrations: 450,
-          conversions: 89,
-          churnRate: 2.3,
-          revenue: generateTimeSeries('revenue', 30),
-          registrations: generateTimeSeries('registrations', 30),
-          conversions: generateTimeSeries('conversions', 30)
-        },
-        systemHealthData: {
-          uptime: 99.9,
-          cpuUsage: 45,
-          memoryUsage: 68,
-          diskUsage: 32,
-          uptime: generateTimeSeries('uptime', 30),
-          cpuUsage: generateTimeSeries('cpu_usage', 30),
-          memoryUsage: generateTimeSeries('memory_usage', 30)
-        },
-        revenueData: {
-          totalRevenue: 125000,
-          growthRate: 12.5,
-          avgTransactionValue: 250,
-          revenue: generateTimeSeries('revenue', 30)
-        }
-      },
-      analysis: {
-        trendAnalysis: {
-          performance: {
-            responseTime: {
-              current: 120,
-              trend: 'stable',
-              change: -2.5,
-              direction: 'down',
-              prediction: 118,
-              confidence: 75
-            },
-            errorRate: {
-              current: 0.2,
-              trend: 'decreasing',
-              change: -15.3,
-              direction: 'down',
-              prediction: 0.17,
-              confidence: 82
-            },
-            throughput: {
-              current: 1500,
-              trend: 'increasing',
-              change: 8.7,
-              direction: 'up',
-              prediction: 1630,
-              confidence: 68
-            }
-          },
-          userBehavior: {
-            activeUsers: {
-              current: 1247,
-              trend: 'increasing',
-              change: 5.2,
-              direction: 'up',
-              prediction: 1312,
-              confidence: 71
-            },
-            sessionDuration: {
-              current: 8.5,
-              trend: 'stable',
-              change: 1.1,
-              direction: 'up',
-              prediction: 8.6,
-              confidence: 64
-            },
-            bounceRate: {
-              current: 32,
-              trend: 'decreasing',
-              change: -3.8,
-              direction: 'down',
-              prediction: 30.8,
-              confidence: 59
-            }
-          },
-          businessMetrics: {
-            revenue: {
-              current: 125000,
-              trend: 'increasing',
-              change: 12.5,
-              direction: 'up',
-              prediction: 140625,
-              confidence: 78
-            },
-            registrations: {
-              current: 450,
-              trend: 'increasing',
-              change: 8.9,
-              direction: 'up',
-              prediction: 490,
-              confidence: 72
-            },
-            conversions: {
-              current: 89,
-              trend: 'stable',
-              change: 2.3,
-              direction: 'up',
-              prediction: 91,
-              confidence: 65
-            }
-          }
-        },
-        predictions: {
-          performance: {
-            responseTime: {
-              next30Days: { value: 118, confidence: 75, range: { low: 112, high: 124 } },
-              next90Days: { value: 114, confidence: 65, range: { low: 105, high: 123 } }
-            },
-            errorRate: {
-              next30Days: { value: 0.17, confidence: 82, range: { low: 0.15, high: 0.19 } },
-              next90Days: { value: 0.14, confidence: 72, range: { low: 0.12, high: 0.16 } }
-            },
-            throughput: {
-              next30Days: { value: 1630, confidence: 68, range: { low: 1520, high: 1740 } },
-              next90Days: { value: 1890, confidence: 58, range: { low: 1710, high: 2070 } }
-            }
-          },
-          userBehavior: {
-            activeUsers: { value: 1312, confidence: 71 },
-            sessionDuration: { value: 8.6, confidence: 64 },
-            bounceRate: { value: 30.8, confidence: 59 }
-          },
-          business: {
-            revenue: { value: 140625, confidence: 78 },
-            registrations: { value: 490, confidence: 72 },
-            conversions: { value: 91, confidence: 65 }
-          },
-          overallHealth: {
-            score: 88,
-            status: 'healthy',
-            factors: ['Response time', 'Error rate', 'Throughput']
-          }
-        },
-        insights: [
-          {
-            type: 'performance',
-            severity: 'positive',
-            title: 'Performance Improving',
-            description: 'Response times are stable and error rates are decreasing',
-            impact: 'positive',
-            recommendation: 'Continue current optimization strategies'
-          },
-          {
-            type: 'business',
-            severity: 'positive',
-            title: 'Revenue Growth Strong',
-            description: 'Revenue is trending upward with 12.5% growth',
-            impact: 'positive',
-            recommendation: 'Identify and scale growth drivers'
-          },
-          {
-            type: 'engagement',
-            severity: 'warning',
-            title: 'User Engagement Stable',
-            description: 'User engagement metrics are stable but could be improved',
-            impact: 'medium',
-            recommendation: 'Consider engagement optimization campaigns'
-          }
-        ],
-        recommendations: [
-          {
-            category: 'performance',
-            priority: 'medium',
-            title: 'Continue Performance Optimization',
-            description: 'Based on Performance Improving',
-            estimatedImpact: 'medium',
-            effort: 'low',
-            timeframe: 'ongoing'
-          },
-          {
-            category: 'business',
-            priority: 'high',
-            title: 'Scale Growth Initiatives',
-            description: 'Based on Revenue Growth Strong',
-            estimatedImpact: 'high',
-            effort: 'medium',
-            timeframe: '30-60 days'
-          },
-          {
-            category: 'engagement',
-            priority: 'medium',
-            title: 'Engagement Campaign',
-            description: 'Based on User Engagement Stable',
-            estimatedImpact: 'medium',
-            effort: 'low',
-            timeframe: '2-4 weeks'
-          }
-        ]
-      }
-    }
-  }
-
-  const generateTimeSeries = (metricType, days) => {
-    const data = []
-    const now = new Date()
-    
-    let baseValue = 100
-    let trend = 0
-    
-    switch (metricType) {
-      case 'response_time':
-        baseValue = 120
-        trend = -0.5
-        break
-      case 'error_rate':
-        baseValue = 0.2
-        trend = -0.01
-        break
-      case 'throughput':
-        baseValue = 1500
-        trend = 10
-        break
-      case 'active_users':
-        baseValue = 1247
-        trend = 5
-        break
-      case 'revenue':
-        baseValue = 4000
-        trend = 50
-        break
-      default:
-        baseValue = 100
-        trend = 0
-    }
-    
-    for (let i = days; i >= 0; i--) {
-      const date = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000))
-      const value = baseValue + (trend * (days - i)) + (Math.random() - 0.5) * baseValue * 0.1
-      
-      data.push({
-        date: date.toISOString().split('T')[0],
-        value: Math.max(0, value)
-      })
-    }
-    
-    return data
-  }
+  useEffect(() => {
+    fetchAnalyticsData()
+  }, [timeRange, dateRange])
 
   const renderTrendIndicator = (trend) => {
-    const { trend: trendDirection, change, direction } = trend
-    
+    const { change, direction } = trend
+
     if (direction === 'up') {
       return (
         <Space>

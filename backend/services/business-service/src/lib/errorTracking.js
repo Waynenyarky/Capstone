@@ -1,8 +1,8 @@
-const logger = require('./logger');
+const logger = require("./logger");
 // AuditLog is optional - only available in services that have it
 let AuditLog = null;
 try {
-  AuditLog = require('../models/AuditLog');
+  AuditLog = require("../models/AuditLog");
 } catch (e) {
   // AuditLog not available in this service
 }
@@ -27,12 +27,16 @@ class ErrorTrackingService {
    * Track an error
    */
   async trackError(error, context = {}) {
-    const errorKey = `${error.name || 'Error'}:${error.message || 'Unknown'}`;
+    const errorKey = `${error.name || "Error"}:${error.message || "Unknown"}`;
     const now = Date.now();
-    
+
     // Increment error count
     if (!this.errorCounts.has(errorKey)) {
-      this.errorCounts.set(errorKey, { count: 0, firstSeen: now, lastSeen: now });
+      this.errorCounts.set(errorKey, {
+        count: 0,
+        firstSeen: now,
+        lastSeen: now,
+      });
     }
     const errorInfo = this.errorCounts.get(errorKey);
     errorInfo.count++;
@@ -40,9 +44,9 @@ class ErrorTrackingService {
 
     // Determine error severity
     const severity = this.determineSeverity(error, context);
-    
+
     // Log error with structured logging
-    logger.error('Error tracked', {
+    logger.error("Error tracked", {
       error: {
         name: error.name,
         message: error.message,
@@ -57,7 +61,7 @@ class ErrorTrackingService {
     });
 
     // Store critical errors
-    if (severity === 'critical' || severity === 'high') {
+    if (severity === "critical" || severity === "high") {
       this.storeCriticalError(error, context, severity);
     }
 
@@ -65,15 +69,15 @@ class ErrorTrackingService {
     await this.checkAlertThresholds(context);
 
     // Log to audit trail for critical errors (if AuditLog is available)
-    if (severity === 'critical' && context.userId && AuditLog) {
+    if (severity === "critical" && context.userId && AuditLog) {
       try {
         await AuditLog.create({
           userId: context.userId,
-          eventType: 'error_critical',
-          fieldChanged: 'system',
-          oldValue: '',
-          newValue: error.message || 'Critical error occurred',
-          role: context.role || 'system',
+          eventType: "error_critical",
+          fieldChanged: "system",
+          oldValue: "",
+          newValue: error.message || "Critical error occurred",
+          role: context.role || "system",
           metadata: {
             errorName: error.name,
             errorCode: error.code,
@@ -81,13 +85,20 @@ class ErrorTrackingService {
             correlationId: context.correlationId,
             stack: error.stack?.substring(0, 500), // Limit stack trace length
           },
-          hash: require('crypto')
-            .createHash('sha256')
-            .update(JSON.stringify({ error: error.message, timestamp: new Date().toISOString() }))
-            .digest('hex'),
+          hash: require("crypto")
+            .createHash("sha256")
+            .update(
+              JSON.stringify({
+                error: error.message,
+                timestamp: new Date().toISOString(),
+              }),
+            )
+            .digest("hex"),
         });
       } catch (auditError) {
-        logger.error('Failed to log critical error to audit trail', { error: auditError });
+        logger.error("Failed to log critical error to audit trail", {
+          error: auditError,
+        });
       }
     }
   }
@@ -97,37 +108,41 @@ class ErrorTrackingService {
    */
   determineSeverity(error, context) {
     // Database connection errors are critical
-    if (error.name === 'MongoError' || error.name === 'MongooseError') {
-      return 'critical';
+    if (error.name === "MongoError" || error.name === "MongooseError") {
+      return "critical";
     }
 
     // Authentication/authorization errors are high severity
-    if (error.code === 'unauthorized' || error.code === 'forbidden' || error.code === 'token_invalidated') {
-      return 'high';
+    if (
+      error.code === "unauthorized" ||
+      error.code === "forbidden" ||
+      error.code === "token_invalidated"
+    ) {
+      return "high";
     }
 
     // Validation errors are low severity
-    if (error.isJoi || error.name === 'ValidationError') {
-      return 'low';
+    if (error.isJoi || error.name === "ValidationError") {
+      return "low";
     }
 
     // Rate limiting errors are medium severity
-    if (error.code === 'rate_limit_exceeded') {
-      return 'medium';
+    if (error.code === "rate_limit_exceeded") {
+      return "medium";
     }
 
     // 5xx errors are high severity
     if (context.statusCode && context.statusCode >= 500) {
-      return 'high';
+      return "high";
     }
 
     // 4xx errors are medium severity
     if (context.statusCode && context.statusCode >= 400) {
-      return 'medium';
+      return "medium";
     }
 
     // Default to medium
-    return 'medium';
+    return "medium";
   }
 
   /**
@@ -171,19 +186,19 @@ class ErrorTrackingService {
 
     // Count critical errors in last hour
     const recentCriticalErrors = this.criticalErrors.filter(
-      (e) => new Date(e.timestamp).getTime() > oneHourAgo
+      (e) => new Date(e.timestamp).getTime() > oneHourAgo,
     ).length;
 
     // Alert on high error rate
     if (recentErrorCount > this.alertThresholds.errorRate) {
-      logger.warn('High error rate detected', {
+      logger.warn("High error rate detected", {
         errorRate: recentErrorCount,
         threshold: this.alertThresholds.errorRate,
         correlationId: context.correlationId,
       });
-      
+
       // TODO: Send alert notification (email, Slack, etc.)
-      await this.sendAlert('high_error_rate', {
+      await this.sendAlert("high_error_rate", {
         errorRate: recentErrorCount,
         threshold: this.alertThresholds.errorRate,
       });
@@ -191,13 +206,13 @@ class ErrorTrackingService {
 
     // Alert on critical errors
     if (recentCriticalErrors > this.alertThresholds.criticalErrors) {
-      logger.warn('High critical error count detected', {
+      logger.warn("High critical error count detected", {
         criticalErrorCount: recentCriticalErrors,
         threshold: this.alertThresholds.criticalErrors,
         correlationId: context.correlationId,
       });
-      
-      await this.sendAlert('high_critical_errors', {
+
+      await this.sendAlert("high_critical_errors", {
         criticalErrorCount: recentCriticalErrors,
         threshold: this.alertThresholds.criticalErrors,
       });
@@ -243,11 +258,14 @@ class ErrorTrackingService {
     }
 
     return {
-      totalErrors: Array.from(this.errorCounts.values()).reduce((sum, info) => sum + info.count, 0),
+      totalErrors: Array.from(this.errorCounts.values()).reduce(
+        (sum, info) => sum + info.count,
+        0,
+      ),
       errorsLastHour,
       errorsLastDay,
       criticalErrorsLastHour: this.criticalErrors.filter(
-        (e) => new Date(e.timestamp).getTime() > oneHourAgo
+        (e) => new Date(e.timestamp).getTime() > oneHourAgo,
       ).length,
       uniqueErrorTypes: this.errorCounts.size,
     };
@@ -258,7 +276,7 @@ class ErrorTrackingService {
    */
   clearOldData() {
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-    
+
     // Remove old error counts
     for (const [key, info] of this.errorCounts.entries()) {
       if (info.lastSeen < oneDayAgo) {
@@ -268,7 +286,7 @@ class ErrorTrackingService {
 
     // Remove old critical errors
     this.criticalErrors = this.criticalErrors.filter(
-      (e) => new Date(e.timestamp).getTime() > oneDayAgo
+      (e) => new Date(e.timestamp).getTime() > oneDayAgo,
     );
   }
 }
@@ -277,10 +295,13 @@ class ErrorTrackingService {
 const errorTracking = new ErrorTrackingService();
 
 // Clean up old data every hour (skip in test mode)
-if (process.env.NODE_ENV !== 'test') {
-  setInterval(() => {
-    errorTracking.clearOldData();
-  }, 60 * 60 * 1000);
+if (process.env.NODE_ENV !== "test") {
+  setInterval(
+    () => {
+      errorTracking.clearOldData();
+    },
+    60 * 60 * 1000,
+  );
 }
 
 module.exports = errorTracking;

@@ -6,17 +6,28 @@ import { getPendingApprovals } from '@/features/user/services/approvalService.js
 
 const { Text } = Typography
 
+function getFieldNames(requestDetails) {
+  if (!requestDetails) return 'profile information'
+  
+  if (requestDetails.fields && Array.isArray(requestDetails.fields)) {
+    return requestDetails.fields.join(', ')
+  }
+  
+  if (requestDetails.newEmail) {
+    return 'email address'
+  }
+  
+  if (requestDetails.newPassword) {
+    return 'password'
+  }
+  
+  return 'profile information'
+}
+
 export default function PendingApprovalAlert() {
   const { currentUser, role } = useAuthSession()
   const [pendingApprovals, setPendingApprovals] = useState([])
   const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    loadPendingApprovals()
-    const interval = setInterval(loadPendingApprovals, 60000) // Check every minute
-    return () => clearInterval(interval)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser])
 
   const loadPendingApprovals = async () => {
     try {
@@ -30,6 +41,13 @@ export default function PendingApprovalAlert() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    loadPendingApprovals()
+    const interval = setInterval(loadPendingApprovals, 60000) // Check every minute
+    return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser])
 
   if (loading || pendingApprovals.length === 0) {
     return null
@@ -62,22 +80,4 @@ export default function PendingApprovalAlert() {
       ))}
     </Space>
   )
-}
-
-function getFieldNames(requestDetails) {
-  if (!requestDetails) return 'profile information'
-  
-  if (requestDetails.fields && Array.isArray(requestDetails.fields)) {
-    return requestDetails.fields.join(', ')
-  }
-  
-  if (requestDetails.newEmail) {
-    return 'email address'
-  }
-  
-  if (requestDetails.newPassword) {
-    return 'password'
-  }
-  
-  return 'profile information'
 }

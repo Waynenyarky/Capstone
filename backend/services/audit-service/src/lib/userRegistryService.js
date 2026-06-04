@@ -1,5 +1,5 @@
-const blockchainService = require('./blockchainService');
-const logger = require('./logger');
+const blockchainService = require("./blockchainService");
+const logger = require("./logger");
 
 /**
  * User Registry Service
@@ -22,7 +22,7 @@ class UserRegistryService {
     this.contract = contracts.userRegistry;
 
     if (!this.contract) {
-      logger.warn('UserRegistry contract not available');
+      logger.warn("UserRegistry contract not available");
       return false;
     }
 
@@ -42,13 +42,17 @@ class UserRegistryService {
     }
 
     if (!this.contract) {
-      return { success: false, error: 'UserRegistry contract not available' };
+      return { success: false, error: "UserRegistry contract not available" };
     }
 
     try {
       // Convert hash to bytes32
-      const hashWithPrefix = profileHash.startsWith('0x') ? profileHash : `0x${profileHash}`;
-      const hashBytes32 = blockchainService.getWeb3().utils.padLeft(hashWithPrefix, 64);
+      const hashWithPrefix = profileHash.startsWith("0x")
+        ? profileHash
+        : `0x${profileHash}`;
+      const hashBytes32 = blockchainService
+        .getWeb3()
+        .utils.padLeft(hashWithPrefix, 64);
 
       const defaultAccount = blockchainService.getDefaultAccount();
 
@@ -68,10 +72,10 @@ class UserRegistryService {
         txHash: tx.transactionHash,
       };
     } catch (error) {
-      logger.error('Error registering user:', error);
+      logger.error("Error registering user:", error);
       return {
         success: false,
-        error: error.message || 'Unknown error',
+        error: error.message || "Unknown error",
       };
     }
   }
@@ -88,12 +92,16 @@ class UserRegistryService {
     }
 
     if (!this.contract) {
-      return { success: false, error: 'UserRegistry contract not available' };
+      return { success: false, error: "UserRegistry contract not available" };
     }
 
     try {
-      const hashWithPrefix = newProfileHash.startsWith('0x') ? newProfileHash : `0x${newProfileHash}`;
-      const hashBytes32 = blockchainService.getWeb3().utils.padLeft(hashWithPrefix, 64);
+      const hashWithPrefix = newProfileHash.startsWith("0x")
+        ? newProfileHash
+        : `0x${newProfileHash}`;
+      const hashBytes32 = blockchainService
+        .getWeb3()
+        .utils.padLeft(hashWithPrefix, 64);
 
       const defaultAccount = blockchainService.getDefaultAccount();
 
@@ -113,10 +121,10 @@ class UserRegistryService {
         txHash: tx.transactionHash,
       };
     } catch (error) {
-      logger.error('Error updating profile hash:', error);
+      logger.error("Error updating profile hash:", error);
       return {
         success: false,
-        error: error.message || 'Unknown error',
+        error: error.message || "Unknown error",
       };
     }
   }
@@ -132,11 +140,13 @@ class UserRegistryService {
     }
 
     if (!this.contract) {
-      return { success: false, error: 'UserRegistry contract not available' };
+      return { success: false, error: "UserRegistry contract not available" };
     }
 
     try {
-      const result = await this.contract.methods.getUserProfileHash(userId).call();
+      const result = await this.contract.methods
+        .getUserProfileHash(userId)
+        .call();
 
       return {
         success: true,
@@ -146,10 +156,10 @@ class UserRegistryService {
         lastUpdatedAt: Number(result.lastUpdatedAt),
       };
     } catch (error) {
-      logger.error('Error getting user profile hash:', error);
+      logger.error("Error getting user profile hash:", error);
       return {
         success: false,
-        error: error.message || 'Unknown error',
+        error: error.message || "Unknown error",
       };
     }
   }
@@ -165,21 +175,23 @@ class UserRegistryService {
     }
 
     if (!this.contract) {
-      return { success: false, error: 'UserRegistry contract not available' };
+      return { success: false, error: "UserRegistry contract not available" };
     }
 
     try {
-      const userId = await this.contract.methods.getUserIdByAddress(userAddress).call();
+      const userId = await this.contract.methods
+        .getUserIdByAddress(userAddress)
+        .call();
 
       return {
         success: true,
         userId: userId || null,
       };
     } catch (error) {
-      logger.error('Error getting userId by address:', error);
+      logger.error("Error getting userId by address:", error);
       return {
         success: false,
-        error: error.message || 'Unknown error',
+        error: error.message || "Unknown error",
       };
     }
   }
@@ -202,7 +214,7 @@ class UserRegistryService {
       const exists = await this.contract.methods.userExists(userId).call();
       return exists;
     } catch (error) {
-      logger.error('Error checking if user exists:', error);
+      logger.error("Error checking if user exists:", error);
       return false;
     }
   }

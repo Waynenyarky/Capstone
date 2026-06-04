@@ -1,37 +1,49 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 const UserSchema = new mongoose.Schema(
   {
-    role: { type: mongoose.Schema.Types.ObjectId, ref: 'Role', required: true },
+    role: { type: mongoose.Schema.Types.ObjectId, ref: "Role", required: true },
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    phoneNumber: { type: String, default: '', unique: true, sparse: true },
-    username: { type: String, unique: true, sparse: true, lowercase: true, trim: true },
-    office: { type: String, default: '' },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    phoneNumber: { type: String, default: "", unique: true, sparse: true },
+    username: {
+      type: String,
+      unique: true,
+      sparse: true,
+      lowercase: true,
+      trim: true,
+    },
+    office: { type: String, default: "" },
     isStaff: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     mustChangeCredentials: { type: Boolean, default: false },
     mustSetupMfa: { type: Boolean, default: false },
-    avatarUrl: { type: String, default: '' },
-    avatarIpfsCid: { type: String, default: '' },
+    avatarUrl: { type: String, default: "" },
+    avatarIpfsCid: { type: String, default: "" },
     passwordHash: { type: String, required: true },
     passwordChangedAt: { type: Date, default: null },
     termsAccepted: { type: Boolean, default: false },
     // MFA (Time-based One-Time Password)
     mfaEnabled: { type: Boolean, default: false },
-    mfaMethod: { type: String, default: '' },
-    mfaSecret: { type: String, default: '' },
+    mfaMethod: { type: String, default: "" },
+    mfaSecret: { type: String, default: "" },
     mfaDisableRequestedAt: { type: Date, default: null },
     mfaDisableScheduledFor: { type: Date, default: null },
     mfaDisablePending: { type: Boolean, default: false },
     mfaLastUsedTotpCounter: { type: Number, default: -1 },
     mfaLastUsedTotpAt: { type: Date, default: null },
     fprintEnabled: { type: Boolean, default: false },
-    tokenFprint: { type: String, default: '' },
+    tokenFprint: { type: String, default: "" },
     // OAuth provider metadata
-    authProvider: { type: String, default: '' },
-    providerId: { type: String, default: '' },
+    authProvider: { type: String, default: "" },
+    providerId: { type: String, default: "" },
     webauthnCredentials: {
       type: [
         {
@@ -64,43 +76,53 @@ const UserSchema = new mongoose.Schema(
       {
         ip: { type: String, required: true },
         timestamp: { type: Date, required: true },
-        location: { type: String, default: '' },
+        location: { type: String, default: "" },
       },
     ],
     // Deletion undo token
     deletionUndoToken: { type: String, default: null },
     deletionUndoExpiresAt: { type: Date, default: null },
     // Theme preference
-    theme: { type: String, default: 'default' },
+    theme: { type: String, default: "default" },
     // Blockchain integration fields
-    profileHash: { type: String, default: '' },
-    profileIpfsCid: { type: String, default: '' },
-    userEthereumAddress: { type: String, default: '' },
+    profileHash: { type: String, default: "" },
+    profileIpfsCid: { type: String, default: "" },
+    userEthereumAddress: { type: String, default: "" },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 UserSchema.plugin(encryptionPlugin, {
   fields: [
-    'firstName', 'lastName', 'phoneNumber', 'office',
-    'mfaSecret', 'authProvider', 'providerId', 'tokenFprint',
-    'avatarUrl', 'avatarIpfsCid', 'deletionUndoToken',
-    'profileHash', 'profileIpfsCid', 'userEthereumAddress',
+    "firstName",
+    "lastName",
+    "phoneNumber",
+    "office",
+    "mfaSecret",
+    "authProvider",
+    "providerId",
+    "tokenFprint",
+    "avatarUrl",
+    "avatarIpfsCid",
+    "deletionUndoToken",
+    "profileHash",
+    "profileIpfsCid",
+    "userEthereumAddress",
   ],
-  deterministicFields: ['email', 'username'],
+  deterministicFields: ["email", "username"],
   nestedPaths: [],
-  arrayPaths: ['recentLoginIPs', 'webauthnCredentials'],
+  arrayPaths: ["recentLoginIPs", "webauthnCredentials"],
   mixedPaths: [],
-})
+});
 
-UserSchema.set('toJSON', {
+UserSchema.set("toJSON", {
   transform: (doc, ret) => {
-    if (ret.role && typeof ret.role === 'object' && ret.role.slug) {
-      ret.role = ret.role.slug
+    if (ret.role && typeof ret.role === "object" && ret.role.slug) {
+      ret.role = ret.role.slug;
     }
-    return ret
+    return ret;
   },
-})
+});
 
-module.exports = mongoose.model('User', UserSchema)
+module.exports = mongoose.model("User", UserSchema);

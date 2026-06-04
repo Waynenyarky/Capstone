@@ -51,24 +51,8 @@ export default function AdminFinance() {
     reports: <FinanceReportsTab />,
   }
 
-  const mainHeaderActions = (
-    <>
-      {lastUpdated && (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          Last updated: {lastUpdated.toLocaleTimeString()}
-        </Text>
-      )}
-      <Button icon={<ReloadOutlined />} onClick={load} aria-label="Refresh" />
-      <Button icon={<InfoCircleOutlined />} onClick={() => setInfoOpen(true)} aria-label="About" />
-    </>
-  )
-
   return (
-    <AdminLayout
-      pageTitle="Finance"
-      pageIcon={<AccountBookOutlined />}
-      headerActions={mainHeaderActions}
-    >
+    <AdminLayout>
       <div
         style={
           isMobile
@@ -87,7 +71,6 @@ export default function AdminFinance() {
             tabKey={tabKey}
             setTabKey={setTabKey}
             tabChildren={tabChildren}
-            headerActions={null}
           />
         )}
       </div>

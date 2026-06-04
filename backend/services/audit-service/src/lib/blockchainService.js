@@ -1,7 +1,7 @@
-const { Web3 } = require('web3');
-const path = require('path');
-const fs = require('fs');
-const logger = require('./logger');
+const { Web3 } = require("web3");
+const path = require("path");
+const fs = require("fs");
+const logger = require("./logger");
 
 /**
  * Blockchain Service for Audit Logging
@@ -36,54 +36,56 @@ class BlockchainService {
   loadContractABI(contractName) {
     try {
       // Docker: try shared volume mount first (contract_addresses at /app/contract-addresses)
-      const abiDir = process.env.CONTRACT_ABI_PATH || '/app/contract-addresses';
+      const abiDir = process.env.CONTRACT_ABI_PATH || "/app/contract-addresses";
       const dockerPath = path.join(abiDir, `${contractName}.json`);
       if (fs.existsSync(dockerPath)) {
-        const artifact = JSON.parse(fs.readFileSync(dockerPath, 'utf8'));
+        const artifact = JSON.parse(fs.readFileSync(dockerPath, "utf8"));
         return artifact.abi;
       }
 
       // Try to load from Truffle build directory (relative to project root)
       const artifactPath = path.join(
         __dirname,
-        '..',
-        '..',
-        '..',
-        '..',
-        '..',
-        'blockchain',
-        'build',
-        'contracts',
-        `${contractName}.json`
+        "..",
+        "..",
+        "..",
+        "..",
+        "..",
+        "blockchain",
+        "build",
+        "contracts",
+        `${contractName}.json`,
       );
 
       if (fs.existsSync(artifactPath)) {
-        const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+        const artifact = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
         return artifact.abi;
       }
 
       // Fallback: Try to load from hardhat artifacts (for backward compatibility)
       const hardhatPath = path.join(
         __dirname,
-        '..',
-        '..',
-        '..',
-        '..',
-        '..',
-        'blockchain',
-        'hardhat_smart_contract',
-        'artifacts',
-        'contracts',
+        "..",
+        "..",
+        "..",
+        "..",
+        "..",
+        "blockchain",
+        "hardhat_smart_contract",
+        "artifacts",
+        "contracts",
         `${contractName}.sol`,
-        `${contractName}.json`
+        `${contractName}.json`,
       );
 
       if (fs.existsSync(hardhatPath)) {
-        const artifact = JSON.parse(fs.readFileSync(hardhatPath, 'utf8'));
+        const artifact = JSON.parse(fs.readFileSync(hardhatPath, "utf8"));
         return artifact.abi;
       }
 
-      logger.warn(`Contract ABI not found for ${contractName}, using minimal ABI`);
+      logger.warn(
+        `Contract ABI not found for ${contractName}, using minimal ABI`,
+      );
       return null;
     } catch (error) {
       logger.error(`Error loading contract ABI for ${contractName}:`, error);
@@ -100,18 +102,30 @@ class BlockchainService {
       return;
     }
 
-    const rpcUrl = process.env.GANACHE_RPC_URL || process.env.WEB3_PROVIDER_URL || 'http://127.0.0.1:7545';
+    const rpcUrl =
+      process.env.GANACHE_RPC_URL ||
+      process.env.WEB3_PROVIDER_URL ||
+      "http://127.0.0.1:7545";
     let privateKey = process.env.DEPLOYER_PRIVATE_KEY;
-    
+
     // Get contract addresses from environment
-    this.contractAddresses.accessControl = process.env.ACCESS_CONTROL_CONTRACT_ADDRESS;
-    this.contractAddresses.userRegistry = process.env.USER_REGISTRY_CONTRACT_ADDRESS;
-    this.contractAddresses.documentStorage = process.env.DOCUMENT_STORAGE_CONTRACT_ADDRESS;
-    this.contractAddresses.auditLog = process.env.AUDIT_LOG_CONTRACT_ADDRESS || process.env.AUDIT_CONTRACT_ADDRESS; // Backward compatibility
+    this.contractAddresses.accessControl =
+      process.env.ACCESS_CONTROL_CONTRACT_ADDRESS;
+    this.contractAddresses.userRegistry =
+      process.env.USER_REGISTRY_CONTRACT_ADDRESS;
+    this.contractAddresses.documentStorage =
+      process.env.DOCUMENT_STORAGE_CONTRACT_ADDRESS;
+    this.contractAddresses.auditLog =
+      process.env.AUDIT_LOG_CONTRACT_ADDRESS ||
+      process.env.AUDIT_CONTRACT_ADDRESS; // Backward compatibility
 
     if (!privateKey) {
-      logger.error('❌ DEPLOYER_PRIVATE_KEY not set. Blockchain service will not initialize.');
-      logger.error('   Set DEPLOYER_PRIVATE_KEY in .env (Ganache first account from mnemonic).');
+      logger.error(
+        "❌ DEPLOYER_PRIVATE_KEY not set. Blockchain service will not initialize.",
+      );
+      logger.error(
+        "   Set DEPLOYER_PRIVATE_KEY in .env (Ganache first account from mnemonic).",
+      );
       return;
     }
 
@@ -121,7 +135,7 @@ class BlockchainService {
 
       // Get accounts
       this.accounts = await this.web3.eth.getAccounts();
-      
+
       // Create account from private key
       const account = this.web3.eth.accounts.privateKeyToAccount(privateKey);
       this.web3.eth.accounts.wallet.add(account);
@@ -129,45 +143,66 @@ class BlockchainService {
 
       // Load and initialize contracts
       if (this.contractAddresses.auditLog) {
-        const auditLogABI = this.loadContractABI('AuditLog') || this.getMinimalAuditLogABI();
-        this.contracts.auditLog = new this.web3.eth.Contract(auditLogABI, this.contractAddresses.auditLog);
+        const auditLogABI =
+          this.loadContractABI("AuditLog") || this.getMinimalAuditLogABI();
+        this.contracts.auditLog = new this.web3.eth.Contract(
+          auditLogABI,
+          this.contractAddresses.auditLog,
+        );
       }
 
       if (this.contractAddresses.accessControl) {
-        const accessControlABI = this.loadContractABI('AccessControl') || this.getMinimalAccessControlABI();
-        this.contracts.accessControl = new this.web3.eth.Contract(accessControlABI, this.contractAddresses.accessControl);
+        const accessControlABI =
+          this.loadContractABI("AccessControl") ||
+          this.getMinimalAccessControlABI();
+        this.contracts.accessControl = new this.web3.eth.Contract(
+          accessControlABI,
+          this.contractAddresses.accessControl,
+        );
       }
 
       if (this.contractAddresses.userRegistry) {
-        const userRegistryABI = this.loadContractABI('UserRegistry') || this.getMinimalUserRegistryABI();
-        this.contracts.userRegistry = new this.web3.eth.Contract(userRegistryABI, this.contractAddresses.userRegistry);
+        const userRegistryABI =
+          this.loadContractABI("UserRegistry") ||
+          this.getMinimalUserRegistryABI();
+        this.contracts.userRegistry = new this.web3.eth.Contract(
+          userRegistryABI,
+          this.contractAddresses.userRegistry,
+        );
       }
 
       if (this.contractAddresses.documentStorage) {
-        const documentStorageABI = this.loadContractABI('DocumentStorage') || this.getMinimalDocumentStorageABI();
-        this.contracts.documentStorage = new this.web3.eth.Contract(documentStorageABI, this.contractAddresses.documentStorage);
+        const documentStorageABI =
+          this.loadContractABI("DocumentStorage") ||
+          this.getMinimalDocumentStorageABI();
+        this.contracts.documentStorage = new this.web3.eth.Contract(
+          documentStorageABI,
+          this.contractAddresses.documentStorage,
+        );
       }
 
       // Verify connection
       const networkId = await this.web3.eth.net.getId();
       const balance = await this.web3.eth.getBalance(this.defaultAccount);
-      const balanceEth = this.web3.utils.fromWei(balance, 'ether');
+      const balanceEth = this.web3.utils.fromWei(balance, "ether");
 
-      logger.info('✅ Blockchain service initialized');
+      logger.info("✅ Blockchain service initialized");
       logger.info(`   Network ID: ${networkId}`);
       logger.info(`   Account: ${this.defaultAccount}`);
       logger.info(`   Balance: ${balanceEth} ETH`);
-      
+
       if (this.contractAddresses.auditLog) {
         logger.info(`   AuditLog Contract: ${this.contractAddresses.auditLog}`);
       } else {
-        logger.warn('⚠️  AUDIT_LOG_CONTRACT_ADDRESS not set. Audit logging will be limited.');
+        logger.warn(
+          "⚠️  AUDIT_LOG_CONTRACT_ADDRESS not set. Audit logging will be limited.",
+        );
       }
 
       this.initialized = true;
     } catch (error) {
-      logger.error('❌ Failed to initialize blockchain service:', error);
-      logger.warn('⚠️  Blockchain logging will be disabled.');
+      logger.error("❌ Failed to initialize blockchain service:", error);
+      logger.warn("⚠️  Blockchain logging will be disabled.");
     }
   }
 
@@ -177,34 +212,32 @@ class BlockchainService {
   getMinimalAuditLogABI() {
     return [
       {
-        "inputs": [
-          { "internalType": "bytes32", "name": "hash", "type": "bytes32" },
-          { "internalType": "string", "name": "eventType", "type": "string" }
+        inputs: [
+          { internalType: "bytes32", name: "hash", type: "bytes32" },
+          { internalType: "string", name: "eventType", type: "string" },
         ],
-        "name": "logAuditHash",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
+        name: "logAuditHash",
+        outputs: [],
+        stateMutability: "nonpayable",
+        type: "function",
       },
       {
-        "inputs": [
-          { "internalType": "bytes32", "name": "hash", "type": "bytes32" }
+        inputs: [{ internalType: "bytes32", name: "hash", type: "bytes32" }],
+        name: "verifyHash",
+        outputs: [
+          { internalType: "bool", name: "exists", type: "bool" },
+          { internalType: "uint256", name: "timestamp", type: "uint256" },
         ],
-        "name": "verifyHash",
-        "outputs": [
-          { "internalType": "bool", "name": "exists", "type": "bool" },
-          { "internalType": "uint256", "name": "timestamp", "type": "uint256" }
-        ],
-        "stateMutability": "view",
-        "type": "function"
+        stateMutability: "view",
+        type: "function",
       },
       {
-        "inputs": [],
-        "name": "getAuditHashCount",
-        "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-        "stateMutability": "view",
-        "type": "function"
-      }
+        inputs: [],
+        name: "getAuditHashCount",
+        outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+        stateMutability: "view",
+        type: "function",
+      },
     ];
   }
 
@@ -214,25 +247,25 @@ class BlockchainService {
   getMinimalAccessControlABI() {
     return [
       {
-        "inputs": [
-          { "internalType": "address", "name": "account", "type": "address" },
-          { "internalType": "bytes32", "name": "role", "type": "bytes32" }
+        inputs: [
+          { internalType: "address", name: "account", type: "address" },
+          { internalType: "bytes32", name: "role", type: "bytes32" },
         ],
-        "name": "hasRole",
-        "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
-        "stateMutability": "view",
-        "type": "function"
+        name: "hasRole",
+        outputs: [{ internalType: "bool", name: "", type: "bool" }],
+        stateMutability: "view",
+        type: "function",
       },
       {
-        "inputs": [
-          { "internalType": "address", "name": "account", "type": "address" },
-          { "internalType": "bytes32", "name": "role", "type": "bytes32" }
+        inputs: [
+          { internalType: "address", name: "account", type: "address" },
+          { internalType: "bytes32", name: "role", type: "bytes32" },
         ],
-        "name": "grantRole",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      }
+        name: "grantRole",
+        outputs: [],
+        stateMutability: "nonpayable",
+        type: "function",
+      },
     ];
   }
 
@@ -242,30 +275,28 @@ class BlockchainService {
   getMinimalUserRegistryABI() {
     return [
       {
-        "inputs": [
-          { "internalType": "string", "name": "userId", "type": "string" },
-          { "internalType": "address", "name": "userAddress", "type": "address" },
-          { "internalType": "bytes32", "name": "profileHash", "type": "bytes32" }
+        inputs: [
+          { internalType: "string", name: "userId", type: "string" },
+          { internalType: "address", name: "userAddress", type: "address" },
+          { internalType: "bytes32", name: "profileHash", type: "bytes32" },
         ],
-        "name": "registerUser",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
+        name: "registerUser",
+        outputs: [],
+        stateMutability: "nonpayable",
+        type: "function",
       },
       {
-        "inputs": [
-          { "internalType": "string", "name": "userId", "type": "string" }
+        inputs: [{ internalType: "string", name: "userId", type: "string" }],
+        name: "getUserProfileHash",
+        outputs: [
+          { internalType: "address", name: "userAddress", type: "address" },
+          { internalType: "bytes32", name: "profileHash", type: "bytes32" },
+          { internalType: "uint256", name: "registeredAt", type: "uint256" },
+          { internalType: "uint256", name: "lastUpdatedAt", type: "uint256" },
         ],
-        "name": "getUserProfileHash",
-        "outputs": [
-          { "internalType": "address", "name": "userAddress", "type": "address" },
-          { "internalType": "bytes32", "name": "profileHash", "type": "bytes32" },
-          { "internalType": "uint256", "name": "registeredAt", "type": "uint256" },
-          { "internalType": "uint256", "name": "lastUpdatedAt", "type": "uint256" }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      }
+        stateMutability: "view",
+        type: "function",
+      },
     ];
   }
 
@@ -275,30 +306,30 @@ class BlockchainService {
   getMinimalDocumentStorageABI() {
     return [
       {
-        "inputs": [
-          { "internalType": "string", "name": "userId", "type": "string" },
-          { "internalType": "uint8", "name": "docType", "type": "uint8" },
-          { "internalType": "string", "name": "ipfsCid", "type": "string" }
+        inputs: [
+          { internalType: "string", name: "userId", type: "string" },
+          { internalType: "uint8", name: "docType", type: "uint8" },
+          { internalType: "string", name: "ipfsCid", type: "string" },
         ],
-        "name": "storeDocument",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
+        name: "storeDocument",
+        outputs: [],
+        stateMutability: "nonpayable",
+        type: "function",
       },
       {
-        "inputs": [
-          { "internalType": "string", "name": "userId", "type": "string" },
-          { "internalType": "uint8", "name": "docType", "type": "uint8" }
+        inputs: [
+          { internalType: "string", name: "userId", type: "string" },
+          { internalType: "uint8", name: "docType", type: "uint8" },
         ],
-        "name": "getDocumentCid",
-        "outputs": [
-          { "internalType": "string", "name": "ipfsCid", "type": "string" },
-          { "internalType": "uint256", "name": "version", "type": "uint256" },
-          { "internalType": "uint256", "name": "uploadedAt", "type": "uint256" }
+        name: "getDocumentCid",
+        outputs: [
+          { internalType: "string", name: "ipfsCid", type: "string" },
+          { internalType: "uint256", name: "version", type: "uint256" },
+          { internalType: "uint256", name: "uploadedAt", type: "uint256" },
         ],
-        "stateMutability": "view",
-        "type": "function"
-      }
+        stateMutability: "view",
+        type: "function",
+      },
     ];
   }
 
@@ -319,14 +350,14 @@ class BlockchainService {
     if (!this.isAvailable()) {
       return {
         success: false,
-        error: 'Blockchain service not initialized',
+        error: "Blockchain service not initialized",
       };
     }
 
     try {
       // Convert hex string to bytes32
       // Hash from MongoDB is hex string without '0x' prefix
-      const hashWithPrefix = hash.startsWith('0x') ? hash : `0x${hash}`;
+      const hashWithPrefix = hash.startsWith("0x") ? hash : `0x${hash}`;
       const hashBytes32 = this.web3.utils.padLeft(hashWithPrefix, 64);
 
       // Estimate gas
@@ -348,10 +379,10 @@ class BlockchainService {
         blockNumber: Number(tx.blockNumber),
       };
     } catch (error) {
-      logger.error('Error logging audit hash to blockchain:', error);
+      logger.error("Error logging audit hash to blockchain:", error);
       return {
         success: false,
-        error: error.message || 'Unknown error',
+        error: error.message || "Unknown error",
       };
     }
   }
@@ -367,13 +398,14 @@ class BlockchainService {
     if (!this.isAvailable()) {
       return {
         success: false,
-        error: 'Blockchain service not initialized',
+        error: "Blockchain service not initialized",
       };
     }
 
     try {
       // Convert details to JSON string if it's an object
-      const detailsString = typeof details === 'string' ? details : JSON.stringify(details);
+      const detailsString =
+        typeof details === "string" ? details : JSON.stringify(details);
 
       // Estimate gas
       const gasEstimate = await this.contracts.auditLog.methods
@@ -394,10 +426,10 @@ class BlockchainService {
         blockNumber: Number(tx.blockNumber),
       };
     } catch (error) {
-      logger.error('Error logging critical event to blockchain:', error);
+      logger.error("Error logging critical event to blockchain:", error);
       return {
         success: false,
-        error: error.message || 'Unknown error',
+        error: error.message || "Unknown error",
       };
     }
   }
@@ -412,26 +444,48 @@ class BlockchainService {
    * @param {string|object} details - Additional details (will be JSON stringified if object)
    * @returns {Promise<{success: boolean, txHash?: string, blockNumber?: number, error?: string}>}
    */
-  async logAdminApproval(approvalId, eventType, userId, approverId, approved, details) {
+  async logAdminApproval(
+    approvalId,
+    eventType,
+    userId,
+    approverId,
+    approved,
+    details,
+  ) {
     if (!this.isAvailable()) {
       return {
         success: false,
-        error: 'Blockchain service not initialized',
+        error: "Blockchain service not initialized",
       };
     }
 
     try {
       // Convert details to JSON string if it's an object
-      const detailsString = typeof details === 'string' ? details : JSON.stringify(details);
+      const detailsString =
+        typeof details === "string" ? details : JSON.stringify(details);
 
       // Estimate gas
       const gasEstimate = await this.contracts.auditLog.methods
-        .logAdminApproval(approvalId, eventType, userId, approverId, approved, detailsString)
+        .logAdminApproval(
+          approvalId,
+          eventType,
+          userId,
+          approverId,
+          approved,
+          detailsString,
+        )
         .estimateGas({ from: this.defaultAccount });
 
       // Send transaction
       const tx = await this.contracts.auditLog.methods
-        .logAdminApproval(approvalId, eventType, userId, approverId, approved, detailsString)
+        .logAdminApproval(
+          approvalId,
+          eventType,
+          userId,
+          approverId,
+          approved,
+          detailsString,
+        )
         .send({
           from: this.defaultAccount,
           gas: Math.floor(Number(gasEstimate) * 1.2), // Convert BigInt to Number
@@ -443,10 +497,10 @@ class BlockchainService {
         blockNumber: Number(tx.blockNumber),
       };
     } catch (error) {
-      logger.error('Error logging admin approval to blockchain:', error);
+      logger.error("Error logging admin approval to blockchain:", error);
       return {
         success: false,
-        error: error.message || 'Unknown error',
+        error: error.message || "Unknown error",
       };
     }
   }
@@ -460,27 +514,29 @@ class BlockchainService {
     if (!this.isAvailable()) {
       return {
         exists: false,
-        error: 'Blockchain service not initialized',
+        error: "Blockchain service not initialized",
       };
     }
 
     try {
       // Convert hex string to bytes32
-      const hashWithPrefix = hash.startsWith('0x') ? hash : `0x${hash}`;
+      const hashWithPrefix = hash.startsWith("0x") ? hash : `0x${hash}`;
       const hashBytes32 = this.web3.utils.padLeft(hashWithPrefix, 64);
 
       // Call view function
-      const result = await this.contracts.auditLog.methods.verifyHash(hashBytes32).call();
+      const result = await this.contracts.auditLog.methods
+        .verifyHash(hashBytes32)
+        .call();
 
       return {
         exists: result.exists,
         timestamp: result.exists ? Number(result.timestamp) : null,
       };
     } catch (error) {
-      logger.error('Error verifying hash on blockchain:', error);
+      logger.error("Error verifying hash on blockchain:", error);
       return {
         exists: false,
-        error: error.message || 'Unknown error',
+        error: error.message || "Unknown error",
       };
     }
   }
@@ -494,7 +550,7 @@ class BlockchainService {
    * @returns {'legacy'|'compact'|'batch'} The current gas optimization mode
    */
   getGasMode() {
-    return process.env.BLOCKCHAIN_GAS_MODE || 'compact'
+    return process.env.BLOCKCHAIN_GAS_MODE || "compact";
   }
 
   /**
@@ -506,13 +562,20 @@ class BlockchainService {
    */
   async logCriticalEventCompact(eventType, userId, details) {
     if (!this.isAvailable()) {
-      return { success: false, error: 'Blockchain service not initialized' };
+      return { success: false, error: "Blockchain service not initialized" };
     }
 
     try {
-      const detailsString = typeof details === 'string' ? details : JSON.stringify(details);
-      const payloadStr = JSON.stringify({ eventType, userId, details: detailsString });
-      const dataHash = '0x' + require('crypto').createHash('sha256').update(payloadStr).digest('hex');
+      const detailsString =
+        typeof details === "string" ? details : JSON.stringify(details);
+      const payloadStr = JSON.stringify({
+        eventType,
+        userId,
+        details: detailsString,
+      });
+      const dataHash =
+        "0x" +
+        require("crypto").createHash("sha256").update(payloadStr).digest("hex");
       const hashBytes32 = this.web3.utils.padLeft(dataHash, 64);
 
       // Map event type to numeric code (compact representation)
@@ -536,23 +599,43 @@ class BlockchainService {
         v2: true,
       };
     } catch (error) {
-      logger.error('Error logging critical event (compact) to blockchain:', error);
-      return { success: false, error: error.message || 'Unknown error' };
+      logger.error(
+        "Error logging critical event (compact) to blockchain:",
+        error,
+      );
+      return { success: false, error: error.message || "Unknown error" };
     }
   }
 
   /**
    * V2: Log an admin approval using compact hash-only method
    */
-  async logAdminApprovalCompact(approvalId, eventType, userId, approverId, approved, details) {
+  async logAdminApprovalCompact(
+    approvalId,
+    eventType,
+    userId,
+    approverId,
+    approved,
+    details,
+  ) {
     if (!this.isAvailable()) {
-      return { success: false, error: 'Blockchain service not initialized' };
+      return { success: false, error: "Blockchain service not initialized" };
     }
 
     try {
-      const detailsString = typeof details === 'string' ? details : JSON.stringify(details);
-      const payloadStr = JSON.stringify({ approvalId, eventType, userId, approverId, approved, details: detailsString });
-      const dataHash = '0x' + require('crypto').createHash('sha256').update(payloadStr).digest('hex');
+      const detailsString =
+        typeof details === "string" ? details : JSON.stringify(details);
+      const payloadStr = JSON.stringify({
+        approvalId,
+        eventType,
+        userId,
+        approverId,
+        approved,
+        details: detailsString,
+      });
+      const dataHash =
+        "0x" +
+        require("crypto").createHash("sha256").update(payloadStr).digest("hex");
       const hashBytes32 = this.web3.utils.padLeft(dataHash, 64);
       const eventCode = this._eventTypeToCode(eventType);
 
@@ -574,8 +657,11 @@ class BlockchainService {
         v2: true,
       };
     } catch (error) {
-      logger.error('Error logging admin approval (compact) to blockchain:', error);
-      return { success: false, error: error.message || 'Unknown error' };
+      logger.error(
+        "Error logging admin approval (compact) to blockchain:",
+        error,
+      );
+      return { success: false, error: error.message || "Unknown error" };
     }
   }
 
@@ -586,12 +672,12 @@ class BlockchainService {
    */
   async batchLogAuditHash(hashes, eventType) {
     if (!this.isAvailable()) {
-      return { success: false, error: 'Blockchain service not initialized' };
+      return { success: false, error: "Blockchain service not initialized" };
     }
 
     try {
-      const hashBytes32Array = hashes.map(h => {
-        const hp = h.startsWith('0x') ? h : `0x${h}`;
+      const hashBytes32Array = hashes.map((h) => {
+        const hp = h.startsWith("0x") ? h : `0x${h}`;
         return this.web3.utils.padLeft(hp, 64);
       });
 
@@ -614,8 +700,8 @@ class BlockchainService {
         v2: true,
       };
     } catch (error) {
-      logger.error('Error batch logging audit hashes:', error);
-      return { success: false, error: error.message || 'Unknown error' };
+      logger.error("Error batch logging audit hashes:", error);
+      return { success: false, error: error.message || "Unknown error" };
     }
   }
 
@@ -625,18 +711,31 @@ class BlockchainService {
    */
   _eventTypeToCode(eventType) {
     const codeMap = {
-      'permit_issued': 1, 'permit_revoked': 2,
-      'business_approved': 3, 'business_rejected': 4,
-      'application_approved': 5, 'application_rejected': 6,
-      'role_change': 7, 'admin_action': 8,
-      'account_deletion': 9, 'ownership_transfer': 10,
-      'profile_update': 11, 'email_change': 12,
-      'password_change': 13, 'login': 14, 'logout': 15,
-      'mfa_enabled': 16, 'mfa_disabled': 17,
-      'document_uploaded': 18, 'status_change': 19,
-      'clearance_approved': 20, 'clearance_rejected': 21,
-      'inspection_completed': 22, 'violation_issued': 23,
-      'appeal_resolved': 24, 'payment_confirmed': 25,
+      permit_issued: 1,
+      permit_revoked: 2,
+      business_approved: 3,
+      business_rejected: 4,
+      application_approved: 5,
+      application_rejected: 6,
+      role_change: 7,
+      admin_action: 8,
+      account_deletion: 9,
+      ownership_transfer: 10,
+      profile_update: 11,
+      email_change: 12,
+      password_change: 13,
+      login: 14,
+      logout: 15,
+      mfa_enabled: 16,
+      mfa_disabled: 17,
+      document_uploaded: 18,
+      status_change: 19,
+      clearance_approved: 20,
+      clearance_rejected: 21,
+      inspection_completed: 22,
+      violation_issued: 23,
+      appeal_resolved: 24,
+      payment_confirmed: 25,
     };
     return codeMap[eventType] || 0;
   }
@@ -650,7 +749,7 @@ class BlockchainService {
    */
   async logCriticalEventAdaptive(eventType, userId, details) {
     const mode = this.getGasMode();
-    if (mode === 'legacy') {
+    if (mode === "legacy") {
       return this.logCriticalEvent(eventType, userId, details);
     }
     return this.logCriticalEventCompact(eventType, userId, details);
@@ -659,12 +758,33 @@ class BlockchainService {
   /**
    * Smart adapter for logAdminApproval: uses V2 compact if gas mode is compact/batch
    */
-  async logAdminApprovalAdaptive(approvalId, eventType, userId, approverId, approved, details) {
+  async logAdminApprovalAdaptive(
+    approvalId,
+    eventType,
+    userId,
+    approverId,
+    approved,
+    details,
+  ) {
     const mode = this.getGasMode();
-    if (mode === 'legacy') {
-      return this.logAdminApproval(approvalId, eventType, userId, approverId, approved, details);
+    if (mode === "legacy") {
+      return this.logAdminApproval(
+        approvalId,
+        eventType,
+        userId,
+        approverId,
+        approved,
+        details,
+      );
     }
-    return this.logAdminApprovalCompact(approvalId, eventType, userId, approverId, approved, details);
+    return this.logAdminApprovalCompact(
+      approvalId,
+      eventType,
+      userId,
+      approverId,
+      approved,
+      details,
+    );
   }
 
   // =========================================================================
@@ -680,13 +800,21 @@ class BlockchainService {
    * @param {Date} windowEnd - Epoch window end time
    * @param {number} digestType - 0 = hash_chain, 1 = merkle
    */
-  async anchorDigestRoot(digestRoot, leafCount, windowStart, windowEnd, digestType = 0) {
+  async anchorDigestRoot(
+    digestRoot,
+    leafCount,
+    windowStart,
+    windowEnd,
+    digestType = 0,
+  ) {
     if (!this.isAvailable()) {
-      return { success: false, error: 'Blockchain service not initialized' };
+      return { success: false, error: "Blockchain service not initialized" };
     }
 
     try {
-      const rootWithPrefix = digestRoot.startsWith('0x') ? digestRoot : `0x${digestRoot}`;
+      const rootWithPrefix = digestRoot.startsWith("0x")
+        ? digestRoot
+        : `0x${digestRoot}`;
       const rootBytes32 = this.web3.utils.padLeft(rootWithPrefix, 64);
 
       const startTs = Math.floor(new Date(windowStart).getTime() / 1000);
@@ -711,8 +839,8 @@ class BlockchainService {
         v3: true,
       };
     } catch (error) {
-      logger.error('Error anchoring digest root:', error);
-      return { success: false, error: error.message || 'Unknown error' };
+      logger.error("Error anchoring digest root:", error);
+      return { success: false, error: error.message || "Unknown error" };
     }
   }
 
@@ -722,22 +850,26 @@ class BlockchainService {
    */
   async verifyDigestRoot(digestRoot) {
     if (!this.isAvailable()) {
-      return { exists: false, error: 'Blockchain service not initialized' };
+      return { exists: false, error: "Blockchain service not initialized" };
     }
 
     try {
-      const rootWithPrefix = digestRoot.startsWith('0x') ? digestRoot : `0x${digestRoot}`;
+      const rootWithPrefix = digestRoot.startsWith("0x")
+        ? digestRoot
+        : `0x${digestRoot}`;
       const rootBytes32 = this.web3.utils.padLeft(rootWithPrefix, 64);
 
-      const result = await this.contracts.auditLog.methods.verifyDigestRoot(rootBytes32).call();
+      const result = await this.contracts.auditLog.methods
+        .verifyDigestRoot(rootBytes32)
+        .call();
 
       return {
         exists: result.exists,
         timestamp: result.exists ? Number(result.timestamp) : null,
       };
     } catch (error) {
-      logger.error('Error verifying digest root:', error);
-      return { exists: false, error: error.message || 'Unknown error' };
+      logger.error("Error verifying digest root:", error);
+      return { exists: false, error: error.message || "Unknown error" };
     }
   }
 
@@ -748,16 +880,17 @@ class BlockchainService {
   async getStats() {
     if (!this.isAvailable()) {
       return {
-        error: 'Blockchain service not initialized',
+        error: "Blockchain service not initialized",
       };
     }
 
     try {
-      const [auditHashCount, criticalEventCount, adminApprovalCount] = await Promise.all([
-        this.contracts.auditLog.methods.getAuditHashCount().call(),
-        this.contracts.auditLog.methods.getCriticalEventCount().call(),
-        this.contracts.auditLog.methods.getAdminApprovalCount().call(),
-      ]);
+      const [auditHashCount, criticalEventCount, adminApprovalCount] =
+        await Promise.all([
+          this.contracts.auditLog.methods.getAuditHashCount().call(),
+          this.contracts.auditLog.methods.getCriticalEventCount().call(),
+          this.contracts.auditLog.methods.getAdminApprovalCount().call(),
+        ]);
 
       return {
         auditHashCount: Number(auditHashCount),
@@ -765,9 +898,9 @@ class BlockchainService {
         adminApprovalCount: Number(adminApprovalCount),
       };
     } catch (error) {
-      logger.error('Error getting blockchain stats:', error);
+      logger.error("Error getting blockchain stats:", error);
       return {
-        error: error.message || 'Unknown error',
+        error: error.message || "Unknown error",
       };
     }
   }
@@ -805,7 +938,11 @@ class BlockchainService {
    * Should be called in tests to prevent Jest from hanging
    */
   async cleanup() {
-    if (this.web3 && this.web3.currentProvider && this.web3.currentProvider.disconnect) {
+    if (
+      this.web3 &&
+      this.web3.currentProvider &&
+      this.web3.currentProvider.disconnect
+    ) {
       try {
         await this.web3.currentProvider.disconnect();
       } catch (error) {

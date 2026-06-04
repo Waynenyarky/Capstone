@@ -11,7 +11,6 @@ import { fetchTamperStats } from '@/features/admin/services/tamperService'
 import { getFormGroupStats } from '@/features/admin/services/formDefinitionService'
 import { getMaintenanceCurrent } from '@/features/admin/services/maintenanceService'
 import { get } from '@/lib/http.js'
-import { SiteStatusPill } from '@/features/shared/components'
 
 const { Text } = Typography
 
@@ -191,23 +190,16 @@ export default function AdminDashboard() {
     },
   ]
 
-  const mainHeaderActions = (
-    <>
-      <SiteStatusPill
-        lastUpdated={lastUpdated}
-        onRefresh={loadKpis}
-        loading={kpiLoading}
-        showSocketStatus={false}
-      />
-      <Button icon={<InfoCircleOutlined />} onClick={() => setInfoOpen(true)} aria-label="About" />
-    </>
-  )
 
   return (
     <AdminLayout
       pageTitle="Admin Dashboard"
       pageIcon={<DashboardOutlined />}
-      headerActions={mainHeaderActions}
+      onRefresh={loadKpis}
+      lastUpdated={lastUpdated}
+      loading={kpiLoading}
+      infoSlotId="admin-dashboard-info"
+      infoModalTitle="About Admin Dashboard"
     >
       <div style={{ padding: 16 }}>
         <Row gutter={[16, 16]}>

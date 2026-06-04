@@ -13,10 +13,6 @@ export default function ProfileSettings() {
     isStaffRole,
     isAdmin,
     isBusinessOwner,
-    settingsLastUpdated,
-    setSettingsLastUpdated,
-    settingsInfoOpen,
-    setSettingsInfoOpen,
     themeSettings,
   } = useProfileSettings()
 

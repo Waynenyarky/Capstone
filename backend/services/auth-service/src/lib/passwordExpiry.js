@@ -3,8 +3,8 @@
  * When password is older than PASSWORD_EXPIRY_DAYS, user must change password on next login.
  */
 
-const PASSWORD_EXPIRY_DAYS = 90
-const MS_PER_DAY = 24 * 60 * 60 * 1000
+const PASSWORD_EXPIRY_DAYS = 90;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
  * Check if the user's password is expired based on passwordChangedAt.
@@ -13,11 +13,11 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000
  * @returns {boolean} - True if password has expired and user must change it
  */
 function isPasswordExpired(passwordChangedAt) {
-  if (passwordChangedAt == null) return true
-  const changed = new Date(passwordChangedAt).getTime()
-  if (Number.isNaN(changed)) return true
-  const cutoff = Date.now() - PASSWORD_EXPIRY_DAYS * MS_PER_DAY
-  return changed < cutoff
+  if (passwordChangedAt == null) return true;
+  const changed = new Date(passwordChangedAt).getTime();
+  if (Number.isNaN(changed)) return true;
+  const cutoff = Date.now() - PASSWORD_EXPIRY_DAYS * MS_PER_DAY;
+  return changed < cutoff;
 }
 
 /**
@@ -28,18 +28,18 @@ function isPasswordExpired(passwordChangedAt) {
  * @returns {boolean} - True if password has expired due to 90-day policy only
  */
 function isPasswordExpiredByPolicy(passwordChangedAt) {
-  if (passwordChangedAt == null) return false
-  const changed = new Date(passwordChangedAt).getTime()
-  if (Number.isNaN(changed)) return false
-  const cutoff = Date.now() - PASSWORD_EXPIRY_DAYS * MS_PER_DAY
-  return changed < cutoff
+  if (passwordChangedAt == null) return false;
+  const changed = new Date(passwordChangedAt).getTime();
+  if (Number.isNaN(changed)) return false;
+  const cutoff = Date.now() - PASSWORD_EXPIRY_DAYS * MS_PER_DAY;
+  return changed < cutoff;
 }
 
 /**
  * Get expiry config (for tests or config exposure).
  */
 function getPasswordExpiryDays() {
-  return PASSWORD_EXPIRY_DAYS
+  return PASSWORD_EXPIRY_DAYS;
 }
 
 module.exports = {
@@ -47,4 +47,4 @@ module.exports = {
   isPasswordExpired,
   isPasswordExpiredByPolicy,
   getPasswordExpiryDays,
-}
+};

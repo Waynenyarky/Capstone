@@ -1,4 +1,4 @@
-const Notification = require('../models/Notification')
+const Notification = require("../models/Notification");
 
 /**
  * Notification Service
@@ -16,7 +16,15 @@ const Notification = require('../models/Notification')
  * @param {object} metadata - Additional metadata (optional)
  * @returns {Promise<object>} Created notification
  */
-async function createNotification(userId, type, title, message, relatedEntityType = null, relatedEntityId = null, metadata = {}) {
+async function createNotification(
+  userId,
+  type,
+  title,
+  message,
+  relatedEntityType = null,
+  relatedEntityId = null,
+  metadata = {},
+) {
   try {
     const notification = await Notification.create({
       userId,
@@ -26,24 +34,28 @@ async function createNotification(userId, type, title, message, relatedEntityTyp
       relatedEntityType,
       relatedEntityId,
       metadata,
-      read: false
-    })
+      read: false,
+    });
     // Fire-and-forget: push to SSE stream so connected clients get real-time update
     try {
-      const registry = require('../lib/notificationStreamRegistry')
-      const payload = notification.toObject ? notification.toObject() : { ...notification }
+      const registry = require("../lib/notificationStreamRegistry");
+      const payload = notification.toObject
+        ? notification.toObject()
+        : { ...notification };
       setImmediate(() => {
-        registry.push(String(userId), { type: 'new', notification: payload })
-      })
-    } catch (_) { /* ignore if registry unavailable (e.g. in tests) */ }
-    return notification
+        registry.push(String(userId), { type: "new", notification: payload });
+      });
+    } catch (_) {
+      /* ignore if registry unavailable (e.g. in tests) */
+    }
+    return notification;
   } catch (error) {
-    console.error('Error creating notification:', error)
-    throw new Error(`Failed to create notification: ${error.message}`)
+    console.error("Error creating notification:", error);
+    throw new Error(`Failed to create notification: ${error.message}`);
   }
 }
 
-const NOTIFICATION_MAX_AGE_DAYS = 7
+const NOTIFICATION_MAX_AGE_DAYS = 7;
 
 /**
  * Delete notifications older than the given number of days for a user
@@ -51,18 +63,21 @@ const NOTIFICATION_MAX_AGE_DAYS = 7
  * @param {number} days - Delete notifications older than this many days (default: 7)
  * @returns {Promise<object>} Deletion result
  */
-async function deleteNotificationsOlderThan(userId, days = NOTIFICATION_MAX_AGE_DAYS) {
+async function deleteNotificationsOlderThan(
+  userId,
+  days = NOTIFICATION_MAX_AGE_DAYS,
+) {
   try {
-    const cutoff = new Date()
-    cutoff.setDate(cutoff.getDate() - days)
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
     const result = await Notification.deleteMany({
       userId,
-      createdAt: { $lt: cutoff }
-    })
-    return result
+      createdAt: { $lt: cutoff },
+    });
+    return result;
   } catch (error) {
-    console.error('Error deleting old notifications:', error)
-    throw new Error(`Failed to delete old notifications: ${error.message}`)
+    console.error("Error deleting old notifications:", error);
+    throw new Error(`Failed to delete old notifications: ${error.message}`);
   }
 }
 
@@ -78,30 +93,26 @@ async function deleteNotificationsOlderThan(userId, days = NOTIFICATION_MAX_AGE_
  */
 async function getUserNotifications(userId, options = {}) {
   try {
-    const {
-      page = 1,
-      limit = 20,
-      unreadOnly = false
-    } = options
+    const { page = 1, limit = 20, unreadOnly = false } = options;
 
-    const cutoff = new Date()
-    cutoff.setDate(cutoff.getDate() - NOTIFICATION_MAX_AGE_DAYS)
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - NOTIFICATION_MAX_AGE_DAYS);
 
-    const query = { userId, createdAt: { $gte: cutoff } }
+    const query = { userId, createdAt: { $gte: cutoff } };
     if (unreadOnly) {
-      query.read = false
+      query.read = false;
     }
 
-    await deleteNotificationsOlderThan(userId, NOTIFICATION_MAX_AGE_DAYS)
+    await deleteNotificationsOlderThan(userId, NOTIFICATION_MAX_AGE_DAYS);
 
-    const skip = (page - 1) * limit
-    const total = await Notification.countDocuments(query)
+    const skip = (page - 1) * limit;
+    const total = await Notification.countDocuments(query);
 
     const notifications = await Notification.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .lean()
+      .lean();
 
     return {
       notifications,
@@ -109,12 +120,12 @@ async function getUserNotifications(userId, options = {}) {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit)
-      }
-    }
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   } catch (error) {
-    console.error('Error getting user notifications:', error)
-    throw new Error(`Failed to get notifications: ${error.message}`)
+    console.error("Error getting user notifications:", error);
+    throw new Error(`Failed to get notifications: ${error.message}`);
   }
 }
 
@@ -125,17 +136,17 @@ async function getUserNotifications(userId, options = {}) {
  */
 async function getUnreadCount(userId) {
   try {
-    const cutoff = new Date()
-    cutoff.setDate(cutoff.getDate() - NOTIFICATION_MAX_AGE_DAYS)
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - NOTIFICATION_MAX_AGE_DAYS);
     const count = await Notification.countDocuments({
       userId,
       read: false,
-      createdAt: { $gte: cutoff }
-    })
-    return count
+      createdAt: { $gte: cutoff },
+    });
+    return count;
   } catch (error) {
-    console.error('Error getting unread count:', error)
-    throw new Error(`Failed to get unread count: ${error.message}`)
+    console.error("Error getting unread count:", error);
+    throw new Error(`Failed to get unread count: ${error.message}`);
   }
 }
 
@@ -149,21 +160,21 @@ async function markAsRead(notificationId, userId) {
   try {
     const notification = await Notification.findOneAndUpdate(
       { _id: notificationId, userId },
-      { 
+      {
         read: true,
-        readAt: new Date()
+        readAt: new Date(),
       },
-      { new: true }
-    )
+      { new: true },
+    );
 
     if (!notification) {
-      throw new Error('Notification not found or access denied')
+      throw new Error("Notification not found or access denied");
     }
 
-    return notification
+    return notification;
   } catch (error) {
-    console.error('Error marking notification as read:', error)
-    throw new Error(`Failed to mark notification as read: ${error.message}`)
+    console.error("Error marking notification as read:", error);
+    throw new Error(`Failed to mark notification as read: ${error.message}`);
   }
 }
 
@@ -176,15 +187,17 @@ async function markAllAsRead(userId) {
   try {
     const result = await Notification.updateMany(
       { userId, read: false },
-      { 
+      {
         read: true,
-        readAt: new Date()
-      }
-    )
-    return result
+        readAt: new Date(),
+      },
+    );
+    return result;
   } catch (error) {
-    console.error('Error marking all notifications as read:', error)
-    throw new Error(`Failed to mark all notifications as read: ${error.message}`)
+    console.error("Error marking all notifications as read:", error);
+    throw new Error(
+      `Failed to mark all notifications as read: ${error.message}`,
+    );
   }
 }
 
@@ -198,17 +211,17 @@ async function deleteNotification(notificationId, userId) {
   try {
     const result = await Notification.findOneAndDelete({
       _id: notificationId,
-      userId
-    })
+      userId,
+    });
 
     if (!result) {
-      throw new Error('Notification not found or access denied')
+      throw new Error("Notification not found or access denied");
     }
 
-    return result
+    return result;
   } catch (error) {
-    console.error('Error deleting notification:', error)
-    throw new Error(`Failed to delete notification: ${error.message}`)
+    console.error("Error deleting notification:", error);
+    throw new Error(`Failed to delete notification: ${error.message}`);
   }
 }
 
@@ -219,16 +232,16 @@ async function deleteNotification(notificationId, userId) {
  */
 async function deleteAllForUser(userId) {
   try {
-    const cutoff = new Date()
-    cutoff.setDate(cutoff.getDate() - NOTIFICATION_MAX_AGE_DAYS)
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - NOTIFICATION_MAX_AGE_DAYS);
     const result = await Notification.deleteMany({
       userId,
-      createdAt: { $gte: cutoff }
-    })
-    return result
+      createdAt: { $gte: cutoff },
+    });
+    return result;
   } catch (error) {
-    console.error('Error deleting all notifications:', error)
-    throw new Error(`Failed to delete all notifications: ${error.message}`)
+    console.error("Error deleting all notifications:", error);
+    throw new Error(`Failed to delete all notifications: ${error.message}`);
   }
 }
 
@@ -238,30 +251,30 @@ async function deleteAllForUser(userId) {
  * @returns {string} Friendly device description
  */
 function parseUserAgent(userAgent) {
-  if (!userAgent) return 'Unknown device'
-  const ua = userAgent.toLowerCase()
-  
+  if (!userAgent) return "Unknown device";
+  const ua = userAgent.toLowerCase();
+
   // Detect browser
-  let browser = 'Unknown browser'
-  if (ua.includes('edg/')) browser = 'Microsoft Edge'
-  else if (ua.includes('chrome') && !ua.includes('edg')) browser = 'Chrome'
-  else if (ua.includes('firefox')) browser = 'Firefox'
-  else if (ua.includes('safari') && !ua.includes('chrome')) browser = 'Safari'
-  else if (ua.includes('opera') || ua.includes('opr')) browser = 'Opera'
-  
+  let browser = "Unknown browser";
+  if (ua.includes("edg/")) browser = "Microsoft Edge";
+  else if (ua.includes("chrome") && !ua.includes("edg")) browser = "Chrome";
+  else if (ua.includes("firefox")) browser = "Firefox";
+  else if (ua.includes("safari") && !ua.includes("chrome")) browser = "Safari";
+  else if (ua.includes("opera") || ua.includes("opr")) browser = "Opera";
+
   // Detect OS/device
-  let device = ''
-  if (ua.includes('iphone')) device = 'iPhone'
-  else if (ua.includes('ipad')) device = 'iPad'
-  else if (ua.includes('android')) device = 'Android'
-  else if (ua.includes('windows')) device = 'Windows'
-  else if (ua.includes('macintosh') || ua.includes('mac os')) device = 'Mac'
-  else if (ua.includes('linux')) device = 'Linux'
-  
-  if (device && browser !== 'Unknown browser') {
-    return `${browser} on ${device}`
+  let device = "";
+  if (ua.includes("iphone")) device = "iPhone";
+  else if (ua.includes("ipad")) device = "iPad";
+  else if (ua.includes("android")) device = "Android";
+  else if (ua.includes("windows")) device = "Windows";
+  else if (ua.includes("macintosh") || ua.includes("mac os")) device = "Mac";
+  else if (ua.includes("linux")) device = "Linux";
+
+  if (device && browser !== "Unknown browser") {
+    return `${browser} on ${device}`;
   }
-  return device || browser
+  return device || browser;
 }
 
 /**
@@ -270,15 +283,15 @@ function parseUserAgent(userAgent) {
  * @returns {string} Formatted date string
  */
 function formatDateTime(date) {
-  const d = date || new Date()
-  return d.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  })
+  const d = date || new Date();
+  return d.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 }
 
 /**
@@ -292,26 +305,31 @@ function formatDateTime(date) {
  * @returns {Promise<object>} Created notification
  */
 async function createLoginNotification(userId, options = {}) {
-  const { isFirstLogin = false, userAgent = '', ip = '', method = '' } = options
-  const device = parseUserAgent(userAgent)
-  const time = formatDateTime(new Date())
-  
-  let title, message
+  const {
+    isFirstLogin = false,
+    userAgent = "",
+    ip = "",
+    method = "",
+  } = options;
+  const device = parseUserAgent(userAgent);
+  const time = formatDateTime(new Date());
+
+  let title, message;
   if (isFirstLogin) {
-    title = 'Welcome to BizClear!'
-    message = `Your account has been created successfully. You're now signed in on ${device}.`
+    title = "Welcome to BizClear!";
+    message = `Your account has been created successfully. You're now signed in on ${device}.`;
   } else {
-    title = 'Signed in'
-    message = `You signed in on ${device} at ${time}.`
+    title = "Signed in";
+    message = `You signed in on ${device} at ${time}.`;
   }
-  
-  return createNotification(userId, 'auth_login', title, message, null, null, {
+
+  return createNotification(userId, "auth_login", title, message, null, null, {
     device,
     ip,
     method,
     isFirstLogin,
-    timestamp: new Date().toISOString()
-  })
+    timestamp: new Date().toISOString(),
+  });
 }
 
 /**
@@ -323,29 +341,37 @@ async function createLoginNotification(userId, options = {}) {
  * @returns {Promise<object>} Created notification
  */
 async function createLogoutNotification(userId, options = {}) {
-  const { userAgent = '', loginTime = null } = options
-  const device = parseUserAgent(userAgent)
-  const time = formatDateTime(new Date())
-  
-  let message = `You signed out on ${device} at ${time}.`
-  
+  const { userAgent = "", loginTime = null } = options;
+  const device = parseUserAgent(userAgent);
+  const time = formatDateTime(new Date());
+
+  let message = `You signed out on ${device} at ${time}.`;
+
   // Add session duration if we know when they logged in
   if (loginTime) {
-    const durationMs = Date.now() - new Date(loginTime).getTime()
-    const hours = Math.floor(durationMs / (1000 * 60 * 60))
-    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60))
-    
+    const durationMs = Date.now() - new Date(loginTime).getTime();
+    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+
     if (hours > 0) {
-      message += ` Session lasted ${hours}h ${minutes}m.`
+      message += ` Session lasted ${hours}h ${minutes}m.`;
     } else if (minutes > 0) {
-      message += ` Session lasted ${minutes} minute${minutes !== 1 ? 's' : ''}.`
+      message += ` Session lasted ${minutes} minute${minutes !== 1 ? "s" : ""}.`;
     }
   }
-  
-  return createNotification(userId, 'auth_logout', 'Signed out', message, null, null, {
-    device,
-    timestamp: new Date().toISOString()
-  })
+
+  return createNotification(
+    userId,
+    "auth_logout",
+    "Signed out",
+    message,
+    null,
+    null,
+    {
+      device,
+      timestamp: new Date().toISOString(),
+    },
+  );
 }
 
 /**
@@ -356,55 +382,63 @@ async function createLogoutNotification(userId, options = {}) {
  * @returns {Promise<object>} Created notification
  */
 async function createSecurityNotification(userId, action, options = {}) {
-  const { userAgent = '', ip = '' } = options
-  const device = parseUserAgent(userAgent)
-  const time = formatDateTime(new Date())
-  
+  const { userAgent = "", ip = "" } = options;
+  const device = parseUserAgent(userAgent);
+  const time = formatDateTime(new Date());
+
   const notifications = {
     mfa_enabled: {
-      type: 'auth_mfa_enabled',
-      title: 'MFA enabled',
-      message: `Two-factor authentication has been enabled on your account at ${time}.`
+      type: "auth_mfa_enabled",
+      title: "MFA enabled",
+      message: `Two-factor authentication has been enabled on your account at ${time}.`,
     },
     mfa_disabled: {
-      type: 'auth_mfa_disabled',
-      title: 'MFA disabled',
-      message: `Two-factor authentication has been disabled on your account at ${time}. Your account may be less secure.`
+      type: "auth_mfa_disabled",
+      title: "MFA disabled",
+      message: `Two-factor authentication has been disabled on your account at ${time}. Your account may be less secure.`,
     },
     passkey_added: {
-      type: 'auth_passkey_added',
-      title: 'Passkey added',
-      message: `A new passkey was registered to your account at ${time} from ${device}.`
+      type: "auth_passkey_added",
+      title: "Passkey added",
+      message: `A new passkey was registered to your account at ${time} from ${device}.`,
     },
     passkey_removed: {
-      type: 'auth_passkey_removed',
-      title: 'Passkey removed',
-      message: `A passkey was removed from your account at ${time}.`
+      type: "auth_passkey_removed",
+      title: "Passkey removed",
+      message: `A passkey was removed from your account at ${time}.`,
     },
     email_changed: {
-      type: 'auth_email_changed',
-      title: 'Email changed',
-      message: `Your email address was changed at ${time}. If you didn't make this change, please contact support immediately.`
+      type: "auth_email_changed",
+      title: "Email changed",
+      message: `Your email address was changed at ${time}. If you didn't make this change, please contact support immediately.`,
     },
     session_invalidated: {
-      type: 'auth_session_invalidated',
-      title: 'Sessions invalidated',
-      message: `All your sessions have been signed out at ${time} due to a security change.`
-    }
-  }
-  
-  const notif = notifications[action]
+      type: "auth_session_invalidated",
+      title: "Sessions invalidated",
+      message: `All your sessions have been signed out at ${time} due to a security change.`,
+    },
+  };
+
+  const notif = notifications[action];
   if (!notif) {
-    console.warn(`Unknown security notification action: ${action}`)
-    return null
+    console.warn(`Unknown security notification action: ${action}`);
+    return null;
   }
-  
-  return createNotification(userId, notif.type, notif.title, notif.message, null, null, {
-    device,
-    ip,
-    action,
-    timestamp: new Date().toISOString()
-  })
+
+  return createNotification(
+    userId,
+    notif.type,
+    notif.title,
+    notif.message,
+    null,
+    null,
+    {
+      device,
+      ip,
+      action,
+      timestamp: new Date().toISOString(),
+    },
+  );
 }
 
 module.exports = {
@@ -421,5 +455,5 @@ module.exports = {
   createLogoutNotification,
   createSecurityNotification,
   parseUserAgent,
-  formatDateTime
-}
+  formatDateTime,
+};

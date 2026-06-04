@@ -1,4 +1,9 @@
-const { requestVerification, verifyCode, checkVerificationStatus, clearVerificationRequest } = require('../../services/auth-service/src/lib/verificationService')
+const {
+  requestVerification,
+  verifyCode,
+  checkVerificationStatus,
+  clearVerificationRequest,
+} = require("../../services/auth-service/src/lib/verificationService");
 
 /**
  * Request OTP verification for a user
@@ -7,7 +12,7 @@ const { requestVerification, verifyCode, checkVerificationStatus, clearVerificat
  * @returns {Promise<object>} Verification request result
  */
 async function requestOTPVerification(userId, purpose) {
-  return await requestVerification(userId, 'otp', purpose)
+  return await requestVerification(userId, "otp", purpose);
 }
 
 /**
@@ -17,7 +22,7 @@ async function requestOTPVerification(userId, purpose) {
  * @returns {Promise<object>} Verification request result
  */
 async function requestMFAVerification(userId, purpose) {
-  return await requestVerification(userId, 'mfa', purpose)
+  return await requestVerification(userId, "mfa", purpose);
 }
 
 /**
@@ -29,7 +34,7 @@ async function requestMFAVerification(userId, purpose) {
  * @returns {Promise<object>} Verification result
  */
 async function verifyVerificationCode(userId, code, method, purpose) {
-  return await verifyCode(userId, code, method, purpose)
+  return await verifyCode(userId, code, method, purpose);
 }
 
 /**
@@ -39,7 +44,7 @@ async function verifyVerificationCode(userId, code, method, purpose) {
  * @returns {Promise<object>} Verification status
  */
 async function getVerificationStatus(userId, purpose) {
-  return await checkVerificationStatus(userId, purpose)
+  return await checkVerificationStatus(userId, purpose);
 }
 
 /**
@@ -49,7 +54,7 @@ async function getVerificationStatus(userId, purpose) {
  * @returns {void}
  */
 function clearVerification(userId, purpose) {
-  clearVerificationRequest(userId, purpose)
+  clearVerificationRequest(userId, purpose);
 }
 
 module.exports = {
@@ -58,4 +63,4 @@ module.exports = {
   verifyVerificationCode,
   getVerificationStatus,
   clearVerification,
-}
+};

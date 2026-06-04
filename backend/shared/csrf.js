@@ -3,11 +3,11 @@
  * For state-changing requests (POST/PUT/PATCH/DELETE), requires header to match cookie value.
  */
 
-const crypto = require('crypto');
+const crypto = require("crypto");
 
-const DEFAULT_COOKIE_NAME = 'csrf-token';
-const DEFAULT_HEADER_NAME = 'x-csrf-token';
-const MUTATING_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
+const DEFAULT_COOKIE_NAME = "csrf-token";
+const DEFAULT_HEADER_NAME = "x-csrf-token";
+const MUTATING_METHODS = ["POST", "PUT", "PATCH", "DELETE"];
 
 /**
  * Create middleware that verifies CSRF token for mutating requests.
@@ -28,9 +28,15 @@ function createCsrfMiddleware(options = {}) {
     if (disabled) return next();
     if (!MUTATING_METHODS.includes(req.method)) return next();
 
-    const path = (req.baseUrl || '') + (req.path || '');
-    const normalized = path.replace(/\/$/, '') || '/';
-    if (skipPaths.has(normalized) || [...skipPaths].some((p) => normalized === p || normalized.startsWith(p + '/'))) return next();
+    const path = (req.baseUrl || "") + (req.path || "");
+    const normalized = path.replace(/\/$/, "") || "/";
+    if (
+      skipPaths.has(normalized) ||
+      [...skipPaths].some(
+        (p) => normalized === p || normalized.startsWith(p + "/"),
+      )
+    )
+      return next();
 
     const cookieToken = req.cookies && req.cookies[cookieName];
     const headerToken = req.get && req.get(headerName);
@@ -38,20 +44,23 @@ function createCsrfMiddleware(options = {}) {
     if (!cookieToken) return next();
 
     if (!cookieToken || !headerToken || cookieToken !== headerToken) {
-      console.warn('[CSRF] validation failed', {
+      console.warn("[CSRF] validation failed", {
         method: req.method,
         path: normalized,
         cookieName,
         headerName,
         hasCookieToken: Boolean(cookieToken),
         hasHeaderToken: Boolean(headerToken),
-        cookieMatchesHeader: Boolean(cookieToken && headerToken && cookieToken === headerToken),
+        cookieMatchesHeader: Boolean(
+          cookieToken && headerToken && cookieToken === headerToken,
+        ),
         availableCookies: req.cookies ? Object.keys(req.cookies) : [],
       });
       return res.status(403).json({
         error: {
-          code: 'csrf_invalid',
-          message: 'Invalid or missing CSRF token. Refresh the page and try again.',
+          code: "csrf_invalid",
+          message:
+            "Invalid or missing CSRF token. Refresh the page and try again.",
         },
       });
     }
@@ -71,21 +80,27 @@ function createCsrfMiddleware(options = {}) {
  */
 function getCsrfTokenHandler(options = {}) {
   const cookieName = options.cookieName || DEFAULT_COOKIE_NAME;
-  const secure = options.secure !== false && process.env.NODE_ENV === 'production';
-  const sameSite = options.sameSite || 'lax';
+  const secure =
+    options.secure !== false && process.env.NODE_ENV === "production";
+  const sameSite = options.sameSite || "lax";
   const maxAge = options.maxAge || 24 * 60 * 60; // 24 hours
 
   return function (req, res) {
-    const token = crypto.randomBytes(32).toString('hex');
+    const token = crypto.randomBytes(32).toString("hex");
     res.cookie(cookieName, token, {
       httpOnly: false, // So SPA can read and send in header
       secure,
       sameSite,
       maxAge: maxAge * 1000,
-      path: '/',
+      path: "/",
     });
     res.json({ csrfToken: token });
   };
 }
 
-module.exports = { createCsrfMiddleware, getCsrfTokenHandler, DEFAULT_COOKIE_NAME, DEFAULT_HEADER_NAME };
+module.exports = {
+  createCsrfMiddleware,
+  getCsrfTokenHandler,
+  DEFAULT_COOKIE_NAME,
+  DEFAULT_HEADER_NAME,
+};

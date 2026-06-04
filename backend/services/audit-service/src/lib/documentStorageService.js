@@ -1,5 +1,5 @@
-const blockchainService = require('./blockchainService');
-const logger = require('./logger');
+const blockchainService = require("./blockchainService");
+const logger = require("./logger");
 
 /**
  * Document Storage Service
@@ -32,7 +32,7 @@ class DocumentStorageService {
     this.contract = contracts.documentStorage;
 
     if (!this.contract) {
-      logger.warn('DocumentStorage contract not available');
+      logger.warn("DocumentStorage contract not available");
       return false;
     }
 
@@ -65,7 +65,10 @@ class DocumentStorageService {
     }
 
     if (!this.contract) {
-      return { success: false, error: 'DocumentStorage contract not available' };
+      return {
+        success: false,
+        error: "DocumentStorage contract not available",
+      };
     }
 
     try {
@@ -88,10 +91,10 @@ class DocumentStorageService {
         txHash: tx.transactionHash,
       };
     } catch (error) {
-      logger.error('Error storing document:', error);
+      logger.error("Error storing document:", error);
       return {
         success: false,
-        error: error.message || 'Unknown error',
+        error: error.message || "Unknown error",
       };
     }
   }
@@ -108,12 +111,17 @@ class DocumentStorageService {
     }
 
     if (!this.contract) {
-      return { success: false, error: 'DocumentStorage contract not available' };
+      return {
+        success: false,
+        error: "DocumentStorage contract not available",
+      };
     }
 
     try {
       const docTypeEnum = this.getDocumentType(docType);
-      const result = await this.contract.methods.getDocumentCid(userId, docTypeEnum).call();
+      const result = await this.contract.methods
+        .getDocumentCid(userId, docTypeEnum)
+        .call();
 
       return {
         success: true,
@@ -122,10 +130,10 @@ class DocumentStorageService {
         uploadedAt: Number(result.uploadedAt),
       };
     } catch (error) {
-      logger.error('Error getting document CID:', error);
+      logger.error("Error getting document CID:", error);
       return {
         success: false,
-        error: error.message || 'Unknown error',
+        error: error.message || "Unknown error",
       };
     }
   }
@@ -142,24 +150,29 @@ class DocumentStorageService {
     }
 
     if (!this.contract) {
-      return { success: false, error: 'DocumentStorage contract not available' };
+      return {
+        success: false,
+        error: "DocumentStorage contract not available",
+      };
     }
 
     try {
       const docTypeEnum = this.getDocumentType(docType);
-      const result = await this.contract.methods.getDocumentHistory(userId, docTypeEnum).call();
+      const result = await this.contract.methods
+        .getDocumentHistory(userId, docTypeEnum)
+        .call();
 
       return {
         success: true,
         cids: result.cids,
-        versions: result.versions.map(v => Number(v)),
-        timestamps: result.timestamps.map(t => Number(t)),
+        versions: result.versions.map((v) => Number(v)),
+        timestamps: result.timestamps.map((t) => Number(t)),
       };
     } catch (error) {
-      logger.error('Error getting document history:', error);
+      logger.error("Error getting document history:", error);
       return {
         success: false,
-        error: error.message || 'Unknown error',
+        error: error.message || "Unknown error",
       };
     }
   }
@@ -181,10 +194,12 @@ class DocumentStorageService {
 
     try {
       const docTypeEnum = this.getDocumentType(docType);
-      const exists = await this.contract.methods.documentExists(userId, docTypeEnum).call();
+      const exists = await this.contract.methods
+        .documentExists(userId, docTypeEnum)
+        .call();
       return exists;
     } catch (error) {
-      logger.error('Error checking if document exists:', error);
+      logger.error("Error checking if document exists:", error);
       return false;
     }
   }

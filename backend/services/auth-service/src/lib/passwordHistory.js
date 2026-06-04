@@ -1,12 +1,12 @@
-const bcrypt = require('bcryptjs')
-const { isPasswordInHistory } = require('./passwordValidator')
+const bcrypt = require("bcryptjs");
+const { isPasswordInHistory } = require("./passwordValidator");
 
 /**
  * Password History Management
  * Handles password history to prevent password reuse
  */
 
-const MAX_PASSWORD_HISTORY = 5
+const MAX_PASSWORD_HISTORY = 5;
 
 /**
  * Check if new password is in history
@@ -16,11 +16,11 @@ const MAX_PASSWORD_HISTORY = 5
  */
 async function checkPasswordHistory(newPassword, passwordHistory = []) {
   if (!newPassword || !Array.isArray(passwordHistory)) {
-    return { inHistory: false }
+    return { inHistory: false };
   }
 
   // Hash the new password to compare with history
-  const newPasswordHash = await bcrypt.hash(newPassword, 10)
+  const newPasswordHash = await bcrypt.hash(newPassword, 10);
 
   // Check if this hash (or similar) is in history
   // Note: We need to compare with existing hashes, not create new ones
@@ -28,17 +28,17 @@ async function checkPasswordHistory(newPassword, passwordHistory = []) {
   for (const oldHash of passwordHistory.slice(-MAX_PASSWORD_HISTORY)) {
     try {
       // Compare new password with old hash
-      const matches = await bcrypt.compare(newPassword, oldHash)
+      const matches = await bcrypt.compare(newPassword, oldHash);
       if (matches) {
-        return { inHistory: true }
+        return { inHistory: true };
       }
     } catch (error) {
       // Invalid hash in history, skip it
-      console.warn('Invalid password hash in history:', error)
+      console.warn("Invalid password hash in history:", error);
     }
   }
 
-  return { inHistory: false }
+  return { inHistory: false };
 }
 
 /**
@@ -49,24 +49,24 @@ async function checkPasswordHistory(newPassword, passwordHistory = []) {
  */
 function addToPasswordHistory(passwordHash, currentHistory = []) {
   if (!passwordHash) {
-    return currentHistory || []
+    return currentHistory || [];
   }
 
-  const history = Array.isArray(currentHistory) ? [...currentHistory] : []
+  const history = Array.isArray(currentHistory) ? [...currentHistory] : [];
 
   // Add new hash to end
-  history.push(passwordHash)
+  history.push(passwordHash);
 
   // Keep only last MAX_PASSWORD_HISTORY entries
   if (history.length > MAX_PASSWORD_HISTORY) {
-    return history.slice(-MAX_PASSWORD_HISTORY)
+    return history.slice(-MAX_PASSWORD_HISTORY);
   }
 
-  return history
+  return history;
 }
 
 module.exports = {
   checkPasswordHistory,
   addToPasswordHistory,
   MAX_PASSWORD_HISTORY,
-}
+};

@@ -166,8 +166,8 @@ const ErrorRecoveryModal = ({
       });
       
       setCurrentStep(2);
-      
-    } catch (err) {
+
+    } catch {
       setRecoveryResult({
         success: false,
         message: 'Recovery process encountered an error.',
@@ -192,19 +192,6 @@ const ErrorRecoveryModal = ({
   const handleGoHome = () => {
     onGoHome?.();
     onClose();
-  };
-
-  const renderStepContent = () => {
-    switch (currentStep) {
-      case 0:
-        return renderErrorAnalysis();
-      case 1:
-        return renderRecoveryProcess();
-      case 2:
-        return renderRecoveryResult();
-      default:
-        return null;
-    }
   };
 
   const renderErrorAnalysis = () => {
@@ -275,7 +262,7 @@ const ErrorRecoveryModal = ({
 
   const renderRecoveryProcess = () => {
     const option = recoveryOptions.find(opt => opt.id === selectedRecoveryOption);
-    
+
     return (
       <div>
         <Title level={4}>
@@ -284,7 +271,7 @@ const ErrorRecoveryModal = ({
             {option.title}
           </Space>
         </Title>
-        
+
         <Paragraph type="secondary">
           {option.description}
         </Paragraph>
@@ -298,7 +285,7 @@ const ErrorRecoveryModal = ({
             <Step
               key={index}
               title={step}
-              icon={isRecovering && index === Math.floor((recoveryProgress / 100) * option.steps.length) ? 
+              icon={isRecovering && index === Math.floor((recoveryProgress / 100) * option.steps.length) ?
                 <SyncOutlined spin /> : undefined}
             />
           ))}
@@ -365,6 +352,19 @@ const ErrorRecoveryModal = ({
         ]}
       />
     );
+  };
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 0:
+        return renderErrorAnalysis();
+      case 1:
+        return renderRecoveryProcess();
+      case 2:
+        return renderRecoveryResult();
+      default:
+        return null;
+    }
   };
 
   return (

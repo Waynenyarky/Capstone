@@ -104,17 +104,6 @@ export default function UserManagementContent({
         setTabKey={setTabKey}
         tabItems={TAB_ITEMS}
         tabChildren={tabChildren}
-        headerActions={
-          tabKey === 'staff' ? (
-            <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-              Add Employee
-            </Button>
-          ) : tabKey === 'logs' ? (
-            <Button type="primary" icon={<DownloadOutlined />} onClick={() => setExportLogsOpen(true)}>
-              Export
-            </Button>
-          ) : null
-        }
       />
       <ExportLogsModal
         open={exportLogsOpen}

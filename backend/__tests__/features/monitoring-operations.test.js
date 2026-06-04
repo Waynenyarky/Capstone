@@ -1,610 +1,626 @@
-const request = require('supertest')
-const mongoose = require('mongoose')
-const { MongoMemoryServer } = require('mongodb-memory-server')
-const connectDB = require('../../services/auth-service/src/config/db')
-const User = require('../../services/auth-service/src/models/User')
-const Role = require('../../services/auth-service/src/models/Role')
-const AuditLog = require('../../services/auth-service/src/models/AuditLog')
-const { signAccessToken } = require('../../services/auth-service/src/middleware/auth')
-const logger = require('../../services/auth-service/src/lib/logger')
-const errorTracking = require('../../services/auth-service/src/lib/errorTracking')
-const { getPerformanceStats, resetMetrics } = require('../../services/auth-service/src/middleware/performanceMonitor')
-const { getSecurityStats, trackFailedLogin, trackRateLimitViolation, detectSuspiciousActivity, clearOldData } = require('../../services/auth-service/src/middleware/securityMonitor')
-const bcrypt = require('bcryptjs')
+const request = require("supertest");
+const mongoose = require("mongoose");
+const { MongoMemoryServer } = require("mongodb-memory-server");
+const connectDB = require("../../services/auth-service/src/config/db");
+const User = require("../../services/auth-service/src/models/User");
+const Role = require("../../services/auth-service/src/models/Role");
+const AuditLog = require("../../services/auth-service/src/models/AuditLog");
+const {
+  signAccessToken,
+} = require("../../services/auth-service/src/middleware/auth");
+const logger = require("../../services/auth-service/src/lib/logger");
+const errorTracking = require("../../services/auth-service/src/lib/errorTracking");
+const {
+  getPerformanceStats,
+  resetMetrics,
+} = require("../../services/auth-service/src/middleware/performanceMonitor");
+const {
+  getSecurityStats,
+  trackFailedLogin,
+  trackRateLimitViolation,
+  detectSuspiciousActivity,
+  clearOldData,
+} = require("../../services/auth-service/src/middleware/securityMonitor");
+const bcrypt = require("bcryptjs");
 
-describe('Phase 5: Monitoring & Operations', () => {
-  let mongo
-  let app
-  let adminRole
-  let businessOwnerRole
-  let adminUser
-  let businessOwner
-  let adminToken
-  let businessOwnerToken
+describe("Phase 5: Monitoring & Operations", () => {
+  let mongo;
+  let app;
+  let adminRole;
+  let businessOwnerRole;
+  let adminUser;
+  let businessOwner;
+  let adminToken;
+  let businessOwnerToken;
 
   beforeAll(async () => {
-    process.env.NODE_ENV = 'test'
-    process.env.JWT_SECRET = 'test-secret'
-    process.env.SEED_DEV = 'true'
-    process.env.EMAIL_API_PROVIDER = 'mock'
-    process.env.DEFAULT_FROM_EMAIL = 'no-reply@example.com'
-    process.env.WEBAUTHN_RPID = 'localhost'
-    process.env.WEBAUTHN_ORIGIN = 'http://localhost:3001'
-    process.env.AUTH_SERVICE_PORT = '3001'
-    process.env.EMAIL_API_PROVIDER = 'mock'
-    process.env.AUDIT_CONTRACT_ADDRESS = '' // Disable blockchain for tests
-    process.env.LOG_LEVEL = 'debug' // Enable debug logging for tests
+    process.env.NODE_ENV = "test";
+    process.env.JWT_SECRET = "test-secret";
+    process.env.SEED_DEV = "true";
+    process.env.EMAIL_API_PROVIDER = "mock";
+    process.env.DEFAULT_FROM_EMAIL = "no-reply@example.com";
+    process.env.WEBAUTHN_RPID = "localhost";
+    process.env.WEBAUTHN_ORIGIN = "http://localhost:3001";
+    process.env.AUTH_SERVICE_PORT = "3001";
+    process.env.EMAIL_API_PROVIDER = "mock";
+    process.env.AUDIT_CONTRACT_ADDRESS = ""; // Disable blockchain for tests
+    process.env.LOG_LEVEL = "debug"; // Enable debug logging for tests
 
-    mongo = await MongoMemoryServer.create()
-    process.env.MONGO_URI = mongo.getUri()
+    mongo = await MongoMemoryServer.create();
+    process.env.MONGO_URI = mongo.getUri();
 
-    await connectDB(process.env.MONGO_URI)
-    
+    await connectDB(process.env.MONGO_URI);
+
     // Seed dev data from auth-service (for roles)
     try {
-      const { seedDevDataIfEmpty } = require('../../services/auth-service/src/lib/seedDev')
-      await seedDevDataIfEmpty()
+      const {
+        seedDevDataIfEmpty,
+      } = require("../../services/auth-service/src/lib/seedDev");
+      await seedDevDataIfEmpty();
     } catch (err) {
       // seedDev may not exist, that's okay
     }
 
     // Get or create roles
-    adminRole = await Role.findOne({ slug: 'admin' })
+    adminRole = await Role.findOne({ slug: "admin" });
     if (!adminRole) {
-      adminRole = await Role.create({ name: 'Admin', slug: 'admin' })
+      adminRole = await Role.create({ name: "Admin", slug: "admin" });
     }
 
-    businessOwnerRole = await Role.findOne({ slug: 'business_owner' })
+    businessOwnerRole = await Role.findOne({ slug: "business_owner" });
     if (!businessOwnerRole) {
-      businessOwnerRole = await Role.create({ name: 'Business Owner', slug: 'business_owner' })
+      businessOwnerRole = await Role.create({
+        name: "Business Owner",
+        slug: "business_owner",
+      });
     }
 
     // Create test users
-    const timestamp = Date.now()
+    const timestamp = Date.now();
     adminUser = await User.findOneAndUpdate(
       { email: `admin${timestamp}@example.com` },
       {
         role: adminRole._id,
-        firstName: 'Admin',
-        lastName: 'User',
+        firstName: "Admin",
+        lastName: "User",
         email: `admin${timestamp}@example.com`,
         phoneNumber: `__unset__${timestamp}_admin`,
-        passwordHash: await bcrypt.hash('Admin123!@#', 10),
+        passwordHash: await bcrypt.hash("Admin123!@#", 10),
         termsAccepted: true,
         tokenVersion: 0,
       },
-      { upsert: true, new: true }
-    )
+      { upsert: true, new: true },
+    );
 
     businessOwner = await User.findOneAndUpdate(
       { email: `businessowner${timestamp}@example.com` },
       {
         role: businessOwnerRole._id,
-        firstName: 'Business',
-        lastName: 'Owner',
+        firstName: "Business",
+        lastName: "Owner",
         email: `businessowner${timestamp}@example.com`,
         phoneNumber: `__unset__${timestamp}_bo`,
-        passwordHash: await bcrypt.hash('Test123!@#', 10),
+        passwordHash: await bcrypt.hash("Test123!@#", 10),
         termsAccepted: true,
         tokenVersion: 0,
       },
-      { upsert: true, new: true }
-    )
+      { upsert: true, new: true },
+    );
 
     // Populate roles before signing tokens
-    const adminUserWithRole = await User.findById(adminUser._id).populate('role').lean()
-    const businessOwnerWithRole = await User.findById(businessOwner._id).populate('role').lean()
-    
-    adminToken = signAccessToken(adminUserWithRole).token
-    businessOwnerToken = signAccessToken(businessOwnerWithRole).token
-    const { app: authApp } = require('../../services/auth-service/src/index')
-    app = authApp
+    const adminUserWithRole = await User.findById(adminUser._id)
+      .populate("role")
+      .lean();
+    const businessOwnerWithRole = await User.findById(businessOwner._id)
+      .populate("role")
+      .lean();
+
+    adminToken = signAccessToken(adminUserWithRole).token;
+    businessOwnerToken = signAccessToken(businessOwnerWithRole).token;
+    const { app: authApp } = require("../../services/auth-service/src/index");
+    app = authApp;
 
     // Reset metrics before tests
-    resetMetrics()
-  })
+    resetMetrics();
+  });
 
   afterAll(async () => {
     try {
-      await mongoose.disconnect()
+      await mongoose.disconnect();
     } finally {
-      if (mongo) await mongo.stop()
+      if (mongo) await mongo.stop();
     }
-  })
+  });
 
-  describe('1. Structured Logging with Correlation IDs', () => {
-    it('should generate correlation ID for requests', async () => {
+  describe("1. Structured Logging with Correlation IDs", () => {
+    it("should generate correlation ID for requests", async () => {
+      const response = await request(app).get("/api/health").expect(200);
+
+      expect(response.headers["x-correlation-id"]).toBeDefined();
+      expect(typeof response.headers["x-correlation-id"]).toBe("string");
+      expect(response.headers["x-correlation-id"].length).toBeGreaterThan(0);
+    });
+
+    it("should use provided correlation ID from header", async () => {
+      const customCorrelationId = "test-correlation-id-12345";
       const response = await request(app)
-        .get('/api/health')
-        .expect(200)
+        .get("/api/health")
+        .set("X-Correlation-ID", customCorrelationId)
+        .expect(200);
 
-      expect(response.headers['x-correlation-id']).toBeDefined()
-      expect(typeof response.headers['x-correlation-id']).toBe('string')
-      expect(response.headers['x-correlation-id'].length).toBeGreaterThan(0)
-    })
+      expect(response.headers["x-correlation-id"]).toBe(customCorrelationId);
+    });
 
-    it('should use provided correlation ID from header', async () => {
-      const customCorrelationId = 'test-correlation-id-12345'
-      const response = await request(app)
-        .get('/api/health')
-        .set('X-Correlation-ID', customCorrelationId)
-        .expect(200)
-
-      expect(response.headers['x-correlation-id']).toBe(customCorrelationId)
-    })
-
-    it('should log requests with correlation IDs', () => {
+    it("should log requests with correlation IDs", () => {
       // Mock console.log to capture log output
-      const originalLog = console.log
-      const logCalls = []
+      const originalLog = console.log;
+      const logCalls = [];
       console.log = (...args) => {
-        logCalls.push(args.join(' '))
-      }
+        logCalls.push(args.join(" "));
+      };
 
-      logger.info('Test log message', { correlationId: 'test-123' })
+      logger.info("Test log message", { correlationId: "test-123" });
 
-      console.log = originalLog
+      console.log = originalLog;
       // In test mode, logs should be output
-      expect(logCalls.length).toBeGreaterThan(0)
-    })
+      expect(logCalls.length).toBeGreaterThan(0);
+    });
 
-    it('should support different log levels', () => {
-      expect(() => logger.error('Error message')).not.toThrow()
-      expect(() => logger.warn('Warning message')).not.toThrow()
-      expect(() => logger.info('Info message')).not.toThrow()
-      expect(() => logger.debug('Debug message')).not.toThrow()
-    })
+    it("should support different log levels", () => {
+      expect(() => logger.error("Error message")).not.toThrow();
+      expect(() => logger.warn("Warning message")).not.toThrow();
+      expect(() => logger.info("Info message")).not.toThrow();
+      expect(() => logger.debug("Debug message")).not.toThrow();
+    });
 
-    it('should log request details', () => {
+    it("should log request details", () => {
       const mockReq = {
-        method: 'GET',
-        path: '/api/test',
-        ip: '127.0.0.1',
-        get: () => 'test-agent',
-        correlationId: 'test-correlation-id',
-      }
+        method: "GET",
+        path: "/api/test",
+        ip: "127.0.0.1",
+        get: () => "test-agent",
+        correlationId: "test-correlation-id",
+      };
       const mockRes = {
         statusCode: 200,
-      }
+      };
 
-      expect(() => logger.logRequest(mockReq, mockRes, 150)).not.toThrow()
-    })
-  })
+      expect(() => logger.logRequest(mockReq, mockRes, 150)).not.toThrow();
+    });
+  });
 
-  describe('2. Error Tracking', () => {
+  describe("2. Error Tracking", () => {
     beforeEach(() => {
       // Clear error counts before each test
-      errorTracking.errorCounts.clear()
-      errorTracking.criticalErrors = []
-    })
+      errorTracking.errorCounts.clear();
+      errorTracking.criticalErrors = [];
+    });
 
-    it('should track errors', async () => {
-      const testError = new Error('Test error')
-      testError.code = 'test_error'
+    it("should track errors", async () => {
+      const testError = new Error("Test error");
+      testError.code = "test_error";
 
       await errorTracking.trackError(testError, {
-        correlationId: 'test-correlation-id',
+        correlationId: "test-correlation-id",
         userId: String(businessOwner._id),
-      })
+      });
 
-      const stats = errorTracking.getErrorStats()
-      expect(stats.totalErrors).toBeGreaterThan(0)
-    })
+      const stats = errorTracking.getErrorStats();
+      expect(stats.totalErrors).toBeGreaterThan(0);
+    });
 
-    it('should classify error severity correctly', async () => {
+    it("should classify error severity correctly", async () => {
       // Test critical error (database error)
-      const dbError = new Error('Database connection failed')
-      dbError.name = 'MongoError'
-      await errorTracking.trackError(dbError, {})
-      
+      const dbError = new Error("Database connection failed");
+      dbError.name = "MongoError";
+      await errorTracking.trackError(dbError, {});
+
       // Test high severity error (auth error)
-      const authError = new Error('Unauthorized')
-      authError.code = 'unauthorized'
-      await errorTracking.trackError(authError, { statusCode: 401 })
-      
+      const authError = new Error("Unauthorized");
+      authError.code = "unauthorized";
+      await errorTracking.trackError(authError, { statusCode: 401 });
+
       // Test low severity error (validation error)
-      const validationError = new Error('Validation failed')
-      validationError.isJoi = true
-      await errorTracking.trackError(validationError, {})
+      const validationError = new Error("Validation failed");
+      validationError.isJoi = true;
+      await errorTracking.trackError(validationError, {});
 
-      const stats = errorTracking.getErrorStats()
-      expect(stats.totalErrors).toBeGreaterThanOrEqual(3)
-    })
+      const stats = errorTracking.getErrorStats();
+      expect(stats.totalErrors).toBeGreaterThanOrEqual(3);
+    });
 
-    it('should track error frequency', async () => {
-      const testError = new Error('Frequent error')
-      testError.code = 'frequent_error'
+    it("should track error frequency", async () => {
+      const testError = new Error("Frequent error");
+      testError.code = "frequent_error";
 
       // Track same error multiple times
       for (let i = 0; i < 5; i++) {
-        await errorTracking.trackError(testError, {})
+        await errorTracking.trackError(testError, {});
       }
 
-      const stats = errorTracking.getErrorStats()
-      expect(stats.totalErrors).toBeGreaterThanOrEqual(5)
-    })
+      const stats = errorTracking.getErrorStats();
+      expect(stats.totalErrors).toBeGreaterThanOrEqual(5);
+    });
 
-    it('should log critical errors to audit trail', async () => {
-      const criticalError = new Error('Critical system error')
-      criticalError.name = 'MongoError'
+    it("should log critical errors to audit trail", async () => {
+      const criticalError = new Error("Critical system error");
+      criticalError.name = "MongoError";
 
       await errorTracking.trackError(criticalError, {
         userId: String(businessOwner._id),
-        role: 'business_owner',
-      })
+        role: "business_owner",
+      });
 
       // Check if audit log was created
       const auditLogs = await AuditLog.find({
-        eventType: 'error_critical',
+        eventType: "error_critical",
         userId: businessOwner._id,
-      }).lean()
+      }).lean();
 
-      expect(auditLogs.length).toBeGreaterThan(0)
-    })
+      expect(auditLogs.length).toBeGreaterThan(0);
+    });
 
-    it('should provide error statistics', () => {
-      const stats = errorTracking.getErrorStats()
-      expect(stats).toHaveProperty('totalErrors')
-      expect(stats).toHaveProperty('errorsLastHour')
-      expect(stats).toHaveProperty('errorsLastDay')
-      expect(stats).toHaveProperty('criticalErrorsLastHour')
-      expect(stats).toHaveProperty('uniqueErrorTypes')
-    })
-  })
+    it("should provide error statistics", () => {
+      const stats = errorTracking.getErrorStats();
+      expect(stats).toHaveProperty("totalErrors");
+      expect(stats).toHaveProperty("errorsLastHour");
+      expect(stats).toHaveProperty("errorsLastDay");
+      expect(stats).toHaveProperty("criticalErrorsLastHour");
+      expect(stats).toHaveProperty("uniqueErrorTypes");
+    });
+  });
 
-  describe('3. Performance Monitoring', () => {
+  describe("3. Performance Monitoring", () => {
     beforeEach(() => {
-      resetMetrics()
-    })
+      resetMetrics();
+    });
 
-    it('should track API response times', async () => {
-      await request(app)
-        .get('/api/health')
-        .expect(200)
+    it("should track API response times", async () => {
+      await request(app).get("/api/health").expect(200);
 
-      const stats = getPerformanceStats()
-      expect(stats.endpoints).toBeDefined()
-      expect(Object.keys(stats.endpoints).length).toBeGreaterThan(0)
-    })
+      const stats = getPerformanceStats();
+      expect(stats.endpoints).toBeDefined();
+      expect(Object.keys(stats.endpoints).length).toBeGreaterThan(0);
+    });
 
-    it('should track slow API requests', async () => {
+    it("should track slow API requests", async () => {
       // Make a request
-      await request(app)
-        .get('/api/health')
-        .expect(200)
+      await request(app).get("/api/health").expect(200);
 
-      const stats = getPerformanceStats()
-      const endpointKey = 'GET /api/health'
-      
+      const stats = getPerformanceStats();
+      const endpointKey = "GET /api/health";
+
       if (stats.endpoints[endpointKey]) {
-        expect(stats.endpoints[endpointKey]).toHaveProperty('count')
-        expect(stats.endpoints[endpointKey]).toHaveProperty('avgResponseTime')
-        expect(stats.endpoints[endpointKey]).toHaveProperty('minResponseTime')
-        expect(stats.endpoints[endpointKey]).toHaveProperty('maxResponseTime')
+        expect(stats.endpoints[endpointKey]).toHaveProperty("count");
+        expect(stats.endpoints[endpointKey]).toHaveProperty("avgResponseTime");
+        expect(stats.endpoints[endpointKey]).toHaveProperty("minResponseTime");
+        expect(stats.endpoints[endpointKey]).toHaveProperty("maxResponseTime");
       }
-    })
+    });
 
-    it('should track database query performance', async () => {
+    it("should track database query performance", async () => {
       // Perform a database query
-      await User.findOne({ _id: businessOwner._id }).lean()
+      await User.findOne({ _id: businessOwner._id }).lean();
 
-      const stats = getPerformanceStats()
-      expect(stats.database).toBeDefined()
-    })
+      const stats = getPerformanceStats();
+      expect(stats.database).toBeDefined();
+    });
 
-    it('should track multiple endpoint calls', async () => {
+    it("should track multiple endpoint calls", async () => {
       // Make multiple requests
-      await request(app).get('/api/health').expect(200)
-      await request(app).get('/api/health').expect(200)
-      await request(app).get('/api/health').expect(200)
+      await request(app).get("/api/health").expect(200);
+      await request(app).get("/api/health").expect(200);
+      await request(app).get("/api/health").expect(200);
 
-      const stats = getPerformanceStats()
-      const endpointKey = 'GET /api/health'
-      
+      const stats = getPerformanceStats();
+      const endpointKey = "GET /api/health";
+
       if (stats.endpoints[endpointKey]) {
-        expect(stats.endpoints[endpointKey].count).toBeGreaterThanOrEqual(3)
+        expect(stats.endpoints[endpointKey].count).toBeGreaterThanOrEqual(3);
       }
-    })
+    });
 
-    it('should calculate average response times', async () => {
-      await request(app).get('/api/health').expect(200)
+    it("should calculate average response times", async () => {
+      await request(app).get("/api/health").expect(200);
 
-      const stats = getPerformanceStats()
-      const endpointKey = 'GET /api/health'
-      
+      const stats = getPerformanceStats();
+      const endpointKey = "GET /api/health";
+
       if (stats.endpoints[endpointKey]) {
-        expect(stats.endpoints[endpointKey].avgResponseTime).toBeGreaterThanOrEqual(0)
+        expect(
+          stats.endpoints[endpointKey].avgResponseTime,
+        ).toBeGreaterThanOrEqual(0);
       }
-    })
-  })
+    });
+  });
 
-  describe('4. Security Monitoring', () => {
+  describe("4. Security Monitoring", () => {
     beforeEach(() => {
       // Clear security events before each test
-      clearOldData()
-    })
+      clearOldData();
+    });
 
-    it('should track failed login attempts', () => {
-      const ip = '192.168.1.100'
-      const userId = String(businessOwner._id)
+    it("should track failed login attempts", () => {
+      const ip = "192.168.1.100";
+      const userId = String(businessOwner._id);
 
-      trackFailedLogin(ip, userId)
-      trackFailedLogin(ip, userId)
-      trackFailedLogin(ip, userId)
+      trackFailedLogin(ip, userId);
+      trackFailedLogin(ip, userId);
+      trackFailedLogin(ip, userId);
 
-      const stats = getSecurityStats()
-      expect(stats.failedLoginsLastHour).toBeGreaterThanOrEqual(3)
-    })
+      const stats = getSecurityStats();
+      expect(stats.failedLoginsLastHour).toBeGreaterThanOrEqual(3);
+    });
 
-    it('should alert on multiple failed logins from same IP', async () => {
-      const ip = '192.168.1.200'
-      const userId = String(businessOwner._id)
+    it("should alert on multiple failed logins from same IP", async () => {
+      const ip = "192.168.1.200";
+      const userId = String(businessOwner._id);
 
       // Track 5+ failed logins (threshold)
       for (let i = 0; i < 6; i++) {
-        trackFailedLogin(ip, userId)
+        trackFailedLogin(ip, userId);
       }
 
       // Allow async audit logging to flush
-      await new Promise((resolve) => setTimeout(resolve, 50))
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       // Check if security event was logged
       const auditLogs = await AuditLog.find({
-        eventType: 'security_event',
-        'metadata.ip': ip,
-      }).lean()
+        eventType: "security_event",
+        "metadata.ip": ip,
+      }).lean();
 
-      expect(auditLogs.length).toBeGreaterThan(0)
-    })
+      expect(auditLogs.length).toBeGreaterThan(0);
+    });
 
-    it('should track rate limit violations', () => {
-      const ip = '192.168.1.300'
-      const endpoint = '/api/auth/login/start'
+    it("should track rate limit violations", () => {
+      const ip = "192.168.1.300";
+      const endpoint = "/api/auth/login/start";
 
-      trackRateLimitViolation(ip, endpoint)
-      trackRateLimitViolation(ip, endpoint)
+      trackRateLimitViolation(ip, endpoint);
+      trackRateLimitViolation(ip, endpoint);
 
-      const stats = getSecurityStats()
-      expect(stats.rateLimitViolations).toBeGreaterThan(0)
-    })
+      const stats = getSecurityStats();
+      expect(stats.rateLimitViolations).toBeGreaterThan(0);
+    });
 
-    it('should detect SQL injection attempts', () => {
+    it("should detect SQL injection attempts", () => {
       const mockReq = {
-        method: 'POST',
-        path: '/api/test',
-        ip: '192.168.1.400',
-        get: () => 'test-agent',
-        correlationId: 'test-correlation-id',
+        method: "POST",
+        path: "/api/test",
+        ip: "192.168.1.400",
+        get: () => "test-agent",
+        correlationId: "test-correlation-id",
         body: {
           query: "SELECT * FROM users WHERE id = '1' OR '1'='1'",
         },
         query: {},
         params: {},
-      }
+      };
 
-      const suspicious = detectSuspiciousActivity(mockReq)
-      expect(suspicious).toBe(true)
-    })
+      const suspicious = detectSuspiciousActivity(mockReq);
+      expect(suspicious).toBe(true);
+    });
 
-    it('should detect XSS attempts', () => {
+    it("should detect XSS attempts", () => {
       const mockReq = {
-        method: 'POST',
-        path: '/api/test',
-        ip: '192.168.1.500',
-        get: () => 'test-agent',
-        correlationId: 'test-correlation-id',
+        method: "POST",
+        path: "/api/test",
+        ip: "192.168.1.500",
+        get: () => "test-agent",
+        correlationId: "test-correlation-id",
         body: {
           comment: '<script>alert("XSS")</script>',
         },
         query: {},
         params: {},
-      }
+      };
 
-      const suspicious = detectSuspiciousActivity(mockReq)
-      expect(suspicious).toBe(true)
-    })
+      const suspicious = detectSuspiciousActivity(mockReq);
+      expect(suspicious).toBe(true);
+    });
 
-    it('should detect suspicious user agents', () => {
+    it("should detect suspicious user agents", () => {
       // Temporarily enable user agent checking for this test
-      const originalEnv = process.env.TEST_USER_AGENT_DETECTION
-      process.env.TEST_USER_AGENT_DETECTION = 'true'
-      
+      const originalEnv = process.env.TEST_USER_AGENT_DETECTION;
+      process.env.TEST_USER_AGENT_DETECTION = "true";
+
       const mockReq = {
-        method: 'GET',
-        path: '/api/test',
-        ip: '192.168.1.600',
-        get: (header) => header === 'user-agent' ? '' : 'test',
-        correlationId: 'test-correlation-id',
+        method: "GET",
+        path: "/api/test",
+        ip: "192.168.1.600",
+        get: (header) => (header === "user-agent" ? "" : "test"),
+        correlationId: "test-correlation-id",
         body: {},
         query: {},
         params: {},
-      }
+      };
 
-      const suspicious = detectSuspiciousActivity(mockReq)
+      const suspicious = detectSuspiciousActivity(mockReq);
       // Restore original env
       if (originalEnv) {
-        process.env.TEST_USER_AGENT_DETECTION = originalEnv
+        process.env.TEST_USER_AGENT_DETECTION = originalEnv;
       } else {
-        delete process.env.TEST_USER_AGENT_DETECTION
+        delete process.env.TEST_USER_AGENT_DETECTION;
       }
-      expect(suspicious).toBe(true)
-    })
+      expect(suspicious).toBe(true);
+    });
 
-    it('should provide security statistics', () => {
-      const stats = getSecurityStats()
-      expect(stats).toHaveProperty('failedLoginsLastHour')
-      expect(stats).toHaveProperty('failedLoginsLastDay')
-      expect(stats).toHaveProperty('suspiciousRequestsLastHour')
-      expect(stats).toHaveProperty('totalSuspiciousRequests')
-      expect(stats).toHaveProperty('uniqueIPsWithFailedLogins')
-      expect(stats).toHaveProperty('rateLimitViolations')
-    })
+    it("should provide security statistics", () => {
+      const stats = getSecurityStats();
+      expect(stats).toHaveProperty("failedLoginsLastHour");
+      expect(stats).toHaveProperty("failedLoginsLastDay");
+      expect(stats).toHaveProperty("suspiciousRequestsLastHour");
+      expect(stats).toHaveProperty("totalSuspiciousRequests");
+      expect(stats).toHaveProperty("uniqueIPsWithFailedLogins");
+      expect(stats).toHaveProperty("rateLimitViolations");
+    });
 
-    it('should log security events to audit trail', async () => {
-      const ip = '192.168.1.700'
-      const userId = String(businessOwner._id)
+    it("should log security events to audit trail", async () => {
+      const ip = "192.168.1.700";
+      const userId = String(businessOwner._id);
 
       // Trigger security event
       for (let i = 0; i < 6; i++) {
-        trackFailedLogin(ip, userId)
+        trackFailedLogin(ip, userId);
       }
 
       // Wait a bit for async audit log creation
-      await new Promise((resolve) => setTimeout(resolve, 100))
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       const auditLogs = await AuditLog.find({
-        eventType: 'security_event',
-      }).lean()
+        eventType: "security_event",
+      }).lean();
 
-      expect(auditLogs.length).toBeGreaterThan(0)
-    })
-  })
+      expect(auditLogs.length).toBeGreaterThan(0);
+    });
+  });
 
-  describe('5. Monitoring Endpoint', () => {
-    it('should return monitoring stats for admin users', async () => {
+  describe("5. Monitoring Endpoint", () => {
+    it("should return monitoring stats for admin users", async () => {
       const response = await request(app)
-        .get('/api/admin/monitoring/stats')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .expect(200)
+        .get("/api/admin/monitoring/stats")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .expect(200);
 
-      expect(response.body).toHaveProperty('errors')
-      expect(response.body).toHaveProperty('performance')
-      expect(response.body).toHaveProperty('security')
-      expect(response.body).toHaveProperty('timestamp')
+      expect(response.body).toHaveProperty("errors");
+      expect(response.body).toHaveProperty("performance");
+      expect(response.body).toHaveProperty("security");
+      expect(response.body).toHaveProperty("timestamp");
 
-      expect(response.body.errors).toHaveProperty('totalErrors')
-      expect(response.body.errors).toHaveProperty('errorsLastHour')
-      expect(response.body.errors).toHaveProperty('errorsLastDay')
-      expect(response.body.errors).toHaveProperty('criticalErrorsLastHour')
-      expect(response.body.errors).toHaveProperty('uniqueErrorTypes')
+      expect(response.body.errors).toHaveProperty("totalErrors");
+      expect(response.body.errors).toHaveProperty("errorsLastHour");
+      expect(response.body.errors).toHaveProperty("errorsLastDay");
+      expect(response.body.errors).toHaveProperty("criticalErrorsLastHour");
+      expect(response.body.errors).toHaveProperty("uniqueErrorTypes");
 
-      expect(response.body.performance).toHaveProperty('endpoints')
-      expect(response.body.performance).toHaveProperty('database')
+      expect(response.body.performance).toHaveProperty("endpoints");
+      expect(response.body.performance).toHaveProperty("database");
 
-      expect(response.body.security).toHaveProperty('failedLoginsLastHour')
-      expect(response.body.security).toHaveProperty('suspiciousRequestsLastHour')
-    })
+      expect(response.body.security).toHaveProperty("failedLoginsLastHour");
+      expect(response.body.security).toHaveProperty(
+        "suspiciousRequestsLastHour",
+      );
+    });
 
-    it('should reject non-admin users from monitoring endpoint', async () => {
+    it("should reject non-admin users from monitoring endpoint", async () => {
       await request(app)
-        .get('/api/admin/monitoring/stats')
-        .set('Authorization', `Bearer ${businessOwnerToken}`)
-        .expect(403)
-    })
+        .get("/api/admin/monitoring/stats")
+        .set("Authorization", `Bearer ${businessOwnerToken}`)
+        .expect(403);
+    });
 
-    it('should reject unauthenticated requests', async () => {
-      await request(app)
-        .get('/api/admin/monitoring/stats')
-        .expect(401)
-    })
-  })
+    it("should reject unauthenticated requests", async () => {
+      await request(app).get("/api/admin/monitoring/stats").expect(401);
+    });
+  });
 
-  describe('6. Error Handler Middleware', () => {
-    it('should handle errors with correlation IDs', async () => {
+  describe("6. Error Handler Middleware", () => {
+    it("should handle errors with correlation IDs", async () => {
       // Create a route that throws an error
       // Note: Error handler middleware must be registered after routes
-      const errorHandlerMiddleware = require('../../services/auth-service/src/middleware/errorHandler')
-      const testRouter = require('express').Router()
-      testRouter.get('/test-error-handler', (req, res, next) => {
-        const error = new Error('Test error')
-        error.statusCode = 500
-        error.code = 'test_error'
-        next(error)
-      })
-      
+      const errorHandlerMiddleware = require("../../services/auth-service/src/middleware/errorHandler");
+      const testRouter = require("express").Router();
+      testRouter.get("/test-error-handler", (req, res, next) => {
+        const error = new Error("Test error");
+        error.statusCode = 500;
+        error.code = "test_error";
+        next(error);
+      });
+
       // Create a temporary app instance for this test
-      const express = require('express')
-      const testApp = express()
-      testApp.use(express.json())
-      const correlationIdMiddleware = require('../../services/auth-service/src/middleware/correlationId')
-      testApp.use(correlationIdMiddleware)
-      testApp.use('/api/test-error', testRouter)
-      testApp.use(errorHandlerMiddleware) // Error handler must be last
+      const express = require("express");
+      const testApp = express();
+      testApp.use(express.json());
+      const correlationIdMiddleware = require("../../services/auth-service/src/middleware/correlationId");
+      testApp.use(correlationIdMiddleware);
+      testApp.use("/api/test-error", testRouter);
+      testApp.use(errorHandlerMiddleware); // Error handler must be last
 
       const response = await request(testApp)
-        .get('/api/test-error/test-error-handler')
-        .expect(500)
+        .get("/api/test-error/test-error-handler")
+        .expect(500);
 
-      expect(response.body).toHaveProperty('ok')
-      expect(response.body.ok).toBe(false)
-      expect(response.body).toHaveProperty('error')
-      expect(response.body.error).toHaveProperty('code')
-      expect(response.body.error).toHaveProperty('message')
-    })
+      expect(response.body).toHaveProperty("ok");
+      expect(response.body.ok).toBe(false);
+      expect(response.body).toHaveProperty("error");
+      expect(response.body.error).toHaveProperty("code");
+      expect(response.body.error).toHaveProperty("message");
+    });
 
-    it('should include correlation ID in error responses', async () => {
-      const customCorrelationId = 'error-test-correlation-id'
-      const errorHandlerMiddleware = require('../../services/auth-service/src/middleware/errorHandler')
-      const testRouter = require('express').Router()
-      testRouter.get('/test-error-correlation', (req, res, next) => {
-        const error = new Error('Test error')
-        error.statusCode = 400
-        error.code = 'test_error'
-        next(error)
-      })
-      
+    it("should include correlation ID in error responses", async () => {
+      const customCorrelationId = "error-test-correlation-id";
+      const errorHandlerMiddleware = require("../../services/auth-service/src/middleware/errorHandler");
+      const testRouter = require("express").Router();
+      testRouter.get("/test-error-correlation", (req, res, next) => {
+        const error = new Error("Test error");
+        error.statusCode = 400;
+        error.code = "test_error";
+        next(error);
+      });
+
       // Create a temporary app instance for this test
-      const express = require('express')
-      const testApp = express()
-      testApp.use(express.json())
-      const correlationIdMiddleware = require('../../services/auth-service/src/middleware/correlationId')
-      testApp.use(correlationIdMiddleware)
-      testApp.use('/api/test-correlation', testRouter)
-      testApp.use(errorHandlerMiddleware) // Error handler must be last
+      const express = require("express");
+      const testApp = express();
+      testApp.use(express.json());
+      const correlationIdMiddleware = require("../../services/auth-service/src/middleware/correlationId");
+      testApp.use(correlationIdMiddleware);
+      testApp.use("/api/test-correlation", testRouter);
+      testApp.use(errorHandlerMiddleware); // Error handler must be last
 
       const response = await request(testApp)
-        .get('/api/test-correlation/test-error-correlation')
-        .set('X-Correlation-ID', customCorrelationId)
-        .expect(400)
+        .get("/api/test-correlation/test-error-correlation")
+        .set("X-Correlation-ID", customCorrelationId)
+        .expect(400);
 
-      expect(response.body).toHaveProperty('correlationId')
-      expect(response.body.correlationId).toBe(customCorrelationId)
-      expect(response.body).toHaveProperty('error')
-    })
-  })
+      expect(response.body).toHaveProperty("correlationId");
+      expect(response.body.correlationId).toBe(customCorrelationId);
+      expect(response.body).toHaveProperty("error");
+    });
+  });
 
-  describe('7. Integration: End-to-End Monitoring', () => {
-    it('should track complete request lifecycle', async () => {
-      const correlationId = 'integration-test-id'
-      
+  describe("7. Integration: End-to-End Monitoring", () => {
+    it("should track complete request lifecycle", async () => {
+      const correlationId = "integration-test-id";
+
       // Make a request
       const response = await request(app)
-        .get('/api/health')
-        .set('X-Correlation-ID', correlationId)
-        .expect(200)
+        .get("/api/health")
+        .set("X-Correlation-ID", correlationId)
+        .expect(200);
 
       // Verify correlation ID is returned
-      expect(response.headers['x-correlation-id']).toBe(correlationId)
+      expect(response.headers["x-correlation-id"]).toBe(correlationId);
 
       // Verify performance tracking
-      const perfStats = getPerformanceStats()
-      expect(perfStats.endpoints).toBeDefined()
+      const perfStats = getPerformanceStats();
+      expect(perfStats.endpoints).toBeDefined();
 
       // Verify error tracking is available
-      const errorStats = errorTracking.getErrorStats()
-      expect(errorStats).toBeDefined()
+      const errorStats = errorTracking.getErrorStats();
+      expect(errorStats).toBeDefined();
 
       // Verify security monitoring is available
-      const securityStats = getSecurityStats()
-      expect(securityStats).toBeDefined()
-    })
+      const securityStats = getSecurityStats();
+      expect(securityStats).toBeDefined();
+    });
 
-    it('should track errors through complete flow', async () => {
-      const testError = new Error('Integration test error')
-      testError.code = 'integration_error'
+    it("should track errors through complete flow", async () => {
+      const testError = new Error("Integration test error");
+      testError.code = "integration_error";
 
       await errorTracking.trackError(testError, {
-        correlationId: 'integration-error-test',
+        correlationId: "integration-error-test",
         userId: String(businessOwner._id),
         request: {
-          method: 'POST',
-          path: '/api/test/error',
-          ip: '127.0.0.1',
+          method: "POST",
+          path: "/api/test/error",
+          ip: "127.0.0.1",
         },
-      })
+      });
 
-      const stats = errorTracking.getErrorStats()
-      expect(stats.totalErrors).toBeGreaterThan(0)
-    })
-  })
-})
+      const stats = errorTracking.getErrorStats();
+      expect(stats.totalErrors).toBeGreaterThan(0);
+    });
+  });
+});

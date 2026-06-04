@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 /**
  * Session Model
@@ -8,7 +8,7 @@ const SessionSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     tokenVersion: {
@@ -22,11 +22,11 @@ const SessionSchema = new mongoose.Schema(
     },
     userAgent: {
       type: String,
-      default: '',
+      default: "",
     },
     deviceInfo: {
       type: String,
-      default: '',
+      default: "",
       // Parsed device/browser info
     },
     lastActivityAt: {
@@ -55,48 +55,49 @@ const SessionSchema = new mongoose.Schema(
     },
     invalidationReason: {
       type: String,
-      default: '',
+      default: "",
       // e.g., 'password_change', 'manual_logout', 'timeout', 'security'
     },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 SessionSchema.plugin(encryptionPlugin, {
-  fields: ['ipAddress', 'userAgent', 'deviceInfo', 'invalidationReason'],
+  fields: ["ipAddress", "userAgent", "deviceInfo", "invalidationReason"],
   deterministicFields: [],
   nestedPaths: [],
   arrayPaths: [],
   mixedPaths: [],
-})
+});
 
 // Indexes for efficient querying
-SessionSchema.index({ userId: 1, isActive: 1 })
-SessionSchema.index({ expiresAt: 1 })
-SessionSchema.index({ lastActivityAt: 1 })
-SessionSchema.index({ tokenVersion: 1 })
+SessionSchema.index({ userId: 1, isActive: 1 });
+SessionSchema.index({ expiresAt: 1 });
+SessionSchema.index({ lastActivityAt: 1 });
+SessionSchema.index({ tokenVersion: 1 });
 
 // Method to check if session is expired
 SessionSchema.methods.isExpired = function () {
-  if (!this.isActive) return true
-  if (Date.now() > this.expiresAt.getTime()) return true
-  return false
-}
+  if (!this.isActive) return true;
+  if (Date.now() > this.expiresAt.getTime()) return true;
+  return false;
+};
 
 // Method to update last activity
 SessionSchema.methods.updateActivity = function () {
-  this.lastActivityAt = new Date()
+  this.lastActivityAt = new Date();
   // Extend expiration if needed (based on role)
-  return this.save()
-}
+  return this.save();
+};
 
 // Method to invalidate session
-SessionSchema.methods.invalidate = function (reason = 'manual') {
-  this.isActive = false
-  this.invalidatedAt = new Date()
-  this.invalidationReason = reason
-  return this.save()
-}
+SessionSchema.methods.invalidate = function (reason = "manual") {
+  this.isActive = false;
+  this.invalidatedAt = new Date();
+  this.invalidationReason = reason;
+  return this.save();
+};
 
-module.exports = mongoose.models.Session || mongoose.model('Session', SessionSchema)
+module.exports =
+  mongoose.models.Session || mongoose.model("Session", SessionSchema);

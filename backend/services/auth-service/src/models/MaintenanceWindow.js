@@ -1,32 +1,38 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 const MaintenanceWindowSchema = new mongoose.Schema(
   {
     status: {
       type: String,
-      enum: ['pending', 'active', 'ended', 'rejected'],
-      default: 'pending',
+      enum: ["pending", "active", "ended", "rejected"],
+      default: "pending",
       index: true,
     },
-    message: { type: String, default: '' },
+    message: { type: String, default: "" },
     expectedResumeAt: { type: Date, default: null },
-    requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    approvedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    requestedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    approvedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     metadata: { type: Object, default: {} },
     activatedAt: { type: Date, default: null },
     deactivatedAt: { type: Date, default: null },
     isActive: { type: Boolean, default: false, index: true },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 MaintenanceWindowSchema.plugin(encryptionPlugin, {
-  fields: ['message'],
+  fields: ["message"],
   deterministicFields: [],
   nestedPaths: [],
   arrayPaths: [],
-  mixedPaths: ['metadata'],
-})
+  mixedPaths: ["metadata"],
+});
 
-module.exports = mongoose.models.MaintenanceWindow || mongoose.model('MaintenanceWindow', MaintenanceWindowSchema)
+module.exports =
+  mongoose.models.MaintenanceWindow ||
+  mongoose.model("MaintenanceWindow", MaintenanceWindowSchema);

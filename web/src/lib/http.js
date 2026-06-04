@@ -118,7 +118,6 @@ export async function fetchWithFallback(path, options = {}) {
   // Clone options so we don't mutate the caller's object
   const opts = { ...(options || {}) }
   const retryOnCsrfInvalid = opts.retryOnCsrfInvalid !== false
-  const skipAutoLogout = opts.skipAutoLogout === true
   const skipAuth = opts.skipAuth === true
   const retryOn503 = opts.retryOn503 !== false // Default: retry on 503 (service starting)
   const maxRetries = opts.maxRetries ?? 3
@@ -180,7 +179,7 @@ export async function fetchWithFallback(path, options = {}) {
       const authBase = origin || (isProductionBuild && path.startsWith('/api') ? getProductionApiOrigin('/api/auth/login/start') : '')
       const csrfToken = await getAuthCsrfToken(authBase)
       headers['X-CSRF-Token'] = csrfToken
-    } catch (_) {
+    } catch {
       // Proceed without token; backend will return 403 and we map to generic message
     }
   }
@@ -190,7 +189,7 @@ export async function fetchWithFallback(path, options = {}) {
       const businessOrigin = origin || (isProductionBuild && path.startsWith('/api') ? getProductionApiOrigin(path) : '')
       const csrfToken = await getBusinessCsrfToken(businessPathPrefix, businessOrigin)
       headers['X-CSRF-Token'] = csrfToken
-    } catch (_) {
+    } catch {
       // Proceed without token; backend will return 403 and we map to generic message
     }
   }
@@ -200,7 +199,7 @@ export async function fetchWithFallback(path, options = {}) {
       const adminOrigin = origin || (isProductionBuild && path.startsWith('/api') ? getProductionApiOrigin(path) : '')
       const csrfToken = await getAdminCsrfToken(adminOrigin)
       headers['X-CSRF-Token'] = csrfToken
-    } catch (_) {
+    } catch {
       // Proceed without token; backend will return 403 and we map to generic message
     }
   }

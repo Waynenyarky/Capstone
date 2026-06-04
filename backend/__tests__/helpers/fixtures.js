@@ -1,16 +1,16 @@
-const User = require('../../services/auth-service/src/models/User')
-const Role = require('../../services/auth-service/src/models/Role')
-const bcrypt = require('bcryptjs')
+const User = require("../../services/auth-service/src/models/User");
+const Role = require("../../services/auth-service/src/models/Role");
+const bcrypt = require("bcryptjs");
 
 /**
  * Generate unique email with timestamp
  * @param {string} prefix - Email prefix (e.g., 'businessowner', 'staff')
  * @returns {string}
  */
-function generateUniqueEmail(prefix = 'user') {
-  const timestamp = Date.now()
-  const random = Math.floor(Math.random() * 10000)
-  return `${prefix}${timestamp}${random}@example.com`
+function generateUniqueEmail(prefix = "user") {
+  const timestamp = Date.now();
+  const random = Math.floor(Math.random() * 10000);
+  return `${prefix}${timestamp}${random}@example.com`;
 }
 
 /**
@@ -18,10 +18,10 @@ function generateUniqueEmail(prefix = 'user') {
  * @param {string} prefix - Phone prefix (optional)
  * @returns {string}
  */
-function generateUniquePhone(prefix = '') {
-  const timestamp = Date.now()
-  const random = Math.floor(Math.random() * 1000)
-  return prefix ? `${prefix}${timestamp}${random}` : `+1${timestamp}${random}`
+function generateUniquePhone(prefix = "") {
+  const timestamp = Date.now();
+  const random = Math.floor(Math.random() * 1000);
+  return prefix ? `${prefix}${timestamp}${random}` : `+1${timestamp}${random}`;
 }
 
 /**
@@ -30,22 +30,22 @@ function generateUniquePhone(prefix = '') {
  * @returns {Promise<Role>}
  */
 async function createTestRole(slug) {
-  let role = await Role.findOne({ slug })
+  let role = await Role.findOne({ slug });
   if (!role) {
     const roleNames = {
-      business_owner: 'Business Owner',
-      admin: 'Admin',
-      lgu_officer: 'LGU Officer',
-      lgu_manager: 'LGU Manager',
-      inspector: 'LGU Inspector',
-      cso: 'Customer Support Officer',
-    }
+      business_owner: "Business Owner",
+      admin: "Admin",
+      lgu_officer: "LGU Officer",
+      lgu_manager: "LGU Manager",
+      inspector: "LGU Inspector",
+      cso: "Customer Support Officer",
+    };
     role = await Role.create({
       name: roleNames[slug] || slug,
       slug,
-    })
+    });
   }
-  return role
+  return role;
 }
 
 /**
@@ -53,18 +53,19 @@ async function createTestRole(slug) {
  */
 async function createTestUser(options = {}) {
   const {
-    roleSlug = 'business_owner',
+    roleSlug = "business_owner",
     email,
     phoneNumber,
-    password = 'Test123!@#',
+    password = "Test123!@#",
     firstName,
     lastName,
     extraFields = {},
-  } = options
+  } = options;
 
-  const role = await createTestRole(roleSlug)
-  const uniqueEmail = email || generateUniqueEmail(roleSlug)
-  const uniquePhone = phoneNumber || generateUniquePhone(`__unset__${Date.now()}_`)
+  const role = await createTestRole(roleSlug);
+  const uniqueEmail = email || generateUniqueEmail(roleSlug);
+  const uniquePhone =
+    phoneNumber || generateUniquePhone(`__unset__${Date.now()}_`);
 
   const userData = {
     role: role._id,
@@ -73,50 +74,55 @@ async function createTestUser(options = {}) {
     passwordHash: await bcrypt.hash(password, 10),
     termsAccepted: true,
     tokenVersion: 0,
-    firstName: firstName || (roleSlug === 'business_owner' ? 'Business' : roleSlug === 'admin' ? 'Admin' : 'Staff'),
-    lastName: lastName || 'User',
+    firstName:
+      firstName ||
+      (roleSlug === "business_owner"
+        ? "Business"
+        : roleSlug === "admin"
+          ? "Admin"
+          : "Staff"),
+    lastName: lastName || "User",
     ...extraFields,
-  }
+  };
 
-  const user = await User.findOneAndUpdate(
-    { email: uniqueEmail },
-    userData,
-    { upsert: true, new: true }
-  )
+  const user = await User.findOneAndUpdate({ email: uniqueEmail }, userData, {
+    upsert: true,
+    new: true,
+  });
 
-  await user.populate('role')
-  return user
+  await user.populate("role");
+  return user;
 }
 
 /**
  * Create all standard test users (businessOwner, staff, admin)
  */
 async function createTestUsers() {
-  const businessOwnerRole = await createTestRole('business_owner')
-  const staffRole = await createTestRole('lgu_officer')
-  const adminRole = await createTestRole('admin')
+  const businessOwnerRole = await createTestRole("business_owner");
+  const staffRole = await createTestRole("lgu_officer");
+  const adminRole = await createTestRole("admin");
 
   const businessOwner = await createTestUser({
-    roleSlug: 'business_owner',
-    firstName: 'Business',
-    lastName: 'Owner',
-  })
+    roleSlug: "business_owner",
+    firstName: "Business",
+    lastName: "Owner",
+  });
 
   const staffUser = await createTestUser({
-    roleSlug: 'lgu_officer',
-    firstName: 'Staff',
-    lastName: 'User',
+    roleSlug: "lgu_officer",
+    firstName: "Staff",
+    lastName: "User",
     extraFields: {
       isStaff: true,
       isActive: true,
     },
-  })
+  });
 
   const adminUser = await createTestUser({
-    roleSlug: 'admin',
-    firstName: 'Admin',
-    lastName: 'User',
-  })
+    roleSlug: "admin",
+    firstName: "Admin",
+    lastName: "User",
+  });
 
   return {
     businessOwner,
@@ -127,20 +133,22 @@ async function createTestUsers() {
       staffRole,
       adminRole,
     },
-  }
+  };
 }
 
 /**
  * Generate tokens for test users
  */
 function getTestTokens(users) {
-  const { signAccessToken } = require('../../services/auth-service/src/middleware/auth')
-  
+  const {
+    signAccessToken,
+  } = require("../../services/auth-service/src/middleware/auth");
+
   return {
     businessOwnerToken: signAccessToken(users.businessOwner).token,
     staffToken: signAccessToken(users.staffUser).token,
     adminToken: signAccessToken(users.adminUser).token,
-  }
+  };
 }
 
 /**
@@ -148,20 +156,24 @@ function getTestTokens(users) {
  * Use with .set() for supertest: request(app).patch(...).set(...getAdminStepUpHeaders(adminToken, adminUser))
  */
 function getAdminStepUpHeaders(adminToken, adminUser) {
-  const { signStepUpToken } = require('../../services/auth-service/src/middleware/auth')
-  const stepUpToken = signStepUpToken(adminUser._id).token
+  const {
+    signStepUpToken,
+  } = require("../../services/auth-service/src/middleware/auth");
+  const stepUpToken = signStepUpToken(adminUser._id).token;
   return {
-    'Authorization': `Bearer ${adminToken}`,
-    'X-Step-Up-Token': stepUpToken,
-  }
+    Authorization: `Bearer ${adminToken}`,
+    "X-Step-Up-Token": stepUpToken,
+  };
 }
 
 /**
  * Create a test verification request
  */
-async function createTestVerificationRequest(userId, purpose, method = 'otp') {
-  const { requestVerification } = require('../../services/auth-service/src/lib/verificationService')
-  return await requestVerification(userId, method, purpose)
+async function createTestVerificationRequest(userId, purpose, method = "otp") {
+  const {
+    requestVerification,
+  } = require("../../services/auth-service/src/lib/verificationService");
+  return await requestVerification(userId, method, purpose);
 }
 
 module.exports = {
@@ -173,4 +185,4 @@ module.exports = {
   getTestTokens,
   getAdminStepUpHeaders,
   createTestVerificationRequest,
-}
+};

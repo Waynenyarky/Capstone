@@ -1,24 +1,36 @@
-const mongoose = require('mongoose')
-const { INDUSTRY_SCOPE_VALUES, getIndustryScopeLabel } = require('../../../../shared/constants')
+const mongoose = require("mongoose");
+const {
+  INDUSTRY_SCOPE_VALUES,
+  getIndustryScopeLabel,
+} = require("../../../../shared/constants");
 
 const FormGroupSchema = new mongoose.Schema(
   {
     formType: {
       type: String,
-      enum: ['permit', 'general_permit', 'occupation', 'renewal', 'cessation', 'violation', 'appeal', 'inspections'],
+      enum: [
+        "permit",
+        "general_permit",
+        "occupation",
+        "renewal",
+        "cessation",
+        "violation",
+        "appeal",
+        "inspections",
+      ],
       required: true,
       index: true,
     },
     industryScope: {
       type: String,
       enum: INDUSTRY_SCOPE_VALUES,
-      default: 'all',
+      default: "all",
       index: true,
     },
     displayName: {
       type: String,
       trim: true,
-      default: '',
+      default: "",
     },
     retiredAt: {
       type: Date,
@@ -35,37 +47,38 @@ const FormGroupSchema = new mongoose.Schema(
     deactivateReason: {
       type: String,
       trim: true,
-      default: '',
+      default: "",
     },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-FormGroupSchema.index({ formType: 1, industryScope: 1 }, { unique: true })
-FormGroupSchema.index({ retiredAt: 1 })
+FormGroupSchema.index({ formType: 1, industryScope: 1 }, { unique: true });
+FormGroupSchema.index({ retiredAt: 1 });
 
 FormGroupSchema.statics.getIndustryScopeLabel = function (scope) {
-  return getIndustryScopeLabel(scope)
-}
+  return getIndustryScopeLabel(scope);
+};
 
 FormGroupSchema.statics.getFormTypeLabel = function (formType) {
   const labels = {
-    permit: 'Unified Business Permit',
-    general_permit: 'General Permit',
+    permit: "Unified Business Permit",
+    general_permit: "General Permit",
     occupation: "Mayor's Permit for Occupation",
-    renewal: 'Business Renewal',
-    cessation: 'Cessation',
-    violation: 'Violation',
-    appeal: 'Appeal',
-    inspections: 'Inspections',
-  }
-  return labels[formType] || formType
-}
+    renewal: "Business Renewal",
+    cessation: "Cessation",
+    violation: "Violation",
+    appeal: "Appeal",
+    inspections: "Inspections",
+  };
+  return labels[formType] || formType;
+};
 
 FormGroupSchema.methods.computeDisplayName = function () {
-  const typeLabel = this.constructor.getFormTypeLabel(this.formType)
-  const scopeLabel = this.constructor.getIndustryScopeLabel(this.industryScope)
-  return `${typeLabel} - ${scopeLabel}`
-}
+  const typeLabel = this.constructor.getFormTypeLabel(this.formType);
+  const scopeLabel = this.constructor.getIndustryScopeLabel(this.industryScope);
+  return `${typeLabel} - ${scopeLabel}`;
+};
 
-module.exports = mongoose.models.FormGroup || mongoose.model('FormGroup', FormGroupSchema)
+module.exports =
+  mongoose.models.FormGroup || mongoose.model("FormGroup", FormGroupSchema);

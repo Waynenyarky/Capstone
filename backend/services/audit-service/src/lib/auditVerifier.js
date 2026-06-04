@@ -1,5 +1,5 @@
-const AuditLog = require('../models/AuditLog');
-const blockchainService = require('./blockchainService');
+const AuditLog = require("../models/AuditLog");
+const blockchainService = require("./blockchainService");
 
 /**
  * Audit Verifier Utility
@@ -18,7 +18,7 @@ class AuditVerifier {
         return {
           verified: false,
           matches: false,
-          error: 'Audit log not found',
+          error: "Audit log not found",
         };
       }
 
@@ -28,7 +28,8 @@ class AuditVerifier {
         return {
           verified: false,
           matches: false,
-          error: 'Hash does not match current data (data may have been tampered)',
+          error:
+            "Hash does not match current data (data may have been tampered)",
           details: {
             auditLogId: String(auditLog._id),
             calculatedHash: auditLog.hash,
@@ -41,14 +42,16 @@ class AuditVerifier {
         return {
           verified: false,
           matches: false,
-          error: 'No transaction hash found (not logged to blockchain)',
+          error: "No transaction hash found (not logged to blockchain)",
           details: {
             auditLogId: String(auditLog._id),
           },
         };
       }
 
-      const blockchainResult = await blockchainService.verifyHash(auditLog.hash);
+      const blockchainResult = await blockchainService.verifyHash(
+        auditLog.hash,
+      );
       if (blockchainResult.error) {
         return {
           verified: false,
@@ -65,7 +68,7 @@ class AuditVerifier {
         return {
           verified: false,
           matches: false,
-          error: 'Hash not found on blockchain',
+          error: "Hash not found on blockchain",
           details: {
             auditLogId: String(auditLog._id),
             hash: auditLog.hash,
@@ -93,11 +96,11 @@ class AuditVerifier {
         },
       };
     } catch (error) {
-      console.error('Error verifying audit log:', error);
+      console.error("Error verifying audit log:", error);
       return {
         verified: false,
         matches: false,
-        error: error.message || 'Unknown error',
+        error: error.message || "Unknown error",
       };
     }
   }
@@ -122,10 +125,10 @@ class AuditVerifier {
         total,
       };
     } catch (error) {
-      console.error('Error getting audit history:', error);
+      console.error("Error getting audit history:", error);
       return {
         success: false,
-        error: error.message || 'Unknown error',
+        error: error.message || "Unknown error",
       };
     }
   }
@@ -172,8 +175,8 @@ class AuditVerifier {
       const unverifiedLogs = await AuditLog.find({
         userId,
         verified: false,
-        txHash: { $ne: '' },
-      }).select('_id');
+        txHash: { $ne: "" },
+      }).select("_id");
 
       if (unverifiedLogs.length === 0) {
         return {
@@ -187,13 +190,13 @@ class AuditVerifier {
       const auditLogIds = unverifiedLogs.map((log) => log._id);
       return await this.verifyChainIntegrity(auditLogIds);
     } catch (error) {
-      console.error('Error verifying user unverified logs:', error);
+      console.error("Error verifying user unverified logs:", error);
       return {
         verified: 0,
         failed: 0,
         total: 0,
         results: [],
-        error: error.message || 'Unknown error',
+        error: error.message || "Unknown error",
       };
     }
   }
@@ -207,7 +210,7 @@ class AuditVerifier {
       const [total, verified, notLogged] = await Promise.all([
         AuditLog.countDocuments(),
         AuditLog.countDocuments({ verified: true }),
-        AuditLog.countDocuments({ txHash: '' }),
+        AuditLog.countDocuments({ txHash: "" }),
       ]);
 
       const unverified = total - verified - notLogged;
@@ -219,13 +222,13 @@ class AuditVerifier {
         notLogged,
       };
     } catch (error) {
-      console.error('Error getting verification stats:', error);
+      console.error("Error getting verification stats:", error);
       return {
         total: 0,
         verified: 0,
         unverified: 0,
         notLogged: 0,
-        error: error.message || 'Unknown error',
+        error: error.message || "Unknown error",
       };
     }
   }

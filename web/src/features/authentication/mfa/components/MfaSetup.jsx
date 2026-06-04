@@ -18,8 +18,10 @@ const { Title, Paragraph, Text } = Typography
 /**
  * @param {object} props
  * @param {() => void | Promise<void>} [props.onComplete] - Called when MFA is enabled (after profile refresh). Replaces redirect.
+ * @param {() => void} [props.onSkip] - Called when user skips MFA setup (for business owners).
+ * @param {boolean} [props.allowSkip] - Whether to show the skip button (for business owners).
  */
-export default function MfaSetup({ onComplete }) {
+export default function MfaSetup({ onComplete, onSkip, allowSkip = false }) {
   const { token } = theme.useToken()
   const { currentUser, role, login } = useAuthSession()
   const {
@@ -215,7 +217,7 @@ export default function MfaSetup({ onComplete }) {
 
           <Space direction="vertical" style={{ width: '100%' }} size="middle">
             <Button
-              type="default"
+              type="primary"
               onClick={onPasskeySetup}
               loading={passkeyRegistering}
               icon={<KeyOutlined />}
@@ -224,7 +226,7 @@ export default function MfaSetup({ onComplete }) {
               Use passkey
             </Button>
             <Button
-              type="primary"
+              type="default"
               onClick={onSetupClick}
               loading={loading}
               icon={<MobileOutlined />}

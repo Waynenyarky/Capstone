@@ -106,7 +106,7 @@ class ErrorBoundary extends React.Component {
         return window.localStorage.getItem('userId');
       }
       return 'anonymous';
-    } catch (e) {
+    } catch {
       return 'anonymous';
     }
   }
@@ -118,7 +118,7 @@ class ErrorBoundary extends React.Component {
         return window.localStorage.getItem('currentBusinessId');
       }
       return null;
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -308,7 +308,7 @@ class ErrorBoundary extends React.Component {
             />
 
             {/* Error Details for Development */}
-            {process.env.NODE_ENV === 'development' && (
+            {import.meta.env.MODE === 'development' && (
               <div style={{ marginTop: '24px' }}>
                 <Collapse>
                   <Panel header="Error Details (Development Mode)" key="error-details">
@@ -425,7 +425,7 @@ class ErrorBoundary extends React.Component {
     try {
       const errors = JSON.parse(localStorage.getItem('errorReports') || '[]');
       return errors.slice(-5).reverse(); // Last 5 errors, newest first
-    } catch (e) {
+    } catch {
       return [];
     }
   }

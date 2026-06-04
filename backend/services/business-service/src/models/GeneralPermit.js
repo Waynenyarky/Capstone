@@ -1,19 +1,21 @@
-const mongoose = require('mongoose')
-const { GENERAL_PERMIT_CATEGORY_VALUES } = require('../../../../shared/constants')
+const mongoose = require("mongoose");
+const {
+  GENERAL_PERMIT_CATEGORY_VALUES,
+} = require("../../../../shared/constants");
 
 const RequirementSchema = new mongoose.Schema(
   {
-    label: { type: String, default: '' },
-    type: { type: String, default: '' },
-    documentUrl: { type: String, default: '' },
+    label: { type: String, default: "" },
+    type: { type: String, default: "" },
+    documentUrl: { type: String, default: "" },
     status: {
       type: String,
-      enum: ['pending', 'submitted', 'verified', 'rejected'],
-      default: 'pending',
+      enum: ["pending", "submitted", "verified", "rejected"],
+      default: "pending",
     },
   },
-  { _id: false }
-)
+  { _id: false },
+);
 
 const GeneralPermitSchema = new mongoose.Schema(
   {
@@ -28,21 +30,21 @@ const GeneralPermitSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['draft', 'submitted', 'under_review', 'approved', 'rejected'],
-      default: 'draft',
+      enum: ["draft", "submitted", "under_review", "approved", "rejected"],
+      default: "draft",
     },
     applicantId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     businessPlateNo: {
       type: String,
-      default: '',
+      default: "",
     },
     approvedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       default: null,
     },
     issuedAt: {
@@ -50,18 +52,18 @@ const GeneralPermitSchema = new mongoose.Schema(
       default: null,
     },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 GeneralPermitSchema.plugin(encryptionPlugin, {
-  fields: ['businessPlateNo'],
+  fields: ["businessPlateNo"],
   deterministicFields: [],
   nestedPaths: [],
-  arrayPaths: ['requirements'],
+  arrayPaths: ["requirements"],
   mixedPaths: [],
-})
+});
 
 module.exports =
   mongoose.models.GeneralPermit ||
-  mongoose.model('GeneralPermit', GeneralPermitSchema)
+  mongoose.model("GeneralPermit", GeneralPermitSchema);

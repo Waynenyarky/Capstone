@@ -28,7 +28,7 @@ export const useAuth = () => {
     }, 100);
   }, []);
 
-  const login = async (credentials) => {
+  const login = async () => {
     setLoading(true);
     setError(null);
     try {

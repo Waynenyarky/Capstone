@@ -115,21 +115,7 @@ export default function AdminUsers() {
   const initialLogId = searchParams.get('logId') || null
 
   return (
-    <AdminLayout
-      pageTitle="User Management"
-      pageIcon={<TeamOutlined />}
-      headerActions={
-        <>
-          {lastUpdated && (
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Last updated: {lastUpdated.toLocaleTimeString()}
-            </Text>
-          )}
-          <Button  icon={<ReloadOutlined />} onClick={loadStaff} loading={loadingStaff} aria-label="Refresh staff" />
-          <Button  icon={<InfoCircleOutlined />} onClick={() => setInfoOpen(true)} aria-label="About" />
-        </>
-      }
-    >
+    <AdminLayout>
       <div style={isMobile ? { overflow: 'auto' } : { height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <UserManagementContent
           tabKey={tabKey}

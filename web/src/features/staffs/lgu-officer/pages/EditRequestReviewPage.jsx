@@ -325,28 +325,9 @@ export default function EditRequestReviewPage() {
     </div>
   )
 
-  const headerActions = (
-    <Space>
-      {lastUpdated && (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          Last updated: {dayjs(lastUpdated).format('MMM D, h:mm A')}
-        </Text>
-      )}
-      <Button
-        icon={<ReloadOutlined />}
-        onClick={fetchRequests}
-        loading={loading}
-      />
-    </Space>
-  )
-
   if (isMobile) {
     return (
-      <StaffLayout
-        pageTitle="Edit Requests"
-        pageIcon={<EditOutlined />}
-        headerActions={headerActions}
-      >
+      <StaffLayout>
         <div style={{ height: 'calc(100vh - 120px)' }}>
           {tableContent}
         </div>
@@ -355,11 +336,7 @@ export default function EditRequestReviewPage() {
   }
 
   return (
-    <StaffLayout
-      pageTitle="Edit Requests"
-      pageIcon={<EditOutlined />}
-      headerActions={headerActions}
-    >
+    <StaffLayout>
       <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <Splitter style={{ height: '100%' }}>
           <Splitter.Panel min="25%" defaultSize="35%" style={{ overflow: 'hidden' }}>

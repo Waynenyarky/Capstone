@@ -1,5 +1,7 @@
-const mongoose = require('mongoose')
-const { POST_REQUIREMENT_TYPE_VALUES } = require('../../../../shared/constants')
+const mongoose = require("mongoose");
+const {
+  POST_REQUIREMENT_TYPE_VALUES,
+} = require("../../../../shared/constants");
 
 const PostRequirementSchema = new mongoose.Schema(
   {
@@ -9,12 +11,12 @@ const PostRequirementSchema = new mongoose.Schema(
     },
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       default: null,
     },
     permitId: {
       type: String,
-      default: '',
+      default: "",
     },
     requirementType: {
       type: String,
@@ -23,7 +25,7 @@ const PostRequirementSchema = new mongoose.Schema(
     },
     description: {
       type: String,
-      default: '',
+      default: "",
     },
     isNewPermit: {
       type: Boolean,
@@ -43,11 +45,11 @@ const PostRequirementSchema = new mongoose.Schema(
     },
     documentUrl: {
       type: String,
-      default: '',
+      default: "",
     },
     verifiedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       default: null,
     },
     verifiedAt: {
@@ -56,35 +58,35 @@ const PostRequirementSchema = new mongoose.Schema(
     },
     verificationNotes: {
       type: String,
-      default: '',
+      default: "",
     },
     extensionHistory: [
       {
         previousDueDate: Date,
         newDueDate: Date,
-        reason: { type: String, default: '' },
-        extendedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        reason: { type: String, default: "" },
+        extendedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
         extendedAt: { type: Date, default: Date.now },
       },
     ],
     status: {
       type: String,
-      enum: ['pending', 'submitted', 'verified', 'overdue', 'non_compliant'],
-      default: 'pending',
+      enum: ["pending", "submitted", "verified", "overdue", "non_compliant"],
+      default: "pending",
     },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 PostRequirementSchema.plugin(encryptionPlugin, {
-  fields: ['description', 'documentUrl', 'verificationNotes'],
-  deterministicFields: ['businessId', 'permitId'],
+  fields: ["description", "documentUrl", "verificationNotes"],
+  deterministicFields: ["businessId", "permitId"],
   nestedPaths: [],
-  arrayPaths: ['submittedDocuments', 'extensionHistory'],
+  arrayPaths: ["submittedDocuments", "extensionHistory"],
   mixedPaths: [],
-})
+});
 
 module.exports =
   mongoose.models.PostRequirement ||
-  mongoose.model('PostRequirement', PostRequirementSchema)
+  mongoose.model("PostRequirement", PostRequirementSchema);

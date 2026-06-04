@@ -23,11 +23,6 @@ export default function AuditHistory() {
     total: 0,
   })
 
-  useEffect(() => {
-    loadHistory()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, dateRange, eventTypeFilter, pagination.current, pagination.pageSize])
-
   const loadHistory = async () => {
     try {
       setLoading(true)
@@ -58,6 +53,11 @@ export default function AuditHistory() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    loadHistory()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser, dateRange, eventTypeFilter, pagination.current, pagination.pageSize])
 
   const handleExport = async (format = 'csv') => {
     try {

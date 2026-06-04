@@ -3,8 +3,8 @@
  * Checks for active high-privilege tasks that need to be reassigned before admin deletion
  */
 
-const AdminApproval = require('../models/AdminApproval')
-const User = require('../models/User')
+const AdminApproval = require("../models/AdminApproval");
+const User = require("../models/User");
 
 /**
  * Check for high-privilege tasks assigned to an admin
@@ -12,51 +12,51 @@ const User = require('../models/User')
  * @returns {Promise<{hasTasks: boolean, tasks: Array, details: string}>}
  */
 async function checkHighPrivilegeTasks(adminId) {
-  const tasks = []
-  let details = ''
+  const tasks = [];
+  let details = "";
 
   try {
     // 1. Check for pending admin approvals (system-wide approvals for permits, etc.)
     const pendingApprovals = await AdminApproval.find({
       requestedBy: adminId,
-      status: 'pending',
+      status: "pending",
     })
-      .populate('userId', 'email firstName lastName')
-      .lean()
+      .populate("userId", "email firstName lastName")
+      .lean();
 
     if (pendingApprovals.length > 0) {
       tasks.push({
-        type: 'pending_approvals',
+        type: "pending_approvals",
         count: pendingApprovals.length,
         items: pendingApprovals.map((a) => ({
           id: a.approvalId,
           type: a.requestType,
           userId: a.userId,
         })),
-      })
-      details += `${pendingApprovals.length} pending approval(s) (${pendingApprovals.map((a) => a.requestType).join(', ')}). `
+      });
+      details += `${pendingApprovals.length} pending approval(s) (${pendingApprovals.map((a) => a.requestType).join(", ")}). `;
     }
 
     // 2. Check for pending staff account changes
     const pendingStaffChanges = await AdminApproval.find({
       requestedBy: adminId,
-      status: 'pending',
-      requestType: { $in: ['account_status_change', 'role_change'] },
+      status: "pending",
+      requestType: { $in: ["account_status_change", "role_change"] },
     })
-      .populate('userId', 'email firstName lastName role office')
-      .lean()
+      .populate("userId", "email firstName lastName role office")
+      .lean();
 
     if (pendingStaffChanges.length > 0) {
       tasks.push({
-        type: 'pending_staff_changes',
+        type: "pending_staff_changes",
         count: pendingStaffChanges.length,
         items: pendingStaffChanges.map((a) => ({
           id: a.approvalId,
           type: a.requestType,
           userId: a.userId,
         })),
-      })
-      details += `${pendingStaffChanges.length} pending staff account change(s). `
+      });
+      details += `${pendingStaffChanges.length} pending staff account change(s). `;
     }
 
     // 3. Check for active user role assignments (users created/modified by this admin recently)
@@ -69,20 +69,20 @@ async function checkHighPrivilegeTasks(adminId) {
       ],
       isActive: true,
     })
-      .populate('role', 'slug name')
-      .lean()
+      .populate("role", "slug name")
+      .lean();
 
     // Note: This is a simplified check. In a real system, you'd track who created/modified users
     // For now, we'll just count recent active users as a potential concern
     if (recentUserChanges.length > 0) {
-      const staffUsers = recentUserChanges.filter((u) => u.isStaff)
+      const staffUsers = recentUserChanges.filter((u) => u.isStaff);
       if (staffUsers.length > 0) {
         tasks.push({
-          type: 'recent_user_changes',
+          type: "recent_user_changes",
           count: staffUsers.length,
-          note: 'Recent staff account creations/modifications may need attention',
-        })
-        details += `${staffUsers.length} recent staff account change(s) in last 7 days. `
+          note: "Recent staff account creations/modifications may need attention",
+        });
+        details += `${staffUsers.length} recent staff account change(s) in last 7 days. `;
       }
     }
 
@@ -91,21 +91,21 @@ async function checkHighPrivilegeTasks(adminId) {
     // For now, we'll skip this check or implement a placeholder
     // TODO: Implement when Task/ScheduledJob model exists
 
-    const hasTasks = tasks.length > 0
+    const hasTasks = tasks.length > 0;
 
     return {
       hasTasks,
       tasks,
-      details: details.trim() || 'No high-privilege tasks found',
-    }
+      details: details.trim() || "No high-privilege tasks found",
+    };
   } catch (error) {
-    console.error('Error checking high-privilege tasks:', error)
+    console.error("Error checking high-privilege tasks:", error);
     // On error, assume tasks exist (fail safe)
     return {
       hasTasks: true,
       tasks: [],
-      details: 'Error checking tasks - manual review required',
-    }
+      details: "Error checking tasks - manual review required",
+    };
   }
 }
 
@@ -115,17 +115,17 @@ async function checkHighPrivilegeTasks(adminId) {
  * @returns {Promise<Object>}
  */
 async function getHighPrivilegeTasksSummary(adminId) {
-  const result = await checkHighPrivilegeTasks(adminId)
-  
+  const result = await checkHighPrivilegeTasks(adminId);
+
   return {
     hasTasks: result.hasTasks,
     taskCount: result.tasks.reduce((sum, task) => sum + task.count, 0),
     taskTypes: result.tasks.map((task) => task.type),
     details: result.details,
-  }
+  };
 }
 
 module.exports = {
   checkHighPrivilegeTasks,
   getHighPrivilegeTasksSummary,
-}
+};

@@ -9,12 +9,11 @@ import AddBusinessForm from '../components/AddBusinessForm'
 import PendingApplicationView from '../components/PendingApplicationView'
 import ApprovedBusinessView from '../components/ApprovedBusinessView'
 import UserSettingsView from '@/features/user/pages/profileSettings/UserSettingsView'
-import WelcomeModal from '../components/onboarding/WelcomeModal'
+import WelcomeInline from '../components/onboarding/WelcomeModal'
 import { useAuthSession } from '@/features/authentication'
 import { useThemeSettings } from '@/features/user/hooks/useThemeSettings'
 import { getBusinesses, getBusinessesPaginated, deleteBusiness } from '../services/businessProfileService'
 import { useSocketConnection, useSocketEvent } from '@/hooks/useSocket'
-import { SiteStatusPill } from '@/features/shared/components'
 
 const { Title } = Typography
 const { Search } = Input
@@ -58,8 +57,7 @@ export default function BusinessOwnerDashboard() {
   const [editingBusiness, setEditingBusiness] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [showSettings, setShowSettings] = useState(false) // Settings view state
-  const [showWelcomeModal, setShowWelcomeModal] = useState(false)
-  const [hasClosedWelcomeModal, setHasClosedWelcomeModal] = useState(false) // Track if user explicitly closed modal
+  const [showWelcomeState, setShowWelcomeState] = useState(false)
   const [businessType, setBusinessType] = useState('general') // 'general' or 'healthcare'
   const [fromWelcomeModal, setFromWelcomeModal] = useState(false) // Track if coming from welcome modal
   const formRef = useRef(null)
@@ -204,13 +202,12 @@ export default function BusinessOwnerDashboard() {
   // Clean up stale localStorage key from previous implementation
   useEffect(() => { localStorage.removeItem('bizclear_onboarding_skipped') }, [])
 
-  // Show welcome modal for new users (empty businesses list)
-  // But don't show if user has explicitly closed it (session-only)
+  // Show welcome state for new users (empty businesses list)
   useEffect(() => {
-    if (!loading && businesses.length === 0 && !showAddForm && !showWelcomeModal && !hasClosedWelcomeModal) {
-      setShowWelcomeModal(true)
+    if (!loading && businesses.length === 0 && !showAddForm && !showWelcomeState) {
+      setShowWelcomeState(true)
     }
-  }, [businesses.length, loading, showAddForm, showWelcomeModal, hasClosedWelcomeModal])
+  }, [businesses.length, loading, showAddForm, showWelcomeState])
 
   const selectedBusiness = businesses.find(b => (b.businessId || b._id) === selectedBusinessId)
   const appStatus = (selectedBusiness?.applicationStatus || selectedBusiness?.permitStatus || '').toLowerCase()
@@ -300,30 +297,20 @@ export default function BusinessOwnerDashboard() {
     setEditingBusiness(null) // Clear editing business
   }, [])
 
-  const handleSelectGeneralBusiness = useCallback(() => {
-    setShowWelcomeModal(false)
-    setFromWelcomeModal(true) // Coming from welcome modal
-    setShowAddForm(true)
-    setSelectedBusinessId(null)
-    setEditingBusiness(null) // Clear editing business
-  }, [])
-
-  const handleSelectHealthcareBusiness = useCallback(() => {
-    setShowWelcomeModal(false)
-    setFromWelcomeModal(true) // Coming from welcome modal
-    setShowAddForm(true)
-    setSelectedBusinessId(null)
-    setEditingBusiness(null) // Clear editing business
-  }, [])
-
-  const handleWelcomeModalSelect = useCallback((registrationType) => {
+  const handleWelcomeSelect = useCallback((registrationType) => {
     setBusinessType(registrationType)
-    setShowWelcomeModal(false)
+    setShowWelcomeState(false)
     setFromWelcomeModal(true) // Coming from welcome modal
     setShowAddForm(true)
     setSelectedBusinessId(null)
     setEditingBusiness(null) // Clear editing business
   }, [])
+
+  const handleLinkExisting = useCallback(() => {
+    // Mock functionality for now
+    message.info('Link existing business feature coming soon!')
+    setShowWelcomeState(false)
+  }, [message])
 
   const handleSort = useCallback((field, order) => {
     setSortBy(field)
@@ -386,19 +373,24 @@ export default function BusinessOwnerDashboard() {
     <BusinessOwnerLayout
       pageTitle="Business Dashboard"
       pageIcon={<ShopOutlined />}
-      headerActions={
-        <SiteStatusPill
-          lastUpdated={lastUpdatedAt}
-          socketConnected={socketConnected}
-          onRefresh={fetchBusinesses}
-          loading={loading}
-          data-testid="dashboard-header-actions"
-        />
-      }
+      onRefresh={fetchBusinesses}
+      lastUpdated={lastUpdatedAt}
+      socketConnected={socketConnected}
+      loading={loading}
       onSettingsClick={() => setShowSettings(true)} // Open settings in dashboard
     >
-        <div style={{ 
-          display: 'flex', 
+      {showWelcomeState ? (
+        // Welcome State - Full width, no panels
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+          <WelcomeInline
+            onSelect={handleWelcomeSelect}
+            onLinkExisting={handleLinkExisting}
+          />
+        </div>
+      ) : (
+        // Normal Dashboard View with panels
+        <div style={{
+          display: 'flex',
           flex: 1,
           overflow: 'hidden'
         }}>
@@ -419,218 +411,208 @@ export default function BusinessOwnerDashboard() {
               padding: '24px 24px 24px 16px',
             }}
           >
-          {/* Business List Panel */}
-          <BusinessListPanel
-            businesses={businesses}
-            loading={loading}
-            selectedBusinessId={selectedBusiness?.businessId || selectedBusiness?._id}
-            currentPage={currentPage}
-            onPageChange={handlePageChange}
-            onBusinessSelect={handleBusinessSelect}
-            onAddBusiness={handleAddBusiness}
-          />
-        </div>
+            {/* Business List Panel */}
+            <BusinessListPanel
+              businesses={businesses}
+              loading={loading}
+              selectedBusinessId={selectedBusiness?.businessId || selectedBusiness?._id}
+              currentPage={currentPage}
+              onPageChange={handlePageChange}
+              onBusinessSelect={handleBusinessSelect}
+              onAddBusiness={handleAddBusiness}
+            />
+          </div>
 
-        {/* Right panel - Business Details or Settings */}
-        <div
-          data-testid="business-details-panel"
-          style={{
-            flex: 1,
-            minWidth: 0,
-            minHeight: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            background: token.colorBgContainer,
-            overflow: 'hidden',
-          }}
-        >
-          {showSettings ? (
-            // Settings View - Full settings interface
-            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ flex: 1, overflow: 'auto' }}>
-                <UserSettingsView 
-                  showBackButton={false}
-                  themeSettings={themeSettings}
-                  embedded={true} // Custom prop to indicate embedded mode
-                />
-              </div>
-            </div>
-          ) : (
-            // Dashboard View (original content)
-            (showAddForm || selectedBusiness) ? (
-              <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                {selectedBusiness ? (
-                  <>
-                    <div
-                      style={{
-                        flexShrink: 0,
-                        padding: '16px 24px',
-                        borderBottom: `1px solid ${token.colorBorderSecondary}`,
-                        background: token.colorBgContainer,
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-                        <Space size={12}>
-                          <span
-                            style={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: token.borderRadius,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              background: token.colorPrimaryBg,
-                              color: token.colorPrimary,
-                            }}
-                          >
-                            <ShopOutlined style={{ fontSize: 20 }} />
-                          </span>
-                          <div>
-                            <Title level={4} style={{ margin: 0 }}>
-                              {displayName}
-                            </Title>
-                          </div>
-                        </Space>
-                        <Space size="small">
-                          {!isDraft && !isApproved ? (
-                            <>
-                              <Button onClick={() => setShowAddForm(prev => !prev)}>
-                                {showAddForm
-                                  ? (isNeedsRevision ? 'View Revision Summary' : isResubmitted ? 'View Resubmission Status' : 'View Progress')
-                                  : (isNeedsRevision ? 'Review & Fix Application' : isResubmitted ? 'View Submitted Revisions' : 'View Submitted Application')}
-                              </Button>
-                              {isNeedsRevision && showAddForm && (
-                                <>
-                                  <Button
-                                    onClick={() => formRef.current?.saveDraft?.()}
-                                    loading={formSubmitting}
-                                  >
-                                    Save as Draft
-                                  </Button>
-                                  <Button
-                                    type="primary"
-                                    onClick={() => formRef.current?.submitApplication?.()}
-                                    loading={formSubmitting}
-                                  >
-                                    Resubmit Application
-                                  </Button>
-                                </>
-                              )}
-                            </>
-                          ) : isDraft ? (
-                            <>
-                              {import.meta.env.DEV && (
-                                <Button
-                                  type="dashed"
-                                  icon={<BugOutlined />}
-                                  onClick={() => formRef.current?.fillTestData?.()}
-                                >
-                                  Fill with test data
-                                </Button>
-                              )}
-                              <Button
-                                danger
-                                icon={<DeleteOutlined />}
-                                onClick={handleDeleteDraftClick}
-                              >
-                                Delete
-                              </Button>
-                              <Button
-                                onClick={() => formRef.current?.saveDraft?.()}
-                                loading={formSubmitting}
-                              >
-                                Save as Draft
-                              </Button>
-                              <Button
-                                type="primary"
-                                onClick={() => formRef.current?.submitApplication?.()}
-                                loading={formSubmitting}
-                              >
-                                Submit
-                              </Button>
-                            </>
-                          ) : null}
-                        </Space>
-                      </div>
-                    </div>
-                    <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                      {isApproved && !showAddForm ? (
-                        <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-                          <ApprovedBusinessView business={selectedBusiness} onRefresh={fetchBusinesses} />
-                        </div>
-                      ) : !isDraft && !showAddForm ? (
-                        <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-                          <PendingApplicationView
-                            business={selectedBusiness}
-                            onEdit={canEditRevision ? openRevisionForm : undefined}
-                            onOpenForm={isResubmitted ? openReadOnlyApplicationForm : undefined}
-                          />
-                        </div>
-                      ) : (
-                        <AddBusinessForm
-                          ref={formRef}
-                          embedded
-                          onSubmittingChange={setFormSubmitting}
-                          key={`${selectedBusiness?.businessId || selectedBusiness?._id || 'edit'}-${showAddForm}`}
-                          onBack={handleBackFromForm}
-                          editingBusiness={selectedBusiness}
-                          readOnly={!isDraft && !canEditRevision}
-                          hideActionButtons={isNeedsRevision}
-                          onSubmitted={(response) => {
-                            if (response?.businesses?.length) setBusinesses(response.businesses)
-                            else fetchBusinesses()
-                            setShowAddForm(false)
-                          }}
-                          onDraftCreated={(newBusiness) => {
-                            setBusinesses(prev => [newBusiness, ...prev.filter(b => (b.businessId || b._id) !== (newBusiness.businessId || newBusiness._id))])
-                            setEditingBusiness(newBusiness)
-                            setSelectedBusinessId(newBusiness.businessId || newBusiness._id)
-                            fetchBusinesses()
-                          }}
-                        />
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <AddBusinessForm
-                    onBack={handleBackFromForm}
-                    editingBusiness={editingBusiness}
-                    initialRegistrationType={fromWelcomeModal ? businessType : null}
-                    onDraftCreated={(newBusiness) => {
-                      // Add the new business to state immediately so selectedBusiness is available
-                      // This prevents a race condition where selectedBusinessId is set but
-                      // businesses array hasn't been updated yet, causing the non-embedded form
-                      // to re-render with initialRegistrationType still set
-                      const newId = newBusiness.businessId || newBusiness._id
-                      setBusinesses(prev => [newBusiness, ...prev.filter(b => (b.businessId || b._id) !== newId)])
-                      setEditingBusiness(newBusiness)
-                      setSelectedBusinessId(newId)
-                      setFromWelcomeModal(false) // Clear the flag to prevent re-triggering
-                      setHasClosedWelcomeModal(false) // Reset flag - user has created a business
-                      // Refresh in background to sync with server
-                      fetchBusinesses()
-                    }}
+          {/* Right panel - Business Details or Settings */}
+          <div
+            data-testid="business-details-panel"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              background: token.colorBgContainer,
+              overflow: 'hidden',
+            }}
+          >
+            {showSettings ? (
+              // Settings View - Full settings interface
+              <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flex: 1, overflow: 'auto' }}>
+                  <UserSettingsView
+                    showBackButton={false}
+                    themeSettings={themeSettings}
+                    embedded={true} // Custom prop to indicate embedded mode
                   />
-                )}
+                </div>
               </div>
             ) : (
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Empty description={businesses.length === 0 ? "Add your first business to get started" : "Select a business to view details"} />
-              </div>
-            )
-          )}
+              // Dashboard View (original content)
+              (showAddForm || selectedBusiness) ? (
+                <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  {selectedBusiness ? (
+                    <>
+                      <div
+                        style={{
+                          flexShrink: 0,
+                          padding: '16px 24px',
+                          borderBottom: `1px solid ${token.colorBorderSecondary}`,
+                          background: token.colorBgContainer,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                          <Space size={12}>
+                            <span
+                              style={{
+                                width: 40,
+                                height: 40,
+                                borderRadius: token.borderRadius,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: token.colorPrimaryBg,
+                                color: token.colorPrimary,
+                              }}
+                            >
+                              <ShopOutlined style={{ fontSize: 20 }} />
+                            </span>
+                            <div>
+                              <Title level={4} style={{ margin: 0 }}>
+                                {displayName}
+                              </Title>
+                            </div>
+                          </Space>
+                          <Space size="small">
+                            {!isDraft && !isApproved ? (
+                              <>
+                                <Button onClick={() => setShowAddForm(prev => !prev)}>
+                                  {showAddForm
+                                    ? (isNeedsRevision ? 'View Revision Summary' : isResubmitted ? 'View Resubmission Status' : 'View Progress')
+                                    : (isNeedsRevision ? 'Review & Fix Application' : isResubmitted ? 'View Submitted Revisions' : 'View Submitted Application')}
+                                </Button>
+                                {isNeedsRevision && showAddForm && (
+                                  <>
+                                    <Button
+                                      onClick={() => formRef.current?.saveDraft?.()}
+                                      loading={formSubmitting}
+                                    >
+                                      Save as Draft
+                                    </Button>
+                                    <Button
+                                      type="primary"
+                                      onClick={() => formRef.current?.submitApplication?.()}
+                                      loading={formSubmitting}
+                                    >
+                                      Resubmit Application
+                                    </Button>
+                                  </>
+                                )}
+                              </>
+                            ) : isDraft ? (
+                              <>
+                                {import.meta.env.DEV && (
+                                  <Button
+                                    type="dashed"
+                                    icon={<BugOutlined />}
+                                    onClick={() => formRef.current?.fillTestData?.()}
+                                  >
+                                    Fill with test data
+                                  </Button>
+                                )}
+                                <Button
+                                  danger
+                                  icon={<DeleteOutlined />}
+                                  onClick={handleDeleteDraftClick}
+                                >
+                                  Delete
+                                </Button>
+                                <Button
+                                  onClick={() => formRef.current?.saveDraft?.()}
+                                  loading={formSubmitting}
+                                >
+                                  Save as Draft
+                                </Button>
+                                <Button
+                                  type="primary"
+                                  onClick={() => formRef.current?.submitApplication?.()}
+                                  loading={formSubmitting}
+                                >
+                                  Submit
+                                </Button>
+                              </>
+                            ) : null}
+                          </Space>
+                        </div>
+                      </div>
+                      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                        {isApproved && !showAddForm ? (
+                          <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+                            <ApprovedBusinessView business={selectedBusiness} onRefresh={fetchBusinesses} />
+                          </div>
+                        ) : !isDraft && !showAddForm ? (
+                          <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+                            <PendingApplicationView
+                              business={selectedBusiness}
+                              onEdit={canEditRevision ? openRevisionForm : undefined}
+                              onOpenForm={isResubmitted ? openReadOnlyApplicationForm : undefined}
+                            />
+                          </div>
+                        ) : (
+                          <AddBusinessForm
+                            ref={formRef}
+                            embedded
+                            onSubmittingChange={setFormSubmitting}
+                            key={`${selectedBusiness?.businessId || selectedBusiness?._id || 'edit'}-${showAddForm}`}
+                            onBack={handleBackFromForm}
+                            editingBusiness={selectedBusiness}
+                            readOnly={!isDraft && !canEditRevision}
+                            hideActionButtons={isNeedsRevision}
+                            onSubmitted={(response) => {
+                              if (response?.businesses?.length) setBusinesses(response.businesses)
+                              else fetchBusinesses()
+                              setShowAddForm(false)
+                            }}
+                            onDraftCreated={(newBusiness) => {
+                              setBusinesses(prev => [newBusiness, ...prev.filter(b => (b.businessId || b._id) !== (newBusiness.businessId || newBusiness._id))])
+                              setEditingBusiness(newBusiness)
+                              setSelectedBusinessId(newBusiness.businessId || newBusiness._id)
+                              fetchBusinesses()
+                            }}
+                          />
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <AddBusinessForm
+                      onBack={handleBackFromForm}
+                      editingBusiness={editingBusiness}
+                      initialRegistrationType={fromWelcomeModal ? businessType : null}
+                      onDraftCreated={(newBusiness) => {
+                        // Add the new business to state immediately so selectedBusiness is available
+                        // This prevents a race condition where selectedBusinessId is set but
+                        // businesses array hasn't been updated yet, causing the non-embedded form
+                        // to re-render with initialRegistrationType still set
+                        const newId = newBusiness.businessId || newBusiness._id
+                        setBusinesses(prev => [newBusiness, ...prev.filter(b => (b.businessId || b._id) !== newId)])
+                        setEditingBusiness(newBusiness)
+                        setSelectedBusinessId(newId)
+                        setFromWelcomeModal(false) // Clear the flag to prevent re-triggering
+                        // Refresh in background to sync with server
+                        fetchBusinesses()
+                      }}
+                    />
+                  )}
+                </div>
+              ) : (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Empty description={businesses.length === 0 ? "Add your first business to get started" : "Select a business to view details"} />
+                </div>
+              )
+            )}
+          </div>
         </div>
-      </div>
-
-      {/* Welcome Modal for New Users */}
-      <WelcomeModal
-        visible={showWelcomeModal}
-        onSelect={handleWelcomeModalSelect}
-        onClose={() => {
-          setShowWelcomeModal(false)
-          setHasClosedWelcomeModal(true)
-        }}
-      />
+      )}
     </BusinessOwnerLayout>
   )
 }

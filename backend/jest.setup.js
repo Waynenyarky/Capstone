@@ -1,7 +1,7 @@
 // Jest setup file for global test configuration and cleanup
 
 // Avoid MongoDB binary checksum failures in CI/local envs.
-process.env.MONGOMS_MD5_CHECK = 'false'
+process.env.MONGOMS_MD5_CHECK = "false";
 
 afterAll(async () => {
   // Clear all intervals (from errorTracking and securityMonitor)
@@ -28,15 +28,15 @@ afterAll(async () => {
 
   // Ensure MongoDB connections are closed
   try {
-    const mongoose = require('mongoose');
+    const mongoose = require("mongoose");
     // Close all connections
     const connections = mongoose.connections || [];
     await Promise.all(
-      connections.map(conn => {
+      connections.map((conn) => {
         if (conn.readyState !== 0) {
           return conn.close().catch(() => {});
         }
-      })
+      }),
     );
     // Also disconnect the default connection
     if (mongoose.connection && mongoose.connection.readyState !== 0) {
@@ -47,5 +47,5 @@ afterAll(async () => {
   }
 
   // Give Jest a moment to clean up any remaining async operations
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await new Promise((resolve) => setTimeout(resolve, 500));
 }, 30000); // 30 second timeout for cleanup

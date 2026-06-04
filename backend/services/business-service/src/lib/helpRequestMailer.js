@@ -1,4 +1,4 @@
-const logger = require('./logger')
+const logger = require("./logger");
 
 /**
  * Help Request Email Service
@@ -6,58 +6,97 @@ const logger = require('./logger')
  * Reuses the same sendEmail infrastructure as admin-service mailer.
  */
 
-let sendEmailFn = null
+let sendEmailFn = null;
 
 function getSendEmail() {
-  if (sendEmailFn) return sendEmailFn
+  if (sendEmailFn) return sendEmailFn;
   try {
-    const { sendEmail } = require('../../../../../../backend/services/admin-service/src/lib/mailer')
-    sendEmailFn = sendEmail
+    const {
+      sendEmail,
+    } = require("../../../../../../backend/services/admin-service/src/lib/mailer");
+    sendEmailFn = sendEmail;
   } catch {
     // Fallback: inline minimal implementation matching admin-service pattern
-    const axios = require('axios')
+    const axios = require("axios");
     sendEmailFn = async (opts) => {
-      const provider = process.env.EMAIL_API_PROVIDER || 'resend'
-      const apiKey = process.env.EMAIL_API_KEY || ''
-      const fromEmail = process.env.DEFAULT_FROM_EMAIL || 'noreply@localhost'
+      const provider = process.env.EMAIL_API_PROVIDER || "resend";
+      const apiKey = process.env.EMAIL_API_KEY || "";
+      const fromEmail = process.env.DEFAULT_FROM_EMAIL || "noreply@localhost";
 
-      const devRedirectTo = process.env.EMAIL_DEV_REDIRECT_TO
-      let actualTo = opts.to
-      if (devRedirectTo && devRedirectTo.includes('@')) {
-        actualTo = devRedirectTo.trim()
+      const devRedirectTo = process.env.EMAIL_DEV_REDIRECT_TO;
+      let actualTo = opts.to;
+      if (devRedirectTo && devRedirectTo.includes("@")) {
+        actualTo = devRedirectTo.trim();
       }
 
-      const placeholderKeys = ['your-sendgrid-api-key-here', 'your-email-api-key-here', 'your-resend-api-key-here']
-      if (!apiKey || placeholderKeys.some(p => apiKey === p) || process.env.NODE_ENV === 'development') {
-        logger.warn('HelpRequest Email: using mock sender', { to: actualTo, subject: opts.subject })
-        return { messageId: 'mock-' + Date.now(), accepted: [actualTo], rejected: [] }
-      }
-
-      if (provider === 'resend') {
-        const url = process.env.EMAIL_API_URL || 'https://api.resend.com/emails'
-        const response = await axios.post(url, {
-          from: fromEmail,
-          to: [actualTo],
+      const placeholderKeys = [
+        "your-sendgrid-api-key-here",
+        "your-email-api-key-here",
+        "your-resend-api-key-here",
+      ];
+      if (
+        !apiKey ||
+        placeholderKeys.some((p) => apiKey === p) ||
+        process.env.NODE_ENV === "development"
+      ) {
+        logger.warn("HelpRequest Email: using mock sender", {
+          to: actualTo,
           subject: opts.subject,
-          text: opts.text || '',
-          html: opts.html || '',
-        }, {
-          headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        })
-        return { messageId: response.data?.id || 'unknown', accepted: [actualTo], rejected: [] }
+        });
+        return {
+          messageId: "mock-" + Date.now(),
+          accepted: [actualTo],
+          rejected: [],
+        };
+      }
+
+      if (provider === "resend") {
+        const url =
+          process.env.EMAIL_API_URL || "https://api.resend.com/emails";
+        const response = await axios.post(
+          url,
+          {
+            from: fromEmail,
+            to: [actualTo],
+            subject: opts.subject,
+            text: opts.text || "",
+            html: opts.html || "",
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+          },
+        );
+        return {
+          messageId: response.data?.id || "unknown",
+          accepted: [actualTo],
+          rejected: [],
+        };
       }
       // Fallback mock
-      logger.warn('HelpRequest Email: unsupported provider, using mock', { provider })
-      return { messageId: 'mock-' + Date.now(), accepted: [actualTo], rejected: [] }
-    }
+      logger.warn("HelpRequest Email: unsupported provider, using mock", {
+        provider,
+      });
+      return {
+        messageId: "mock-" + Date.now(),
+        accepted: [actualTo],
+        rejected: [],
+      };
+    };
   }
-  return sendEmailFn
+  return sendEmailFn;
 }
 
 function buildEmailWrapper(title, bodyHtml) {
-  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
-  const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
-  const supportEmail = process.env.SUPPORT_EMAIL || process.env.EMAIL_HOST_USER || 'support@bizclear.com'
+  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const appUrl =
+    process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
+  const supportEmail =
+    process.env.SUPPORT_EMAIL ||
+    process.env.EMAIL_HOST_USER ||
+    "support@bizclear.com";
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -86,12 +125,13 @@ function buildEmailWrapper(title, bodyHtml) {
   </div>
 </div>
 </body>
-</html>`
+</html>`;
 }
 
 async function sendHelpRequestConfirmation(to, requestId, subject) {
-  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
-  const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
+  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const appUrl =
+    process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
 
   const bodyHtml = `
     <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
@@ -111,22 +151,31 @@ async function sendHelpRequestConfirmation(to, requestId, subject) {
       You will receive email notifications when our team responds to your request.
     </p>
     <a href="${appUrl}/help" style="display:inline-block;background:#003a70;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:4px;font-weight:600;font-size:16px;">Visit Help Center</a>
-  `
+  `;
 
-  const html = buildEmailWrapper('Help Request Received', bodyHtml)
-  const text = `Help Request Received\n\nReference: ${requestId}\nSubject: ${subject}\n\nWe will respond to your request as soon as possible.\n\n${brandName}`
+  const html = buildEmailWrapper("Help Request Received", bodyHtml);
+  const text = `Help Request Received\n\nReference: ${requestId}\nSubject: ${subject}\n\nWe will respond to your request as soon as possible.\n\n${brandName}`;
 
   try {
-    const sendEmail = getSendEmail()
-    await sendEmail({ to, subject: `Help Request Received - ${requestId}`, text, html })
-    logger.info('Help request confirmation sent', { to, requestId })
+    const sendEmail = getSendEmail();
+    await sendEmail({
+      to,
+      subject: `Help Request Received - ${requestId}`,
+      text,
+      html,
+    });
+    logger.info("Help request confirmation sent", { to, requestId });
   } catch (err) {
-    logger.error('Failed to send help request confirmation', { to, requestId, error: err.message })
+    logger.error("Failed to send help request confirmation", {
+      to,
+      requestId,
+      error: err.message,
+    });
   }
 }
 
 async function sendOfficerReplyNotification(to, requestId, messagePreview) {
-  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
+  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
 
   const bodyHtml = `
     <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
@@ -145,22 +194,31 @@ async function sendOfficerReplyNotification(to, requestId, messagePreview) {
     <p style="margin:0;color:#595959;font-size:14px;">
       If you need to provide additional information, you may reply to this thread via the Help Center.
     </p>
-  `
+  `;
 
-  const html = buildEmailWrapper('New Reply to Your Help Request', bodyHtml)
-  const text = `New Reply to Help Request ${requestId}\n\n${messagePreview}\n\n${brandName}`
+  const html = buildEmailWrapper("New Reply to Your Help Request", bodyHtml);
+  const text = `New Reply to Help Request ${requestId}\n\n${messagePreview}\n\n${brandName}`;
 
   try {
-    const sendEmail = getSendEmail()
-    await sendEmail({ to, subject: `Reply to Help Request - ${requestId}`, text, html })
-    logger.info('Officer reply notification sent', { to, requestId })
+    const sendEmail = getSendEmail();
+    await sendEmail({
+      to,
+      subject: `Reply to Help Request - ${requestId}`,
+      text,
+      html,
+    });
+    logger.info("Officer reply notification sent", { to, requestId });
   } catch (err) {
-    logger.error('Failed to send officer reply notification', { to, requestId, error: err.message })
+    logger.error("Failed to send officer reply notification", {
+      to,
+      requestId,
+      error: err.message,
+    });
   }
 }
 
 async function sendRequestClosedNotification(to, requestId, subject) {
-  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
+  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
 
   const bodyHtml = `
     <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
@@ -177,22 +235,31 @@ async function sendRequestClosedNotification(to, requestId, subject) {
       </div>
     </div>
     <p style="margin:0;color:#52c41a;font-size:16px;font-weight:600;">Status: Closed</p>
-  `
+  `;
 
-  const html = buildEmailWrapper('Help Request Closed', bodyHtml)
-  const text = `Help Request Closed\n\nReference: ${requestId}\nSubject: ${subject}\nStatus: Closed\n\n${brandName}`
+  const html = buildEmailWrapper("Help Request Closed", bodyHtml);
+  const text = `Help Request Closed\n\nReference: ${requestId}\nSubject: ${subject}\nStatus: Closed\n\n${brandName}`;
 
   try {
-    const sendEmail = getSendEmail()
-    await sendEmail({ to, subject: `Help Request Closed - ${requestId}`, text, html })
-    logger.info('Request closed notification sent', { to, requestId })
+    const sendEmail = getSendEmail();
+    await sendEmail({
+      to,
+      subject: `Help Request Closed - ${requestId}`,
+      text,
+      html,
+    });
+    logger.info("Request closed notification sent", { to, requestId });
   } catch (err) {
-    logger.error('Failed to send request closed notification', { to, requestId, error: err.message })
+    logger.error("Failed to send request closed notification", {
+      to,
+      requestId,
+      error: err.message,
+    });
   }
 }
 
 async function sendRequestInvalidNotification(to, requestId, subject) {
-  const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
+  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
 
   const bodyHtml = `
     <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
@@ -212,17 +279,26 @@ async function sendRequestInvalidNotification(to, requestId, subject) {
     <p style="margin:16px 0 0;color:#595959;font-size:14px;">
       If you believe this is an error, please submit a new request with more details.
     </p>
-  `
+  `;
 
-  const html = buildEmailWrapper('Help Request Marked Invalid', bodyHtml)
-  const text = `Help Request Invalid\n\nReference: ${requestId}\nSubject: ${subject}\nStatus: Invalid\n\nIf you believe this is an error, please submit a new request.\n\n${brandName}`
+  const html = buildEmailWrapper("Help Request Marked Invalid", bodyHtml);
+  const text = `Help Request Invalid\n\nReference: ${requestId}\nSubject: ${subject}\nStatus: Invalid\n\nIf you believe this is an error, please submit a new request.\n\n${brandName}`;
 
   try {
-    const sendEmail = getSendEmail()
-    await sendEmail({ to, subject: `Help Request Invalid - ${requestId}`, text, html })
-    logger.info('Request invalid notification sent', { to, requestId })
+    const sendEmail = getSendEmail();
+    await sendEmail({
+      to,
+      subject: `Help Request Invalid - ${requestId}`,
+      text,
+      html,
+    });
+    logger.info("Request invalid notification sent", { to, requestId });
   } catch (err) {
-    logger.error('Failed to send request invalid notification', { to, requestId, error: err.message })
+    logger.error("Failed to send request invalid notification", {
+      to,
+      requestId,
+      error: err.message,
+    });
   }
 }
 
@@ -231,4 +307,4 @@ module.exports = {
   sendOfficerReplyNotification,
   sendRequestClosedNotification,
   sendRequestInvalidNotification,
-}
+};

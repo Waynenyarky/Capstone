@@ -42,15 +42,6 @@ export const BUSINESS_TYPE_LABELS = Object.fromEntries(
 )
 
 /**
- * Get display label for a business type value (PSIC section)
- * @param {string} value - The PSIC section code (a-u)
- * @returns {string} - Human-readable label
- */
-export function getBusinessTypeLabel(value) {
-  return BUSINESS_TYPE_LABELS[value] || formatBusinessType(value)
-}
-
-/**
  * Format a business type value to a readable string (fallback)
  * @param {string} value - The business type enum value
  * @returns {string} - Formatted string
@@ -60,6 +51,15 @@ export function formatBusinessType(value) {
   return value
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+/**
+ * Get display label for a business type value (PSIC section)
+ * @param {string} value - The PSIC section code (a-u)
+ * @returns {string} - Human-readable label
+ */
+export function getBusinessTypeLabel(value) {
+  return BUSINESS_TYPE_LABELS[value] || formatBusinessType(value)
 }
 
 // Ant Design Select options format

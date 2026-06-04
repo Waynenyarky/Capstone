@@ -71,18 +71,34 @@ export default function ApplicationProcessSection() {
       }}
     >
       <div>
-        <Title
-          level={4}
-          style={{
-            marginTop: 0,
-            marginBottom: 32,
-            textAlign: 'left',
-            paddingLeft: horizontalPadding,
-            color: token.colorTextHeading,
-          }}
-        >
-          Application Process
-        </Title>
+        <div style={{ marginBottom: 14, paddingLeft: horizontalPadding }}>
+          <Title
+            level={4}
+            style={{
+              marginTop: 0,
+              marginBottom: 8,
+              fontSize: screens.md ? 20 : 18,
+              lineHeight: 1.25,
+              color: token.colorTextHeading,
+              textAlign: 'left',
+            }}
+          >
+            Application Process
+          </Title>
+          <Text
+            style={{
+              display: 'block',
+              marginTop: 0,
+              marginBottom: 8,
+              fontSize: screens.md ? 13 : 13,
+              lineHeight: 1.25,
+              color: token.colorTextSecondary,
+              textAlign: 'left',
+            }}
+          >
+            Explore the steps and requirements for each permit type.
+          </Text>
+        </div>
 
         <div style={{ position: 'relative' }}>
           <style>{`.app-process-scroll::-webkit-scrollbar { display: none; }`}</style>

@@ -1,10 +1,10 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 const EmailChangeRequestSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
       index: true,
     },
@@ -52,31 +52,33 @@ const EmailChangeRequestSchema = new mongoose.Schema(
       default: {},
     },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 EmailChangeRequestSchema.plugin(encryptionPlugin, {
   fields: [],
-  deterministicFields: ['oldEmail', 'newEmail'],
+  deterministicFields: ["oldEmail", "newEmail"],
   nestedPaths: [],
   arrayPaths: [],
-  mixedPaths: ['metadata'],
-})
+  mixedPaths: ["metadata"],
+});
 
 // Indexes for efficient querying
-EmailChangeRequestSchema.index({ userId: 1, createdAt: -1 })
-EmailChangeRequestSchema.index({ expiresAt: 1 })
-EmailChangeRequestSchema.index({ reverted: 1, applied: 1 })
+EmailChangeRequestSchema.index({ userId: 1, createdAt: -1 });
+EmailChangeRequestSchema.index({ expiresAt: 1 });
+EmailChangeRequestSchema.index({ reverted: 1, applied: 1 });
 
 // Method to check if grace period is still active
 EmailChangeRequestSchema.methods.isWithinGracePeriod = function () {
-  return !this.reverted && !this.applied && new Date() < this.expiresAt
-}
+  return !this.reverted && !this.applied && new Date() < this.expiresAt;
+};
 
 // Method to check if expired
 EmailChangeRequestSchema.methods.isExpired = function () {
-  return new Date() >= this.expiresAt
-}
+  return new Date() >= this.expiresAt;
+};
 
-module.exports = mongoose.models.EmailChangeRequest || mongoose.model('EmailChangeRequest', EmailChangeRequestSchema)
+module.exports =
+  mongoose.models.EmailChangeRequest ||
+  mongoose.model("EmailChangeRequest", EmailChangeRequestSchema);

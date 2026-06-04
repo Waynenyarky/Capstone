@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 /**
  * Admin Deletion Request Model
@@ -8,20 +8,20 @@ const AdminDeletionRequestSchema = new mongoose.Schema(
   {
     requestingAdminId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
       index: true,
     },
     approvingAdminId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       default: null,
       index: true,
     },
     status: {
       type: String,
-      enum: ['pending', 'approved', 'denied', 'completed'],
-      default: 'pending',
+      enum: ["pending", "approved", "denied", "completed"],
+      default: "pending",
       index: true,
     },
     mfaVerifiedAt: {
@@ -44,7 +44,7 @@ const AdminDeletionRequestSchema = new mongoose.Schema(
     },
     highPrivilegeTasksDetails: {
       type: String,
-      default: '',
+      default: "",
       // Details of high-privilege tasks found
     },
     tasksReassigned: {
@@ -53,7 +53,7 @@ const AdminDeletionRequestSchema = new mongoose.Schema(
     },
     denialReason: {
       type: String,
-      default: '',
+      default: "",
     },
     approvedAt: {
       type: Date,
@@ -68,26 +68,28 @@ const AdminDeletionRequestSchema = new mongoose.Schema(
       default: null,
     },
     metadata: {
-      ipAddress: { type: String, default: '' },
-      userAgent: { type: String, default: '' },
-      requestingAdminEmail: { type: String, default: '' },
-      approvingAdminEmail: { type: String, default: '' },
+      ipAddress: { type: String, default: "" },
+      userAgent: { type: String, default: "" },
+      requestingAdminEmail: { type: String, default: "" },
+      approvingAdminEmail: { type: String, default: "" },
     },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 AdminDeletionRequestSchema.plugin(encryptionPlugin, {
-  fields: ['highPrivilegeTasksDetails', 'denialReason'],
+  fields: ["highPrivilegeTasksDetails", "denialReason"],
   deterministicFields: [],
-  nestedPaths: ['metadata'],
+  nestedPaths: ["metadata"],
   arrayPaths: [],
   mixedPaths: [],
-})
+});
 
 // Indexes for efficient querying (approvingAdminId has index: true on field)
-AdminDeletionRequestSchema.index({ requestingAdminId: 1, status: 1 })
-AdminDeletionRequestSchema.index({ status: 1, createdAt: -1 })
+AdminDeletionRequestSchema.index({ requestingAdminId: 1, status: 1 });
+AdminDeletionRequestSchema.index({ status: 1, createdAt: -1 });
 
-module.exports = mongoose.models.AdminDeletionRequest || mongoose.model('AdminDeletionRequest', AdminDeletionRequestSchema)
+module.exports =
+  mongoose.models.AdminDeletionRequest ||
+  mongoose.model("AdminDeletionRequest", AdminDeletionRequestSchema);

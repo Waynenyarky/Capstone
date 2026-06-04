@@ -4,67 +4,75 @@
  * Includes cross-service cleanup for government compliance
  */
 
-const User = require('../models/User')
-const { createAuditLog } = require('../lib/auditLogger')
-const logger = require('../lib/logger')
+const User = require("../models/User");
+const { createAuditLog } = require("../lib/auditLogger");
+const logger = require("../lib/logger");
 
 async function finalizeAccountDeletions() {
   try {
-    const now = new Date()
-    
+    const now = new Date();
+
     // Find users whose deletion grace period has passed
     const usersToDelete = await User.find({
       deletionPending: true,
       deletionScheduledFor: { $lte: now },
     })
-      .populate('role')
-      .lean()
+      .populate("role")
+      .lean();
 
     if (usersToDelete.length === 0) {
-      logger.info('No accounts to finalize deletion')
-      return { deleted: 0 }
+      logger.info("No accounts to finalize deletion");
+      return { deleted: 0 };
     }
 
-    let deletedCount = 0
-    const errors = []
+    let deletedCount = 0;
+    const errors = [];
 
     for (const user of usersToDelete) {
       try {
         // Log deletion finalization
-        const roleSlug = user.role?.slug || 'user'
+        const roleSlug = user.role?.slug || "user";
         await createAuditLog(
           user._id,
-          'account_deletion_finalized',
-          'account',
-          'deletion_pending',
-          'account_permanently_deleted',
+          "account_deletion_finalized",
+          "account",
+          "deletion_pending",
+          "account_permanently_deleted",
           roleSlug,
           {
             scheduledFor: user.deletionScheduledFor?.toISOString(),
             finalizedAt: now.toISOString(),
-          }
-        )
+          },
+        );
 
         // Perform cross-service cleanup
-        await performCrossServiceCleanup(user._id, user.email, roleSlug)
+        await performCrossServiceCleanup(user._id, user.email, roleSlug);
 
         // Permanently delete user
-        await User.deleteOne({ _id: user._id })
-        deletedCount++
+        await User.deleteOne({ _id: user._id });
+        deletedCount++;
 
-        logger.info(`Finalized deletion for user: ${user.email}`, { userId: String(user._id) })
+        logger.info(`Finalized deletion for user: ${user.email}`, {
+          userId: String(user._id),
+        });
       } catch (error) {
-        logger.error(`Error finalizing deletion for user ${user.email}`, { error, userId: String(user._id) })
-        errors.push({ userId: String(user._id), error: error.message })
+        logger.error(`Error finalizing deletion for user ${user.email}`, {
+          error,
+          userId: String(user._id),
+        });
+        errors.push({ userId: String(user._id), error: error.message });
       }
     }
 
-    logger.info(`Finalized ${deletedCount} account deletion(s)`, { deletedCount, errors: errors.length })
+    logger.info(`Finalized ${deletedCount} account deletion(s)`, {
+      deletedCount,
+      errors: errors.length,
+    });
 
-    return { deleted: deletedCount, errors }
+    return { deleted: deletedCount, errors };
   } catch (error) {
-    logger.error('Error in finalizeAccountDeletions job', { error })
-    throw error
+    logger.error("Error in finalizeAccountDeletions job", { error });
+    throw error;
   }
 }
 
@@ -79,61 +87,90 @@ async function performCrossServiceCleanup(userId, userEmail, roleSlug) {
     businessService: false,
     adminService: false,
     ipfsCleanup: false,
-    errors: []
-  }
+    errors: [],
+  };
 
   try {
     // 1. Clean up Business Service data
-    if (roleSlug === 'business_owner') {
+    if (roleSlug === "business_owner") {
       try {
         // Call business service to clean up user's business profile
-        const axios = require('axios')
-        const businessServiceUrl = process.env.BUSINESS_SERVICE_URL || 'http://localhost:3002'
-        
-        await axios.post(`${businessServiceUrl}/api/internal/cleanup-user-data`, {
-          userId,
-          reason: 'account_deletion_finalized'
-        }, {
-          headers: { 'Internal-Service-Auth': process.env.INTERNAL_SERVICE_SECRET }
-        })
-        
-        cleanupResults.businessService = true
-        logger.info(`Business service cleanup completed for user: ${userEmail}`)
+        const axios = require("axios");
+        const businessServiceUrl =
+          process.env.BUSINESS_SERVICE_URL || "http://localhost:3002";
+
+        await axios.post(
+          `${businessServiceUrl}/api/internal/cleanup-user-data`,
+          {
+            userId,
+            reason: "account_deletion_finalized",
+          },
+          {
+            headers: {
+              "Internal-Service-Auth": process.env.INTERNAL_SERVICE_SECRET,
+            },
+          },
+        );
+
+        cleanupResults.businessService = true;
+        logger.info(
+          `Business service cleanup completed for user: ${userEmail}`,
+        );
       } catch (businessError) {
-        cleanupResults.errors.push(`Business service cleanup failed: ${businessError.message}`)
-        logger.error(`Business service cleanup failed for user ${userEmail}`, businessError)
+        cleanupResults.errors.push(
+          `Business service cleanup failed: ${businessError.message}`,
+        );
+        logger.error(
+          `Business service cleanup failed for user ${userEmail}`,
+          businessError,
+        );
       }
     }
 
     // 2. Clean up Admin Service data
     try {
-      const axios = require('axios')
-      const adminServiceUrl = process.env.ADMIN_SERVICE_URL || 'http://localhost:3003'
-      
-      await axios.post(`${adminServiceUrl}/api/internal/cleanup-user-data`, {
-        userId,
-        reason: 'account_deletion_finalized'
-      }, {
-        headers: { 'Internal-Service-Auth': process.env.INTERNAL_SERVICE_SECRET }
-      })
-      
-      cleanupResults.adminService = true
-      logger.info(`Admin service cleanup completed for user: ${userEmail}`)
+      const axios = require("axios");
+      const adminServiceUrl =
+        process.env.ADMIN_SERVICE_URL || "http://localhost:3003";
+
+      await axios.post(
+        `${adminServiceUrl}/api/internal/cleanup-user-data`,
+        {
+          userId,
+          reason: "account_deletion_finalized",
+        },
+        {
+          headers: {
+            "Internal-Service-Auth": process.env.INTERNAL_SERVICE_SECRET,
+          },
+        },
+      );
+
+      cleanupResults.adminService = true;
+      logger.info(`Admin service cleanup completed for user: ${userEmail}`);
     } catch (adminError) {
-      cleanupResults.errors.push(`Admin service cleanup failed: ${adminError.message}`)
-      logger.error(`Admin service cleanup failed for user ${userEmail}`, adminError)
+      cleanupResults.errors.push(
+        `Admin service cleanup failed: ${adminError.message}`,
+      );
+      logger.error(
+        `Admin service cleanup failed for user ${userEmail}`,
+        adminError,
+      );
     }
 
     // 3. IPFS cleanup is handled by business service when profile is deleted
-    cleanupResults.ipfsCleanup = true
+    cleanupResults.ipfsCleanup = true;
 
-    logger.info(`Cross-service cleanup completed for user: ${userEmail}`, cleanupResults)
+    logger.info(
+      `Cross-service cleanup completed for user: ${userEmail}`,
+      cleanupResults,
+    );
   } catch (error) {
-    logger.error(`Cross-service cleanup failed for user ${userEmail}`, error)
-    cleanupResults.errors.push(`General cleanup error: ${error.message}`)
+    logger.error(`Cross-service cleanup failed for user ${userEmail}`, error);
+    cleanupResults.errors.push(`General cleanup error: ${error.message}`);
   }
 
-  return cleanupResults
+  return cleanupResults;
 }
 
-module.exports = finalizeAccountDeletions
+module.exports = finalizeAccountDeletions;

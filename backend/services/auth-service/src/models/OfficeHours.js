@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 /**
  * Office Hours Model
@@ -15,43 +15,43 @@ const OfficeHoursSchema = new mongoose.Schema(
     },
     timezone: {
       type: String,
-      default: 'Asia/Manila', // Default to Philippines timezone
+      default: "Asia/Manila", // Default to Philippines timezone
       required: true,
     },
     // Working hours for each day of the week (0 = Sunday, 6 = Saturday)
     monday: {
-      start: { type: String, default: '08:00' }, // HH:mm format
-      end: { type: String, default: '17:00' },
+      start: { type: String, default: "08:00" }, // HH:mm format
+      end: { type: String, default: "17:00" },
       isWorkingDay: { type: Boolean, default: true },
     },
     tuesday: {
-      start: { type: String, default: '08:00' },
-      end: { type: String, default: '17:00' },
+      start: { type: String, default: "08:00" },
+      end: { type: String, default: "17:00" },
       isWorkingDay: { type: Boolean, default: true },
     },
     wednesday: {
-      start: { type: String, default: '08:00' },
-      end: { type: String, default: '17:00' },
+      start: { type: String, default: "08:00" },
+      end: { type: String, default: "17:00" },
       isWorkingDay: { type: Boolean, default: true },
     },
     thursday: {
-      start: { type: String, default: '08:00' },
-      end: { type: String, default: '17:00' },
+      start: { type: String, default: "08:00" },
+      end: { type: String, default: "17:00" },
       isWorkingDay: { type: Boolean, default: true },
     },
     friday: {
-      start: { type: String, default: '08:00' },
-      end: { type: String, default: '17:00' },
+      start: { type: String, default: "08:00" },
+      end: { type: String, default: "17:00" },
       isWorkingDay: { type: Boolean, default: true },
     },
     saturday: {
-      start: { type: String, default: '08:00' },
-      end: { type: String, default: '12:00' },
+      start: { type: String, default: "08:00" },
+      end: { type: String, default: "12:00" },
       isWorkingDay: { type: Boolean, default: false },
     },
     sunday: {
-      start: { type: String, default: '08:00' },
-      end: { type: String, default: '12:00' },
+      start: { type: String, default: "08:00" },
+      end: { type: String, default: "12:00" },
       isWorkingDay: { type: Boolean, default: false },
     },
     // Special dates (holidays, etc.)
@@ -65,18 +65,28 @@ const OfficeHoursSchema = new mongoose.Schema(
       },
     ],
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 OfficeHoursSchema.plugin(encryptionPlugin, {
-  fields: ['timezone'],
-  deterministicFields: ['office'],
-  nestedPaths: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
-  arrayPaths: ['exceptions'],
+  fields: ["timezone"],
+  deterministicFields: ["office"],
+  nestedPaths: [
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+  ],
+  arrayPaths: ["exceptions"],
   mixedPaths: [],
-})
+});
 
 // office is unique so already indexed
 
-module.exports = mongoose.models.OfficeHours || mongoose.model('OfficeHours', OfficeHoursSchema)
+module.exports =
+  mongoose.models.OfficeHours ||
+  mongoose.model("OfficeHours", OfficeHoursSchema);

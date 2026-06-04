@@ -3,19 +3,22 @@
  * Allows running integration tests without Docker infrastructure
  */
 
-const path = require('path');
-const blockchainServicePath = path.resolve(__dirname, '../../services/audit-service/src/lib/blockchainService');
+const path = require("path");
+const blockchainServicePath = path.resolve(
+  __dirname,
+  "../../services/audit-service/src/lib/blockchainService",
+);
 
 const mockBlockchainData = {
   users: new Map(), // userId -> { address, profileHash, exists: true }
   documents: new Map(), // docId -> { cid, userId, timestamp }
   auditLogs: [], // Array of audit log entries
-  nextTxHash: 0
+  nextTxHash: 0,
 };
 
 const mockIPFSData = {
   files: new Map(), // cid -> { content, filename, size }
-  nextCid: 0
+  nextCid: 0,
 };
 
 /**
@@ -27,7 +30,7 @@ const mockBlockchainService = {
     auditLog: {},
     userRegistry: {},
     documentStorage: {},
-    accessControl: {}
+    accessControl: {},
   },
 
   isAvailable() {
@@ -40,37 +43,37 @@ const mockBlockchainService = {
   },
 
   async logAuditHash(hash, eventType) {
-    const txHash = `0x${(++mockBlockchainData.nextTxHash).toString(16).padStart(64, '0')}`;
+    const txHash = `0x${(++mockBlockchainData.nextTxHash).toString(16).padStart(64, "0")}`;
     mockBlockchainData.auditLogs.push({
       hash,
       eventType,
       txHash,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     return {
       success: true,
       txHash,
-      blockNumber: Math.floor(Date.now() / 1000)
+      blockNumber: Math.floor(Date.now() / 1000),
     };
   },
 
   async logCriticalEvent(eventType, details) {
-    const txHash = `0x${(++mockBlockchainData.nextTxHash).toString(16).padStart(64, '0')}`;
+    const txHash = `0x${(++mockBlockchainData.nextTxHash).toString(16).padStart(64, "0")}`;
     mockBlockchainData.auditLogs.push({
       eventType,
       details,
       txHash,
       timestamp: Date.now(),
-      critical: true
+      critical: true,
     });
 
     return {
       success: true,
       txHash,
-      blockNumber: Math.floor(Date.now() / 1000)
+      blockNumber: Math.floor(Date.now() / 1000),
     };
-  }
+  },
 };
 
 /**
@@ -85,14 +88,14 @@ const mockUserRegistryService = {
   async registerUser(userId, userAddress, profileHash) {
     mockBlockchainData.users.set(userId, {
       address: userAddress.toLowerCase(),
-      profileHash: `0x${profileHash.padStart(64, '0')}`,
-      exists: true
+      profileHash: `0x${profileHash.padStart(64, "0")}`,
+      exists: true,
     });
 
-    const txHash = `0x${(++mockBlockchainData.nextTxHash).toString(16).padStart(64, '0')}`;
+    const txHash = `0x${(++mockBlockchainData.nextTxHash).toString(16).padStart(64, "0")}`;
     return {
       success: true,
-      txHash
+      txHash,
     };
   },
 
@@ -101,7 +104,7 @@ const mockUserRegistryService = {
     if (!user) {
       return {
         success: false,
-        error: 'User not found'
+        error: "User not found",
       };
     }
 
@@ -109,7 +112,7 @@ const mockUserRegistryService = {
       success: true,
       userAddress: user.address,
       profileHash: user.profileHash,
-      lastUpdatedAt: user.lastUpdatedAt || Date.now()
+      lastUpdatedAt: user.lastUpdatedAt || Date.now(),
     };
   },
 
@@ -118,17 +121,17 @@ const mockUserRegistryService = {
     if (!user) {
       return {
         success: false,
-        error: 'User not found'
+        error: "User not found",
       };
     }
 
-    user.profileHash = `0x${newProfileHash.padStart(64, '0')}`;
+    user.profileHash = `0x${newProfileHash.padStart(64, "0")}`;
     user.lastUpdatedAt = Date.now();
 
-    const txHash = `0x${(++mockBlockchainData.nextTxHash).toString(16).padStart(64, '0')}`;
+    const txHash = `0x${(++mockBlockchainData.nextTxHash).toString(16).padStart(64, "0")}`;
     return {
       success: true,
-      txHash
+      txHash,
     };
   },
 
@@ -141,16 +144,16 @@ const mockUserRegistryService = {
       if (user.address === userAddress.toLowerCase()) {
         return {
           success: true,
-          userId
+          userId,
         };
       }
     }
 
     return {
       success: false,
-      error: 'User not found'
+      error: "User not found",
     };
-  }
+  },
 };
 
 /**
@@ -162,20 +165,20 @@ const mockDocumentStorageService = {
     return;
   },
 
-  async storeDocument(cid, userId, docType = 'profile') {
+  async storeDocument(cid, userId, docType = "profile") {
     const docId = `${userId}_${docType}_${Date.now()}`;
     mockBlockchainData.documents.set(docId, {
       cid,
       userId,
       docType,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
-    const txHash = `0x${(++mockBlockchainData.nextTxHash).toString(16).padStart(64, '0')}`;
+    const txHash = `0x${(++mockBlockchainData.nextTxHash).toString(16).padStart(64, "0")}`;
     return {
       success: true,
       txHash,
-      docId
+      docId,
     };
   },
 
@@ -189,14 +192,14 @@ const mockDocumentStorageService = {
           userId: doc.userId,
           docType: doc.docType,
           timestamp: doc.timestamp,
-          docId
+          docId,
         };
       }
     }
 
     return {
       success: false,
-      error: 'Document not found'
+      error: "Document not found",
     };
   },
 
@@ -206,16 +209,16 @@ const mockDocumentStorageService = {
       if (doc.userId === userId) {
         userDocs.push({
           docId,
-          ...doc
+          ...doc,
         });
       }
     }
 
     return {
       success: true,
-      documents: userDocs
+      documents: userDocs,
     };
-  }
+  },
 };
 
 /**
@@ -227,36 +230,36 @@ const mockIPFSService = {
   },
 
   async uploadFile(buffer, filename) {
-    const cid = `QmMock${(++mockIPFSData.nextCid).toString(16).padStart(8, '0')}`;
+    const cid = `QmMock${(++mockIPFSData.nextCid).toString(16).padStart(8, "0")}`;
     mockIPFSData.files.set(cid, {
       content: buffer,
       filename,
       size: buffer.length,
-      uploadedAt: Date.now()
+      uploadedAt: Date.now(),
     });
 
     return {
       success: true,
       cid,
-      size: buffer.length
+      size: buffer.length,
     };
   },
 
   async uploadJSON(data) {
     const buffer = Buffer.from(JSON.stringify(data));
-    const cid = `QmMock${(++mockIPFSData.nextCid).toString(16).padStart(8, '0')}`;
+    const cid = `QmMock${(++mockIPFSData.nextCid).toString(16).padStart(8, "0")}`;
 
     mockIPFSData.files.set(cid, {
       content: buffer,
-      filename: 'data.json',
+      filename: "data.json",
       size: buffer.length,
-      uploadedAt: Date.now()
+      uploadedAt: Date.now(),
     });
 
     return {
       success: true,
       cid,
-      size: buffer.length
+      size: buffer.length,
     };
   },
 
@@ -265,7 +268,7 @@ const mockIPFSService = {
     if (!file) {
       return {
         success: false,
-        error: 'File not found'
+        error: "File not found",
       };
     }
 
@@ -273,7 +276,7 @@ const mockIPFSService = {
       success: true,
       content: file.content,
       filename: file.filename,
-      size: file.size
+      size: file.size,
     };
   },
 
@@ -281,7 +284,7 @@ const mockIPFSService = {
     // Mock pinning - just return success
     return {
       success: true,
-      cid
+      cid,
     };
   },
 
@@ -289,9 +292,9 @@ const mockIPFSService = {
     // Mock unpinning - just return success
     return {
       success: true,
-      cid
+      cid,
     };
-  }
+  },
 };
 
 /**
@@ -302,14 +305,26 @@ function setupBlockchainMocks() {
   jest.mock(blockchainServicePath, () => mockBlockchainService);
 
   // Mock the user registry service
-  jest.mock('../../services/audit-service/src/lib/userRegistryService', () => mockUserRegistryService);
+  jest.mock(
+    "../../services/audit-service/src/lib/userRegistryService",
+    () => mockUserRegistryService,
+  );
 
   // Mock the document storage service
-  jest.mock('../../services/audit-service/src/lib/documentStorageService', () => mockDocumentStorageService);
+  jest.mock(
+    "../../services/audit-service/src/lib/documentStorageService",
+    () => mockDocumentStorageService,
+  );
 
   // Mock the IPFS service
-  jest.mock('../../services/business-service/src/lib/ipfsService', () => mockIPFSService);
-  jest.mock('../../services/auth-service/src/lib/ipfsService', () => mockIPFSService);
+  jest.mock(
+    "../../services/business-service/src/lib/ipfsService",
+    () => mockIPFSService,
+  );
+  jest.mock(
+    "../../services/auth-service/src/lib/ipfsService",
+    () => mockIPFSService,
+  );
 }
 
 /**
@@ -331,7 +346,7 @@ function resetBlockchainMocks() {
 function getMockData() {
   return {
     blockchain: { ...mockBlockchainData },
-    ipfs: { ...mockIPFSData }
+    ipfs: { ...mockIPFSData },
   };
 }
 
@@ -342,5 +357,5 @@ module.exports = {
   mockBlockchainService,
   mockUserRegistryService,
   mockDocumentStorageService,
-  mockIPFSService
+  mockIPFSService,
 };

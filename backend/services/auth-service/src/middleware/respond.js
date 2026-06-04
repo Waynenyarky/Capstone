@@ -1,12 +1,12 @@
 function error(res, status, code, message, details, extra) {
-  const payload = { ok: false, error: { code, message } }
-  if (details !== undefined) payload.error.details = details
-  if (extra && typeof extra === 'object') Object.assign(payload.error, extra)
-  return res.status(status).json(payload)
+  const payload = { ok: false, error: { code, message } };
+  if (details !== undefined) payload.error.details = details;
+  if (extra && typeof extra === "object") Object.assign(payload.error, extra);
+  return res.status(status).json(payload);
 }
 
 function ok(res, status, data) {
-  return res.status(status).json(data)
+  return res.status(status).json(data);
 }
 
 function success(res, status, data, message) {
@@ -15,7 +15,7 @@ function success(res, status, data, message) {
   // But signup.js passes message as 4th arg.
   // Let's assume the previous implementation (if it existed) might have wrapped it.
   // But to be safe and simple:
-  return res.status(status).json(data)
+  return res.status(status).json(data);
 }
 
-module.exports = { error, ok, success }
+module.exports = { error, ok, success };

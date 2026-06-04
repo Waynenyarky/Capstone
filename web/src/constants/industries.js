@@ -19,16 +19,6 @@ export const INDUSTRY_SCOPE_VALUES = [...BUSINESS_TYPE_VALUES]
 export const INDUSTRY_SCOPE_LABELS = { ...BUSINESS_TYPE_LABELS }
 
 /**
- * Get display label for an industry scope value
- * @param {string} value - The industry scope enum value
- * @returns {string} - Human-readable label
- */
-export function getIndustryScopeLabel(value) {
-  if (!value) return ''
-  return INDUSTRY_SCOPE_LABELS[value] || formatIndustryScope(value)
-}
-
-/**
  * Format an industry scope value to a readable string (fallback)
  * @param {string} value - The industry scope enum value
  * @returns {string} - Formatted string
@@ -38,4 +28,14 @@ export function formatIndustryScope(value) {
   return value
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+/**
+ * Get display label for an industry scope value
+ * @param {string} value - The industry scope enum value
+ * @returns {string} - Human-readable label
+ */
+export function getIndustryScopeLabel(value) {
+  if (!value) return ''
+  return INDUSTRY_SCOPE_LABELS[value] || formatIndustryScope(value)
 }

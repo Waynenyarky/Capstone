@@ -18,11 +18,10 @@ vi.mock('@/features/authentication', () => ({
 }))
 
 vi.mock('@/features/shared', () => ({
-  LayoutPageHeader: ({ pageTitle, pageIcon, headerActions, showPageHeader }) => (
+  LayoutPageHeader: ({ pageTitle, pageIcon, showPageHeader }) => (
     <div data-testid="layout-page-header" data-show-page-header={showPageHeader}>
       <div data-testid="page-title">{pageTitle}</div>
       <div data-testid="page-icon">{pageIcon}</div>
-      <div data-testid="header-actions">{JSON.stringify(headerActions)}</div>
       <div data-testid="show-page-header">{showPageHeader ? 'true' : 'false'}</div>
     </div>
   )
@@ -123,15 +122,6 @@ describe('AdminLayout', () => {
     expect(screen.getByTestId('page-icon')).toHaveTextContent(pageIcon)
   })
 
-  it('passes header actions to header', () => {
-    const headerActions = [<button key="1">Action 1</button>, <button key="2">Action 2</button>]
-    renderWithProviders(
-      <AdminLayout headerActions={headerActions}>{mockChildren}</AdminLayout>
-    )
-
-    expect(screen.getByTestId('header-actions')).toBeInTheDocument()
-  })
-
   it('renders without page title', () => {
     renderWithProviders(
       <AdminLayout>{mockChildren}</AdminLayout>
@@ -149,19 +139,10 @@ describe('AdminLayout', () => {
     expect(screen.getByTestId('page-icon')).toHaveTextContent('')
   })
 
-  it('renders without header actions', () => {
-    renderWithProviders(
-      <AdminLayout pageTitle="Test">{mockChildren}</AdminLayout>
-    )
-
-    expect(screen.getByTestId('header-actions')).toHaveTextContent('')
-  })
-
   it('renders with all props configured', () => {
     const props = {
       pageTitle: "Full Test Page",
       pageIcon: "test-icon",
-      headerActions: [<button key="1">Test Action</button>],
       sidebarOverrides: { test: 'override' },
       hiddenSidebarKeys: ['hidden'],
       hideSidebar: false,

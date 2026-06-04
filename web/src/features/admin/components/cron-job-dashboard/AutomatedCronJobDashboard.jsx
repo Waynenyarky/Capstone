@@ -35,13 +35,11 @@ import {
   ReloadOutlined,
   PlusOutlined,
   CheckCircleOutlined,
-  ClockCircleOutlined,
   CloseCircleOutlined,
   FileTextOutlined,
   SyncOutlined,
   FileSearchOutlined,
   PlayCircleOutlined,
-  PauseCircleOutlined,
   DeleteOutlined,
   EditOutlined,
   EyeOutlined,
@@ -77,6 +75,153 @@ const { TextArea } = Input;
 const { Panel } = Collapse;
 const { RangePicker } = DatePicker;
 
+// Job Types Guide Component
+const JobTypesGuide = () => {
+  return (
+    <div>
+      <Title level={4}>Cron Job Types Guide</Title>
+
+      <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Col span={12}>
+          <Card title="Backup Jobs" size="small">
+            <Space direction="vertical">
+              <Text strong>Database Backups</Text>
+              <Text type="secondary">Automated database backups with compression</Text>
+              <Text strong>File System Backups</Text>
+              <Text type="secondary">Complete file system snapshots</Text>
+              <Text strong>Configuration Backups</Text>
+              <Text type="secondary">System configuration preservation</Text>
+            </Space>
+          </Card>
+        </Col>
+
+        <Col span={12}>
+          <Card title="Cleanup Jobs" size="small">
+            <Space direction="vertical">
+              <Text strong>Log Cleanup</Text>
+              <Text type="secondary">Remove old log files automatically</Text>
+              <Text strong>Cache Cleanup</Text>
+              <Text type="secondary">Clear temporary files and cache</Text>
+              <Text strong>Session Cleanup</Text>
+              <Text type="secondary">Remove expired user sessions</Text>
+            </Space>
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Col span={12}>
+          <Card title="Notification Jobs" size="small">
+            <Space direction="vertical">
+              <Text strong>Email Notifications</Text>
+              <Text type="secondary">Send scheduled email alerts</Text>
+              <Text strong>System Alerts</Text>
+              <Text type="secondary">Monitor and alert on system issues</Text>
+              <Text strong>Report Generation</Text>
+              <Text type="secondary">Generate and distribute reports</Text>
+            </Space>
+          </Card>
+        </Col>
+
+        <Col span={12}>
+          <Card title="Report Jobs" size="small">
+            <Space direction="vertical">
+              <Text strong>Analytics Reports</Text>
+              <Text type="secondary">Generate performance analytics</Text>
+              <Text strong>Usage Reports</Text>
+              <Text type="secondary">Track system usage patterns</Text>
+              <Text strong>Custom Reports</Text>
+              <Text type="secondary">Create custom scheduled reports</Text>
+            </Space>
+          </Card>
+        </Col>
+      </Row>
+    </div>
+  );
+};
+
+// System Health Component
+const SystemHealth = () => {
+  return (
+    <div>
+      <Title level={4}>System Health Monitoring</Title>
+
+      <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Col span={8}>
+          <Card size="small" title="CPU Usage">
+            <Progress percent={45} status="active" />
+            <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+              4 cores available
+            </Text>
+          </Card>
+        </Col>
+
+        <Col span={8}>
+          <Card size="small" title="Memory Usage">
+            <Progress percent={68} status="active" />
+            <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+              8GB total, 5.4GB used
+            </Text>
+          </Card>
+        </Col>
+
+        <Col span={8}>
+          <Card size="small" title="Disk Usage">
+            <Progress percent={32} status="active" />
+            <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+              500GB total, 160GB used
+            </Text>
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={16}>
+        <Col span={12}>
+          <Card size="small" title="Recent Activity">
+            <Timeline
+              items={[
+                {
+                  color: 'green',
+                  children: <Text>Backup completed successfully</Text>
+                },
+                {
+                  color: 'blue',
+                  children: <Text>Cleanup job running</Text>
+                },
+                {
+                  color: 'gray',
+                  children: <Text>System check passed</Text>
+                }
+              ]}
+            />
+          </Card>
+        </Col>
+
+        <Col span={12}>
+          <Card size="small" title="Upcoming Tasks">
+            <List
+              size="small"
+              dataSource={[
+                { time: '02:00 AM', task: 'Daily backup' },
+                { time: '04:00 AM', task: 'Log cleanup' },
+                { time: '06:00 AM', task: 'Cache refresh' }
+              ]}
+              renderItem={(item) => (
+                <List.Item>
+                  <Space>
+                    <Text type="secondary">{item.time}</Text>
+                    <Text>{item.task}</Text>
+                  </Space>
+                </List.Item>
+              )}
+            />
+          </Card>
+        </Col>
+      </Row>
+    </div>
+  );
+};
+
 const AutomatedCronJobDashboard = ({ className }) => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -92,16 +237,10 @@ const AutomatedCronJobDashboard = ({ className }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
-  const [jobStats, setJobStats] = useState(null);
   const [jobHistory, setJobHistory] = useState([]);
   const [jobLogs, setJobLogs] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-
-  useEffect(() => {
-    fetchCronJobs();
-    fetchJobStats();
-  }, []);
 
   const fetchCronJobs = async () => {
     setLoading(true);
@@ -118,19 +257,24 @@ const AutomatedCronJobDashboard = ({ className }) => {
 
   const fetchJobStats = async () => {
     try {
-      const statsData = await getCronJobStats();
-      setJobStats(statsData);
+      await getCronJobStats();
+      // Stats fetched but not currently displayed
     } catch (error) {
       console.error('Failed to fetch job stats:', error);
     }
   };
 
+  useEffect(() => {
+    fetchCronJobs();
+    fetchJobStats();
+  }, []);
+
   const fetchJobHistory = async (jobId) => {
     try {
       const historyData = await getCronJobHistory(jobId);
       setJobHistory(historyData?.history || []);
-    } catch (error) {
-      console.error('Failed to fetch job history:', error);
+    } catch {
+      console.error('Failed to fetch job history');
     }
   };
 
@@ -138,8 +282,8 @@ const AutomatedCronJobDashboard = ({ className }) => {
     try {
       const logsData = await getCronJobLogs(jobId);
       setJobLogs(logsData?.logs || []);
-    } catch (error) {
-      console.error('Failed to fetch job logs:', error);
+    } catch {
+      console.error('Failed to fetch job logs');
     }
   };
 
@@ -152,7 +296,7 @@ const AutomatedCronJobDashboard = ({ className }) => {
       form.resetFields();
       fetchCronJobs();
       fetchJobStats();
-    } catch (error) {
+    } catch {
       message.error('Failed to create cron job');
     } finally {
       setSubmitting(false);
@@ -168,7 +312,7 @@ const AutomatedCronJobDashboard = ({ className }) => {
       editForm.resetFields();
       fetchCronJobs();
       fetchJobStats();
-    } catch (error) {
+    } catch {
       message.error('Failed to update cron job');
     } finally {
       setSubmitting(false);
@@ -181,7 +325,7 @@ const AutomatedCronJobDashboard = ({ className }) => {
       message.success('Cron job deleted successfully');
       fetchCronJobs();
       fetchJobStats();
-    } catch (error) {
+    } catch {
       message.error('Failed to delete cron job');
     }
   };
@@ -192,7 +336,7 @@ const AutomatedCronJobDashboard = ({ className }) => {
       message.success(`Cron job ${enabled ? 'enabled' : 'disabled'} successfully`);
       fetchCronJobs();
       fetchJobStats();
-    } catch (error) {
+    } catch {
       message.error('Failed to toggle cron job');
     }
   };
@@ -202,7 +346,7 @@ const AutomatedCronJobDashboard = ({ className }) => {
       await runCronJob(jobId);
       message.success('Cron job executed successfully');
       fetchCronJobs();
-    } catch (error) {
+    } catch {
       message.error('Failed to run cron job');
     }
   };
@@ -225,27 +369,12 @@ const AutomatedCronJobDashboard = ({ className }) => {
     setEditJobModalVisible(true);
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
-      [CRON_JOB_STATUSES.ACTIVE]: '#52c41a',
-      [CRON_JOB_STATUSES.INACTIVE]: '#8c8c8c',
-      [CRON_JOB_STATUSES.RUNNING]: '#1890ff',
-      [CRON_JOB_STATUSES.FAILED]: '#f5222d',
-      [CRON_JOB_STATUSES.COMPLETED]: '#52c41a'
-    };
-    return colors[status] || '#d9d9d9';
-  };
-
-  const getStatusIcon = (status) => {
-    const icons = {
-      [CRON_JOB_STATUSES.ACTIVE]: <CheckCircleOutlined />,
-      [CRON_JOB_STATUSES.INACTIVE]: <PauseCircleOutlined />,
-      [CRON_JOB_STATUSES.RUNNING]: <SyncOutlined spin />,
-      [CRON_JOB_STATUSES.FAILED]: <CloseCircleOutlined />,
-      [CRON_JOB_STATUSES.COMPLETED]: <CheckCircleOutlined />
-    };
-    return icons[status] || <ClockCircleOutlined />;
-  };
+  const filteredJobs = cronJobs.filter(job => {
+    if (filterStatus && job.status !== filterStatus) return false;
+    if (filterType && job.type !== filterType) return false;
+    if (searchTerm && !job.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    return true;
+  });
 
   const getTypeIcon = (type) => {
     const icons = {
@@ -259,14 +388,6 @@ const AutomatedCronJobDashboard = ({ className }) => {
     };
     return icons[type] || <ScheduleOutlined />;
   };
-
-  const filteredJobs = cronJobs.filter(job => {
-    const matchesSearch = job.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         job.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = !filterStatus || job.status === filterStatus;
-    const matchesType = !filterType || job.type === filterType;
-    return matchesSearch && matchesStatus && matchesType;
-  });
 
   const cronJobColumns = [
     {
@@ -880,199 +1001,6 @@ const AutomatedCronJobDashboard = ({ className }) => {
           )}
         />
       </Drawer>
-    </div>
-  );
-};
-
-// Job Types Guide Component
-const JobTypesGuide = () => {
-  return (
-    <div>
-      <Title level={4}>Cron Job Types Guide</Title>
-      
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={12}>
-          <Card title="Backup Jobs" size="small">
-            <Space direction="vertical">
-              <Text strong>Database Backups</Text>
-              <Text type="secondary">Automated database backups with compression</Text>
-              <Text strong>File System Backups</Text>
-              <Text type="secondary">Complete file system snapshots</Text>
-              <Text strong>Configuration Backups</Text>
-              <Text type="secondary">System configuration preservation</Text>
-            </Space>
-          </Card>
-        </Col>
-        
-        <Col span={12}>
-          <Card title="Cleanup Jobs" size="small">
-            <Space direction="vertical">
-              <Text strong>Log Cleanup</Text>
-              <Text type="secondary">Remove old log files automatically</Text>
-              <Text strong>Cache Cleanup</Text>
-              <Text type="secondary">Clear temporary files and cache</Text>
-              <Text strong>Session Cleanup</Text>
-              <Text type="secondary">Remove expired user sessions</Text>
-            </Space>
-          </Card>
-        </Col>
-      </Row>
-
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={12}>
-          <Card title="Notification Jobs" size="small">
-            <Space direction="vertical">
-              <Text strong>Email Notifications</Text>
-              <Text type="secondary">Send scheduled email alerts</Text>
-              <Text strong>System Alerts</Text>
-              <Text type="secondary">Monitor and alert on system issues</Text>
-              <Text strong>Report Generation</Text>
-              <Text type="secondary">Generate and distribute reports</Text>
-            </Space>
-          </Card>
-        </Col>
-        
-        <Col span={12}>
-          <Card title="Maintenance Jobs" size="small">
-            <Space direction="vertical">
-              <Text strong>System Updates</Text>
-              <Text type="secondary">Apply system patches and updates</Text>
-              <Text strong>Performance Optimization</Text>
-              <Text type="secondary">Optimize database and system performance</Text>
-              <Text strong>Security Scans</Text>
-              <Text type="secondary">Run security vulnerability scans</Text>
-            </Space>
-          </Card>
-        </Col>
-      </Row>
-
-      <Card title="Scheduling Best Practices" size="small">
-        <Row gutter={16}>
-          <Col span={8}>
-            <Title level={5}>Frequency Guidelines</Title>
-            <ul>
-              <li>Backup jobs: Daily or weekly</li>
-              <li>Cleanup jobs: Daily or hourly</li>
-              <li>Notifications: As needed</li>
-              <li>Reports: Weekly or monthly</li>
-            </ul>
-          </Col>
-          <Col span={8}>
-            <Title level={5}>Performance Considerations</Title>
-            <ul>
-              <li>Avoid peak hours for heavy jobs</li>
-              <li>Monitor resource usage</li>
-              <li>Set appropriate timeouts</li>
-              <li>Implement error handling</li>
-            </ul>
-          </Col>
-          <Col span={8}>
-            <Title level={5}>Security Best Practices</Title>
-            <ul>
-              <li>Limit job permissions</li>
-              <li>Validate input parameters</li>
-              <li>Secure sensitive data</li>
-              <li>Audit job executions</li>
-            </ul>
-          </Col>
-        </Row>
-      </Card>
-    </div>
-  );
-};
-
-// System Health Component
-const SystemHealth = () => {
-  return (
-    <div>
-      <Title level={4}>System Health Monitoring</Title>
-      
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={8}>
-          <Card title="Job Execution Status" size="small">
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Text>Success Rate</Text>
-                <Text strong style={{ color: '#52c41a' }}>98.5%</Text>
-              </div>
-              <Progress percent={98.5} status="success" />
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Text>Average Duration</Text>
-                <Text strong>2.3s</Text>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Text>Total Executions</Text>
-                <Text strong>1,247</Text>
-              </div>
-            </Space>
-          </Card>
-        </Col>
-        
-        <Col span={8}>
-          <Card title="Resource Usage" size="small">
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Text>CPU Usage</Text>
-                <Text strong style={{ color: '#1890ff' }}>45%</Text>
-              </div>
-              <Progress percent={45} status="active" />
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Text>Memory Usage</Text>
-                <Text strong style={{ color: '#faad14' }}>67%</Text>
-              </div>
-              <Progress percent={67} status="active" />
-            </Space>
-          </Card>
-        </Col>
-        
-        <Col span={8}>
-          <Card title="System Metrics" size="small">
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Text>Uptime</Text>
-                <Text strong>99.9%</Text>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Text>Response Time</Text>
-                <Text strong>120ms</Text>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Text>Error Rate</Text>
-                <Text strong style={{ color: '#52c41a' }}>0.1%</Text>
-              </div>
-            </Space>
-          </Card>
-        </Col>
-      </Row>
-
-      <Card title="Recent System Events" size="small">
-        <Timeline>
-          <Timeline.Item color="green">
-            <Text strong>Backup Completed</Text>
-            <div>
-              <Text type="secondary">Database backup completed successfully - 2 minutes ago</Text>
-            </div>
-          </Timeline.Item>
-          <Timeline.Item color="blue">
-            <Text strong>Cleanup Executed</Text>
-            <div>
-              <Text type="secondary">Log cleanup job executed - 15 minutes ago</Text>
-            </div>
-          </Timeline.Item>
-          <Timeline.Item color="orange">
-            <Text strong>High Memory Usage</Text>
-            <div>
-              <Text type="secondary">Memory usage exceeded threshold - 1 hour ago</Text>
-            </div>
-          </Timeline.Item>
-          <Timeline.Item color="green">
-            <Text strong>Report Generated</Text>
-            <div>
-              <Text type="secondary">Weekly analytics report generated - 2 hours ago</Text>
-            </div>
-          </Timeline.Item>
-        </Timeline>
-      </Card>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 const PenaltyConfigurationSchema = new mongoose.Schema(
   {
@@ -18,24 +18,32 @@ const PenaltyConfigurationSchema = new mongoose.Schema(
     },
     effectiveDate: { type: Date, required: true, default: Date.now },
     isActive: { type: Boolean, default: true },
-    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
 // Ensure only one active configuration at a time
 // NOTE: Mongoose 9 async pre-hooks must NOT call next(); just return/throw.
-PenaltyConfigurationSchema.pre('save', async function () {
-  if (this.isActive && this.isModified('isActive')) {
+PenaltyConfigurationSchema.pre("save", async function () {
+  if (this.isActive && this.isModified("isActive")) {
     // Deactivate all other active configs
     await this.constructor.updateMany(
       { _id: { $ne: this._id }, isActive: true },
-      { $set: { isActive: false } }
-    )
+      { $set: { isActive: false } },
+    );
   }
-})
+});
 
 module.exports =
   mongoose.models.PenaltyConfiguration ||
-  mongoose.model('PenaltyConfiguration', PenaltyConfigurationSchema)
+  mongoose.model("PenaltyConfiguration", PenaltyConfigurationSchema);

@@ -3,52 +3,63 @@
  * Handles partial payment processing, state consistency, and recovery
  */
 
-const mongoose = require('mongoose')
-const logger = require('../lib/logger')
+const mongoose = require("mongoose");
+const logger = require("../lib/logger");
 
 // Payment state schema for tracking partial payments
 const PaymentStateSchema = new mongoose.Schema({
   paymentId: { type: String, required: true, unique: true },
   businessId: { type: String, required: true },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+
   // Payment details
   totalAmount: { type: Number, required: true },
   paidAmount: { type: Number, default: 0 },
   remainingAmount: { type: Number, required: true },
-  
+
   // State tracking
   status: {
     type: String,
-    enum: ['pending', 'processing', 'partial', 'completed', 'failed', 'refunded'],
-    default: 'pending'
+    enum: [
+      "pending",
+      "processing",
+      "partial",
+      "completed",
+      "failed",
+      "refunded",
+    ],
+    default: "pending",
   },
-  
+
   // Partial payment details
-  partialPayments: [{
-    id: String,
-    amount: Number,
-    method: String,
-    status: String,
-    timestamp: Date,
-    transactionId: String,
-    gatewayResponse: Object
-  }],
-  
+  partialPayments: [
+    {
+      id: String,
+      amount: Number,
+      method: String,
+      status: String,
+      timestamp: Date,
+      transactionId: String,
+      gatewayResponse: Object,
+    },
+  ],
+
   // Recovery and retry
   retryAttempts: { type: Number, default: 0 },
   maxRetries: { type: Number, default: 3 },
   lastRetryAt: Date,
   nextRetryAt: Date,
-  
+
   // Metadata
   reason: String,
   metadata: Object,
   createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-})
+  updatedAt: { type: Date, default: Date.now },
+});
 
-const PaymentState = mongoose.models.PaymentState || mongoose.model('PaymentState', PaymentStateSchema)
+const PaymentState =
+  mongoose.models.PaymentState ||
+  mongoose.model("PaymentState", PaymentStateSchema);
 
 class PartialPaymentService {
   /**
@@ -63,21 +74,21 @@ class PartialPaymentService {
       paymentMethod,
       transactionId,
       userId,
-      reason = 'Partial payment processing'
-    } = paymentData
+      reason = "Partial payment processing",
+    } = paymentData;
 
     try {
       // Validate partial payment amount
       if (partialAmount <= 0 || partialAmount >= totalAmount) {
-        throw new Error('Invalid partial payment amount')
+        throw new Error("Invalid partial payment amount");
       }
 
       // Check if payment state exists
-      let paymentState = await PaymentState.findOne({ 
-        businessId, 
-        status: { $in: ['pending', 'processing', 'partial'] },
-        totalAmount 
-      })
+      let paymentState = await PaymentState.findOne({
+        businessId,
+        status: { $in: ["pending", "processing", "partial"] },
+        totalAmount,
+      });
 
       if (!paymentState) {
         // Create new payment state
@@ -88,15 +99,16 @@ class PartialPaymentService {
           totalAmount,
           paidAmount: partialAmount,
           remainingAmount: totalAmount - partialAmount,
-          status: partialAmount >= totalAmount ? 'completed' : 'partial',
+          status: partialAmount >= totalAmount ? "completed" : "partial",
           reason,
-          metadata: paymentData.metadata || {}
-        })
+          metadata: paymentData.metadata || {},
+        });
       } else {
         // Update existing payment state
-        paymentState.paidAmount += partialAmount
-        paymentState.remainingAmount = totalAmount - paymentState.paidAmount
-        paymentState.status = paymentState.remainingAmount <= 0 ? 'completed' : 'partial'
+        paymentState.paidAmount += partialAmount;
+        paymentState.remainingAmount = totalAmount - paymentState.paidAmount;
+        paymentState.status =
+          paymentState.remainingAmount <= 0 ? "completed" : "partial";
       }
 
       // Add partial payment record
@@ -104,25 +116,25 @@ class PartialPaymentService {
         id: `pp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         amount: partialAmount,
         method: paymentMethod,
-        status: 'completed',
+        status: "completed",
         timestamp: new Date(),
         transactionId,
-        gatewayResponse: paymentData.gatewayResponse || {}
-      }
+        gatewayResponse: paymentData.gatewayResponse || {},
+      };
 
-      paymentState.partialPayments.push(partialPayment)
-      paymentState.updatedAt = new Date()
+      paymentState.partialPayments.push(partialPayment);
+      paymentState.updatedAt = new Date();
 
-      await paymentState.save()
+      await paymentState.save();
 
-      logger.info('Partial payment processed successfully', {
+      logger.info("Partial payment processed successfully", {
         paymentId: paymentState.paymentId,
         businessId,
         partialAmount,
         totalAmount,
         remainingAmount: paymentState.remainingAmount,
-        status: paymentState.status
-      })
+        status: paymentState.status,
+      });
 
       return {
         success: true,
@@ -131,17 +143,16 @@ class PartialPaymentService {
         paidAmount: paymentState.paidAmount,
         remainingAmount: paymentState.remainingAmount,
         totalAmount: paymentState.totalAmount,
-        partialPaymentId: partialPayment.id
-      }
-
+        partialPaymentId: partialPayment.id,
+      };
     } catch (error) {
-      logger.error('Partial payment processing error', {
+      logger.error("Partial payment processing error", {
         error: error.message,
         businessId,
         paymentData,
-        timestamp: new Date().toISOString()
-      })
-      throw error
+        timestamp: new Date().toISOString(),
+      });
+      throw error;
     }
   }
 
@@ -151,63 +162,64 @@ class PartialPaymentService {
    */
   static async checkPaymentConsistency(businessId) {
     try {
-      const paymentStates = await PaymentState.find({ 
+      const paymentStates = await PaymentState.find({
         businessId,
-        status: { $in: ['pending', 'processing', 'partial'] }
-      })
+        status: { $in: ["pending", "processing", "partial"] },
+      });
 
-      const inconsistencies = []
+      const inconsistencies = [];
 
       for (const paymentState of paymentStates) {
         const calculatedPaid = paymentState.partialPayments
-          .filter(pp => pp.status === 'completed')
-          .reduce((sum, pp) => sum + pp.amount, 0)
+          .filter((pp) => pp.status === "completed")
+          .reduce((sum, pp) => sum + pp.amount, 0);
 
-        const calculatedRemaining = paymentState.totalAmount - calculatedPaid
+        const calculatedRemaining = paymentState.totalAmount - calculatedPaid;
 
         // Check for inconsistencies
         if (Math.abs(paymentState.paidAmount - calculatedPaid) > 0.01) {
           inconsistencies.push({
-            type: 'paid_amount_mismatch',
+            type: "paid_amount_mismatch",
             paymentId: paymentState.paymentId,
             recorded: paymentState.paidAmount,
-            calculated: calculatedPaid
-          })
+            calculated: calculatedPaid,
+          });
         }
 
-        if (Math.abs(paymentState.remainingAmount - calculatedRemaining) > 0.01) {
+        if (
+          Math.abs(paymentState.remainingAmount - calculatedRemaining) > 0.01
+        ) {
           inconsistencies.push({
-            type: 'remaining_amount_mismatch',
+            type: "remaining_amount_mismatch",
             paymentId: paymentState.paymentId,
             recorded: paymentState.remainingAmount,
-            calculated: calculatedRemaining
-          })
+            calculated: calculatedRemaining,
+          });
         }
 
         // Check if status should be updated
-        if (calculatedRemaining <= 0 && paymentState.status !== 'completed') {
+        if (calculatedRemaining <= 0 && paymentState.status !== "completed") {
           inconsistencies.push({
-            type: 'status_should_be_completed',
+            type: "status_should_be_completed",
             paymentId: paymentState.paymentId,
             currentStatus: paymentState.status,
-            remainingAmount: calculatedRemaining
-          })
+            remainingAmount: calculatedRemaining,
+          });
         }
       }
 
       return {
         consistent: inconsistencies.length === 0,
         inconsistencies,
-        totalPayments: paymentStates.length
-      }
-
+        totalPayments: paymentStates.length,
+      };
     } catch (error) {
-      logger.error('Payment consistency check error', {
+      logger.error("Payment consistency check error", {
         error: error.message,
         businessId,
-        timestamp: new Date().toISOString()
-      })
-      throw error
+        timestamp: new Date().toISOString(),
+      });
+      throw error;
     }
   }
 
@@ -217,49 +229,53 @@ class PartialPaymentService {
    */
   static async recoverPartialPayment(paymentId) {
     try {
-      const paymentState = await PaymentState.findOne({ paymentId })
+      const paymentState = await PaymentState.findOne({ paymentId });
       if (!paymentState) {
-        throw new Error('Payment state not found')
+        throw new Error("Payment state not found");
       }
 
       // Recalculate amounts based on completed partial payments
-      const completedPayments = paymentState.partialPayments.filter(pp => pp.status === 'completed')
-      const calculatedPaid = completedPayments.reduce((sum, pp) => sum + pp.amount, 0)
-      const calculatedRemaining = paymentState.totalAmount - calculatedPaid
+      const completedPayments = paymentState.partialPayments.filter(
+        (pp) => pp.status === "completed",
+      );
+      const calculatedPaid = completedPayments.reduce(
+        (sum, pp) => sum + pp.amount,
+        0,
+      );
+      const calculatedRemaining = paymentState.totalAmount - calculatedPaid;
 
       // Update payment state
-      paymentState.paidAmount = calculatedPaid
-      paymentState.remainingAmount = calculatedRemaining
-      paymentState.status = calculatedRemaining <= 0 ? 'completed' : 'partial'
-      paymentState.updatedAt = new Date()
+      paymentState.paidAmount = calculatedPaid;
+      paymentState.remainingAmount = calculatedRemaining;
+      paymentState.status = calculatedRemaining <= 0 ? "completed" : "partial";
+      paymentState.updatedAt = new Date();
 
-      await paymentState.save()
+      await paymentState.save();
 
-      logger.info('Partial payment state recovered', {
+      logger.info("Partial payment state recovered", {
         paymentId,
         businessId: paymentState.businessId,
         oldPaidAmount: paymentState.paidAmount,
         newPaidAmount: calculatedPaid,
         oldRemainingAmount: paymentState.remainingAmount,
         newRemainingAmount: calculatedRemaining,
-        status: paymentState.status
-      })
+        status: paymentState.status,
+      });
 
       return {
         success: true,
         paymentId,
         recoveredAmount: calculatedPaid,
         remainingAmount: calculatedRemaining,
-        status: paymentState.status
-      }
-
+        status: paymentState.status,
+      };
     } catch (error) {
-      logger.error('Partial payment recovery error', {
+      logger.error("Partial payment recovery error", {
         error: error.message,
         paymentId,
-        timestamp: new Date().toISOString()
-      })
-      throw error
+        timestamp: new Date().toISOString(),
+      });
+      throw error;
     }
   }
 
@@ -269,57 +285,66 @@ class PartialPaymentService {
    */
   static async getPaymentRecoveryOptions(paymentId) {
     try {
-      const paymentState = await PaymentState.findOne({ paymentId })
+      const paymentState = await PaymentState.findOne({ paymentId });
       if (!paymentState) {
-        throw new Error('Payment state not found')
+        throw new Error("Payment state not found");
       }
 
-      const options = []
+      const options = [];
 
       // Always offer state recovery
       options.push({
-        type: 'recover_state',
-        description: 'Recalculate payment amounts based on completed transactions',
-        action: 'recover',
-        available: true
-      })
+        type: "recover_state",
+        description:
+          "Recalculate payment amounts based on completed transactions",
+        action: "recover",
+        available: true,
+      });
 
       // Offer retry for failed partial payments
-      const failedPayments = paymentState.partialPayments.filter(pp => pp.status === 'failed')
-      if (failedPayments.length > 0 && paymentState.retryAttempts < paymentState.maxRetries) {
+      const failedPayments = paymentState.partialPayments.filter(
+        (pp) => pp.status === "failed",
+      );
+      if (
+        failedPayments.length > 0 &&
+        paymentState.retryAttempts < paymentState.maxRetries
+      ) {
         options.push({
-          type: 'retry_failed',
+          type: "retry_failed",
           description: `Retry ${failedPayments.length} failed payment(s)`,
-          action: 'retry',
+          action: "retry",
           available: true,
-          failedPayments: failedPayments.map(fp => ({
+          failedPayments: failedPayments.map((fp) => ({
             id: fp.id,
             amount: fp.amount,
-            method: fp.method
-          }))
-        })
+            method: fp.method,
+          })),
+        });
       }
 
       // Offer refund for partial payments if needed
-      if (paymentState.status === 'partial' && paymentState.paidAmount > 0) {
+      if (paymentState.status === "partial" && paymentState.paidAmount > 0) {
         options.push({
-          type: 'refund_partial',
-          description: 'Refund partial payments and restart',
-          action: 'refund',
+          type: "refund_partial",
+          description: "Refund partial payments and restart",
+          action: "refund",
           available: true,
-          refundableAmount: paymentState.paidAmount
-        })
+          refundableAmount: paymentState.paidAmount,
+        });
       }
 
       // Offer completion if remaining amount is small
-      if (paymentState.remainingAmount > 0 && paymentState.remainingAmount < 100) {
+      if (
+        paymentState.remainingAmount > 0 &&
+        paymentState.remainingAmount < 100
+      ) {
         options.push({
-          type: 'complete_payment',
+          type: "complete_payment",
           description: `Complete remaining payment of ${paymentState.remainingAmount}`,
-          action: 'complete',
+          action: "complete",
           available: true,
-          remainingAmount: paymentState.remainingAmount
-        })
+          remainingAmount: paymentState.remainingAmount,
+        });
       }
 
       return {
@@ -328,16 +353,15 @@ class PartialPaymentService {
         paidAmount: paymentState.paidAmount,
         remainingAmount: paymentState.remainingAmount,
         totalAmount: paymentState.totalAmount,
-        options
-      }
-
+        options,
+      };
     } catch (error) {
-      logger.error('Get payment recovery options error', {
+      logger.error("Get payment recovery options error", {
         error: error.message,
         paymentId,
-        timestamp: new Date().toISOString()
-      })
-      throw error
+        timestamp: new Date().toISOString(),
+      });
+      throw error;
     }
   }
 
@@ -347,9 +371,9 @@ class PartialPaymentService {
    */
   static async getPaymentStatus(paymentId) {
     try {
-      const paymentState = await PaymentState.findOne({ paymentId })
+      const paymentState = await PaymentState.findOne({ paymentId });
       if (!paymentState) {
-        throw new Error('Payment state not found')
+        throw new Error("Payment state not found");
       }
 
       return {
@@ -362,18 +386,17 @@ class PartialPaymentService {
         partialPayments: paymentState.partialPayments,
         retryAttempts: paymentState.retryAttempts,
         createdAt: paymentState.createdAt,
-        updatedAt: paymentState.updatedAt
-      }
-
+        updatedAt: paymentState.updatedAt,
+      };
     } catch (error) {
-      logger.error('Get payment status error', {
+      logger.error("Get payment status error", {
         error: error.message,
         paymentId,
-        timestamp: new Date().toISOString()
-      })
-      throw error
+        timestamp: new Date().toISOString(),
+      });
+      throw error;
     }
   }
 }
 
-module.exports = PartialPaymentService
+module.exports = PartialPaymentService;

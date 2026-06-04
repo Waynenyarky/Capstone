@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 const BracketSchema = new mongoose.Schema(
   {
@@ -7,8 +7,8 @@ const BracketSchema = new mongoose.Schema(
     rate: { type: Number, default: null }, // required when bracketKind is 'rate' or 'tiered'
     amount: { type: Number, default: null }, // fixed tax in pesos when bracketKind is 'fixed'
   },
-  { _id: false }
-)
+  { _id: false },
+);
 
 const FeeConfigurationSchema = new mongoose.Schema(
   {
@@ -33,13 +33,13 @@ const FeeConfigurationSchema = new mongoose.Schema(
     },
     businessTaxCategory: {
       type: String,
-      default: '',
+      default: "",
     },
     // 'rate' = one rate applied to full gross (current); 'tiered' = rate per bracket segment; 'fixed' = bracket.amount
     bracketKind: {
       type: String,
-      enum: ['rate', 'tiered', 'fixed'],
-      default: 'rate',
+      enum: ["rate", "tiered", "fixed"],
+      default: "rate",
     },
     brackets: {
       type: [BracketSchema],
@@ -53,24 +53,24 @@ const FeeConfigurationSchema = new mongoose.Schema(
       default: true,
     },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 FeeConfigurationSchema.plugin(encryptionPlugin, {
-  fields: ['lineOfBusiness', 'businessTaxCategory'],
-  deterministicFields: ['taxCode'],
+  fields: ["lineOfBusiness", "businessTaxCategory"],
+  deterministicFields: ["taxCode"],
   nestedPaths: [],
   arrayPaths: [],
   mixedPaths: [],
-})
+});
 
 // Unique constraint: one active config per (tax code, line of business) — Charter categories 1–12, LOB is sentence text
 FeeConfigurationSchema.index(
   { taxCode: 1, lineOfBusiness: 1 },
-  { unique: true, partialFilterExpression: { isActive: true } }
-)
+  { unique: true, partialFilterExpression: { isActive: true } },
+);
 
 module.exports =
   mongoose.models.FeeConfiguration ||
-  mongoose.model('FeeConfiguration', FeeConfigurationSchema)
+  mongoose.model("FeeConfiguration", FeeConfigurationSchema);

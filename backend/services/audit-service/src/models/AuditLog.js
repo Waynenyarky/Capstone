@@ -1,11 +1,11 @@
-const mongoose = require('mongoose');
-const crypto = require('crypto');
+const mongoose = require("mongoose");
+const crypto = require("crypto");
 
 const AuditLogSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
       index: true,
     },
@@ -18,37 +18,37 @@ const AuditLogSchema = new mongoose.Schema(
       type: String,
       required: false,
       enum: [
-        'email',
-        'password',
-        'firstName',
-        'lastName',
-        'phoneNumber',
-        'id',
-        'idType',
-        'idNumber',
-        'dateOfBirth',
-        'avatar',
-        'termsAccepted',
-        'mfa',
-        'role',
-        'office',
-        'department',
-        'security',
-        'system',
-        'account',
-        'session',
-        'recovery',
-        'maintenance',
+        "email",
+        "password",
+        "firstName",
+        "lastName",
+        "phoneNumber",
+        "id",
+        "idType",
+        "idNumber",
+        "dateOfBirth",
+        "avatar",
+        "termsAccepted",
+        "mfa",
+        "role",
+        "office",
+        "department",
+        "security",
+        "system",
+        "account",
+        "session",
+        "recovery",
+        "maintenance",
       ],
     },
     oldValue: {
       type: String,
-      default: '',
+      default: "",
       // For sensitive fields like password, store hash instead of plain text
     },
     newValue: {
       type: String,
-      default: '',
+      default: "",
       // For sensitive fields like password, store hash instead of plain text
     },
     hash: {
@@ -61,7 +61,7 @@ const AuditLogSchema = new mongoose.Schema(
     },
     txHash: {
       type: String,
-      default: '',
+      default: "",
       index: true,
       // Blockchain transaction hash
     },
@@ -82,11 +82,11 @@ const AuditLogSchema = new mongoose.Schema(
     },
     blockchainStatus: {
       type: String,
-      enum: ['pending', 'anchored', 'failed', 'skipped'],
-      default: 'pending',
+      enum: ["pending", "anchored", "failed", "skipped"],
+      default: "pending",
       index: true,
     },
-    blockchainError: { type: String, default: '' },
+    blockchainError: { type: String, default: "" },
     blockchainRetries: { type: Number, default: 0 },
     verified: {
       type: Boolean,
@@ -97,7 +97,7 @@ const AuditLogSchema = new mongoose.Schema(
       default: null,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Index for efficient querying (txHash already has index: true on the field)
@@ -114,16 +114,19 @@ AuditLogSchema.methods.verifyHash = function () {
   const hashableData = {
     userId: String(this.userId),
     eventType: this.eventType,
-    fieldChanged: this.fieldChanged || '',
-    oldValue: this.oldValue || '',
-    newValue: this.newValue || '',
+    fieldChanged: this.fieldChanged || "",
+    oldValue: this.oldValue || "",
+    newValue: this.newValue || "",
     role: this.role,
     metadata: JSON.stringify(this.metadata || {}),
     timestamp: this.createdAt.toISOString(),
   };
 
   const dataString = JSON.stringify(hashableData);
-  const calculatedHash = crypto.createHash('sha256').update(dataString).digest('hex');
+  const calculatedHash = crypto
+    .createHash("sha256")
+    .update(dataString)
+    .digest("hex");
   return calculatedHash === this.hash;
 };
 
@@ -135,7 +138,10 @@ AuditLogSchema.statics.createAuditLog = async function (data) {
 };
 
 // Static method to get audit history for a user
-AuditLogSchema.statics.getUserAuditHistory = async function (userId, options = {}) {
+AuditLogSchema.statics.getUserAuditHistory = async function (
+  userId,
+  options = {},
+) {
   const { limit = 50, skip = 0, eventType } = options;
   const query = { userId };
   if (eventType) {
@@ -149,13 +155,14 @@ AuditLogSchema.statics.getUserAuditHistory = async function (userId, options = {
     .lean();
 };
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 AuditLogSchema.plugin(encryptionPlugin, {
-  fields: ['oldValue', 'newValue', 'role', 'blockchainError'],
-  deterministicFields: ['hash'],
+  fields: ["oldValue", "newValue", "role", "blockchainError"],
+  deterministicFields: ["hash"],
   nestedPaths: [],
   arrayPaths: [],
-  mixedPaths: ['metadata'],
-})
+  mixedPaths: ["metadata"],
+});
 
-module.exports = mongoose.models.AuditLog || mongoose.model('AuditLog', AuditLogSchema);
+module.exports =
+  mongoose.models.AuditLog || mongoose.model("AuditLog", AuditLogSchema);

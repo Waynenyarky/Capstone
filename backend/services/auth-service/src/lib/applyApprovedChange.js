@@ -1,10 +1,10 @@
-const User = require('../models/User')
-const AuditLog = require('../models/AuditLog')
-const MaintenanceWindow = require('../models/MaintenanceWindow')
-const { addToPasswordHistory } = require('./passwordHistory')
-const { decryptWithHash, encryptWithHash } = require('./secretCipher')
-const { createAuditLog } = require('./auditLogger')
-const logger = require('./logger')
+const User = require("../models/User");
+const AuditLog = require("../models/AuditLog");
+const MaintenanceWindow = require("../models/MaintenanceWindow");
+const { addToPasswordHistory } = require("./passwordHistory");
+const { decryptWithHash, encryptWithHash } = require("./secretCipher");
+const { createAuditLog } = require("./auditLogger");
+const logger = require("./logger");
 
 /**
  * Apply approved admin change to user account
@@ -12,29 +12,32 @@ const logger = require('./logger')
  */
 async function applyApprovedChange(approval) {
   try {
-    const user = await User.findById(approval.userId).populate('role')
+    const user = await User.findById(approval.userId).populate("role");
     if (!user) {
-      logger.error('User not found for approval:', { approvalId: approval.approvalId })
-      return { success: false, error: 'User not found' }
+      logger.error("User not found for approval:", {
+        approvalId: approval.approvalId,
+      });
+      return { success: false, error: "User not found" };
     }
 
-    const roleSlug = (user.role && user.role.slug) ? user.role.slug : 'user'
+    const roleSlug = user.role && user.role.slug ? user.role.slug : "user";
 
     switch (approval.requestType) {
-      case 'personal_info_change': {
-        const { newValues } = approval.requestDetails
-        if (newValues.firstName) user.firstName = newValues.firstName
-        if (newValues.lastName) user.lastName = newValues.lastName
-        if (newValues.phoneNumber !== undefined) user.phoneNumber = newValues.phoneNumber
-        await user.save()
+      case "personal_info_change": {
+        const { newValues } = approval.requestDetails;
+        if (newValues.firstName) user.firstName = newValues.firstName;
+        if (newValues.lastName) user.lastName = newValues.lastName;
+        if (newValues.phoneNumber !== undefined)
+          user.phoneNumber = newValues.phoneNumber;
+        await user.save();
 
         // Create audit log
-        const changedFields = Object.keys(newValues)
+        const changedFields = Object.keys(newValues);
         // Use first field for fieldChanged (enum constraint), full list in metadata
-        const primaryField = changedFields[0] || 'firstName'
+        const primaryField = changedFields[0] || "firstName";
         await createAuditLog(
           user._id,
-          'admin_approval_approved',
+          "admin_approval_approved",
           primaryField,
           JSON.stringify(approval.requestDetails.oldValues),
           JSON.stringify(newValues),
@@ -44,28 +47,28 @@ async function applyApprovedChange(approval) {
             requestType: approval.requestType,
             approvedBy: approval.approvals.map((a) => String(a.adminId)),
             allChangedFields: changedFields,
-          }
-        )
+          },
+        );
 
-        return { success: true }
+        return { success: true };
       }
 
-      case 'email_change': {
-        const { newEmail } = approval.requestDetails
-        const oldEmail = user.email
-        user.email = newEmail
-        user.isEmailVerified = false
-        user.mfaReEnrollmentRequired = true
-        user.mfaEnabled = false
-        user.mfaSecret = ''
-        user.mfaMethod = ''
-        await user.save()
+      case "email_change": {
+        const { newEmail } = approval.requestDetails;
+        const oldEmail = user.email;
+        user.email = newEmail;
+        user.isEmailVerified = false;
+        user.mfaReEnrollmentRequired = true;
+        user.mfaEnabled = false;
+        user.mfaSecret = "";
+        user.mfaMethod = "";
+        await user.save();
 
         // Create audit log
         await createAuditLog(
           user._id,
-          'admin_approval_approved',
-          'email',
+          "admin_approval_approved",
+          "email",
           oldEmail,
           newEmail,
           roleSlug,
@@ -74,66 +77,76 @@ async function applyApprovedChange(approval) {
             requestType: approval.requestType,
             approvedBy: approval.approvals.map((a) => String(a.adminId)),
             mfaReEnrollmentRequired: true,
-          }
-        )
+          },
+        );
 
-        return { success: true }
+        return { success: true };
       }
 
-      case 'password_change': {
-        const { newPasswordHash } = approval.metadata
+      case "password_change": {
+        const { newPasswordHash } = approval.metadata;
         if (!newPasswordHash) {
-          return { success: false, error: 'Password hash not found in approval metadata' }
+          return {
+            success: false,
+            error: "Password hash not found in approval metadata",
+          };
         }
 
-        const oldHash = String(user.passwordHash)
-        const hadMfaSecret = !!user.mfaSecret
-        const priorMfaMethod = String(user.mfaMethod || '')
-        let mfaPlain = ''
-        try { if (hadMfaSecret) mfaPlain = decryptWithHash(oldHash, user.mfaSecret) } catch (_) { mfaPlain = '' }
-        const updatedHistory = addToPasswordHistory(oldHash, user.passwordHistory || [])
+        const oldHash = String(user.passwordHash);
+        const hadMfaSecret = !!user.mfaSecret;
+        const priorMfaMethod = String(user.mfaMethod || "");
+        let mfaPlain = "";
+        try {
+          if (hadMfaSecret) mfaPlain = decryptWithHash(oldHash, user.mfaSecret);
+        } catch (_) {
+          mfaPlain = "";
+        }
+        const updatedHistory = addToPasswordHistory(
+          oldHash,
+          user.passwordHistory || [],
+        );
 
-        user.passwordHash = newPasswordHash
-        user.passwordHistory = updatedHistory
-        user.tokenVersion = (user.tokenVersion || 0) + 1 // Invalidate all sessions
-        user.mfaReEnrollmentRequired = false
-        user.mfaDisablePending = false
-        user.mfaDisableRequestedAt = null
-        user.mfaDisableScheduledFor = null
-        user.tokenFprint = ''
+        user.passwordHash = newPasswordHash;
+        user.passwordHistory = updatedHistory;
+        user.tokenVersion = (user.tokenVersion || 0) + 1; // Invalidate all sessions
+        user.mfaReEnrollmentRequired = false;
+        user.mfaDisablePending = false;
+        user.mfaDisableRequestedAt = null;
+        user.mfaDisableScheduledFor = null;
+        user.tokenFprint = "";
 
         if (hadMfaSecret) {
           if (!mfaPlain) {
-            user.mfaReEnrollmentRequired = true
-            user.mfaEnabled = false
-            user.mfaSecret = ''
-            user.mfaMethod = ''
+            user.mfaReEnrollmentRequired = true;
+            user.mfaEnabled = false;
+            user.mfaSecret = "";
+            user.mfaMethod = "";
           } else {
             try {
-              user.mfaSecret = encryptWithHash(user.passwordHash, mfaPlain)
-              user.mfaEnabled = true
-              user.mfaMethod = priorMfaMethod || 'authenticator'
+              user.mfaSecret = encryptWithHash(user.passwordHash, mfaPlain);
+              user.mfaEnabled = true;
+              user.mfaMethod = priorMfaMethod || "authenticator";
             } catch (_) {
-              user.mfaReEnrollmentRequired = true
-              user.mfaEnabled = false
-              user.mfaSecret = ''
-              user.mfaMethod = ''
+              user.mfaReEnrollmentRequired = true;
+              user.mfaEnabled = false;
+              user.mfaSecret = "";
+              user.mfaMethod = "";
             }
           }
         }
-        await user.save()
+        await user.save();
 
         // Clear password hash from approval metadata (security)
-        approval.metadata.newPasswordHash = undefined
-        await approval.save()
+        approval.metadata.newPasswordHash = undefined;
+        await approval.save();
 
         // Create audit log
         await createAuditLog(
           user._id,
-          'admin_approval_approved',
-          'password',
-          '[REDACTED]',
-          '[REDACTED]',
+          "admin_approval_approved",
+          "password",
+          "[REDACTED]",
+          "[REDACTED]",
           roleSlug,
           {
             approvalId: approval.approvalId,
@@ -141,29 +154,40 @@ async function applyApprovedChange(approval) {
             approvedBy: approval.approvals.map((a) => String(a.adminId)),
             tokenVersion: user.tokenVersion,
             mfaReEnrollmentRequired: !!user.mfaReEnrollmentRequired,
-          }
-        )
+          },
+        );
 
-        return { success: true }
+        return { success: true };
       }
 
-      case 'maintenance_mode': {
-        const { action, message, expectedResumeAt, scheduledStartAt } = approval.requestDetails || {}
-        const approvedBy = approval.approvals.map((a) => String(a.adminId))
-        const now = new Date()
-        const scheduledDate = scheduledStartAt ? new Date(scheduledStartAt) : null
-        const hasValidScheduledDate = !!(scheduledDate && !Number.isNaN(scheduledDate.getTime()))
-        const shouldActivateNow = !hasValidScheduledDate || scheduledDate <= now
+      case "maintenance_mode": {
+        const { action, message, expectedResumeAt, scheduledStartAt } =
+          approval.requestDetails || {};
+        const approvedBy = approval.approvals.map((a) => String(a.adminId));
+        const now = new Date();
+        const scheduledDate = scheduledStartAt
+          ? new Date(scheduledStartAt)
+          : null;
+        const hasValidScheduledDate = !!(
+          scheduledDate && !Number.isNaN(scheduledDate.getTime())
+        );
+        const shouldActivateNow =
+          !hasValidScheduledDate || scheduledDate <= now;
 
-        if (action === 'enable') {
+        if (action === "enable") {
           if (shouldActivateNow) {
-            await MaintenanceWindow.updateMany({ isActive: true }, { isActive: false, status: 'ended', deactivatedAt: now })
+            await MaintenanceWindow.updateMany(
+              { isActive: true },
+              { isActive: false, status: "ended", deactivatedAt: now },
+            );
           }
           await MaintenanceWindow.create({
-            status: shouldActivateNow ? 'active' : 'pending',
+            status: shouldActivateNow ? "active" : "pending",
             isActive: shouldActivateNow,
-            message: message || '',
-            expectedResumeAt: expectedResumeAt ? new Date(expectedResumeAt) : null,
+            message: message || "",
+            expectedResumeAt: expectedResumeAt
+              ? new Date(expectedResumeAt)
+              : null,
             requestedBy: approval.requestedBy,
             approvedBy,
             activatedAt: shouldActivateNow ? now : null,
@@ -171,45 +195,45 @@ async function applyApprovedChange(approval) {
               approvalId: approval.approvalId,
               scheduledStartAt: hasValidScheduledDate ? scheduledDate : null,
             },
-          })
-        } else if (action === 'disable') {
+          });
+        } else if (action === "disable") {
           await MaintenanceWindow.updateMany(
             {
-              $or: [
-                { isActive: true },
-                { status: 'pending' },
-              ],
+              $or: [{ isActive: true }, { status: "pending" }],
             },
-            { isActive: false, status: 'ended', deactivatedAt: now }
-          )
+            { isActive: false, status: "ended", deactivatedAt: now },
+          );
         }
 
         await createAuditLog(
           approval.requestedBy,
-          'maintenance_mode',
-          'maintenance',
-          '',
+          "maintenance_mode",
+          "maintenance",
+          "",
           action,
-          'admin',
+          "admin",
           {
             approvalId: approval.approvalId,
-            message: message || '',
+            message: message || "",
             expectedResumeAt: expectedResumeAt || null,
             scheduledStartAt: hasValidScheduledDate ? scheduledDate : null,
             approvedBy,
-          }
-        )
+          },
+        );
 
-        return { success: true }
+        return { success: true };
       }
 
       default:
-        return { success: false, error: 'Unknown request type' }
+        return { success: false, error: "Unknown request type" };
     }
   } catch (error) {
-    logger.error('Error applying approved change:', { error: error.message, approvalId: approval.approvalId })
-    return { success: false, error: error.message }
+    logger.error("Error applying approved change:", {
+      error: error.message,
+      approvalId: approval.approvalId,
+    });
+    return { success: false, error: error.message };
   }
 }
 
-module.exports = applyApprovedChange
+module.exports = applyApprovedChange;

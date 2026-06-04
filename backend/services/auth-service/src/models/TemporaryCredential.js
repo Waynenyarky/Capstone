@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 /**
  * Temporary Credential Model
@@ -8,7 +8,7 @@ const TemporaryCredentialSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     username: {
@@ -21,7 +21,7 @@ const TemporaryCredentialSchema = new mongoose.Schema(
     },
     issuedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
       // Admin who issued the credentials
     },
@@ -47,49 +47,51 @@ const TemporaryCredentialSchema = new mongoose.Schema(
     },
     recoveryRequestId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'RecoveryRequest',
+      ref: "RecoveryRequest",
       default: null,
       // Link to the recovery request that triggered this
     },
     metadata: {
-      ipAddress: { type: String, default: '' },
-      userAgent: { type: String, default: '' },
-      office: { type: String, default: '' },
-      role: { type: String, default: '' },
+      ipAddress: { type: String, default: "" },
+      userAgent: { type: String, default: "" },
+      office: { type: String, default: "" },
+      role: { type: String, default: "" },
     },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 TemporaryCredentialSchema.plugin(encryptionPlugin, {
-  fields: ['username'],
+  fields: ["username"],
   deterministicFields: [],
-  nestedPaths: ['metadata'],
+  nestedPaths: ["metadata"],
   arrayPaths: [],
   mixedPaths: [],
-})
+});
 
 // Indexes for efficient querying
-TemporaryCredentialSchema.index({ userId: 1, isExpired: 1 })
-TemporaryCredentialSchema.index({ expiresAt: 1 })
-TemporaryCredentialSchema.index({ issuedBy: 1 })
+TemporaryCredentialSchema.index({ userId: 1, isExpired: 1 });
+TemporaryCredentialSchema.index({ expiresAt: 1 });
+TemporaryCredentialSchema.index({ issuedBy: 1 });
 
 // Method to check if credentials are expired
 TemporaryCredentialSchema.methods.isValid = function () {
-  if (this.isExpired) return false
-  if (Date.now() > this.expiresAt.getTime()) return false
-  if (this.expiresAfterFirstLogin && this.usedAt) return false
-  return true
-}
+  if (this.isExpired) return false;
+  if (Date.now() > this.expiresAt.getTime()) return false;
+  if (this.expiresAfterFirstLogin && this.usedAt) return false;
+  return true;
+};
 
 // Method to mark as used
 TemporaryCredentialSchema.methods.markAsUsed = function () {
-  this.usedAt = new Date()
+  this.usedAt = new Date();
   if (this.expiresAfterFirstLogin) {
-    this.isExpired = true
+    this.isExpired = true;
   }
-  return this.save()
-}
+  return this.save();
+};
 
-module.exports = mongoose.models.TemporaryCredential || mongoose.model('TemporaryCredential', TemporaryCredentialSchema)
+module.exports =
+  mongoose.models.TemporaryCredential ||
+  mongoose.model("TemporaryCredential", TemporaryCredentialSchema);

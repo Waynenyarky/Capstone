@@ -1,5 +1,11 @@
-const { requestVerification, verifyCode, checkVerificationStatus } = require('../../services/auth-service/src/lib/verificationService')
-const { signAccessToken } = require('../../services/auth-service/src/middleware/auth')
+const {
+  requestVerification,
+  verifyCode,
+  checkVerificationStatus,
+} = require("../../services/auth-service/src/lib/verificationService");
+const {
+  signAccessToken,
+} = require("../../services/auth-service/src/middleware/auth");
 
 /**
  * Request verification and get the code (for test purposes)
@@ -9,17 +15,17 @@ const { signAccessToken } = require('../../services/auth-service/src/middleware/
  * @param {string} method - Verification method ('otp' or 'mfa')
  * @returns {Promise<{success: boolean, code?: string, result: object}>}
  */
-async function requestVerificationAndGetCode(userId, purpose, method = 'otp') {
-  const result = await requestVerification(userId, method, purpose)
-  
+async function requestVerificationAndGetCode(userId, purpose, method = "otp") {
+  const result = await requestVerification(userId, method, purpose);
+
   if (!result.success) {
-    return { success: false, result }
+    return { success: false, result };
   }
 
   // In test mode, we can check the verification status to get the code
   // Note: This depends on how verificationService stores codes in test mode
-  const status = await checkVerificationStatus(userId, purpose)
-  
+  const status = await checkVerificationStatus(userId, purpose);
+
   // If code is available in status (test/dev mode), return it
   // Otherwise, tests should use the verification status to verify
   return {
@@ -27,7 +33,7 @@ async function requestVerificationAndGetCode(userId, purpose, method = 'otp') {
     code: status.code || undefined, // May not be available in all test scenarios
     result,
     status,
-  }
+  };
 }
 
 /**
@@ -39,15 +45,15 @@ async function requestVerificationAndGetCode(userId, purpose, method = 'otp') {
 async function loginAsUser(user, password) {
   // This is a simplified login helper
   // For full login flow, use the actual login endpoints
-  const token = signAccessToken(user).token
+  const token = signAccessToken(user).token;
   return {
     token,
     user: {
       id: String(user._id),
       email: user.email,
-      role: user.role?.slug || '',
+      role: user.role?.slug || "",
     },
-  }
+  };
 }
 
 /**
@@ -58,12 +64,12 @@ async function loginAsUser(user, password) {
  */
 function createAuthenticatedRequest(request, token) {
   return (method, path) => {
-    return request(method, path).set('Authorization', `Bearer ${token}`)
-  }
+    return request(method, path).set("Authorization", `Bearer ${token}`);
+  };
 }
 
 module.exports = {
   requestVerificationAndGetCode,
   loginAsUser,
   createAuthenticatedRequest,
-}
+};

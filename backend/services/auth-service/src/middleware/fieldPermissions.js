@@ -1,5 +1,10 @@
-const respond = require('./respond')
-const { isStaffRole, isRestrictedFieldForStaff, isAdminRole, isBusinessOwnerRole } = require('../lib/roleHelpers')
+const respond = require("./respond");
+const {
+  isStaffRole,
+  isRestrictedFieldForStaff,
+  isAdminRole,
+  isBusinessOwnerRole,
+} = require("../lib/roleHelpers");
 
 /**
  * Field Permission Matrix
@@ -82,7 +87,7 @@ const FIELD_PERMISSIONS = {
       rateLimited: true,
     },
   },
-}
+};
 
 /**
  * Check if a field can be edited by a role
@@ -92,43 +97,43 @@ const FIELD_PERMISSIONS = {
  */
 function checkFieldPermission(roleSlug, field) {
   if (!roleSlug || !field) {
-    return null
+    return null;
   }
 
-  const role = roleSlug.toLowerCase()
+  const role = roleSlug.toLowerCase();
 
   // Check staff restrictions
   if (isStaffRole(role)) {
     if (isRestrictedFieldForStaff(field)) {
-      return null // Restricted for staff
+      return null; // Restricted for staff
     }
-    return FIELD_PERMISSIONS.staff[field] || null
+    return FIELD_PERMISSIONS.staff[field] || null;
   }
 
   // Check business owner permissions
   if (isBusinessOwnerRole(role)) {
-    return FIELD_PERMISSIONS.business_owner[field] || null
+    return FIELD_PERMISSIONS.business_owner[field] || null;
   }
 
   // Check admin permissions
   if (isAdminRole(role)) {
     // Admin permissions are grouped (contact, personalInfo, email, password)
-    if (field === 'phoneNumber') {
-      return FIELD_PERMISSIONS.admin.contact
+    if (field === "phoneNumber") {
+      return FIELD_PERMISSIONS.admin.contact;
     }
-    if (['firstName', 'lastName'].includes(field)) {
-      return FIELD_PERMISSIONS.admin.personalInfo
+    if (["firstName", "lastName"].includes(field)) {
+      return FIELD_PERMISSIONS.admin.personalInfo;
     }
-    if (field === 'email') {
-      return FIELD_PERMISSIONS.admin.email
+    if (field === "email") {
+      return FIELD_PERMISSIONS.admin.email;
     }
-    if (field === 'password') {
-      return FIELD_PERMISSIONS.admin.password
+    if (field === "password") {
+      return FIELD_PERMISSIONS.admin.password;
     }
-    return null
+    return null;
   }
 
-  return null
+  return null;
 }
 
 /**
@@ -138,77 +143,93 @@ function checkFieldPermission(roleSlug, field) {
  */
 function requireFieldPermission(field) {
   return (req, res, next) => {
-    const roleSlug = req._userRole
+    const roleSlug = req._userRole;
 
     if (!roleSlug) {
-      return respond.error(res, 401, 'unauthorized', 'Unauthorized: missing role information')
+      return respond.error(
+        res,
+        401,
+        "unauthorized",
+        "Unauthorized: missing role information",
+      );
     }
 
     // Check staff restrictions
     if (isStaffRole(roleSlug)) {
       if (isRestrictedFieldForStaff(field)) {
         // Log restricted field attempt
-        const AdminApproval = require('../models/AdminApproval')
-        const AuditLog = require('../models/AuditLog')
+        const AdminApproval = require("../models/AdminApproval");
+        const AuditLog = require("../models/AuditLog");
 
         // Create audit log for restricted field attempt (async, don't wait)
         try {
-          const crypto = require('crypto')
-          const timestamp = new Date().toISOString()
+          const crypto = require("crypto");
+          const timestamp = new Date().toISOString();
           const hashableData = {
             userId: String(req._userId),
-            eventType: 'restricted_field_attempt',
+            eventType: "restricted_field_attempt",
             fieldChanged: field,
-            oldValue: '',
+            oldValue: "",
             newValue: JSON.stringify(req.body[field] || req.body),
             role: roleSlug,
             metadata: JSON.stringify({
-              ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
-              userAgent: req.headers['user-agent'] || 'unknown',
+              ip: req.ip || req.headers["x-forwarded-for"] || "unknown",
+              userAgent: req.headers["user-agent"] || "unknown",
             }),
             timestamp,
-          }
-          const hash = crypto.createHash('sha256').update(JSON.stringify(hashableData)).digest('hex')
-          
+          };
+          const hash = crypto
+            .createHash("sha256")
+            .update(JSON.stringify(hashableData))
+            .digest("hex");
+
           AuditLog.create({
             userId: req._userId,
-            eventType: 'restricted_field_attempt',
+            eventType: "restricted_field_attempt",
             fieldChanged: field,
-            oldValue: '',
+            oldValue: "",
             newValue: JSON.stringify(req.body[field] || req.body),
             role: roleSlug,
             metadata: {
-              ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
-              userAgent: req.headers['user-agent'] || 'unknown',
+              ip: req.ip || req.headers["x-forwarded-for"] || "unknown",
+              userAgent: req.headers["user-agent"] || "unknown",
             },
             hash,
           }).catch((err) => {
-            console.error('Failed to log restricted field attempt:', err)
-          })
+            console.error("Failed to log restricted field attempt:", err);
+          });
         } catch (err) {
-          console.error('Failed to create audit log for restricted field attempt:', err)
+          console.error(
+            "Failed to create audit log for restricted field attempt:",
+            err,
+          );
         }
 
         return respond.error(
           res,
           403,
-          'field_restricted',
-          `Field '${field}' cannot be edited by staff users. This action has been logged.`
-        )
+          "field_restricted",
+          `Field '${field}' cannot be edited by staff users. This action has been logged.`,
+        );
       }
     }
 
-    const permission = checkFieldPermission(roleSlug, field)
+    const permission = checkFieldPermission(roleSlug, field);
     if (!permission) {
-      return respond.error(res, 403, 'field_not_allowed', `Field '${field}' cannot be edited by your role`)
+      return respond.error(
+        res,
+        403,
+        "field_not_allowed",
+        `Field '${field}' cannot be edited by your role`,
+      );
     }
 
     // Attach permission info to request for use in route handler
-    req._fieldPermission = permission
-    req._fieldName = field
+    req._fieldPermission = permission;
+    req._fieldName = field;
 
-    next()
-  }
+    next();
+  };
 }
 
 /**
@@ -217,57 +238,80 @@ function requireFieldPermission(field) {
  */
 function requireVerification() {
   return async (req, res, next) => {
-    const permission = req._fieldPermission
+    const permission = req._fieldPermission;
     if (!permission || !permission.requiresVerification) {
-      return next() // No verification required
+      return next(); // No verification required
     }
 
     // Check if verification has been completed
-    const { verifyCode: verifyCodeService, checkVerificationStatus } = require('../lib/verificationService')
-    const purpose = `${req._fieldName}_change`
+    const {
+      verifyCode: verifyCodeService,
+      checkVerificationStatus,
+    } = require("../lib/verificationService");
+    const purpose = `${req._fieldName}_change`;
 
     // Check if code was provided in request
-    const { verificationCode } = req.body || {}
+    const { verificationCode } = req.body || {};
     if (verificationCode) {
       // Verify the code
-      const verifyResult = await verifyCodeService(req._userId, verificationCode, 'otp', purpose)
+      const verifyResult = await verifyCodeService(
+        req._userId,
+        verificationCode,
+        "otp",
+        purpose,
+      );
       if (!verifyResult.verified) {
-        return respond.error(res, 401, 'verification_failed', verifyResult.error || 'Invalid verification code')
+        return respond.error(
+          res,
+          401,
+          "verification_failed",
+          verifyResult.error || "Invalid verification code",
+        );
       }
       // Verification successful, continue
-      return next()
+      return next();
     }
 
     // Check if MFA code was provided
-    const { mfaCode } = req.body || {}
+    const { mfaCode } = req.body || {};
     if (mfaCode && permission.requiresVerification) {
-      const verifyResult = await verifyCodeService(req._userId, mfaCode, 'mfa', purpose)
+      const verifyResult = await verifyCodeService(
+        req._userId,
+        mfaCode,
+        "mfa",
+        purpose,
+      );
       if (!verifyResult.verified) {
-        return respond.error(res, 401, 'verification_failed', verifyResult.error || 'Invalid MFA code')
+        return respond.error(
+          res,
+          401,
+          "verification_failed",
+          verifyResult.error || "Invalid MFA code",
+        );
       }
-      return next()
+      return next();
     }
 
     // No verification code provided - check if verification is pending
-    const status = await checkVerificationStatus(req._userId, purpose)
+    const status = await checkVerificationStatus(req._userId, purpose);
     if (status.pending) {
       return respond.error(
         res,
         428,
-        'verification_required',
-        'Verification required. Please provide verification code or request a new one.',
-        { expiresAt: status.expiresAt, method: status.method }
-      )
+        "verification_required",
+        "Verification required. Please provide verification code or request a new one.",
+        { expiresAt: status.expiresAt, method: status.method },
+      );
     }
 
     // No verification requested yet
     return respond.error(
       res,
       428,
-      'verification_required',
-      'Verification required before making this change. Please request verification first.'
-    )
-  }
+      "verification_required",
+      "Verification required before making this change. Please request verification first.",
+    );
+  };
 }
 
 module.exports = {
@@ -275,4 +319,4 @@ module.exports = {
   requireFieldPermission,
   requireVerification,
   FIELD_PERMISSIONS,
-}
+};

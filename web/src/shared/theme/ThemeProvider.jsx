@@ -348,7 +348,7 @@ export function ThemeProvider({ children }) {
 
   // Save theme to user-specific storage when theme or user changes
   // Save for both logged-in users and guests to ensure persistence
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => {
     // Always save theme, even for guest users (null currentUser)
     saveUserTheme(currentUser, currentTheme);

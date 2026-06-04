@@ -80,28 +80,12 @@ export default function AdminAuditTamper() {
     history: <SecurityHistoryTab />,
   }
 
-  const mainHeaderActions = (
-    <>
-      {lastUpdated && (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          Last updated: {lastUpdated.toLocaleTimeString()}
-        </Text>
-      )}
-      <Button icon={<ReloadOutlined />} onClick={load} loading={loading} aria-label="Refresh" />
-      <Button icon={<InfoCircleOutlined />} onClick={() => setInfoOpen(true)} aria-label="About" />
-    </>
-  )
-
   const openCount = stats?.open ?? 0
   const showAlert = openCount > 0
 
   if (loading && !stats) {
     return (
-      <AdminLayout
-        pageTitle="Security"
-        pageIcon={<SafetyCertificateOutlined />}
-        headerActions={mainHeaderActions}
-      >
+      <AdminLayout>
         <div style={{ display: 'flex', justifyContent: 'center', padding: 64 }}>
           <span style={{ fontSize: 14, color: '#999' }}>Loading…</span>
         </div>
@@ -143,13 +127,6 @@ export default function AdminAuditTamper() {
           tabKey={tabKey}
           setTabKey={setTabKey}
           tabChildren={tabChildren}
-          headerActions={
-            tabKey === 'history' ? (
-              <Button type="primary" icon={<DownloadOutlined />} onClick={() => setExportLogsOpen(true)}>
-                Export Logs
-              </Button>
-            ) : null
-          }
         />
       )}
       <AuditTamperInfoModal open={infoOpen} onClose={() => setInfoOpen(false)} />
@@ -162,11 +139,7 @@ export default function AdminAuditTamper() {
   )
 
   return (
-    <AdminLayout
-      pageTitle="Security"
-      pageIcon={<SafetyCertificateOutlined />}
-      headerActions={mainHeaderActions}
-    >
+    <AdminLayout>
       <div
         style={
           isMobile

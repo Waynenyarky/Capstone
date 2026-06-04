@@ -1,41 +1,47 @@
-const express = require('express');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const path = require('path');
-const fs = require('fs');
-const connectDB = require('./config/db');
-const logger = require('./lib/logger');
-const correlationIdMiddleware = require('./middleware/correlationId');
-const { performanceMonitorMiddleware } = require('./middleware/performanceMonitor');
-const { securityMonitorMiddleware } = require('./middleware/securityMonitor');
-const errorHandlerMiddleware = require('./middleware/errorHandler');
-const http = require('http');
-const mongoose = require('mongoose');
+const express = require("express");
+const cors = require("cors");
+const dotenv = require("dotenv");
+const path = require("path");
+const fs = require("fs");
+const connectDB = require("./config/db");
+const logger = require("./lib/logger");
+const correlationIdMiddleware = require("./middleware/correlationId");
+const {
+  performanceMonitorMiddleware,
+} = require("./middleware/performanceMonitor");
+const { securityMonitorMiddleware } = require("./middleware/securityMonitor");
+const errorHandlerMiddleware = require("./middleware/errorHandler");
+const http = require("http");
+const mongoose = require("mongoose");
 
 dotenv.config();
 // Load .env from project root when running from backend/services/admin-service (so MONGO_URI etc. are found)
-const projectRootEnv = path.join(__dirname, '..', '..', '..', '..', '.env');
+const projectRootEnv = path.join(__dirname, "..", "..", "..", "..", ".env");
 try {
-  require('dotenv').config({ path: projectRootEnv });
-} catch (_) { /* optional */ }
+  require("dotenv").config({ path: projectRootEnv });
+} catch (_) {
+  /* optional */
+}
 
 const app = express();
 
-const helmet = require('helmet');
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "https://challenges.cloudflare.com"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'"],
-      frameSrc: ["https://challenges.cloudflare.com"],
-      fontSrc: ["'self'"],
+const helmet = require("helmet");
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "https://challenges.cloudflare.com"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: ["'self'"],
+        frameSrc: ["https://challenges.cloudflare.com"],
+        fontSrc: ["'self'"],
+      },
     },
-  },
-  crossOriginEmbedderPolicy: false,
-}));
+    crossOriginEmbedderPolicy: false,
+  }),
+);
 
 // Structured Logging & Monitoring Middleware (early in chain)
 app.use(correlationIdMiddleware);
@@ -43,54 +49,82 @@ app.use(performanceMonitorMiddleware);
 app.use(securityMonitorMiddleware);
 
 // Middleware
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
-  credentials: true
-}));
-app.use(express.json({ limit: '25mb' }));
-app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || "*",
+    credentials: true,
+  }),
+);
+app.use(express.json({ limit: "25mb" }));
+app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
 // Session middleware required for CSRF tokens
 try {
-  const session = require('express-session');
-  const cookieParser = require('cookie-parser');
+  const session = require("express-session");
+  const cookieParser = require("cookie-parser");
   app.use(cookieParser());
-  const sessSecret = process.env.SESSION_SECRET || 'dev-session-secret';
+  const sessSecret = process.env.SESSION_SECRET || "dev-session-secret";
   app.use(
     session({
       secret: sessSecret,
       resave: false,
       saveUninitialized: false,
-      cookie: { secure: process.env.NODE_ENV === 'production', sameSite: 'lax' },
-    })
+      cookie: {
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+      },
+    }),
   );
 } catch (err) {
-  logger.warn('Session middleware not available', { error: err });
+  logger.warn("Session middleware not available", { error: err });
 }
 
 // CSRF (IAS-2.7): token endpoint and middleware for /api/admin
-const csrfDisabled = process.env.DISABLE_CSRF === 'true' || process.env.NODE_ENV === 'test';
-const { createCsrfMiddleware, getCsrfTokenHandler } = require('../../../shared/csrf');
-app.get('/api/admin/csrf-token', getCsrfTokenHandler({ cookieName: 'csrf-token-admin', sameSite: 'lax' }));
-app.get('/api/lgu-officer/csrf-token', getCsrfTokenHandler({ cookieName: 'csrf-token-lgu-officer', sameSite: 'lax' }));
-app.use('/api/admin', createCsrfMiddleware({
-  cookieName: 'csrf-token-admin',
-  skipPaths: [
-    '/api/admin/csrf-token',
-    '/api/admin/tamper/incidents', // server-to-server: audit-service creates incidents via X-Internal-API-Key
-  ],
-  disabled: csrfDisabled
-}));
-app.use('/api/lgu-officer', createCsrfMiddleware({
-  cookieName: 'csrf-token-lgu-officer',
-  skipPaths: ['/api/lgu-officer/csrf-token'],
-  disabled: csrfDisabled,
-}));
+const csrfDisabled =
+  process.env.DISABLE_CSRF === "true" || process.env.NODE_ENV === "test";
+const {
+  createCsrfMiddleware,
+  getCsrfTokenHandler,
+} = require("../../../shared/csrf");
+app.get(
+  "/api/admin/csrf-token",
+  getCsrfTokenHandler({ cookieName: "csrf-token-admin", sameSite: "lax" }),
+);
+app.get(
+  "/api/lgu-officer/csrf-token",
+  getCsrfTokenHandler({
+    cookieName: "csrf-token-lgu-officer",
+    sameSite: "lax",
+  }),
+);
+app.use(
+  "/api/admin",
+  createCsrfMiddleware({
+    cookieName: "csrf-token-admin",
+    skipPaths: [
+      "/api/admin/csrf-token",
+      "/api/admin/tamper/incidents", // server-to-server: audit-service creates incidents via X-Internal-API-Key
+    ],
+    disabled: csrfDisabled,
+  }),
+);
+app.use(
+  "/api/lgu-officer",
+  createCsrfMiddleware({
+    cookieName: "csrf-token-lgu-officer",
+    skipPaths: ["/api/lgu-officer/csrf-token"],
+    disabled: csrfDisabled,
+  }),
+);
 
-if (process.env.NODE_ENV !== 'production') {
-  let morgan
-  try { morgan = require('morgan') } catch (_) { morgan = null }
-  if (morgan) app.use(morgan('dev'))
+if (process.env.NODE_ENV !== "production") {
+  let morgan;
+  try {
+    morgan = require("morgan");
+  } catch (_) {
+    morgan = null;
+  }
+  if (morgan) app.use(morgan("dev"));
 }
 
 // Track database readiness - prevents indefinite hangs when DB is slow
@@ -99,7 +133,7 @@ let dbReady = false;
 // Middleware to return 503 while DB is connecting (prevents frontend hangs)
 app.use((req, res, next) => {
   // Always allow health check and CSRF endpoints
-  if (req.path === '/api/health' || req.path.includes('/csrf-token')) {
+  if (req.path === "/api/health" || req.path.includes("/csrf-token")) {
     return next();
   }
   // Allow requests once DB is ready
@@ -109,109 +143,148 @@ app.use((req, res, next) => {
   // Return 503 Service Unavailable - frontend should retry
   return res.status(503).json({
     ok: false,
-    error: { code: 'service_starting', message: 'Service is starting, please retry' }
+    error: {
+      code: "service_starting",
+      message: "Service is starting, please retry",
+    },
   });
 });
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    ok: true, 
-    service: 'admin-service', 
+app.get("/api/health", (req, res) => {
+  res.json({
+    ok: true,
+    service: "admin-service",
     timestamp: new Date().toISOString(),
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+    database:
+      mongoose.connection.readyState === 1 ? "connected" : "disconnected",
   });
 });
 
 // Load models to ensure they're registered with mongoose
-require('./models/Role');
-require('./models/User');
-require('./models/BusinessProfile');
-require('./models/AuditLog');
-require('./models/LGU');
-require('./models/FormGroup');
-require('./models/FormDefinition');
-require('./models/PenaltyConfiguration');
-require('./models/TamperIncident');
-require('./models/Notification');
-require('./models/PermitFormsSection');
+require("./models/Role");
+require("./models/User");
+require("./models/BusinessProfile");
+require("./models/AuditLog");
+require("./models/LGU");
+require("./models/FormGroup");
+require("./models/FormDefinition");
+require("./models/PenaltyConfiguration");
+require("./models/TamperIncident");
+require("./models/Notification");
+require("./models/PermitFormsSection");
 
 // Admin routes
-const adminRouter = require('./routes/approvals');
-const monitoringRouter = require('./routes/monitoring');
-const maintenanceRouter = require('./routes/maintenance');
-const tamperIncidentsRouter = require('./routes/tamperIncidents');
-const lguOfficerPermitRouter = require('./routes/permitApplications');
-const lgusRouter = require('./routes/lgus');
-const formDefinitionsRouter = require('./routes/formDefinitions');
-const publicFormsRouter = require('./routes/publicForms');
-const penaltyConfigRouter = require('./routes/penaltyConfiguration');
-const generalPermitConfigRouter = require('./routes/generalPermitConfig');
-const feeConfigurationLogsRouter = require('./routes/feeConfigurationLogs');
+const adminRouter = require("./routes/approvals");
+const monitoringRouter = require("./routes/monitoring");
+const maintenanceRouter = require("./routes/maintenance");
+const tamperIncidentsRouter = require("./routes/tamperIncidents");
+const lguOfficerPermitRouter = require("./routes/permitApplications");
+const lgusRouter = require("./routes/lgus");
+const formDefinitionsRouter = require("./routes/formDefinitions");
+const publicFormsRouter = require("./routes/publicForms");
+const penaltyConfigRouter = require("./routes/penaltyConfiguration");
+const generalPermitConfigRouter = require("./routes/generalPermitConfig");
+const feeConfigurationLogsRouter = require("./routes/feeConfigurationLogs");
 
-app.use('/api/admin', adminRouter);
-app.use('/api/admin/monitoring', monitoringRouter);
-app.use('/api/admin/maintenance', maintenanceRouter);
-app.use('/api/admin/tamper', tamperIncidentsRouter);
-app.use('/api/admin/lgus', lgusRouter);
-app.use('/api/admin/forms', formDefinitionsRouter);
-app.use('/api/admin/penalty-configuration', penaltyConfigRouter);
-app.use('/api/admin/general-permit-config', generalPermitConfigRouter);
-app.use('/api/admin/fee-configuration-logs', feeConfigurationLogsRouter);
+app.use("/api/admin", adminRouter);
+app.use("/api/admin/monitoring", monitoringRouter);
+app.use("/api/admin/maintenance", maintenanceRouter);
+app.use("/api/admin/tamper", tamperIncidentsRouter);
+app.use("/api/admin/lgus", lgusRouter);
+app.use("/api/admin/forms", formDefinitionsRouter);
+app.use("/api/admin/penalty-configuration", penaltyConfigRouter);
+app.use("/api/admin/general-permit-config", generalPermitConfigRouter);
+app.use("/api/admin/fee-configuration-logs", feeConfigurationLogsRouter);
 // Public maintenance status endpoint (for frontend to check)
-app.use('/api/maintenance', maintenanceRouter);
+app.use("/api/maintenance", maintenanceRouter);
 // Public LGU endpoints
-app.use('/api/lgus', lgusRouter);
+app.use("/api/lgus", lgusRouter);
 // Public form definitions endpoints
-app.use('/api/forms', publicFormsRouter);
-const announcementsRouter = require('./routes/announcements');
-app.use('/api/admin/announcements', announcementsRouter);
-const permitFormsRouter = require('./routes/permitForms');
-app.use('/api/admin/permit-forms', permitFormsRouter);
-const { publicRouter: cmsPublicRouter, adminRouter: cmsAdminRouter } = require('./routes/cms');
-app.use('/api/cms', cmsPublicRouter);
-app.use('/api/admin/cms', cmsAdminRouter);
+app.use("/api/forms", publicFormsRouter);
+const announcementsRouter = require("./routes/announcements");
+app.use("/api/admin/announcements", announcementsRouter);
+const permitFormsRouter = require("./routes/permitForms");
+app.use("/api/admin/permit-forms", permitFormsRouter);
+const {
+  publicRouter: cmsPublicRouter,
+  adminRouter: cmsAdminRouter,
+} = require("./routes/cms");
+app.use("/api/cms", cmsPublicRouter);
+app.use("/api/admin/cms", cmsAdminRouter);
 
 // LGU Officer permit applications routes
-app.use('/api/lgu-officer/permit-applications', lguOfficerPermitRouter);
+app.use("/api/lgu-officer/permit-applications", lguOfficerPermitRouter);
 
 // Staff personal activity endpoint
-const AuditLog = require('./models/AuditLog');
-const { requireJwt: requireJwtForActivity, requireRole: requireRoleForActivity } = require('./middleware/auth');
-const respondActivity = require('./middleware/respond');
-app.get('/api/admin/my-activity', requireJwtForActivity, requireRoleForActivity(['staff', 'lgu_officer', 'lgu_manager', 'inspector', 'admin']), async (req, res) => {
-  try {
-    const period = req.query.period || 'month'
-    const userId = req.user?._id || req._userId
-    const dateFilter = period === 'week'
-      ? { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
-      : period === 'month'
-      ? { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
-      : {}
+const AuditLog = require("./models/AuditLog");
+const {
+  requireJwt: requireJwtForActivity,
+  requireRole: requireRoleForActivity,
+} = require("./middleware/auth");
+const respondActivity = require("./middleware/respond");
+app.get(
+  "/api/admin/my-activity",
+  requireJwtForActivity,
+  requireRoleForActivity([
+    "staff",
+    "lgu_officer",
+    "lgu_manager",
+    "inspector",
+    "admin",
+  ]),
+  async (req, res) => {
+    try {
+      const period = req.query.period || "month";
+      const userId = req.user?._id || req._userId;
+      const dateFilter =
+        period === "week"
+          ? { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+          : period === "month"
+            ? { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+            : {};
 
-    const query = { performedBy: userId }
-    if (dateFilter.$gte) query.createdAt = dateFilter
+      const query = { performedBy: userId };
+      if (dateFilter.$gte) query.createdAt = dateFilter;
 
-    const auditLogs = await AuditLog.find(query).sort({ createdAt: -1 }).limit(100).lean()
-    const approved = auditLogs.filter(l => (l.eventType || l.action || '').includes('approved')).length
-    const rejected = auditLogs.filter(l => (l.eventType || l.action || '').includes('rejected')).length
-    const totalReviews = auditLogs.filter(l => (l.eventType || l.action || '').includes('review') || (l.eventType || l.action || '').includes('approved') || (l.eventType || l.action || '').includes('rejected')).length
+      const auditLogs = await AuditLog.find(query)
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .lean();
+      const approved = auditLogs.filter((l) =>
+        (l.eventType || l.action || "").includes("approved"),
+      ).length;
+      const rejected = auditLogs.filter((l) =>
+        (l.eventType || l.action || "").includes("rejected"),
+      ).length;
+      const totalReviews = auditLogs.filter(
+        (l) =>
+          (l.eventType || l.action || "").includes("review") ||
+          (l.eventType || l.action || "").includes("approved") ||
+          (l.eventType || l.action || "").includes("rejected"),
+      ).length;
 
-    return respondActivity.success(res, 200, {
-      totalReviews,
-      approved,
-      rejected,
-      pending: Math.max(0, totalReviews - approved - rejected),
-      recentActivity: auditLogs.slice(0, 20),
-    })
-  } catch (err) {
-    console.error('GET /api/admin/my-activity error:', err)
-    return respondActivity.error(res, 500, 'activity_error', 'Failed to fetch activity')
-  }
-});
+      return respondActivity.success(res, 200, {
+        totalReviews,
+        approved,
+        rejected,
+        pending: Math.max(0, totalReviews - approved - rejected),
+        recentActivity: auditLogs.slice(0, 20),
+      });
+    } catch (err) {
+      console.error("GET /api/admin/my-activity error:", err);
+      return respondActivity.error(
+        res,
+        500,
+        "activity_error",
+        "Failed to fetch activity",
+      );
+    }
+  },
+);
 
 // Serve static uploads (form templates, etc.)
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 // Notification routes (shared across all services)
 // Use auth service routes since notifications are user-specific
@@ -224,138 +297,189 @@ app.use(errorHandlerMiddleware);
 const PORT = Number(process.env.ADMIN_SERVICE_PORT || 3003);
 
 async function start() {
-  const uri = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URL || ''
-  logger.info('Admin Service starting', { mongoUri: uri ? '<set>' : '<not-set>' });
+  const uri =
+    process.env.MONGO_URI ||
+    process.env.MONGODB_URI ||
+    process.env.MONGO_URL ||
+    "";
+  logger.info("Admin Service starting", {
+    mongoUri: uri ? "<set>" : "<not-set>",
+  });
 
   // START SERVER IMMEDIATELY - don't wait for DB connection
   // This prevents proxy timeouts when backend is slow to connect to DB
   const server = http.createServer(app);
-  server.listen(PORT, '0.0.0.0', () => {
-    logger.info(`Admin Service listening on http://0.0.0.0:${PORT} (DB connecting...)`);
+  server.listen(PORT, "0.0.0.0", () => {
+    logger.info(
+      `Admin Service listening on http://0.0.0.0:${PORT} (DB connecting...)`,
+    );
   });
 
   // Connect to DB in background
   try {
     await connectDB(uri);
     dbReady = true;
-    logger.info('Admin Service database ready');
+    logger.info("Admin Service database ready");
 
     // Seed form definitions if empty (idempotent)
     // Runs when SEED_FORM_DEFINITIONS=true (Docker) or in non-test dev
-    const shouldSeed = process.env.NODE_ENV !== 'test' &&
-      (process.env.SEED_FORM_DEFINITIONS === 'true' || process.env.NODE_ENV !== 'production')
+    const shouldSeed =
+      process.env.NODE_ENV !== "test" &&
+      (process.env.SEED_FORM_DEFINITIONS === "true" ||
+        process.env.NODE_ENV !== "production");
 
     if (shouldSeed) {
-      const maxSeedRetries = 5
-      const seedRetryDelayMs = 3000
+      const maxSeedRetries = 5;
+      const seedRetryDelayMs = 3000;
       for (let attempt = 1; attempt <= maxSeedRetries; attempt++) {
         try {
-          const { seedIfEmpty } = require('./migrations/seedFormDefinitions')
-          const result = await seedIfEmpty()
+          const { seedIfEmpty } = require("./migrations/seedFormDefinitions");
+          const result = await seedIfEmpty();
           if (result.seeded) {
-            logger.info('Form definitions seeded', { count: result.count })
+            logger.info("Form definitions seeded", { count: result.count });
           }
-          break
+          break;
         } catch (error) {
-          logger.warn(`Form definitions seed attempt ${attempt}/${maxSeedRetries} failed`, { error: error.message })
+          logger.warn(
+            `Form definitions seed attempt ${attempt}/${maxSeedRetries} failed`,
+            { error: error.message },
+          );
           if (attempt === maxSeedRetries) {
-            logger.warn('Form definitions seed failed after retries', { error: error.message })
+            logger.warn("Form definitions seed failed after retries", {
+              error: error.message,
+            });
           } else {
-            await new Promise((r) => setTimeout(r, seedRetryDelayMs))
+            await new Promise((r) => setTimeout(r, seedRetryDelayMs));
           }
         }
       }
     }
 
     // Seed approval requests when SEED_APPROVAL_REQUESTS or SEED_DEV is set (idempotent)
-    if (process.env.NODE_ENV !== 'test' && (process.env.SEED_APPROVAL_REQUESTS === 'true' || process.env.SEED_DEV === 'true')) {
+    if (
+      process.env.NODE_ENV !== "test" &&
+      (process.env.SEED_APPROVAL_REQUESTS === "true" ||
+        process.env.SEED_DEV === "true")
+    ) {
       try {
-        const { seedApprovalRequestsIfEmpty } = require('./seed/seedApprovalRequests')
-        const result = await seedApprovalRequestsIfEmpty()
+        const {
+          seedApprovalRequestsIfEmpty,
+        } = require("./seed/seedApprovalRequests");
+        const result = await seedApprovalRequestsIfEmpty();
         if (result.seeded) {
-          logger.info('Approval requests seeded', { created: result.created })
+          logger.info("Approval requests seeded", { created: result.created });
         }
       } catch (error) {
-        logger.warn('Approval requests seed failed', { error: error.message })
+        logger.warn("Approval requests seed failed", { error: error.message });
       }
     }
 
     // Seed tamper incidents when SEED_TAMPER_INCIDENTS or SEED_DEV is set (idempotent)
-    if (process.env.NODE_ENV !== 'test' && (process.env.SEED_TAMPER_INCIDENTS === 'true' || process.env.SEED_DEV === 'true')) {
+    if (
+      process.env.NODE_ENV !== "test" &&
+      (process.env.SEED_TAMPER_INCIDENTS === "true" ||
+        process.env.SEED_DEV === "true")
+    ) {
       try {
-        const { seedTamperIncidentsIfEmpty } = require('./seed/seedTamperIncidents')
-        const result = await seedTamperIncidentsIfEmpty()
+        const {
+          seedTamperIncidentsIfEmpty,
+        } = require("./seed/seedTamperIncidents");
+        const result = await seedTamperIncidentsIfEmpty();
         if (result.seeded) {
-          logger.info('Tamper incidents seeded', { created: result.created })
+          logger.info("Tamper incidents seeded", { created: result.created });
         }
       } catch (error) {
-        logger.warn('Tamper incidents seed failed', { error: error.message })
+        logger.warn("Tamper incidents seed failed", { error: error.message });
       }
     }
 
     // Seed audit logs for dashboard "Recent admin activity" when SEED_DEV is set (idempotent)
-    if (process.env.NODE_ENV !== 'test' && process.env.SEED_DEV === 'true') {
+    if (process.env.NODE_ENV !== "test" && process.env.SEED_DEV === "true") {
       try {
-        const { seedAuditLogsIfEmpty } = require('./seed/seedAuditLogs')
-        const result = await seedAuditLogsIfEmpty()
+        const { seedAuditLogsIfEmpty } = require("./seed/seedAuditLogs");
+        const result = await seedAuditLogsIfEmpty();
         if (result.seeded) {
-          logger.info('Audit logs seeded', { created: result.created })
+          logger.info("Audit logs seeded", { created: result.created });
         }
       } catch (error) {
-        logger.warn('Audit logs seed failed', { error: error.message })
+        logger.warn("Audit logs seed failed", { error: error.message });
       }
     }
 
     // Seed announcements for landing page when SEED_ANNOUNCEMENTS or SEED_DEV is set (idempotent)
-    if (process.env.NODE_ENV !== 'test' && (process.env.SEED_ANNOUNCEMENTS === 'true' || process.env.SEED_DEV === 'true')) {
+    if (
+      process.env.NODE_ENV !== "test" &&
+      (process.env.SEED_ANNOUNCEMENTS === "true" ||
+        process.env.SEED_DEV === "true")
+    ) {
       try {
-        const { seedAnnouncementsIfEmpty } = require('./seed/seedAnnouncements')
-        const result = await seedAnnouncementsIfEmpty()
+        const {
+          seedAnnouncementsIfEmpty,
+        } = require("./seed/seedAnnouncements");
+        const result = await seedAnnouncementsIfEmpty();
         if (result.seeded) {
-          logger.info('Announcements seeded', { created: result.created })
+          logger.info("Announcements seeded", { created: result.created });
         }
       } catch (error) {
-        logger.warn('Announcements seed failed', { error: error.message })
+        logger.warn("Announcements seed failed", { error: error.message });
       }
     }
 
     // Seed permit forms when SEED_PERMIT_FORMS or SEED_DEV is set (idempotent)
-    if (process.env.NODE_ENV !== 'test' && (process.env.SEED_PERMIT_FORMS === 'true' || process.env.SEED_DEV === 'true')) {
+    if (
+      process.env.NODE_ENV !== "test" &&
+      (process.env.SEED_PERMIT_FORMS === "true" ||
+        process.env.SEED_DEV === "true")
+    ) {
       try {
-        const { seedPermitFormsIfEmpty } = require('./seed/seedPermitForms')
-        const result = await seedPermitFormsIfEmpty()
+        const { seedPermitFormsIfEmpty } = require("./seed/seedPermitForms");
+        const result = await seedPermitFormsIfEmpty();
         if (result.seeded) {
-          logger.info('Permit forms seeded', { created: result.created })
+          logger.info("Permit forms seeded", { created: result.created });
         }
       } catch (error) {
-        logger.warn('Permit forms seed failed', { error: error.message })
+        logger.warn("Permit forms seed failed", { error: error.message });
       }
     }
 
     // Seed CMS content (FAQ sections + Instructions) when SEED_CMS or SEED_DEV is set (idempotent)
-    if (process.env.NODE_ENV !== 'test' && (process.env.SEED_CMS === 'true' || process.env.SEED_DEV === 'true')) {
+    if (
+      process.env.NODE_ENV !== "test" &&
+      (process.env.SEED_CMS === "true" || process.env.SEED_DEV === "true")
+    ) {
       try {
-        const { seedCmsContentIfEmpty } = require('./seed/seedCmsContent')
-        const result = await seedCmsContentIfEmpty()
-        if (result.faq?.seeded) logger.info('CMS FAQ sections seeded', { created: result.faq.created })
-        if (result.instructions?.seeded) logger.info('CMS instructions seeded', { created: result.instructions.created })
-        if (result.pages?.seeded) logger.info('CMS page content seeded', { created: result.pages.created })
+        const { seedCmsContentIfEmpty } = require("./seed/seedCmsContent");
+        const result = await seedCmsContentIfEmpty();
+        if (result.faq?.seeded)
+          logger.info("CMS FAQ sections seeded", {
+            created: result.faq.created,
+          });
+        if (result.instructions?.seeded)
+          logger.info("CMS instructions seeded", {
+            created: result.instructions.created,
+          });
+        if (result.pages?.seeded)
+          logger.info("CMS page content seeded", {
+            created: result.pages.created,
+          });
       } catch (error) {
-        logger.warn('CMS content seed failed', { error: error.message })
+        logger.warn("CMS content seed failed", { error: error.message });
       }
     }
 
     // Initialize background jobs after DB connection
-    if (process.env.NODE_ENV !== 'test') {
+    if (process.env.NODE_ENV !== "test") {
       try {
-        const { startJobs } = require('./jobs')
-        startJobs()
+        const { startJobs } = require("./jobs");
+        startJobs();
       } catch (error) {
-        logger.warn('Failed to start background jobs', { error })
+        logger.warn("Failed to start background jobs", { error });
       }
     }
   } catch (err) {
-    logger.error('Admin Service DB/seed failed (server still running)', { error: err });
+    logger.error("Admin Service DB/seed failed (server still running)", {
+      error: err,
+    });
     // Don't exit - server is still running and will return 503 until DB connects
   }
 

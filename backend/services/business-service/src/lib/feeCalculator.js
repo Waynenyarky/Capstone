@@ -9,8 +9,8 @@
  * - Environmental Protection Fee (Section 4W.01, by industry/LOB)
  * - Fire Safety Inspection Fee (15% of BPLO regulatory fees, min P500)
  */
-const FeeConfiguration = require('../models/FeeConfiguration')
-const RegulatoryFeeConfig = require('../models/RegulatoryFeeConfig')
+const FeeConfiguration = require("../models/FeeConfiguration");
+const RegulatoryFeeConfig = require("../models/RegulatoryFeeConfig");
 
 /** Defaults (Charter) when DB config is missing. */
 const DEFAULT_SANITARY_BRACKETS = [
@@ -21,10 +21,10 @@ const DEFAULT_SANITARY_BRACKETS = [
   { minSqm: 200, maxSqm: 499.99, fee: 200 },
   { minSqm: 500, maxSqm: 999.99, fee: 250 },
   { minSqm: 1000, maxSqm: null, fee: 400 },
-]
-const DEFAULT_SANITARY_HOUSE_FOR_RENT = 50
-const DEFAULT_FIRE_SAFETY_RATE = 0.15
-const DEFAULT_FIRE_SAFETY_MIN = 500
+];
+const DEFAULT_SANITARY_HOUSE_FOR_RENT = 50;
+const DEFAULT_FIRE_SAFETY_RATE = 0.15;
+const DEFAULT_FIRE_SAFETY_MIN = 500;
 
 /**
  * Load regulatory fee config from DB (Sanitary brackets, Fire Safety rate/min). Used by calculator; admins edit via Admin → Special fees.
@@ -32,10 +32,12 @@ const DEFAULT_FIRE_SAFETY_MIN = 500
  */
 async function getRegulatoryFeeConfig() {
   try {
-    const doc = await RegulatoryFeeConfig.findById(RegulatoryFeeConfig.SINGLETON_ID).lean()
-    return doc || null
+    const doc = await RegulatoryFeeConfig.findById(
+      RegulatoryFeeConfig.SINGLETON_ID,
+    ).lean();
+    return doc || null;
   } catch {
-    return null
+    return null;
   }
 }
 
@@ -48,28 +50,29 @@ async function getRegulatoryFeeConfig() {
  * @returns {Object|null} FeeConfiguration document or null
  */
 async function getFeeConfig(lineOfBusinessOrTaxCode) {
-  if (!lineOfBusinessOrTaxCode || typeof lineOfBusinessOrTaxCode !== 'string') return null
-  const trimmed = lineOfBusinessOrTaxCode.trim()
-  if (!trimmed) return null
+  if (!lineOfBusinessOrTaxCode || typeof lineOfBusinessOrTaxCode !== "string")
+    return null;
+  const trimmed = lineOfBusinessOrTaxCode.trim();
+  if (!trimmed) return null;
 
   let config = await FeeConfiguration.findOne({
     taxCode: trimmed.toUpperCase(),
     isActive: { $ne: false },
-  }).lean()
-  if (config) return config
+  }).lean();
+  if (config) return config;
 
-  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   config = await FeeConfiguration.findOne({
-    lineOfBusiness: { $regex: new RegExp(`^${escaped}$`, 'i') },
+    lineOfBusiness: { $regex: new RegExp(`^${escaped}$`, "i") },
     isActive: { $ne: false },
-  }).lean()
-  if (config) return config
+  }).lean();
+  if (config) return config;
 
   config = await FeeConfiguration.findOne({
-    lineOfBusiness: { $regex: new RegExp(trimmed, 'i') },
+    lineOfBusiness: { $regex: new RegExp(trimmed, "i") },
     isActive: { $ne: false },
-  }).lean()
-  return config || null
+  }).lean();
+  return config || null;
 }
 
 /**
@@ -78,9 +81,9 @@ async function getFeeConfig(lineOfBusinessOrTaxCode) {
  * @returns {number}
  */
 async function computeMayorsPermitFee(lineOfBusiness) {
-  const config = await getFeeConfig(lineOfBusiness)
-  if (!config) return 0
-  return config.mayorsPermitFee || 0
+  const config = await getFeeConfig(lineOfBusiness);
+  if (!config) return 0;
+  return config.mayorsPermitFee || 0;
 }
 
 /**
@@ -90,19 +93,25 @@ async function computeMayorsPermitFee(lineOfBusiness) {
  * @param {Object} [regulatoryConfig] - From getRegulatoryFeeConfig(); if omitted, uses built-in charter defaults
  * @returns {number}
  */
-function computeSanitaryFee(areaSqm, isHouseForRent = false, regulatoryConfig = null) {
+function computeSanitaryFee(
+  areaSqm,
+  isHouseForRent = false,
+  regulatoryConfig = null,
+) {
   const houseFee =
-    regulatoryConfig?.sanitaryHouseForRentFee ?? DEFAULT_SANITARY_HOUSE_FOR_RENT
+    regulatoryConfig?.sanitaryHouseForRentFee ??
+    DEFAULT_SANITARY_HOUSE_FOR_RENT;
   const brackets = regulatoryConfig?.sanitaryBrackets?.length
     ? regulatoryConfig.sanitaryBrackets
-    : DEFAULT_SANITARY_BRACKETS
-  if (isHouseForRent) return houseFee
-  if (areaSqm == null || areaSqm < 0) return 0
+    : DEFAULT_SANITARY_BRACKETS;
+  if (isHouseForRent) return houseFee;
+  if (areaSqm == null || areaSqm < 0) return 0;
   for (let i = brackets.length - 1; i >= 0; i--) {
-    const b = brackets[i]
-    if (b.minSqm <= areaSqm && (b.maxSqm == null || areaSqm <= b.maxSqm)) return b.fee
+    const b = brackets[i];
+    if (b.minSqm <= areaSqm && (b.maxSqm == null || areaSqm <= b.maxSqm))
+      return b.fee;
   }
-  return 0
+  return 0;
 }
 
 /**
@@ -112,11 +121,11 @@ function computeSanitaryFee(areaSqm, isHouseForRent = false, regulatoryConfig = 
  * @returns {number}
  */
 function computeFireSafetyFee(bploRegulatoryFees, regulatoryConfig = null) {
-  const min = regulatoryConfig?.fireSafetyMin ?? DEFAULT_FIRE_SAFETY_MIN
-  const rate = regulatoryConfig?.fireSafetyRate ?? DEFAULT_FIRE_SAFETY_RATE
-  if (bploRegulatoryFees == null || bploRegulatoryFees < 0) return min
-  const fee = Math.max(min, bploRegulatoryFees * rate)
-  return Math.round(fee * 100) / 100
+  const min = regulatoryConfig?.fireSafetyMin ?? DEFAULT_FIRE_SAFETY_MIN;
+  const rate = regulatoryConfig?.fireSafetyRate ?? DEFAULT_FIRE_SAFETY_RATE;
+  if (bploRegulatoryFees == null || bploRegulatoryFees < 0) return min;
+  const fee = Math.max(min, bploRegulatoryFees * rate);
+  return Math.round(fee * 100) / 100;
 }
 
 /**
@@ -125,9 +134,9 @@ function computeFireSafetyFee(bploRegulatoryFees, regulatoryConfig = null) {
  * @returns {Promise<number>}
  */
 async function computeEnvironmentalFee(lineOfBusiness) {
-  const config = await getFeeConfig(lineOfBusiness)
-  if (!config || config.environmentalProtectionFee == null) return 0
-  return Number(config.environmentalProtectionFee) || 0
+  const config = await getFeeConfig(lineOfBusiness);
+  if (!config || config.environmentalProtectionFee == null) return 0;
+  return Number(config.environmentalProtectionFee) || 0;
 }
 
 /**
@@ -138,53 +147,62 @@ async function computeEnvironmentalFee(lineOfBusiness) {
  * @returns {number}
  */
 async function computeBusinessTax(lineOfBusiness, grossSales) {
-  if (!grossSales || grossSales < 0) return 0
-  const config = await getFeeConfig(lineOfBusiness)
-  if (!config || !config.brackets || config.brackets.length === 0) return 0
+  if (!grossSales || grossSales < 0) return 0;
+  const config = await getFeeConfig(lineOfBusiness);
+  if (!config || !config.brackets || config.brackets.length === 0) return 0;
 
-  const kind = config.bracketKind || 'rate'
-  const sorted = [...config.brackets].sort((a, b) => a.min - b.min)
+  const kind = config.bracketKind || "rate";
+  const sorted = [...config.brackets].sort((a, b) => a.min - b.min);
 
-  if (kind === 'fixed') {
+  if (kind === "fixed") {
     for (const bracket of sorted) {
-      const max = bracket.max === null || bracket.max === undefined || bracket.max >= 999999999999
-        ? Infinity
-        : bracket.max
+      const max =
+        bracket.max === null ||
+        bracket.max === undefined ||
+        bracket.max >= 999999999999
+          ? Infinity
+          : bracket.max;
       if (grossSales >= bracket.min && grossSales <= max) {
-        return Number(bracket.amount) || 0
+        return Number(bracket.amount) || 0;
       }
     }
-    const last = sorted[sorted.length - 1]
-    return last ? (Number(last.amount) || 0) : 0
+    const last = sorted[sorted.length - 1];
+    return last ? Number(last.amount) || 0 : 0;
   }
 
-  if (kind === 'tiered') {
-    let tax = 0
+  if (kind === "tiered") {
+    let tax = 0;
     for (const bracket of sorted) {
-      const cap = bracket.max === null || bracket.max === undefined || bracket.max >= 999999999999
-        ? Infinity
-        : bracket.max
-      const segmentMin = Math.max(bracket.min, 0)
-      const segmentMax = Math.min(cap, grossSales)
-      if (segmentMax <= segmentMin) continue
-      const segment = segmentMax - segmentMin
-      const rate = Number(bracket.rate) || 0
-      tax += segment * (rate / 100)
+      const cap =
+        bracket.max === null ||
+        bracket.max === undefined ||
+        bracket.max >= 999999999999
+          ? Infinity
+          : bracket.max;
+      const segmentMin = Math.max(bracket.min, 0);
+      const segmentMax = Math.min(cap, grossSales);
+      if (segmentMax <= segmentMin) continue;
+      const segment = segmentMax - segmentMin;
+      const rate = Number(bracket.rate) || 0;
+      tax += segment * (rate / 100);
     }
-    return tax
+    return tax;
   }
 
   // 'rate' or missing: single bracket's rate applied to full gross sales (legacy)
   for (const bracket of sorted) {
-    const max = bracket.max === null || bracket.max === undefined || bracket.max >= 999999999999
-      ? Infinity
-      : bracket.max
+    const max =
+      bracket.max === null ||
+      bracket.max === undefined ||
+      bracket.max >= 999999999999
+        ? Infinity
+        : bracket.max;
     if (grossSales >= bracket.min && grossSales <= max) {
-      return grossSales * ((bracket.rate || 0) / 100)
+      return grossSales * ((bracket.rate || 0) / 100);
     }
   }
-  const last = sorted[sorted.length - 1]
-  return grossSales * ((last?.rate || 0) / 100)
+  const last = sorted[sorted.length - 1];
+  return grossSales * ((last?.rate || 0) / 100);
 }
 
 /**
@@ -193,23 +211,25 @@ async function computeBusinessTax(lineOfBusiness, grossSales) {
  * @returns {{ valid: boolean, errors: string[] }}
  */
 function validateActivities(businessActivities) {
-  const errors = []
+  const errors = [];
   if (!businessActivities || businessActivities.length === 0) {
-    errors.push('At least one business activity is required')
-    return { valid: false, errors }
+    errors.push("At least one business activity is required");
+    return { valid: false, errors };
   }
   for (let i = 0; i < businessActivities.length; i++) {
-    const activity = businessActivities[i]
-    const lob = activity.lineOfBusiness || activity.primaryLineOfBusiness || ''
-    const gross = Number(activity.grossSales || activity.declaredCapitalInvestment || 0)
+    const activity = businessActivities[i];
+    const lob = activity.lineOfBusiness || activity.primaryLineOfBusiness || "";
+    const gross = Number(
+      activity.grossSales || activity.declaredCapitalInvestment || 0,
+    );
     if (!lob) {
-      errors.push(`Activity ${i + 1}: lineOfBusiness is required`)
+      errors.push(`Activity ${i + 1}: lineOfBusiness is required`);
     }
     if (gross < 0) {
-      errors.push(`Activity ${i + 1}: grossSales cannot be negative`)
+      errors.push(`Activity ${i + 1}: grossSales cannot be negative`);
     }
   }
-  return { valid: errors.length === 0, errors }
+  return { valid: errors.length === 0, errors };
 }
 
 /**
@@ -225,8 +245,8 @@ async function computeApplicationFees({
   areaSqm = null,
   isHouseForRent = false,
 }) {
-  const validation = validateActivities(businessActivities)
-  const warnings = []
+  const validation = validateActivities(businessActivities);
+  const warnings = [];
   if (!validation.valid) {
     return {
       mayorsPermitFee: 0,
@@ -238,30 +258,34 @@ async function computeApplicationFees({
       breakdown: [],
       errors: validation.errors,
       calculatedAt: new Date(),
-    }
+    };
   }
 
-  let totalMayorsPermit = 0
-  let totalBusinessTax = 0
-  let totalEnvironmental = 0
-  const breakdown = []
+  let totalMayorsPermit = 0;
+  let totalBusinessTax = 0;
+  let totalEnvironmental = 0;
+  const breakdown = [];
 
   for (const activity of businessActivities) {
-    const lob = activity.lineOfBusiness || activity.primaryLineOfBusiness || ''
-    const gross = Number(activity.grossSales || activity.declaredCapitalInvestment || 0)
+    const lob = activity.lineOfBusiness || activity.primaryLineOfBusiness || "";
+    const gross = Number(
+      activity.grossSales || activity.declaredCapitalInvestment || 0,
+    );
 
-    const config = await getFeeConfig(lob)
+    const config = await getFeeConfig(lob);
     if (!config) {
-      warnings.push(`FEE_CONFIG_MISSING: No fee configuration found for "${lob}"`)
+      warnings.push(
+        `FEE_CONFIG_MISSING: No fee configuration found for "${lob}"`,
+      );
     }
 
-    const permitFee = await computeMayorsPermitFee(lob)
-    const bizTax = await computeBusinessTax(lob, gross)
-    const envFee = await computeEnvironmentalFee(lob)
+    const permitFee = await computeMayorsPermitFee(lob);
+    const bizTax = await computeBusinessTax(lob, gross);
+    const envFee = await computeEnvironmentalFee(lob);
 
-    totalMayorsPermit += permitFee
-    totalBusinessTax += bizTax
-    totalEnvironmental += envFee
+    totalMayorsPermit += permitFee;
+    totalBusinessTax += bizTax;
+    totalEnvironmental += envFee;
 
     breakdown.push({
       lineOfBusiness: lob,
@@ -270,18 +294,18 @@ async function computeApplicationFees({
       businessTax: Math.round(bizTax * 100) / 100,
       environmentalFee: Math.round(envFee * 100) / 100,
       configFound: !!config,
-    })
+    });
   }
 
-  const bploRegulatory = totalMayorsPermit + totalBusinessTax
-  const regulatoryConfig = await getRegulatoryFeeConfig()
+  const bploRegulatory = totalMayorsPermit + totalBusinessTax;
+  const regulatoryConfig = await getRegulatoryFeeConfig();
   const sanitaryFee =
     areaSqm != null && areaSqm >= 0
       ? computeSanitaryFee(areaSqm, isHouseForRent, regulatoryConfig)
-      : 0
-  const fireSafetyFee = computeFireSafetyFee(bploRegulatory, regulatoryConfig)
+      : 0;
+  const fireSafetyFee = computeFireSafetyFee(bploRegulatory, regulatoryConfig);
   const total =
-    bploRegulatory + sanitaryFee + totalEnvironmental + fireSafetyFee
+    bploRegulatory + sanitaryFee + totalEnvironmental + fireSafetyFee;
 
   return {
     mayorsPermitFee: Math.round(totalMayorsPermit * 100) / 100,
@@ -293,7 +317,7 @@ async function computeApplicationFees({
     breakdown,
     warnings: warnings.length > 0 ? warnings : undefined,
     calculatedAt: new Date(),
-  }
+  };
 }
 
 /**
@@ -312,28 +336,29 @@ function computePenalty(baseFees, submissionDate, penaltyConfig = {}) {
     surchargePercentage = 25,
     monthlyInterestRate = 2,
     penaltyStartDay = 20,
-  } = penaltyConfig
+  } = penaltyConfig;
 
-  const now = submissionDate || new Date()
-  const year = now.getFullYear()
-  const penaltyDate = new Date(year, 0, penaltyStartDay, 23, 59, 59) // January <day> 11:59 PM
+  const now = submissionDate || new Date();
+  const year = now.getFullYear();
+  const penaltyDate = new Date(year, 0, penaltyStartDay, 23, 59, 59); // January <day> 11:59 PM
 
   if (now <= penaltyDate) {
-    return { surcharge: 0, interest: 0, totalPenalty: 0, monthsLate: 0 }
+    return { surcharge: 0, interest: 0, totalPenalty: 0, monthsLate: 0 };
   }
 
-  const surcharge = baseFees * (surchargePercentage / 100)
+  const surcharge = baseFees * (surchargePercentage / 100);
 
   // Calculate months late (each calendar month past deadline)
-  const monthsLate = Math.max(0, (now.getMonth() - 0)) // months since January
-  const interest = (baseFees + surcharge) * (monthlyInterestRate / 100) * monthsLate
+  const monthsLate = Math.max(0, now.getMonth() - 0); // months since January
+  const interest =
+    (baseFees + surcharge) * (monthlyInterestRate / 100) * monthsLate;
 
   return {
     surcharge: Math.round(surcharge * 100) / 100,
     interest: Math.round(interest * 100) / 100,
     totalPenalty: Math.round((surcharge + interest) * 100) / 100,
     monthsLate,
-  }
+  };
 }
 
 module.exports = {
@@ -347,4 +372,4 @@ module.exports = {
   computeApplicationFees,
   computePenalty,
   validateActivities,
-}
+};

@@ -6,21 +6,21 @@
 /**
  * Staff role slugs (defaults, can be refreshed from DB)
  */
-const DEFAULT_STAFF_ROLES = ['lgu_officer', 'lgu_manager', 'inspector', 'cso']
-let staffRoleCache = [...DEFAULT_STAFF_ROLES]
+const DEFAULT_STAFF_ROLES = ["lgu_officer", "lgu_manager", "inspector", "cso"];
+let staffRoleCache = [...DEFAULT_STAFF_ROLES];
 
 async function refreshStaffRoleCache() {
   try {
-    const Role = require('../models/Role')
-    const docs = await Role.find({ isStaffRole: true }).lean()
+    const Role = require("../models/Role");
+    const docs = await Role.find({ isStaffRole: true }).lean();
     if (Array.isArray(docs) && docs.length) {
       staffRoleCache = docs
-        .map((r) => String(r.slug || '').toLowerCase())
-        .filter(Boolean)
+        .map((r) => String(r.slug || "").toLowerCase())
+        .filter(Boolean);
     }
-    return [...staffRoleCache]
+    return [...staffRoleCache];
   } catch (_) {
-    return [...staffRoleCache]
+    return [...staffRoleCache];
   }
 }
 
@@ -30,10 +30,10 @@ async function refreshStaffRoleCache() {
  * @returns {boolean} - True if role is a staff role
  */
 function isStaffRole(roleSlug) {
-  if (!roleSlug || typeof roleSlug !== 'string') {
-    return false
+  if (!roleSlug || typeof roleSlug !== "string") {
+    return false;
   }
-  return staffRoleCache.includes(roleSlug.toLowerCase())
+  return staffRoleCache.includes(roleSlug.toLowerCase());
 }
 
 /**
@@ -41,7 +41,7 @@ function isStaffRole(roleSlug) {
  * @returns {string[]} - Array of staff role slugs
  */
 function getStaffRoles() {
-  return [...staffRoleCache]
+  return [...staffRoleCache];
 }
 
 /**
@@ -50,8 +50,8 @@ function getStaffRoles() {
  * @returns {boolean} - True if field is restricted for staff
  */
 function isRestrictedFieldForStaff(field) {
-  const restrictedFields = ['password', 'role', 'office', 'department']
-  return restrictedFields.includes(field.toLowerCase())
+  const restrictedFields = ["password", "role", "office", "department"];
+  return restrictedFields.includes(field.toLowerCase());
 }
 
 /**
@@ -60,10 +60,10 @@ function isRestrictedFieldForStaff(field) {
  * @returns {boolean} - True if role is admin
  */
 function isAdminRole(roleSlug) {
-  if (!roleSlug || typeof roleSlug !== 'string') {
-    return false
+  if (!roleSlug || typeof roleSlug !== "string") {
+    return false;
   }
-  return roleSlug.toLowerCase() === 'admin'
+  return roleSlug.toLowerCase() === "admin";
 }
 
 /**
@@ -72,10 +72,10 @@ function isAdminRole(roleSlug) {
  * @returns {boolean} - True if role is business owner
  */
 function isBusinessOwnerRole(roleSlug) {
-  if (!roleSlug || typeof roleSlug !== 'string') {
-    return false
+  if (!roleSlug || typeof roleSlug !== "string") {
+    return false;
   }
-  return roleSlug.toLowerCase() === 'business_owner'
+  return roleSlug.toLowerCase() === "business_owner";
 }
 
 module.exports = {
@@ -86,4 +86,4 @@ module.exports = {
   isAdminRole,
   isBusinessOwnerRole,
   DEFAULT_STAFF_ROLES,
-}
+};

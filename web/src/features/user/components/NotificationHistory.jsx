@@ -80,10 +80,6 @@ export default function NotificationHistory() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  useEffect(() => {
-    loadHistory()
-  }, [])
-
   const loadHistory = async (isRefresh = false) => {
     try {
       if (isRefresh) {
@@ -103,6 +99,10 @@ export default function NotificationHistory() {
       setRefreshing(false)
     }
   }
+
+  useEffect(() => {
+    loadHistory()
+  }, [])
 
   if (loading) {
     return (

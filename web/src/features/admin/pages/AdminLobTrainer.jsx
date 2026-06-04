@@ -359,39 +359,8 @@ export default function AdminLobTrainer() {
     recommendations.push('Dataset and model look in good shape. Add more examples for under-represented labels to improve accuracy.')
   }
 
-  const headerActions = (
-    <Space wrap>
-      <Button icon={<ReloadOutlined />} onClick={() => {
-        fetchExamples(pagination.page)
-        fetchStats()
-        fetchAudit()
-        fetchGeminiStatus()
-        if (stats?.modelServiceConfigured) fetchEvaluation()
-      }}>
-        Refresh
-      </Button>
-      <Tooltip title={!stats?.modelServiceConfigured ? 'Enable the model service to train (see banner below)' : null}>
-        <span>
-          <Button
-            type="primary"
-            icon={<ThunderboltOutlined />}
-            loading={training}
-            onClick={handleTrain}
-            disabled={!stats?.modelServiceConfigured}
-          >
-            Train Model
-          </Button>
-        </span>
-      </Tooltip>
-    </Space>
-  )
-
   return (
-    <AdminLayout
-      pageTitle="AI Training Data"
-      pageIcon={<ExperimentOutlined />}
-      headerActions={headerActions}
-    >
+    <AdminLayout>
       <div style={{ padding: isMobile ? 12 : 24, overflow: 'auto', flex: 1, minHeight: 0 }}>
         {!stats?.modelServiceConfigured && (
           <Alert

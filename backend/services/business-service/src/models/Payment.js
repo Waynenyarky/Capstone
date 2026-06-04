@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 const PaymentSchema = new mongoose.Schema(
   {
@@ -6,121 +6,156 @@ const PaymentSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      index: true
+      index: true,
     },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
-      index: true
+      index: true,
     },
     businessId: {
       type: String,
       required: true,
-      index: true
+      index: true,
     },
     businessProfileId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'BusinessProfile',
-      required: true
+      ref: "BusinessProfile",
+      required: true,
     },
     paymentType: {
       type: String,
       enum: [
-        'registration_fee',
-        'renewal_fee',
-        'penalty',
-        'violation_fine',
-        'general_permit_fee',
-        'occupational_permit_fee',
-        'cessation_tax',
-        'other'
+        "registration_fee",
+        "renewal_fee",
+        "penalty",
+        "violation_fine",
+        "general_permit_fee",
+        "occupational_permit_fee",
+        "cessation_tax",
+        "other",
       ],
-      required: true
+      required: true,
     },
-    description: { type: String, default: '' },
+    description: { type: String, default: "" },
     amount: { type: Number, required: true },
-    currency: { type: String, default: 'PHP' },
+    currency: { type: String, default: "PHP" },
     status: {
       type: String,
-      enum: ['pending', 'processing', 'paid', 'failed', 'refunded', 'cancelled'],
-      default: 'pending',
-      index: true
+      enum: [
+        "pending",
+        "processing",
+        "paid",
+        "failed",
+        "refunded",
+        "cancelled",
+      ],
+      default: "pending",
+      index: true,
     },
     paymentMethod: {
       type: String,
-      enum: ['cash', 'bank_transfer', 'gcash', 'maya', 'credit_card', 'debit_card', 'online_banking', 'demo_auto', 'other'],
-      default: null
+      enum: [
+        "cash",
+        "bank_transfer",
+        "gcash",
+        "maya",
+        "credit_card",
+        "debit_card",
+        "online_banking",
+        "demo_auto",
+        "other",
+      ],
+      default: null,
     },
-    transactionId: { type: String, default: '' },
-    referenceNumber: { type: String, default: '' },
-    receiptNumber: { type: String, default: '' },
+    transactionId: { type: String, default: "" },
+    referenceNumber: { type: String, default: "" },
+    receiptNumber: { type: String, default: "" },
     relatedEntityType: {
       type: String,
-      enum: ['renewal', 'registration', 'violation', 'general_permit', 'occupational_permit', 'post_requirement', 'other'],
-      default: null
+      enum: [
+        "renewal",
+        "registration",
+        "violation",
+        "general_permit",
+        "occupational_permit",
+        "post_requirement",
+        "other",
+      ],
+      default: null,
     },
-    relatedEntityId: { type: String, default: '' },
+    relatedEntityId: { type: String, default: "" },
     dueDate: { type: Date, default: null },
     paidAt: { type: Date, default: null },
     processedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: null
+      ref: "User",
+      default: null,
     },
     breakdown: {
       baseFee: { type: Number, default: 0 },
       surcharge: { type: Number, default: 0 },
       penalty: { type: Number, default: 0 },
       discount: { type: Number, default: 0 },
-      tax: { type: Number, default: 0 }
+      tax: { type: Number, default: 0 },
     },
     metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
-    notes: { type: String, default: '' },
-    failureReason: { type: String, default: '' },
+    notes: { type: String, default: "" },
+    failureReason: { type: String, default: "" },
     verificationStatus: {
       type: String,
-      enum: ['pending', 'verified', 'rejected'],
-      default: 'pending',
-      index: true
+      enum: ["pending", "verified", "rejected"],
+      default: "pending",
+      index: true,
     },
     verifiedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: null
+      ref: "User",
+      default: null,
     },
     verifiedAt: { type: Date, default: null },
-    verificationNotes: { type: String, default: '' },
-    officialReceiptNumber: { type: String, default: '' },
+    verificationNotes: { type: String, default: "" },
+    officialReceiptNumber: { type: String, default: "" },
     rejectedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: null
+      ref: "User",
+      default: null,
     },
     rejectedAt: { type: Date, default: null },
-    rejectionReason: { type: String, default: '' },
+    rejectionReason: { type: String, default: "" },
     webhookData: { type: mongoose.Schema.Types.Mixed, default: null },
     webhookReceivedAt: { type: Date, default: null },
-    proofOfPayment: { type: String, default: '' }
+    proofOfPayment: { type: String, default: "" },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 PaymentSchema.plugin(encryptionPlugin, {
   fields: [
-    'description', 'currency', 'transactionId', 'referenceNumber',
-    'receiptNumber', 'relatedEntityId', 'notes', 'failureReason',
-    'verificationNotes', 'officialReceiptNumber', 'rejectionReason', 'proofOfPayment',
+    "description",
+    "currency",
+    "transactionId",
+    "referenceNumber",
+    "receiptNumber",
+    "relatedEntityId",
+    "notes",
+    "failureReason",
+    "verificationNotes",
+    "officialReceiptNumber",
+    "rejectionReason",
+    "proofOfPayment",
   ],
-  deterministicFields: ['paymentId', 'businessId'],
-  nestedPaths: ['breakdown'],
+  deterministicFields: ["paymentId", "businessId"],
+  nestedPaths: ["breakdown"],
   arrayPaths: [],
-  mixedPaths: ['metadata', 'webhookData'],
-})
+  mixedPaths: ["metadata", "webhookData"],
+});
 
-PaymentSchema.index({ userId: 1, status: 1 })
-PaymentSchema.index({ businessId: 1, status: 1 })
-PaymentSchema.index({ dueDate: 1, status: 1 })
+PaymentSchema.index({ userId: 1, status: 1 });
+PaymentSchema.index({ businessId: 1, status: 1 });
+PaymentSchema.index({ dueDate: 1, status: 1 });
 
-module.exports = mongoose.models.Payment || mongoose.model('Payment', PaymentSchema)
+module.exports =
+  mongoose.models.Payment || mongoose.model("Payment", PaymentSchema);

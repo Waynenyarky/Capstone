@@ -1,4 +1,4 @@
-const request = require('supertest')
+const request = require("supertest");
 
 /**
  * Make a unified request helper
@@ -13,29 +13,29 @@ const request = require('supertest')
  * @returns {Promise<Response>}
  */
 function makeRequest(app, method, path, options = {}) {
-  const { token, body, query, headers = {} } = options
-  
-  let req = request(app)[method](path)
-  
+  const { token, body, query, headers = {} } = options;
+
+  let req = request(app)[method](path);
+
   if (token) {
-    req = req.set('Authorization', `Bearer ${token}`)
+    req = req.set("Authorization", `Bearer ${token}`);
   }
-  
+
   if (Object.keys(headers).length > 0) {
     Object.entries(headers).forEach(([key, value]) => {
-      req = req.set(key, value)
-    })
+      req = req.set(key, value);
+    });
   }
-  
+
   if (query) {
-    req = req.query(query)
+    req = req.query(query);
   }
-  
+
   if (body) {
-    req = req.send(body)
+    req = req.send(body);
   }
-  
-  return req
+
+  return req;
 }
 
 /**
@@ -45,14 +45,14 @@ function makeRequest(app, method, path, options = {}) {
  * @returns {void}
  */
 function expectSuccess(response, expectedData = null) {
-  expect(response.status).toBeGreaterThanOrEqual(200)
-  expect(response.status).toBeLessThan(300)
-  
+  expect(response.status).toBeGreaterThanOrEqual(200);
+  expect(response.status).toBeLessThan(300);
+
   if (expectedData) {
-    if (typeof expectedData === 'object') {
+    if (typeof expectedData === "object") {
       Object.entries(expectedData).forEach(([key, value]) => {
-        expect(response.body[key]).toEqual(value)
-      })
+        expect(response.body[key]).toEqual(value);
+      });
     }
   }
 }
@@ -66,15 +66,15 @@ function expectSuccess(response, expectedData = null) {
  */
 function expectError(response, code = null, status = null) {
   if (status !== null) {
-    expect(response.status).toBe(status)
+    expect(response.status).toBe(status);
   } else {
-    expect(response.status).toBeGreaterThanOrEqual(400)
+    expect(response.status).toBeGreaterThanOrEqual(400);
   }
-  
-  expect(response.body.error).toBeDefined()
-  
+
+  expect(response.body.error).toBeDefined();
+
   if (code) {
-    expect(response.body.error.code).toBe(code)
+    expect(response.body.error.code).toBe(code);
   }
 }
 
@@ -82,4 +82,4 @@ module.exports = {
   makeRequest,
   expectSuccess,
   expectError,
-}
+};

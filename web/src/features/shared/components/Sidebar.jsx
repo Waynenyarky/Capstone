@@ -2,22 +2,22 @@
   import { Layout, Menu, Typography, Grid, Drawer, Button, theme, ConfigProvider } from 'antd'
   import { MenuOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons'
   import { useAppTheme, THEMES } from '@/shared/theme/ThemeProvider'
-  import BizClearLogo from '@/shared/components/BizClearLogo.jsx'
+  import AnimatedBrandLogo from '@/shared/components/AnimatedBrandLogo.jsx'
 
   const { Sider } = Layout
   const { Text } = Typography
   const { useBreakpoint } = Grid
 
-  const SidebarContent = ({ 
-    collapsed, 
-    items, 
-    activeKey, 
-    handleItemClick, 
+  const SidebarContent = ({
+    collapsed,
+    items,
+    activeKey,
+    handleItemClick,
     backgroundColor,
     isLightSidebar,
-    isDarkTheme,
+    _isDarkTheme,
     currentTheme,
-    headerContent
+    _headerContent
   }) => {
     // Helper to check if a key is a child of any parent
     const isChildKey = React.useCallback((key) => {
@@ -48,15 +48,7 @@
     const [openKeys, setOpenKeys] = React.useState(initialOpenKeys);
     const navigatingParentRef = React.useRef(null);
     const previousOpenKeysRef = React.useRef(initialOpenKeys);
-    const closingSubmenusRef = React.useRef(false);
     const ignoreNextOpenChangeRef = React.useRef(false);
-    
-    // Get all parent item keys that should stay open
-    const parentItemKeys = React.useMemo(() => {
-      return items
-        .filter(item => item.children && item.children.length > 0)
-        .map(item => item.key)
-    }, [items])
     
     // Update openKeys when items change (e.g., when switching roles)
     React.useEffect(() => {
@@ -166,31 +158,10 @@
           transition: 'none',
           background: menuBg
         }}>
-          <div style={{
-            width: 32,
-            height: 32,
-            flexShrink: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden',
-            borderRadius: 8
-          }}>
-            <BizClearLogo width={24} />
-          </div>
-          {!collapsed && (
-            <span style={{
-              marginLeft: 12,
-              fontWeight: 700,
-              fontSize: 16,
-              color: textColor,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
-            }}>
-              {import.meta.env.VITE_APP_BRAND_NAME || 'BizClear'}
-            </span>
-          )}
+          <AnimatedBrandLogo
+            size={32}
+            showBrandName={!collapsed}
+          />
         </div>
 
         <ConfigProvider

@@ -12,7 +12,7 @@
  */
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
-  Typography, Card, Tag, theme, Table, Empty, App,
+  Typography, Card, Tag, theme, Table, Empty,
   Descriptions, Alert, Collapse, Statistic, Row, Col, Segmented, Drawer,
   Select, Button,
 } from 'antd'
@@ -90,7 +90,6 @@ function normalizeFormDataForRenderer(formData, definition) {
 
 // ── Application Form Tab ─────────────────────────────────────────────────────
 function ApplicationFormTab({ business }) {
-  const { token } = theme.useToken()
   const form = Form.useForm()[0]
   const [formDefinition, setFormDefinition] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -167,7 +166,6 @@ function ApplicationFormTab({ business }) {
 
 // ── Payments Tab (read-only for officer) ─────────────────────────────────────
 function PaymentsTab({ businessId }) {
-  const { message } = App.useApp()
   const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -540,8 +538,8 @@ export default function OfficerApprovedView({
   ownerIdentity,
   businessReg,
   ownerName,
-  onRevoke,
-  onAppealResolved,
+  _onRevoke,
+  _onAppealResolved,
   paymentStatusAlert,
   revokeSection,
   appealCard,
@@ -554,8 +552,8 @@ export default function OfficerApprovedView({
   const businessName = application?.businessName || businessReg?.registeredBusinessName || 'Unnamed Business'
 
   const {
-    pendingPayments, pendingTotal, allPaid, hasPayments,
-    hasActivePermit, pendingPostReqs, loading: progressLoading,
+    pendingPayments, allPaid, hasPayments,
+    hasActivePermit, pendingPostReqs,
   } = usePermitProgress(application, businessId)
 
   const collapseItems = [
@@ -588,7 +586,7 @@ export default function OfficerApprovedView({
       label: (
         <span>
           <SafetyCertificateOutlined style={{ marginRight: 8 }} />
-          Mayor's Permit
+          Mayor&apos;s Permit
           {hasActivePermit && <Tag color="success" style={{ marginLeft: 8 }}>Active</Tag>}
         </span>
       ),

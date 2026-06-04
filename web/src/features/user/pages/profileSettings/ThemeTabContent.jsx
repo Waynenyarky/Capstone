@@ -62,9 +62,17 @@ export default function ThemeTabContent({
               <Col xs={12} sm={8} md={6} lg={4} key={option.key}>
                 <Tooltip title={option.label}>
                   <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => onSelectTheme(option.key)}
                     onMouseEnter={() => onMouseEnterTheme(option.key)}
                     onMouseLeave={onMouseLeaveTheme}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        onSelectTheme(option.key)
+                      }
+                    }}
                     style={{
                       cursor: 'pointer',
                       position: 'relative',
@@ -195,9 +203,17 @@ export default function ThemeTabContent({
                 return (
                   <Tooltip key={color} title={color}>
                     <div
+                      role="button"
+                      tabIndex={0}
                       onClick={() => onColorChange(color)}
                       onMouseEnter={() => onColorMouseEnter(color)}
                       onMouseLeave={onColorMouseLeave}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          onColorChange(color)
+                        }
+                      }}
                       style={{
                         width: 36,
                         height: 36,

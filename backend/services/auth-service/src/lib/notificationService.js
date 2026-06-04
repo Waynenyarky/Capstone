@@ -1,7 +1,7 @@
-const User = require('../models/User')
-const Role = require('../models/Role')
-const mailer = require('./mailer')
-const internalNotificationService = require('../services/notificationService')
+const User = require("../models/User");
+const Role = require("../models/Role");
+const mailer = require("./mailer");
+const internalNotificationService = require("../services/notificationService");
 
 /**
  * Get active admin user IDs (for in-app notifications)
@@ -9,15 +9,18 @@ const internalNotificationService = require('../services/notificationService')
  * @returns {Promise<string[]>} Array of admin user IDs
  */
 async function getActiveAdminUserIds(excludeUserId = null) {
-  const adminRole = await Role.findOne({ slug: 'admin' })
-  if (!adminRole) return []
-  const admins = await User.find({ role: adminRole._id, isActive: true }).lean()
-  let ids = admins.map((a) => String(a._id))
+  const adminRole = await Role.findOne({ slug: "admin" });
+  if (!adminRole) return [];
+  const admins = await User.find({
+    role: adminRole._id,
+    isActive: true,
+  }).lean();
+  let ids = admins.map((a) => String(a._id));
   if (excludeUserId) {
-    const exclude = String(excludeUserId)
-    ids = ids.filter((id) => id !== exclude)
+    const exclude = String(excludeUserId);
+    ids = ids.filter((id) => id !== exclude);
   }
-  return ids
+  return ids;
 }
 
 /**
@@ -31,10 +34,18 @@ async function getActiveAdminUserIds(excludeUserId = null) {
  * @param {object} [metadata] - Metadata
  * @param {string|ObjectId} [excludeUserId] - Admin user ID to exclude from recipients
  */
-async function createInAppNotificationsForAdmins(type, title, message, relatedEntityType = null, relatedEntityId = null, metadata = {}, excludeUserId = null) {
+async function createInAppNotificationsForAdmins(
+  type,
+  title,
+  message,
+  relatedEntityType = null,
+  relatedEntityId = null,
+  metadata = {},
+  excludeUserId = null,
+) {
   try {
-    const adminIds = await getActiveAdminUserIds(excludeUserId)
-    if (adminIds.length === 0) return
+    const adminIds = await getActiveAdminUserIds(excludeUserId);
+    if (adminIds.length === 0) return;
     for (const adminId of adminIds) {
       try {
         await internalNotificationService.createNotification(
@@ -44,14 +55,17 @@ async function createInAppNotificationsForAdmins(type, title, message, relatedEn
           message,
           relatedEntityType,
           relatedEntityId,
-          metadata
-        )
+          metadata,
+        );
       } catch (err) {
-        console.error(`Failed to create in-app notification for admin ${adminId}:`, err.message)
+        console.error(
+          `Failed to create in-app notification for admin ${adminId}:`,
+          err.message,
+        );
       }
     }
   } catch (err) {
-    console.error('Error creating in-app notifications for admins:', err)
+    console.error("Error creating in-app notifications for admins:", err);
   }
 }
 
@@ -68,17 +82,22 @@ async function createInAppNotificationsForAdmins(type, title, message, relatedEn
  * @param {object} options - Additional options
  * @returns {Promise<{success: boolean, sentToOld?: boolean, sentToNew?: boolean, error?: string}>}
  */
-async function sendEmailChangeNotification(userId, oldEmail, newEmail, options = {}) {
+async function sendEmailChangeNotification(
+  userId,
+  oldEmail,
+  newEmail,
+  options = {},
+) {
   try {
-    const user = await User.findById(userId).lean()
+    const user = await User.findById(userId).lean();
     if (!user) {
-      return { success: false, error: 'User not found' }
+      return { success: false, error: "User not found" };
     }
 
-    const { gracePeriodHours = 24, revertUrl } = options
+    const { gracePeriodHours = 24, revertUrl } = options;
 
     // Send to old email
-    let sentToOld = false
+    let sentToOld = false;
     try {
       await mailer.sendEmailChangeNotification({
         to: oldEmail,
@@ -86,15 +105,18 @@ async function sendEmailChangeNotification(userId, oldEmail, newEmail, options =
         newEmail,
         gracePeriodHours,
         revertUrl,
-        type: 'old_email',
-      })
-      sentToOld = true
+        type: "old_email",
+      });
+      sentToOld = true;
     } catch (error) {
-      console.error('Failed to send email change notification to old email:', error)
+      console.error(
+        "Failed to send email change notification to old email:",
+        error,
+      );
     }
 
     // Send to new email
-    let sentToNew = false
+    let sentToNew = false;
     try {
       await mailer.sendEmailChangeNotification({
         to: newEmail,
@@ -102,21 +124,27 @@ async function sendEmailChangeNotification(userId, oldEmail, newEmail, options =
         newEmail,
         gracePeriodHours,
         revertUrl,
-        type: 'new_email',
-      })
-      sentToNew = true
+        type: "new_email",
+      });
+      sentToNew = true;
     } catch (error) {
-      console.error('Failed to send email change notification to new email:', error)
+      console.error(
+        "Failed to send email change notification to new email:",
+        error,
+      );
     }
 
     return {
       success: sentToOld || sentToNew, // Success if at least one email sent
       sentToOld,
       sentToNew,
-    }
+    };
   } catch (error) {
-    console.error('Error sending email change notification:', error)
-    return { success: false, error: error.message || 'Failed to send notification' }
+    console.error("Error sending email change notification:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to send notification",
+    };
   }
 }
 
@@ -128,9 +156,9 @@ async function sendEmailChangeNotification(userId, oldEmail, newEmail, options =
  */
 async function sendPasswordChangeNotification(userId, options = {}) {
   try {
-    const user = await User.findById(userId).populate('role').lean()
+    const user = await User.findById(userId).populate("role").lean();
     if (!user) {
-      return { success: false, error: 'User not found' }
+      return { success: false, error: "User not found" };
     }
 
     await mailer.sendPasswordChangeNotification({
@@ -139,12 +167,15 @@ async function sendPasswordChangeNotification(userId, options = {}) {
       lastName: user.lastName,
       timestamp: new Date(),
       ...options,
-    })
+    });
 
-    return { success: true }
+    return { success: true };
   } catch (error) {
-    console.error('Error sending password change notification:', error)
-    return { success: false, error: error.message || 'Failed to send notification' }
+    console.error("Error sending password change notification:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to send notification",
+    };
   }
 }
 
@@ -156,18 +187,21 @@ async function sendPasswordChangeNotification(userId, options = {}) {
  */
 async function sendMfaEnabledNotification(userId, options = {}) {
   try {
-    const user = await User.findById(userId).lean()
-    if (!user) return { success: false, error: 'User not found' }
+    const user = await User.findById(userId).lean();
+    if (!user) return { success: false, error: "User not found" };
     await mailer.sendMfaEnabledNotification({
       to: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      method: options.method || 'authenticator',
-    })
-    return { success: true }
+      method: options.method || "authenticator",
+    });
+    return { success: true };
   } catch (error) {
-    console.error('Error sending MFA enabled notification:', error)
-    return { success: false, error: error.message || 'Failed to send notification' }
+    console.error("Error sending MFA enabled notification:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to send notification",
+    };
   }
 }
 
@@ -179,18 +213,21 @@ async function sendMfaEnabledNotification(userId, options = {}) {
  */
 async function sendMfaDisableRequestedNotification(userId, options = {}) {
   try {
-    const user = await User.findById(userId).lean()
-    if (!user) return { success: false, error: 'User not found' }
+    const user = await User.findById(userId).lean();
+    if (!user) return { success: false, error: "User not found" };
     await mailer.sendMfaDisableRequestedNotification({
       to: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
       scheduledFor: options.scheduledFor,
-    })
-    return { success: true }
+    });
+    return { success: true };
   } catch (error) {
-    console.error('Error sending MFA disable requested notification:', error)
-    return { success: false, error: error.message || 'Failed to send notification' }
+    console.error("Error sending MFA disable requested notification:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to send notification",
+    };
   }
 }
 
@@ -201,17 +238,20 @@ async function sendMfaDisableRequestedNotification(userId, options = {}) {
  */
 async function sendMfaDisabledNotification(userId) {
   try {
-    const user = await User.findById(userId).lean()
-    if (!user) return { success: false, error: 'User not found' }
+    const user = await User.findById(userId).lean();
+    if (!user) return { success: false, error: "User not found" };
     await mailer.sendMfaDisabledNotification({
       to: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-    })
-    return { success: true }
+    });
+    return { success: true };
   } catch (error) {
-    console.error('Error sending MFA disabled notification:', error)
-    return { success: false, error: error.message || 'Failed to send notification' }
+    console.error("Error sending MFA disabled notification:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to send notification",
+    };
   }
 }
 
@@ -222,17 +262,20 @@ async function sendMfaDisabledNotification(userId) {
  */
 async function sendPasskeyAddedNotification(userId) {
   try {
-    const user = await User.findById(userId).lean()
-    if (!user) return { success: false, error: 'User not found' }
+    const user = await User.findById(userId).lean();
+    if (!user) return { success: false, error: "User not found" };
     await mailer.sendPasskeyAddedNotification({
       to: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-    })
-    return { success: true }
+    });
+    return { success: true };
   } catch (error) {
-    console.error('Error sending passkey added notification:', error)
-    return { success: false, error: error.message || 'Failed to send notification' }
+    console.error("Error sending passkey added notification:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to send notification",
+    };
   }
 }
 
@@ -243,17 +286,20 @@ async function sendPasskeyAddedNotification(userId) {
  */
 async function sendPasskeyRemovedNotification(userId) {
   try {
-    const user = await User.findById(userId).lean()
-    if (!user) return { success: false, error: 'User not found' }
+    const user = await User.findById(userId).lean();
+    if (!user) return { success: false, error: "User not found" };
     await mailer.sendPasskeyRemovedNotification({
       to: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-    })
-    return { success: true }
+    });
+    return { success: true };
   } catch (error) {
-    console.error('Error sending passkey removed notification:', error)
-    return { success: false, error: error.message || 'Failed to send notification' }
+    console.error("Error sending passkey removed notification:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to send notification",
+    };
   }
 }
 
@@ -266,38 +312,48 @@ async function sendPasskeyRemovedNotification(userId) {
 async function sendAdminAlert(type, data = {}) {
   try {
     // Find all admin users (role is ObjectId ref, so resolve by Role slug first)
-    const adminIds = await getActiveAdminUserIds()
+    const adminIds = await getActiveAdminUserIds();
     if (adminIds.length === 0) {
-      return { success: false, error: 'No admin users found' }
+      return { success: false, error: "No admin users found" };
     }
-    const adminUsers = await User.find({ _id: { $in: adminIds } }).lean()
+    const adminUsers = await User.find({ _id: { $in: adminIds } }).lean();
 
-    const results = []
+    const results = [];
     for (const admin of adminUsers) {
       try {
         await mailer.sendAdminAlert({
           to: admin.email,
           type,
           data,
-          adminName: (admin.firstName || admin.lastName) ? [admin.firstName, admin.lastName].filter(Boolean).join(' ') : 'Admin',
-        })
-        results.push({ email: admin.email, success: true })
+          adminName:
+            admin.firstName || admin.lastName
+              ? [admin.firstName, admin.lastName].filter(Boolean).join(" ")
+              : "Admin",
+        });
+        results.push({ email: admin.email, success: true });
       } catch (error) {
-        console.error(`Failed to send admin alert to ${admin.email}:`, error)
-        results.push({ email: admin.email, success: false, error: error.message })
+        console.error(`Failed to send admin alert to ${admin.email}:`, error);
+        results.push({
+          email: admin.email,
+          success: false,
+          error: error.message,
+        });
       }
     }
 
-    const successCount = results.filter(r => r.success).length
+    const successCount = results.filter((r) => r.success).length;
     return {
       success: successCount > 0,
       sent: successCount,
       total: results.length,
       results,
-    }
+    };
   } catch (error) {
-    console.error('Error sending admin alert:', error)
-    return { success: false, error: error.message || 'Failed to send admin alert' }
+    console.error("Error sending admin alert:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to send admin alert",
+    };
   }
 }
 
@@ -310,26 +366,29 @@ async function sendAdminAlert(type, data = {}) {
  */
 async function sendApprovalNotification(userId, type, options = {}) {
   try {
-    const user = await User.findById(userId).lean()
+    const user = await User.findById(userId).lean();
     if (!user) {
-      return { success: false, error: 'User not found' }
+      return { success: false, error: "User not found" };
     }
 
-    const { approved, reason, adminName } = options
+    const { approved, reason, adminName } = options;
 
     await mailer.sendApprovalNotification({
       to: user.email,
-      firstName: user.firstName || 'User',
+      firstName: user.firstName || "User",
       type,
       approved,
       reason,
       adminName,
-    })
+    });
 
-    return { success: true }
+    return { success: true };
   } catch (error) {
-    console.error('Error sending approval notification:', error)
-    return { success: false, error: error.message || 'Failed to send notification' }
+    console.error("Error sending approval notification:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to send notification",
+    };
   }
 }
 
@@ -345,4 +404,4 @@ module.exports = {
   sendPasskeyRemovedNotification,
   sendAdminAlert,
   sendApprovalNotification,
-}
+};

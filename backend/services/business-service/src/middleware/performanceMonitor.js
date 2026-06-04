@@ -1,4 +1,4 @@
-const logger = require('../lib/logger');
+const logger = require("../lib/logger");
 
 /**
  * Performance Monitoring Middleware
@@ -16,12 +16,12 @@ const performanceMetrics = {
  */
 function performanceMonitorMiddleware(req, res, next) {
   const startTime = Date.now();
-  
+
   // Track response finish
-  res.on('finish', () => {
+  res.on("finish", () => {
     const duration = Date.now() - startTime;
     const endpoint = `${req.method} ${req.path}`;
-    
+
     // Update endpoint metrics
     if (!performanceMetrics.endpoints.has(endpoint)) {
       performanceMetrics.endpoints.set(endpoint, {
@@ -32,18 +32,18 @@ function performanceMonitorMiddleware(req, res, next) {
         avg: 0,
       });
     }
-    
+
     const metrics = performanceMetrics.endpoints.get(endpoint);
     metrics.count++;
     metrics.totalTime += duration;
     metrics.min = Math.min(metrics.min, duration);
     metrics.max = Math.max(metrics.max, duration);
     metrics.avg = Math.round(metrics.totalTime / metrics.count);
-    
+
     // Log slow requests
     const slowThreshold = 1000; // 1 second
     if (duration > slowThreshold) {
-      logger.warn('Slow API request detected', {
+      logger.warn("Slow API request detected", {
         correlationId: req.correlationId,
         request: {
           method: req.method,
@@ -57,15 +57,15 @@ function performanceMonitorMiddleware(req, res, next) {
         userId: req._userId,
       });
     }
-    
+
     // Log performance metric
-    logger.logPerformance('api_response_time', duration, 'ms', {
+    logger.logPerformance("api_response_time", duration, "ms", {
       correlationId: req.correlationId,
       endpoint,
       statusCode: res.statusCode,
     });
   });
-  
+
   next();
 }
 
@@ -74,7 +74,7 @@ function performanceMonitorMiddleware(req, res, next) {
  */
 function trackDatabaseQuery(collection, operation, duration) {
   const key = `${collection}.${operation}`;
-  
+
   if (!performanceMetrics.databaseQueries.has(key)) {
     performanceMetrics.databaseQueries.set(key, {
       count: 0,
@@ -84,18 +84,18 @@ function trackDatabaseQuery(collection, operation, duration) {
       avg: 0,
     });
   }
-  
+
   const metrics = performanceMetrics.databaseQueries.get(key);
   metrics.count++;
   metrics.totalTime += duration;
   metrics.min = Math.min(metrics.min, duration);
   metrics.max = Math.max(metrics.max, duration);
   metrics.avg = Math.round(metrics.totalTime / metrics.count);
-  
+
   // Log slow queries
   const slowThreshold = 500; // 500ms
   if (duration > slowThreshold) {
-    logger.warn('Slow database query detected', {
+    logger.warn("Slow database query detected", {
       database: {
         collection,
         operation,
@@ -104,7 +104,7 @@ function trackDatabaseQuery(collection, operation, duration) {
       },
     });
   }
-  
+
   // Log database performance
   logger.logDatabaseQuery(operation, collection, duration);
 }
@@ -122,7 +122,7 @@ function getPerformanceStats() {
       maxResponseTime: metrics.max,
     };
   }
-  
+
   const databaseStats = {};
   for (const [key, metrics] of performanceMetrics.databaseQueries.entries()) {
     databaseStats[key] = {
@@ -132,7 +132,7 @@ function getPerformanceStats() {
       maxDuration: metrics.max,
     };
   }
-  
+
   return {
     endpoints: endpointStats,
     database: databaseStats,

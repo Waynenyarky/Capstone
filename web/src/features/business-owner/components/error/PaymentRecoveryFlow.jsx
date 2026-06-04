@@ -25,7 +25,8 @@ import {
   ClockCircleOutlined,
   SyncOutlined,
   DollarOutlined,
-  PhoneOutlined
+  PhoneOutlined,
+  FileTextOutlined
 } from '@ant-design/icons';
 
 const { Title, Text, Paragraph } = Typography;
@@ -33,13 +34,13 @@ const { Step } = Steps;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
-const PaymentRecoveryFlow = ({ 
-  visible, 
-  onClose, 
-  paymentError, 
-  onPaymentRetry,
-  onAlternativePayment,
-  onContactSupport 
+const PaymentRecoveryFlow = ({
+  visible,
+  onClose,
+  paymentError,
+  _onPaymentRetry,
+  _onAlternativePayment,
+  onContactSupport
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [recoveryMethod, setRecoveryMethod] = useState(null);
@@ -168,28 +169,28 @@ const PaymentRecoveryFlow = ({
 
   const handleProcessPayment = async () => {
     setIsProcessing(true);
-    
+
     try {
       // Simulate payment processing
       await new Promise(resolve => setTimeout(resolve, 3000));
-      
+
       const method = recoveryMethods.find(m => m.id === recoveryMethod);
       const success = Math.random() < method.successRate;
-      
+
       setRecoveryResult({
         success,
-        message: success 
-          ? `Payment completed successfully using ${method.title}!` 
+        message: success
+          ? `Payment completed successfully using ${method.title}!`
           : `Payment failed. Please try another method.`,
         method: method.title,
         amount: paymentDetails.amount || 0,
         fee: method.fee,
         timestamp: new Date().toISOString()
       });
-      
+
       setCurrentStep(3);
-      
-    } catch (error) {
+
+    } catch {
       setRecoveryResult({
         success: false,
         message: 'Payment processing encountered an error.',
@@ -198,21 +199,6 @@ const PaymentRecoveryFlow = ({
       setCurrentStep(3);
     } finally {
       setIsProcessing(false);
-    }
-  };
-
-  const renderStepContent = () => {
-    switch (currentStep) {
-      case 0:
-        return renderErrorAnalysis();
-      case 1:
-        return renderMethodSelection();
-      case 2:
-        return renderPaymentProcessing();
-      case 3:
-        return renderPaymentResult();
-      default:
-        return null;
     }
   };
 
@@ -473,6 +459,21 @@ const PaymentRecoveryFlow = ({
         ]}
       />
     );
+  };
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 0:
+        return renderErrorAnalysis();
+      case 1:
+        return renderMethodSelection();
+      case 2:
+        return renderPaymentProcessing();
+      case 3:
+        return renderPaymentResult();
+      default:
+        return null;
+    }
   };
 
   return (

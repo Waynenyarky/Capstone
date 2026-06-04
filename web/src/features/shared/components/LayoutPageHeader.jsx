@@ -3,7 +3,6 @@ import { useNavigate, Link } from 'react-router-dom'
 import { Grid, Space, Typography, Button, Dropdown, Badge, theme } from 'antd'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
-  EllipsisOutlined,
   SettingOutlined,
   LogoutOutlined,
   BellOutlined,
@@ -13,6 +12,8 @@ import {
   InfoCircleOutlined,
   SunOutlined,
   MoonOutlined,
+  ReloadOutlined,
+  MenuOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -24,6 +25,9 @@ import { useNotificationStream } from '@/features/user/hooks/useNotificationStre
 import { useAppTheme, THEMES } from '@/shared/theme/ThemeProvider'
 import { logoutApi } from '@/features/authentication/services/authService'
 import { setIsLoggingOut, setLogoutNotification } from '@/features/authentication/lib/authEvents.js'
+import AnimatedBrandLogo from '@/shared/components/AnimatedBrandLogo.jsx'
+import SiteStatusPill from '@/features/shared/components/SiteStatusPill.jsx'
+import DynamicInfoModal from '@/shared/components/DynamicInfoModal.jsx'
 
 dayjs.extend(relativeTime)
 
@@ -41,17 +45,6 @@ function getAvatarInitials(currentUser) {
   const email = (currentUser.email || currentUser.name || '').trim()
   if (email.length >= 2) return email.slice(0, 2).toUpperCase()
   return email[0]?.toUpperCase() || 'U'
-}
-
-function flattenActionChildren(node) {
-  const arr = React.Children.toArray(node)
-  if (arr.length === 1 && arr[0]?.props?.children != null) {
-    const inner = React.Children.toArray(arr[0].props.children)
-    if (inner.length > 1 && inner.every(React.isValidElement)) {
-      return inner
-    }
-  }
-  return arr
 }
 
 function getNotificationIcon(type, token) {
@@ -85,13 +78,19 @@ function getNotificationIcon(type, token) {
 export default function LayoutPageHeader({
   pageTitle,
   pageIcon,
-  headerActions,
   viewNotificationsPath,
   hideNotifications = false,
   hideProfileSettings = false,
   showPageHeader = true,
   onSettingsClick,
   leftContent,
+  showBrandLogo = false,
+  onRefresh,
+  lastUpdated,
+  socketConnected,
+  infoSlotId,
+  infoModalTitle,
+  statusText,
 }) {
   const { currentUser, logout } = useAuthSession()
   const { currentTheme, setTheme } = useAppTheme()
@@ -104,6 +103,8 @@ export default function LayoutPageHeader({
   const [unreadCount, setUnreadCount] = useState(0)
   const [loadingNotifications, setLoadingNotifications] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [infoOpen, setInfoOpen] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   const { open, show, hide, confirming, handleConfirm } = useConfirmLogoutModal({
     onConfirm: async () => {
@@ -305,7 +306,7 @@ export default function LayoutPageHeader({
     </div>
   )
 
-  if (!showPageHeader || (!pageTitle && !leftContent && !headerActions && !currentUser)) {
+  if (!showPageHeader || (!pageTitle && !leftContent && !currentUser && !showBrandLogo)) {
     return null
   }
 
@@ -323,7 +324,34 @@ export default function LayoutPageHeader({
           background: token.colorBgElevated, // Use proper theme token for elevated surfaces
         }}
       >
-        {leftContent || (
+        {leftContent || showBrandLogo ? (
+          <Space size={10} align="center">
+            {showBrandLogo && <AnimatedBrandLogo onClick={() => navigate('/')} />}
+            {!showBrandLogo && pageIcon && (
+              <span
+                style={{
+                  fontSize: 16,
+                  color: '#fff',
+                  background: token.colorPrimary,
+                  padding: 6,
+                  height: 32,
+                  width: 32,
+                  borderRadius: 8,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {pageIcon}
+              </span>
+            )}
+            {!showBrandLogo && pageTitle && (
+              <Text strong style={{ fontSize: isMobile ? 16 : 18 }}>
+                {pageTitle}
+              </Text>
+            )}
+          </Space>
+        ) : (
           <Space size={10} align="center">
             {pageIcon && (
               <span
@@ -352,51 +380,30 @@ export default function LayoutPageHeader({
         )}
 
         <Space size="middle" wrap>
-          {headerActions &&
-            (isMobile ? (
-              <Dropdown
-                open={actionsMenuOpen}
-                onOpenChange={setActionsMenuOpen}
-                trigger={['click']}
-                placement="bottomRight"
-                popupRender={() => {
-                  const actions = flattenActionChildren(headerActions)
-                  return (
-                    <div
-                      style={{
-                        background: token.colorBgContainer,
-                        borderRadius: token.borderRadiusLG,
-                        boxShadow: token.boxShadowSecondary,
-                        padding: 8,
-                        minWidth: 180,
-                      }}
-                    >
-                      <Space direction="vertical" style={{ width: '100%' }} size="small">
-                        {actions.map((child, i) => {
-                          if (!React.isValidElement(child)) return null
-                          const origOnClick = child.props?.onClick
-                          return (
-                            <div key={i} style={{ width: '100%' }}>
-                              {React.cloneElement(child, {
-                                style: { ...child.props?.style, width: '100%' },
-                                onClick: (...args) => {
-                                  origOnClick?.(...args)
-                                  setActionsMenuOpen(false)
-                                },
-                              })}
-                            </div>
-                          )
-                        })}
-                      </Space>
-                    </div>
-                  )
-                }}
-              >
-                <Button icon={<EllipsisOutlined />} />
-              </Dropdown>
-            ) : (
-              headerActions
-            ))}
+          <SiteStatusPill
+            lastUpdated={lastUpdated}
+            socketConnected={socketConnected}
+            statusText={statusText}
+            onRefresh={async () => {
+              if (onRefresh) {
+                setRefreshing(true)
+                try {
+                  await onRefresh()
+                } finally {
+                  setRefreshing(false)
+                }
+              }
+            }}
+            loading={refreshing}
+            showRefreshButton={true}
+            showSocketStatus={socketConnected !== undefined}
+          />
+          {infoSlotId && (
+            <Button
+              icon={<InfoCircleOutlined />}
+              onClick={() => setInfoOpen(true)}
+            />
+          )}
           {currentUser && !hideNotifications && (
             <Dropdown
               open={notificationsOpen}
@@ -416,36 +423,10 @@ export default function LayoutPageHeader({
               trigger={['click']}
               placement="bottomRight"
             >
-              <button
-                type="button"
+              <Button
+                icon={<MenuOutlined />}
                 aria-label="Profile menu"
-                style={{
-                  padding: 0,
-                  border: 'none',
-                  background: 'none',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <span
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: '50%',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: token.colorPrimary,
-                    color: '#fff',
-                    fontSize: 13,
-                    fontWeight: 600,
-                  }}
-                >
-                  {getAvatarInitials(currentUser)}
-                </span>
-              </button>
+              />
             </Dropdown>
           )}
         </Space>
@@ -456,6 +437,13 @@ export default function LayoutPageHeader({
         onCancel={hide}
         confirmLoading={confirming}
       />
+      {infoSlotId && (
+        <DynamicInfoModal
+          slotId={infoSlotId}
+          open={infoOpen}
+          onClose={() => setInfoOpen(false)}
+          title={infoModalTitle}
+        />
+      )}
     </>
-  )
-}
+  )}

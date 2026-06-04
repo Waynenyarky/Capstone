@@ -1,39 +1,44 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 const TamperIncidentSchema = new mongoose.Schema(
   {
     status: {
       type: String,
-      enum: ['new', 'acknowledged', 'resolved'],
-      default: 'new',
+      enum: ["new", "acknowledged", "resolved"],
+      default: "new",
       index: true,
     },
     severity: {
       type: String,
-      enum: ['low', 'medium', 'high'],
-      default: 'high',
+      enum: ["low", "medium", "high"],
+      default: "high",
       index: true,
     },
     verificationStatus: {
       type: String,
-      enum: ['tamper_detected', 'verification_error', 'not_logged', 'security_event'],
-      default: 'tamper_detected',
+      enum: [
+        "tamper_detected",
+        "verification_error",
+        "not_logged",
+        "security_event",
+      ],
+      default: "tamper_detected",
       index: true,
     },
     message: {
       type: String,
-      default: '',
+      default: "",
     },
     affectedUserIds: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+        ref: "User",
       },
     ],
     auditLogIds: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'AuditLog',
+        ref: "AuditLog",
         index: true,
       },
     ],
@@ -43,7 +48,7 @@ const TamperIncidentSchema = new mongoose.Schema(
     },
     resolutionNotes: {
       type: String,
-      default: '',
+      default: "",
     },
     verificationPayload: {
       type: mongoose.Schema.Types.Mixed,
@@ -72,25 +77,27 @@ const TamperIncidentSchema = new mongoose.Schema(
     },
     acknowledgedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
     },
     resolvedAt: {
       type: Date,
     },
     resolvedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
     },
     adminNotifiedAt: {
       type: Date,
       default: null,
     },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-TamperIncidentSchema.index({ status: 1, severity: 1, createdAt: -1 })
-TamperIncidentSchema.index({ detectedAt: -1 })
+TamperIncidentSchema.index({ status: 1, severity: 1, createdAt: -1 });
+TamperIncidentSchema.index({ detectedAt: -1 });
 
 // Prevent OverwriteModelError by checking if model already exists
-module.exports = mongoose.models.TamperIncident || mongoose.model('TamperIncident', TamperIncidentSchema)
+module.exports =
+  mongoose.models.TamperIncident ||
+  mongoose.model("TamperIncident", TamperIncidentSchema);

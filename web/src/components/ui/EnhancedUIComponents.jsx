@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { 
   Skeleton, Alert, Button, Space, Typography, 
-  Progress, Empty, Result, Card, Badge, Tooltip, notification, Modal, Drawer
+  Progress, Empty, Result, Card, Badge, Tooltip, notification, Modal, Drawer, Tag
 } from 'antd'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { 
   ReloadOutlined, CloseOutlined, WarningOutlined,
-  CheckCircleOutlined, InfoCircleOutlined, LoadingOutlined
+  CheckCircleOutlined, InfoCircleOutlined, LoadingOutlined,
+  SearchOutlined, DisconnectOutlined
 } from '@ant-design/icons'
 
 const { Text, Title } = Typography
@@ -63,7 +64,7 @@ export const LoadingState = ({
   tip = 'Loading...', 
   size = 'default',
   fullscreen = false,
-  children 
+  _children 
 }) => {
   const loadingComponents = {
     spinner: <LottieSpinner size={size} tip={tip} />,
@@ -475,7 +476,7 @@ export const useEnhancedNotifications = () => {
 export const ValidationFeedback = ({ 
   errors, 
   warnings, 
-  touched, 
+  _touched, 
   showSummary = true 
 }) => {
   const hasErrors = errors && Object.keys(errors).length > 0

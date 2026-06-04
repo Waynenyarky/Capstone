@@ -11,79 +11,101 @@
  */
 function validateBusinessRegistrationNumber(agency, number) {
   if (!agency || !number) {
-    return { valid: false, error: 'Agency and registration number are required' }
+    return {
+      valid: false,
+      error: "Agency and registration number are required",
+    };
   }
 
-  const normalizedNumber = String(number).trim().toUpperCase()
-  const agencyUpper = String(agency).toUpperCase()
+  const normalizedNumber = String(number).trim().toUpperCase();
+  const agencyUpper = String(agency).toUpperCase();
 
   switch (agencyUpper) {
-    case 'DTI':
+    case "DTI":
       // DTI format: DTI-XXXXX-XXXXX (e.g., DTI-12345-67890)
-      const dtiPattern = /^DTI-\d{5}-\d{5}$/
+      const dtiPattern = /^DTI-\d{5}-\d{5}$/;
       if (!dtiPattern.test(normalizedNumber)) {
-        return { valid: false, error: 'DTI format must be DTI-XXXXX-XXXXX (e.g., DTI-12345-67890)' }
+        return {
+          valid: false,
+          error: "DTI format must be DTI-XXXXX-XXXXX (e.g., DTI-12345-67890)",
+        };
       }
-      break
+      break;
 
-    case 'SEC':
+    case "SEC":
       // SEC format: CS-XXXXXX (e.g., CS-123456)
-      const secPattern = /^CS-\d{6}$/
+      const secPattern = /^CS-\d{6}$/;
       if (!secPattern.test(normalizedNumber)) {
-        return { valid: false, error: 'SEC format must be CS-XXXXXX (e.g., CS-123456)' }
+        return {
+          valid: false,
+          error: "SEC format must be CS-XXXXXX (e.g., CS-123456)",
+        };
       }
-      break
+      break;
 
-    case 'BIR':
+    case "BIR":
       // BIR TIN format: 9 digits (e.g., 123456789)
-      const birPattern = /^\d{9}$/
+      const birPattern = /^\d{9}$/;
       if (!birPattern.test(normalizedNumber)) {
-        return { valid: false, error: 'BIR TIN must be 9 digits (e.g., 123456789)' }
+        return {
+          valid: false,
+          error: "BIR TIN must be 9 digits (e.g., 123456789)",
+        };
       }
-      break
+      break;
 
-    case 'LGU':
-    case 'BARANGAY_OFFICE':
+    case "LGU":
+    case "BARANGAY_OFFICE":
       // LGU/Barangay formats vary, accept alphanumeric with dashes/slashes
-      const lguPattern = /^[A-Z0-9\-\/]+$/i
+      const lguPattern = /^[A-Z0-9\-\/]+$/i;
       if (!lguPattern.test(normalizedNumber) || normalizedNumber.length < 3) {
-        return { valid: false, error: 'LGU/Barangay registration number must be at least 3 characters' }
+        return {
+          valid: false,
+          error:
+            "LGU/Barangay registration number must be at least 3 characters",
+        };
       }
-      break
+      break;
 
-    case 'CDA':
+    case "CDA":
       // CDA format: CDA-XXXXX or similar
-      const cdaPattern = /^CDA-[A-Z0-9-]+$/i
+      const cdaPattern = /^CDA-[A-Z0-9-]+$/i;
       if (!cdaPattern.test(normalizedNumber)) {
-        return { valid: false, error: 'CDA format must start with CDA-' }
+        return { valid: false, error: "CDA format must start with CDA-" };
       }
-      break
+      break;
 
-    case 'FDA':
-    case 'BFAD':
+    case "FDA":
+    case "BFAD":
       // FDA/BFAD format: FDA-XXXXX or BFAD-XXXXX
-      const fdaPattern = /^(FDA|BFAD)-[A-Z0-9-]+$/i
+      const fdaPattern = /^(FDA|BFAD)-[A-Z0-9-]+$/i;
       if (!fdaPattern.test(normalizedNumber)) {
-        return { valid: false, error: 'FDA/BFAD format must start with FDA- or BFAD-' }
+        return {
+          valid: false,
+          error: "FDA/BFAD format must start with FDA- or BFAD-",
+        };
       }
-      break
+      break;
 
-    case 'DA':
-    case 'DENR':
-    case 'PRC':
-    case 'MARITIME_INDUSTRY_AUTHORITY':
+    case "DA":
+    case "DENR":
+    case "PRC":
+    case "MARITIME_INDUSTRY_AUTHORITY":
       // Other agencies: Accept alphanumeric with dashes
-      const otherPattern = /^[A-Z0-9\-\/]+$/i
+      const otherPattern = /^[A-Z0-9\-\/]+$/i;
       if (!otherPattern.test(normalizedNumber) || normalizedNumber.length < 3) {
-        return { valid: false, error: 'Registration number must be at least 3 characters' }
+        return {
+          valid: false,
+          error: "Registration number must be at least 3 characters",
+        };
       }
-      break
+      break;
 
     default:
-      return { valid: false, error: 'Unknown registration agency' }
+      return { valid: false, error: "Unknown registration agency" };
   }
 
-  return { valid: true }
+  return { valid: true };
 }
 
 /**
@@ -93,12 +115,15 @@ function validateBusinessRegistrationNumber(agency, number) {
  * @returns {object} { valid: boolean, error?: string }
  */
 function validateGeolocation(lat, lng) {
-  if (typeof lat !== 'number' || typeof lng !== 'number') {
-    return { valid: false, error: 'Latitude and longitude must be numbers' }
+  if (typeof lat !== "number" || typeof lng !== "number") {
+    return { valid: false, error: "Latitude and longitude must be numbers" };
   }
 
   if (isNaN(lat) || isNaN(lng)) {
-    return { valid: false, error: 'Latitude and longitude must be valid numbers' }
+    return {
+      valid: false,
+      error: "Latitude and longitude must be valid numbers",
+    };
   }
 
   // Philippines bounds: approximately 4.2°N to 21.1°N, 116.9°E to 126.6°E
@@ -106,24 +131,24 @@ function validateGeolocation(lat, lng) {
     minLat: 4.2,
     maxLat: 21.1,
     minLng: 116.9,
-    maxLng: 126.6
-  }
+    maxLng: 126.6,
+  };
 
   if (lat < PHILIPPINES_BOUNDS.minLat || lat > PHILIPPINES_BOUNDS.maxLat) {
-    return { 
-      valid: false, 
-      error: `Latitude must be between ${PHILIPPINES_BOUNDS.minLat} and ${PHILIPPINES_BOUNDS.maxLat} (Philippines bounds)` 
-    }
+    return {
+      valid: false,
+      error: `Latitude must be between ${PHILIPPINES_BOUNDS.minLat} and ${PHILIPPINES_BOUNDS.maxLat} (Philippines bounds)`,
+    };
   }
 
   if (lng < PHILIPPINES_BOUNDS.minLng || lng > PHILIPPINES_BOUNDS.maxLng) {
-    return { 
-      valid: false, 
-      error: `Longitude must be between ${PHILIPPINES_BOUNDS.minLng} and ${PHILIPPINES_BOUNDS.maxLng} (Philippines bounds)` 
-    }
+    return {
+      valid: false,
+      error: `Longitude must be between ${PHILIPPINES_BOUNDS.minLng} and ${PHILIPPINES_BOUNDS.maxLng} (Philippines bounds)`,
+    };
   }
 
-  return { valid: true }
+  return { valid: true };
 }
 
 /**
@@ -132,69 +157,75 @@ function validateGeolocation(lat, lng) {
  * @returns {string} 'low' | 'medium' | 'high'
  */
 function calculateRiskLevel(businessData) {
-  let riskScore = 0
+  let riskScore = 0;
 
   // Business size (employees)
-  const businessSize = businessData.businessSize || businessData.riskProfile?.businessSize || 0
+  const businessSize =
+    businessData.businessSize || businessData.riskProfile?.businessSize || 0;
   if (businessSize < 10) {
-    riskScore += 1 // Low risk
+    riskScore += 1; // Low risk
   } else if (businessSize >= 10 && businessSize <= 50) {
-    riskScore += 2 // Medium risk
+    riskScore += 2; // Medium risk
   } else {
-    riskScore += 3 // High risk
+    riskScore += 3; // High risk
   }
 
   // Annual revenue (PHP)
-  const annualRevenue = businessData.annualRevenue || businessData.riskProfile?.annualRevenue || 0
-  if (annualRevenue < 1000000) { // < 1M PHP
-    riskScore += 1
-  } else if (annualRevenue >= 1000000 && annualRevenue <= 10000000) { // 1M-10M PHP
-    riskScore += 2
-  } else { // > 10M PHP
-    riskScore += 3
+  const annualRevenue =
+    businessData.annualRevenue || businessData.riskProfile?.annualRevenue || 0;
+  if (annualRevenue < 1000000) {
+    // < 1M PHP
+    riskScore += 1;
+  } else if (annualRevenue >= 1000000 && annualRevenue <= 10000000) {
+    // 1M-10M PHP
+    riskScore += 2;
+  } else {
+    // > 10M PHP
+    riskScore += 3;
   }
 
   // Business type
-  const businessType = businessData.businessType || ''
-  const highRiskTypes = ['c', 'f', 'h'] // Manufacturing, Construction, Transport (PSIC)
-  const mediumRiskTypes = ['s', 'a'] // Other services, Agriculture (PSIC)
+  const businessType = businessData.businessType || "";
+  const highRiskTypes = ["c", "f", "h"]; // Manufacturing, Construction, Transport (PSIC)
+  const mediumRiskTypes = ["s", "a"]; // Other services, Agriculture (PSIC)
   if (highRiskTypes.includes(businessType)) {
-    riskScore += 3
+    riskScore += 3;
   } else if (mediumRiskTypes.includes(businessType)) {
-    riskScore += 2
+    riskScore += 2;
   } else {
-    riskScore += 1
+    riskScore += 1;
   }
 
   // Registration status
-  const registrationStatus = businessData.registrationStatus || 'not_yet_registered'
-  if (registrationStatus === 'proposed') {
-    riskScore += 2
+  const registrationStatus =
+    businessData.registrationStatus || "not_yet_registered";
+  if (registrationStatus === "proposed") {
+    riskScore += 2;
   } else {
-    riskScore += 1
+    riskScore += 1;
   }
 
   // Number of branches
-  const numberOfBranches = businessData.numberOfBranches || 0
+  const numberOfBranches = businessData.numberOfBranches || 0;
   if (numberOfBranches > 5) {
-    riskScore += 2
+    riskScore += 2;
   } else if (numberOfBranches > 0) {
-    riskScore += 1
+    riskScore += 1;
   }
 
   // Determine risk level based on score
   // Score range: 5-15
   if (riskScore <= 7) {
-    return 'low'
+    return "low";
   } else if (riskScore <= 11) {
-    return 'medium'
+    return "medium";
   } else {
-    return 'high'
+    return "high";
   }
 }
 
 module.exports = {
   validateBusinessRegistrationNumber,
   validateGeolocation,
-  calculateRiskLevel
-}
+  calculateRiskLevel,
+};

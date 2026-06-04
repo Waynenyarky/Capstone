@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 /**
  * AuditDigest Model
@@ -15,21 +15,25 @@ const AuditDigestSchema = new mongoose.Schema(
     },
     digestType: {
       type: String,
-      enum: ['merkle', 'hash_chain'],
-      default: 'hash_chain',
+      enum: ["merkle", "hash_chain"],
+      default: "hash_chain",
     },
     leafCount: {
       type: Number,
       required: true,
       min: 1,
     },
-    auditLogIds: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'AuditLog',
-    }],
-    leafHashes: [{
-      type: String,
-    }],
+    auditLogIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "AuditLog",
+      },
+    ],
+    leafHashes: [
+      {
+        type: String,
+      },
+    ],
     windowStart: {
       type: Date,
       required: true,
@@ -42,7 +46,7 @@ const AuditDigestSchema = new mongoose.Schema(
     },
     txHash: {
       type: String,
-      default: '',
+      default: "",
       index: true,
     },
     blockNumber: {
@@ -51,13 +55,13 @@ const AuditDigestSchema = new mongoose.Schema(
     },
     anchorStatus: {
       type: String,
-      enum: ['pending', 'anchored', 'failed', 'retrying'],
-      default: 'pending',
+      enum: ["pending", "anchored", "failed", "retrying"],
+      default: "pending",
       index: true,
     },
     anchorError: {
       type: String,
-      default: '',
+      default: "",
     },
     anchorRetries: {
       type: Number,
@@ -68,7 +72,7 @@ const AuditDigestSchema = new mongoose.Schema(
       default: null,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 AuditDigestSchema.index({ anchorStatus: 1, createdAt: 1 });
@@ -78,13 +82,13 @@ AuditDigestSchema.index({ windowStart: 1, windowEnd: 1 });
  * Generate inclusion proof for a specific leaf hash
  * For hash_chain type, proof is the ordered list of hashes before the target
  */
-AuditDigestSchema.methods.getInclusionProof = function(leafHash) {
+AuditDigestSchema.methods.getInclusionProof = function (leafHash) {
   const idx = this.leafHashes.indexOf(leafHash);
   if (idx === -1) return null;
 
-  if (this.digestType === 'hash_chain') {
+  if (this.digestType === "hash_chain") {
     return {
-      type: 'hash_chain',
+      type: "hash_chain",
       position: idx,
       precedingHashes: this.leafHashes.slice(0, idx),
       followingHashes: this.leafHashes.slice(idx + 1),
@@ -94,34 +98,36 @@ AuditDigestSchema.methods.getInclusionProof = function(leafHash) {
 
   // For merkle, would need sibling path (not implemented yet)
   return {
-    type: 'merkle',
+    type: "merkle",
     position: idx,
     root: this.digestRoot,
-    note: 'Full merkle proof not implemented',
+    note: "Full merkle proof not implemented",
   };
 };
 
 /**
  * Verify that a leaf hash is included in this digest
  */
-AuditDigestSchema.methods.verifyInclusion = function(leafHash) {
+AuditDigestSchema.methods.verifyInclusion = function (leafHash) {
   return this.leafHashes.includes(leafHash);
 };
 
 /**
  * Static: find digest containing a specific audit log
  */
-AuditDigestSchema.statics.findByAuditLogId = function(auditLogId) {
+AuditDigestSchema.statics.findByAuditLogId = function (auditLogId) {
   return this.findOne({ auditLogIds: auditLogId });
 };
 
 /**
  * Static: find pending digests for retry
  */
-AuditDigestSchema.statics.findPendingAnchors = function(limit = 10) {
-  return this.find({ anchorStatus: { $in: ['pending', 'retrying'] } })
+AuditDigestSchema.statics.findPendingAnchors = function (limit = 10) {
+  return this.find({ anchorStatus: { $in: ["pending", "retrying"] } })
     .sort({ createdAt: 1 })
     .limit(limit);
 };
 
-module.exports = mongoose.models.AuditDigest || mongoose.model('AuditDigest', AuditDigestSchema);
+module.exports =
+  mongoose.models.AuditDigest ||
+  mongoose.model("AuditDigest", AuditDigestSchema);

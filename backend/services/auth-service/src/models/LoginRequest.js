@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 const LoginRequestSchema = new mongoose.Schema(
   {
@@ -9,18 +9,20 @@ const LoginRequestSchema = new mongoose.Schema(
     loginToken: { type: String },
     userId: { type: String },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 LoginRequestSchema.plugin(encryptionPlugin, {
-  fields: ['code', 'loginToken', 'userId'],
-  deterministicFields: ['email'],
+  fields: ["code", "loginToken", "userId"],
+  deterministicFields: ["email"],
   nestedPaths: [],
   arrayPaths: [],
   mixedPaths: [],
-})
+});
 
-LoginRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
+LoginRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-module.exports = mongoose.models.LoginRequest || mongoose.model('LoginRequest', LoginRequestSchema)
+module.exports =
+  mongoose.models.LoginRequest ||
+  mongoose.model("LoginRequest", LoginRequestSchema);

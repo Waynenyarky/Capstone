@@ -17,7 +17,6 @@ export default function FinanceDesktopView({
   tabKey,
   setTabKey,
   tabChildren,
-  headerActions,
 }) {
   const { token } = theme.useToken()
 
@@ -120,27 +119,24 @@ export default function FinanceDesktopView({
             zIndex: 1,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {SelectedIcon && (
-                <span
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: token.borderRadius,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: token.colorFillTertiary,
-                    color: token.colorPrimary,
-                  }}
-                >
-                  <SelectedIcon style={{ fontSize: 18 }} />
-                </span>
-              )}
-              <Text strong style={{ fontSize: 16 }}>{selectedLabel}</Text>
-            </div>
-            {headerActions}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {SelectedIcon && (
+              <span
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: token.borderRadius,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: token.colorFillTertiary,
+                  color: token.colorPrimary,
+                }}
+              >
+                <SelectedIcon style={{ fontSize: 18 }} />
+              </span>
+            )}
+            <Text strong style={{ fontSize: 16 }}>{selectedLabel}</Text>
           </div>
         </div>
 

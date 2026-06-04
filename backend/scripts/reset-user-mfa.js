@@ -13,55 +13,52 @@
  * Requires MongoDB in .env (MONGODB_URI or MONGO_URI).
  */
 
-const path = require('path')
-require('dotenv').config({ path: path.resolve(__dirname, '../../.env') })
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
 
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 async function main() {
-  const email = process.argv[2]
+  const email = process.argv[2];
   if (!email) {
-    console.error('Usage: node backend/scripts/reset-user-mfa.js <email>')
-    process.exit(1)
+    console.error("Usage: node backend/scripts/reset-user-mfa.js <email>");
+    process.exit(1);
   }
 
-  const uri = process.env.MONGODB_URI || process.env.MONGO_URI
+  const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
   if (!uri) {
-    console.error('Set MONGODB_URI or MONGO_URI in .env')
-    process.exit(1)
+    console.error("Set MONGODB_URI or MONGO_URI in .env");
+    process.exit(1);
   }
 
-  await mongoose.connect(uri)
-  const User = require('../services/auth-service/src/models/User')
+  await mongoose.connect(uri);
+  const User = require("../services/auth-service/src/models/User");
 
-  const emailKey = String(email).trim().toLowerCase()
+  const emailKey = String(email).trim().toLowerCase();
   const user = await User.findOne({
-    $or: [
-      { email: emailKey },
-      ...(emailKey === '1' ? [{ email: '1' }] : []),
-    ],
-  })
+    $or: [{ email: emailKey }, ...(emailKey === "1" ? [{ email: "1" }] : [])],
+  });
 
   if (!user) {
-    console.error('No user found for:', email)
-    await mongoose.disconnect()
-    process.exit(1)
+    console.error("No user found for:", email);
+    await mongoose.disconnect();
+    process.exit(1);
   }
 
-  user.mfaSecret = undefined
-  user.mfaEnabled = false
-  user.mfaMethod = ''
-  user.mustSetupMfa = true
+  user.mfaSecret = undefined;
+  user.mfaEnabled = false;
+  user.mfaMethod = "";
+  user.mustSetupMfa = true;
   // Clear passkeys so they can use email OTP in dev/demo
-  user.webauthnCredentials = []
-  await user.save()
+  user.webauthnCredentials = [];
+  await user.save();
 
-  console.log('MFA reset for:', user.email)
-  console.log('They can log in again; in dev/demo they will get email OTP.')
-  await mongoose.disconnect()
+  console.log("MFA reset for:", user.email);
+  console.log("They can log in again; in dev/demo they will get email OTP.");
+  await mongoose.disconnect();
 }
 
 main().catch((err) => {
-  console.error(err)
-  process.exit(1)
-})
+  console.error(err);
+  process.exit(1);
+});

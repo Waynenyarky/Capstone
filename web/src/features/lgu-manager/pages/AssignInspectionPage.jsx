@@ -210,20 +210,7 @@ export default function AssignInspectionPage() {
   )
 
   return (
-    <LGUManagerLayout
-      pageTitle="Inspection Management"
-      pageIcon={<SafetyCertificateOutlined />}
-      headerActions={
-        <>
-          {lastUpdated && (
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Last updated: {lastUpdated.toLocaleTimeString()}
-            </Text>
-          )}
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading} aria-label="Refresh" />
-        </>
-      }
-    >
+    <LGUManagerLayout>
       <div style={isMobile ? { overflow: 'auto' } : { height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {isMobile ? mobileContent : desktopContent}
       </div>

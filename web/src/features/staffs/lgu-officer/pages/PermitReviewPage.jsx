@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Table, Input, Select, Button, Tag, Typography, Dropdown, Splitter, Grid, Pagination, theme, Space, Drawer, AutoComplete, Empty, Descriptions, message } from 'antd'
+import { Table, Input, Select, Button, Tag, Typography, Dropdown, Splitter, Grid, Pagination, theme, Drawer, AutoComplete, Empty, Descriptions, message } from 'antd'
 import { useNotifier } from '@/shared/notifications.js'
-import { SearchOutlined, FilterOutlined, CloseOutlined, FileTextOutlined, ReloadOutlined, PlusOutlined, StarOutlined, StarFilled } from '@ant-design/icons'
+import { SearchOutlined, FilterOutlined, CloseOutlined, StarOutlined, StarFilled } from '@ant-design/icons'
 import { StaffLayout } from '../../components'
 import { usePermitApplications } from '@/features/lgu-officer/presentation/hooks/usePermitApplications'
 import ApplicationDetailPanel from '../components/ApplicationDetailPanel'
@@ -16,16 +16,15 @@ export default function PermitReviewPage() {
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md
 
-  const { loading, applications, pagination, loadApplications, reviewApplication } = usePermitApplications()
+  const { loading, applications, loadApplications, reviewApplication } = usePermitApplications()
   const { error: notifyError } = useNotifier()
-  
+
   const [selectedApplication, setSelectedApplication] = useState(null)
   const [search, setSearch] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState(null)
   const [typeFilter, setTypeFilter] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const [lastUpdated, setLastUpdated] = useState(null)
 
   const [walkInOpen, setWalkInOpen] = useState(false)
   const [ownerSearch, setOwnerSearch] = useState('')
@@ -77,7 +76,6 @@ export default function PermitReviewPage() {
         pagination: { page: 1, limit: 100 },
         silent
       })
-      setLastUpdated(new Date())
     } catch (err) {
       if (!silent) notifyError(err, 'Failed to load applications')
     }
@@ -157,20 +155,13 @@ export default function PermitReviewPage() {
     setSelectedOwner(option.user)
   }
 
-  const openWalkIn = () => {
-    setWalkInOpen(true)
-    setSelectedOwner(null)
-    setOwnerSearch('')
-    setOwnerOptions([])
-  }
-
   const closeWalkIn = () => {
     setWalkInOpen(false)
     setSelectedOwner(null)
     setOwnerSearch('')
   }
 
-  const getStatusTag = (status, hasActiveAppeal) => {
+  const getStatusTag = (status) => {
     const statusConfig = {
       'draft': { color: 'default', text: 'Draft' },
       'submitted': { color: 'processing', text: 'Pending Review' },
@@ -202,7 +193,7 @@ export default function PermitReviewPage() {
       dataIndex: 'status',
       key: 'status',
       width: 140,
-      render: (status, record) => getStatusTag(status, record?.hasActiveAppeal)
+      render: (status) => getStatusTag(status)
     },
     {
       title: 'Business Name',
@@ -375,25 +366,6 @@ export default function PermitReviewPage() {
     </div>
   )
 
-  const headerActions = (
-    <Space size="middle">
-      {lastUpdated != null && (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          Last updated: {dayjs(lastUpdated).format('MMM D, h:mm A')}
-        </Text>
-      )}
-      <Button
-        icon={<ReloadOutlined />}
-        onClick={loadApplicationsData}
-        loading={loading}
-        aria-label="Refresh"
-      />
-      <Button type="primary" icon={<PlusOutlined />} onClick={openWalkIn}>
-        Walk-In
-      </Button>
-    </Space>
-  )
-
   const walkInDrawer = (
     <Drawer
       title="Walk-In Application"
@@ -473,11 +445,7 @@ export default function PermitReviewPage() {
 
   if (isMobile) {
     return (
-      <StaffLayout
-        pageTitle="Applications"
-        pageIcon={<FileTextOutlined />}
-        headerActions={headerActions}
-      >
+      <StaffLayout>
         <div style={{ height: 'calc(100vh - 120px)' }}>
           {tableContent}
         </div>
@@ -487,11 +455,7 @@ export default function PermitReviewPage() {
   }
 
   return (
-    <StaffLayout
-      pageTitle="Applications"
-      pageIcon={<FileTextOutlined />}
-      headerActions={headerActions}
-    >
+    <StaffLayout>
       <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <Splitter style={{ height: '100%' }}>
           <Splitter.Panel min="25%" defaultSize="30%" style={{ overflow: 'hidden' }}>

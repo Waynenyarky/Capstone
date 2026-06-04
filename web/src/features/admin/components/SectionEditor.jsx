@@ -22,26 +22,22 @@ const { Text } = Typography
 
 export default function SectionEditor({ sections = [], onChange, disabled = false }) {
   const [sectionModalOpen, setSectionModalOpen] = useState(false)
-  const [editingSection, setEditingSection] = useState(null)
   const [editingSectionIndex, setEditingSectionIndex] = useState(-1)
   const [sectionForm] = Form.useForm()
 
   const [itemModalOpen, setItemModalOpen] = useState(false)
-  const [editingItem, setEditingItem] = useState(null)
   const [editingItemIndex, setEditingItemIndex] = useState(-1)
   const [currentSectionIndex, setCurrentSectionIndex] = useState(-1)
   const [itemForm] = Form.useForm()
 
   // Section handlers
   const openAddSection = () => {
-    setEditingSection(null)
     setEditingSectionIndex(-1)
     sectionForm.resetFields()
     setSectionModalOpen(true)
   }
 
   const openEditSection = (section, index) => {
-    setEditingSection(section)
     setEditingSectionIndex(index)
     sectionForm.setFieldsValue({
       category: section.category,
@@ -76,7 +72,7 @@ export default function SectionEditor({ sections = [], onChange, disabled = fals
 
       onChange(newSections)
       setSectionModalOpen(false)
-    } catch (err) {
+    } catch {
       // Validation error
     }
   }
@@ -89,7 +85,6 @@ export default function SectionEditor({ sections = [], onChange, disabled = fals
   // Item handlers
   const openAddItem = (sectionIndex) => {
     setCurrentSectionIndex(sectionIndex)
-    setEditingItem(null)
     setEditingItemIndex(-1)
     itemForm.resetFields()
     itemForm.setFieldsValue({ required: true })
@@ -98,7 +93,6 @@ export default function SectionEditor({ sections = [], onChange, disabled = fals
 
   const openEditItem = (sectionIndex, item, itemIndex) => {
     setCurrentSectionIndex(sectionIndex)
-    setEditingItem(item)
     setEditingItemIndex(itemIndex)
     itemForm.setFieldsValue({
       label: item.label,
@@ -131,7 +125,7 @@ export default function SectionEditor({ sections = [], onChange, disabled = fals
       newSections[currentSectionIndex] = section
       onChange(newSections)
       setItemModalOpen(false)
-    } catch (err) {
+    } catch {
       // Validation error
     }
   }

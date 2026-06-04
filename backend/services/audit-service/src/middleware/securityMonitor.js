@@ -1,7 +1,7 @@
-const logger = require('../lib/logger');
-const errorTracking = require('../lib/errorTracking');
-const AuditLog = require('../models/AuditLog');
-const mongoose = require('mongoose');
+const logger = require("../lib/logger");
+const errorTracking = require("../lib/errorTracking");
+const AuditLog = require("../models/AuditLog");
+const mongoose = require("mongoose");
 
 /**
  * Security Monitoring Middleware
@@ -27,27 +27,31 @@ function trackFailedLogin(ip, userId = null) {
       userIds: new Set(),
     });
   }
-  
+
   const event = securityEvents.failedLogins.get(ip);
   event.count++;
   event.lastAttempt = new Date();
   if (userId) {
     event.userIds.add(userId);
   }
-  
+
   // Alert on multiple failed logins from same IP
   if (event.count >= 5) {
-    logger.logSecurityEvent('multiple_failed_logins', {
-      ip,
-      count: event.count,
-      userIds: Array.from(event.userIds),
-    }, {
-      severity: 'high',
-      correlationId: null,
-    });
-    
+    logger.logSecurityEvent(
+      "multiple_failed_logins",
+      {
+        ip,
+        count: event.count,
+        userIds: Array.from(event.userIds),
+      },
+      {
+        severity: "high",
+        correlationId: null,
+      },
+    );
+
     // Log to audit trail
-    logSecurityEvent('multiple_failed_logins', {
+    logSecurityEvent("multiple_failed_logins", {
       ip,
       count: event.count,
       userIds: Array.from(event.userIds),
@@ -60,30 +64,34 @@ function trackFailedLogin(ip, userId = null) {
  */
 function trackRateLimitViolation(ip, endpoint) {
   const key = `${ip}:${endpoint}`;
-  
+
   if (!securityEvents.rateLimitViolations.has(key)) {
     securityEvents.rateLimitViolations.set(key, {
       count: 0,
       lastViolation: null,
     });
   }
-  
+
   const event = securityEvents.rateLimitViolations.get(key);
   event.count++;
   event.lastViolation = new Date();
-  
+
   // Alert on repeated rate limit violations
   if (event.count >= 10) {
-    logger.logSecurityEvent('repeated_rate_limit_violations', {
-      ip,
-      endpoint,
-      count: event.count,
-    }, {
-      severity: 'high',
-      correlationId: null,
-    });
-    
-    logSecurityEvent('repeated_rate_limit_violations', {
+    logger.logSecurityEvent(
+      "repeated_rate_limit_violations",
+      {
+        ip,
+        endpoint,
+        count: event.count,
+      },
+      {
+        severity: "high",
+        correlationId: null,
+      },
+    );
+
+    logSecurityEvent("repeated_rate_limit_violations", {
       ip,
       endpoint,
       count: event.count,
@@ -96,13 +104,13 @@ function trackRateLimitViolation(ip, endpoint) {
  */
 function detectSuspiciousActivity(req) {
   const suspiciousPatterns = [];
-  
+
   // Check for SQL injection patterns
   const sqlInjectionPatterns = [
     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE)\b)/i,
     /('|(\\')|(;)|(--)|(\/\*)|(\*\/)|(\+)|(\|)|(\&)|(\%)|(\$)|(\#)|(\@)|(\!)|(\?)|(\=)|(\()|(\))|(\[)|(\])|(\{)|(\})|(\\)|(\/)|(\*)|(\^)|(\~)|(\`)|(\<)|(\>)|(\:)|(\;)|(\,)|(\")|(\')|(\\)|(\/)|(\*)|(\^)|(\~)|(\`)|(\<)|(\>)|(\:)|(\;)|(\,)|(\")|(\'))/,
   ];
-  
+
   // Check for XSS patterns
   const xssPatterns = [
     /<script/i,
@@ -114,62 +122,71 @@ function detectSuspiciousActivity(req) {
     /<img/i,
     /<svg/i,
   ];
-  
+
   // Check request body, query, and params
   const checkValue = (value) => {
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       for (const pattern of sqlInjectionPatterns) {
         if (pattern.test(value)) {
-          suspiciousPatterns.push('sql_injection_attempt');
+          suspiciousPatterns.push("sql_injection_attempt");
         }
       }
       for (const pattern of xssPatterns) {
         if (pattern.test(value)) {
-          suspiciousPatterns.push('xss_attempt');
+          suspiciousPatterns.push("xss_attempt");
         }
       }
-    } else if (typeof value === 'object' && value !== null) {
+    } else if (typeof value === "object" && value !== null) {
       Object.values(value).forEach(checkValue);
     }
   };
-  
+
   if (req.body) checkValue(req.body);
   if (req.query) checkValue(req.query);
   if (req.params) checkValue(req.params);
-  
-    // Check for unusual user agent
-    const userAgent = req.get('user-agent') || '';
-    // Only check in non-test mode, or if explicitly testing user agent detection
-    if (process.env.NODE_ENV !== 'test' || process.env.TEST_USER_AGENT_DETECTION === 'true') {
-      if (!userAgent || userAgent.length < 10) {
-        suspiciousPatterns.push('suspicious_user_agent');
-      }
+
+  // Check for unusual user agent
+  const userAgent = req.get("user-agent") || "";
+  // Only check in non-test mode, or if explicitly testing user agent detection
+  if (
+    process.env.NODE_ENV !== "test" ||
+    process.env.TEST_USER_AGENT_DETECTION === "true"
+  ) {
+    if (!userAgent || userAgent.length < 10) {
+      suspiciousPatterns.push("suspicious_user_agent");
     }
-  
+  }
+
   // Check for rapid requests from same IP
   const ip = req.ip || req.connection.remoteAddress;
   if (securityEvents.rateLimitViolations.has(`${ip}:${req.path}`)) {
-    const violation = securityEvents.rateLimitViolations.get(`${ip}:${req.path}`);
+    const violation = securityEvents.rateLimitViolations.get(
+      `${ip}:${req.path}`,
+    );
     if (violation.count > 5) {
-      suspiciousPatterns.push('rapid_requests');
+      suspiciousPatterns.push("rapid_requests");
     }
   }
-  
+
   // Alert on suspicious patterns
   if (suspiciousPatterns.length > 0) {
-    const userAgent = req.get('user-agent') || '';
-    logger.logSecurityEvent('suspicious_activity_detected', {
-      patterns: suspiciousPatterns,
-      ip,
-      path: req.path,
-      method: req.method,
-      userAgent,
-    }, {
-      severity: 'high',
-      correlationId: req.correlationId,
-      userId: req._userId,
-    });
-    
+    const userAgent = req.get("user-agent") || "";
+    logger.logSecurityEvent(
+      "suspicious_activity_detected",
+      {
+        patterns: suspiciousPatterns,
+        ip,
+        path: req.path,
+        method: req.method,
+        userAgent,
+      },
+      {
+        severity: "high",
+        correlationId: req.correlationId,
+        userId: req._userId,
+      },
+    );
+
     // Store suspicious request
     securityEvents.suspiciousRequests.push({
       timestamp: new Date().toISOString(),
@@ -181,23 +198,27 @@ function detectSuspiciousActivity(req) {
       correlationId: req.correlationId,
       userId: req._userId,
     });
-    
+
     // Keep only recent events
-    if (securityEvents.suspiciousRequests.length > securityEvents.maxStoredEvents) {
+    if (
+      securityEvents.suspiciousRequests.length > securityEvents.maxStoredEvents
+    ) {
       securityEvents.suspiciousRequests.shift();
     }
-    
+
     // Log to audit trail
-    logSecurityEvent('suspicious_activity_detected', {
+    logSecurityEvent("suspicious_activity_detected", {
       patterns: suspiciousPatterns,
       ip,
       path: req.path,
       method: req.method,
     });
-    
+
     // Track error for alerting
     errorTracking.trackError(
-      new Error(`Suspicious activity detected: ${suspiciousPatterns.join(', ')}`),
+      new Error(
+        `Suspicious activity detected: ${suspiciousPatterns.join(", ")}`,
+      ),
       {
         correlationId: req.correlationId,
         userId: req._userId,
@@ -206,11 +227,11 @@ function detectSuspiciousActivity(req) {
           path: req.path,
           ip,
         },
-        severity: 'high',
-      }
+        severity: "high",
+      },
     );
   }
-  
+
   return suspiciousPatterns.length > 0;
 }
 
@@ -223,26 +244,34 @@ async function logSecurityEvent(eventType, details) {
     // Since userId is required, we'll create a system-level audit log with a placeholder user ID if needed.
     // In practice, you might want to create a system user for this purpose.
     const auditData = {
-      userId: details.userId || new mongoose.Types.ObjectId('000000000000000000000000'), // System user ID
-      eventType: 'security_event',
-      fieldChanged: 'security',
-      oldValue: '',
+      userId:
+        details.userId ||
+        new mongoose.Types.ObjectId("000000000000000000000000"), // System user ID
+      eventType: "security_event",
+      fieldChanged: "security",
+      oldValue: "",
       newValue: eventType,
-      role: 'system',
+      role: "system",
       metadata: {
         ...details,
         timestamp: new Date().toISOString(),
         isSystemEvent: !details.userId, // Flag system events
       },
-      hash: require('crypto')
-        .createHash('sha256')
-        .update(JSON.stringify({ eventType, details, timestamp: new Date().toISOString() }))
-        .digest('hex'),
+      hash: require("crypto")
+        .createHash("sha256")
+        .update(
+          JSON.stringify({
+            eventType,
+            details,
+            timestamp: new Date().toISOString(),
+          }),
+        )
+        .digest("hex"),
     };
-    
+
     await AuditLog.create(auditData);
   } catch (error) {
-    logger.error('Failed to log security event to audit trail', { error });
+    logger.error("Failed to log security event to audit trail", { error });
   }
 }
 
@@ -252,13 +281,13 @@ async function logSecurityEvent(eventType, details) {
 function securityMonitorMiddleware(req, res, next) {
   // Detect suspicious activity
   detectSuspiciousActivity(req);
-  
+
   // Track rate limit violations (called by rate limit middleware)
   if (req.rateLimitViolated) {
     const ip = req.ip || req.connection.remoteAddress;
     trackRateLimitViolation(ip, req.path);
   }
-  
+
   next();
 }
 
@@ -269,23 +298,29 @@ function getSecurityStats() {
   const now = Date.now();
   const oneHourAgo = now - 60 * 60 * 1000;
   const oneDayAgo = now - 24 * 60 * 60 * 1000;
-  
+
   let failedLoginsLastHour = 0;
   let failedLoginsLastDay = 0;
-  
+
   for (const [ip, event] of securityEvents.failedLogins.entries()) {
-    if (event.lastAttempt && new Date(event.lastAttempt).getTime() > oneHourAgo) {
+    if (
+      event.lastAttempt &&
+      new Date(event.lastAttempt).getTime() > oneHourAgo
+    ) {
       failedLoginsLastHour += event.count;
     }
-    if (event.lastAttempt && new Date(event.lastAttempt).getTime() > oneDayAgo) {
+    if (
+      event.lastAttempt &&
+      new Date(event.lastAttempt).getTime() > oneDayAgo
+    ) {
       failedLoginsLastDay += event.count;
     }
   }
-  
+
   const recentSuspiciousRequests = securityEvents.suspiciousRequests.filter(
-    (req) => new Date(req.timestamp).getTime() > oneHourAgo
+    (req) => new Date(req.timestamp).getTime() > oneHourAgo,
   );
-  
+
   return {
     failedLoginsLastHour,
     failedLoginsLastDay,
@@ -301,32 +336,41 @@ function getSecurityStats() {
  */
 function clearOldData() {
   const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-  
+
   // Remove old failed login data
   for (const [ip, event] of securityEvents.failedLogins.entries()) {
-    if (event.lastAttempt && new Date(event.lastAttempt).getTime() < oneDayAgo) {
+    if (
+      event.lastAttempt &&
+      new Date(event.lastAttempt).getTime() < oneDayAgo
+    ) {
       securityEvents.failedLogins.delete(ip);
     }
   }
-  
+
   // Remove old rate limit violations
   for (const [key, event] of securityEvents.rateLimitViolations.entries()) {
-    if (event.lastViolation && new Date(event.lastViolation).getTime() < oneDayAgo) {
+    if (
+      event.lastViolation &&
+      new Date(event.lastViolation).getTime() < oneDayAgo
+    ) {
       securityEvents.rateLimitViolations.delete(key);
     }
   }
-  
+
   // Remove old suspicious requests
   securityEvents.suspiciousRequests = securityEvents.suspiciousRequests.filter(
-    (req) => new Date(req.timestamp).getTime() > oneDayAgo
+    (req) => new Date(req.timestamp).getTime() > oneDayAgo,
   );
 }
 
 // Clean up old data every hour (skip in test mode)
-if (process.env.NODE_ENV !== 'test') {
-  setInterval(() => {
-    clearOldData();
-  }, 60 * 60 * 1000);
+if (process.env.NODE_ENV !== "test") {
+  setInterval(
+    () => {
+      clearOldData();
+    },
+    60 * 60 * 1000,
+  );
 }
 
 module.exports = {

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const AdminApprovalSchema = new mongoose.Schema(
   {
@@ -12,26 +12,26 @@ const AdminApprovalSchema = new mongoose.Schema(
       type: String,
       required: true,
       enum: [
-        'email_change',
-        'password_change',
-        'personal_info_change',
-        'account_status_change',
-        'role_change',
-        'maintenance_mode',
-        'form_definition',
-        'password_reset',
-        'other',
+        "email_change",
+        "password_change",
+        "personal_info_change",
+        "account_status_change",
+        "role_change",
+        "maintenance_mode",
+        "form_definition",
+        "password_reset",
+        "other",
       ],
     },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
       index: true,
     },
     requestedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
       // Admin who requested the change
     },
@@ -44,7 +44,7 @@ const AdminApprovalSchema = new mongoose.Schema(
       {
         adminId: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: 'User',
+          ref: "User",
           required: true,
         },
         approved: {
@@ -53,7 +53,7 @@ const AdminApprovalSchema = new mongoose.Schema(
         },
         comment: {
           type: String,
-          default: '',
+          default: "",
         },
         timestamp: {
           type: Date,
@@ -64,8 +64,8 @@ const AdminApprovalSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ['pending', 'approved', 'rejected', 'expired', 'cancelled'],
-      default: 'pending',
+      enum: ["pending", "approved", "rejected", "expired", "cancelled"],
+      default: "pending",
       index: true,
     },
     requiredApprovals: {
@@ -75,7 +75,7 @@ const AdminApprovalSchema = new mongoose.Schema(
     },
     txHash: {
       type: String,
-      default: '',
+      default: "",
       index: true,
       // Blockchain transaction hash (for on-chain storage)
     },
@@ -93,7 +93,7 @@ const AdminApprovalSchema = new mongoose.Schema(
       default: {},
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Indexes for efficient querying
@@ -103,13 +103,17 @@ AdminApprovalSchema.index({ requestedBy: 1 });
 
 // Method to check if approval is complete
 AdminApprovalSchema.methods.isComplete = function () {
-  const approvedCount = this.approvals.filter((a) => a.approved === true).length;
+  const approvedCount = this.approvals.filter(
+    (a) => a.approved === true,
+  ).length;
   return approvedCount >= this.requiredApprovals;
 };
 
 // Method to check if request is rejected
 AdminApprovalSchema.methods.isRejected = function () {
-  const rejectedCount = this.approvals.filter((a) => a.approved === false).length;
+  const rejectedCount = this.approvals.filter(
+    (a) => a.approved === false,
+  ).length;
   // If 2+ rejections, consider it rejected
   return rejectedCount >= 2;
 };
@@ -124,13 +128,15 @@ AdminApprovalSchema.statics.generateApprovalId = function () {
   return `APPROVAL-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 };
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 AdminApprovalSchema.plugin(encryptionPlugin, {
-  fields: ['txHash'],
-  deterministicFields: ['approvalId'],
+  fields: ["txHash"],
+  deterministicFields: ["approvalId"],
   nestedPaths: [],
-  arrayPaths: ['approvals'],
-  mixedPaths: ['requestDetails', 'metadata'],
-})
+  arrayPaths: ["approvals"],
+  mixedPaths: ["requestDetails", "metadata"],
+});
 
-module.exports = mongoose.models.AdminApproval || mongoose.model('AdminApproval', AdminApprovalSchema);
+module.exports =
+  mongoose.models.AdminApproval ||
+  mongoose.model("AdminApproval", AdminApprovalSchema);

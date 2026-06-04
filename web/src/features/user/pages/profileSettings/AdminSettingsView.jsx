@@ -1,11 +1,12 @@
-import { Typography, Card, Button, theme } from 'antd'
-import { SettingOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { Typography, Card, theme } from 'antd'
+import { SettingOutlined } from '@ant-design/icons'
 import AdminLayout from '@/features/admin/components/AdminLayout'
 import SettingsInfoModal from '@/features/user/components/SettingsInfoModal.jsx'
 import SecurityTabContent from './SecurityTabContent'
 import EditUserProfileForm from '@/features/user/components/EditUserProfileForm.jsx'
 import PendingApprovalAlert from '@/features/user/components/PendingApprovalAlert.jsx'
 import ThemeTabContentCompact from './ThemeTabContentCompact'
+import ProfileNav from './ProfileNav'
 import { PROFILE_NAV_ITEMS } from './constants'
 
 const ADMIN_NAV_ITEMS = PROFILE_NAV_ITEMS.filter((item) => item.key !== 'notifications')
@@ -18,8 +19,6 @@ export default function AdminSettingsView({
   contextHolder,
   selectedTab,
   setSelectedTab,
-  settingsLastUpdated,
-  setSettingsLastUpdated,
   settingsInfoOpen,
   setSettingsInfoOpen,
   themeSettings,
@@ -80,34 +79,10 @@ export default function AdminSettingsView({
     }
   }
 
-  const settingsHeaderActions = (
-    <>
-      {settingsLastUpdated && (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          Last updated: {settingsLastUpdated.toLocaleTimeString()}
-        </Text>
-      )}
-      <Button
-        icon={<ReloadOutlined />}
-        onClick={() => setSettingsLastUpdated(new Date())}
-        aria-label="Refresh"
-      />
-      <Button
-        icon={<InfoCircleOutlined />}
-        onClick={() => setSettingsInfoOpen(true)}
-        aria-label="About"
-      />
-    </>
-  )
-
   return (
     <>
       {contextHolder}
-      <AdminLayout
-        pageTitle="Settings"
-        pageIcon={<SettingOutlined />}
-        headerActions={settingsHeaderActions}
-      >
+      <AdminLayout>
         <div
           style={{
             height: '100%',

@@ -1,80 +1,90 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 const NotificationSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
-      index: true
+      index: true,
     },
     type: {
       type: String,
       required: true,
       enum: [
-        'application_status_update',
-        'application_review_started',
-        'application_approved',
-        'application_rejected',
-        'application_needs_revision',
-        'inspection_assigned',
-        'inspection_schedule_changed',
-        'appeal_outcome',
-        'system_alert',
-        'post_requirement_due',
-        'post_requirement_overdue',
-        'general'
+        "application_status_update",
+        "application_review_started",
+        "application_approved",
+        "application_rejected",
+        "application_needs_revision",
+        "inspection_assigned",
+        "inspection_schedule_changed",
+        "appeal_outcome",
+        "system_alert",
+        "post_requirement_due",
+        "post_requirement_overdue",
+        "general",
       ],
-      default: 'general'
+      default: "general",
     },
     title: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
     },
     message: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
     },
     relatedEntityType: {
       type: String,
-      enum: ['business_application', 'business_renewal', 'payment', 'inspection', 'system', 'post_requirement', null],
-      default: null
+      enum: [
+        "business_application",
+        "business_renewal",
+        "payment",
+        "inspection",
+        "system",
+        "post_requirement",
+        null,
+      ],
+      default: null,
     },
     relatedEntityId: {
       type: String,
-      default: null
+      default: null,
     },
     read: {
       type: Boolean,
       default: false,
-      index: true
+      index: true,
     },
     readAt: {
       type: Date,
-      default: null
+      default: null,
     },
     metadata: {
       type: mongoose.Schema.Types.Mixed,
-      default: {}
-    }
+      default: {},
+    },
   },
   {
-    timestamps: true
-  }
-)
+    timestamps: true,
+  },
+);
 
-const { encryptionPlugin } = require('../../../../shared/lib/encryptionPlugin')
+const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 NotificationSchema.plugin(encryptionPlugin, {
-  fields: ['title', 'message', 'relatedEntityId'],
+  fields: ["title", "message", "relatedEntityId"],
   deterministicFields: [],
   nestedPaths: [],
   arrayPaths: [],
-  mixedPaths: ['metadata'],
-})
+  mixedPaths: ["metadata"],
+});
 
-NotificationSchema.index({ userId: 1, read: 1, createdAt: -1 })
-NotificationSchema.index({ userId: 1, createdAt: -1 })
+NotificationSchema.index({ userId: 1, read: 1, createdAt: -1 });
+NotificationSchema.index({ userId: 1, createdAt: -1 });
 
-module.exports = mongoose.models.Notification || mongoose.model('Notification', NotificationSchema)
+module.exports =
+  mongoose.models.Notification ||
+  mongoose.model("Notification", NotificationSchema);

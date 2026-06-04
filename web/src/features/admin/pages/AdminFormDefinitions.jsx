@@ -33,21 +33,7 @@ export default function AdminFormDefinitions() {
   }, [handleRefresh])
 
   return (
-    <AdminLayout
-      pageTitle="Form Definitions"
-      pageIcon={<FormOutlined />}
-      headerActions={
-        <>
-          {lastUpdated && (
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Last updated: {lastUpdated.toLocaleTimeString()}
-            </Text>
-          )}
-          <Button icon={<ReloadOutlined />} onClick={handleRefresh} aria-label="Refresh" />
-          <Button icon={<InfoCircleOutlined />} onClick={openInfo} aria-label="About" />
-        </>
-      }
-    >
+    <AdminLayout>
       {isMobile ? (
         <FormDefinitionsMobileView refreshKey={refreshKey} onLastUpdated={setLastUpdated} />
       ) : (

@@ -1,5 +1,5 @@
-const blockchainService = require('./blockchainService');
-const logger = require('./logger');
+const blockchainService = require("./blockchainService");
+const logger = require("./logger");
 
 /**
  * Access Control Service
@@ -22,7 +22,7 @@ class AccessControlService {
     this.contract = contracts.accessControl;
 
     if (!this.contract) {
-      logger.warn('AccessControl contract not available');
+      logger.warn("AccessControl contract not available");
       return false;
     }
 
@@ -47,10 +47,12 @@ class AccessControlService {
     try {
       // Convert role string to bytes32
       const roleBytes32 = blockchainService.getWeb3().utils.keccak256(role);
-      const result = await this.contract.methods.hasRole(account, roleBytes32).call();
+      const result = await this.contract.methods
+        .hasRole(account, roleBytes32)
+        .call();
       return result;
     } catch (error) {
-      logger.error('Error checking role:', error);
+      logger.error("Error checking role:", error);
       return false;
     }
   }
@@ -67,7 +69,7 @@ class AccessControlService {
     }
 
     if (!this.contract) {
-      return { success: false, error: 'AccessControl contract not available' };
+      return { success: false, error: "AccessControl contract not available" };
     }
 
     try {
@@ -90,10 +92,10 @@ class AccessControlService {
         txHash: tx.transactionHash,
       };
     } catch (error) {
-      logger.error('Error granting role:', error);
+      logger.error("Error granting role:", error);
       return {
         success: false,
-        error: error.message || 'Unknown error',
+        error: error.message || "Unknown error",
       };
     }
   }
@@ -110,7 +112,7 @@ class AccessControlService {
     }
 
     if (!this.contract) {
-      return { success: false, error: 'AccessControl contract not available' };
+      return { success: false, error: "AccessControl contract not available" };
     }
 
     try {
@@ -133,10 +135,10 @@ class AccessControlService {
         txHash: tx.transactionHash,
       };
     } catch (error) {
-      logger.error('Error revoking role:', error);
+      logger.error("Error revoking role:", error);
       return {
         success: false,
-        error: error.message || 'Unknown error',
+        error: error.message || "Unknown error",
       };
     }
   }

@@ -1,34 +1,34 @@
 // Import models dynamically to avoid conflicts
-let User
-let Role
+let User;
+let Role;
 function getUserModel() {
   if (!User) {
     try {
       // Try main backend first (for testing)
-      User = require('../../../src/models/User')
+      User = require("../../../src/models/User");
     } catch (e) {
       // Fallback to service model
-      User = require('../models/User')
+      User = require("../models/User");
     }
   }
-  return User
+  return User;
 }
 
 function getRoleModel() {
   if (!Role) {
     try {
       // Try main backend first (for testing)
-      Role = require('../../../src/models/Role')
+      Role = require("../../../src/models/Role");
     } catch (e) {
       // Fallback to service model
-      Role = require('../models/Role')
+      Role = require("../models/Role");
     }
   }
-  return Role
+  return Role;
 }
 
-const mailer = require('./mailer')
-const internalNotificationService = require('../services/notificationService')
+const mailer = require("./mailer");
+const internalNotificationService = require("../services/notificationService");
 
 /**
  * Get active admin user IDs (for in-app notifications)
@@ -36,17 +36,20 @@ const internalNotificationService = require('../services/notificationService')
  * @returns {Promise<string[]>} Array of admin user IDs
  */
 async function getActiveAdminUserIds(excludeUserId = null) {
-  const UserModel = getUserModel()
-  const RoleModel = getRoleModel()
-  const adminRole = await RoleModel.findOne({ slug: 'admin' })
-  if (!adminRole) return []
-  const admins = await UserModel.find({ role: adminRole._id, isActive: true }).lean()
-  let ids = admins.map((a) => String(a._id))
+  const UserModel = getUserModel();
+  const RoleModel = getRoleModel();
+  const adminRole = await RoleModel.findOne({ slug: "admin" });
+  if (!adminRole) return [];
+  const admins = await UserModel.find({
+    role: adminRole._id,
+    isActive: true,
+  }).lean();
+  let ids = admins.map((a) => String(a._id));
   if (excludeUserId) {
-    const exclude = String(excludeUserId)
-    ids = ids.filter((id) => id !== exclude)
+    const exclude = String(excludeUserId);
+    ids = ids.filter((id) => id !== exclude);
   }
-  return ids
+  return ids;
 }
 
 /**
@@ -60,10 +63,18 @@ async function getActiveAdminUserIds(excludeUserId = null) {
  * @param {object} [metadata] - Metadata
  * @param {string|ObjectId} [excludeUserId] - Admin user ID to exclude from recipients
  */
-async function createInAppNotificationsForAdmins(type, title, message, relatedEntityType = null, relatedEntityId = null, metadata = {}, excludeUserId = null) {
+async function createInAppNotificationsForAdmins(
+  type,
+  title,
+  message,
+  relatedEntityType = null,
+  relatedEntityId = null,
+  metadata = {},
+  excludeUserId = null,
+) {
   try {
-    const adminIds = await getActiveAdminUserIds(excludeUserId)
-    if (adminIds.length === 0) return
+    const adminIds = await getActiveAdminUserIds(excludeUserId);
+    if (adminIds.length === 0) return;
     for (const adminId of adminIds) {
       try {
         await internalNotificationService.createNotification(
@@ -73,14 +84,17 @@ async function createInAppNotificationsForAdmins(type, title, message, relatedEn
           message,
           relatedEntityType,
           relatedEntityId,
-          metadata
-        )
+          metadata,
+        );
       } catch (err) {
-        console.error(`Failed to create in-app notification for admin ${adminId}:`, err.message)
+        console.error(
+          `Failed to create in-app notification for admin ${adminId}:`,
+          err.message,
+        );
       }
     }
   } catch (err) {
-    console.error('Error creating in-app notifications for admins:', err)
+    console.error("Error creating in-app notifications for admins:", err);
   }
 }
 
@@ -94,7 +108,15 @@ async function createInAppNotificationsForAdmins(type, title, message, relatedEn
  * @param {string} [relatedEntityId] - Related entity ID
  * @param {object} [metadata] - Metadata
  */
-async function createInAppNotification(userId, type, title, message, relatedEntityType = null, relatedEntityId = null, metadata = {}) {
+async function createInAppNotification(
+  userId,
+  type,
+  title,
+  message,
+  relatedEntityType = null,
+  relatedEntityId = null,
+  metadata = {},
+) {
   try {
     await internalNotificationService.createNotification(
       userId,
@@ -103,10 +125,10 @@ async function createInAppNotification(userId, type, title, message, relatedEnti
       message,
       relatedEntityType,
       relatedEntityId,
-      metadata
-    )
+      metadata,
+    );
   } catch (err) {
-    console.error('Failed to create in-app notification:', err.message)
+    console.error("Failed to create in-app notification:", err.message);
   }
 }
 
@@ -123,18 +145,23 @@ async function createInAppNotification(userId, type, title, message, relatedEnti
  * @param {object} options - Additional options
  * @returns {Promise<{success: boolean, sentToOld?: boolean, sentToNew?: boolean, error?: string}>}
  */
-async function sendEmailChangeNotification(userId, oldEmail, newEmail, options = {}) {
+async function sendEmailChangeNotification(
+  userId,
+  oldEmail,
+  newEmail,
+  options = {},
+) {
   try {
-    const UserModel = getUserModel()
-    const user = await UserModel.findById(userId).lean()
+    const UserModel = getUserModel();
+    const user = await UserModel.findById(userId).lean();
     if (!user) {
-      return { success: false, error: 'User not found' }
+      return { success: false, error: "User not found" };
     }
 
-    const { gracePeriodHours = 24, revertUrl } = options
+    const { gracePeriodHours = 24, revertUrl } = options;
 
     // Send to old email
-    let sentToOld = false
+    let sentToOld = false;
     try {
       await mailer.sendEmailChangeNotification({
         to: oldEmail,
@@ -142,15 +169,18 @@ async function sendEmailChangeNotification(userId, oldEmail, newEmail, options =
         newEmail,
         gracePeriodHours,
         revertUrl,
-        type: 'old_email',
-      })
-      sentToOld = true
+        type: "old_email",
+      });
+      sentToOld = true;
     } catch (error) {
-      console.error('Failed to send email change notification to old email:', error)
+      console.error(
+        "Failed to send email change notification to old email:",
+        error,
+      );
     }
 
     // Send to new email
-    let sentToNew = false
+    let sentToNew = false;
     try {
       await mailer.sendEmailChangeNotification({
         to: newEmail,
@@ -158,21 +188,27 @@ async function sendEmailChangeNotification(userId, oldEmail, newEmail, options =
         newEmail,
         gracePeriodHours,
         revertUrl,
-        type: 'new_email',
-      })
-      sentToNew = true
+        type: "new_email",
+      });
+      sentToNew = true;
     } catch (error) {
-      console.error('Failed to send email change notification to new email:', error)
+      console.error(
+        "Failed to send email change notification to new email:",
+        error,
+      );
     }
 
     return {
       success: sentToOld || sentToNew, // Success if at least one email sent
       sentToOld,
       sentToNew,
-    }
+    };
   } catch (error) {
-    console.error('Error sending email change notification:', error)
-    return { success: false, error: error.message || 'Failed to send notification' }
+    console.error("Error sending email change notification:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to send notification",
+    };
   }
 }
 
@@ -184,10 +220,10 @@ async function sendEmailChangeNotification(userId, oldEmail, newEmail, options =
  */
 async function sendPasswordChangeNotification(userId, options = {}) {
   try {
-    const UserModel = getUserModel()
-    const user = await UserModel.findById(userId).populate('role').lean()
+    const UserModel = getUserModel();
+    const user = await UserModel.findById(userId).populate("role").lean();
     if (!user) {
-      return { success: false, error: 'User not found' }
+      return { success: false, error: "User not found" };
     }
 
     await mailer.sendPasswordChangeNotification({
@@ -196,12 +232,15 @@ async function sendPasswordChangeNotification(userId, options = {}) {
       lastName: user.lastName,
       timestamp: new Date(),
       ...options,
-    })
+    });
 
-    return { success: true }
+    return { success: true };
   } catch (error) {
-    console.error('Error sending password change notification:', error)
-    return { success: false, error: error.message || 'Failed to send notification' }
+    console.error("Error sending password change notification:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to send notification",
+    };
   }
 }
 
@@ -214,29 +253,38 @@ async function sendPasswordChangeNotification(userId, options = {}) {
  * @param {object} metadata - Additional metadata
  * @returns {Promise<{success: boolean, sentTo?: number, error?: string}>}
  */
-async function sendAdminAlert(userId, field, attemptedValue, roleSlug, metadata = {}) {
+async function sendAdminAlert(
+  userId,
+  field,
+  attemptedValue,
+  roleSlug,
+  metadata = {},
+) {
   try {
-    const UserModel = getUserModel()
-    const user = await UserModel.findById(userId).lean()
+    const UserModel = getUserModel();
+    const user = await UserModel.findById(userId).lean();
     if (!user) {
-      return { success: false, error: 'User not found' }
+      return { success: false, error: "User not found" };
     }
 
     // Get all admin users
-    const RoleModel = getRoleModel()
-    const adminRole = await RoleModel.findOne({ slug: 'admin' })
+    const RoleModel = getRoleModel();
+    const adminRole = await RoleModel.findOne({ slug: "admin" });
     if (!adminRole) {
-      return { success: false, error: 'Admin role not found' }
+      return { success: false, error: "Admin role not found" };
     }
 
-    const admins = await UserModel.find({ role: adminRole._id, isActive: true }).lean()
+    const admins = await UserModel.find({
+      role: adminRole._id,
+      isActive: true,
+    }).lean();
     if (admins.length === 0) {
-      return { success: false, error: 'No active admins found' }
+      return { success: false, error: "No active admins found" };
     }
 
     // Send alert to all admins
-    let sentCount = 0
-    const errors = []
+    let sentCount = 0;
+    const errors = [];
 
     for (const admin of admins) {
       try {
@@ -247,15 +295,18 @@ async function sendAdminAlert(userId, field, attemptedValue, roleSlug, metadata 
           userName: `${user.firstName} ${user.lastName}`,
           userEmail: user.email,
           field,
-          attemptedValue: typeof attemptedValue === 'string' ? attemptedValue : JSON.stringify(attemptedValue),
+          attemptedValue:
+            typeof attemptedValue === "string"
+              ? attemptedValue
+              : JSON.stringify(attemptedValue),
           roleSlug,
           timestamp: new Date(),
           ...metadata,
-        })
-        sentCount++
+        });
+        sentCount++;
       } catch (error) {
-        console.error(`Failed to send admin alert to ${admin.email}:`, error)
-        errors.push(error.message)
+        console.error(`Failed to send admin alert to ${admin.email}:`, error);
+        errors.push(error.message);
       }
     }
 
@@ -264,10 +315,13 @@ async function sendAdminAlert(userId, field, attemptedValue, roleSlug, metadata 
       sentTo: sentCount,
       totalAdmins: admins.length,
       errors: errors.length > 0 ? errors : undefined,
-    }
+    };
   } catch (error) {
-    console.error('Error sending admin alert:', error)
-    return { success: false, error: error.message || 'Failed to send admin alert' }
+    console.error("Error sending admin alert:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to send admin alert",
+    };
   }
 }
 
@@ -279,15 +333,20 @@ async function sendAdminAlert(userId, field, attemptedValue, roleSlug, metadata 
  * @param {object} options - Additional options
  * @returns {Promise<{success: boolean, error?: string}>}
  */
-async function sendApprovalNotification(adminId, approvalId, status, options = {}) {
+async function sendApprovalNotification(
+  adminId,
+  approvalId,
+  status,
+  options = {},
+) {
   try {
-    const UserModel = getUserModel()
-    const admin = await UserModel.findById(adminId).lean()
+    const UserModel = getUserModel();
+    const admin = await UserModel.findById(adminId).lean();
     if (!admin) {
-      return { success: false, error: 'Admin not found' }
+      return { success: false, error: "Admin not found" };
     }
 
-    const { requestType, comment, approverName } = options
+    const { requestType, comment, approverName } = options;
 
     await mailer.sendApprovalNotification({
       to: admin.email,
@@ -298,23 +357,26 @@ async function sendApprovalNotification(adminId, approvalId, status, options = {
       comment,
       approverName,
       timestamp: new Date(),
-    })
+    });
 
-    return { success: true }
+    return { success: true };
   } catch (error) {
-    console.error('Error sending approval notification:', error)
-    return { success: false, error: error.message || 'Failed to send notification' }
+    console.error("Error sending approval notification:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to send notification",
+    };
   }
 }
 
 /** Rate limit for system alerts: min ms between same alert type */
-const SYSTEM_ALERT_COOLDOWN_MS = 15 * 60 * 1000
-const lastSystemAlertByType = new Map()
+const SYSTEM_ALERT_COOLDOWN_MS = 15 * 60 * 1000;
+const lastSystemAlertByType = new Map();
 
 /** Rate limit for tamper incidents: max 5 per hour in development */
-const TAMPER_INCIDENT_RATE_LIMIT = 5
-const TAMPER_INCIDENT_WINDOW_MS = 60 * 60 * 1000
-const tamperIncidentTimestamps = []
+const TAMPER_INCIDENT_RATE_LIMIT = 5;
+const TAMPER_INCIDENT_WINDOW_MS = 60 * 60 * 1000;
+const tamperIncidentTimestamps = [];
 
 /**
  * Notify all admins of a system/error-tracking alert (email + in-app). Rate-limited per alert type.
@@ -323,48 +385,68 @@ const tamperIncidentTimestamps = []
  * @returns {Promise<{notified: boolean}>}
  */
 async function notifyAdminsOfSystemAlert(alertType, details = {}) {
-  const now = Date.now()
-  const last = lastSystemAlertByType.get(alertType) || 0
+  const now = Date.now();
+  const last = lastSystemAlertByType.get(alertType) || 0;
   if (now - last < SYSTEM_ALERT_COOLDOWN_MS) {
-    return { notified: false }
+    return { notified: false };
   }
   try {
-    const UserModel = getUserModel()
-    const RoleModel = getRoleModel()
-    const adminRole = await RoleModel.findOne({ slug: 'admin' })
-    if (!adminRole) return { notified: false }
-    const admins = await UserModel.find({ role: adminRole._id, isActive: true }).lean()
-    if (admins.length === 0) return { notified: false }
+    const UserModel = getUserModel();
+    const RoleModel = getRoleModel();
+    const adminRole = await RoleModel.findOne({ slug: "admin" });
+    if (!adminRole) return { notified: false };
+    const admins = await UserModel.find({
+      role: adminRole._id,
+      isActive: true,
+    }).lean();
+    if (admins.length === 0) return { notified: false };
 
-    const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
-    const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
-    const subject = `System alert: ${alertType} - ${brandName}`
-    const detailsStr = typeof details === 'object' ? JSON.stringify(details, null, 2) : String(details)
-    const text = [`System alert (${alertType}):`, '', detailsStr, '', `Dashboard: ${appUrl}/admin`, '', brandName].join('\n')
-    const html = `<p>System alert: <strong>${alertType}</strong></p><pre>${detailsStr.replace(/</g, '&lt;')}</pre><p><a href="${appUrl}/admin">Open Admin</a></p>`
+    const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+    const appUrl =
+      process.env.FRONTEND_URL ||
+      process.env.APP_URL ||
+      "http://localhost:5173";
+    const subject = `System alert: ${alertType} - ${brandName}`;
+    const detailsStr =
+      typeof details === "object"
+        ? JSON.stringify(details, null, 2)
+        : String(details);
+    const text = [
+      `System alert (${alertType}):`,
+      "",
+      detailsStr,
+      "",
+      `Dashboard: ${appUrl}/admin`,
+      "",
+      brandName,
+    ].join("\n");
+    const html = `<p>System alert: <strong>${alertType}</strong></p><pre>${detailsStr.replace(/</g, "&lt;")}</pre><p><a href="${appUrl}/admin">Open Admin</a></p>`;
 
     for (const admin of admins) {
       try {
-        await mailer.sendEmail({ to: admin.email, subject, text, html })
+        await mailer.sendEmail({ to: admin.email, subject, text, html });
       } catch (err) {
-        console.error(`Failed to send system alert to ${admin.email}:`, err.message)
+        console.error(
+          `Failed to send system alert to ${admin.email}:`,
+          err.message,
+        );
       }
     }
 
     await createInAppNotificationsForAdmins(
-      'system_alert',
+      "system_alert",
       `System alert: ${alertType}`,
       (detailsStr || alertType).slice(0, 200),
-      'system',
+      "system",
       null,
-      { alertType, ...details }
-    )
+      { alertType, ...details },
+    );
 
-    lastSystemAlertByType.set(alertType, now)
-    return { notified: true }
+    lastSystemAlertByType.set(alertType, now);
+    return { notified: true };
   } catch (err) {
-    console.error('Error notifying admins of system alert:', err)
-    return { notified: false }
+    console.error("Error notifying admins of system alert:", err);
+    return { notified: false };
   }
 }
 
@@ -376,84 +458,106 @@ async function notifyAdminsOfSystemAlert(alertType, details = {}) {
  */
 async function notifyAdminsOfTamperIncident(incident) {
   // Emergency fix: Disable email notifications in development mode
-  if (process.env.NODE_ENV === 'development' && process.env.DISABLE_EMAIL_NOTIFICATIONS === 'true') {
-    console.log('🚫 Email notifications disabled in development mode - skipping tamper incident email', {
-      incidentId: String(incident._id),
-      severity: incident.severity,
-      verificationStatus: incident.verificationStatus,
-    })
+  if (
+    process.env.NODE_ENV === "development" &&
+    process.env.DISABLE_EMAIL_NOTIFICATIONS === "true"
+  ) {
+    console.log(
+      "🚫 Email notifications disabled in development mode - skipping tamper incident email",
+      {
+        incidentId: String(incident._id),
+        severity: incident.severity,
+        verificationStatus: incident.verificationStatus,
+      },
+    );
     // Still create in-app notifications for visibility
     try {
       await createInAppNotificationsForAdmins(
-        'tamper_incident',
-        'Audit tamper incident (DEV MODE)',
-        `Development mode: ${(incident.message || 'Audit integrity issue detected').slice(0, 150)} (Email notifications disabled)`,
-        'tamper_incident',
+        "tamper_incident",
+        "Audit tamper incident (DEV MODE)",
+        `Development mode: ${(incident.message || "Audit integrity issue detected").slice(0, 150)} (Email notifications disabled)`,
+        "tamper_incident",
         String(incident._id),
-        { severity: incident.severity, verificationStatus: incident.verificationStatus, developmentMode: true }
-      )
-      return { notified: false, reason: 'development_mode_email_disabled' }
+        {
+          severity: incident.severity,
+          verificationStatus: incident.verificationStatus,
+          developmentMode: true,
+        },
+      );
+      return { notified: false, reason: "development_mode_email_disabled" };
     } catch (err) {
-      console.error('Failed to create in-app notification in development mode:', err.message)
-      return { notified: false, error: err.message }
+      console.error(
+        "Failed to create in-app notification in development mode:",
+        err.message,
+      );
+      return { notified: false, error: err.message };
     }
   }
 
   // Rate limiting: max 5 tamper incidents per hour in development
-  if (process.env.NODE_ENV === 'development') {
-    const now = Date.now()
-    const windowStart = now - TAMPER_INCIDENT_WINDOW_MS
-    
+  if (process.env.NODE_ENV === "development") {
+    const now = Date.now();
+    const windowStart = now - TAMPER_INCIDENT_WINDOW_MS;
+
     // Clean old timestamps
-    const recentTimestamps = tamperIncidentTimestamps.filter(timestamp => timestamp > windowStart)
-    tamperIncidentTimestamps.length = 0
-    tamperIncidentTimestamps.push(...recentTimestamps)
-    
+    const recentTimestamps = tamperIncidentTimestamps.filter(
+      (timestamp) => timestamp > windowStart,
+    );
+    tamperIncidentTimestamps.length = 0;
+    tamperIncidentTimestamps.push(...recentTimestamps);
+
     // Check rate limit
     if (tamperIncidentTimestamps.length >= TAMPER_INCIDENT_RATE_LIMIT) {
-      console.log('🚫 Tamper incident rate limit exceeded in development', {
+      console.log("🚫 Tamper incident rate limit exceeded in development", {
         incidentId: String(incident._id),
         currentCount: tamperIncidentTimestamps.length,
         limit: TAMPER_INCIDENT_RATE_LIMIT,
-        windowMs: TAMPER_INCIDENT_WINDOW_MS
-      })
-      return { notified: false, reason: 'rate_limit_exceeded' }
+        windowMs: TAMPER_INCIDENT_WINDOW_MS,
+      });
+      return { notified: false, reason: "rate_limit_exceeded" };
     }
-    
+
     // Add current timestamp
-    tamperIncidentTimestamps.push(now)
+    tamperIncidentTimestamps.push(now);
   }
 
   try {
-    const UserModel = getUserModel()
-    const RoleModel = getRoleModel()
-    const adminRole = await RoleModel.findOne({ slug: 'admin' })
-    if (!adminRole) return { notified: false, error: 'Admin role not found' }
-    const admins = await UserModel.find({ role: adminRole._id, isActive: true }).lean()
-    if (admins.length === 0) return { notified: false, error: 'No active admins' }
+    const UserModel = getUserModel();
+    const RoleModel = getRoleModel();
+    const adminRole = await RoleModel.findOne({ slug: "admin" });
+    if (!adminRole) return { notified: false, error: "Admin role not found" };
+    const admins = await UserModel.find({
+      role: adminRole._id,
+      isActive: true,
+    }).lean();
+    if (admins.length === 0)
+      return { notified: false, error: "No active admins" };
 
-    const incidentId = String(incident._id)
-    const brandName = process.env.APP_BRAND_NAME || 'BizClear Business Center'
-    const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'
-    const subject = `Audit tamper incident (${incident.severity}) - ${brandName}`
+    const incidentId = String(incident._id);
+    const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+    const appUrl =
+      process.env.FRONTEND_URL ||
+      process.env.APP_URL ||
+      "http://localhost:5173";
+    const subject = `Audit tamper incident (${incident.severity}) - ${brandName}`;
     const text = [
-      'An audit tamper or integrity issue was detected.',
-      '',
+      "An audit tamper or integrity issue was detected.",
+      "",
       `Severity: ${incident.severity}`,
       `Status: ${incident.verificationStatus}`,
-      `Message: ${incident.message || 'N/A'}`,
-      `Detected: ${incident.detectedAt ? new Date(incident.detectedAt).toLocaleString() : 'N/A'}`,
-      '',
+      `Message: ${incident.message || "N/A"}`,
+      `Detected: ${incident.detectedAt ? new Date(incident.detectedAt).toLocaleString() : "N/A"}`,
+      "",
       `View and triage: ${appUrl}/admin/security`,
-      '',
+      "",
       brandName,
-    ].join('\n')
+    ].join("\n");
     const html = `
     <p>An audit tamper or integrity issue was detected.</p>
     <p><strong>Severity:</strong> ${incident.severity}<br><strong>Status:</strong> ${incident.verificationStatus}</p>
-    <p>${(incident.message || 'N/A').replace(/</g, '&lt;')}</p>
+    <p>${(incident.message || "N/A").replace(/</g, "&lt;")}</p>
     <p><a href="${appUrl}/admin/security">View and triage</a></p>
-    `
+    `;
 
     for (const admin of admins) {
       try {
@@ -462,25 +566,33 @@ async function notifyAdminsOfTamperIncident(incident) {
           subject,
           text,
           html,
-        })
+        });
       } catch (err) {
-        console.error(`Failed to send tamper email to ${admin.email}:`, err.message)
+        console.error(
+          `Failed to send tamper email to ${admin.email}:`,
+          err.message,
+        );
       }
     }
 
     await createInAppNotificationsForAdmins(
-      'tamper_incident',
-      'Audit tamper incident',
-      (incident.message || 'Audit integrity issue detected. Review and triage.').slice(0, 200),
-      'tamper_incident',
+      "tamper_incident",
+      "Audit tamper incident",
+      (
+        incident.message || "Audit integrity issue detected. Review and triage."
+      ).slice(0, 200),
+      "tamper_incident",
       incidentId,
-      { severity: incident.severity, verificationStatus: incident.verificationStatus }
-    )
+      {
+        severity: incident.severity,
+        verificationStatus: incident.verificationStatus,
+      },
+    );
 
-    return { notified: true }
+    return { notified: true };
   } catch (err) {
-    console.error('Error notifying admins of tamper incident:', err)
-    return { notified: false, error: err.message }
+    console.error("Error notifying admins of tamper incident:", err);
+    return { notified: false, error: err.message };
   }
 }
 
@@ -494,4 +606,4 @@ module.exports = {
   sendApprovalNotification,
   notifyAdminsOfSystemAlert,
   notifyAdminsOfTamperIncident,
-}
+};
