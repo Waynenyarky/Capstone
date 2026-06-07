@@ -42,7 +42,7 @@ export default function ApplicationTracker() {
   return (
     <Layout style={{ minHeight: '100vh', background: token.colorBgContainer }}>
       <HomeHeader visible={true} />
-      <Content style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 72px)' }}>
+      <Content style={{ display: 'flex', flexDirection: 'column' }}>
         {/* Two Panel Design */}
         <div
           style={{
@@ -67,22 +67,22 @@ export default function ApplicationTracker() {
             {!showResult ? (
               <BlurFade delay={0.2} duration={0.5} fullHeight={false}>
                 <div style={{ width: '100%', maxWidth: 400 }}>
-                  <Title level={2} style={{ marginBottom: 16, marginTop: 24, fontSize: screens.md ? 32 : 24 }}>
+                  <Title level={2} style={{ marginBottom: 16, marginTop: 8, fontSize: screens.md ? 32 : 24 }}>
                     Application Tracker
                   </Title>
-                  <Paragraph style={{ marginBottom: 24, lineHeight: 1.6, color: token.colorTextSecondary }}>
+                  <Paragraph style={{ marginBottom: 32, lineHeight: 1.6, color: token.colorTextSecondary }}>
                     Enter your receipt number to track the status of your business permit application.
                   </Paragraph>
 
-                  <div style={{ marginBottom: 16 }}>
-                    <Text style={{ display: 'block', marginBottom: 8, fontSize: 14, marginTop: 8 }}>
+                  <div style={{ marginBottom: 24 }}>
+                    <Text style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
                       Enter a Receipt Number
                     </Text>
                     <Input
                       placeholder="EAC1234567890"
                       value={referenceNumber}
                       onChange={(e) => setReferenceNumber(e.target.value)}
-                      style={{ marginBottom: 12 }}
+                      style={{ marginBottom: 16 }}
                     />
                     <Button
                       type="primary"
@@ -98,7 +98,7 @@ export default function ApplicationTracker() {
             ) : (
               <BlurFade delay={0.2} duration={0.5} fullHeight={false}>
                 <div style={{ width: '100%', maxWidth: 400 }}>
-                  <Title level={2} style={{ marginBottom: 24, marginTop: 24, fontSize: screens.md ? 32 : 24 }}>
+                  <Title level={2} style={{ marginBottom: 24, marginTop: 8, fontSize: screens.md ? 32 : 24 }}>
                     Application Status Checker
                   </Title>
 
@@ -149,10 +149,6 @@ export default function ApplicationTracker() {
                   <Button onClick={handleReset} block>
                     Check Another Case
                   </Button>
-
-                  <div style={{ marginTop: 24 }}>
-                    <FaqSection />
-                  </div>
                 </div>
               </BlurFade>
             )}
@@ -176,6 +172,13 @@ export default function ApplicationTracker() {
             </ZipperReveal>
           )}
         </div>
+
+        {/* FAQ Section - Only show when result is displayed */}
+        {showResult && (
+          <div style={{ padding: screens.md ? '60px 48px' : '40px 16px', maxWidth: 400, margin: '0 auto' }}>
+            <FaqSection />
+          </div>
+        )}
       </Content>
       <HomeFooter />
     </Layout>

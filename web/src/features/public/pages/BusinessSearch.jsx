@@ -89,15 +89,15 @@ export default function BusinessSearch() {
             {!showProfile ? (
               <BlurFade delay={0.2} duration={0.5} fullHeight={false}>
                 <div style={{ width: '100%', maxWidth: 400 }}>
-                  <Title level={2} style={{ marginBottom: 12, marginTop: 32, fontSize: screens.md ? 32 : 24 }}>
+                  <Title level={2} style={{ marginBottom: 16, marginTop: 8, fontSize: screens.md ? 32 : 24 }}>
                     Business Search
                   </Title>
-                  <Paragraph style={{ marginBottom: 16, lineHeight: 1.6, color: token.colorTextSecondary }}>
+                  <Paragraph style={{ marginBottom: 32, lineHeight: 1.6, color: token.colorTextSecondary }}>
                     Search for verified businesses in Alaminos City
                   </Paragraph>
 
-                  <div style={{ marginBottom: 12, marginTop: 8 }}>
-                    <Text style={{ display: 'block', marginBottom: 8, fontSize: 14, marginTop: 8 }}>
+                  <div style={{ marginBottom: 24 }}>
+                    <Text style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
                       Enter a Business Name
                     </Text>
                     <Input
@@ -106,7 +106,7 @@ export default function BusinessSearch() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       prefix={<SearchOutlined />}
-                      style={{ marginBottom: 12 }}
+                      style={{ marginBottom: 16 }}
                     />
                     <Button
                       type="primary"
