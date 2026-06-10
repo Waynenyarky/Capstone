@@ -9,7 +9,7 @@ export default function BusinessProfile({ business, onReport, onBack, token, scr
       <Button
         type="default"
         onClick={onBack}
-        style={{ marginBottom: 16, marginTop: 48 }}
+        style={{ marginBottom: 16 }}
       >
         Back to Results
       </Button>
@@ -19,7 +19,6 @@ export default function BusinessProfile({ business, onReport, onBack, token, scr
           border: `1px solid ${token.colorBorderSecondary}`,
           borderRadius: token.borderRadius,
           padding: screens.md ? '32px' : '24px',
-          marginTop: 32,
         }}
       >
         <div style={{
