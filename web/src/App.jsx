@@ -38,15 +38,9 @@ const AdminLobTrainer = lazy(() => import("@/features/admin").then(m => ({ defau
 const AdminFeeConfiguration = lazy(() => import("@/features/admin/pages/AdminFeeConfiguration.jsx"))
 const BusinessOwnerDashboard = lazy(() => import("@/features/business-owner").then(m => ({ default: m.BusinessOwnerDashboard })))
 
-// Phase 2 Business Owner Routes - Portfolio, Payments, Renewals, Compliance
-const PortfolioDashboard = lazy(() => import("@/features/business-owner/components/portfolio/PortfolioDashboard.jsx"))
-const AdvancedPaymentDashboard = lazy(() => import("@/features/business-owner/components/payments/AdvancedPaymentDashboard.jsx"))
-const RenewalWorkflowUI = lazy(() => import("@/features/business-owner/components/renewal-workflow/RenewalWorkflowUI.jsx"))
-const ComplianceDashboard = lazy(() => import("@/features/business-owner/components/compliance/ComplianceDashboard.jsx"))
-const MobileDashboard = lazy(() => import("@/features/business-owner/components/mobile/MobileDashboard.jsx"))
 const ApplicationNewPage = lazy(() => import("@/features/business-owner/pages/ApplicationNewPage.jsx"))
-const ClearanceTracker = lazy(() => import("@/features/business-owner/components/clearance/ClearanceTracker.jsx"))
-const InspectionCalendar = lazy(() => import("@/features/business-owner/components/inspections/InspectionCalendar.jsx"))
+// const ClearanceTracker = lazy(() => import("@/features/business-owner/components/clearance/ClearanceTracker.jsx"))
+// const InspectionCalendar = lazy(() => import("@/features/business-owner/components/inspections/InspectionCalendar.jsx"))
 
 const StaffDashboard = lazy(() => import("@/features/staffs").then(m => ({ default: m.StaffDashboard })))
 const StaffOnboarding = lazy(() => import("@/features/staffs").then(m => ({ default: m.StaffOnboarding })))
@@ -132,17 +126,10 @@ function App() {
       <Route path="/owner" element={<ProtectedRoute allowedRoles={['business_owner']}><BusinessOwnerDashboard /></ProtectedRoute>} />
       <Route path="/owner/notifications" element={<Navigate to="/notifications" replace />} />
       
-      {/* Phase 2: Business Owner Sub-Routes */}
-      <Route path="/portfolio" element={<ProtectedRoute allowedRoles={['business_owner']}><PortfolioDashboard /></ProtectedRoute>} />
-      <Route path="/payments" element={<ProtectedRoute allowedRoles={['business_owner']}><AdvancedPaymentDashboard /></ProtectedRoute>} />
-      <Route path="/renewals" element={<ProtectedRoute allowedRoles={['business_owner']}><RenewalWorkflowUI /></ProtectedRoute>} />
-      <Route path="/renewals/:businessId" element={<ProtectedRoute allowedRoles={['business_owner']}><RenewalWorkflowUI /></ProtectedRoute>} />
-      <Route path="/compliance" element={<ProtectedRoute allowedRoles={['business_owner']}><ComplianceDashboard /></ProtectedRoute>} />
-      <Route path="/mobile-dashboard" element={<ProtectedRoute allowedRoles={['business_owner']}><MobileDashboard /></ProtectedRoute>} />
       <Route path="/application/new" element={<ProtectedRoute allowedRoles={['business_owner']}><ApplicationNewPage /></ProtectedRoute>} />
       <Route path="/applications" element={<ProtectedRoute allowedRoles={['business_owner']}><Navigate to="/owner" replace /></ProtectedRoute>} />
-      <Route path="/clearance" element={<ProtectedRoute allowedRoles={['business_owner']}><ClearanceTracker /></ProtectedRoute>} />
-      <Route path="/inspections/schedule" element={<ProtectedRoute allowedRoles={['business_owner']}><InspectionCalendar /></ProtectedRoute>} />
+      {/* <Route path="/clearance" element={<ProtectedRoute allowedRoles={['business_owner']}><ClearanceTracker /></ProtectedRoute>} /> */}
+      {/* <Route path="/inspections/schedule" element={<ProtectedRoute allowedRoles={['business_owner']}><InspectionCalendar /></ProtectedRoute>} /> */}
       
       {/* Staff Routes */}
       <Route path="/staff" element={<ProtectedRoute allowedRoles={['staff', 'lgu_officer', 'lgu_manager', 'inspector', 'cso']}><Outlet /></ProtectedRoute>}>

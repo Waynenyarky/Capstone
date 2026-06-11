@@ -5,12 +5,12 @@ import { ArrowLeftOutlined, SettingOutlined } from '@ant-design/icons'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AppSidebar as Sidebar } from '@/features/authentication'
 import { LayoutPageHeader } from '@/features/shared'
-import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
+import BusinessOwnerLayout from '@/features/business-owner/components/shared/BusinessOwnerLayout'
 import AdminLayout from '@/features/admin/components/AdminLayout'
 import ConsolidatedProfileNav from './ConsolidatedProfileNav'
 import ConsolidatedContentRenderer from './ConsolidatedContentRenderer'
 import { CONSOLIDATED_NAV_ITEMS } from './constants'
-import BusinessListPanel from '@/features/business-owner/components/dashboard/BusinessListPanel'
+import ApplicationsList from '@/features/business-owner/components/dashboard/ApplicationsList'
 import OfficerLeftPanel from '@/features/staffs/lgu-officer/components/OfficerLeftPanel'
 import { getBusinesses } from '@/features/business-owner/services/businessProfileService'
 import { useAuthSession } from '@/features/authentication'
@@ -20,7 +20,7 @@ const { Title } = Typography
 
 const SECTION_PANEL_WIDTH = 260
 
-// Business sidebar component for settings page - uses actual BusinessListPanel
+// Business sidebar component for settings page - uses actual ApplicationsList
 function BusinessSidebarContent() {
   const navigate = useNavigate()
   const { message } = AntApp.useApp()
@@ -65,7 +65,7 @@ function BusinessSidebarContent() {
   return (
     <>
       {/* Actual Business List Panel */}
-      <BusinessListPanel
+      <ApplicationsList
         businesses={businesses}
         loading={loading}
         selectedBusinessId={selectedBusinessId}

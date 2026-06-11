@@ -24,8 +24,8 @@ export default function AnimatedBrandLogo({
     loop: false,
     autoplay: false,
     style: {
-      width: size,
-      height: size,
+      width: '100%',
+      height: '100%',
       display: 'block',
     },
   }
@@ -69,6 +69,9 @@ export default function AnimatedBrandLogo({
           flexShrink: 0,
           overflow: 'hidden',
           borderRadius: 4,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
         {View}

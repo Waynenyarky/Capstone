@@ -1,4 +1,5 @@
-import { useMemo, useCallback, useRef, useEffect } from 'react';
+import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
+import React from 'react';
 
 /**
  * Performance optimization utilities for Phase 2 components
@@ -57,7 +58,7 @@ export const useAsyncData = (fetcher, deps = [], cacheTime = 300000) => {
   const fetchData = useCallback(async () => {
     const cacheKey = JSON.stringify(deps);
     const cached = cacheRef.current.get(cacheKey);
-    
+
     // Check cache
     if (cached && Date.now() - cached.timestamp < cacheTime) {
       setState({ data: cached.data, loading: false, error: null });
@@ -73,7 +74,7 @@ export const useAsyncData = (fetcher, deps = [], cacheTime = 300000) => {
     } catch (error) {
       setState({ data: null, loading: false, error });
     }
-  }, deps);
+  }, [cacheTime, deps, fetcher]);
 
   useEffect(() => {
     fetchData();
@@ -127,11 +128,15 @@ export const withLazyLoading = (Component, options = {}) => {
     return Promise.resolve({ default: Component });
   });
 
-  return (props) => (
+  const WrappedComponent = (props) => (
     <React.Suspense fallback={options.fallback || <div>Loading...</div>}>
       <LazyComponent {...props} />
     </React.Suspense>
   );
+
+  WrappedComponent.displayName = `withLazyLoading(${Component.displayName || Component.name || 'Component'})`;
+
+  return WrappedComponent;
 };
 
 /**
@@ -280,11 +285,12 @@ export const useOptimizedEventListener = (event, handler, deps = []) => {
 
   useEffect(() => {
     const optimizedHandler = (e) => handlerRef.current(e);
-    
+
     window.addEventListener(event, optimizedHandler, { passive: true });
-    
+
     return () => {
       window.removeEventListener(event, optimizedHandler);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event, ...deps]);
 };

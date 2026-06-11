@@ -1,357 +1,233 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { Typography, theme, Space, Empty, Button, App, Input, Select } from 'antd'
+import { useEffect, useState, useCallback } from 'react'
+import { Typography, App, Grid } from 'antd'
+import { ShopOutlined } from '@ant-design/icons'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
-import { ShopOutlined, BugOutlined, DeleteOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
-import BusinessOwnerLayout from '../components/BusinessOwnerLayout'
-import BusinessListPanel from '../components/dashboard/BusinessListPanel'
-import AddBusinessForm from '../components/AddBusinessForm'
-import PendingApplicationView from '../components/PendingApplicationView'
-import ApprovedBusinessView from '../components/ApprovedBusinessView'
-import UserSettingsView from '@/features/user/pages/profileSettings/UserSettingsView'
+import BusinessOwnerLayout from '../components/shared/BusinessOwnerLayout'
 import WelcomeInline from '../components/onboarding/WelcomeModal'
+import BusinessOwnerDashboardDesktopView from './BusinessOwnerDashboardDesktopView'
+import BusinessOwnerDashboardMobileView from './BusinessOwnerDashboardMobileView'
 import { useAuthSession } from '@/features/authentication'
 import { useThemeSettings } from '@/features/user/hooks/useThemeSettings'
-import { getBusinesses, getBusinessesPaginated, deleteBusiness } from '../services/businessProfileService'
-import { useSocketConnection, useSocketEvent } from '@/hooks/useSocket'
+import { useDashboardState } from '../hooks/useDashboardState'
+import { useBusinessDashboard } from '../hooks/useBusinessDashboard'
+import { useDashboardFilters } from '../hooks/useDashboardFilters'
+import { get } from '@/lib/http.js'
+import { isDraftStatus } from '../utils/statusUtils'
 
 const { Title } = Typography
-const { Search } = Input
-const { Option } = Select
-
-const getStatusLabel = (status) => {
-  const statusLower = (status || '').toLowerCase()
-  if (statusLower === 'submitted') return 'Pending Review'
-  if (statusLower === 'under_review') return 'Under Review'
-  if (statusLower === 'pending_renewal') return 'For Renewal'
-  if (statusLower === 'approved') return 'Active'
-  if (statusLower === 'needs_revision') return 'Action Required'
-  if (statusLower === 'resubmit') return 'Resubmitted'
-  if (statusLower === 'rejected') return 'Rejected'
-  if (statusLower === 'draft') return 'Draft'
-  return status || 'Unknown'
-}
-
-const getStatusTagColor = (status) => {
-  const statusLower = (status || '').toLowerCase()
-  if (statusLower === 'active' || statusLower === 'approved') return 'success'
-  if (statusLower === 'for renewal' || statusLower.includes('renewal')) return 'warning'
-  if (statusLower === 'pending' || statusLower.includes('pending') || statusLower.includes('review') || statusLower === 'submitted') return 'processing'
-  if (statusLower === 'expired' || statusLower === 'rejected') return 'error'
-  if (statusLower === 'needs_revision' || statusLower === 'resubmit') return 'warning'
-  if (statusLower === 'draft') return 'default'
-  return 'default'
-}
 
 export default function BusinessOwnerDashboard() {
-  const { token } = theme.useToken()
-  const { message, modal } = App.useApp()
+  const { message } = App.useApp()
   const { currentUser, roleSlug, isLoading: authLoading } = useAuthSession()
   const themeSettings = useThemeSettings(message)
-  const navigate = useNavigate()
-  const [businesses, setBusinesses] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [selectedBusinessId, setSelectedBusinessId] = useState(null)
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [showProgressView, setShowProgressView] = useState(false)
-  const [editingBusiness, setEditingBusiness] = useState(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [showSettings, setShowSettings] = useState(false) // Settings view state
-  const [showWelcomeState, setShowWelcomeState] = useState(false)
-  const [businessType, setBusinessType] = useState('general') // 'general' or 'healthcare'
-  const [fromWelcomeModal, setFromWelcomeModal] = useState(false) // Track if coming from welcome modal
-  const formRef = useRef(null)
-  const [formSubmitting, setFormSubmitting] = useState(false)
-  const [lastUpdatedAt, setLastUpdatedAt] = useState(null)
-  
-  // Enhanced pagination state
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
-  const [totalItems, setTotalItems] = useState(0)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [sortBy, setSortBy] = useState('updatedAt')
-  const [sortOrder, setSortOrder] = useState('desc')
-  const [paginationLoading, setPaginationLoading] = useState(false)
+  const screens = Grid.useBreakpoint()
+  const isMobile = !screens.md
 
-  // Socket connection for realtime updates
-  const { connected: socketConnected } = useSocketConnection()
+  // Announcements state
+  const [announcements, setAnnouncements] = useState([])
+  const [announcementItems, setAnnouncementItems] = useState([])
+  const [defaultOpenKey, setDefaultOpenKey] = useState([])
 
-  // Listen for application status updates
-  useSocketEvent('application:updated', useCallback((data) => {
-    console.log('[Realtime] Application updated:', data)
-    const updatedApp = data.application
-    if (!updatedApp) return
-    
-    // Update the business in state if it matches
-    setBusinesses(prev => prev.map(b => {
-      if ((b.businessId || b._id) === updatedApp.businessId || (b.businessId || b._id) === updatedApp._id) {
-        return { ...b, ...updatedApp }
-      }
-      return b
-    }))
-    
-    // Update editingBusiness if it's the one that changed
-    if (editingBusiness && ((editingBusiness.businessId || editingBusiness._id) === updatedApp.businessId || (editingBusiness.businessId || editingBusiness._id) === updatedApp._id)) {
-      setEditingBusiness(prev => prev ? { ...prev, ...updatedApp } : prev)
-    }
-    
-    // Show notification for status changes
-    if (updatedApp.applicationStatus) {
-      const statusLabel = getStatusLabel(updatedApp.applicationStatus)
-      message.info(`${updatedApp.businessName || 'Your application'} status: ${statusLabel}`)
-    }
-    
-    setLastUpdatedAt(new Date())
-  }, [editingBusiness, message]))
+  // State management hook
+  const dashboardState = useDashboardState()
+  const {
+    businesses,
+    setBusinesses,
+    loading,
+    selectedBusinessId,
+    showAddForm,
+    showSettings,
+    showWelcomeState,
+    showBusinessTypeSelector,
+    showReadOnlyForm,
+    editingApplication,
+    setEditingApplication,
+    formSubmitting,
+    setFormSubmitting,
+    permitType,
+    currentPage,
+    pageSize,
+    totalItems,
+    paginationLoading,
+    setPaginationLoading,
+    searchTerm,
+    statusFilter,
+    sortBy,
+    sortOrder,
+    lastUpdatedAt,
+    initialFetchDone,
+    isFirstRender,
+    hasCompletedOnboarding,
+    readAnnouncements,
+    resetFormState,
+    selectBusiness,
+    openApplicationForm,
+    openEditApplicationForm,
+    toggleSettings
+  } = dashboardState
 
-  // Listen for payment events
-  useSocketEvent('payment:verified', useCallback((data) => {
-    console.log('[Realtime] Payment verified:', data)
-    message.success('Payment has been verified!')
-    // Refresh to get updated status
-    fetchBusinessesRef.current?.(false)
-    setLastUpdatedAt(new Date())
-  }, [message]))
+  // Data fetching and socket events hook
+  const { socketConnected, fetchBusinesses, fetchBusinessesPaginated } = useBusinessDashboard({
+    businesses,
+    setBusinesses,
+    editingApplication,
+    setEditingApplication,
+    loading,
+    setLoading: dashboardState.setLoading,
+    paginationLoading,
+    setPaginationLoading,
+    setLastUpdatedAt: dashboardState.setLastUpdatedAt,
+    currentPage,
+    pageSize,
+    searchTerm,
+    statusFilter,
+    sortBy,
+    sortOrder,
+    setCurrentPage: dashboardState.setCurrentPage,
+    setTotalItems: dashboardState.setTotalItems,
+    initialFetchDone,
+    isFirstRender
+  })
 
-  // Listen for inspection events
-  useSocketEvent('inspection:scheduled', useCallback((data) => {
-    console.log('[Realtime] Inspection scheduled:', data)
-    message.info('An inspection has been scheduled for your business')
-    setLastUpdatedAt(new Date())
-  }, [message]))
-
-  useSocketEvent('inspection:completed', useCallback((data) => {
-    console.log('[Realtime] Inspection completed:', data)
-    message.info('Inspection completed - check your application for results')
-    fetchBusinessesRef.current?.(false)
-    setLastUpdatedAt(new Date())
-  }, [message]))
-
-  // Ref to access fetchBusinesses in socket callbacks
-  const fetchBusinessesRef = useRef(null)
-
-  const fetchBusinesses = useCallback(async (resetPage = false) => {
-    if (resetPage) {
-      setCurrentPage(1)
-    }
-    
-    setLoading(true)
-    try {
-      // Use paginated API for better performance with large datasets
-      const result = await getBusinessesPaginated({
-        page: resetPage ? 1 : currentPage,
-        limit: pageSize,
-        search: searchTerm,
-        status: statusFilter,
-        sort: sortBy,
-        order: sortOrder
-      })
-      
-      setBusinesses(result.businesses || [])
-      setTotalItems(result.pagination?.totalItems || 0)
-      setLastUpdatedAt(new Date())
-    } catch (err) {
-      console.error('Failed to fetch businesses:', err)
-      message.error('Failed to load businesses')
-      // Fallback to non-paginated API
-      try {
-        const data = await getBusinesses()
-        setBusinesses(data || [])
-        setTotalItems(data?.length || 0)
-      } catch (fallbackErr) {
-        console.error('Fallback API also failed:', fallbackErr)
-      }
-    } finally {
-      setLoading(false)
-      setPaginationLoading(false)
-    }
-  }, [currentPage, pageSize, searchTerm, statusFilter, sortBy, sortOrder]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const fetchBusinessesPaginated = useCallback(async () => {
-    setPaginationLoading(true)
-    await fetchBusinesses()
-  }, [fetchBusinesses])
-
-  // Keep fetchBusinessesRef updated for socket callbacks
-  useEffect(() => {
-    fetchBusinessesRef.current = fetchBusinesses
-  }, [fetchBusinesses])
-
-  // Initial fetch - only run once when user is authenticated
-  const initialFetchDone = useRef(false)
-  useEffect(() => {
-    if (currentUser && roleSlug === 'business_owner' && !initialFetchDone.current) {
-      initialFetchDone.current = true
-      fetchBusinesses()
-    }
-  }, [currentUser, roleSlug]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Re-fetch when pagination/filter params change (but not on initial mount)
-  const isFirstRender = useRef(true)
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false
-      return
-    }
-    if (currentUser && roleSlug === 'business_owner') {
-      fetchBusinesses()
-    }
-  }, [currentPage, pageSize, searchTerm, statusFilter, sortBy, sortOrder]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Filter handlers hook
+  const { handlePageChange } = useDashboardFilters({
+    searchTerm,
+    setSearchTerm: dashboardState.setSearchTerm,
+    statusFilter,
+    setStatusFilter: dashboardState.setStatusFilter,
+    sortBy,
+    setSortBy: dashboardState.setSortBy,
+    sortOrder,
+    setSortOrder: dashboardState.setSortOrder,
+    currentPage,
+    setCurrentPage: dashboardState.setCurrentPage,
+    setPageSize: dashboardState.setPageSize,
+    fetchBusinessesPaginated
+  })
 
   // Clean up stale localStorage key from previous implementation
   useEffect(() => { localStorage.removeItem('bizclear_onboarding_skipped') }, [])
 
-  // Show welcome state for new users (empty businesses list)
+  // Fetch announcements
   useEffect(() => {
-    if (!loading && businesses.length === 0 && !showAddForm && !showWelcomeState) {
-      setShowWelcomeState(true)
+    const fetchAnnouncements = async () => {
+      try {
+        const res = await get('/api/admin/announcements', { skipAuth: true })
+        const rawAnnouncements = Array.isArray(res)
+          ? res
+          : Array.isArray(res?.data)
+            ? res.data
+            : Array.isArray(res?.announcements)
+              ? res.announcements
+              : []
+
+        const published = rawAnnouncements.filter((a) => {
+          const isPublished = a?.status ? a.status === 'published' : true
+          const isActive = a?.isActive !== false
+          return isPublished && isActive
+        })
+
+        setAnnouncements(published)
+
+        // Build announcement items for collapse
+        const items = published.map((ann, idx) => ({
+          key: `announcement-${idx + 1}`,
+          label: ann.title,
+          children: ann.body,
+        }))
+        setAnnouncementItems(items)
+        setDefaultOpenKey(items.length > 0 ? ['announcement-1'] : [])
+      } catch (err) {
+        console.error('Failed to fetch announcements:', err)
+        setAnnouncements([])
+        setAnnouncementItems([])
+      }
     }
-  }, [businesses.length, loading, showAddForm, showWelcomeState])
+    fetchAnnouncements()
+  }, [])
 
-  const selectedBusiness = businesses.find(b => (b.businessId || b._id) === selectedBusinessId)
-  const appStatus = (selectedBusiness?.applicationStatus || selectedBusiness?.permitStatus || '').toLowerCase()
-  const isDraft = selectedBusiness && appStatus === 'draft'
-  const isApproved = selectedBusiness && appStatus === 'approved'
-  const isNeedsRevision = selectedBusiness && appStatus === 'needs_revision'
-  const isResubmitted = selectedBusiness && appStatus === 'resubmit'
-  const canEditRevision = Boolean(selectedBusiness && appStatus === 'needs_revision')
-  const displayName = selectedBusiness
-    ? (selectedBusiness.businessName || selectedBusiness.tradeName || selectedBusiness.formData?.['Business Name'] || selectedBusiness.formData?.['businessName'] || selectedBusiness.formData?.['Trade Name'] || selectedBusiness.formData?.['tradeName'] || 'Unnamed Business')
-    : ''
-  const displayReferenceNumber = selectedBusiness?.applicationReferenceNumber || selectedBusiness?.registrationNumber || null
-
-  const openRevisionForm = useCallback((business = selectedBusiness) => {
-    if (!business) return
-    setEditingBusiness(business)
-    setSelectedBusinessId(business.businessId || business._id)
-    setShowAddForm(true)
-  }, [selectedBusiness])
-
-  const openReadOnlyApplicationForm = useCallback((business = selectedBusiness) => {
-    if (!business) return
-    setEditingBusiness(business)
-    setSelectedBusinessId(business.businessId || business._id)
-    setShowAddForm(true)
-  }, [selectedBusiness])
+  // Show welcome state only for truly new users who have never completed onboarding
+  useEffect(() => {
+    if (!loading && businesses.length === 0 && !showAddForm && !showWelcomeState && !hasCompletedOnboarding.current) {
+      const completed = localStorage.getItem('bizclear_onboarding_completed')
+      if (!completed) {
+        dashboardState.setShowWelcomeState(true)
+      }
+    }
+    if (!loading && businesses.length > 0) {
+      hasCompletedOnboarding.current = true
+    }
+  }, [businesses.length, loading, showAddForm, showWelcomeState, hasCompletedOnboarding, dashboardState])
 
   const handleBackFromForm = () => {
-    setShowAddForm(false)
-    setShowProgressView(false)
-    setEditingBusiness(null)
-    setSelectedBusinessId(null)
-    setFromWelcomeModal(false) // Reset the flag
+    dashboardState.setShowReadOnlyForm(false)
+    resetFormState()
     fetchBusinesses()
   }
 
-  const handleDeleteApplication = async (business) => {
-    const businessId = business.businessId || business._id
-    try {
-      await deleteBusiness(businessId)
-      message.success('Application deleted.')
-      if (selectedBusinessId === businessId) {
-        setSelectedBusinessId(null)
-        setShowAddForm(false)
-        setEditingBusiness(null)
-      }
-      fetchBusinesses()
-    } catch (err) {
-      console.error('Failed to delete application:', err)
-      message.error(err?.message || 'Failed to delete application')
-    }
-  }
-
-  const handleDeleteDraftClick = () => {
-    if (!selectedBusiness) return
-    modal.confirm({
-      title: 'Delete draft application?',
-      content: 'This will permanently remove this draft. You can add a new business later if needed.',
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: () => handleDeleteApplication(selectedBusiness),
-    })
-  }
-
-  // Search and filter handlers
-  const handleSearch = useCallback((value) => {
-    setSearchTerm(value)
-    setCurrentPage(1)
-  }, [])
-
-  const handleStatusFilter = useCallback((value) => {
-    setStatusFilter(value)
-    setCurrentPage(1)
-  }, [])
-
-  // Business selection handler
   const handleBusinessSelect = useCallback((businessId) => {
-    setSelectedBusinessId(businessId)
-  }, [])
+    const application = businesses.find(b => (b.businessId || b._id) === businessId)
+    if (application) {
+      const appStatus = application.applicationStatus || application.permitStatus || ''
+      if (isDraftStatus(appStatus)) {
+        openEditApplicationForm(application)
+      } else {
+        selectBusiness(businessId)
+      }
+    }
+  }, [businesses, selectBusiness, openEditApplicationForm])
 
   const handleAddBusiness = useCallback(() => {
-    setBusinessType('permit') // Default to permit registration type
-    setFromWelcomeModal(false) // Normal add business flow
-    setShowAddForm(true)
-    setSelectedBusinessId(null) // Clear any selected business
-    setEditingBusiness(null) // Clear editing business
-  }, [])
+    // Count draft, pending, and submitted applications
+    const draftOrPendingCount = businesses.filter(
+      b => b.applicationStatus === 'draft' || b.applicationStatus === 'pending' || b.applicationStatus === 'submitted'
+    ).length
+
+    if (draftOrPendingCount >= 2) {
+      message.warning('You can only have up to 2 draft, pending, or submitted applications at a time. Please complete or delete existing applications before creating a new one.')
+      return
+    }
+
+    dashboardState.setShowBusinessTypeSelector(true)
+    dashboardState.setSelectedBusinessId(null)
+    dashboardState.setShowAddForm(false)
+    setEditingApplication(null)
+  }, [dashboardState, setEditingApplication, businesses, message])
+
+  // Calculate draft limit status for UI
+  const draftLimitReached = businesses.filter(
+    b => b.applicationStatus === 'draft' || b.applicationStatus === 'pending' || b.applicationStatus === 'submitted'
+  ).length >= 2
+
+  const handleBusinessTypeSelect = useCallback((registrationType) => {
+    openApplicationForm({ registrationType, fromWelcome: false })
+    dashboardState.setShowBusinessTypeSelector(false)
+  }, [openApplicationForm, dashboardState])
 
   const handleWelcomeSelect = useCallback((registrationType) => {
-    setBusinessType(registrationType)
-    setShowWelcomeState(false)
-    setFromWelcomeModal(true) // Coming from welcome modal
-    setShowAddForm(true)
-    setSelectedBusinessId(null)
-    setEditingBusiness(null) // Clear editing business
-  }, [])
+    // Count draft, pending, and submitted applications
+    const draftOrPendingCount = businesses.filter(
+      b => b.applicationStatus === 'draft' || b.applicationStatus === 'pending' || b.applicationStatus === 'submitted'
+    ).length
+
+    if (draftOrPendingCount >= 2) {
+      message.warning('You can only have up to 2 draft, pending, or submitted applications at a time. Please complete or delete existing applications before creating a new one.')
+      return
+    }
+
+    localStorage.setItem('bizclear_onboarding_completed', '1')
+    hasCompletedOnboarding.current = true
+    openApplicationForm({ registrationType, fromWelcome: true })
+    dashboardState.setShowWelcomeState(false)
+  }, [openApplicationForm, dashboardState, hasCompletedOnboarding, businesses, message])
 
   const handleLinkExisting = useCallback(() => {
-    // Mock functionality for now
+    localStorage.setItem('bizclear_onboarding_completed', '1')
+    hasCompletedOnboarding.current = true
     message.info('Link existing business feature coming soon!')
-    setShowWelcomeState(false)
-  }, [message])
+    dashboardState.setShowWelcomeState(false)
+  }, [message, dashboardState, hasCompletedOnboarding])
 
-  const handleSort = useCallback((field, order) => {
-    setSortBy(field)
-    setSortOrder(order)
-    setCurrentPage(1)
-  }, [])
-
-  const handlePageChange = useCallback((page, size) => {
-    setCurrentPage(page)
-    setPageSize(size)
-  }, [])
-
-  const handleTableChange = useCallback((pagination, filters, sorter) => {
-    handlePageChange(pagination.current, pagination.pageSize)
-    if (sorter.field) {
-      handleSort(sorter.field, sorter.order === 'descend' ? 'desc' : 'asc')
-    }
-  }, [handlePageChange, handleSort])
-
-  // Debounced search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchTerm !== undefined) {
-        fetchBusinessesPaginated()
-      }
-    }, 300)
-
-    return () => clearTimeout(timer)
-  }, [searchTerm, fetchBusinessesPaginated])
-
-  useEffect(() => {
-    if (statusFilter !== undefined) {
-      fetchBusinessesPaginated()
-    }
-  }, [statusFilter, fetchBusinessesPaginated])
-
-  useEffect(() => {
-    if (sortBy !== undefined && sortOrder !== undefined) {
-      fetchBusinessesPaginated()
-    }
-  }, [sortBy, sortOrder, fetchBusinessesPaginated])
 
   if (authLoading) {
     return (
@@ -373,11 +249,12 @@ export default function BusinessOwnerDashboard() {
     <BusinessOwnerLayout
       pageTitle="Business Dashboard"
       pageIcon={<ShopOutlined />}
+      showBrandLogo={true}
       onRefresh={fetchBusinesses}
       lastUpdated={lastUpdatedAt}
       socketConnected={socketConnected}
       loading={loading}
-      onSettingsClick={() => setShowSettings(true)} // Open settings in dashboard
+      onSettingsClick={toggleSettings}
     >
       {showWelcomeState ? (
         // Welcome State - Full width, no panels
@@ -387,231 +264,72 @@ export default function BusinessOwnerDashboard() {
             onLinkExisting={handleLinkExisting}
           />
         </div>
+      ) : isMobile ? (
+        // Mobile View
+        <BusinessOwnerDashboardMobileView
+          businesses={businesses}
+          loading={loading}
+          selectedBusinessId={selectedBusinessId}
+          showAddForm={showAddForm}
+          showSettings={showSettings}
+          showReadOnlyForm={showReadOnlyForm}
+          showBusinessTypeSelector={showBusinessTypeSelector}
+          editingApplication={editingApplication}
+          setEditingApplication={setEditingApplication}
+          formSubmitting={formSubmitting}
+          setFormSubmitting={setFormSubmitting}
+          permitType={permitType}
+          currentPage={currentPage}
+          totalItems={totalItems}
+          announcementItems={announcementItems}
+          announcements={announcements}
+          defaultOpenKey={defaultOpenKey}
+          readAnnouncements={readAnnouncements}
+          onBusinessSelect={handleBusinessSelect}
+          onAddBusiness={handleAddBusiness}
+          onPageChange={handlePageChange}
+          onBusinessTypeSelect={handleBusinessTypeSelect}
+          onLinkExisting={handleLinkExisting}
+          onBackFromForm={handleBackFromForm}
+          onSetBusinesses={setBusinesses}
+          onFetchBusinesses={fetchBusinesses}
+          themeSettings={themeSettings}
+          dashboardState={dashboardState}
+          draftLimitReached={draftLimitReached}
+        />
       ) : (
-        // Normal Dashboard View with panels
-        <div style={{
-          display: 'flex',
-          flex: 1,
-          overflow: 'hidden'
-        }}>
-          {/* Left panel - Business List (30%) - always visible */}
-          <div
-            data-testid="business-list-panel"
-            style={{
-              width: '30%',
-              minWidth: 280,
-              maxWidth: 400,
-              flexShrink: 0,
-              borderRight: `1px solid ${token.colorBorderSecondary}`,
-              paddingRight: 24,
-              display: 'flex',
-              flexDirection: 'column',
-              overflowY: 'auto',
-              background: token.colorBgContainer,
-              padding: '24px 24px 24px 16px',
-            }}
-          >
-            {/* Business List Panel */}
-            <BusinessListPanel
-              businesses={businesses}
-              loading={loading}
-              selectedBusinessId={selectedBusiness?.businessId || selectedBusiness?._id}
-              currentPage={currentPage}
-              onPageChange={handlePageChange}
-              onBusinessSelect={handleBusinessSelect}
-              onAddBusiness={handleAddBusiness}
-            />
-          </div>
-
-          {/* Right panel - Business Details or Settings */}
-          <div
-            data-testid="business-details-panel"
-            style={{
-              flex: 1,
-              minWidth: 0,
-              minHeight: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              background: token.colorBgContainer,
-              overflow: 'hidden',
-            }}
-          >
-            {showSettings ? (
-              // Settings View - Full settings interface
-              <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ flex: 1, overflow: 'auto' }}>
-                  <UserSettingsView
-                    showBackButton={false}
-                    themeSettings={themeSettings}
-                    embedded={true} // Custom prop to indicate embedded mode
-                  />
-                </div>
-              </div>
-            ) : (
-              // Dashboard View (original content)
-              (showAddForm || selectedBusiness) ? (
-                <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                  {selectedBusiness ? (
-                    <>
-                      <div
-                        style={{
-                          flexShrink: 0,
-                          padding: '16px 24px',
-                          borderBottom: `1px solid ${token.colorBorderSecondary}`,
-                          background: token.colorBgContainer,
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-                          <Space size={12}>
-                            <span
-                              style={{
-                                width: 40,
-                                height: 40,
-                                borderRadius: token.borderRadius,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                background: token.colorPrimaryBg,
-                                color: token.colorPrimary,
-                              }}
-                            >
-                              <ShopOutlined style={{ fontSize: 20 }} />
-                            </span>
-                            <div>
-                              <Title level={4} style={{ margin: 0 }}>
-                                {displayName}
-                              </Title>
-                            </div>
-                          </Space>
-                          <Space size="small">
-                            {!isDraft && !isApproved ? (
-                              <>
-                                <Button onClick={() => setShowAddForm(prev => !prev)}>
-                                  {showAddForm
-                                    ? (isNeedsRevision ? 'View Revision Summary' : isResubmitted ? 'View Resubmission Status' : 'View Progress')
-                                    : (isNeedsRevision ? 'Review & Fix Application' : isResubmitted ? 'View Submitted Revisions' : 'View Submitted Application')}
-                                </Button>
-                                {isNeedsRevision && showAddForm && (
-                                  <>
-                                    <Button
-                                      onClick={() => formRef.current?.saveDraft?.()}
-                                      loading={formSubmitting}
-                                    >
-                                      Save as Draft
-                                    </Button>
-                                    <Button
-                                      type="primary"
-                                      onClick={() => formRef.current?.submitApplication?.()}
-                                      loading={formSubmitting}
-                                    >
-                                      Resubmit Application
-                                    </Button>
-                                  </>
-                                )}
-                              </>
-                            ) : isDraft ? (
-                              <>
-                                {import.meta.env.DEV && (
-                                  <Button
-                                    type="dashed"
-                                    icon={<BugOutlined />}
-                                    onClick={() => formRef.current?.fillTestData?.()}
-                                  >
-                                    Fill with test data
-                                  </Button>
-                                )}
-                                <Button
-                                  danger
-                                  icon={<DeleteOutlined />}
-                                  onClick={handleDeleteDraftClick}
-                                >
-                                  Delete
-                                </Button>
-                                <Button
-                                  onClick={() => formRef.current?.saveDraft?.()}
-                                  loading={formSubmitting}
-                                >
-                                  Save as Draft
-                                </Button>
-                                <Button
-                                  type="primary"
-                                  onClick={() => formRef.current?.submitApplication?.()}
-                                  loading={formSubmitting}
-                                >
-                                  Submit
-                                </Button>
-                              </>
-                            ) : null}
-                          </Space>
-                        </div>
-                      </div>
-                      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                        {isApproved && !showAddForm ? (
-                          <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-                            <ApprovedBusinessView business={selectedBusiness} onRefresh={fetchBusinesses} />
-                          </div>
-                        ) : !isDraft && !showAddForm ? (
-                          <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-                            <PendingApplicationView
-                              business={selectedBusiness}
-                              onEdit={canEditRevision ? openRevisionForm : undefined}
-                              onOpenForm={isResubmitted ? openReadOnlyApplicationForm : undefined}
-                            />
-                          </div>
-                        ) : (
-                          <AddBusinessForm
-                            ref={formRef}
-                            embedded
-                            onSubmittingChange={setFormSubmitting}
-                            key={`${selectedBusiness?.businessId || selectedBusiness?._id || 'edit'}-${showAddForm}`}
-                            onBack={handleBackFromForm}
-                            editingBusiness={selectedBusiness}
-                            readOnly={!isDraft && !canEditRevision}
-                            hideActionButtons={isNeedsRevision}
-                            onSubmitted={(response) => {
-                              if (response?.businesses?.length) setBusinesses(response.businesses)
-                              else fetchBusinesses()
-                              setShowAddForm(false)
-                            }}
-                            onDraftCreated={(newBusiness) => {
-                              setBusinesses(prev => [newBusiness, ...prev.filter(b => (b.businessId || b._id) !== (newBusiness.businessId || newBusiness._id))])
-                              setEditingBusiness(newBusiness)
-                              setSelectedBusinessId(newBusiness.businessId || newBusiness._id)
-                              fetchBusinesses()
-                            }}
-                          />
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    <AddBusinessForm
-                      onBack={handleBackFromForm}
-                      editingBusiness={editingBusiness}
-                      initialRegistrationType={fromWelcomeModal ? businessType : null}
-                      onDraftCreated={(newBusiness) => {
-                        // Add the new business to state immediately so selectedBusiness is available
-                        // This prevents a race condition where selectedBusinessId is set but
-                        // businesses array hasn't been updated yet, causing the non-embedded form
-                        // to re-render with initialRegistrationType still set
-                        const newId = newBusiness.businessId || newBusiness._id
-                        setBusinesses(prev => [newBusiness, ...prev.filter(b => (b.businessId || b._id) !== newId)])
-                        setEditingBusiness(newBusiness)
-                        setSelectedBusinessId(newId)
-                        setFromWelcomeModal(false) // Clear the flag to prevent re-triggering
-                        // Refresh in background to sync with server
-                        fetchBusinesses()
-                      }}
-                    />
-                  )}
-                </div>
-              ) : (
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Empty description={businesses.length === 0 ? "Add your first business to get started" : "Select a business to view details"} />
-                </div>
-              )
-            )}
-          </div>
-        </div>
+        // Desktop View
+        <BusinessOwnerDashboardDesktopView
+          businesses={businesses}
+          loading={loading}
+          selectedBusinessId={selectedBusinessId}
+          showAddForm={showAddForm}
+          showSettings={showSettings}
+          showReadOnlyForm={showReadOnlyForm}
+          showBusinessTypeSelector={showBusinessTypeSelector}
+          editingApplication={editingApplication}
+          setEditingApplication={setEditingApplication}
+          formSubmitting={formSubmitting}
+          setFormSubmitting={setFormSubmitting}
+          permitType={permitType}
+          currentPage={currentPage}
+          totalItems={totalItems}
+          announcementItems={announcementItems}
+          announcements={announcements}
+          defaultOpenKey={defaultOpenKey}
+          readAnnouncements={readAnnouncements}
+          onBusinessSelect={handleBusinessSelect}
+          onAddBusiness={handleAddBusiness}
+          onPageChange={handlePageChange}
+          onBusinessTypeSelect={handleBusinessTypeSelect}
+          onLinkExisting={handleLinkExisting}
+          onBackFromForm={handleBackFromForm}
+          onSetBusinesses={setBusinesses}
+          onFetchBusinesses={fetchBusinesses}
+          themeSettings={themeSettings}
+          dashboardState={dashboardState}
+          draftLimitReached={draftLimitReached}
+        />
       )}
     </BusinessOwnerLayout>
   )

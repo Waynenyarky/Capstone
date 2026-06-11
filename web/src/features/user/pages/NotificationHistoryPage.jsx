@@ -6,7 +6,7 @@ import { getNotifications, markAsRead, markAllAsRead, deleteNotification, delete
 import dayjs from 'dayjs'
 import { useAuthSession } from '@/features/authentication'
 import AdminLayout from '@/features/admin/components/AdminLayout'
-import BusinessOwnerLayout from '@/features/business-owner/components/BusinessOwnerLayout'
+import BusinessOwnerLayout from '@/features/business-owner/components/shared/BusinessOwnerLayout'
 
 const { Text } = Typography
 const { Option } = Select

@@ -19,7 +19,7 @@ import {
   checkPaymentConsistency,
   recoverPartialPayment,
   getPaymentRecoveryOptions
-} from '@/features/business-owner/services/paymentService.js'
+} from '@/features/business-owner/services/paymentsService.js'
 
 // Mock the HTTP lib
 vi.mock('@/lib/http.js', () => ({

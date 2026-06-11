@@ -7,40 +7,96 @@
 import { namePatternRule } from './namePattern.js'
 
 export const pisStreetRules = [
-  { required: true, message: 'Please enter your street address' },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error('Please enter your street address'))
+      }
+      return Promise.resolve()
+    }
+  },
   { max: 200, message: 'Street address must be at most 200 characters' },
 ]
 
 export const pisBarangayRules = [
-  { required: true, message: 'Please enter your barangay' },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error('Please enter your barangay'))
+      }
+      return Promise.resolve()
+    }
+  },
   { max: 100, message: 'Barangay must be at most 100 characters' },
 ]
 
 export const pisCityRules = [
-  { required: true, message: 'Please enter your city/municipality' },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error('Please enter your city/municipality'))
+      }
+      return Promise.resolve()
+    }
+  },
   { max: 100, message: 'City must be at most 100 characters' },
 ]
 
 export const pisProvinceRules = [
-  { required: true, message: 'Please enter your province' },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error('Please enter your province'))
+      }
+      return Promise.resolve()
+    }
+  },
   { max: 100, message: 'Province must be at most 100 characters' },
 ]
 
 export const pisZipCodeRules = [
-  { required: true, message: 'Please enter your zip code' },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error('Please enter your zip code'))
+      }
+      return Promise.resolve()
+    }
+  },
   { pattern: /^\d{4}$/, message: 'Zip code must be exactly 4 digits' },
 ]
 
 export const pisSexRules = [
-  { required: true, message: 'Please select your sex' },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error('Please select your sex'))
+      }
+      return Promise.resolve()
+    }
+  },
 ]
 
 export const pisMaritalStatusRules = [
-  { required: true, message: 'Please select your marital status' },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error('Please select your marital status'))
+      }
+      return Promise.resolve()
+    }
+  },
 ]
 
 export const pisDateOfBirthRules = [
-  { required: true, message: 'Please select your date of birth' },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error('Please select your date of birth'))
+      }
+      return Promise.resolve()
+    }
+  },
   () => ({
     validator(_, value) {
       if (!value) return Promise.resolve()
@@ -58,29 +114,64 @@ export const pisDateOfBirthRules = [
 ]
 
 export const pisPlaceOfBirthRules = [
-  { required: true, message: 'Please enter your place of birth' },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error('Please enter your place of birth'))
+      }
+      return Promise.resolve()
+    }
+  },
   { max: 200, message: 'Place of birth must be at most 200 characters' },
   namePatternRule,
 ]
 
 export const pisNationalityRules = [
-  { required: true, message: 'Please enter your nationality' },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error('Please enter your nationality'))
+      }
+      return Promise.resolve()
+    }
+  },
   { max: 50, message: 'Nationality must be at most 50 characters' },
   namePatternRule,
 ]
 
 export const pisFatherNameRules = [
-  { required: true, message: "Please enter your father's name" },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error("Please enter your father's name"))
+      }
+      return Promise.resolve()
+    }
+  },
   { max: 100, message: "Father's name must be at most 100 characters" },
   namePatternRule,
 ]
 
 export const pisMotherNameRules = [
-  { required: true, message: "Please enter your mother's name" },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error("Please enter your mother's name"))
+      }
+      return Promise.resolve()
+    }
+  },
   { max: 100, message: "Mother's name must be at most 100 characters" },
   namePatternRule,
 ]
 
 export const pisEducationRules = [
-  { required: true, message: 'Please select your highest educational attainment' },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error('Please select your highest educational attainment'))
+      }
+      return Promise.resolve()
+    }
+  },
 ]

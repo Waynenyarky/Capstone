@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Form } from '@/shared/components/AppForm'
-import { Typography, Button, Card, Space, Alert, App, Input, Select, Upload, Checkbox, Row, Col } from 'antd'
+import { Typography, Button, Card, Space, Alert, App, Input, Select, Upload, Checkbox, Row, Col, Modal } from 'antd'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
-import { ArrowLeftOutlined, ShopOutlined, FileProtectOutlined, CheckCircleOutlined, UploadOutlined } from '@ant-design/icons'
-import BusinessOwnerLayout from '../components/BusinessOwnerLayout'
+import { ArrowLeftOutlined, ShopOutlined, FileProtectOutlined, CheckCircleOutlined, UploadOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
+import BusinessOwnerLayout from '../components/shared/BusinessOwnerLayout'
 import { addBusiness, submitBusinessApplication } from '../services/businessProfileService'
 
 const { Title, Text } = Typography
@@ -14,7 +14,6 @@ export default function ApplicationNewPage() {
   const navigate = useNavigate()
   const { message } = App.useApp()
   const [form] = Form.useForm()
-  const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [businessCreated, setBusinessCreated] = useState(null)
 
@@ -22,31 +21,17 @@ export default function ApplicationNewPage() {
     navigate('/owner')
   }
 
-  const handleSaveDraft = async () => {
-    try {
-      const values = form.getFieldsValue()
-      setLoading(true)
-      const result = await addBusiness(values)
-      setBusinessCreated(result)
-      message.success('Draft saved successfully')
-    } catch (error) {
-      message.error('Failed to save draft')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const handleSubmit = async (values) => {
     setSubmitting(true)
     try {
       let businessId = businessCreated?.businessId || businessCreated?._id
-      
+
       if (!businessId) {
         const result = await addBusiness(values)
         businessId = result.businessId || result._id
         setBusinessCreated(result)
       }
-      
+
       await submitBusinessApplication(businessId)
       message.success('Application submitted successfully!')
       navigate('/owner')
@@ -247,12 +232,21 @@ export default function ApplicationNewPage() {
 
             <Form.Item>
               <Space size="large">
-                <Button 
-                  type="primary" 
-                  htmlType="submit" 
+                <Button
+                  type="primary"
                   size="large"
                   loading={submitting}
                   data-testid="submit-application-button"
+                  onClick={() => {
+                    Modal.confirm({
+                      title: 'Confirm Application Submission',
+                      icon: <ExclamationCircleOutlined />,
+                      content: 'Are you sure you want to submit this business permit application? This action cannot be undone.',
+                      okText: 'Yes, Submit',
+                      cancelText: 'Cancel',
+                      onOk: () => form.submit()
+                    })
+                  }}
                 >
                   <CheckCircleOutlined /> Submit Application
                 </Button>

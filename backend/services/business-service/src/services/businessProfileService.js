@@ -12,6 +12,7 @@ const {
   calculateRiskLevel,
 } = require("../lib/businessValidation");
 const mongoose = require("mongoose");
+const { decrypt, isEncrypted } = require("../../../../shared/lib/fieldCipher");
 
 let cachedAuthUserModel;
 let cachedAuthRoleModel;
@@ -719,8 +720,21 @@ class BusinessProfileService {
       ...businessData,
       businessId: existingBusinessObj.businessId, // Don't allow changing ID
       isPrimary: existingBusinessObj.isPrimary, // Don't allow changing primary here (use setPrimaryBusiness)
+      createdAt: existingBusinessObj.createdAt, // Preserve original creation time (override any incoming value)
       updatedAt: new Date(),
     };
+
+    // Explicitly delete createdAt from businessData to prevent any accidental override
+    delete businessData.createdAt;
+
+    // Debug logging
+    console.log('[updateBusiness] Debug:', {
+      businessId,
+      existingCreatedAt: existingBusinessObj.createdAt,
+      incomingCreatedAt: businessData.createdAt,
+      finalCreatedAt: updatedBusiness.createdAt,
+      businessDataKeys: Object.keys(businessData),
+    });
 
     // Update business name if extracted from formData
     if (extractedBusinessName && !businessData.businessName) {
@@ -845,9 +859,23 @@ class BusinessProfileService {
     // Update the business in the array
     profile.businesses[businessIndex] = updatedBusiness;
 
+    // Log state before save
+    console.log('[updateBusiness] Before save:', {
+      businessId,
+      createdAtBefore: profile.businesses[businessIndex].createdAt,
+      updatedAtBefore: profile.businesses[businessIndex].updatedAt,
+    });
+
     // Mark the array as modified for Mongoose
     profile.markModified("businesses");
     await profile.save();
+
+    // Log state after save
+    console.log('[updateBusiness] After save:', {
+      businessId,
+      createdAtAfter: profile.businesses[businessIndex].createdAt,
+      updatedAtAfter: profile.businesses[businessIndex].updatedAt,
+    });
 
     if (updatedBusiness.applicationStatus === "resubmit" && !wasResubmit) {
       try {
@@ -938,30 +966,49 @@ class BusinessProfileService {
    * @returns {Promise<object>} Updated profile
    */
   async deleteBusiness(userId, businessId) {
+    console.log('[deleteBusiness] Attempting to delete business:', { userId, businessId });
     const profile = await BusinessProfile.findOne({ userId });
     if (!profile) {
+      console.error('[deleteBusiness] Profile not found for userId:', userId);
       throw new Error("Business profile not found");
     }
 
     if (!profile.businesses || profile.businesses.length === 0) {
+      console.error('[deleteBusiness] No businesses in profile for userId:', userId);
       throw new Error("No businesses found");
     }
 
+    console.log('[deleteBusiness] Profile has', profile.businesses.length, 'businesses');
     const businessIndex = profile.businesses.findIndex(
       (b) => b.businessId === businessId || String(b._id) === businessId,
     );
     if (businessIndex === -1) {
+      console.error('[deleteBusiness] Business not found with businessId or _id:', businessId);
+      console.log('[deleteBusiness] Available business IDs:', profile.businesses.map(b => ({ businessId: b.businessId, _id: String(b._id), status: b.applicationStatus })));
       throw new Error("Business not found");
     }
 
     const businessToDelete = profile.businesses[businessIndex];
     const wasPrimary = businessToDelete.isPrimary;
+    console.log('[deleteBusiness] Found business:', { businessId: businessToDelete.businessId, _id: String(businessToDelete._id), applicationStatus: businessToDelete.applicationStatus });
 
     // Only allow deletion of applications that have never been submitted
-    const status = (businessToDelete.applicationStatus || "").toLowerCase();
+    // Decrypt status if it's encrypted (handles legacy encrypted data)
+    let status = businessToDelete.applicationStatus || "";
+    if (isEncrypted(status)) {
+      try {
+        status = decrypt(status);
+      } catch (err) {
+        console.error('[deleteBusiness] Failed to decrypt status:', err);
+      }
+    }
+    // Normalize status to match frontend behavior (case-insensitive, handles Draft/DRAFT/draft)
+    status = status.toLowerCase().trim();
+    console.log('[deleteBusiness] Normalized status:', status, 'vs "draft"');
     if (status !== "draft") {
+      console.error('[deleteBusiness] Status check failed:', { rawStatus: businessToDelete.applicationStatus, normalizedStatus: status });
       throw new Error(
-        "Cannot delete an application that has already been submitted.",
+        `Cannot delete application with status "${businessToDelete.applicationStatus}". Only draft applications can be deleted.`,
       );
     }
 

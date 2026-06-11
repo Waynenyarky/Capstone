@@ -5,8 +5,8 @@
 
 echo "🔌 Connecting to MongoDB to clear business data..."
 
-# Use mongosh in the MongoDB container with root credentials
-docker exec capstone-mongodb mongosh -u root -p devrootpass --authenticationDatabase admin --eval "
+# Use mongosh in the MongoDB container with app credentials from env
+docker exec capstone-mongodb mongosh -u capstone_app -p g95fxnwa1wPDdyfA --authenticationDatabase admin --eval "
 try {
   const count = db.businessprofiles.countDocuments();
   console.log('📊 Found ' + count + ' business applications');

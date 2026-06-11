@@ -1,12 +1,10 @@
 import { useState } from 'react'
-import { Typography, Input, Button, theme, Grid, Layout, Upload, message, Alert } from 'antd'
-import { UploadOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { Typography, Input, Button, theme, Grid, Layout, Upload, message, Alert, Modal } from 'antd'
+import { UploadOutlined, CheckCircleOutlined, EyeOutlined, DownloadOutlined } from '@ant-design/icons'
 import HomeHeader from '../components/HomeHeader'
-import HomeFooter from '../components/HomeFooter'
 import ZipperReveal from '@/shared/components/MosaicArt.jsx'
 import PanAnimation from '@/shared/components/PanAnimation.jsx'
 import BlurFade from '@/shared/components/BlurFade.jsx'
-import DynamicFaqSection from '@/shared/components/DynamicFaqSection.jsx'
 
 const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
@@ -27,6 +25,7 @@ export default function HelpPage() {
   const [submitted, setSubmitted] = useState(false)
   const [submittedId, setSubmittedId] = useState('')
   const [error, setError] = useState('')
+  const [previewModal, setPreviewModal] = useState({ open: false, url: null, label: '', type: 'other' })
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -75,32 +74,35 @@ export default function HelpPage() {
   }
 
   return (
-    <Layout style={{ minHeight: '100vh', background: token.colorBgContainer }}>
-      <HomeHeader visible={true} />
-      <Content style={{ display: 'flex', flexDirection: 'column' }}>
+    <Layout style={{ height: '100vh', background: token.colorBgContainer }}>
+      <HomeHeader visible={true} onNavigate={(path) => window.location.href = path} />
+      <Content style={{ display: 'flex', flexDirection: 'column', flex: 1, marginTop: screens.md ? 72 : 64 }}>
         {/* Two Panel Design */}
         <div
           style={{
             width: '100vw',
-            minHeight: screens.md ? 'calc(100vh - 64px)' : 'auto',
+            height: screens.md ? 'calc(100vh - 72px)' : 'auto',
             display: 'flex',
             flexDirection: screens.md ? 'row' : 'column',
+            flex: 1,
           }}
         >
           {/* Left Panel - Form (40% on desktop, 100% on mobile) */}
           <div style={{
             width: screens.md ? '40%' : '100%',
             background: token.colorBgContainer,
-            padding: screens.md ? '48px 32px' : '32px 24px',
+            padding: '48px 48px',
+            paddingLeft: screens.md ? 48 : 16,
+            paddingRight: screens.md ? 48 : 16,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'flex-start',
-            justifyContent: 'center',
+            justifyContent: screens.md ? 'center' : 'flex-start',
             overflowY: 'auto',
           }}>
             {!submitted ? (
               <BlurFade delay={0.2} duration={0.5} fullHeight={false}>
-                <div style={{ width: '100%', maxWidth: 420 }}>
+                <div style={{ width: '100%' }}>
                   <Title level={2} style={{ marginBottom: 8, marginTop: 8, fontSize: screens.md ? 32 : 24 }}>
                     Need Help?
                   </Title>
@@ -174,15 +176,27 @@ export default function HelpPage() {
                         Attachments <Text type="secondary" style={{ fontSize: 12 }}>(optional)</Text>
                       </Text>
                       <Upload
+                        listType="picture-card"
                         fileList={fileList}
                         onChange={({ fileList: fl }) => setFileList(fl)}
                         beforeUpload={() => false}
                         multiple
                         maxCount={5}
+                        onPreview={(file) => {
+                          const url = file.originFileObj ? URL.createObjectURL(file.originFileObj) : file.url || file.thumbUrl || null
+                          const lookup = `${url || ''} ${file.name || ''}`.toLowerCase()
+                          let fileType = 'other'
+                          if (lookup.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg|heic|heif)/i)) fileType = 'image'
+                          else if (lookup.match(/\.(pdf)/i)) fileType = 'pdf'
+                          setPreviewModal({ open: true, url, label: file.name, type: fileType })
+                        }}
                       >
-                        <Button icon={<UploadOutlined />} size="small">
-                          Attach Files
-                        </Button>
+                        {fileList.length < 5 && (
+                          <div>
+                            <UploadOutlined />
+                            <div style={{ marginTop: 8 }}>Upload</div>
+                          </div>
+                        )}
                       </Upload>
                     </div>
 
@@ -191,18 +205,29 @@ export default function HelpPage() {
                       onClick={handleSubmit}
                       loading={submitting}
                       block
-                      size="large"
                       style={{ marginTop: 8 }}
                     >
                       Submit Request
+                    </Button>
+                    <Button
+                      onClick={() => setForm({
+                        subject: 'Test Subject - Issue with Business Permit',
+                        message: 'This is a test message describing an issue with a business permit. The system is not allowing me to complete the application process.',
+                        contactEmail: 'test@example.com',
+                        businessPermitNumber: 'BP-2024-001234',
+                      })}
+                      block
+                      style={{ marginTop: 8 }}
+                    >
+                      Debug: Fill Form
                     </Button>
                   </div>
                 </div>
               </BlurFade>
             ) : (
               <BlurFade delay={0.2} duration={0.5} fullHeight={false}>
-                <div style={{ width: '100%', maxWidth: 420, textAlign: 'center' }}>
-                  <CheckCircleOutlined style={{ fontSize: 48, color: token.colorSuccess, marginBottom: 16 }} />
+                <div style={{ width: '100%', textAlign: 'center' }}>
+                  <CheckCircleOutlined style={{ fontSize: 48, color: token.colorPrimary, marginBottom: 16 }} />
                   <Title level={3} style={{ marginBottom: 8 }}>
                     Request Submitted
                   </Title>
@@ -253,15 +278,55 @@ export default function HelpPage() {
           )}
         </div>
 
-        {/* FAQ Section */}
-        <div style={{ padding: screens.md ? '60px 20px' : '40px 16px', maxWidth: 700, margin: '0 auto', width: '100%' }}>
-          <Title level={3} style={{ textAlign: 'center', marginBottom: 32 }}>
-            Frequently Asked Questions
-          </Title>
-          <DynamicFaqSection slotId="help-page-faq" />
-        </div>
+        <Modal
+          title={previewModal.label}
+          open={previewModal.open}
+          onCancel={() => setPreviewModal({ open: false, url: null, label: '', type: 'other' })}
+          width={previewModal.type === 'image' ? 560 : 720}
+          footer={[
+            <Button
+              key="openTab"
+              type="primary"
+              icon={<EyeOutlined />}
+              onClick={() => previewModal.url && window.open(previewModal.url, '_blank')}
+            >
+              Open in new tab
+            </Button>,
+            ...(previewModal.url
+              ? [
+                  <Button key="download" icon={<DownloadOutlined />} href={previewModal.url} download>
+                    Download
+                  </Button>
+                ]
+              : []),
+          ]}
+        >
+          {previewModal.open && previewModal.url && (
+            <div style={{ minHeight: 200, display: 'flex', justifyContent: 'center', alignItems: 'stretch', overflow: 'auto', flexDirection: 'column', width: '100%' }}>
+              {previewModal.type === 'image' && (
+                <img
+                  src={previewModal.url}
+                  alt={previewModal.label}
+                  style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain' }}
+                />
+              )}
+              {previewModal.type === 'pdf' && (
+                <iframe
+                  title={previewModal.label}
+                  src={previewModal.url}
+                  style={{ width: '100%', height: '70vh', border: `1px solid ${token.colorBorderSecondary}`, borderRadius: token.borderRadius }}
+                />
+              )}
+              {previewModal.type === 'other' && (
+                <div style={{ padding: 24, textAlign: 'center' }}>
+                  <Text type="secondary">Preview not available for this file type</Text>
+                </div>
+              )}
+            </div>
+          )}
+        </Modal>
+
       </Content>
-      <HomeFooter />
     </Layout>
   )
 }

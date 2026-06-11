@@ -85,6 +85,7 @@ export default function LayoutPageHeader({
   onSettingsClick,
   leftContent,
   showBrandLogo = false,
+  brandLogoClickable = true,
   onRefresh,
   lastUpdated,
   socketConnected,
@@ -326,7 +327,7 @@ export default function LayoutPageHeader({
       >
         {leftContent || showBrandLogo ? (
           <Space size={10} align="center">
-            {showBrandLogo && <AnimatedBrandLogo onClick={() => navigate('/')} />}
+            {showBrandLogo && <AnimatedBrandLogo onClick={brandLogoClickable ? () => navigate('/') : undefined} />}
             {!showBrandLogo && pageIcon && (
               <span
                 style={{
@@ -380,24 +381,26 @@ export default function LayoutPageHeader({
         )}
 
         <Space size="middle" wrap>
-          <SiteStatusPill
-            lastUpdated={lastUpdated}
-            socketConnected={socketConnected}
-            statusText={statusText}
-            onRefresh={async () => {
-              if (onRefresh) {
-                setRefreshing(true)
-                try {
-                  await onRefresh()
-                } finally {
-                  setRefreshing(false)
+          {!isMobile && (
+            <SiteStatusPill
+              lastUpdated={lastUpdated}
+              socketConnected={socketConnected}
+              statusText={statusText}
+              onRefresh={async () => {
+                if (onRefresh) {
+                  setRefreshing(true)
+                  try {
+                    await onRefresh()
+                  } finally {
+                    setRefreshing(false)
+                  }
                 }
-              }
-            }}
-            loading={refreshing}
-            showRefreshButton={true}
-            showSocketStatus={socketConnected !== undefined}
-          />
+              }}
+              loading={refreshing}
+              showRefreshButton={true}
+              showSocketStatus={socketConnected !== undefined}
+            />
+          )}
           {infoSlotId && (
             <Button
               icon={<InfoCircleOutlined />}

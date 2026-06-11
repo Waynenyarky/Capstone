@@ -1,6 +1,24 @@
 const axios = require("axios");
 const logger = require("./logger");
 
+let buildOtpEmailBody, buildNotificationEmailBody, buildInfoBox, buildWarningBox, buildButton, buildEmailHtml, EMAIL_COLORS;
+try {
+  const builder = require("/shared/lib/emailTemplateBuilder");
+  buildOtpEmailBody = builder.buildOtpEmailBody;
+  buildNotificationEmailBody = builder.buildNotificationEmailBody;
+  buildInfoBox = builder.buildInfoBox;
+  buildWarningBox = builder.buildWarningBox;
+  buildButton = builder.buildButton;
+  buildEmailHtml = builder.buildEmailHtml;
+  EMAIL_COLORS = builder.EMAIL_COLORS;
+  console.log("✅ Email template builder loaded successfully");
+  logger.info("Email template builder loaded successfully");
+} catch (err) {
+  console.error("❌ Failed to load email template builder:", err.message);
+  logger.error("Failed to load email template builder", { error: err.message });
+  throw new Error("Failed to load email template builder: " + err.message);
+}
+
 /**
  * Email API Service - REST API Implementation
  * Supports multiple providers: SendGrid, Mailgun, AWS SES, Resend, Postmark
@@ -482,7 +500,7 @@ async function sendOtp({
   purpose = "login",
 }) {
   const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10);
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const brandName = process.env.APP_BRAND_NAME || "BizClear";
   const supportEmail =
     process.env.SUPPORT_EMAIL ||
     process.env.EMAIL_HOST_USER ||
@@ -511,77 +529,21 @@ async function sendOtp({
     "Thank you,",
     brandName,
   ].join("\n");
-  const html = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-      
-      <!-- Header -->
-      <div style="background:#003a70;padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;font-family:'Raleway', sans-serif;">${brandName}</h1>
-      </div>
+  const html = buildOtpEmailBody({
+    heading,
+    intro: introHtml,
+    code,
+    expiry: ttlMin,
+    appUrl,
+  });
 
-      <!-- Body -->
-      <div style="padding:40px 32px;text-align:center;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">${heading}</h2>
-        
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          ${introHtml}
-        </p>
-
-        <div style="background:#f8f9fa;padding:24px;border-radius:8px;border:1px dashed #003a70;margin-bottom:24px;display:inline-block;">
-           <div style="font-size:32px;letter-spacing:8px;color:#003a70;font-weight:700;font-family:monospace;">${code}</div>
-        </div>
-
-        <p style="margin:0 0 8px;color:#8c8c8c;font-size:14px;">
-           This code expires in ${ttlMin} minutes.
-        </p>
-        
-        <p style="margin:16px 0 0;color:#faad14;font-size:14px;font-weight:600;">
-           ⚠️ Important: Do not share this code with anyone.
-        </p>
-      </div>
-
-      <!-- Footer -->
-      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
-        <div style="background:#fffbe6;border:1px solid #ffe58f;padding:16px;border-radius:4px;margin-bottom:24px;text-align:left;">
-           <p style="margin:0 0 4px;color:#d48806;font-weight:700;font-size:14px;">Did not request this?</p>
-           <p style="margin:0;color:#595959;font-size:13px;line-height:1.5;">
-             If this request wasn't made by you, your account may be at risk. 
-             <a href="${appUrl}/support/security" style="color:#d48806;text-decoration:underline;font-weight:600;">Report unauthorized access immediately</a>.
-           </p>
-        </div>
-        
-        <div style="border-top: 1px solid #e8e8e8; margin-top: 24px; padding-top: 24px; color: #8c8c8c; font-size: 12px; line-height: 1.5;">
-          <p style="margin: 0 0 8px;">
-            <strong>${brandName}</strong><br>
-            Dagupan City, Philippines
-          </p>
-          <p style="margin: 0 0 8px;">
-            <a href="${appUrl}/policy" style="color: #003a70; text-decoration: none;">Privacy Policy</a> • 
-            <a href="${appUrl}/terms" style="color: #003a70; text-decoration: none;">Terms of Service</a>
-          </p>
-          <p style="margin: 0;">
-            Need help? <a href="mailto:${supportEmail}" style="color: #003a70; text-decoration: none;">Contact Support</a>
-          </p>
-          <p style="margin: 16px 0 0; font-size: 11px; color: #bfbfbf;">
-            © ${new Date().getFullYear()} ${brandName}. All rights reserved.
-          </p>
-        </div>
-      </div>
-
-    </div>
-  </div>
-  </body>
-  </html>
-  `;
+  logger.info("Email: OTP HTML generated", {
+    hasHeader: html.includes("BizClear"),
+    hasFooter: html.includes("Terms of Service"),
+    hasOldFooter: html.includes("Dagupan"),
+    htmlLength: html.length,
+    htmlSnippet: html.substring(0, 500),
+  });
 
   const isDevelopment = process.env.NODE_ENV !== "production";
 
@@ -607,7 +569,7 @@ async function sendOtp({
       text,
       html,
       headers: {
-        "X-Mailer": "BizClear Business Center",
+        "X-Mailer": "BizClear",
         "List-Unsubscribe": `<${appUrl}/unsubscribe>`,
       },
     });
@@ -668,7 +630,7 @@ async function sendForgotPasswordNotAvailableEmail({
 }) {
   const logger = require("./logger");
   const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10);
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const brandName = process.env.APP_BRAND_NAME || "BizClear";
   const appUrl =
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
   const supportEmail =
@@ -708,57 +670,29 @@ async function sendForgotPasswordNotAvailableEmail({
   const text = textLines.join("\n");
 
   const codeBlockHtml = code
-    ? `
-        <p style="margin:0 0 12px;color:#595959;font-size:14px;">Your verification code (to confirm this request):</p>
-        <div style="background:#f8f9fa;padding:24px;border-radius:8px;border:1px dashed #003a70;margin-bottom:16px;display:inline-block;">
-          <div style="font-size:32px;letter-spacing:8px;color:#003a70;font-weight:700;font-family:monospace;">${code}</div>
+    ? `<p style="margin:0 0 12px;color:${EMAIL_COLORS.textSecondary};font-size:14px;">Your verification code (to confirm this request):</p>
+        <div style="background:${EMAIL_COLORS.bgWhite};padding:16px;border-radius:8px;border:1px dashed ${EMAIL_COLORS.primary};margin-bottom:16px;display:inline-block;">
+          <div style="font-size:18px;letter-spacing:4px;color:${EMAIL_COLORS.primary};font-weight:600;font-family:monospace;">${code}</div>
         </div>
-        <p style="margin:0;color:#8c8c8c;font-size:14px;">This code expires in ${ttlMin} minutes.</p>
-      `
+        <p style="margin:0;color:${EMAIL_COLORS.textTertiary};font-size:14px;">This code expires in ${ttlMin} minutes.</p>`
     : "";
 
-  const html = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-      <div style="background:#003a70;padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;font-family:'Raleway', sans-serif;">${brandName}</h1>
-      </div>
-      <div style="padding:40px 32px;text-align:center;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">Password reset not available</h2>
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          You requested a password reset, but password reset is <strong>not available</strong> for your account type.
-        </p>
-        <p style="margin:0 0 16px;color:#595959;font-size:16px;line-height:1.6;">
-          ${instructionHtml}
-        </p>
-        <div style="background:#fff7e6;border:1px solid #ffd591;padding:16px;border-radius:4px;margin-bottom:24px;text-align:left;">
-          <p style="margin:0 0 4px;color:#d46b08;font-weight:700;font-size:14px;">Notice</p>
-          <p style="margin:0;color:#595959;font-size:14px;line-height:1.5;">
-            This action has been logged and administrators have been alerted to this attempt.
-          </p>
-        </div>
-        ${codeBlockHtml}
-      </div>
-      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
-        <p style="margin:0 0 8px;color:#8c8c8c;font-size:12px;">
-          <strong>${brandName}</strong><br>Dagupan City, Philippines
-        </p>
-        <p style="margin:0;">Need help? <a href="mailto:${supportEmail}" style="color:#003a70;text-decoration:none;">Contact Support</a></p>
-        <p style="margin:16px 0 0;font-size:11px;color:#bfbfbf;">© ${new Date().getFullYear()} ${brandName}. All rights reserved.</p>
-      </div>
-    </div>
-  </div>
-  </body>
-  </html>
-  `;
+  const html = buildNotificationEmailBody({
+    heading: "Password reset not available",
+    intro: `You requested a password reset, but password reset is <strong>not available</strong> for your account type. ${instructionHtml}`,
+    warningBox: {
+      title: "Notice",
+      message: "This action has been logged and administrators have been alerted to this attempt.",
+    },
+    appUrl,
+  });
+  // Add code block if present
+  if (code) {
+    html = html.replace(
+      /<\/div>\s*<\/body>/,
+      `${codeBlockHtml}</div></body>`
+    );
+  }
 
   try {
     if (!to || !to.includes("@")) {
@@ -774,7 +708,7 @@ async function sendForgotPasswordNotAvailableEmail({
       text,
       html,
       headers: {
-        "X-Mailer": "BizClear Business Center",
+        "X-Mailer": "BizClear",
         "List-Unsubscribe": `<${appUrl}/unsubscribe>`,
       },
     });
@@ -811,7 +745,7 @@ async function sendStaffCredentialsEmail({
   subject = "Your Staff Account Credentials",
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const brandName = process.env.APP_BRAND_NAME || "BizClear";
   const appUrl =
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
   const supportEmail =
@@ -841,82 +775,22 @@ async function sendStaffCredentialsEmail({
   );
   const text = textLines.join("\n");
 
-  const html = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-      
-      <!-- Header -->
-      <div style="background:#003a70;padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;font-family:'Raleway', sans-serif;">${brandName} Staff Portal</h1>
-      </div>
-
-      <!-- Body -->
-      <div style="padding:40px 32px;text-align:center;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">Welcome to the Team!</h2>
-        
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          Your staff account has been created. Use the credentials below to access the portal.
-        </p>
-
-        <div style="background:#f8f9fa;padding:24px;border-radius:8px;border:1px solid #e8e8e8;margin-bottom:24px;text-align:left;display:inline-block;min-width:300px;">
-           ${
-             username
-               ? `<div style="margin-bottom:12px;">
-             <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Username</span><br>
-             <span style="color:#003a70;font-size:18px;font-weight:700;">${username}</span>
-           </div>`
-               : ""
-           }
-           <div style="margin-bottom:12px;">
-             <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Temporary Password</span><br>
-             <span style="color:#003a70;font-size:18px;font-weight:700;font-family:monospace;">${tempPassword}</span>
-           </div>
-           <div style="margin-bottom:12px;">
-             <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Office</span><br>
-             <span style="color:#1f1f1f;font-size:16px;">${office}</span>
-           </div>
-           <div>
-             <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Role</span><br>
-             <span style="color:#1f1f1f;font-size:16px;">${roleLabel}</span>
-           </div>
-        </div>
-
-        <p style="margin:0 0 24px;color:#595959;font-size:14px;">
-           Please log in and change your password immediately.
-        </p>
-
-        <a href="${appUrl}/auth/login" style="display:inline-block;background:#003a70;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:4px;font-weight:600;font-size:16px;">Log In Now</a>
-      </div>
-
-      <!-- Footer -->
-      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
-        <div style="color: #8c8c8c; font-size: 12px; line-height: 1.5;">
-          <p style="margin: 0 0 8px;">
-            <strong>${brandName}</strong><br>
-            Dagupan City, Philippines
-          </p>
-          <p style="margin: 0;">
-            Need help? <a href="mailto:${supportEmail}" style="color: #003a70; text-decoration: none;">Contact Support</a>
-          </p>
-          <p style="margin: 16px 0 0; font-size: 11px; color: #bfbfbf;">
-            © ${new Date().getFullYear()} ${brandName}. All rights reserved.
-          </p>
-        </div>
-      </div>
-
-    </div>
-  </div>
-  </body>
-  </html>
-  `;
+  const html = buildNotificationEmailBody({
+    heading: "Welcome to the Team!",
+    intro: "Your staff account has been created. Use the credentials below to access the portal.",
+    fields: {
+      fields: [
+        ...(username
+          ? [{ label: "Username", value: username, color: EMAIL_COLORS.primary, fontSize: "16px", fontWeight: "700" }]
+          : []),
+        { label: "Temporary password", value: tempPassword, color: EMAIL_COLORS.primary, fontSize: "16px", fontWeight: "700" },
+        { label: "Office", value: office },
+        { label: "Role", value: roleLabel },
+      ],
+    },
+    button: { text: "Log In Now", href: `${appUrl}/auth/login` },
+    appUrl,
+  });
 
   try {
     const fromAddress =
@@ -953,7 +827,7 @@ async function sendEmailChangeNotification({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const brandName = process.env.APP_BRAND_NAME || "BizClear";
   const appUrl =
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
   const supportEmail =
@@ -993,86 +867,31 @@ async function sendEmailChangeNotification({
     .filter(Boolean)
     .join("\n");
 
-  const html = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-      
-      <!-- Header -->
-      <div style="background:#003a70;padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;font-family:'Raleway', sans-serif;">${brandName}</h1>
-      </div>
+  const introText = isOldEmail
+    ? `We received a request to change the email address associated with your <strong>${brandName}</strong> account.`
+    : `Your email address has been successfully updated for your <strong>${brandName}</strong> account.`;
+  const warningMsg = isOldEmail
+    ? "If you didn't request this change, please revert it immediately or contact support."
+    : "If you didn't request this change, please contact support immediately as your account may be at risk.";
 
-      <!-- Body -->
-      <div style="padding:40px 32px;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">${isOldEmail ? "Email Change Requested" : "Email Change Confirmed"}</h2>
-        
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          ${
-            isOldEmail
-              ? `We received a request to change the email address associated with your <strong>${brandName}</strong> account.`
-              : `Your email address has been successfully updated for your <strong>${brandName}</strong> account.`
-          }
-        </p>
-
-        <div style="background:#f8f9fa;padding:24px;border-radius:8px;border:1px solid #e8e8e8;margin-bottom:24px;">
-          <div style="margin-bottom:12px;">
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Old Email</span><br>
-            <span style="color:#1f1f1f;font-size:16px;">${oldEmail}</span>
-          </div>
-          <div>
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">New Email</span><br>
-            <span style="color:#003a70;font-size:16px;font-weight:600;">${newEmail}</span>
-          </div>
-        </div>
-
-        ${
-          isOldEmail
-            ? `
-        <div style="background:#fffbe6;border:1px solid #ffe58f;padding:16px;border-radius:4px;margin-bottom:24px;">
-          <p style="margin:0 0 8px;color:#d48806;font-weight:700;font-size:14px;">⏰ Grace Period</p>
-          <p style="margin:0;color:#595959;font-size:14px;line-height:1.5;">
-            You have <strong>${gracePeriodHours} hours</strong> to revert this change if you didn't request it.
-            ${revertUrl ? `<a href="${revertUrl}" style="color:#d48806;text-decoration:underline;font-weight:600;display:block;margin-top:8px;">Revert Email Change</a>` : ""}
-          </p>
-        </div>
-        `
-            : ""
-        }
-
-        <div style="background:#f0f5ff;border:1px solid #adc6ff;padding:16px;border-radius:4px;margin-bottom:24px;">
-          <p style="margin:0 0 4px;color:#2f54eb;font-weight:700;font-size:14px;">${isOldEmail ? "⚠️" : "✅"} Important</p>
-          <p style="margin:0;color:#595959;font-size:13px;line-height:1.5;">
-            ${
-              isOldEmail
-                ? "If you didn't request this change, please revert it immediately or contact support."
-                : "If you didn't request this change, please contact support immediately as your account may be at risk."
-            }
-          </p>
-        </div>
-      </div>
-
-      <!-- Footer -->
-      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
-        <p style="margin:0 0 8px;color:#8c8c8c;font-size:12px;">
-          Need help? <a href="mailto:${supportEmail}" style="color:#003a70;text-decoration:none;">Contact Support</a>
-        </p>
-        <p style="margin:16px 0 0;font-size:11px;color:#bfbfbf;">
-          © ${new Date().getFullYear()} ${brandName}. All rights reserved.
-        </p>
-      </div>
-    </div>
-  </div>
-  </body>
-  </html>
-  `;
+  const html = buildNotificationEmailBody({
+    heading: isOldEmail ? "Email Change Requested" : "Email Change Confirmed",
+    intro: introText,
+    fields: {
+      fields: [
+        { label: "Old email", value: oldEmail },
+        { label: "New email", value: newEmail, color: EMAIL_COLORS.primary, fontWeight: "700" },
+      ],
+    },
+    warningBox: {
+      title: isOldEmail
+        ? `Grace period: ${gracePeriodHours} hours`
+        : "Important",
+      message: warningMsg + (isOldEmail && revertUrl ? ` <a href="${revertUrl}" style="color:${EMAIL_COLORS.warningDark};text-decoration:underline;font-weight:600;">Revert Email Change</a>` : ""),
+    },
+    button: isOldEmail && revertUrl ? { text: "Revert Change", href: revertUrl, bgColor: EMAIL_COLORS.antError } : undefined,
+    appUrl,
+  });
 
   try {
     const fromAddress =
@@ -1104,7 +923,7 @@ async function sendPasswordChangeNotification({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const brandName = process.env.APP_BRAND_NAME || "BizClear";
   const appUrl =
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
   const supportEmail =
@@ -1133,68 +952,21 @@ async function sendPasswordChangeNotification({
     brandName,
   ].join("\n");
 
-  const html = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-      
-      <!-- Header -->
-      <div style="background:#003a70;padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;font-family:'Raleway', sans-serif;">${brandName}</h1>
-      </div>
-
-      <!-- Body -->
-      <div style="padding:40px 32px;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">Password Changed Successfully</h2>
-        
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          Hello <strong>${firstName} ${lastName}</strong>,
-        </p>
-
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          Your password for <strong>${brandName}</strong> has been successfully changed.
-        </p>
-
-        <div style="background:#f8f9fa;padding:24px;border-radius:8px;border:1px solid #e8e8e8;margin-bottom:24px;">
-          <div>
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Change Time</span><br>
-            <span style="color:#1f1f1f;font-size:16px;">${changeTime}</span>
-          </div>
-        </div>
-
-        <div style="background:#fffbe6;border:1px solid #ffe58f;padding:16px;border-radius:4px;margin-bottom:24px;">
-          <p style="margin:0 0 4px;color:#d48806;font-weight:700;font-size:14px;">⚠️ Security Notice</p>
-          <p style="margin:0;color:#595959;font-size:13px;line-height:1.5;">
-            If you didn't make this change, your account may be at risk. Please contact support immediately.
-          </p>
-        </div>
-
-        <p style="margin:0;color:#595959;font-size:14px;">
-          All active sessions have been invalidated for security. You'll need to log in again with your new password.
-        </p>
-      </div>
-
-      <!-- Footer -->
-      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
-        <p style="margin:0 0 8px;color:#8c8c8c;font-size:12px;">
-          Need help? <a href="mailto:${supportEmail}" style="color:#003a70;text-decoration:none;">Contact Support</a>
-        </p>
-        <p style="margin:16px 0 0;font-size:11px;color:#bfbfbf;">
-          © ${new Date().getFullYear()} ${brandName}. All rights reserved.
-        </p>
-      </div>
-    </div>
-  </div>
-  </body>
-  </html>
-  `;
+  const html = buildNotificationEmailBody({
+    heading: "Password Changed Successfully",
+    greeting: firstName,
+    intro: `Your password for <strong>${brandName}</strong> has been successfully changed.`,
+    fields: {
+      fields: [
+        { label: "Change time", value: changeTime },
+      ],
+    },
+    warningBox: {
+      title: "Security notice",
+      message: "If you didn't make this change, your account may be at risk. Please contact support immediately. All active sessions have been invalidated for security.",
+    },
+    appUrl,
+  });
 
   try {
     const fromAddress =
@@ -1225,7 +997,7 @@ async function sendMfaEnabledNotification({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const brandName = process.env.APP_BRAND_NAME || "BizClear";
   const supportEmail =
     process.env.SUPPORT_EMAIL ||
     process.env.EMAIL_HOST_USER ||
@@ -1250,41 +1022,18 @@ async function sendMfaEnabledNotification({
     brandName,
   ].join("\n");
 
-  const html = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;">
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-      <div style="background:#003a70;padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;font-family:'Raleway', sans-serif;">${brandName}</h1>
-      </div>
-      <div style="padding:40px 32px;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Two-Factor Authentication Enabled</h2>
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          Hello <strong>${firstName} ${lastName}</strong>,
-        </p>
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          Two-factor authentication has been enabled for your <strong>${brandName}</strong> account using <strong>${methodLabel}</strong>.
-        </p>
-        <div style="background:#f6ffed;border:1px solid #b7eb8f;padding:16px;border-radius:4px;margin-bottom:24px;">
-          <p style="margin:0;color:#389e0d;font-size:14px;">You will need this method when signing in.</p>
-        </div>
-        <p style="margin:0;color:#595959;font-size:13px;">If you didn't make this change, please contact support immediately.</p>
-      </div>
-      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
-        <p style="margin:0;font-size:12px;color:#8c8c8c;">Need help? <a href="mailto:${supportEmail}" style="color:#003a70;">Contact Support</a></p>
-      </div>
-    </div>
-  </div>
-  </body>
-  </html>
-  `;
+  const html = buildNotificationEmailBody({
+    heading: "Two-Factor Authentication Enabled",
+    greeting: firstName,
+    intro: `Two-factor authentication has been enabled for your <strong>${brandName}</strong> account using <strong>${methodLabel}</strong>.`,
+    warningBox: {
+      title: "You will need this method when signing in.",
+      message: "If you didn't make this change, please contact support immediately.",
+      bgColor: EMAIL_COLORS.bgSuccess,
+      borderColor: EMAIL_COLORS.borderSuccess,
+      titleColor: "#389e0d",
+    },
+  });
 
   try {
     const fromAddress =
@@ -1314,7 +1063,7 @@ async function sendMfaDisableRequestedNotification({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const brandName = process.env.APP_BRAND_NAME || "BizClear";
   const supportEmail =
     process.env.SUPPORT_EMAIL ||
     process.env.EMAIL_HOST_USER ||
@@ -1340,42 +1089,20 @@ async function sendMfaDisableRequestedNotification({
     brandName,
   ].join("\n");
 
-  const html = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;">
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-      <div style="background:#003a70;padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;font-family:'Raleway', sans-serif;">${brandName}</h1>
-      </div>
-      <div style="padding:40px 32px;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">MFA Disable Requested</h2>
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          Hello <strong>${firstName} ${lastName}</strong>,
-        </p>
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          A request to disable two-factor authentication for your <strong>${brandName}</strong> account has been received.
-        </p>
-        <div style="background:#f8f9fa;padding:24px;border-radius:8px;border:1px solid #e8e8e8;margin-bottom:24px;">
-          <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Scheduled disable time</span><br>
-          <span style="color:#1f1f1f;font-size:16px;">${disableTime}</span>
-        </div>
-        <p style="margin:0;color:#595959;font-size:13px;">You can cancel this request from your security settings before that time. If you didn't request this, please secure your account and contact support.</p>
-      </div>
-      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
-        <p style="margin:0;font-size:12px;color:#8c8c8c;">Need help? <a href="mailto:${supportEmail}" style="color:#003a70;">Contact Support</a></p>
-      </div>
-    </div>
-  </div>
-  </body>
-  </html>
-  `;
+  const html = buildNotificationEmailBody({
+    heading: "MFA Disable Requested",
+    greeting: firstName,
+    intro: `A request to disable two-factor authentication for your <strong>${brandName}</strong> account has been received.`,
+    fields: {
+      fields: [
+        { label: "Scheduled disable time", value: disableTime },
+      ],
+    },
+    warningBox: {
+      title: "Action required",
+      message: "You can cancel this request from your security settings before that time. If you didn't request this, please secure your account and contact support.",
+    },
+  });
 
   try {
     const fromAddress =
@@ -1403,7 +1130,7 @@ async function sendMfaDisabledNotification({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const brandName = process.env.APP_BRAND_NAME || "BizClear";
   const supportEmail =
     process.env.SUPPORT_EMAIL ||
     process.env.EMAIL_HOST_USER ||
@@ -1424,38 +1151,15 @@ async function sendMfaDisabledNotification({
     brandName,
   ].join("\n");
 
-  const html = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;">
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-      <div style="background:#003a70;padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;font-family:'Raleway', sans-serif;">${brandName}</h1>
-      </div>
-      <div style="padding:40px 32px;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Two-Factor Authentication Disabled</h2>
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          Hello <strong>${firstName} ${lastName}</strong>,
-        </p>
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          Two-factor authentication has been disabled for your <strong>${brandName}</strong> account.
-        </p>
-        <p style="margin:0;color:#595959;font-size:13px;">If you didn't make this change, please contact support immediately and re-enable MFA from your security settings.</p>
-      </div>
-      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
-        <p style="margin:0;font-size:12px;color:#8c8c8c;">Need help? <a href="mailto:${supportEmail}" style="color:#003a70;">Contact Support</a></p>
-      </div>
-    </div>
-  </div>
-  </body>
-  </html>
-  `;
+  const html = buildNotificationEmailBody({
+    heading: "Two-Factor Authentication Disabled",
+    greeting: firstName,
+    intro: `Two-factor authentication has been disabled for your <strong>${brandName}</strong> account.`,
+    warningBox: {
+      title: "Security notice",
+      message: "If you didn't make this change, please contact support immediately and re-enable MFA from your security settings.",
+    },
+  });
 
   try {
     const fromAddress =
@@ -1483,7 +1187,7 @@ async function sendPasskeyAddedNotification({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const brandName = process.env.APP_BRAND_NAME || "BizClear";
   const supportEmail =
     process.env.SUPPORT_EMAIL ||
     process.env.EMAIL_HOST_USER ||
@@ -1504,38 +1208,15 @@ async function sendPasskeyAddedNotification({
     brandName,
   ].join("\n");
 
-  const html = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;">
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-      <div style="background:#003a70;padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;font-family:'Raleway', sans-serif;">${brandName}</h1>
-      </div>
-      <div style="padding:40px 32px;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Passkey Added</h2>
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          Hello <strong>${firstName} ${lastName}</strong>,
-        </p>
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          A passkey has been added to your <strong>${brandName}</strong> account. You can use it to sign in (e.g. Face ID, Windows Hello).
-        </p>
-        <p style="margin:0;color:#595959;font-size:13px;">If you didn't add this passkey, please remove it from security settings and contact support.</p>
-      </div>
-      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
-        <p style="margin:0;font-size:12px;color:#8c8c8c;">Need help? <a href="mailto:${supportEmail}" style="color:#003a70;">Contact Support</a></p>
-      </div>
-    </div>
-  </div>
-  </body>
-  </html>
-  `;
+  const html = buildNotificationEmailBody({
+    heading: "Passkey Added",
+    greeting: firstName,
+    intro: `A passkey has been added to your <strong>${brandName}</strong> account. You can use it to sign in (e.g. Face ID, Windows Hello).`,
+    warningBox: {
+      title: "Didn't add this passkey?",
+      message: "Please remove it from security settings and contact support immediately.",
+    },
+  });
 
   try {
     const fromAddress =
@@ -1563,7 +1244,7 @@ async function sendPasskeyRemovedNotification({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const brandName = process.env.APP_BRAND_NAME || "BizClear";
   const supportEmail =
     process.env.SUPPORT_EMAIL ||
     process.env.EMAIL_HOST_USER ||
@@ -1584,38 +1265,15 @@ async function sendPasskeyRemovedNotification({
     brandName,
   ].join("\n");
 
-  const html = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;">
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-      <div style="background:#003a70;padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;font-family:'Raleway', sans-serif;">${brandName}</h1>
-      </div>
-      <div style="padding:40px 32px;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Passkey Removed</h2>
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          Hello <strong>${firstName} ${lastName}</strong>,
-        </p>
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          A passkey has been removed from your <strong>${brandName}</strong> account.
-        </p>
-        <p style="margin:0;color:#595959;font-size:13px;">If you didn't make this change, please contact support and consider re-adding a passkey or enabling an authenticator app from security settings.</p>
-      </div>
-      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
-        <p style="margin:0;font-size:12px;color:#8c8c8c;">Need help? <a href="mailto:${supportEmail}" style="color:#003a70;">Contact Support</a></p>
-      </div>
-    </div>
-  </div>
-  </body>
-  </html>
-  `;
+  const html = buildNotificationEmailBody({
+    heading: "Passkey Removed",
+    greeting: firstName,
+    intro: `A passkey has been removed from your <strong>${brandName}</strong> account.`,
+    warningBox: {
+      title: "Didn't remove this passkey?",
+      message: "Please contact support and consider re-adding a passkey or enabling an authenticator app from security settings.",
+    },
+  });
 
   try {
     const fromAddress =
@@ -1655,12 +1313,12 @@ async function sendAdminAlertEmail({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const brandName = process.env.APP_BRAND_NAME || "BizClear";
   const appUrl =
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
 
   subject =
-    subject || `🚨 Security Alert: Restricted Field Attempt - ${brandName}`;
+    subject || `Security Alert: Restricted Field Attempt - ${brandName}`;
 
   const attemptTime = timestamp
     ? new Date(timestamp).toLocaleString()
@@ -1684,76 +1342,25 @@ async function sendAdminAlertEmail({
     brandName,
   ].join("\n");
 
-  const html = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-      
-      <!-- Header -->
-      <div style="background:#ff4d4f;padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;font-family:'Raleway', sans-serif;">🚨 Security Alert</h1>
-      </div>
-
-      <!-- Body -->
-      <div style="padding:40px 32px;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">Restricted Field Attempt</h2>
-        
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          Hello <strong>${adminName}</strong>,
-        </p>
-
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          A staff user has attempted to modify a restricted field. This action has been blocked and logged.
-        </p>
-
-        <div style="background:#fff1f0;border:1px solid #ffccc7;padding:24px;border-radius:8px;margin-bottom:24px;">
-          <div style="margin-bottom:12px;">
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">User</span><br>
-            <span style="color:#1f1f1f;font-size:16px;font-weight:600;">${userName}</span><br>
-            <span style="color:#8c8c8c;font-size:14px;">${userEmail}</span>
-          </div>
-          <div style="margin-bottom:12px;">
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Role</span><br>
-            <span style="color:#1f1f1f;font-size:16px;">${roleSlug}</span>
-          </div>
-          <div style="margin-bottom:12px;">
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Field Attempted</span><br>
-            <span style="color:#ff4d4f;font-size:16px;font-weight:600;">${field}</span>
-          </div>
-          <div style="margin-bottom:12px;">
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Attempted Value</span><br>
-            <span style="color:#1f1f1f;font-size:14px;font-family:monospace;word-break:break-all;">${attemptedValue}</span>
-          </div>
-          <div>
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Time</span><br>
-            <span style="color:#1f1f1f;font-size:14px;">${attemptTime}</span>
-          </div>
-        </div>
-
-        <a href="${appUrl}/admin/audit" style="display:inline-block;background:#ff4d4f;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:4px;font-weight:600;font-size:16px;">View Audit Logs</a>
-      </div>
-
-      <!-- Footer -->
-      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
-        <p style="margin:0 0 8px;color:#8c8c8c;font-size:12px;">
-          <strong>${brandName}</strong> Security Team
-        </p>
-        <p style="margin:16px 0 0;font-size:11px;color:#bfbfbf;">
-          © ${new Date().getFullYear()} ${brandName}. All rights reserved.
-        </p>
-      </div>
-    </div>
-  </div>
-  </body>
-  </html>
-  `;
+  const html = buildNotificationEmailBody({
+    heading: "Security Alert",
+    greeting: adminName,
+    intro: "A staff user has attempted to modify a restricted field. This action has been blocked and logged.",
+    fields: {
+      fields: [
+        { label: "User", value: `${userName} (${userEmail})` },
+        { label: "Role", value: roleSlug },
+        { label: "Field attempted", value: field, color: EMAIL_COLORS.antError, fontWeight: "700" },
+        { label: "Attempted value", value: attemptedValue },
+        { label: "Time", value: attemptTime },
+      ],
+      bgColor: EMAIL_COLORS.bgError,
+      borderColor: EMAIL_COLORS.borderError,
+      accentColor: EMAIL_COLORS.antError,
+    },
+    button: { text: "View Audit Logs", href: `${appUrl}/admin/audit`, bgColor: EMAIL_COLORS.antError },
+    appUrl,
+  });
 
   try {
     const fromAddress =
@@ -1783,7 +1390,7 @@ async function sendStaffOrAdminForgotPasswordAlertEmail({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const brandName = process.env.APP_BRAND_NAME || "BizClear";
   const appUrl =
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
 
@@ -1812,61 +1419,25 @@ async function sendStaffOrAdminForgotPasswordAlertEmail({
     brandName,
   ].join("\n");
 
-  const html = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-      <div style="background:#ff4d4f;padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;font-family:'Raleway', sans-serif;">Security Alert</h1>
-      </div>
-      <div style="padding:40px 32px;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">Forgot password attempt (staff/admin)</h2>
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          Hello <strong>${adminName}</strong>,
-        </p>
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          A staff or admin account was used on the Forgot Password page. Password reset is not allowed for this account type. This action has been logged and an incident has been recorded.
-        </p>
-        <div style="background:#fff1f0;border:1px solid #ffccc7;padding:24px;border-radius:8px;margin-bottom:24px;">
-          <div style="margin-bottom:12px;">
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Account</span><br>
-            <span style="color:#1f1f1f;font-size:16px;font-weight:600;">${userEmail || "—"}</span>
-          </div>
-          <div style="margin-bottom:12px;">
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Role</span><br>
-            <span style="color:#1f1f1f;font-size:16px;">${roleLabel}</span>
-          </div>
-          <div style="margin-bottom:12px;">
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">IP Address</span><br>
-            <span style="color:#1f1f1f;font-size:14px;font-family:monospace;">${ipAddress || "—"}</span>
-          </div>
-          <div style="margin-bottom:12px;">
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">User-Agent</span><br>
-            <span style="color:#595959;font-size:13px;line-height:1.4;word-break:break-all;">${userAgent || "—"}</span>
-          </div>
-          <div>
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Time</span><br>
-            <span style="color:#1f1f1f;font-size:14px;">${attemptTime}</span>
-          </div>
-        </div>
-        <a href="${appUrl}/admin/security" style="display:inline-block;background:#ff4d4f;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:4px;font-weight:600;font-size:16px;">View Security Page</a>
-      </div>
-      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
-        <p style="margin:0 0 8px;color:#8c8c8c;font-size:12px;"><strong>${brandName}</strong> Security Team</p>
-        <p style="margin:16px 0 0;font-size:11px;color:#bfbfbf;">© ${new Date().getFullYear()} ${brandName}. All rights reserved.</p>
-      </div>
-    </div>
-  </div>
-  </body>
-  </html>
-  `;
+  const html = buildNotificationEmailBody({
+    heading: "Forgot Password Attempt (Staff/Admin)",
+    greeting: adminName,
+    intro: "A staff or admin account was used on the Forgot Password page. Password reset is not allowed for this account type. This action has been logged.",
+    fields: {
+      fields: [
+        { label: "Account", value: userEmail || "—", fontWeight: "700" },
+        { label: "Role", value: roleLabel },
+        { label: "IP address", value: ipAddress || "—" },
+        { label: "User-agent", value: userAgent || "—" },
+        { label: "Time", value: attemptTime },
+      ],
+      bgColor: EMAIL_COLORS.bgError,
+      borderColor: EMAIL_COLORS.borderError,
+      accentColor: EMAIL_COLORS.antError,
+    },
+    button: { text: "View Security Page", href: `${appUrl}/admin/security`, bgColor: EMAIL_COLORS.antError },
+    appUrl,
+  });
 
   try {
     const fromAddress =
@@ -1898,7 +1469,7 @@ async function sendAdminAlert({ to, adminName, type, data = {} }) {
     });
   }
 
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const brandName = process.env.APP_BRAND_NAME || "BizClear";
   const appUrl =
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
   const subject = `Security Alert: ${type} - ${brandName}`;
@@ -1915,15 +1486,17 @@ async function sendAdminAlert({ to, adminName, type, data = {} }) {
     "",
     brandName,
   ].join("\n");
-  const html = `
-  <!DOCTYPE html><html><body style="font-family:sans-serif;">
-  <h2>Security Alert: ${type}</h2>
-  <p>Hello ${adminName},</p>
-  <pre style="background:#f5f5f5;padding:12px;border-radius:4px;">${dataStr}</pre>
-  <p><a href="${appUrl}/admin">Open Admin Dashboard</a></p>
-  <p style="color:#8c8c8c;">${brandName}</p>
-  </body></html>
-  `;
+  const html = buildNotificationEmailBody({
+    heading: `Security Alert: ${type}`,
+    greeting: adminName,
+    intro: `Security alert (${type}). Please review the details below.`,
+    warningBox: {
+      title: "Alert details",
+      message: `<pre style="margin:0;color:${EMAIL_COLORS.textPrimary};font-size:13px;font-family:monospace;white-space:pre-wrap;word-break:break-all;">${dataStr.replace(/</g, "&lt;")}</pre>`,
+    },
+    button: { text: "Open Admin Dashboard", href: `${appUrl}/admin` },
+    appUrl,
+  });
   try {
     const from = process.env.DEFAULT_FROM_EMAIL || "noreply@example.com";
     await sendEmailViaAPI({ to, from, subject, text, html });
@@ -1959,7 +1532,7 @@ async function sendApprovalNotification({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const brandName = process.env.APP_BRAND_NAME || "BizClear";
   const appUrl =
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
 
@@ -1993,85 +1566,23 @@ async function sendApprovalNotification({
     .filter(Boolean)
     .join("\n");
 
-  const html = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-      
-      <!-- Header -->
-      <div style="background:${status === "approved" ? "#52c41a" : "#ff4d4f"};padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;font-family:'Raleway', sans-serif;">${status === "approved" ? "✅" : "❌"} Request ${statusText}</h1>
-      </div>
-
-      <!-- Body -->
-      <div style="padding:40px 32px;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">Approval Request ${statusText}</h2>
-        
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          Hello <strong>${adminName}</strong>,
-        </p>
-
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          Your approval request has been <strong>${statusText.toLowerCase()}</strong>${status === "approved" ? " and your requested changes have been applied." : "."}
-        </p>
-
-        <div style="background:#f8f9fa;padding:24px;border-radius:8px;border:1px solid #e8e8e8;margin-bottom:24px;">
-          <div style="margin-bottom:12px;">
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Approval ID</span><br>
-            <span style="color:#1f1f1f;font-size:16px;font-family:monospace;">${approvalId}</span>
-          </div>
-          <div style="margin-bottom:12px;">
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Request Type</span><br>
-            <span style="color:#1f1f1f;font-size:16px;">${requestType}</span>
-          </div>
-          <div style="margin-bottom:12px;">
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Status</span><br>
-            <span style="color:${status === "approved" ? "#52c41a" : "#ff4d4f"};font-size:16px;font-weight:600;">${statusText}</span>
-          </div>
-          <div style="margin-bottom:12px;">
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Approved By</span><br>
-            <span style="color:#1f1f1f;font-size:16px;">${approverName}</span>
-          </div>
-          ${
-            comment
-              ? `
-          <div>
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Comment</span><br>
-            <span style="color:#595959;font-size:14px;line-height:1.5;">${comment}</span>
-          </div>
-          `
-              : ""
-          }
-          <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e8e8e8;">
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Time</span><br>
-            <span style="color:#8c8c8c;font-size:14px;">${approvalTime}</span>
-          </div>
-        </div>
-
-        <a href="${appUrl}/admin/approvals/${approvalId}" style="display:inline-block;background:#003a70;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:4px;font-weight:600;font-size:16px;">View Details</a>
-      </div>
-
-      <!-- Footer -->
-      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
-        <p style="margin:0 0 8px;color:#8c8c8c;font-size:12px;">
-          <strong>${brandName}</strong>
-        </p>
-        <p style="margin:16px 0 0;font-size:11px;color:#bfbfbf;">
-          © ${new Date().getFullYear()} ${brandName}. All rights reserved.
-        </p>
-      </div>
-    </div>
-  </div>
-  </body>
-  </html>
-  `;
+  const html = buildNotificationEmailBody({
+    heading: `Approval Request ${statusText}`,
+    greeting: adminName,
+    intro: `Your approval request has been <strong>${statusText.toLowerCase()}</strong>${status === "approved" ? " and your requested changes have been applied." : "."}`,
+    fields: {
+      fields: [
+        { label: "Approval ID", value: approvalId },
+        { label: "Request type", value: requestType },
+        { label: "Status", value: statusText, color: status === "approved" ? EMAIL_COLORS.success : EMAIL_COLORS.antError, fontWeight: "700" },
+        { label: "Approved by", value: approverName },
+        ...(comment ? [{ label: "Comment", value: comment }] : []),
+        { label: "Time", value: approvalTime },
+      ],
+    },
+    button: { text: "View Details", href: `${appUrl}/admin/approvals/${approvalId}` },
+    appUrl,
+  });
 
   try {
     const fromAddress =

@@ -307,8 +307,12 @@ router.put(
         businessId: existing.businessId,
         isPrimary: existing.isPrimary,
         createdByOfficer: true,
+        createdAt: existing.createdAt, // Preserve original creation time
         updatedAt: new Date(),
       };
+
+      // Explicitly delete createdAt from businessData to prevent any accidental override
+      delete businessData.createdAt;
 
       // Update business name if extracted
       if (extractedBusinessName) {

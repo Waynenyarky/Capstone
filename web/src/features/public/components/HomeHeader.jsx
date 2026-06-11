@@ -18,7 +18,8 @@ export default function HomeHeader({ visible = true, onNavigate, fadingOut = fal
       alignItems: 'center',
       justifyContent: 'space-between',
       padding: screens.md ? '0 48px' : '0 16px',
-      height: '72px',
+      height: screens.md ? '72px' : '64px',
+      lineHeight: 'normal',
       position: 'fixed',
       top: 0,
       left: 0,
@@ -28,9 +29,10 @@ export default function HomeHeader({ visible = true, onNavigate, fadingOut = fal
       transform: fadingOut ? 'translateY(-20px)' : (visible ? 'translateY(0)' : 'translateY(-20px)'),
       transition: 'opacity 0.3s ease-out, transform 0.3s ease-out',
       pointerEvents: fadingOut ? 'none' : 'auto',
+      overflow: 'hidden',
     }}>
       <AnimatedBrandLogo
-        size={screens.sm ? 40 : 32}
+        size={screens.md ? 40 : 32}
         showBrandName={true}
         onClick={() => onNavigate?.('/')}
       />

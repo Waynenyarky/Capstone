@@ -2,6 +2,7 @@ import { get, post, put } from '@/lib/http.js'
 import { generateReceipt } from '@/features/treasury/services/treasuryService'
 
 const BASE_PATH = '/api/business/payments'
+const OWNER_BASE_PATH = '/api/business-owner/payments'
 
 /**
  * Get all payments for the current user
@@ -195,4 +196,165 @@ export function getStatusColor(status) {
     cancelled: 'gray'
   }
   return colors[status] || 'gray'
+}
+
+// Consolidated from paymentService.js
+/**
+ * Get payment methods for a business
+ * @param {string} businessId - The ID of the business
+ */
+export async function getPaymentMethods(businessId) {
+  return get(`${OWNER_BASE_PATH}/${businessId}/methods`)
+}
+
+/**
+ * Get payment history for a business (owner-specific)
+ * @param {string} businessId - The ID of the business
+ */
+export async function getOwnerPaymentHistory(businessId) {
+  return get(`${OWNER_BASE_PATH}/${businessId}/history`)
+}
+
+/**
+ * Setup recurring payment
+ * @param {string} businessId - The ID of the business
+ * @param {object} paymentData - The recurring payment data
+ */
+export async function setupRecurringPayment(businessId, paymentData) {
+  return post(`${OWNER_BASE_PATH}/${businessId}/recurring`, paymentData)
+}
+
+/**
+ * Submit payment dispute
+ * @param {string} paymentId - The ID of the payment
+ * @param {object} disputeData - The dispute data
+ */
+export async function submitPaymentDispute(paymentId, disputeData) {
+  return post(`${OWNER_BASE_PATH}/payments/${paymentId}/dispute`, disputeData)
+}
+
+/**
+ * Get payment analytics for a business
+ * @param {string} businessId - The ID of the business
+ */
+export async function getPaymentAnalytics(businessId) {
+  return get(`${OWNER_BASE_PATH}/${businessId}/analytics`)
+}
+
+/**
+ * Get payment trends for a business
+ * @param {string} businessId - The ID of the business
+ * @param {object} options - Query options (timeframe, date range)
+ */
+export async function getPaymentTrends(businessId, options = {}) {
+  return get(`${OWNER_BASE_PATH}/${businessId}/trends`, { params: options })
+}
+
+/**
+ * Get cost optimization suggestions for a business
+ * @param {string} businessId - The ID of the business
+ */
+export async function getCostOptimizationSuggestions(businessId) {
+  return get(`${OWNER_BASE_PATH}/${businessId}/optimization-suggestions`)
+}
+
+/**
+ * Add a new payment method
+ * @param {string} businessId - The ID of the business
+ * @param {object} methodData - The payment method data
+ */
+export async function addPaymentMethod(businessId, methodData) {
+  return post(`${OWNER_BASE_PATH}/${businessId}/methods`, methodData)
+}
+
+/**
+ * Update payment method
+ * @param {string} methodId - The ID of the payment method
+ * @param {object} updateData - The update data
+ */
+export async function updatePaymentMethod(methodId, updateData) {
+  return post(`${OWNER_BASE_PATH}/methods/${methodId}/update`, updateData)
+}
+
+/**
+ * Delete payment method
+ * @param {string} methodId - The ID of the payment method
+ */
+export async function deletePaymentMethod(methodId) {
+  return post(`${OWNER_BASE_PATH}/methods/${methodId}/delete`)
+}
+
+/**
+ * Set default payment method
+ * @param {string} methodId - The ID of the payment method
+ */
+export async function setDefaultPaymentMethod(methodId) {
+  return post(`${OWNER_BASE_PATH}/methods/${methodId}/set-default`)
+}
+
+/**
+ * Get payment schedule
+ * @param {string} businessId - The ID of the business
+ */
+export async function getPaymentSchedule(businessId) {
+  return get(`${OWNER_BASE_PATH}/${businessId}/schedule`)
+}
+
+/**
+ * Make a payment
+ * @param {string} businessId - The ID of the business
+ * @param {object} paymentData - The payment data
+ */
+export async function makePayment(businessId, paymentData) {
+  return post(`${OWNER_BASE_PATH}/${businessId}/pay`, paymentData)
+}
+
+/**
+ * Handle partial payment
+ * @param {string} businessId - The ID of the business
+ * @param {object} paymentData - The partial payment data
+ */
+export async function makePartialPayment(businessId, paymentData) {
+  return post(`${OWNER_BASE_PATH}/${businessId}/partial-pay`, paymentData)
+}
+
+/**
+ * Get payment status and consistency check
+ * @param {string} paymentId - The ID of the payment
+ */
+export async function getPaymentStatus(paymentId) {
+  return get(`${OWNER_BASE_PATH}/payments/${paymentId}/status`)
+}
+
+/**
+ * Retry failed payment with different method
+ * @param {string} paymentId - The ID of the failed payment
+ * @param {object} retryData - The retry payment data
+ */
+export async function retryPayment(paymentId, retryData) {
+  return post(`${OWNER_BASE_PATH}/payments/${paymentId}/retry`, retryData)
+}
+
+/**
+ * Check payment state consistency
+ * @param {string} businessId - The ID of the business
+ */
+export async function checkPaymentConsistency(businessId) {
+  return get(`${OWNER_BASE_PATH}/${businessId}/consistency-check`)
+}
+
+/**
+ * Recover partial payment state
+ * @param {string} paymentId - The ID of the payment
+ */
+export async function recoverPartialPayment(paymentId) {
+  return post(`${OWNER_BASE_PATH}/payments/${paymentId}/recover`)
+}
+
+/**
+ * Get payment recovery options
+ * @param {string} paymentId - The ID of the payment
+ */
+export async function getPaymentRecoveryOptions(paymentId) {
+  return get(`${OWNER_BASE_PATH}/payments/${paymentId}/recovery-options`)
 }

@@ -173,6 +173,7 @@ require("./models/PenaltyConfiguration");
 require("./models/TamperIncident");
 require("./models/Notification");
 require("./models/PermitFormsSection");
+require("./models/ApplicationProcess");
 
 // Admin routes
 const adminRouter = require("./routes/approvals");
@@ -206,6 +207,10 @@ const announcementsRouter = require("./routes/announcements");
 app.use("/api/admin/announcements", announcementsRouter);
 const permitFormsRouter = require("./routes/permitForms");
 app.use("/api/admin/permit-forms", permitFormsRouter);
+const applicationProcessesRouter = require("./routes/applicationProcesses");
+app.use("/api/admin/application-processes", applicationProcessesRouter);
+const publicApplicationProcessesRouter = require("./routes/publicApplicationProcesses");
+app.use("/api/public/application-processes", publicApplicationProcessesRouter);
 const {
   publicRouter: cmsPublicRouter,
   adminRouter: cmsAdminRouter,
@@ -439,6 +444,29 @@ async function start() {
         }
       } catch (error) {
         logger.warn("Permit forms seed failed", { error: error.message });
+      }
+    }
+
+    // Seed application processes when SEED_APPLICATION_PROCESSES or SEED_DEV is set (idempotent)
+    if (
+      process.env.NODE_ENV !== "test" &&
+      (process.env.SEED_APPLICATION_PROCESSES === "true" ||
+        process.env.SEED_DEV === "true")
+    ) {
+      try {
+        const {
+          seedApplicationProcessesIfEmpty,
+        } = require("./seed/seedApplicationProcesses");
+        const result = await seedApplicationProcessesIfEmpty();
+        if (result.seeded) {
+          logger.info("Application processes seeded", {
+            created: result.created,
+          });
+        }
+      } catch (error) {
+        logger.warn("Application processes seed failed", {
+          error: error.message,
+        });
       }
     }
 

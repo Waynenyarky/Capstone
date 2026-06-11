@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
-import { App, Select, Card, theme, Grid, Col, Splitter, Typography, Drawer } from 'antd'
+import { App, Select, Card, theme, Grid, Col, Splitter, Typography, Drawer, Modal, Input } from 'antd'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { FileTextOutlined } from '@ant-design/icons'
 import AdminLayout from '../../components/AdminLayout'
@@ -11,9 +11,9 @@ import ContentItemList from './components/ContentItemList'
 import AnnouncementEditor from './components/AnnouncementEditor'
 import FaqSectionEditor from './components/FaqSectionEditor'
 import InstructionEditor from './components/InstructionEditor'
-import PageSectionEditor from './components/PageSectionEditor'
-import ApplicationProcessPlaceholder from './components/ApplicationProcessPlaceholder'
-import { get, put } from '@/lib/http.js'
+import PageChapterEditor from './components/PageChapterEditor'
+import ApplicationProcessEditor from './components/ApplicationProcessEditor'
+import { get, put, post, del, patch } from '@/lib/http.js'
 
 const { Paragraph } = Typography
 
@@ -89,28 +89,70 @@ export default function ContentManagementPage() {
     await fetchInstructions()
   }, [fetchInstructions])
 
-  // ─── Pages data ─────────────────────────────────────────────────────────────
-  const [pages, setPages] = useState([])
-  const [pagesLoading, setPagesLoading] = useState(true)
+  const config = useMemo(() => CONTENT_TYPE_CONFIG[contentType] || {}, [contentType])
 
-  const fetchPages = useCallback(async () => {
+  // ─── Chapters data (for privacy-policy, terms-of-service, bizclear-manual) ──
+  const [chapters, setChapters] = useState([])
+  const [chaptersLoading, setChaptersLoading] = useState(false)
+  const [addChapterOpen, setAddChapterOpen] = useState(false)
+  const [newChapterTitle, setNewChapterTitle] = useState('')
+  const [newChapterDesc, setNewChapterDesc] = useState('')
+
+  const fetchChapters = useCallback(async (pageSlotId) => {
+    if (!pageSlotId) return
     try {
-      setPagesLoading(true)
-      const res = await get('/api/admin/cms/pages')
-      setPages(Array.isArray(res) ? res : [])
+      setChaptersLoading(true)
+      const res = await get(`/api/admin/cms/pages?pageSlotId=${pageSlotId}`)
+      setChapters(Array.isArray(res) ? res : [])
     } catch {
-      message.error('Failed to load page content')
+      message.error('Failed to load chapters')
     } finally {
-      setPagesLoading(false)
+      setChaptersLoading(false)
     }
   }, [message])
 
-  useEffect(() => { fetchPages() }, [fetchPages])
+  useEffect(() => {
+    if (config.isChapterBased) {
+      fetchChapters(config.pageSlotId)
+    } else {
+      setChapters([])
+    }
+  }, [contentType, config, fetchChapters])
 
-  const handleSavePage = useCallback(async (slotId, values, publish = false) => {
-    await put(`/api/admin/cms/pages/${slotId}?publish=${publish}`, values)
-    await fetchPages()
-  }, [fetchPages])
+  const handleSaveChapter = useCallback(async (chapterId, values, publish = false) => {
+    await put(`/api/admin/cms/pages/${chapterId}?publish=${publish}`, values)
+    await fetchChapters(config.pageSlotId)
+  }, [fetchChapters, config])
+
+  const handleDeleteChapter = useCallback(async (chapterId) => {
+    await del(`/api/admin/cms/pages/${chapterId}`)
+    setSelectedItem(null)
+    await fetchChapters(config.pageSlotId)
+    message.success('Chapter deleted')
+  }, [fetchChapters, config, message, setSelectedItem])
+
+  const handleAddChapter = useCallback(async () => {
+    if (!newChapterTitle.trim()) return
+    try {
+      await post('/api/admin/cms/pages', {
+        pageSlotId: config.pageSlotId,
+        title: newChapterTitle.trim(),
+        description: newChapterDesc.trim(),
+      })
+      setAddChapterOpen(false)
+      setNewChapterTitle('')
+      setNewChapterDesc('')
+      message.success('Chapter created')
+      await fetchChapters(config.pageSlotId)
+    } catch {
+      message.error('Failed to create chapter')
+    }
+  }, [newChapterTitle, newChapterDesc, config, fetchChapters, message])
+
+  const _handleReorderChapters = useCallback(async (orderedIds) => {
+    await patch('/api/admin/cms/pages/reorder', { pageSlotId: config.pageSlotId, orderedIds })
+    await fetchChapters(config.pageSlotId)
+  }, [config, fetchChapters])
 
   // ─── Filtered items based on content type ───────────────────────────────────────
   const filteredItems = useMemo(() => {
@@ -137,9 +179,8 @@ export default function ContentManagementPage() {
       case 'privacy-policy':
       case 'terms-of-service':
       case 'bizclear-manual': {
-        const pageSlot = pages.find(p => p.slotId === contentType)
-        items = pageSlot ? [pageSlot] : []
-        loading = pagesLoading
+        items = chapters
+        loading = chaptersLoading
         break
       }
       case 'application-processes':
@@ -169,7 +210,7 @@ export default function ContentManagementPage() {
     }
 
     return { items, loading }
-  }, [contentType, search, statusFilter, priorityFilter, announcementsPublic, announcementsStaff, faqSections, faqLoading, instructions, instructionsLoading, pages, pagesLoading])
+  }, [contentType, search, statusFilter, priorityFilter, announcementsPublic, announcementsStaff, faqSections, faqLoading, instructions, instructionsLoading, chapters, chaptersLoading])
 
   useEffect(() => { setCurrentPage(1) }, [search, contentType, statusFilter, priorityFilter])
 
@@ -189,8 +230,6 @@ export default function ContentManagementPage() {
     setStatusFilter(null)
     setPriorityFilter(null)
   }
-
-  const config = useMemo(() => CONTENT_TYPE_CONFIG[contentType] || {}, [contentType])
 
   // ─── Render item card ───────────────────────────────────────────────────────────
   const renderItem = useCallback((item, selectedId, onSelect, token) => {
@@ -217,8 +256,8 @@ export default function ContentManagementPage() {
 
   // ─── Right panel content ───────────────────────────────────────────────────────
   const rightPanelContent = useMemo(() => {
-    if (config.placeholder) {
-      return <ApplicationProcessPlaceholder />
+    if (config.fullWidth) {
+      return <ApplicationProcessEditor />
     }
 
     switch (contentType) {
@@ -249,11 +288,11 @@ export default function ContentManagementPage() {
       case 'privacy-policy':
       case 'terms-of-service':
       case 'bizclear-manual':
-        return <PageSectionEditor selected={selectedItem} onSave={handleSavePage} />
+        return <PageChapterEditor selected={selectedItem} onSave={handleSaveChapter} onDelete={handleDeleteChapter} />
       default:
         return null
     }
-  }, [contentType, config, selectedItem, announcementsPublic, announcementsStaff, handleSaveFaq, handleSaveInstruction, handleSavePage])
+  }, [contentType, config, selectedItem, announcementsPublic, announcementsStaff, handleSaveFaq, handleSaveInstruction, handleSaveChapter, handleDeleteChapter])
 
   if (isMobile) {
     // Mobile view: select field + list, then drawer for details
@@ -272,8 +311,9 @@ export default function ContentManagementPage() {
               onSearchChange={setSearch}
               onToggleFilter={() => setFilterOpen((prev) => !prev)}
               activeFilterCount={activeFilterCount}
-              onAdd={config.showAddButton ? (contentType === 'public-announcements' ? announcementsPublic.handleCreateDraft : announcementsStaff.handleCreateDraft) : undefined}
+              onAdd={config.isChapterBased ? () => setAddChapterOpen(true) : config.showAddButton ? (contentType === 'public-announcements' ? announcementsPublic.handleCreateDraft : announcementsStaff.handleCreateDraft) : undefined}
               showAddButton={config.showAddButton}
+              addButtonLabel={config.isChapterBased ? 'Chapter' : undefined}
               token={token}
               filterOpen={filterOpen}
               filterWrapperRef={filterWrapperRef}
@@ -333,8 +373,9 @@ export default function ContentManagementPage() {
           onSearchChange={setSearch}
           onToggleFilter={() => setFilterOpen((prev) => !prev)}
           activeFilterCount={activeFilterCount}
-          onAdd={config.showAddButton ? (contentType === 'public-announcements' ? announcementsPublic.handleCreateDraft : announcementsStaff.handleCreateDraft) : undefined}
+          onAdd={config.isChapterBased ? () => setAddChapterOpen(true) : config.showAddButton ? (contentType === 'public-announcements' ? announcementsPublic.handleCreateDraft : announcementsStaff.handleCreateDraft) : undefined}
           showAddButton={config.showAddButton}
+          addButtonLabel={config.isChapterBased ? 'Chapter' : undefined}
           token={token}
           filterOpen={filterOpen}
           filterWrapperRef={filterWrapperRef}
@@ -387,6 +428,37 @@ export default function ContentManagementPage() {
       >
         {desktopContent}
       </div>
+
+      <Modal
+        title="Add Chapter"
+        open={addChapterOpen}
+        onOk={handleAddChapter}
+        onCancel={() => setAddChapterOpen(false)}
+        okText="Create"
+        cancelText="Cancel"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <label htmlFor="chapter-title" style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Title</label>
+            <Input
+              id="chapter-title"
+              placeholder="Chapter title"
+              value={newChapterTitle}
+              onChange={(e) => setNewChapterTitle(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="chapter-desc" style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Description</label>
+            <Input.TextArea
+              id="chapter-desc"
+              placeholder="Short description (shown in list card)"
+              value={newChapterDesc}
+              onChange={(e) => setNewChapterDesc(e.target.value)}
+              rows={3}
+            />
+          </div>
+        </div>
+      </Modal>
     </AdminLayout>
   )
 }

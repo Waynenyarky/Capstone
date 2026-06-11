@@ -3,6 +3,26 @@ import { get, post } from '@/lib/http.js';
 const BASE_PATH = '/api/business-owner/notifications';
 
 /**
+ * Convert URL base64 to Uint8Array
+ * @param {string} base64String - Base64 string
+ * @returns {Uint8Array} Converted array
+ */
+function urlB64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+/**
  * Get notifications for a business
  * @param {string} businessId - The ID of the business
  */
@@ -93,7 +113,7 @@ export const registerForPushNotifications = async (businessId) => {
   try {
     // Register service worker
     const registration = await navigator.serviceWorker.register('/sw.js');
-    
+
     // Get existing subscription
     let subscription = await registration.pushManager.getSubscription();
 
@@ -102,7 +122,7 @@ export const registerForPushNotifications = async (businessId) => {
       const applicationServerKey = urlB64ToUint8Array(
         'BEl62iUYgWJy92EMlw9Kq9bJ8P9dReQyB1LGNgYvbB7jKq3mJ9Q8J5e9J8P9dReQyB1LGNgYvbB7jKq3mJ9Q8J5e9'
       );
-      
+
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey
@@ -197,23 +217,3 @@ export const showLocalNotification = (title, options = {}) => {
     });
   }
 };
-
-/**
- * Convert URL base64 to Uint8Array
- * @param {string} base64String - Base64 string
- * @returns {Uint8Array} Converted array
- */
-function urlB64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding)
-    .replace(/-/g, '+')
-    .replace(/_/g, '/');
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}

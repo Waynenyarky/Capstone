@@ -252,7 +252,7 @@ export async function generatePaymentsForApprovedBusiness(businessId, applicatio
   // 0. Validate and resolve business profile
   let resolvedBusinessId = businessId
   try {
-    const { business, businessId: validBusinessId } = await ensureBusinessExists(applicationData)
+    const { businessId: validBusinessId } = await ensureBusinessExists(applicationData)
     resolvedBusinessId = validBusinessId
     console.log('Business profile resolved successfully:', validBusinessId)
   } catch (error) {

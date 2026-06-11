@@ -186,13 +186,13 @@ export async function generatePermitPDFLocally(permitData) {
  * @param {string} permitType - Permit type
  * @returns {Date} Expiry date
  */
-export function calculateExpiryDate(issuedDate = new Date(), permitType = 'initial') {
+export function calculateExpiryDate(issuedDate = new Date(), _permitType = 'initial') {
   const issued = new Date(issuedDate)
   const expiry = new Date(issued)
-  
+
   // Permits valid for 1 year
   expiry.setFullYear(expiry.getFullYear() + 1)
-  
+
   return expiry
 }
 

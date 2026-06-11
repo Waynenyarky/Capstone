@@ -216,10 +216,9 @@ export default function LoginForm({ onSubmit } = {}) {
           <Title level={isMobile ? 4 : 3} style={{ marginBottom: 48, textAlign: 'center' }}>Login To BizClear</Title>
           <Form.Item
             name="email"
-            label="Email"
+            label={<span>Email<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span>}
             rules={loginEmailRules}
             style={{ marginBottom: isMobile ? 20 : 24 }}
-            required
           >
             <Input
               placeholder="Enter your email"
@@ -235,10 +234,9 @@ export default function LoginForm({ onSubmit } = {}) {
           </Form.Item>
           <Form.Item
             name="password"
-            label="Password"
+            label={<span>Password<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span>}
             rules={loginPasswordRules}
             style={{ marginBottom: isMobile ? 20 : 24 }}
-            required
           >
             <Input.Password
               ref={passwordInputRef}

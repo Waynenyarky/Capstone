@@ -16,7 +16,7 @@ import HelpRequestDetailPanel from '../components/HelpRequestDetailPanel'
 import ClaimBar from '../components/ClaimBar'
 import OfficerItemCard from '../components/OfficerItemCard'
 import OwnersListPanel from '../components/OwnersListPanel'
-import AddBusinessForm from '@/features/business-owner/components/AddBusinessForm'
+import PermitApplicationForm from '@/features/business-owner/components/forms/PermitApplicationForm'
 import ConsolidatedProfileNav from '@/features/user/pages/profileSettings/ConsolidatedProfileNav'
 import ConsolidatedContentRenderer from '@/features/user/pages/profileSettings/ConsolidatedContentRenderer'
 import { CONSOLIDATED_NAV_ITEMS } from '@/features/user/pages/profileSettings/constants'
@@ -698,16 +698,16 @@ export default function OfficerRightPanel({
       )
     }
 
-    // ── Drafts → AddBusinessForm in embedded mode ──
+    // ── Drafts → PermitApplicationForm in embedded mode ──
     if (type === 'drafts') {
       return (
         <div style={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          <AddBusinessForm
+          <PermitApplicationForm
             ref={formRef}
             embedded
             onSubmittingChange={setFormSubmitting}
             key={selectedItem?._itemId || selectedItem?.applicationId || 'draft'}
-            editingBusiness={selectedItem}
+            editingApplication={selectedItem}
             readOnly={false}
             onBack={() => { refresh?.() }}
             onSubmitted={() => {

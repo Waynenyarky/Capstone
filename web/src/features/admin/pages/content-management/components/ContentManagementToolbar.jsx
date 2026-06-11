@@ -10,6 +10,7 @@ export default function ContentManagementToolbar({
   activeFilterCount,
   onAdd,
   showAddButton,
+  addButtonLabel,
   token,
   filterOpen,
   filterWrapperRef,
@@ -112,7 +113,7 @@ export default function ContentManagementToolbar({
       )}
       {showAddButton && (
         <Button type="primary" icon={<PlusOutlined />} onClick={onAdd}>
-          New
+          {addButtonLabel || 'New'}
         </Button>
       )}
     </div>

@@ -7,11 +7,8 @@ import { useAuthSession } from '@/features/authentication'
 import { mfaStatus } from '@/features/authentication/services/mfaService'
 import { firstLoginChangeCredentials, getProfile } from '@/features/authentication/services/authService'
 import { useNotifier } from '@/shared/notifications'
-import BusinessOwnerLayout from '../components/BusinessOwnerLayout'
+import BusinessOwnerLayout from '../components/shared/BusinessOwnerLayout'
 import { OnboardingStepContent } from '@/features/shared'
-
-// MFA always required for business owner when backend sets mustSetupMfa (no dev bypass)
-const bypassMfaDev = false
 
 export default function BusinessOwnerOnboarding() {
   const { currentUser, login } = useAuthSession()

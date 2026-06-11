@@ -14,10 +14,10 @@ export const CONTENT_TYPE_CONFIG = {
   'staff-announcements': { showAddButton: true, audience: 'staff' },
   'faqs': { showAddButton: false },
   'instructions': { showAddButton: false },
-  'privacy-policy': { showAddButton: false, pageSlotId: 'privacy-policy' },
-  'terms-of-service': { showAddButton: false, pageSlotId: 'terms-of-service' },
-  'bizclear-manual': { showAddButton: false, pageSlotId: 'bizclear-manual' },
-  'application-processes': { showAddButton: false, placeholder: true },
+  'privacy-policy': { showAddButton: true, pageSlotId: 'privacy-policy', isChapterBased: true },
+  'terms-of-service': { showAddButton: true, pageSlotId: 'terms-of-service', isChapterBased: true },
+  'bizclear-manual': { showAddButton: true, pageSlotId: 'bizclear-manual', isChapterBased: true },
+  'application-processes': { showAddButton: false, fullWidth: true },
 }
 
 export const PAGE_CONTENT_TYPES = ['privacy-policy', 'terms-of-service', 'bizclear-manual']

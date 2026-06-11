@@ -2,10 +2,13 @@ const express = require("express");
 const FaqSection = require("../models/FaqSection");
 const InstructionContent = require("../models/InstructionContent");
 const PageContent = require("../models/PageContent");
+const PageChapter = require("../models/PageChapter");
 const AuditLog = require("../models/AuditLog");
 const { requireJwt } = require("../middleware/auth");
 const logger = require("../lib/logger");
 const { createAuditLog } = require("../lib/auditLogger");
+
+const VALID_PAGE_SLOT_IDS = ["privacy-policy", "terms-of-service", "bizclear-manual"];
 
 // ─── Public router (mounted at /api/cms) ────────────────────────────────────────
 const publicRouter = express.Router();
@@ -73,10 +76,36 @@ publicRouter.get("/instructions/:slotId", async (req, res) => {
   }
 });
 
-// GET /api/cms/pages/:slotId — public fetch of page content
+// GET /api/cms/pages/:slotId — public fetch of page content (chapter-based)
 publicRouter.get("/pages/:slotId", async (req, res) => {
   try {
-    const doc = await PageContent.findOne({ slotId: req.params.slotId }).lean();
+    const { slotId } = req.params;
+
+    // Try chapter-based content first
+    const chapters = await PageChapter.find({ pageSlotId: slotId })
+      .sort({ order: 1 })
+      .lean();
+
+    if (chapters.length > 0) {
+      // Return published chapter data
+      const publishedChapters = chapters
+        .filter((ch) => ch.isPublished)
+        .map((ch) => {
+          const data = ch.publishedData || {};
+          return {
+            _id: ch._id,
+            order: ch.order,
+            title: data.title || ch.title,
+            description: data.description || ch.description,
+            introText: data.introText || ch.introText,
+            sections: data.sections || ch.sections,
+          };
+        });
+      return res.json({ slotId, chapters: publishedChapters });
+    }
+
+    // Fallback to legacy single-document PageContent
+    const doc = await PageContent.findOne({ slotId }).lean();
     if (!doc) return res.status(404).json({ error: "Page content not found" });
     const hasPublishedData =
       doc.isPublished &&
@@ -358,9 +387,31 @@ adminRouter.put("/instructions/:slotId", requireJwt, async (req, res) => {
   }
 });
 
-// GET /api/admin/cms/pages — list all page content slots
+// GET /api/admin/cms/pages — list chapters (query: ?pageSlotId=privacy-policy)
 adminRouter.get("/pages", requireJwt, async (req, res) => {
   try {
+    const { pageSlotId } = req.query;
+
+    // If pageSlotId specified, return chapters for that page
+    if (pageSlotId && VALID_PAGE_SLOT_IDS.includes(pageSlotId)) {
+      const chapters = await PageChapter.find({ pageSlotId })
+        .sort({ order: 1 })
+        .lean();
+      // Return draft data for editing
+      const responseData = chapters.map((ch) => {
+        const draft = ch.draftData;
+        return {
+          ...ch,
+          title: draft?.title || ch.title,
+          description: draft?.description || ch.description,
+          introText: draft?.introText || ch.introText,
+          sections: draft?.sections || ch.sections,
+        };
+      });
+      return res.json(responseData);
+    }
+
+    // Legacy: return all PageContent docs (for backwards compat)
     const docs = await PageContent.find().sort({ slotId: 1 }).lean();
     const responseData = docs.map((doc) => {
       const hasDraftData =
@@ -380,8 +431,201 @@ adminRouter.get("/pages", requireJwt, async (req, res) => {
   }
 });
 
-// PUT /api/admin/cms/pages/:slotId — update page content (edit only, no create/delete slots)
-adminRouter.put("/pages/:slotId", requireJwt, async (req, res) => {
+// POST /api/admin/cms/pages — create a new chapter
+adminRouter.post("/pages", requireJwt, async (req, res) => {
+  try {
+    const { pageSlotId, title, description } = req.body;
+    if (!pageSlotId || !VALID_PAGE_SLOT_IDS.includes(pageSlotId)) {
+      return res.status(400).json({ error: "Invalid pageSlotId" });
+    }
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: "Title is required" });
+    }
+
+    // Determine next order value
+    const maxOrder = await PageChapter.findOne({ pageSlotId })
+      .sort({ order: -1 })
+      .select("order")
+      .lean();
+    const nextOrder = (maxOrder?.order ?? -1) + 1;
+
+    const chapter = await PageChapter.create({
+      pageSlotId,
+      order: nextOrder,
+      title: title.trim(),
+      description: description?.trim() || "",
+      introText: "",
+      sections: [],
+      isPublished: false,
+      updatedBy: req._userId,
+    });
+
+    return res.status(201).json(chapter.toObject());
+  } catch (err) {
+    logger.error("POST /api/admin/cms/pages failed", { error: err.message });
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// PUT /api/admin/cms/pages/:id — update a chapter
+adminRouter.put("/pages/:id", requireJwt, async (req, res) => {
+  try {
+    const { title, description, introText, sections } = req.body;
+    const { publish } = req.query;
+    const isPublish = publish === "true";
+
+    const doc = await PageChapter.findById(req.params.id);
+    if (!doc) {
+      // Fallback: try legacy PageContent by slotId
+      const legacyDoc = await PageContent.findOne({ slotId: req.params.id });
+      if (!legacyDoc)
+        return res.status(404).json({ error: "Chapter not found" });
+
+      // Handle legacy update
+      if (sections !== undefined && !Array.isArray(sections)) {
+        return res.status(400).json({ error: "sections must be an array" });
+      }
+      if (isPublish) {
+        const previousState = { ...legacyDoc.toObject() };
+        legacyDoc.publishedData = { introText, sections };
+        legacyDoc.isPublished = true;
+        legacyDoc.introText = introText;
+        legacyDoc.sections = sections;
+        legacyDoc.updatedBy = req._userId;
+        await legacyDoc.save();
+        const newState = legacyDoc.toObject();
+        createAuditLog(
+          req._userId,
+          "page_updated",
+          null,
+          JSON.stringify(previousState),
+          JSON.stringify(newState),
+          "admin",
+          { slotId: legacyDoc.slotId, contentType: "page", changedFields: ["sections"] },
+          legacyDoc.slotId,
+        ).catch(() => {});
+      } else {
+        legacyDoc.draftData = { introText, sections };
+        legacyDoc.updatedBy = req._userId;
+        await legacyDoc.save();
+      }
+      return res.json(legacyDoc.toObject());
+    }
+
+    if (sections !== undefined && !Array.isArray(sections)) {
+      return res.status(400).json({ error: "sections must be an array" });
+    }
+
+    const updatedData = {
+      title: title !== undefined ? title.trim() : doc.title,
+      description: description !== undefined ? description.trim() : doc.description,
+      introText: introText !== undefined ? introText : doc.introText,
+      sections: sections !== undefined ? sections : doc.sections,
+    };
+
+    if (isPublish) {
+      const previousState = { ...doc.toObject() };
+      doc.title = updatedData.title;
+      doc.description = updatedData.description;
+      doc.introText = updatedData.introText;
+      doc.sections = updatedData.sections;
+      doc.publishedData = { ...updatedData };
+      doc.isPublished = true;
+      doc.updatedBy = req._userId;
+      await doc.save();
+
+      const newState = doc.toObject();
+      const changedFields = [];
+      if (previousState.title !== newState.title) changedFields.push("title");
+      if (previousState.description !== newState.description) changedFields.push("description");
+      if (previousState.introText !== newState.introText) changedFields.push("introText");
+      if (JSON.stringify(previousState.sections) !== JSON.stringify(newState.sections))
+        changedFields.push("sections");
+
+      createAuditLog(
+        req._userId,
+        "page_updated",
+        null,
+        JSON.stringify(previousState),
+        JSON.stringify(newState),
+        "admin",
+        {
+          slotId: `${doc.pageSlotId}:${doc._id}`,
+          contentType: "page_chapter",
+          changedFields,
+        },
+        `${doc.pageSlotId}:${doc._id}`,
+      ).catch((err) =>
+        logger.warn("Failed to create audit log for chapter update", {
+          error: err.message,
+        }),
+      );
+    } else {
+      doc.draftData = { ...updatedData };
+      doc.updatedBy = req._userId;
+      await doc.save();
+    }
+
+    return res.json(doc.toObject());
+  } catch (err) {
+    logger.error("PUT /api/admin/cms/pages/:id failed", {
+      error: err.message,
+    });
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// DELETE /api/admin/cms/pages/:id — delete a chapter
+adminRouter.delete("/pages/:id", requireJwt, async (req, res) => {
+  try {
+    const doc = await PageChapter.findByIdAndDelete(req.params.id);
+    if (!doc) return res.status(404).json({ error: "Chapter not found" });
+
+    // Re-order remaining chapters
+    const remaining = await PageChapter.find({ pageSlotId: doc.pageSlotId }).sort({ order: 1 });
+    for (let i = 0; i < remaining.length; i++) {
+      if (remaining[i].order !== i) {
+        remaining[i].order = i;
+        await remaining[i].save();
+      }
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    logger.error("DELETE /api/admin/cms/pages/:id failed", { error: err.message });
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// PATCH /api/admin/cms/pages/reorder — reorder chapters
+adminRouter.patch("/pages/reorder", requireJwt, async (req, res) => {
+  try {
+    const { pageSlotId, orderedIds } = req.body;
+    if (!pageSlotId || !VALID_PAGE_SLOT_IDS.includes(pageSlotId)) {
+      return res.status(400).json({ error: "Invalid pageSlotId" });
+    }
+    if (!Array.isArray(orderedIds)) {
+      return res.status(400).json({ error: "orderedIds must be an array" });
+    }
+
+    const bulkOps = orderedIds.map((id, index) => ({
+      updateOne: {
+        filter: { _id: id, pageSlotId },
+        update: { $set: { order: index } },
+      },
+    }));
+    await PageChapter.bulkWrite(bulkOps);
+
+    const updated = await PageChapter.find({ pageSlotId }).sort({ order: 1 }).lean();
+    return res.json(updated);
+  } catch (err) {
+    logger.error("PATCH /api/admin/cms/pages/reorder failed", { error: err.message });
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Legacy: PUT /api/admin/cms/pages/legacy/:slotId — update old PageContent (kept for migration)
+adminRouter.put("/pages/legacy/:slotId", requireJwt, async (req, res) => {
   try {
     const { introText, sections } = req.body;
     const { publish = false } = req.query;
@@ -394,42 +638,12 @@ adminRouter.put("/pages/:slotId", requireJwt, async (req, res) => {
     }
 
     if (publish) {
-      const previousState = { ...doc.toObject() };
       doc.publishedData = { introText, sections };
       doc.isPublished = true;
       doc.introText = introText;
       doc.sections = sections;
       doc.updatedBy = req._userId;
       await doc.save();
-
-      const newState = doc.toObject();
-      const changedFields = [];
-      if (previousState.introText !== newState.introText)
-        changedFields.push("introText");
-      if (
-        JSON.stringify(previousState.sections) !==
-        JSON.stringify(newState.sections)
-      )
-        changedFields.push("sections");
-
-      createAuditLog(
-        req._userId,
-        "page_updated",
-        null,
-        JSON.stringify(previousState),
-        JSON.stringify(newState),
-        "admin",
-        {
-          slotId: doc.slotId,
-          contentType: "page",
-          changedFields,
-        },
-        doc.slotId,
-      ).catch((err) =>
-        logger.warn("Failed to create audit log for page update", {
-          error: err.message,
-        }),
-      );
     } else {
       doc.draftData = { introText, sections };
       doc.updatedBy = req._userId;
@@ -438,9 +652,7 @@ adminRouter.put("/pages/:slotId", requireJwt, async (req, res) => {
 
     return res.json(doc.toObject());
   } catch (err) {
-    logger.error("PUT /api/admin/cms/pages/:slotId failed", {
-      error: err.message,
-    });
+    logger.error("PUT /api/admin/cms/pages/legacy/:slotId failed", { error: err.message });
     return res.status(500).json({ error: "Internal server error" });
   }
 });

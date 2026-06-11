@@ -379,9 +379,7 @@ export async function fetchJsonWithFallback(path, options = {}) {
         'session_expired': 'Session expired. Please scan the QR code again.',
         'challenge_missing': 'Session error. Please scan the QR code again.',
         'cross_device_complete_failed': 'Failed to complete authentication. Please try again.',
-        'email_send_failed': import.meta.env.PROD
-          ? 'Verification email could not be sent. Please try again in a moment, or contact support if the problem continues.'
-          : 'Verification email could not be sent. Check that your email provider (e.g. Resend) is configured and the sender is verified, or try again in a moment.',
+        'email_send_failed': 'Verification email could not be sent. Please try again in a moment, or contact support if the problem continues.',
         'request_not_found': 'Your login session expired or was not found. Please sign in again from the login page.',
         'step_up_required': 'This action requires you to confirm your identity. Please enter your authenticator code again and retry.',
         'invalid_step_up': 'Your confirmation has expired or was invalid. Please confirm your identity again and retry.',

@@ -1,4 +1,9 @@
 const logger = require("./logger");
+const {
+  buildNotificationEmailBody,
+  buildInfoBox,
+  EMAIL_COLORS,
+} = require("/backend/shared/lib/emailTemplateBuilder");
 
 /**
  * Help Request Email Service
@@ -89,71 +94,23 @@ function getSendEmail() {
   return sendEmailFn;
 }
 
-function buildEmailWrapper(title, bodyHtml) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
-  const appUrl =
-    process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
-  const supportEmail =
-    process.env.SUPPORT_EMAIL ||
-    process.env.EMAIL_HOST_USER ||
-    "support@bizclear.com";
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
-</head>
-<body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
-<div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
-  <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-    <div style="background:#003a70;padding:32px;text-align:center;">
-      <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;font-family:'Raleway', sans-serif;">${brandName}</h1>
-    </div>
-    <div style="padding:40px 32px;">
-      <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">${title}</h2>
-      ${bodyHtml}
-    </div>
-    <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
-      <div style="color:#8c8c8c;font-size:12px;line-height:1.5;">
-        <p style="margin:0 0 8px;"><strong>${brandName}</strong><br>Dagupan City, Philippines</p>
-        <p style="margin:0;">Need help? <a href="mailto:${supportEmail}" style="color:#003a70;text-decoration:none;">Contact Support</a></p>
-        <p style="margin:16px 0 0;font-size:11px;color:#bfbfbf;">&copy; ${new Date().getFullYear()} ${brandName}. All rights reserved.</p>
-      </div>
-    </div>
-  </div>
-</div>
-</body>
-</html>`;
-}
-
 async function sendHelpRequestConfirmation(to, requestId, subject) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
   const appUrl =
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
+  const brandName = process.env.APP_BRAND_NAME || "BizClear";
 
-  const bodyHtml = `
-    <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-      Thank you for reaching out. We have received your help request and will respond as soon as possible.
-    </p>
-    <div style="background:#f8f9fa;padding:24px;border-radius:8px;border:1px solid #e8e8e8;margin-bottom:24px;">
-      <div style="margin-bottom:12px;">
-        <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Reference Number</span><br>
-        <span style="color:#003a70;font-size:18px;font-weight:700;font-family:monospace;">${requestId}</span>
-      </div>
-      <div>
-        <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Subject</span><br>
-        <span style="color:#1f1f1f;font-size:16px;">${subject}</span>
-      </div>
-    </div>
-    <p style="margin:0 0 16px;color:#595959;font-size:14px;">
-      You will receive email notifications when our team responds to your request.
-    </p>
-    <a href="${appUrl}/help" style="display:inline-block;background:#003a70;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:4px;font-weight:600;font-size:16px;">Visit Help Center</a>
-  `;
-
-  const html = buildEmailWrapper("Help Request Received", bodyHtml);
+  const html = buildNotificationEmailBody({
+    heading: "Help Request Received",
+    intro: "Thank you for reaching out. We have received your help request and will respond as soon as possible.",
+    fields: {
+      fields: [
+        { label: "Reference number", value: requestId, color: EMAIL_COLORS.primary, fontWeight: "700" },
+        { label: "Subject", value: subject },
+      ],
+    },
+    button: { text: "Visit Help Center", href: `${appUrl}/help` },
+    appUrl,
+  });
   const text = `Help Request Received\n\nReference: ${requestId}\nSubject: ${subject}\n\nWe will respond to your request as soon as possible.\n\n${brandName}`;
 
   try {
@@ -175,28 +132,19 @@ async function sendHelpRequestConfirmation(to, requestId, subject) {
 }
 
 async function sendOfficerReplyNotification(to, requestId, messagePreview) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const brandName = process.env.APP_BRAND_NAME || "BizClear";
 
-  const bodyHtml = `
-    <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-      Our team has responded to your help request.
-    </p>
-    <div style="background:#f8f9fa;padding:24px;border-radius:8px;border:1px solid #e8e8e8;margin-bottom:24px;">
-      <div style="margin-bottom:12px;">
-        <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Reference</span><br>
-        <span style="color:#003a70;font-size:16px;font-weight:700;font-family:monospace;">${requestId}</span>
-      </div>
-      <div>
-        <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Message</span><br>
-        <span style="color:#1f1f1f;font-size:14px;line-height:1.6;">${messagePreview}</span>
-      </div>
-    </div>
-    <p style="margin:0;color:#595959;font-size:14px;">
-      If you need to provide additional information, you may reply to this thread via the Help Center.
-    </p>
-  `;
-
-  const html = buildEmailWrapper("New Reply to Your Help Request", bodyHtml);
+  const html = buildNotificationEmailBody({
+    heading: "New Reply to Your Help Request",
+    intro: "Our team has responded to your help request.",
+    fields: {
+      fields: [
+        { label: "Reference", value: requestId, color: EMAIL_COLORS.primary, fontWeight: "700" },
+        { label: "Message", value: messagePreview },
+      ],
+    },
+    appUrl,
+  });
   const text = `New Reply to Help Request ${requestId}\n\n${messagePreview}\n\n${brandName}`;
 
   try {
@@ -218,26 +166,23 @@ async function sendOfficerReplyNotification(to, requestId, messagePreview) {
 }
 
 async function sendRequestClosedNotification(to, requestId, subject) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const brandName = process.env.APP_BRAND_NAME || "BizClear";
 
-  const bodyHtml = `
-    <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-      Your help request has been resolved and closed.
-    </p>
-    <div style="background:#f6ffed;padding:24px;border-radius:8px;border:1px solid #b7eb8f;margin-bottom:24px;">
-      <div style="margin-bottom:12px;">
-        <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Reference</span><br>
-        <span style="color:#003a70;font-size:16px;font-weight:700;font-family:monospace;">${requestId}</span>
-      </div>
-      <div>
-        <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Subject</span><br>
-        <span style="color:#1f1f1f;font-size:14px;">${subject}</span>
-      </div>
-    </div>
-    <p style="margin:0;color:#52c41a;font-size:16px;font-weight:600;">Status: Closed</p>
-  `;
-
-  const html = buildEmailWrapper("Help Request Closed", bodyHtml);
+  const html = buildNotificationEmailBody({
+    heading: "Help Request Closed",
+    intro: "Your help request has been resolved and closed.",
+    fields: {
+      fields: [
+        { label: "Reference", value: requestId, color: EMAIL_COLORS.primary, fontWeight: "700" },
+        { label: "Subject", value: subject },
+        { label: "Status", value: "Closed", color: EMAIL_COLORS.success, fontWeight: "700" },
+      ],
+      bgColor: EMAIL_COLORS.bgSuccess,
+      borderColor: EMAIL_COLORS.borderSuccess,
+      accentColor: EMAIL_COLORS.success,
+    },
+    appUrl,
+  });
   const text = `Help Request Closed\n\nReference: ${requestId}\nSubject: ${subject}\nStatus: Closed\n\n${brandName}`;
 
   try {
@@ -259,29 +204,27 @@ async function sendRequestClosedNotification(to, requestId, subject) {
 }
 
 async function sendRequestInvalidNotification(to, requestId, subject) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const brandName = process.env.APP_BRAND_NAME || "BizClear";
 
-  const bodyHtml = `
-    <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-      Your help request has been reviewed and marked as invalid by our team.
-    </p>
-    <div style="background:#fff7e6;padding:24px;border-radius:8px;border:1px solid #ffd591;margin-bottom:24px;">
-      <div style="margin-bottom:12px;">
-        <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Reference</span><br>
-        <span style="color:#003a70;font-size:16px;font-weight:700;font-family:monospace;">${requestId}</span>
-      </div>
-      <div>
-        <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Subject</span><br>
-        <span style="color:#1f1f1f;font-size:14px;">${subject}</span>
-      </div>
-    </div>
-    <p style="margin:0;color:#faad14;font-size:16px;font-weight:600;">Status: Invalid</p>
-    <p style="margin:16px 0 0;color:#595959;font-size:14px;">
-      If you believe this is an error, please submit a new request with more details.
-    </p>
-  `;
-
-  const html = buildEmailWrapper("Help Request Marked Invalid", bodyHtml);
+  const html = buildNotificationEmailBody({
+    heading: "Help Request Marked Invalid",
+    intro: "Your help request has been reviewed and marked as invalid by our team.",
+    fields: {
+      fields: [
+        { label: "Reference", value: requestId, color: EMAIL_COLORS.primary, fontWeight: "700" },
+        { label: "Subject", value: subject },
+        { label: "Status", value: "Invalid", color: EMAIL_COLORS.antWarning, fontWeight: "700" },
+      ],
+      bgColor: EMAIL_COLORS.bgWarning,
+      borderColor: EMAIL_COLORS.borderWarning,
+      accentColor: EMAIL_COLORS.antWarning,
+    },
+    warningBox: {
+      title: "Need help?",
+      message: "If you believe this is an error, please submit a new request with more details.",
+    },
+    appUrl,
+  });
   const text = `Help Request Invalid\n\nReference: ${requestId}\nSubject: ${subject}\nStatus: Invalid\n\nIf you believe this is an error, please submit a new request.\n\n${brandName}`;
 
   try {

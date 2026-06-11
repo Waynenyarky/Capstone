@@ -19,7 +19,7 @@ import dayjs from 'dayjs'
 import { PermitApplicationService } from '@/features/lgu-officer/infrastructure/services'
 import { resolveIpfsUrl } from '@/lib/ipfsUtils'
 import { getActiveFormDefinition, getPublicFormDefinition } from '@/features/admin/services/formDefinitionService'
-import { filterSectionsByFormValues } from '@/features/business-owner/components/DynamicFormRenderer'
+import { filterSectionsByFormValues } from '@/features/business-owner/utils/formUtils.js'
 import {
   getFieldKey,
   REJECTION_REASON_OPTIONS,

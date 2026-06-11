@@ -1,6 +1,7 @@
 import dayjs from 'dayjs'
 import { LINE_OF_BUSINESS } from '@/constants/lineOfBusiness'
 import { ALAMINOS_TEST_ADDRESS } from '../constants/businessFormConstants'
+import { resolveIpfsUrl } from '@/lib/ipfsUtils'
 
 function createMockFile(fieldName) {
   const fileName = `${fieldName.replace(/[^a-zA-Z0-9]/g, '_')}_sample.pdf`
@@ -21,17 +22,23 @@ function createMockFile(fieldName) {
 function formDataWithDayjs(formData, definition) {
   if (!formData || typeof formData !== 'object') return formData
   const dateKeys = new Set()
+  const fileKeys = new Set()
   const repeatableDateKeys = {}
+  const repeatableFileKeys = {}
   ;(definition?.sections || []).forEach((section) => {
     (section.items || []).forEach((item) => {
       const key = item.key || item.label
       if (item.type === 'date') dateKeys.add(key)
+      if (item.type === 'file') fileKeys.add(key)
       if (item.type === 'repeatable_group' && item.groupFields?.length) {
         const groupDateKeys = new Set()
+        const groupFileKeys = new Set()
         item.groupFields.forEach((gf) => {
           if (gf.type === 'date') groupDateKeys.add(gf.key || gf.label)
+          if (gf.type === 'file') groupFileKeys.add(gf.key || gf.label)
         })
         if (groupDateKeys.size) repeatableDateKeys[key] = groupDateKeys
+        if (groupFileKeys.size) repeatableFileKeys[key] = groupFileKeys
       }
     })
   })
@@ -41,6 +48,90 @@ function formDataWithDayjs(formData, definition) {
     if (v != null && v !== '' && !dayjs.isDayjs(v)) {
       const d = dayjs(v)
       out[k] = d.isValid() ? d : undefined
+    }
+  })
+  // Convert file field CID strings back to Upload component format
+  fileKeys.forEach((k) => {
+    const v = out[k]
+    if (typeof v === 'string' && v.trim()) {
+      const trimmed = v.trim()
+      let cid, url
+      // Check if it's a CID string (Qm... or bafy...)
+      if (trimmed.startsWith('Qm') || trimmed.startsWith('bafy')) {
+        cid = trimmed
+        url = resolveIpfsUrl(cid) || cid
+      } else if (trimmed.includes('/ipfs/')) {
+        // Extract CID from full URL like http://localhost:8080/ipfs/Qm...
+        const match = trimmed.match(/\/ipfs\/([a-zA-Z0-9]+)/)
+        if (match) {
+          cid = match[1]
+          url = trimmed
+        } else {
+          url = trimmed
+        }
+      } else {
+        // Assume it's a CID and try to resolve it
+        cid = trimmed
+        url = resolveIpfsUrl(trimmed) || trimmed
+      }
+      // Convert to Upload format with url and thumbUrl for preview
+      out[k] = [{
+        uid: `file-${k}`,
+        name: k.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim(),
+        status: 'done',
+        cid,
+        url,
+        thumbUrl: url // Ant Design Upload uses thumbUrl for preview thumbnail
+      }]
+    } else if (Array.isArray(v) && v.length > 0) {
+      // Handle array of Upload objects that might be missing url field
+      if (typeof v[0] === 'object' && v[0] !== null) {
+        out[k] = v.map((item, idx) => {
+          if (item.url && item.thumbUrl) {
+            // Already has url and thumbUrl, return as-is
+            return item
+          }
+          // Missing url field, add it from cid
+          const cid = item.cid || item.ipfsCid
+          if (cid) {
+            const url = resolveIpfsUrl(cid) || cid
+            return {
+              ...item,
+              url,
+              thumbUrl: url
+            }
+          }
+          return item
+        })
+      } else if (typeof v[0] === 'string') {
+        // Array of CID strings or URLs - convert to Upload format
+        out[k] = v.map((item, idx) => {
+          const trimmed = item.trim()
+          let cid, url
+          if (trimmed.startsWith('Qm') || trimmed.startsWith('bafy')) {
+            cid = trimmed
+            url = resolveIpfsUrl(cid) || cid
+          } else if (trimmed.includes('/ipfs/')) {
+            const match = trimmed.match(/\/ipfs\/([a-zA-Z0-9]+)/)
+            if (match) {
+              cid = match[1]
+              url = trimmed
+            } else {
+              url = trimmed
+            }
+          } else {
+            url = trimmed
+          }
+          return {
+            uid: `file-${k}-${idx}`,
+            name: `${k.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim()} ${idx + 1}`,
+            status: 'done',
+            cid,
+            url,
+            thumbUrl: url
+          }
+        })
+      }
     }
   })
   Object.keys(repeatableDateKeys).forEach((listKey) => {
@@ -55,6 +146,84 @@ function formDataWithDayjs(formData, definition) {
           r[fk] = d.isValid() ? d : undefined
         }
       })
+      // Convert file fields in repeatable groups
+      if (repeatableFileKeys[listKey]) {
+        repeatableFileKeys[listKey].forEach((fk) => {
+          const v = r[fk]
+          if (typeof v === 'string' && v.trim()) {
+            const trimmed = v.trim()
+            let cid, url
+            if (trimmed.startsWith('Qm') || trimmed.startsWith('bafy')) {
+              cid = trimmed
+              url = resolveIpfsUrl(cid) || cid
+            } else if (trimmed.includes('/ipfs/')) {
+              const match = trimmed.match(/\/ipfs\/([a-zA-Z0-9]+)/)
+              if (match) {
+                cid = match[1]
+                url = trimmed
+              } else {
+                url = trimmed
+              }
+            } else {
+              url = trimmed
+            }
+            r[fk] = [{
+              uid: `file-${fk}`,
+              name: fk.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim(),
+              status: 'done',
+              cid,
+              url,
+              thumbUrl: url
+            }]
+          } else if (Array.isArray(v) && v.length > 0) {
+            // Handle array of Upload objects that might be missing url field
+            if (typeof v[0] === 'object' && v[0] !== null) {
+              r[fk] = v.map((item, idx) => {
+                if (item.url && item.thumbUrl) {
+                  return item
+                }
+                const cid = item.cid || item.ipfsCid
+                if (cid) {
+                  const url = resolveIpfsUrl(cid) || cid
+                  return {
+                    ...item,
+                    url,
+                    thumbUrl: url
+                  }
+                }
+                return item
+              })
+            } else if (typeof v[0] === 'string') {
+              r[fk] = v.map((item, idx) => {
+                const trimmed = item.trim()
+                let cid, url
+                if (trimmed.startsWith('Qm') || trimmed.startsWith('bafy')) {
+                  cid = trimmed
+                  url = resolveIpfsUrl(cid) || cid
+                } else if (trimmed.includes('/ipfs/')) {
+                  const match = trimmed.match(/\/ipfs\/([a-zA-Z0-9]+)/)
+                  if (match) {
+                    cid = match[1]
+                    url = trimmed
+                  } else {
+                    url = trimmed
+                  }
+                } else {
+                  url = trimmed
+                }
+                return {
+                  uid: `file-${fk}-${idx}`,
+                  name: `${fk.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim()} ${idx + 1}`,
+                  status: 'done',
+                  cid,
+                  url,
+                  thumbUrl: url
+                }
+              })
+            }
+          }
+        })
+      }
       return r
     })
   })
@@ -121,7 +290,7 @@ function generateTestDataForField(field) {
     case 'address_alaminos':
       return undefined
 
-    case 'repeatable_group':
+    case 'repeatable_group': {
       const groupFields = field.groupFields || []
       if (groupFields.length === 0) return [{}]
       const row = {}
@@ -138,6 +307,7 @@ function generateTestDataForField(field) {
         }
       })
       return [row]
+    }
 
     default:
       return `Test ${field.label || 'Value'}`

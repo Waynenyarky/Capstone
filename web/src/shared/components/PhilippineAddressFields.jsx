@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Select, Input, Row, Col } from 'antd'
+import { Select, Input, Row, Col, theme } from 'antd'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
   fetchProvinces,
@@ -19,6 +19,7 @@ import {
 } from '../services/psgcService'
 
 const { Option } = Select
+const { useToken } = theme
 
 /**
  * Philippine Address Fields with cascading dropdowns
@@ -49,6 +50,7 @@ export default function PhilippineAddressFields({
   variant,
   compactLayout = false,
 }) {
+  const { token } = useToken()
   const fieldName = useCallback(
     (name) => (namePrefix ? [namePrefix, name] : name),
     [namePrefix],
@@ -280,8 +282,15 @@ export default function PhilippineAddressFields({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Form.Item
           name={fieldName('province')}
-          label="Province"
-          rules={required ? [{ required: true, message: 'Please select province' }] : []}
+          label={required ? <span>Province<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span> : 'Province'}
+          rules={required ? [{
+            validator: (_, value) => {
+              if (value === undefined || value === null || value === '') {
+                return Promise.reject(new Error('Please select province'))
+              }
+              return Promise.resolve()
+            }
+          }] : []}
         >
           <Select
             showSearch
@@ -306,8 +315,15 @@ export default function PhilippineAddressFields({
 
         <Form.Item
           name={fieldName('city')}
-          label="City/Municipality"
-          rules={required ? [{ required: true, message: 'Please select city/municipality' }] : []}
+          label={required ? <span>City/Municipality<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span> : 'City/Municipality'}
+          rules={required ? [{
+            validator: (_, value) => {
+              if (value === undefined || value === null || value === '') {
+                return Promise.reject(new Error('Please select city/municipality'))
+              }
+              return Promise.resolve()
+            }
+          }] : []}
         >
           <Select
             showSearch
@@ -336,8 +352,15 @@ export default function PhilippineAddressFields({
 
         <Form.Item
           name={fieldName('barangay')}
-          label="Barangay"
-          rules={required ? [{ required: true, message: 'Please select barangay' }] : []}
+          label={required ? <span>Barangay<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span> : 'Barangay'}
+          rules={required ? [{
+            validator: (_, value) => {
+              if (value === undefined || value === null || value === '') {
+                return Promise.reject(new Error('Please select barangay'))
+              }
+              return Promise.resolve()
+            }
+          }] : []}
         >
           <Select
             showSearch
@@ -366,9 +389,16 @@ export default function PhilippineAddressFields({
 
         <Form.Item
           name={fieldName('streetAddress')}
-          label="House/Bldg No. & Street"
+          label={required ? <span>House/Bldg No. & Street<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span> : 'House/Bldg No. & Street'}
           initialValue={initialStreet}
-          rules={required ? [{ required: true, message: 'Please enter house/building no. & street' }] : []}
+          rules={required ? [{
+            validator: (_, value) => {
+              if (value === undefined || value === null || value === '') {
+                return Promise.reject(new Error('Please enter house/building no. & street'))
+              }
+              return Promise.resolve()
+            }
+          }] : []}
         >
           <Input
             placeholder="e.g., 133 Roxas Boulevard"
@@ -379,10 +409,17 @@ export default function PhilippineAddressFields({
 
         <Form.Item
           name={fieldName('postalCode')}
-          label="Postal Code"
+          label={required ? <span>Postal Code<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span> : 'Postal Code'}
           initialValue={initialPostalCode}
           rules={[
-            ...(required ? [{ required: true, message: 'Please enter postal code' }] : []),
+            ...(required ? [{
+              validator: (_, value) => {
+                if (value === undefined || value === null || value === '') {
+                  return Promise.reject(new Error('Please enter postal code'))
+                }
+                return Promise.resolve()
+              }
+            }] : []),
             { pattern: /^\d{4}$/, message: 'Postal code must be 4 digits' }
           ]}
         >
@@ -403,8 +440,15 @@ export default function PhilippineAddressFields({
       <Col xs={24} sm={12} md={8}>
         <Form.Item
           name={fieldName('province')}
-          label="Province"
-          rules={required ? [{ required: true, message: 'Please select province' }] : []}
+          label={required ? <span>Province<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span> : 'Province'}
+          rules={required ? [{
+            validator: (_, value) => {
+              if (value === undefined || value === null || value === '') {
+                return Promise.reject(new Error('Please select province'))
+              }
+              return Promise.resolve()
+            }
+          }] : []}
         >
           <Select
             showSearch
@@ -431,8 +475,15 @@ export default function PhilippineAddressFields({
       <Col xs={24} sm={12} md={8}>
         <Form.Item
           name={fieldName('city')}
-          label="City/Municipality"
-          rules={required ? [{ required: true, message: 'Please select city/municipality' }] : []}
+          label={required ? <span>City/Municipality<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span> : 'City/Municipality'}
+          rules={required ? [{
+            validator: (_, value) => {
+              if (value === undefined || value === null || value === '') {
+                return Promise.reject(new Error('Please select city/municipality'))
+              }
+              return Promise.resolve()
+            }
+          }] : []}
         >
           <Select
             showSearch
@@ -463,8 +514,15 @@ export default function PhilippineAddressFields({
       <Col xs={24} sm={12} md={8}>
         <Form.Item
           name={fieldName('barangay')}
-          label="Barangay"
-          rules={required ? [{ required: true, message: 'Please select barangay' }] : []}
+          label={required ? <span>Barangay<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span> : 'Barangay'}
+          rules={required ? [{
+            validator: (_, value) => {
+              if (value === undefined || value === null || value === '') {
+                return Promise.reject(new Error('Please select barangay'))
+              }
+              return Promise.resolve()
+            }
+          }] : []}
         >
           <Select
             showSearch
@@ -496,9 +554,16 @@ export default function PhilippineAddressFields({
       <Col xs={24} md={16}>
         <Form.Item
           name={fieldName('streetAddress')}
-          label="House/Bldg No. & Street"
+          label={required ? <span>House/Bldg No. & Street<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span> : 'House/Bldg No. & Street'}
           initialValue={initialStreet}
-          rules={required ? [{ required: true, message: 'Please enter house/building no. & street' }] : []}
+          rules={required ? [{
+            validator: (_, value) => {
+              if (value === undefined || value === null || value === '') {
+                return Promise.reject(new Error('Please enter house/building no. & street'))
+              }
+              return Promise.resolve()
+            }
+          }] : []}
         >
           <Input
             placeholder="e.g., 133 Roxas Boulevard"
@@ -511,10 +576,17 @@ export default function PhilippineAddressFields({
       <Col xs={24} md={8}>
         <Form.Item
           name={fieldName('postalCode')}
-          label="Postal Code"
+          label={required ? <span>Postal Code<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span> : 'Postal Code'}
           initialValue={initialPostalCode}
           rules={[
-            ...(required ? [{ required: true, message: 'Please enter postal code' }] : []),
+            ...(required ? [{
+              validator: (_, value) => {
+                if (value === undefined || value === null || value === '') {
+                  return Promise.reject(new Error('Please enter postal code'))
+                }
+                return Promise.resolve()
+              }
+            }] : []),
             { pattern: /^\d{4}$/, message: 'Postal code must be 4 digits' }
           ]}
         >

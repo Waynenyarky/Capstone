@@ -85,10 +85,7 @@ function useBusinessFormSubmit({
       // Use draftBusinessId if available (draft was already created), otherwise check isEditing
       const existingBusinessId = editingBusiness?.businessId || editingBusiness?._id || draftBusinessId
       
-      if (isEditing || existingBusinessId) {
-        if (!existingBusinessId) {
-          throw new Error('No business ID found for update')
-        }
+      if (existingBusinessId) {
         const doUpdate = updateFn || updateBusiness
         response = await doUpdate(existingBusinessId, payload)
       } else {
@@ -102,7 +99,6 @@ function useBusinessFormSubmit({
         setSubmitted(true)
         onSubmitted?.(response)
       } else {
-        message.success('Draft saved successfully')
         setHasUnsavedChanges(false)
       }
     } catch (err) {

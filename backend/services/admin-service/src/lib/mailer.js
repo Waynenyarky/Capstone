@@ -192,7 +192,7 @@ async function sendAdminAlertEmail({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || "noreply@localhost",
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+  const brandName = process.env.APP_BRAND_NAME || "BizClear";
   const appUrl =
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
 

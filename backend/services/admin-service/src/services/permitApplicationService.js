@@ -1405,7 +1405,7 @@ class PermitApplicationService {
       throw new Error("User email not found");
     }
 
-    const brandName = process.env.APP_BRAND_NAME || "BizClear Business Center";
+    const brandName = process.env.APP_BRAND_NAME || "BizClear";
     const supportEmail =
       process.env.SUPPORT_EMAIL ||
       process.env.EMAIL_HOST_USER ||
@@ -1432,7 +1432,7 @@ class PermitApplicationService {
         "",
         `View your application: ${appUrl}/owner/permits`,
         "",
-        "Thank you for using BizClear Business Center.",
+        "Thank you for using BizClear.",
         "",
         "Best regards,",
         "LGU Office",
@@ -1486,7 +1486,7 @@ class PermitApplicationService {
         "",
         `View your application: ${appUrl}/owner/permits`,
         "",
-        "Thank you for using BizClear Business Center.",
+        "Thank you for using BizClear.",
         "",
         "Best regards,",
         "LGU Office",
@@ -1539,7 +1539,7 @@ class PermitApplicationService {
         "",
         `View your application: ${appUrl}/owner/permits`,
         "",
-        "Thank you for using BizClear Business Center.",
+        "Thank you for using BizClear.",
         "",
         "Best regards,",
         "LGU Office",

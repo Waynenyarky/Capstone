@@ -140,22 +140,22 @@ export default function UserSignUpForm({ extraContent }) {
 
         {/* ── Step 1: Account Information ── */}
         <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
-          <Form.Item name="firstName" label="First Name" rules={firstNameRules}>
+          <Form.Item name="firstName" label={<span>First Name<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span>} rules={firstNameRules}>
             <Input placeholder="First name"/>
           </Form.Item>
-          <Form.Item name="lastName" label="Last Name" rules={lastNameRules}>
+          <Form.Item name="lastName" label={<span>Last Name<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span>} rules={lastNameRules}>
             <Input placeholder="Last name" />
           </Form.Item>
-          <Form.Item name="middleName" label="Middle Name" rules={middleNameRules}>
+          <Form.Item name="middleName" label={<span>Middle Name<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span>} rules={middleNameRules}>
             <Input placeholder="Middle name" />
           </Form.Item>
           <Form.Item name="suffix" label="Suffix (optional)" rules={suffixRules}>
             <Input placeholder="e.g. Jr., Sr., III" />
           </Form.Item>
-          <Form.Item name="email" label="Email" rules={emailRules}>
+          <Form.Item name="email" label={<span>Email<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span>} rules={emailRules}>
             <Input placeholder="Email address" />
           </Form.Item>
-          <Form.Item name="phoneNumber" label="Phone Number" rules={phoneNumberRules}>
+          <Form.Item name="phoneNumber" label={<span>Phone Number<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span>} rules={phoneNumberRules}>
             <Input
               placeholder="Mobile number"
               inputMode="numeric"
@@ -167,7 +167,7 @@ export default function UserSignUpForm({ extraContent }) {
           </Form.Item>
           <Form.Item
             name="password"
-            label="Password"
+            label={<span>Password<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span>}
             rules={passwordRules}
           >
             <Input.Password
@@ -178,7 +178,7 @@ export default function UserSignUpForm({ extraContent }) {
           <PasswordStrengthIndicator value={passwordValue} minLength={12} />
           <Form.Item
             name="confirmPassword"
-            label="Confirm Password"
+            label={<span>Confirm Password<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span>}
             dependencies={['password']}
             hasFeedback
             rules={signUpConfirmPasswordRules}
@@ -216,42 +216,42 @@ export default function UserSignUpForm({ extraContent }) {
 
           <Row gutter={16}>
             <Col xs={24}>
-              <Form.Item name="sex" label="Sex" rules={pisSexRules}>
+              <Form.Item name="sex" label={<span>Sex<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span>} rules={pisSexRules}>
                 <Select placeholder="Select sex" options={SEX_OPTIONS} allowClear />
               </Form.Item>
             </Col>
             <Col xs={24}>
-              <Form.Item name="maritalStatus" label="Marital Status" rules={pisMaritalStatusRules}>
+              <Form.Item name="maritalStatus" label={<span>Marital Status<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span>} rules={pisMaritalStatusRules}>
                 <Select placeholder="Select status" options={MARITAL_STATUS_OPTIONS} />
               </Form.Item>
             </Col>
             <Col xs={24}>
-              <Form.Item name="dateOfBirth" label="Date of Birth" rules={pisDateOfBirthRules}>
+              <Form.Item name="dateOfBirth" label={<span>Date of Birth<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span>} rules={pisDateOfBirthRules}>
                 <DatePicker style={{ width: '100%' }} placeholder="Select date" />
               </Form.Item>
             </Col>
             <Col xs={24}>
-              <Form.Item name="placeOfBirth" label="Place of Birth" rules={pisPlaceOfBirthRules}>
+              <Form.Item name="placeOfBirth" label={<span>Place of Birth<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span>} rules={pisPlaceOfBirthRules}>
                 <Input placeholder="Place of birth" />
               </Form.Item>
             </Col>
             <Col xs={24}>
-              <Form.Item name="nationality" label="Nationality" rules={pisNationalityRules}>
+              <Form.Item name="nationality" label={<span>Nationality<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span>} rules={pisNationalityRules}>
                 <Input placeholder="e.g. Filipino" />
               </Form.Item>
             </Col>
             <Col xs={24}>
-              <Form.Item name="highestEducationalAttainment" label="Education" rules={pisEducationRules}>
+              <Form.Item name="highestEducationalAttainment" label={<span>Education<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span>} rules={pisEducationRules}>
                 <Select placeholder="Select education level" options={EDUCATION_OPTIONS} />
               </Form.Item>
             </Col>
             <Col xs={24}>
-              <Form.Item name="fatherName" label="Father's Name" rules={pisFatherNameRules}>
+              <Form.Item name="fatherName" label={<span>Father&apos;s Name<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span>} rules={pisFatherNameRules}>
                 <Input placeholder="Full name of father" />
               </Form.Item>
             </Col>
             <Col xs={24}>
-              <Form.Item name="motherName" label="Mother's Name" rules={pisMotherNameRules}>
+              <Form.Item name="motherName" label={<span>Mother&apos;s Name<span style={{ color: token.colorError, marginLeft: 4 }}>*</span></span>} rules={pisMotherNameRules}>
                 <Input placeholder="Full name of mother" />
               </Form.Item>
             </Col>

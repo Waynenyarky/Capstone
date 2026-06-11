@@ -26,9 +26,8 @@ import { get } from '@/lib/http.js'
 import { getPayments } from '@/features/business-owner/services/paymentsService'
 import { getPostRequirements } from '@/features/business-owner/services/postRequirementsService'
 import { getActiveFormDefinition, getPublicFormDefinition } from '@/features/admin/services/formDefinitionService'
-import DynamicFormRenderer from '@/features/business-owner/components/DynamicFormRenderer'
+import DynamicFormRenderer from '@/features/business-owner/components/forms/DynamicFormRenderer'
 import { Form } from '@/shared/components/AppForm'
-import PermitDownloadCard from '@/features/business-owner/components/permits/PermitDownloadCard'
 import OwnerInfoReadOnlyView from './OwnerInfoReadOnlyView'
 
 const { Text, Title } = Typography
@@ -590,7 +589,7 @@ export default function OfficerApprovedView({
           {hasActivePermit && <Tag color="success" style={{ marginLeft: 8 }}>Active</Tag>}
         </span>
       ),
-      children: <PermitDownloadCard businessId={businessId} businessName={businessName} />,
+      children: <div style={{ padding: 24, textAlign: 'center' }}>Permit download feature coming soon</div>, // <PermitDownloadCard businessId={businessId} businessName={businessName} />,
     },
     {
       key: 'compliance',

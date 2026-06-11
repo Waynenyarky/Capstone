@@ -1,12 +1,12 @@
-import AddBusinessForm from '../AddBusinessForm'
+import PermitApplicationForm from '../forms/PermitApplicationForm'
 
 function AddBusinessPanel({ onBack, onDraftCreated }) {
   return (
     <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <AddBusinessForm
+      <PermitApplicationForm
         key="add-new"
         onBack={onBack}
-        editingBusiness={null}
+        editingApplication={null}
         onDraftCreated={onDraftCreated}
       />
     </div>

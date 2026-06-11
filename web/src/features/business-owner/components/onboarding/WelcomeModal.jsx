@@ -1,8 +1,7 @@
-import { Typography, theme, Button, Space, Grid } from 'antd'
+import { Typography, theme, Divider } from 'antd'
 import { ShopOutlined, CalendarOutlined, LinkOutlined } from '@ant-design/icons'
 
 const { Title, Text, Paragraph } = Typography
-const { useBreakpoint } = Grid
 
 const BUSINESS_TYPES = [
   {
@@ -21,7 +20,6 @@ const BUSINESS_TYPES = [
 
 export default function WelcomeInline({ onSelect, onLinkExisting }) {
   const { token } = theme.useToken()
-  const screens = useBreakpoint()
 
   const handleSelectBusiness = (type) => {
     onSelect(type)
@@ -147,6 +145,12 @@ export default function WelcomeInline({ onSelect, onLinkExisting }) {
             </div>
           </div>
         ))}
+
+        <Divider style={{ margin: '24px 0' }}>
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            Already have an existing business?
+          </Text>
+        </Divider>
 
         {/* Link Existing Business Option */}
         <div

@@ -1,17 +1,38 @@
 import { namePatternRule } from './namePattern.js'
 
 export const firstNameRules = [
-  { required: true, message: 'Please enter your first name' },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error('Please enter your first name'))
+      }
+      return Promise.resolve()
+    }
+  },
   namePatternRule,
 ]
 
 export const lastNameRules = [
-  { required: true, message: 'Please enter your last name' },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error('Please enter your last name'))
+      }
+      return Promise.resolve()
+    }
+  },
   namePatternRule,
 ]
 
 export const middleNameRules = [
-  { required: true, message: 'Please enter your middle name' },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error('Please enter your middle name'))
+      }
+      return Promise.resolve()
+    }
+  },
   { max: 100, message: 'Middle name must be at most 100 characters' },
   namePatternRule,
 ]
@@ -22,7 +43,14 @@ export const suffixRules = [
 ]
 
 export const phoneNumberRules = [
-  { required: true, message: 'Please enter your phone number' },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error('Please enter your phone number'))
+      }
+      return Promise.resolve()
+    }
+  },
   () => ({
     validator(_, value) {
       const v = String(value || '').trim()
@@ -39,7 +67,14 @@ export const phoneNumberRules = [
 ]
 
 export const passwordRules = [
-  { required: true, message: 'Please enter your password' },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error('Please enter your password'))
+      }
+      return Promise.resolve()
+    }
+  },
   () => ({
     validator(_, value) {
       if (!value) return Promise.resolve()
@@ -54,7 +89,14 @@ export const passwordRules = [
 ]
 
 export const confirmPasswordRules = [
-    { required: true, message: 'Please confirm your password' },
+    {
+      validator: (_, value) => {
+        if (value === undefined || value === null || value === '') {
+          return Promise.reject(new Error('Please confirm your password'))
+        }
+        return Promise.resolve()
+      }
+    },
     ({ getFieldValue }) => ({
         validator(_, value) {
             if (!value || getFieldValue('password') === value) {
@@ -66,19 +108,61 @@ export const confirmPasswordRules = [
 ]
 
 export const emailRules = [
-  { required: true, message: 'Please enter your email' },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error('Please enter your email'))
+      }
+      return Promise.resolve()
+    }
+  },
   { type: 'email', message: 'Please enter a valid email address' },
 ]
 
-export const serviceCategoriesRules = [{ required: true, message: 'Please select at least one service category' }]
+export const serviceCategoriesRules = [{
+  validator: (_, value) => {
+    if (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
+      return Promise.reject(new Error('Please select at least one service category'))
+    }
+    return Promise.resolve()
+  }
+}]
 
-export const businessNameRules = [{ required: true, message: 'Please enter your business name' }]
+export const businessNameRules = [{
+  validator: (_, value) => {
+    if (value === undefined || value === null || value === '') {
+      return Promise.reject(new Error('Please enter your business name'))
+    }
+    return Promise.resolve()
+  }
+}]
 
-export const businessTypeRules = [{ required: true, message: 'Please select your business type' }]
+export const businessTypeRules = [{
+  validator: (_, value) => {
+    if (value === undefined || value === null || value === '') {
+      return Promise.reject(new Error('Please select your business type'))
+    }
+    return Promise.resolve()
+  }
+}]
 
-export const yearsInBusinessRules = [{ required: true, message: 'Please enter years in business' }]
+export const yearsInBusinessRules = [{
+  validator: (_, value) => {
+    if (value === undefined || value === null || value === '') {
+      return Promise.reject(new Error('Please enter years in business'))
+    }
+    return Promise.resolve()
+  }
+}]
 
-export const serviceAreasRules = [{ required: true, message: 'Please specify your service areas' }]
+export const serviceAreasRules = [{
+  validator: (_, value) => {
+    if (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
+      return Promise.reject(new Error('Please specify your service areas'))
+    }
+    return Promise.resolve()
+  }
+}]
 
 // Builds a rule ensuring entered service areas only include supported cities.
 // Pass an array of allowed city names (case-insensitive match).
@@ -100,22 +184,71 @@ export function createServiceAreasSupportedRule(allowedCities = []) {
   }
 }
 
-export const businessPhoneRules = [{ required: true, message: 'Please enter your business phone' }]
+export const businessPhoneRules = [{
+  validator: (_, value) => {
+    if (value === undefined || value === null || value === '') {
+      return Promise.reject(new Error('Please enter your business phone'))
+    }
+    return Promise.resolve()
+  }
+}]
 
 export const businessEmailRules = [
-  { required: true, message: 'Please enter your business email' },
+  {
+    validator: (_, value) => {
+      if (value === undefined || value === null || value === '') {
+        return Promise.reject(new Error('Please enter your business email'))
+      }
+      return Promise.resolve()
+    }
+  },
   { type: 'email', message: 'This is not a valid email' },
 ]
 
-export const businessDescriptionRules = [{ required: true, message: 'Please describe your business' }]
+export const businessDescriptionRules = [{
+  validator: (_, value) => {
+    if (value === undefined || value === null || value === '') {
+      return Promise.reject(new Error('Please describe your business'))
+    }
+    return Promise.resolve()
+  }
+}]
 
-export const businessAddressRules = [{ required: true, message: 'Please enter your street address' }]
+export const businessAddressRules = [{
+  validator: (_, value) => {
+    if (value === undefined || value === null || value === '') {
+      return Promise.reject(new Error('Please enter your street address'))
+    }
+    return Promise.resolve()
+  }
+}]
 
-export const cityRules = [{ required: true, message: 'Please enter your city' }]
+export const cityRules = [{
+  validator: (_, value) => {
+    if (value === undefined || value === null || value === '') {
+      return Promise.reject(new Error('Please enter your city'))
+    }
+    return Promise.resolve()
+  }
+}]
 
-export const provinceRules = [{ required: true, message: 'Please enter your province' }]
+export const provinceRules = [{
+  validator: (_, value) => {
+    if (value === undefined || value === null || value === '') {
+      return Promise.reject(new Error('Please enter your province'))
+    }
+    return Promise.resolve()
+  }
+}]
 
-export const zipCodeRules = [{ required: true, message: 'Please enter your zip code' }]
+export const zipCodeRules = [{
+  validator: (_, value) => {
+    if (value === undefined || value === null || value === '') {
+      return Promise.reject(new Error('Please enter your zip code'))
+    }
+    return Promise.resolve()
+  }
+}]
 
 export const termsRules = [
   {
