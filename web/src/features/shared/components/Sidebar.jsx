@@ -1,7 +1,6 @@
   import React, { useState } from 'react'
   import { Layout, Menu, Typography, Grid, Drawer, Button, theme, ConfigProvider } from 'antd'
   import { MenuOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons'
-  import { useAppTheme, THEMES } from '@/shared/theme/ThemeProvider'
   import AnimatedBrandLogo from '@/shared/components/AnimatedBrandLogo.jsx'
 
   const { Sider } = Layout
@@ -14,10 +13,7 @@
     activeKey,
     handleItemClick,
     backgroundColor,
-    isLightSidebar,
-    _isDarkTheme,
-    currentTheme,
-    _headerContent
+    _headerContent,
   }) => {
     // Helper to check if a key is a child of any parent
     const isChildKey = React.useCallback((key) => {
@@ -93,57 +89,7 @@
       }
     }, [activeKey, isChildKey, isParentKey])
     
-    const menuTheme = isLightSidebar ? 'light' : 'dark';
     const menuBg = backgroundColor;
-
-    const textColor = isLightSidebar ? token.colorText : '#fff';
-
-    // Calculate submenu background color based on theme
-    const getSubmenuBg = () => {
-      if (isLightSidebar) {
-        // For light themes, use a slightly darker background for submenu
-        if (currentTheme === THEMES.BLOSSOM) {
-          return 'rgba(235, 47, 150, 0.04)'; // Very light pink
-        } else if (currentTheme === THEMES.SUNSET) {
-          return 'rgba(250, 84, 28, 0.04)'; // Very light orange
-        } else if (currentTheme === THEMES.ROYAL) {
-          return 'rgba(114, 46, 209, 0.04)'; // Very light purple
-        } else if (currentTheme === THEMES.DOCUMENT) {
-          return 'rgba(0, 185, 107, 0.04)'; // Very light green
-        }
-        return 'rgba(0, 0, 0, 0.02)'; // Very light gray for default light themes
-      } else {
-        // For dark themes, use a slightly lighter background for submenu
-        return 'rgba(255, 255, 255, 0.05)';
-      }
-    };
-
-    // Calculate submenu text color
-    const getSubmenuTextColor = () => {
-      if (isLightSidebar) {
-        return token.colorText;
-      } else {
-        return 'rgba(255, 255, 255, 0.85)';
-      }
-    };
-
-    // Calculate submenu hover background
-    const getSubmenuHoverBg = () => {
-      if (isLightSidebar) {
-        if (currentTheme === THEMES.BLOSSOM) {
-          return 'rgba(235, 47, 150, 0.08)';
-        } else if (currentTheme === THEMES.SUNSET) {
-          return 'rgba(250, 84, 28, 0.08)';
-        } else if (currentTheme === THEMES.ROYAL) {
-          return 'rgba(114, 46, 209, 0.08)';
-        } else if (currentTheme === THEMES.DOCUMENT) {
-          return 'rgba(0, 185, 107, 0.08)';
-        }
-        return 'rgba(0, 0, 0, 0.04)';
-      } else {
-        return 'rgba(255, 255, 255, 0.08)';
-      }
-    };
 
     return (
       <>
@@ -152,59 +98,45 @@
           height: 65,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: collapsed ? 'center' : 'flex-start',
+          justifyContent: 'flex-start',
           padding: collapsed ? '0' : '0 24px',
           borderBottom: `1px solid ${token.colorBorder}`,
-          transition: 'none',
+          transition: 'padding 0.2s ease-in-out',
           background: menuBg
         }}>
-          <AnimatedBrandLogo
-            size={32}
-            showBrandName={!collapsed}
-          />
+          <div style={{
+            transform: collapsed ? 'translateX(24px)' : 'translateX(0)',
+            transition: 'transform 0.2s ease-in-out',
+          }}>
+            <AnimatedBrandLogo
+              size={32}
+              showBrandName={true}
+              collapsed={collapsed}
+            />
+          </div>
         </div>
 
         <ConfigProvider
           theme={{
             components: {
               Menu: {
-                subMenuItemBg: getSubmenuBg(),
-                itemHoverBg: getSubmenuHoverBg(),
-                itemSelectedBg: isLightSidebar 
-                  ? (currentTheme === THEMES.BLOSSOM 
-                      ? 'rgba(235, 47, 150, 0.12)' 
-                      : currentTheme === THEMES.SUNSET
-                      ? 'rgba(250, 84, 28, 0.12)'
-                      : currentTheme === THEMES.ROYAL
-                      ? 'rgba(114, 46, 209, 0.12)'
-                      : currentTheme === THEMES.DOCUMENT
-                      ? 'rgba(0, 185, 107, 0.12)'
-                      : token.colorPrimaryBg)
-                  : token.colorPrimaryBg,
-                itemActiveBg: isLightSidebar 
-                  ? (currentTheme === THEMES.BLOSSOM 
-                      ? 'rgba(235, 47, 150, 0.16)' 
-                      : currentTheme === THEMES.SUNSET
-                      ? 'rgba(250, 84, 28, 0.16)'
-                      : currentTheme === THEMES.ROYAL
-                      ? 'rgba(114, 46, 209, 0.16)'
-                      : currentTheme === THEMES.DOCUMENT
-                      ? 'rgba(0, 185, 107, 0.16)'
-                      : token.colorPrimaryBgHover)
-                  : token.colorPrimaryBgHover,
-                itemColor: getSubmenuTextColor(),
-                subMenuItemBorderRadius: 6,
-                itemBorderRadius: 6,
+                itemHoverBg: token.colorFillSecondary,
+                itemActiveBg: 'transparent',
+                itemSelectedBg: 'transparent',
               }
             }
           }}
         >
+        <style>{`
+          .ant-menu-item-selected:hover {
+            background-color: ${token.colorFillSecondary} !important;
+          }
+        `}</style>
           <Menu
-          mode="inline"
-          theme={menuTheme}
-          selectedKeys={[activeKey]}
-          openKeys={openKeys}
-          onClick={({ key }) => {
+            mode="inline"
+            selectedKeys={[activeKey]}
+            openKeys={openKeys}
+            onClick={({ key }) => {
               // Recursively find item in items and children
               const findItem = (itemsList, targetKey) => {
                 for (const item of itemsList) {
@@ -307,8 +239,8 @@
           }}
           style={{ 
             borderRight: 0, 
-            padding: '12px 0', 
-            background: menuBg 
+            background: menuBg,
+            padding: '8px 6px',
           }}
           items={items.map(item => {
             const menuItem = {
@@ -368,7 +300,7 @@
             padding: 16, 
             textAlign: 'center' 
           }}>
-            <Text type="secondary" style={{ fontSize: 11, color: isLightSidebar ? undefined : 'rgba(255,255,255,0.45)' }}>© {new Date().getFullYear()} {import.meta.env.VITE_APP_BRAND_NAME || 'BizClear'}</Text>
+            <Text type="secondary" style={{ fontSize: 11 }}>© {new Date().getFullYear()} {import.meta.env.VITE_APP_BRAND_NAME || 'BizClear'}</Text>
           </div>
         )}
       </>
@@ -386,7 +318,6 @@
     const [collapsed, setCollapsed] = useState(false)
     const [mobileOpen, setMobileOpen] = useState(false)
     const screens = useBreakpoint()
-    const { currentTheme, themeOverrides } = useAppTheme();
     const { token } = theme.useToken();
     
     // Determine if we are on a mobile screen (md breakpoint = 768px)
@@ -397,26 +328,7 @@
       if (onItemClick) onItemClick(item)
     }
 
-    // Blossom: Light sidebar
-    // Sunset: Light sidebar
-    // Royal: Light sidebar
-    // Default: Light (off-white) sidebar to match business owner area
-    const isLightSidebar = [THEMES.DEFAULT, THEMES.DOCUMENT, THEMES.BLOSSOM, THEMES.SUNSET, THEMES.ROYAL].includes(currentTheme);
-    const isDarkTheme = currentTheme === THEMES.DARK;
-    
-    let siderBg = '#fafaf9'; // Off-white default (admin/staff match business owner look)
-    if (currentTheme === THEMES.DOCUMENT || currentTheme === THEMES.SUNSET || currentTheme === THEMES.ROYAL) {
-      siderBg = token.colorBgLayout;
-    } else if (currentTheme === THEMES.BLOSSOM) {
-      siderBg = token.colorBgContainer;
-    } else if (currentTheme === THEMES.DEFAULT) {
-      siderBg = token.colorBgContainer; // Off-white
-    } else if (isDarkTheme) {
-      siderBg = '#141414';
-    } else if (themeOverrides.colorPrimary) {
-      // If user customized the primary color in Default theme, use that gradient
-      siderBg = `linear-gradient(135deg, ${token.colorPrimaryActive || token.colorPrimary} 0%, ${token.colorPrimary} 100%)`;
-    }
+    const siderBg = token.colorBgContainer;
 
     return (
       <>
@@ -431,8 +343,8 @@
                 top: 16, 
                 left: 16, 
                 zIndex: 1000,
-                background: '#fff',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                background: token.colorBgContainer,
+                boxShadow: token.boxShadow
               }} 
             />
             <Drawer
@@ -449,9 +361,6 @@
                 activeKey={activeKey}
                 handleItemClick={handleMobileClick}
                 backgroundColor={siderBg}
-                isLightSidebar={isLightSidebar}
-                isDarkTheme={isDarkTheme}
-                currentTheme={currentTheme}
                 headerContent={headerContent}
               />
             </Drawer>
@@ -459,7 +368,6 @@
         ) : (
           <Sider
             width={260}
-            theme={isLightSidebar ? 'light' : 'dark'}
             collapsible
             collapsed={collapsed}
             onCollapse={(value) => setCollapsed(value)}
@@ -479,13 +387,14 @@
             trigger={
               <div style={{
                 background: siderBg,
-                color: isLightSidebar ? token.colorTextSecondary : 'rgba(255, 255, 255, 0.65)',
+                color: token.colorTextSecondary,
                 height: 48,
                 lineHeight: '48px',
                 textAlign: 'center',
                 cursor: 'pointer',
                 transition: 'none',
                 borderTop: `1px solid ${token.colorBorder}`,
+                borderRight: `1px solid ${token.colorBorder}`,
               }}>
                 {collapsed ? <RightOutlined /> : <LeftOutlined />}
               </div>
@@ -497,9 +406,6 @@
               activeKey={activeKey}
               handleItemClick={onItemClick}
               backgroundColor={siderBg}
-              isLightSidebar={isLightSidebar}
-              isDarkTheme={isDarkTheme}
-              currentTheme={currentTheme}
               headerContent={headerContent}
             />
           </Sider>

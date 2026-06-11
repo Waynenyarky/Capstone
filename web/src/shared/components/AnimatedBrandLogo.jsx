@@ -7,6 +7,7 @@ const { Title } = Typography
 export default function AnimatedBrandLogo({
   size = 32,
   showBrandName = true,
+  collapsed = false,
   onClick,
 }) {
   const { token } = theme.useToken()
@@ -55,8 +56,9 @@ export default function AnimatedBrandLogo({
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
+        gap: collapsed ? 0 : 12,
         cursor: onClick ? 'pointer' : 'default',
+        transition: 'gap 0.2s ease-in-out',
       }}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
@@ -84,6 +86,11 @@ export default function AnimatedBrandLogo({
             lineHeight: 1.2,
             color: token.colorText,
             fontSize: size >= 40 ? '20px' : '18px',
+            opacity: collapsed ? 0 : 1,
+            width: collapsed ? 0 : 'auto',
+            transition: 'opacity 0.2s ease-in-out, width 0.2s ease-in-out',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
           }}
         >
           {import.meta.env.VITE_APP_BRAND_NAME || 'BizClear'}
