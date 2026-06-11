@@ -44,19 +44,21 @@ function getEnvDefaults() {
 }
 
 function buildHeader() {
-  return `<div style="background:${EMAIL_COLORS.bgWhite};padding:24px 32px;border-bottom:1px solid ${EMAIL_COLORS.border};display:flex;align-items:center;gap:12px;">
+  return `<div style="background:${EMAIL_COLORS.bgWhite};padding:24px 32px;border-bottom:1px solid ${EMAIL_COLORS.border};display:flex;align-items:center;gap:20px;">
   <img src="https://raw.githubusercontent.com/Waynenyarky/Capstone/main/web/public/BizClear.png" alt="BizClear Logo" width="40" height="40" style="display:block;border:none;flex-shrink:0;">
-  <h1 style="margin:0;color:${EMAIL_COLORS.textPrimary};font-size:24px;font-weight:600;letter-spacing:0.5px;font-family:'Urbanist', 'Raleway', sans-serif;">BizClear</h1>
+  <h1 style="margin:0;color:${EMAIL_COLORS.textPrimary};font-size:24px;font-weight:600;letter-spacing:0.5px;font-family:'Urbanist', 'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;line-height:40px;">BizClear</h1>
 </div>`;
 }
 
 function buildFooter(appUrl) {
   const url = appUrl || getEnvDefaults().appUrl;
-  return `<div style="background:${EMAIL_COLORS.bgWhite};padding:24px 32px;border-top:1px solid ${EMAIL_COLORS.borderLight};text-align:center;">
+  return `<div style="background:${EMAIL_COLORS.bgWhite};padding:24px 32px;border-top:1px solid ${EMAIL_COLORS.borderLight};text-align:left;">
   <div style="margin-bottom:16px;">
-    <a href="${url}/terms" style="color:${EMAIL_COLORS.textTertiary};font-size:13px;text-decoration:none;margin:0 12px;">Terms of Service</a>
-    <a href="${url}/privacy" style="color:${EMAIL_COLORS.textTertiary};font-size:13px;text-decoration:none;margin:0 12px;">Privacy Policy</a>
-    <a href="${url}/manual" style="color:${EMAIL_COLORS.textTertiary};font-size:13px;text-decoration:none;margin:0 12px;">BizClear Manual</a>
+    <a href="${url}/terms" style="color:${EMAIL_COLORS.textTertiary};font-size:13px;text-decoration:none;display:inline-block;margin-right:24px;margin-bottom:8px;">Terms of Service</a>
+    <a href="${url}/privacy" style="color:${EMAIL_COLORS.textTertiary};font-size:13px;text-decoration:none;display:inline-block;margin-right:24px;margin-bottom:8px;">Privacy Policy</a>
+    <a href="${url}/manual" style="color:${EMAIL_COLORS.textTertiary};font-size:13px;text-decoration:none;display:inline-block;margin-right:24px;margin-bottom:8px;">BizClear Manual</a>
+    <a href="https://alaminoscity.gov.ph/public-service/city-services/City%20Government%20of%20Alaminos,%20Pangasinan%20Citizen's%20Charter.pdf" target="_blank" rel="noopener noreferrer" style="color:${EMAIL_COLORS.textTertiary};font-size:13px;text-decoration:none;display:inline-block;margin-right:24px;margin-bottom:8px;">Alaminos Citizen's Charter</a>
+    <a href="https://www.alaminoscity.gov.ph/index.html" target="_blank" rel="noopener noreferrer" style="color:${EMAIL_COLORS.textTertiary};font-size:13px;text-decoration:none;display:inline-block;margin-bottom:8px;">Official City Website</a>
   </div>
   <p style="margin:0;color:${EMAIL_COLORS.textQuaternary};font-size:12px;">
     &copy; ${new Date().getFullYear()} BizClear. All Rights Reserved.
@@ -158,7 +160,7 @@ function buildEmailHtml({ bodyContent, appUrl }) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700&family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
-<body style="margin:0;padding:0;font-family:'Urbanist', 'Raleway', sans-serif;">
+<body style="margin:0;padding:0;font-family:'Urbanist', 'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;">
   <div style="max-width:100%;margin:0 auto;background:${EMAIL_COLORS.bgWhite};box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
     ${buildHeader()}
     ${bodyContent}
@@ -171,49 +173,38 @@ function buildEmailHtml({ bodyContent, appUrl }) {
 /**
  * Build OTP email body (for all OTP purposes: login, signup, password_reset, etc.)
  */
-function buildOtpEmailBody({ heading, intro, code, expiry, appUrl }) {
+function buildOtpEmailBody({ greeting = "Hello", intro, code, appUrl }) {
   const url = appUrl || getEnvDefaults().appUrl;
   const bodyContent = `<div style="padding:40px 32px;text-align:left;">
-  <h2 style="margin:0 0 16px;font-size:24px;color:${EMAIL_COLORS.textPrimary};font-weight:600;font-family:'Urbanist', 'Raleway', sans-serif;">${heading}</h2>
-  <p style="margin:0 0 24px;color:${EMAIL_COLORS.textSecondary};font-size:16px;line-height:1.5715;">${intro}</p>
+  <p style="margin:0 0 24px;color:${EMAIL_COLORS.textPrimary};font-size:14px;">${greeting},</p>
+  <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;line-height:1.5715;">${intro}</p>
   ${buildOtpBox(code)}
-  <p style="margin:0 0 8px;color:${EMAIL_COLORS.textTertiary};font-size:16px;">This code expires in ${expiry} minutes.</p>
-  ${buildWarningBox({
-    title: "Do not share this code with anyone.",
-    message: `If this request wasn't made by you, your account may be at risk. <a href="${url}/support/security" style="color:${EMAIL_COLORS.warningDark};text-decoration:underline;font-weight:600;">Report unauthorized access immediately</a>.`,
-  })}
+  <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;">
+    Regards, BizClear Team
+  </p>
 </div>`;
   return buildEmailHtml({ bodyContent, appUrl: url });
 }
 
 /**
- * Build a generic notification email body with optional greeting, intro, info box, and button.
+ * Build a generic notification email body with optional greeting, intro, and info box.
  */
 function buildNotificationEmailBody({
-  heading,
-  greeting,
+  greeting = "Hello",
   intro,
   fields,
-  button,
-  warningBox,
   appUrl,
 }) {
   const url = appUrl || getEnvDefaults().appUrl;
   let content = `<div style="padding:40px 32px;text-align:left;">
-  <h2 style="margin:0 0 16px;font-size:24px;color:${EMAIL_COLORS.textPrimary};font-weight:600;font-family:'Urbanist', 'Raleway', sans-serif;">${heading}</h2>`;
-  if (greeting) {
-    content += `\n  <p style="margin:0 0 8px;color:${EMAIL_COLORS.textPrimary};font-size:16px;">Hi ${greeting},</p>`;
-  }
-  content += `\n  <p style="margin:0 0 24px;color:${EMAIL_COLORS.textSecondary};font-size:16px;line-height:1.5715;">${intro}</p>`;
+  <p style="margin:0 0 24px;color:${EMAIL_COLORS.textPrimary};font-size:14px;">${greeting},</p>
+  <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;line-height:1.5715;">${intro}</p>`;
   if (fields) {
     content += "\n  " + buildInfoBox(fields);
   }
-  if (warningBox) {
-    content += "\n  " + buildWarningBox(warningBox);
-  }
-  if (button) {
-    content += `\n  <div style="margin-top:24px;">${buildButton({ text: button.text, href: button.href || url, bgColor: button.bgColor })}</div>`;
-  }
+  content += `\n  <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;">
+    Regards, BizClear Team
+  </p>`;
   content += "\n</div>";
   return buildEmailHtml({ bodyContent: content, appUrl: url });
 }
