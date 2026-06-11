@@ -111,6 +111,7 @@ export default function StaffOnboarding() {
     <StaffLayout
       hideSidebar
       noContentWrap
+      pageTitle="Onboarding"
     >
       <div
         style={{
