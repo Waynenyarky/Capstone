@@ -10,6 +10,7 @@ export default function TransparencyDashboard({ publicStats }) {
   const { token } = theme.useToken()
   const screens = useBreakpoint()
   const [inView, setInView] = useState(false)
+  const [hoveredCard, setHoveredCard] = useState(null)
   const ref = useRef(null)
 
   const sampleValues = [
@@ -92,62 +93,61 @@ export default function TransparencyDashboard({ publicStats }) {
 
           <div
             style={{
-              border: `1px solid ${token.colorBorderSecondary}`,
-              borderRadius: token.borderRadiusLG,
-              padding: screens.md ? '24px 28px' : '18px 14px',
-              background: token.colorBgContainer,
-              marginBottom: 16,
-              marginLeft: 0,
-            }}
-          >
-          <div
-            style={{
               display: 'flex',
               flexWrap: screens.md ? 'nowrap' : 'wrap',
               gap: 12,
               width: '100%',
               justifyContent: screens.md ? 'space-between' : 'center',
               alignItems: 'stretch',
-              marginTop: 4,
-              overflowX: screens.md ? 'auto' : 'visible',
-              overflowY: 'hidden',
-              paddingBottom: 4,
-              boxSizing: 'border-box',
             }}
           >
             {statCards.map((item, index) => (
               <BlurFade key={item.label} delay={0.12 + index * 0.08} duration={0.35} fullHeight={false}>
                 <Card
                   size="small"
-                  variant="borderless"
                   style={{
                     flex: screens.md ? '1 1 0' : '1 1 100%',
                     minWidth: screens.md ? 0 : '100%',
                     width: '100%',
                     background: token.colorBgContainer,
                     borderRadius: token.borderRadiusLG,
-                    border: '1px solid transparent',
-                    boxShadow: 'none',
-                    opacity: 1,
-                    filter: 'none',
-                    transform: 'none',
-                    transition: 'none',
+                    border: `1px solid ${token.colorBorder}`,
+                    cursor: 'default',
+                    transition: screens.md ? 'border-color 0.2s, box-shadow 0.2s, transform 0.2s' : 'none',
+                    boxShadow: screens.md && hoveredCard === index ? token.boxShadowCard : 'none',
+                    transform: screens.md && hoveredCard === index ? 'scale(1.02)' : 'scale(1)',
                   }}
                   styles={{ body: { padding: screens.md ? '14px 14px 12px' : '12px' } }}
+                  onMouseEnter={screens.md ? () => setHoveredCard(index) : undefined}
+                  onMouseLeave={screens.md ? () => setHoveredCard(null) : undefined}
                 >
-                  <ScrambleText
-                    text={String(item.value)}
-                    duration={900}
-                    chars={'0123456789'}
-                    autoScramble={inView}
-                    style={{
-                      display: 'block',
-                      fontSize: screens.md ? 32 : 28,
-                      fontWeight: 700,
-                      color: token.colorTextHeading,
-                      lineHeight: 1.1,
-                    }}
-                  />
+                  {hoveredCard === index ? (
+                    <div
+                      style={{
+                        display: 'block',
+                        fontSize: screens.md ? 32 : 28,
+                        fontWeight: 700,
+                        color: token.colorTextHeading,
+                        lineHeight: 1.1,
+                      }}
+                    >
+                      {item.value}
+                    </div>
+                  ) : (
+                    <ScrambleText
+                      text={String(item.value)}
+                      duration={900}
+                      chars={'0123456789'}
+                      autoScramble={inView}
+                      style={{
+                        display: 'block',
+                        fontSize: screens.md ? 32 : 28,
+                        fontWeight: 700,
+                        color: token.colorTextHeading,
+                        lineHeight: 1.1,
+                      }}
+                    />
+                  )}
                   <Text
                     type="secondary"
                     style={{
@@ -163,7 +163,6 @@ export default function TransparencyDashboard({ publicStats }) {
               </BlurFade>
             ))}
           </div>
-        </div>
       </BlurFade>
       </div>
     </section>
