@@ -29,6 +29,7 @@ function getRoleModel() {
 
 const mailer = require("./mailer");
 const internalNotificationService = require("../services/notificationService");
+const { buildNotificationEmailBody } = require("../../../../shared/lib/emailTemplateBuilder");
 
 /**
  * Get active admin user IDs (for in-app notifications)
@@ -420,7 +421,17 @@ async function notifyAdminsOfSystemAlert(alertType, details = {}) {
       "",
       brandName,
     ].join("\n");
-    const html = `<p>System alert: <strong>${alertType}</strong></p><pre>${detailsStr.replace(/</g, "&lt;")}</pre><p><a href="${appUrl}/admin">Open Admin</a></p>`;
+    const html = buildNotificationEmailBody({
+      greeting: "Hello",
+      intro: `System alert: <strong>${alertType}</strong>. Details below.`,
+      fields: {
+        fields: [
+          { label: "Alert Type", value: alertType },
+          { label: "Details", value: detailsStr.slice(0, 200) + (detailsStr.length > 200 ? "..." : "") },
+        ],
+      },
+      appUrl,
+    });
 
     for (const admin of admins) {
       try {
@@ -552,12 +563,19 @@ async function notifyAdminsOfTamperIncident(incident) {
       "",
       brandName,
     ].join("\n");
-    const html = `
-    <p>An audit tamper or integrity issue was detected.</p>
-    <p><strong>Severity:</strong> ${incident.severity}<br><strong>Status:</strong> ${incident.verificationStatus}</p>
-    <p>${(incident.message || "N/A").replace(/</g, "&lt;")}</p>
-    <p><a href="${appUrl}/admin/security">View and triage</a></p>
-    `;
+    const html = buildNotificationEmailBody({
+      greeting: "Hello",
+      intro: "An audit tamper or integrity issue was detected.",
+      fields: {
+        fields: [
+          { label: "Severity", value: incident.severity, color: incident.severity === "high" ? "#FF4D4F" : undefined, fontSize: "14px", fontWeight: "700" },
+          { label: "Status", value: incident.verificationStatus, fontSize: "14px" },
+          { label: "Message", value: (incident.message || "N/A").slice(0, 200) + ((incident.message || "").length > 200 ? "..." : ""), fontSize: "14px" },
+          { label: "Detected", value: incident.detectedAt ? new Date(incident.detectedAt).toLocaleString() : "N/A", fontSize: "14px" },
+        ],
+      },
+      appUrl,
+    });
 
     for (const admin of admins) {
       try {

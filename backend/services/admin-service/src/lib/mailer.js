@@ -1,4 +1,5 @@
 const axios = require("axios");
+const { buildNotificationEmailBody } = require("../../../../shared/lib/emailTemplateBuilder");
 
 /**
  * Email API Service - REST API Implementation
@@ -221,76 +222,20 @@ async function sendAdminAlertEmail({
     brandName,
   ].join("\n");
 
-  const html = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body style="margin:0;padding:0;font-family:'Raleway', sans-serif;">
-  <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-
-      <!-- Header -->
-      <div style="background:#ff4d4f;padding:32px;text-align:center;">
-        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;font-family:'Raleway', sans-serif;">🚨 Security Alert</h1>
-      </div>
-
-      <!-- Body -->
-      <div style="padding:40px 32px;">
-        <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;font-family:'Raleway', sans-serif;">Restricted Field Attempt</h2>
-
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          Hello <strong>${adminName}</strong>,
-        </p>
-
-        <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-          A staff user has attempted to modify a restricted field. This action has been blocked and logged.
-        </p>
-
-        <div style="background:#fff1f0;border:1px solid #ffccc7;padding:24px;border-radius:8px;margin-bottom:24px;">
-          <div style="margin-bottom:12px;">
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">User</span><br>
-            <span style="color:#1f1f1f;font-size:16px;font-weight:600;">${userName}</span><br>
-            <span style="color:#8c8c8c;font-size:14px;">${userEmail}</span>
-          </div>
-          <div style="margin-bottom:12px;">
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Role</span><br>
-            <span style="color:#1f1f1f;font-size:16px;">${roleSlug}</span>
-          </div>
-          <div style="margin-bottom:12px;">
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Field Attempted</span><br>
-            <span style="color:#ff4d4f;font-size:16px;font-weight:600;">${field}</span>
-          </div>
-          <div style="margin-bottom:12px;">
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Attempted Value</span><br>
-            <span style="color:#1f1f1f;font-size:14px;font-family:monospace;word-break:break-all;">${attemptedValue}</span>
-          </div>
-          <div>
-            <span style="color:#8c8c8c;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Time</span><br>
-            <span style="color:#1f1f1f;font-size:14px;">${attemptTime}</span>
-          </div>
-        </div>
-
-        <a href="${appUrl}/admin/audit" style="display:inline-block;background:#ff4d4f;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:4px;font-weight:600;font-size:16px;">View Audit Logs</a>
-      </div>
-
-      <!-- Footer -->
-      <div style="background:#fafafa;padding:24px;text-align:center;border-top:1px solid #f0f0f0;">
-        <p style="margin:0 0 8px;color:#8c8c8c;font-size:12px;">
-          <strong>${brandName}</strong> Security Team
-        </p>
-        <p style="margin:16px 0 0;font-size:11px;color:#bfbfbf;">
-          © ${new Date().getFullYear()} ${brandName}. All rights reserved.
-        </p>
-      </div>
-    </div>
-  </div>
-  </body>
-  </html>
-  `;
+  const html = buildNotificationEmailBody({
+    greeting: `Hello ${adminName}`,
+    intro: "A staff user has attempted to modify a restricted field. This action has been blocked and logged.",
+    fields: {
+      fields: [
+        { label: "User", value: `${userName} (${userEmail})`, fontSize: "14px" },
+        { label: "Role", value: roleSlug, fontSize: "14px" },
+        { label: "Field Attempted", value: field, color: "#FF4D4F", fontSize: "14px", fontWeight: "700" },
+        { label: "Attempted Value", value: attemptedValue.slice(0, 100) + (attemptedValue.length > 100 ? "..." : ""), fontSize: "14px" },
+        { label: "Time", value: attemptTime, fontSize: "14px" },
+      ],
+    },
+    appUrl,
+  });
 
   try {
     await sendEmail({

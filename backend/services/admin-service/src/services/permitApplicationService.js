@@ -7,6 +7,7 @@ const blockchainService = require("../lib/blockchainService");
 const { logAuditEvent } = require("../lib/auditClient");
 const crypto = require("crypto");
 const sendEmail = require("../lib/mailer").sendEmail;
+const { buildNotificationEmailBody } = require("../../../../shared/lib/emailTemplateBuilder");
 
 // Import decryption utility for aggregation results (aggregation bypasses Mongoose hooks)
 let decrypt;
@@ -1438,37 +1439,18 @@ class PermitApplicationService {
         "LGU Office",
       ].join("\n");
 
-      html = `
-        <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
-          <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
-          <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-            <div style="background:#003a70;padding:32px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">${brandName}</h1>
-            </div>
-            <div style="padding:40px 32px;">
-              <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Application Approved</h2>
-              <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-                Hello ${user.firstName || "Business Owner"},
-              </p>
-              <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-                We are pleased to inform you that your permit application <strong>${application.applicationReferenceNumber}</strong> for <strong>${application.businessName}</strong> has been <strong style="color:#52c41a;">APPROVED</strong>.
-              </p>
-              <div style="background:#f6ffed;border:1px solid #b7eb8f;border-radius:8px;padding:16px;margin:24px 0;">
-                <p style="margin:0;color:#389e0d;font-size:14px;font-weight:600;">✓ Your application has been reviewed and meets all requirements.</p>
-              </div>
-              <p style="margin:24px 0;color:#595959;font-size:16px;line-height:1.6;">
-                You can now proceed with the next steps in your business registration process.
-              </p>
-              <div style="text-align:center;margin:32px 0;">
-                <a href="${appUrl}/owner/permits" style="display:inline-block;background:#003a70;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:6px;font-weight:600;">View Application</a>
-              </div>
-            </div>
-            <div style="background:#f8f9fa;padding:24px;text-align:center;border-top:1px solid #e8e8e8;">
-              <p style="margin:0;color:#8c8c8c;font-size:12px;">This is an automated notification from ${brandName}</p>
-            </div>
-          </div>
-        </div>
-      `;
+      html = buildNotificationEmailBody({
+        greeting: `Hello ${user.firstName || "Business Owner"}`,
+        intro: `We are pleased to inform you that your permit application <strong>${application.applicationReferenceNumber}</strong> for <strong>${application.businessName}</strong> has been <strong style="color:#52C41A;">APPROVED</strong>. Your application has been reviewed and meets all requirements. You can now proceed with the next steps in your business registration process.`,
+        fields: {
+          fields: [
+            { label: "Reference Number", value: application.applicationReferenceNumber, color: "#0039AF", fontSize: "14px", fontWeight: "700" },
+            { label: "Business Name", value: application.businessName, fontSize: "14px" },
+            { label: "Status", value: "Approved", color: "#52C41A", fontSize: "14px", fontWeight: "700" },
+          ],
+        },
+        appUrl,
+      });
     } else if (decision === "reject") {
       subject = `Permit Application ${application.applicationReferenceNumber} - Action Required`;
       text = [
@@ -1492,39 +1474,20 @@ class PermitApplicationService {
         "LGU Office",
       ].join("\n");
 
-      html = `
-        <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
-          <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
-          <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-            <div style="background:#003a70;padding:32px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">${brandName}</h1>
-            </div>
-            <div style="padding:40px 32px;">
-              <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Application Rejected</h2>
-              <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-                Hello ${user.firstName || "Business Owner"},
-              </p>
-              <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-                Your permit application <strong>${application.applicationReferenceNumber}</strong> for <strong>${application.businessName}</strong> has been <strong style="color:#ff4d4f;">REJECTED</strong>.
-              </p>
-              <div style="background:#fff2f0;border:1px solid #ffccc7;border-radius:8px;padding:16px;margin:24px 0;">
-                <p style="margin:0 0 8px;color:#cf1322;font-size:14px;font-weight:600;">Rejection Reason:</p>
-                <p style="margin:0;color:#595959;font-size:14px;">${application.rejectionReason || "Not specified"}</p>
-                ${application.comments ? `<p style="margin:16px 0 0;color:#595959;font-size:14px;"><strong>Additional Comments:</strong> ${application.comments}</p>` : ""}
-              </div>
-              <p style="margin:24px 0;color:#595959;font-size:16px;line-height:1.6;">
-                Please review the requirements and submit a new application if needed. You may also file an appeal if you believe this decision was made in error.
-              </p>
-              <div style="text-align:center;margin:32px 0;">
-                <a href="${appUrl}/owner/permits" style="display:inline-block;background:#003a70;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:6px;font-weight:600;">View Application</a>
-              </div>
-            </div>
-            <div style="background:#f8f9fa;padding:24px;text-align:center;border-top:1px solid #e8e8e8;">
-              <p style="margin:0;color:#8c8c8c;font-size:12px;">This is an automated notification from ${brandName}</p>
-            </div>
-          </div>
-        </div>
-      `;
+      html = buildNotificationEmailBody({
+        greeting: `Hello ${user.firstName || "Business Owner"}`,
+        intro: `Your permit application <strong>${application.applicationReferenceNumber}</strong> for <strong>${application.businessName}</strong> has been <strong style="color:#FF4D4F;">REJECTED</strong>. Please review the requirements and submit a new application if needed. You may also file an appeal if you believe this decision was made in error.`,
+        fields: {
+          fields: [
+            { label: "Reference Number", value: application.applicationReferenceNumber, color: "#0039AF", fontSize: "14px", fontWeight: "700" },
+            { label: "Business Name", value: application.businessName, fontSize: "14px" },
+            { label: "Status", value: "Rejected", color: "#FF4D4F", fontSize: "14px", fontWeight: "700" },
+            { label: "Rejection Reason", value: application.rejectionReason || "Not specified", fontSize: "14px" },
+            ...(application.comments ? [{ label: "Additional Comments", value: application.comments, fontSize: "14px" }] : []),
+          ],
+        },
+        appUrl,
+      });
     } else {
       // request_changes
       subject = `Permit Application ${application.applicationReferenceNumber} - Corrections Required`;
@@ -1545,38 +1508,19 @@ class PermitApplicationService {
         "LGU Office",
       ].join("\n");
 
-      html = `
-        <div style="background:#f0f2f5;padding:40px 0;margin:0;font-family:'Raleway', sans-serif;">
-          <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
-          <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-            <div style="background:#003a70;padding:32px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">${brandName}</h1>
-            </div>
-            <div style="padding:40px 32px;">
-              <h2 style="margin:0 0 16px;font-size:22px;color:#1f1f1f;font-weight:700;">Corrections Required</h2>
-              <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-                Hello ${user.firstName || "Business Owner"},
-              </p>
-              <p style="margin:0 0 24px;color:#595959;font-size:16px;line-height:1.6;">
-                Your permit application <strong>${application.applicationReferenceNumber}</strong> for <strong>${application.businessName}</strong> requires corrections before it can be approved.
-              </p>
-              <div style="background:#fffbe6;border:1px solid #ffe58f;border-radius:8px;padding:16px;margin:24px 0;">
-                <p style="margin:0 0 8px;color:#d48806;font-size:14px;font-weight:600;">Required Corrections:</p>
-                <p style="margin:0;color:#595959;font-size:14px;">${application.comments || "Please review and correct the indicated items."}</p>
-              </div>
-              <p style="margin:24px 0;color:#595959;font-size:16px;line-height:1.6;">
-                Please make the necessary corrections and resubmit your application for review.
-              </p>
-              <div style="text-align:center;margin:32px 0;">
-                <a href="${appUrl}/owner/permits" style="display:inline-block;background:#003a70;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:6px;font-weight:600;">View Application</a>
-              </div>
-            </div>
-            <div style="background:#f8f9fa;padding:24px;text-align:center;border-top:1px solid #e8e8e8;">
-              <p style="margin:0;color:#8c8c8c;font-size:12px;">This is an automated notification from ${brandName}</p>
-            </div>
-          </div>
-        </div>
-      `;
+      html = buildNotificationEmailBody({
+        greeting: `Hello ${user.firstName || "Business Owner"}`,
+        intro: `Your permit application <strong>${application.applicationReferenceNumber}</strong> for <strong>${application.businessName}</strong> requires corrections before it can be approved. Please make the necessary corrections and resubmit your application for review.`,
+        fields: {
+          fields: [
+            { label: "Reference Number", value: application.applicationReferenceNumber, color: "#0039AF", fontSize: "14px", fontWeight: "700" },
+            { label: "Business Name", value: application.businessName, fontSize: "14px" },
+            { label: "Status", value: "Corrections Required", color: "#FAAD14", fontSize: "14px", fontWeight: "700" },
+            { label: "Required Corrections", value: application.comments || "Please review and correct the indicated items.", fontSize: "14px" },
+          ],
+        },
+        appUrl,
+      });
     }
 
     await sendEmail({
