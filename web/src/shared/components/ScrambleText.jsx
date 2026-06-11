@@ -72,8 +72,6 @@ export default function ScrambleText({
   return (
     <span
       className={className}
-      onMouseEnter={scramble}
-      onFocus={scramble}
       style={{
         display: 'inline-block',
         transition: 'opacity 0.2s ease',

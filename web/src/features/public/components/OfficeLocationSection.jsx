@@ -21,7 +21,7 @@ export default function OfficeLocationSection() {
       }}
     >
       <div style={{ maxWidth: screens.lg ? 1200 : '100%' }}>
-        <div style={{ marginBottom: 14 }}>
+        <div style={{ marginBottom: 32 }}>
           <Title
             level={4}
             style={{

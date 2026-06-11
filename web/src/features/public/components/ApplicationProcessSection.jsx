@@ -71,7 +71,7 @@ export default function ApplicationProcessSection() {
       }}
     >
       <div>
-        <div style={{ marginBottom: 14, paddingLeft: horizontalPadding }}>
+        <div style={{ marginBottom: 32, paddingLeft: horizontalPadding }}>
           <Title
             level={4}
             style={{
@@ -115,7 +115,7 @@ export default function ApplicationProcessSection() {
               paddingRight: horizontalPadding,
               scrollPaddingLeft: horizontalPadding,
               scrollPaddingRight: horizontalPadding,
-              paddingTop: 8,
+              paddingTop: 0,
               paddingBottom: 16,
               msOverflowStyle: 'none',
               scrollbarWidth: 'none',
@@ -129,6 +129,7 @@ export default function ApplicationProcessSection() {
                   width: screens.lg ? 'calc(60% - 6px)' : screens.md ? 'calc(80% - 3px)' : '95%',
                   minWidth: 360,
                   scrollSnapAlign: 'start',
+                  padding: screens.lg ? '8px' : '0',
                 }}
               >
                 <Card

@@ -30,7 +30,7 @@ export default function FaqSection() {
             maxWidth: 1200,
           }}
         >
-          <div style={{ marginBottom: 14 }}>
+          <div style={{ marginBottom: 32 }}>
             <Title
               level={4}
               style={{

@@ -62,7 +62,7 @@ export default function TransparencyDashboard({ publicStats }) {
     >
       <div style={{ maxWidth: 1200 }}>
         <BlurFade delay={0.05} duration={0.45} onViewport={true}>
-          <div style={{ marginBottom: 14, textAlign: screens.md ? 'left' : 'center' }}>
+          <div style={{ marginBottom: 32, textAlign: screens.md ? 'left' : 'center' }}>
             <Title
               level={4}
               style={{
@@ -117,37 +117,23 @@ export default function TransparencyDashboard({ publicStats }) {
                     boxShadow: screens.md && hoveredCard === index ? token.boxShadowCard : 'none',
                     transform: screens.md && hoveredCard === index ? 'scale(1.02)' : 'scale(1)',
                   }}
-                  styles={{ body: { padding: screens.md ? '14px 14px 12px' : '12px' } }}
+                  styles={{ body: { padding: screens.md ? '96px 14px 12px' : '96px 12px' } }}
                   onMouseEnter={screens.md ? () => setHoveredCard(index) : undefined}
                   onMouseLeave={screens.md ? () => setHoveredCard(null) : undefined}
                 >
-                  {hoveredCard === index ? (
-                    <div
-                      style={{
-                        display: 'block',
-                        fontSize: screens.md ? 32 : 28,
-                        fontWeight: 700,
-                        color: token.colorTextHeading,
-                        lineHeight: 1.1,
-                      }}
-                    >
-                      {item.value}
-                    </div>
-                  ) : (
-                    <ScrambleText
-                      text={String(item.value)}
-                      duration={900}
-                      chars={'0123456789'}
-                      autoScramble={inView}
-                      style={{
-                        display: 'block',
-                        fontSize: screens.md ? 32 : 28,
-                        fontWeight: 700,
-                        color: token.colorTextHeading,
-                        lineHeight: 1.1,
-                      }}
-                    />
-                  )}
+                  <ScrambleText
+                    text={String(item.value)}
+                    duration={900}
+                    chars={'0123456789'}
+                    autoScramble={inView}
+                    style={{
+                      display: 'block',
+                      fontSize: screens.md ? 32 : 28,
+                      fontWeight: 700,
+                      color: token.colorTextHeading,
+                      lineHeight: 1.1,
+                    }}
+                  />
                   <Text
                     type="secondary"
                     style={{
