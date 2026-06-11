@@ -97,18 +97,17 @@ function getSendEmail() {
 async function sendHelpRequestConfirmation(to, requestId, subject) {
   const appUrl =
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
-  const brandName = process.env.APP_BRAND_NAME || "BizClear";
+  const brandName = "BizClear";
 
   const html = buildNotificationEmailBody({
-    heading: "Help Request Received",
+    greeting: "Hello",
     intro: "Thank you for reaching out. We have received your help request and will respond as soon as possible.",
     fields: {
       fields: [
-        { label: "Reference number", value: requestId, color: EMAIL_COLORS.primary, fontWeight: "700" },
+        { label: "Reference number", value: requestId, color: EMAIL_COLORS.primary, fontSize: "14px", fontWeight: "700" },
         { label: "Subject", value: subject },
       ],
     },
-    button: { text: "Visit Help Center", href: `${appUrl}/help` },
     appUrl,
   });
   const text = `Help Request Received\n\nReference: ${requestId}\nSubject: ${subject}\n\nWe will respond to your request as soon as possible.\n\n${brandName}`;
@@ -132,14 +131,14 @@ async function sendHelpRequestConfirmation(to, requestId, subject) {
 }
 
 async function sendOfficerReplyNotification(to, requestId, messagePreview) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear";
+  const brandName = "BizClear";
 
   const html = buildNotificationEmailBody({
-    heading: "New Reply to Your Help Request",
+    greeting: "Hello",
     intro: "Our team has responded to your help request.",
     fields: {
       fields: [
-        { label: "Reference", value: requestId, color: EMAIL_COLORS.primary, fontWeight: "700" },
+        { label: "Reference", value: requestId, color: EMAIL_COLORS.primary, fontSize: "14px", fontWeight: "700" },
         { label: "Message", value: messagePreview },
       ],
     },
@@ -166,16 +165,16 @@ async function sendOfficerReplyNotification(to, requestId, messagePreview) {
 }
 
 async function sendRequestClosedNotification(to, requestId, subject) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear";
+  const brandName = "BizClear";
 
   const html = buildNotificationEmailBody({
-    heading: "Help Request Closed",
+    greeting: "Hello",
     intro: "Your help request has been resolved and closed.",
     fields: {
       fields: [
-        { label: "Reference", value: requestId, color: EMAIL_COLORS.primary, fontWeight: "700" },
+        { label: "Reference", value: requestId, color: EMAIL_COLORS.primary, fontSize: "14px", fontWeight: "700" },
         { label: "Subject", value: subject },
-        { label: "Status", value: "Closed", color: EMAIL_COLORS.success, fontWeight: "700" },
+        { label: "Status", value: "Closed", color: EMAIL_COLORS.success, fontSize: "14px", fontWeight: "700" },
       ],
       bgColor: EMAIL_COLORS.bgSuccess,
       borderColor: EMAIL_COLORS.borderSuccess,
@@ -204,24 +203,20 @@ async function sendRequestClosedNotification(to, requestId, subject) {
 }
 
 async function sendRequestInvalidNotification(to, requestId, subject) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear";
+  const brandName = "BizClear";
 
   const html = buildNotificationEmailBody({
-    heading: "Help Request Marked Invalid",
-    intro: "Your help request has been reviewed and marked as invalid by our team.",
+    greeting: "Hello",
+    intro: "Your help request has been reviewed and marked as invalid by our team. If you believe this is an error, please submit a new request with more details.",
     fields: {
       fields: [
-        { label: "Reference", value: requestId, color: EMAIL_COLORS.primary, fontWeight: "700" },
+        { label: "Reference", value: requestId, color: EMAIL_COLORS.primary, fontSize: "14px", fontWeight: "700" },
         { label: "Subject", value: subject },
-        { label: "Status", value: "Invalid", color: EMAIL_COLORS.antWarning, fontWeight: "700" },
+        { label: "Status", value: "Invalid", color: EMAIL_COLORS.antWarning, fontSize: "14px", fontWeight: "700" },
       ],
       bgColor: EMAIL_COLORS.bgWarning,
       borderColor: EMAIL_COLORS.borderWarning,
       accentColor: EMAIL_COLORS.antWarning,
-    },
-    warningBox: {
-      title: "Need help?",
-      message: "If you believe this is an error, please submit a new request with more details.",
     },
     appUrl,
   });

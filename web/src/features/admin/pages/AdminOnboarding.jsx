@@ -126,7 +126,7 @@ export default function AdminOnboarding() {
     <AdminLayout hideSidebar pageTitle="Onboarding" pageIcon={<SecurityScanOutlined />}>
       <div
         style={{
-          padding: '40px 24px',
+          paddingBottom: 128,
           background: token.colorBgContainer,
           flex: 1,
           display: 'flex',

@@ -236,7 +236,7 @@ export default function OnboardingStepContent({
 
   return (
     <div style={{ maxWidth: 400, margin: '0 auto', textAlign: 'center', padding: '24px 0' }}>
-      {mode !== 'password-expired' && mode !== 'mfa-only' && currentStep > 0 && (
+      {mode !== 'password-expired' && mode !== 'mfa-only' && currentStep > 0 && currentStep < 3 && (
         <Steps
           type="inline"
           current={currentStep}

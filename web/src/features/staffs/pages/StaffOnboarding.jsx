@@ -114,7 +114,7 @@ export default function StaffOnboarding() {
     >
       <div
         style={{
-          padding: '40px 24px',
+          paddingBottom: 128,
           background: token.colorBgContainer,
           flex: 1,
           display: 'flex',

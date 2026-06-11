@@ -401,7 +401,7 @@ async function notifyAdminsOfSystemAlert(alertType, details = {}) {
     }).lean();
     if (admins.length === 0) return { notified: false };
 
-    const brandName = process.env.APP_BRAND_NAME || "BizClear";
+    const brandName = "BizClear";
     const appUrl =
       process.env.FRONTEND_URL ||
       process.env.APP_URL ||
@@ -534,7 +534,7 @@ async function notifyAdminsOfTamperIncident(incident) {
       return { notified: false, error: "No active admins" };
 
     const incidentId = String(incident._id);
-    const brandName = process.env.APP_BRAND_NAME || "BizClear";
+    const brandName = "BizClear";
     const appUrl =
       process.env.FRONTEND_URL ||
       process.env.APP_URL ||

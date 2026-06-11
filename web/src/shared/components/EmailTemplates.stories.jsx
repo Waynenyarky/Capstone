@@ -13,11 +13,9 @@ export default {
 export const OtpLogin = {
   args: {
     subject: 'Your verification code',
-    heading: 'Verification Code',
-    intro: 'You recently requested to sign in to your BizClear account. Use the code below to complete your verification.',
+    greeting: 'Hello',
+    intro: 'You recently requested to sign in to your BizClear account. Use the code below to complete your verification. Don\'t share this code with anyone. This code expires in 10 minutes. If this wasn\'t you, <a href="http://localhost:5173/support/security" style="color:#0039AF;text-decoration:underline;">report it immediately</a>.',
     code: '123456',
-    expiry: '10',
-    brandName: 'BizClear',
   },
 }
 
@@ -25,11 +23,9 @@ export const OtpLogin = {
 export const OtpSignup = {
   args: {
     subject: 'Verify Your Email',
-    heading: 'Verify Your Email',
-    intro: "You're signing up for BizClear. Use the code below to verify your email and complete registration.",
+    greeting: 'Hello',
+    intro: "You're signing up for BizClear. Use the code below to verify your email and complete registration. Don't share this code with anyone. This code expires in 10 minutes. If this wasn't you, <a href='http://localhost:5173/support/security' style='color:#0039AF;text-decoration:underline;'>report it immediately</a>.",
     code: '654321',
-    expiry: '10',
-    brandName: 'BizClear',
   },
 }
 
@@ -37,11 +33,9 @@ export const OtpSignup = {
 export const OtpPasswordReset = {
   args: {
     subject: 'Reset Your Password',
-    heading: 'Reset Your Password',
-    intro: 'You requested to reset your password. Use the code below to set a new password. If you didn\'t request this, you can safely ignore this email.',
+    greeting: 'Hello',
+    intro: 'You requested to reset your password. Use the code below to set a new password. If you didn\'t request this, you can safely ignore this email. Don\'t share this code with anyone. This code expires in 10 minutes.',
     code: '789012',
-    expiry: '10',
-    brandName: 'BizClear',
   },
 }
 
@@ -49,11 +43,9 @@ export const OtpPasswordReset = {
 export const OtpEmailChange = {
   args: {
     subject: 'Confirm Email Change',
-    heading: 'Confirm Email Change',
-    intro: 'You requested to change the email address for your account. Use the code below to confirm this change.',
+    greeting: 'Hello',
+    intro: 'You requested to change the email address for your account. Use the code below to confirm this change. Don\'t share this code with anyone. This code expires in 10 minutes. If this wasn\'t you, <a href="http://localhost:5173/account/email/revert" style="color:#0039AF;text-decoration:underline;">revert this change</a> within 24 hours.',
     code: '345678',
-    expiry: '10',
-    brandName: 'BizClear',
   },
 }
 
@@ -61,11 +53,9 @@ export const OtpEmailChange = {
 export const OtpAccountDeletion = {
   args: {
     subject: 'Confirm Account Deletion',
-    heading: 'Confirm Account Deletion',
-    intro: 'You requested to permanently delete your account. Use the code below to confirm account deletion. This action cannot be undone after the grace period.',
+    greeting: 'Hello',
+    intro: 'You requested to permanently delete your account. Use the code below to confirm account deletion. This action cannot be undone after the grace period. Don\'t share this code with anyone. This code expires in 10 minutes. If this wasn\'t you, <a href="http://localhost:5173/support/security" style="color:#0039AF;text-decoration:underline;">report it immediately</a>.',
     code: '901234',
-    expiry: '10',
-    brandName: 'BizClear',
   },
 }
 
@@ -73,11 +63,9 @@ export const OtpAccountDeletion = {
 export const OtpMfaSetup = {
   args: {
     subject: 'Enable Verification',
-    heading: 'Enable Verification',
-    intro: "You're enabling fingerprint or additional verification. Use the code below to complete setup.",
+    greeting: 'Hello',
+    intro: "You're enabling fingerprint or additional verification. Use the code below to complete setup. Don't share this code with anyone. This code expires in 10 minutes. If this wasn't you, <a href='http://localhost:5173/support/security' style='color:#0039AF;text-decoration:underline;'>report it immediately</a>.",
     code: '567890',
-    expiry: '10',
-    brandName: 'BizClear',
   },
 }
 
@@ -85,14 +73,12 @@ export const OtpMfaSetup = {
 export const StaffCredentials = {
   args: {
     subject: 'Your Staff Account Credentials',
-    heading: 'Welcome to the Team!',
-    intro: 'Your staff account has been created. Use the credentials below to access the portal.',
+    greeting: 'Hello',
+    intro: 'Your staff account has been created. Use the credentials below to access the portal. Please <a href="http://localhost:5173/auth/login" style="color:#0039AF;text-decoration:underline;">log in</a> and change your password immediately.',
     username: 'john.doe',
     tempPassword: 'TempPass123!',
     office: 'Dagupan City LGU',
     role: 'LGU Officer',
-    brandName: 'BizClear',
-    loginUrl: 'http://localhost:5173/auth/login',
   },
 }
 
@@ -100,11 +86,8 @@ export const StaffCredentials = {
 export const PasswordChangeNotification = {
   args: {
     subject: 'Password Changed Successfully',
-    heading: 'Password Changed',
-    intro: 'Your password was successfully changed. If you didn\'t make this change, please contact support immediately.',
-    firstName: 'John',
-    brandName: 'BizClear',
-    supportEmail: 'support@bizclear.com',
+    greeting: 'Hello John',
+    intro: 'Your password was successfully changed. If you didn\'t make this change, please <a href="http://localhost:5173/support/security" style="color:#0039AF;text-decoration:underline;">contact support immediately</a>.',
   },
 }
 
@@ -112,10 +95,8 @@ export const PasswordChangeNotification = {
 export const MfaEnabledNotification = {
   args: {
     subject: 'Two-Factor Authentication Enabled',
-    heading: 'Two-Factor Authentication Enabled',
+    greeting: 'Hello John',
     intro: 'Two-factor authentication has been successfully enabled on your account. Your account is now more secure.',
-    firstName: 'John',
-    brandName: 'BizClear',
   },
 }
 
@@ -123,10 +104,8 @@ export const MfaEnabledNotification = {
 export const MfaDisabledNotification = {
   args: {
     subject: 'Two-Factor Authentication Disabled',
-    heading: 'Two-Factor Authentication Disabled',
+    greeting: 'Hello John',
     intro: 'Two-factor authentication has been disabled on your account. Consider re-enabling it for better security.',
-    firstName: 'John',
-    brandName: 'BizClear',
   },
 }
 
@@ -134,10 +113,8 @@ export const MfaDisabledNotification = {
 export const MfaDisableRequestedNotification = {
   args: {
     subject: 'Two-Factor Authentication Disable Requested',
-    heading: 'MFA Disable Requested',
+    greeting: 'Hello John',
     intro: 'You requested to disable two-factor authentication. This action will be completed after a 24-hour security delay for your protection.',
-    firstName: 'John',
-    brandName: 'BizClear',
   },
 }
 
@@ -145,10 +122,8 @@ export const MfaDisableRequestedNotification = {
 export const PasskeyAddedNotification = {
   args: {
     subject: 'Passkey Added',
-    heading: 'Passkey Added Successfully',
+    greeting: 'Hello John',
     intro: 'A new passkey has been added to your account. You can now use it for passwordless authentication.',
-    firstName: 'John',
-    brandName: 'BizClear',
   },
 }
 
@@ -156,10 +131,8 @@ export const PasskeyAddedNotification = {
 export const PasskeyRemovedNotification = {
   args: {
     subject: 'Passkey Removed',
-    heading: 'Passkey Removed',
-    intro: 'A passkey has been removed from your account. If you didn\'t make this change, please contact support.',
-    firstName: 'John',
-    brandName: 'BizClear',
+    greeting: 'Hello John',
+    intro: 'A passkey has been removed from your account. If you didn\'t make this change, please <a href="http://localhost:5173/support/security" style="color:#0039AF;text-decoration:underline;">contact support</a>.',
   },
 }
 
@@ -167,13 +140,10 @@ export const PasskeyRemovedNotification = {
 export const EmailChangeOldEmail = {
   args: {
     subject: 'Email Change Requested',
-    heading: 'Email Change Requested',
-    intro: 'A request was made to change the email address associated with your account.',
+    greeting: 'Hello',
+    intro: 'A request was made to change the email address associated with your account. You have a 24-hour grace period to <a href="http://localhost:5173/account/email/revert" style="color:#0039AF;text-decoration:underline;">revert this change</a>.',
     oldEmail: 'old.email@example.com',
     newEmail: 'new.email@example.com',
-    gracePeriodHours: 24,
-    revertUrl: 'http://localhost:5173/account/email/revert',
-    brandName: 'BizClear',
   },
 }
 
@@ -181,12 +151,10 @@ export const EmailChangeOldEmail = {
 export const EmailChangeNewEmail = {
   args: {
     subject: 'Email Changed Successfully',
-    heading: 'Email Changed Successfully',
+    greeting: 'Hello',
     intro: 'Your email address has been successfully changed.',
     oldEmail: 'old.email@example.com',
     newEmail: 'new.email@example.com',
-    gracePeriodHours: 24,
-    brandName: 'BizClear',
   },
 }
 
@@ -194,11 +162,10 @@ export const EmailChangeNewEmail = {
 export const HelpRequestConfirmation = {
   args: {
     subject: 'Help Request Received',
-    heading: 'Help Request Received',
+    greeting: 'Hello',
     intro: 'Thank you for contacting us. We have received your help request and will get back to you as soon as possible.',
     requestId: 'HR-ABC123',
     subjectLine: 'Issue with Business Permit Application',
-    brandName: 'BizClear',
   },
 }
 
@@ -206,11 +173,10 @@ export const HelpRequestConfirmation = {
 export const OfficerReplyNotification = {
   args: {
     subject: 'New Response to Your Help Request',
-    heading: 'New Response Received',
+    greeting: 'Hello',
     intro: 'An LGU officer has responded to your help request. Please review their response below.',
     requestId: 'HR-ABC123',
     preview: 'Thank you for your inquiry. We have reviewed your request and...',
-    brandName: 'BizClear',
   },
 }
 
@@ -218,11 +184,10 @@ export const OfficerReplyNotification = {
 export const RequestClosedNotification = {
   args: {
     subject: 'Help Request Closed',
-    heading: 'Help Request Closed',
+    greeting: 'Hello',
     intro: 'Your help request has been marked as resolved and closed. If you have any further questions, please submit a new request.',
     requestId: 'HR-ABC123',
     subjectLine: 'Issue with Business Permit Application',
-    brandName: 'BizClear',
   },
 }
 
@@ -230,11 +195,10 @@ export const RequestClosedNotification = {
 export const RequestInvalidNotification = {
   args: {
     subject: 'Help Request Marked as Invalid',
-    heading: 'Help Request Invalid',
+    greeting: 'Hello',
     intro: 'Your help request has been marked as invalid. This may be due to insufficient information or being outside our scope.',
     requestId: 'HR-ABC123',
     subjectLine: 'Issue with Business Permit Application',
-    brandName: 'BizClear',
   },
 }
 
@@ -242,12 +206,8 @@ export const RequestInvalidNotification = {
 export const StaffAdminForgotPasswordAlert = {
   args: {
     subject: 'Password Reset Attempt Detected',
-    heading: 'Password Reset Attempt Detected',
-    intro: 'A password reset was attempted for your staff/admin account. Password reset is not available for your account type.',
-    adminName: 'John Doe',
-    role: 'LGU Officer',
-    instruction: 'If you are staff, use Request Recovery from the staff portal.',
-    brandName: 'BizClear',
+    greeting: 'Hello John Doe',
+    intro: 'A password reset was attempted for your staff/admin account. Password reset is not available for your account type. If you are staff, use Request Recovery from the staff portal.',
   },
 }
 
@@ -255,11 +215,8 @@ export const StaffAdminForgotPasswordAlert = {
 export const AdminApprovalNotification = {
   args: {
     subject: 'Account Approved',
-    heading: 'Account Approved',
-    intro: 'Your admin account has been approved. You can now access the admin portal.',
-    adminName: 'John Doe',
-    brandName: 'BizClear',
-    loginUrl: 'http://localhost:5173/auth/login',
+    greeting: 'Hello John Doe',
+    intro: 'Your admin account has been approved. You can now <a href="http://localhost:5173/auth/login" style="color:#0039AF;text-decoration:underline;">access the admin portal</a>.',
   },
 }
 
@@ -267,12 +224,8 @@ export const AdminApprovalNotification = {
 export const AdminRejectionNotification = {
   args: {
     subject: 'Account Request Rejected',
-    heading: 'Account Request Rejected',
+    greeting: 'Hello John Doe',
     intro: 'Your admin account request has been rejected. Please contact another administrator for more information.',
-    adminName: 'John Doe',
-    comment: 'Incomplete information provided in application.',
-    approverName: 'Admin Smith',
-    brandName: 'BizClear',
   },
 }
 
@@ -280,7 +233,7 @@ export const AdminRejectionNotification = {
 export const SystemAlert = {
   args: {
     subject: 'System alert: high_error_rate - BizClear',
-    heading: 'System Alert',
+    greeting: 'Hello',
     intro: 'A system alert has been triggered.',
     alertType: 'high_error_rate',
     details: {
@@ -289,7 +242,6 @@ export const SystemAlert = {
       timeWindow: '5 minutes',
       affectedServices: ['auth-service', 'business-service'],
     },
-    brandName: 'BizClear',
     appUrl: 'http://localhost:5173/admin',
   },
 }
@@ -298,13 +250,12 @@ export const SystemAlert = {
 export const TamperIncident = {
   args: {
     subject: 'Audit tamper incident (high) - BizClear',
-    heading: 'Audit Tamper Incident',
+    greeting: 'Hello',
     intro: 'An audit tamper or integrity issue was detected.',
     severity: 'high',
     verificationStatus: 'tamper_detected',
     message: 'Unexpected modification detected in audit log entry AR-12345',
     detectedAt: new Date().toISOString(),
-    brandName: 'BizClear',
     appUrl: 'http://localhost:5173/admin/security',
   },
 }
@@ -313,16 +264,14 @@ export const TamperIncident = {
 export const AdminAlertRestrictedField = {
   args: {
     subject: 'Security Alert: Restricted Field Attempt - BizClear',
-    heading: 'Security Alert',
+    greeting: 'Hello Admin Smith',
     intro: 'A staff user has attempted to modify a restricted field. This action has been blocked and logged.',
-    adminName: 'Admin Smith',
     userName: 'John Doe',
     userEmail: 'john.doe@example.com',
     roleSlug: 'lgu_officer',
     field: 'businesses.applicationStatus',
     attemptedValue: 'approved',
     timestamp: new Date().toISOString(),
-    brandName: 'BizClear',
     appUrl: 'http://localhost:5173/admin/audit',
   },
 }
@@ -331,11 +280,10 @@ export const AdminAlertRestrictedField = {
 export const AccountDeletionReminder = {
   args: {
     subject: 'Account Deletion Reminder - 7 days remaining',
-    heading: 'Account Deletion Reminder',
+    greeting: 'Hello',
     intro: 'Your account is scheduled for deletion. You can cancel this action by using your undo token or contacting support.',
     daysRemaining: 7,
     scheduledFor: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-    brandName: 'BizClear',
   },
 }
 
@@ -343,13 +291,12 @@ export const AccountDeletionReminder = {
 export const ViolationReminder = {
   args: {
     subject: 'Violation Deadline Reminder - 3 days remaining',
-    heading: 'Violation Deadline Approaching',
+    greeting: 'Hello',
     intro: 'You have a pending violation that must be resolved before the deadline to avoid penalties.',
     violationId: 'VIO-12345',
     violationType: 'Business Permit Renewal',
     deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString(),
     businessName: 'Sample Business',
-    brandName: 'BizClear',
   },
 }
 
@@ -357,14 +304,13 @@ export const ViolationReminder = {
 export const InspectionReminder = {
   args: {
     subject: 'Inspection Scheduled Tomorrow',
-    heading: 'Upcoming Inspection Reminder',
+    greeting: 'Hello',
     intro: 'You have an inspection scheduled for tomorrow. Please ensure your business is ready.',
     inspectionId: 'INS-67890',
     inspectionDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString(),
     inspectionTime: '10:00 AM',
     businessName: 'Sample Business',
     inspectorName: 'Officer Smith',
-    brandName: 'BizClear',
   },
 }
 
@@ -372,12 +318,11 @@ export const InspectionReminder = {
 export const ClearanceNotification = {
   args: {
     subject: 'Clearance Status Update',
-    heading: 'Clearance Status Update',
+    greeting: 'Hello',
     intro: 'There has been an update to your business clearance status.',
     clearanceId: 'CLR-54321',
     status: 'Approved',
     businessName: 'Sample Business',
-    brandName: 'BizClear',
   },
 }
 
@@ -385,12 +330,10 @@ export const ClearanceNotification = {
 export const PermitDecisionApproved = {
   args: {
     subject: 'Permit Application BP-2024-001234 - Approved',
-    heading: 'Application Approved',
-    intro: 'We are pleased to inform you that your permit application has been APPROVED. Your application has been reviewed and meets all requirements.',
+    greeting: 'Hello John',
+    intro: 'We are pleased to inform you that your permit application has been APPROVED. Your application has been reviewed and meets all requirements. <a href="http://localhost:5173/owner/permits" style="color:#0039AF;text-decoration:underline;">View your application</a> for details.',
     applicationReferenceNumber: 'BP-2024-001234',
     businessName: 'Sample Business',
-    firstName: 'John',
-    brandName: 'BizClear',
     appUrl: 'http://localhost:5173/owner/permits',
   },
 }
@@ -399,13 +342,11 @@ export const PermitDecisionApproved = {
 export const PermitDecisionRejected = {
   args: {
     subject: 'Permit Application BP-2024-001234 - Rejected',
-    heading: 'Application Rejected',
-    intro: 'We regret to inform you that your permit application has been REJECTED. Please review the feedback and submit a new application if needed.',
+    greeting: 'Hello John',
+    intro: 'We regret to inform you that your permit application has been REJECTED. Please review the feedback and <a href="http://localhost:5173/owner/permits" style="color:#0039AF;text-decoration:underline;">submit a new application</a> if needed.',
     applicationReferenceNumber: 'BP-2024-001234',
     businessName: 'Sample Business',
-    firstName: 'John',
     rejectionReason: 'Incomplete documentation: Missing business permit and valid ID.',
-    brandName: 'BizClear',
     appUrl: 'http://localhost:5173/owner/permits',
   },
 }
@@ -414,13 +355,11 @@ export const PermitDecisionRejected = {
 export const PermitDecisionCorrectionsRequired = {
   args: {
     subject: 'Permit Application BP-2024-001234 - Corrections Required',
-    heading: 'Corrections Required',
-    intro: 'Your permit application requires corrections before it can be approved. Please make the necessary corrections and resubmit your application for review.',
+    greeting: 'Hello John',
+    intro: 'Your permit application requires corrections before it can be approved. Please make the necessary corrections and <a href="http://localhost:5173/owner/permits" style="color:#0039AF;text-decoration:underline;">resubmit your application</a> for review.',
     applicationReferenceNumber: 'BP-2024-001234',
     businessName: 'Sample Business',
-    firstName: 'John',
     rejectionReason: 'Please update your business address and upload a valid ID.',
-    brandName: 'BizClear',
     appUrl: 'http://localhost:5173/owner/permits',
   },
 }
@@ -429,10 +368,8 @@ export const PermitDecisionCorrectionsRequired = {
 export const LoginOtpDeletionScheduled = {
   args: {
     subject: 'Your Login Verification Code - Account Deletion Scheduled',
-    heading: 'Verification Code',
-    intro: 'You recently requested to sign in to your BizClear account. Use the code below to complete your verification.',
+    greeting: 'Hello John',
+    intro: 'You recently requested to sign in to your BizClear account. Use the code below to complete your verification. Don\'t share this code with anyone. This code expires in 10 minutes.',
     code: '123456',
-    firstName: 'John',
-    brandName: 'BizClear',
   },
 }

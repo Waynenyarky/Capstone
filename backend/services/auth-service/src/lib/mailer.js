@@ -454,39 +454,39 @@ async function sendViaPostmark({
   );
 }
 
-// Purpose-specific copy for OTP emails (heading + intro). Intro may use {{brandName}}.
+// Purpose-specific copy for OTP emails (greeting + intro). Intro may use {{brandName}}.
 const OTP_PURPOSE_COPY = {
   login: {
-    heading: "Verification Code",
-    intro: `You recently requested to sign in to your {{brandName}} account. Use the code below to complete your verification.`,
+    greeting: "Hello",
+    intro: `You recently requested to sign in to your {{brandName}} account. Use the code below to complete your verification. Don't share this code with anyone. This code expires in {{expiry}} minutes. If this wasn't you, <a href="{{appUrl}}/support/security" style="color:#0039AF;text-decoration:underline;">report it immediately</a>.`,
   },
   signup: {
-    heading: "Verify Your Email",
-    intro: `You're signing up for {{brandName}}. Use the code below to verify your email and complete registration.`,
+    greeting: "Hello",
+    intro: `You're signing up for {{brandName}}. Use the code below to verify your email and complete registration. Don't share this code with anyone. This code expires in {{expiry}} minutes. If this wasn't you, <a href="{{appUrl}}/support/security" style="color:#0039AF;text-decoration:underline;">report it immediately</a>.`,
   },
   email_change: {
-    heading: "Confirm Email Change",
-    intro: `You requested to change the email address for your account. Use the code below to confirm this change.`,
+    greeting: "Hello",
+    intro: `You requested to change the email address for your account. Use the code below to confirm this change. Don't share this code with anyone. This code expires in {{expiry}} minutes. If this wasn't you, <a href="{{appUrl}}/account/email/revert" style="color:#0039AF;text-decoration:underline;">revert this change</a> within 24 hours.`,
   },
   password_change: {
-    heading: "Confirm Password Change",
-    intro: `You requested to change your password. Use the code below to confirm your identity and complete the change.`,
+    greeting: "Hello",
+    intro: `You requested to change your password. Use the code below to confirm your identity and complete the change. Don't share this code with anyone. This code expires in {{expiry}} minutes. If this wasn't you, <a href="{{appUrl}}/support/security" style="color:#0039AF;text-decoration:underline;">report it immediately</a>.`,
   },
   password_reset: {
-    heading: "Reset Your Password",
-    intro: `You requested to reset your password. Use the code below to set a new password. If you didn't request this, you can safely ignore this email.`,
+    greeting: "Hello",
+    intro: `You requested to reset your password. Use the code below to set a new password. If you didn't request this, you can safely ignore this email. Don't share this code with anyone. This code expires in {{expiry}} minutes.`,
   },
   account_deletion: {
-    heading: "Confirm Account Deletion",
-    intro: `You requested to permanently delete your account. Use the code below to confirm account deletion. This action cannot be undone after the grace period.`,
+    greeting: "Hello",
+    intro: `You requested to permanently delete your account. Use the code below to confirm account deletion. This action cannot be undone after the grace period. Don't share this code with anyone. This code expires in {{expiry}} minutes. If this wasn't you, <a href="{{appUrl}}/support/security" style="color:#0039AF;text-decoration:underline;">report it immediately</a>.`,
   },
   mfa_setup: {
-    heading: "Enable Verification",
-    intro: `You're enabling fingerprint or additional verification. Use the code below to complete setup.`,
+    greeting: "Hello",
+    intro: `You're enabling fingerprint or additional verification. Use the code below to complete setup. Don't share this code with anyone. This code expires in {{expiry}} minutes. If this wasn't you, <a href="{{appUrl}}/support/security" style="color:#0039AF;text-decoration:underline;">report it immediately</a>.`,
   },
   generic: {
-    heading: "Verification Code",
-    intro: `You requested a verification code. Use the code below to complete your request.`,
+    greeting: "Hello",
+    intro: `You requested a verification code. Use the code below to complete your request. Don't share this code with anyone. This code expires in {{expiry}} minutes. If this wasn't you, <a href="{{appUrl}}/support/security" style="color:#0039AF;text-decoration:underline;">report it immediately</a>.`,
   },
 };
 
@@ -500,7 +500,7 @@ async function sendOtp({
   purpose = "login",
 }) {
   const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10);
-  const brandName = process.env.APP_BRAND_NAME || "BizClear";
+  const brandName = "BizClear";
   const supportEmail =
     process.env.SUPPORT_EMAIL ||
     process.env.EMAIL_HOST_USER ||
@@ -509,12 +509,15 @@ async function sendOtp({
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
 
   const purposeKey = VALID_OTP_PURPOSES.has(purpose) ? purpose : "generic";
-  const { heading, intro } = OTP_PURPOSE_COPY[purposeKey];
-  const introText = intro.replace(/\{\{brandName\}\}/g, brandName);
-  const introHtml = intro.replace(
-    /\{\{brandName\}\}/g,
-    `<strong>${brandName}</strong>`,
-  );
+  const { greeting, intro } = OTP_PURPOSE_COPY[purposeKey];
+  const introText = intro
+    .replace(/\{\{brandName\}\}/g, brandName)
+    .replace(/\{\{expiry\}\}/g, ttlMin)
+    .replace(/\{\{appUrl\}\}/g, appUrl);
+  const introHtml = intro
+    .replace(/\{\{brandName\}\}/g, `<strong>${brandName}</strong>`)
+    .replace(/\{\{expiry\}\}/g, ttlMin)
+    .replace(/\{\{appUrl\}\}/g, appUrl);
 
   const text = [
     "Hello,",
@@ -522,18 +525,14 @@ async function sendOtp({
     introText,
     "",
     `Your verification code is: ${code}`,
-    `This code expires in ${ttlMin} minutes.`,
-    "",
-    "If you didn't request this, you can safely ignore this email.",
     "",
     "Thank you,",
     brandName,
   ].join("\n");
   const html = buildOtpEmailBody({
-    heading,
+    greeting,
     intro: introHtml,
     code,
-    expiry: ttlMin,
     appUrl,
   });
 
@@ -630,7 +629,7 @@ async function sendForgotPasswordNotAvailableEmail({
 }) {
   const logger = require("./logger");
   const ttlMin = Number(process.env.VERIFICATION_CODE_TTL_MIN || 10);
-  const brandName = process.env.APP_BRAND_NAME || "BizClear";
+  const brandName = "BizClear";
   const appUrl =
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
   const supportEmail =
@@ -678,12 +677,8 @@ async function sendForgotPasswordNotAvailableEmail({
     : "";
 
   const html = buildNotificationEmailBody({
-    heading: "Password reset not available",
-    intro: `You requested a password reset, but password reset is <strong>not available</strong> for your account type. ${instructionHtml}`,
-    warningBox: {
-      title: "Notice",
-      message: "This action has been logged and administrators have been alerted to this attempt.",
-    },
+    greeting: "Hello",
+    intro: `You requested a password reset, but password reset is <strong>not available</strong> for your account type. ${instructionHtml} This action has been logged and administrators have been alerted to this attempt.`,
     appUrl,
   });
   // Add code block if present
@@ -745,7 +740,7 @@ async function sendStaffCredentialsEmail({
   subject = "Your Staff Account Credentials",
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear";
+  const brandName = "BizClear";
   const appUrl =
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
   const supportEmail =
@@ -776,19 +771,18 @@ async function sendStaffCredentialsEmail({
   const text = textLines.join("\n");
 
   const html = buildNotificationEmailBody({
-    heading: "Welcome to the Team!",
-    intro: "Your staff account has been created. Use the credentials below to access the portal.",
+    greeting: "Hello",
+    intro: "Your staff account has been created. Use the credentials below to access the portal. Please <a href=\"http://localhost:5173/auth/login\" style=\"color:#0039AF;text-decoration:underline;\">log in</a> and change your password immediately.",
     fields: {
       fields: [
         ...(username
-          ? [{ label: "Username", value: username, color: EMAIL_COLORS.primary, fontSize: "16px", fontWeight: "700" }]
+          ? [{ label: "Username", value: username, color: EMAIL_COLORS.primary, fontSize: "14px", fontWeight: "700" }]
           : []),
-        { label: "Temporary password", value: tempPassword, color: EMAIL_COLORS.primary, fontSize: "16px", fontWeight: "700" },
+        { label: "Temporary password", value: tempPassword, color: EMAIL_COLORS.primary, fontSize: "14px", fontWeight: "700" },
         { label: "Office", value: office },
         { label: "Role", value: roleLabel },
       ],
     },
-    button: { text: "Log In Now", href: `${appUrl}/auth/login` },
     appUrl,
   });
 
@@ -827,7 +821,7 @@ async function sendEmailChangeNotification({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear";
+  const brandName = "BizClear";
   const appUrl =
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
   const supportEmail =
@@ -868,28 +862,18 @@ async function sendEmailChangeNotification({
     .join("\n");
 
   const introText = isOldEmail
-    ? `We received a request to change the email address associated with your <strong>${brandName}</strong> account.`
+    ? `We received a request to change the email address associated with your <strong>${brandName}</strong> account. You have a ${gracePeriodHours}-hour grace period to <a href="${appUrl}/account/email/revert" style="color:#0039AF;text-decoration:underline;">revert this change</a>.`
     : `Your email address has been successfully updated for your <strong>${brandName}</strong> account.`;
-  const warningMsg = isOldEmail
-    ? "If you didn't request this change, please revert it immediately or contact support."
-    : "If you didn't request this change, please contact support immediately as your account may be at risk.";
 
   const html = buildNotificationEmailBody({
-    heading: isOldEmail ? "Email Change Requested" : "Email Change Confirmed",
+    greeting: "Hello",
     intro: introText,
     fields: {
       fields: [
         { label: "Old email", value: oldEmail },
-        { label: "New email", value: newEmail, color: EMAIL_COLORS.primary, fontWeight: "700" },
+        { label: "New email", value: newEmail, color: EMAIL_COLORS.primary, fontSize: "14px", fontWeight: "700" },
       ],
     },
-    warningBox: {
-      title: isOldEmail
-        ? `Grace period: ${gracePeriodHours} hours`
-        : "Important",
-      message: warningMsg + (isOldEmail && revertUrl ? ` <a href="${revertUrl}" style="color:${EMAIL_COLORS.warningDark};text-decoration:underline;font-weight:600;">Revert Email Change</a>` : ""),
-    },
-    button: isOldEmail && revertUrl ? { text: "Revert Change", href: revertUrl, bgColor: EMAIL_COLORS.antError } : undefined,
     appUrl,
   });
 
@@ -923,7 +907,7 @@ async function sendPasswordChangeNotification({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear";
+  const brandName = "BizClear";
   const appUrl =
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
   const supportEmail =
@@ -953,18 +937,8 @@ async function sendPasswordChangeNotification({
   ].join("\n");
 
   const html = buildNotificationEmailBody({
-    heading: "Password Changed Successfully",
-    greeting: firstName,
-    intro: `Your password for <strong>${brandName}</strong> has been successfully changed.`,
-    fields: {
-      fields: [
-        { label: "Change time", value: changeTime },
-      ],
-    },
-    warningBox: {
-      title: "Security notice",
-      message: "If you didn't make this change, your account may be at risk. Please contact support immediately. All active sessions have been invalidated for security.",
-    },
+    greeting: `Hello ${firstName}`,
+    intro: `Your password for <strong>${brandName}</strong> has been successfully changed. If you didn't make this change, please <a href="${appUrl}/support/security" style="color:#0039AF;text-decoration:underline;">contact support immediately</a>.`,
     appUrl,
   });
 
@@ -997,7 +971,7 @@ async function sendMfaEnabledNotification({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear";
+  const brandName = "BizClear";
   const supportEmail =
     process.env.SUPPORT_EMAIL ||
     process.env.EMAIL_HOST_USER ||
@@ -1023,16 +997,9 @@ async function sendMfaEnabledNotification({
   ].join("\n");
 
   const html = buildNotificationEmailBody({
-    heading: "Two-Factor Authentication Enabled",
-    greeting: firstName,
-    intro: `Two-factor authentication has been enabled for your <strong>${brandName}</strong> account using <strong>${methodLabel}</strong>.`,
-    warningBox: {
-      title: "You will need this method when signing in.",
-      message: "If you didn't make this change, please contact support immediately.",
-      bgColor: EMAIL_COLORS.bgSuccess,
-      borderColor: EMAIL_COLORS.borderSuccess,
-      titleColor: "#389e0d",
-    },
+    greeting: `Hello ${firstName}`,
+    intro: `Two-factor authentication has been enabled for your <strong>${brandName}</strong> account using <strong>${methodLabel}</strong>. You will need this method when signing in. If you didn't make this change, please contact support immediately.`,
+    appUrl,
   });
 
   try {
@@ -1063,7 +1030,7 @@ async function sendMfaDisableRequestedNotification({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear";
+  const brandName = "BizClear";
   const supportEmail =
     process.env.SUPPORT_EMAIL ||
     process.env.EMAIL_HOST_USER ||
@@ -1090,18 +1057,9 @@ async function sendMfaDisableRequestedNotification({
   ].join("\n");
 
   const html = buildNotificationEmailBody({
-    heading: "MFA Disable Requested",
-    greeting: firstName,
-    intro: `A request to disable two-factor authentication for your <strong>${brandName}</strong> account has been received.`,
-    fields: {
-      fields: [
-        { label: "Scheduled disable time", value: disableTime },
-      ],
-    },
-    warningBox: {
-      title: "Action required",
-      message: "You can cancel this request from your security settings before that time. If you didn't request this, please secure your account and contact support.",
-    },
+    greeting: `Hello ${firstName}`,
+    intro: `A request to disable two-factor authentication for your <strong>${brandName}</strong> account has been received. MFA will be disabled on: ${disableTime}. You can cancel this request from your security settings before that time. If you didn't request this, please secure your account and contact support.`,
+    appUrl,
   });
 
   try {
@@ -1130,7 +1088,7 @@ async function sendMfaDisabledNotification({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear";
+  const brandName = "BizClear";
   const supportEmail =
     process.env.SUPPORT_EMAIL ||
     process.env.EMAIL_HOST_USER ||
@@ -1152,13 +1110,9 @@ async function sendMfaDisabledNotification({
   ].join("\n");
 
   const html = buildNotificationEmailBody({
-    heading: "Two-Factor Authentication Disabled",
-    greeting: firstName,
-    intro: `Two-factor authentication has been disabled for your <strong>${brandName}</strong> account.`,
-    warningBox: {
-      title: "Security notice",
-      message: "If you didn't make this change, please contact support immediately and re-enable MFA from your security settings.",
-    },
+    greeting: `Hello ${firstName}`,
+    intro: `Two-factor authentication has been disabled for your <strong>${brandName}</strong> account. If you didn't make this change, please contact support immediately and re-enable MFA from your security settings.`,
+    appUrl,
   });
 
   try {
@@ -1187,7 +1141,7 @@ async function sendPasskeyAddedNotification({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear";
+  const brandName = "BizClear";
   const supportEmail =
     process.env.SUPPORT_EMAIL ||
     process.env.EMAIL_HOST_USER ||
@@ -1209,13 +1163,9 @@ async function sendPasskeyAddedNotification({
   ].join("\n");
 
   const html = buildNotificationEmailBody({
-    heading: "Passkey Added",
-    greeting: firstName,
-    intro: `A passkey has been added to your <strong>${brandName}</strong> account. You can use it to sign in (e.g. Face ID, Windows Hello).`,
-    warningBox: {
-      title: "Didn't add this passkey?",
-      message: "Please remove it from security settings and contact support immediately.",
-    },
+    greeting: `Hello ${firstName}`,
+    intro: `A passkey has been added to your <strong>${brandName}</strong> account. You can use it to sign in (e.g. Face ID, Windows Hello). If you didn't add this passkey, please remove it from security settings and contact support.`,
+    appUrl,
   });
 
   try {
@@ -1244,7 +1194,7 @@ async function sendPasskeyRemovedNotification({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear";
+  const brandName = "BizClear";
   const supportEmail =
     process.env.SUPPORT_EMAIL ||
     process.env.EMAIL_HOST_USER ||
@@ -1266,13 +1216,9 @@ async function sendPasskeyRemovedNotification({
   ].join("\n");
 
   const html = buildNotificationEmailBody({
-    heading: "Passkey Removed",
-    greeting: firstName,
-    intro: `A passkey has been removed from your <strong>${brandName}</strong> account.`,
-    warningBox: {
-      title: "Didn't remove this passkey?",
-      message: "Please contact support and consider re-adding a passkey or enabling an authenticator app from security settings.",
-    },
+    greeting: `Hello ${firstName}`,
+    intro: `A passkey has been removed from your <strong>${brandName}</strong> account. If you didn't make this change, please <a href="${appUrl}/support/security" style="color:#0039AF;text-decoration:underline;">contact support</a>.`,
+    appUrl,
   });
 
   try {
@@ -1313,7 +1259,7 @@ async function sendAdminAlertEmail({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear";
+  const brandName = "BizClear";
   const appUrl =
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
 
@@ -1343,14 +1289,13 @@ async function sendAdminAlertEmail({
   ].join("\n");
 
   const html = buildNotificationEmailBody({
-    heading: "Security Alert",
-    greeting: adminName,
+    greeting: `Hello ${adminName}`,
     intro: "A staff user has attempted to modify a restricted field. This action has been blocked and logged.",
     fields: {
       fields: [
         { label: "User", value: `${userName} (${userEmail})` },
         { label: "Role", value: roleSlug },
-        { label: "Field attempted", value: field, color: EMAIL_COLORS.antError, fontWeight: "700" },
+        { label: "Field attempted", value: field, color: EMAIL_COLORS.antError, fontSize: "14px", fontWeight: "700" },
         { label: "Attempted value", value: attemptedValue },
         { label: "Time", value: attemptTime },
       ],
@@ -1358,7 +1303,6 @@ async function sendAdminAlertEmail({
       borderColor: EMAIL_COLORS.borderError,
       accentColor: EMAIL_COLORS.antError,
     },
-    button: { text: "View Audit Logs", href: `${appUrl}/admin/audit`, bgColor: EMAIL_COLORS.antError },
     appUrl,
   });
 
@@ -1390,7 +1334,7 @@ async function sendStaffOrAdminForgotPasswordAlertEmail({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear";
+  const brandName = "BizClear";
   const appUrl =
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
 
@@ -1420,8 +1364,7 @@ async function sendStaffOrAdminForgotPasswordAlertEmail({
   ].join("\n");
 
   const html = buildNotificationEmailBody({
-    heading: "Forgot Password Attempt (Staff/Admin)",
-    greeting: adminName,
+    greeting: `Hello ${adminName}`,
     intro: "A staff or admin account was used on the Forgot Password page. Password reset is not allowed for this account type. This action has been logged.",
     fields: {
       fields: [
@@ -1435,7 +1378,6 @@ async function sendStaffOrAdminForgotPasswordAlertEmail({
       borderColor: EMAIL_COLORS.borderError,
       accentColor: EMAIL_COLORS.antError,
     },
-    button: { text: "View Security Page", href: `${appUrl}/admin/security`, bgColor: EMAIL_COLORS.antError },
     appUrl,
   });
 
@@ -1469,7 +1411,7 @@ async function sendAdminAlert({ to, adminName, type, data = {} }) {
     });
   }
 
-  const brandName = process.env.APP_BRAND_NAME || "BizClear";
+  const brandName = "BizClear";
   const appUrl =
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
   const subject = `Security Alert: ${type} - ${brandName}`;
@@ -1487,14 +1429,8 @@ async function sendAdminAlert({ to, adminName, type, data = {} }) {
     brandName,
   ].join("\n");
   const html = buildNotificationEmailBody({
-    heading: `Security Alert: ${type}`,
-    greeting: adminName,
+    greeting: `Hello ${adminName}`,
     intro: `Security alert (${type}). Please review the details below.`,
-    warningBox: {
-      title: "Alert details",
-      message: `<pre style="margin:0;color:${EMAIL_COLORS.textPrimary};font-size:13px;font-family:monospace;white-space:pre-wrap;word-break:break-all;">${dataStr.replace(/</g, "&lt;")}</pre>`,
-    },
-    button: { text: "Open Admin Dashboard", href: `${appUrl}/admin` },
     appUrl,
   });
   try {
@@ -1532,7 +1468,7 @@ async function sendApprovalNotification({
   subject,
   from = process.env.DEFAULT_FROM_EMAIL || process.env.EMAIL_HOST_USER,
 }) {
-  const brandName = process.env.APP_BRAND_NAME || "BizClear";
+  const brandName = "BizClear";
   const appUrl =
     process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
 
@@ -1567,20 +1503,18 @@ async function sendApprovalNotification({
     .join("\n");
 
   const html = buildNotificationEmailBody({
-    heading: `Approval Request ${statusText}`,
-    greeting: adminName,
+    greeting: `Hello ${adminName}`,
     intro: `Your approval request has been <strong>${statusText.toLowerCase()}</strong>${status === "approved" ? " and your requested changes have been applied." : "."}`,
     fields: {
       fields: [
         { label: "Approval ID", value: approvalId },
         { label: "Request type", value: requestType },
-        { label: "Status", value: statusText, color: status === "approved" ? EMAIL_COLORS.success : EMAIL_COLORS.antError, fontWeight: "700" },
+        { label: "Status", value: statusText, color: status === "approved" ? EMAIL_COLORS.success : EMAIL_COLORS.antError, fontSize: "14px", fontWeight: "700" },
         { label: "Approved by", value: approverName },
         ...(comment ? [{ label: "Comment", value: comment }] : []),
         { label: "Time", value: approvalTime },
       ],
     },
-    button: { text: "View Details", href: `${appUrl}/admin/approvals/${approvalId}` },
     appUrl,
   });
 

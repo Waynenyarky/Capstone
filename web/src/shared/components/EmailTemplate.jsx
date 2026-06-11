@@ -29,25 +29,19 @@ const EMAIL_COLORS = {
 
 export default function EmailTemplate(props) {
   const {
-  heading,
+  greeting = 'Hello',
   intro,
   code,
-  expiry,
   username,
   tempPassword,
   office,
   role,
-  loginUrl = 'http://localhost:5173/auth/login',
   firstName,
   oldEmail,
   newEmail,
-  gracePeriodHours,
-  revertUrl,
   requestId,
   subjectLine,
   preview,
-  adminName,
-  instruction,
   appUrl = 'http://localhost:5173',
   alertType,
   details,
@@ -61,8 +55,6 @@ export default function EmailTemplate(props) {
   attemptedValue,
   roleSlug,
   timestamp,
-  _comment,
-  _approverName,
   daysRemaining,
   scheduledFor,
   violationId,
@@ -141,14 +133,6 @@ export default function EmailTemplate(props) {
     </div>
   `
 
-  // Helper for warning/notice box
-  const buildWarningBox = ({ title, message, bgColor = EMAIL_COLORS.bgWarning, borderColor = EMAIL_COLORS.borderWarning, titleColor = EMAIL_COLORS.warningDark }) => `
-    <div style="background:${bgColor};border:1px solid ${borderColor};padding:16px;border-radius:6px;margin-top:24px;text-align:left;">
-      <p style="margin:0 0 4px;color:${titleColor};font-weight:600;font-size:13px;">${title}</p>
-      <p style="margin:0;color:${EMAIL_COLORS.textSecondary};font-size:13px;line-height:1.5;">${message}</p>
-    </div>
-  `
-
   // Helper for permit decision status box
   const buildStatusBox = ({ applicationReferenceNumber, businessName, rejectionReason, statusBg, statusBorder }) => `
     <div style="background:${statusBg};border:1px solid ${statusBorder};border-left:3px solid ${statusBorder};border-radius:6px;padding:16px;margin:24px 0;">
@@ -195,11 +179,6 @@ export default function EmailTemplate(props) {
     `
   }
 
-  // Helper for buttons (matches Ant Design primary button styling)
-  const buildButton = ({ text, href, bgColor = EMAIL_COLORS.primary, textColor = '#ffffff', padding = '8px 20px', borderRadius = '6px', fontWeight = '600', fontSize = '14px' }) => `
-    <a href="${href}" style="display:inline-block;background:${bgColor};color:${textColor};text-decoration:none;padding:${padding};border-radius:${borderRadius};font-weight:${fontWeight};font-size:${fontSize};border:1px solid transparent;cursor:pointer;">${text}</a>
-  `
-
   // Base email HTML wrapper
   const buildEmailHtml = ({ bodyContent }) => `
 <!DOCTYPE html>
@@ -224,89 +203,88 @@ export default function EmailTemplate(props) {
   if (isOtp) {
     const bodyContent = `
     <div style="padding:40px 32px;text-align:left;">
-      <h2 style="margin:0 0 16px;font-size:20px;color:${EMAIL_COLORS.textPrimary};font-weight:600;font-family:'Raleway', sans-serif;">${heading}</h2>
+      <p style="margin:0 0 24px;color:${EMAIL_COLORS.textPrimary};font-size:14px;">${greeting},</p>
       <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;line-height:1.5715;">
         ${intro}
       </p>
       ${buildOtpBox({ code })}
-      <p style="margin:0 0 8px;color:${EMAIL_COLORS.textTertiary};font-size:14px;">
-         This code expires in ${expiry} minutes.
+      <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;">
+        Regards, BizClear Team
       </p>
-      ${buildWarningBox({
-        title: 'Do not share this code with anyone.',
-        message: `If this request wasn't made by you, your account may be at risk. <a href="${appUrl}/support/security" style="color:${EMAIL_COLORS.warningDark};text-decoration:underline;font-weight:600;">Report unauthorized access immediately</a>.`
-      })}
     </div>
     `
     html = buildEmailHtml({ bodyContent })
   } else if (isStaffCredentials) {
     const bodyContent = `
     <div style="padding:40px 32px;text-align:left;">
-      <h2 style="margin:0 0 16px;font-size:20px;color:${EMAIL_COLORS.textPrimary};font-weight:600;font-family:'Raleway', sans-serif;">${heading}</h2>
+      <p style="margin:0 0 24px;color:${EMAIL_COLORS.textPrimary};font-size:14px;">${greeting},</p>
       <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;line-height:1.5715;">
         ${intro}
       </p>
       ${buildInfoBox({
         fields: [
-          ...(username ? [{ label: 'Username', value: username, color: EMAIL_COLORS.primary, fontSize: '16px', fontWeight: '700' }] : []),
-          { label: 'Temporary password', value: tempPassword, color: EMAIL_COLORS.primary, fontSize: '16px', fontWeight: '700' },
+          ...(username ? [{ label: 'Username', value: username, color: EMAIL_COLORS.primary, fontSize: '14px', fontWeight: '700' }] : []),
+          { label: 'Temporary password', value: tempPassword, color: EMAIL_COLORS.primary, fontSize: '14px', fontWeight: '700' },
           { label: 'Office', value: office },
           { label: 'Role', value: role }
         ]
       })}
       <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;">
-         Please log in and change your password immediately.
+        Regards, BizClear Team
       </p>
-      ${buildButton({ text: 'Log In Now', href: loginUrl })}
     </div>
     `
     html = buildEmailHtml({ bodyContent })
   } else if (isEmailChange) {
     const bodyContent = `
     <div style="padding:40px 32px;text-align:left;">
-      <h2 style="margin:0 0 16px;font-size:20px;color:${EMAIL_COLORS.textPrimary};font-weight:600;font-family:'Raleway', sans-serif;">${heading}</h2>
+      <p style="margin:0 0 24px;color:${EMAIL_COLORS.textPrimary};font-size:14px;">${greeting},</p>
       <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;line-height:1.5715;">
         ${intro}
       </p>
       ${buildInfoBox({
         fields: [
           { label: 'Old email', value: oldEmail },
-          { label: 'New email', value: newEmail, color: EMAIL_COLORS.primary, fontWeight: '700' }
+          { label: 'New email', value: newEmail, color: EMAIL_COLORS.primary, fontSize: '14px', fontWeight: '700' }
         ]
       })}
-      <p style="margin:0 0 8px;color:${EMAIL_COLORS.textTertiary};font-size:14px;">
-        Grace period: ${gracePeriodHours} hours
+      <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;">
+        Regards, BizClear Team
       </p>
-      ${revertUrl ? buildButton({ text: 'Revert Change', href: revertUrl, bgColor: EMAIL_COLORS.antError }) : ''}
     </div>
     `
     html = buildEmailHtml({ bodyContent })
   } else if (isHelpRequest) {
     const bodyContent = `
     <div style="padding:40px 32px;text-align:left;">
-      <h2 style="margin:0 0 16px;font-size:20px;color:${EMAIL_COLORS.textPrimary};font-weight:600;font-family:'Raleway', sans-serif;">${heading}</h2>
+      <p style="margin:0 0 24px;color:${EMAIL_COLORS.textPrimary};font-size:14px;">${greeting},</p>
       <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;line-height:1.5715;">
         ${intro}
       </p>
       ${buildInfoBox({
         fields: [
-          { label: 'Request ID', value: requestId, color: EMAIL_COLORS.primary, fontSize: '16px', fontWeight: '700' },
+          { label: 'Request ID', value: requestId, color: EMAIL_COLORS.primary, fontSize: '14px', fontWeight: '700' },
           ...(subjectLine ? [{ label: 'Subject', value: subjectLine }] : []),
           ...(preview ? [{ label: 'Response preview', value: preview }] : [])
         ]
       })}
+      <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;">
+        Regards, BizClear Team
+      </p>
     </div>
     `
     html = buildEmailHtml({ bodyContent })
   } else if (isSystemAlert) {
     const bodyContent = `
     <div style="padding:40px 32px;">
-      <h2 style="margin:0 0 16px;font-size:20px;color:${EMAIL_COLORS.textPrimary};font-weight:600;font-family:'Raleway', sans-serif;">${heading}</h2>
+      <p style="margin:0 0 24px;color:${EMAIL_COLORS.textPrimary};font-size:14px;">${greeting},</p>
       <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;line-height:1.5715;">
         ${intro}
       </p>
       ${buildJsonDetailsBox({ alertType, details })}
-      ${buildButton({ text: 'Open Admin Dashboard', href: `${appUrl}/admin`, bgColor: EMAIL_COLORS.antWarning })}
+      <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;">
+        Regards, BizClear Team
+      </p>
     </div>
     `
     html = buildEmailHtml({ bodyContent })
@@ -314,7 +292,7 @@ export default function EmailTemplate(props) {
     const detectedTime = detectedAt ? new Date(detectedAt).toLocaleString() : new Date().toLocaleString()
     const bodyContent = `
     <div style="padding:40px 32px;">
-      <h2 style="margin:0 0 16px;font-size:20px;color:${EMAIL_COLORS.textPrimary};font-weight:600;font-family:'Raleway', sans-serif;">${heading}</h2>
+      <p style="margin:0 0 24px;color:${EMAIL_COLORS.textPrimary};font-size:14px;">${greeting},</p>
       <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;line-height:1.5715;">
         ${intro}
       </p>
@@ -322,13 +300,15 @@ export default function EmailTemplate(props) {
         bgColor: EMAIL_COLORS.bgError,
         borderColor: EMAIL_COLORS.borderError,
         fields: [
-          { label: 'Severity', value: severity, color: EMAIL_COLORS.antError, fontSize: '16px', fontWeight: '700' },
+          { label: 'Severity', value: severity, color: EMAIL_COLORS.antError, fontSize: '14px', fontWeight: '700' },
           { label: 'Status', value: verificationStatus },
           { label: 'Message', value: message || 'N/A' },
           { label: 'Detected', value: detectedTime }
         ]
       })}
-      ${buildButton({ text: 'View and Triage', href: `${appUrl}/admin/security`, bgColor: EMAIL_COLORS.antError })}
+      <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;">
+        Regards, BizClear Team
+      </p>
     </div>
     `
     html = buildEmailHtml({ bodyContent })
@@ -336,8 +316,7 @@ export default function EmailTemplate(props) {
     const attemptTime = timestamp ? new Date(timestamp).toLocaleString() : new Date().toLocaleString()
     const bodyContent = `
     <div style="padding:40px 32px;">
-      <h2 style="margin:0 0 16px;font-size:20px;color:${EMAIL_COLORS.textPrimary};font-weight:600;font-family:'Raleway', sans-serif;">Restricted Field Attempt</h2>
-      <p style="margin:0 0 8px;color:${EMAIL_COLORS.textPrimary};font-size:14px;">Hi ${adminName},</p>
+      <p style="margin:0 0 24px;color:${EMAIL_COLORS.textPrimary};font-size:14px;">${greeting},</p>
       <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;line-height:1.5715;">
         ${intro}
       </p>
@@ -353,32 +332,33 @@ export default function EmailTemplate(props) {
           { label: 'Time', value: attemptTime }
         ]
       })}
-      ${buildButton({ text: 'View Audit Logs', href: `${appUrl}/admin/audit`, bgColor: EMAIL_COLORS.antError })}
+      <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;">
+        Regards, BizClear Team
+      </p>
     </div>
     `
     html = buildEmailHtml({ bodyContent })
   } else if (isPermitDecision) {
-    const isApproved = heading.toLowerCase().includes('approved')
+    const isApproved = intro.toLowerCase().includes('approved')
     const statusBg = isApproved ? EMAIL_COLORS.bgSuccess : EMAIL_COLORS.bgError
     const statusBorder = isApproved ? EMAIL_COLORS.borderSuccess : EMAIL_COLORS.borderError
     const bodyContent = `
     <div style="padding:40px 32px;">
-      <h2 style="margin:0 0 16px;font-size:20px;color:${EMAIL_COLORS.textPrimary};font-weight:600;font-family:'Raleway', sans-serif;">${heading}</h2>
-      <p style="margin:0 0 8px;color:${EMAIL_COLORS.textPrimary};font-size:14px;">Hi ${firstName || 'Business Owner'},</p>
+      <p style="margin:0 0 24px;color:${EMAIL_COLORS.textPrimary};font-size:14px;">${greeting},</p>
       <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;line-height:1.5715;">
         ${intro}
       </p>
       ${buildStatusBox({ applicationReferenceNumber, businessName, rejectionReason, statusBg, statusBorder })}
-      <div style="text-align:left;margin:32px 0;">
-        ${buildButton({ text: 'View Application', href: `${appUrl}/owner/permits` })}
-      </div>
+      <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;">
+        Regards, BizClear Team
+      </p>
     </div>
     `
     html = buildEmailHtml({ bodyContent })
   } else if (isDeletionReminder) {
     const bodyContent = `
     <div style="padding:40px 32px;">
-      <h2 style="margin:0 0 16px;font-size:20px;color:${EMAIL_COLORS.textPrimary};font-weight:600;font-family:'Raleway', sans-serif;">${heading}</h2>
+      <p style="margin:0 0 24px;color:${EMAIL_COLORS.textPrimary};font-size:14px;">${greeting},</p>
       <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;line-height:1.5715;">
         ${intro}
       </p>
@@ -386,12 +366,12 @@ export default function EmailTemplate(props) {
         bgColor: EMAIL_COLORS.bgWarning,
         borderColor: EMAIL_COLORS.borderWarning,
         fields: [
-          { label: 'Days remaining', value: daysRemaining, color: EMAIL_COLORS.antWarning, fontSize: '20px', fontWeight: '700' },
+          { label: 'Days remaining', value: daysRemaining, color: EMAIL_COLORS.antWarning, fontSize: '14px', fontWeight: '700' },
           { label: 'Scheduled for', value: scheduledFor }
         ]
       })}
-      <p style="margin:0;color:rgba(0,0,0,0.88);font-size:14px;">
-        If you wish to cancel this deletion, please use your undo token or contact support.
+      <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;">
+        Regards, BizClear Team
       </p>
     </div>
     `
@@ -399,7 +379,7 @@ export default function EmailTemplate(props) {
   } else if (isViolationReminder) {
     const bodyContent = `
     <div style="padding:40px 32px;">
-      <h2 style="margin:0 0 16px;font-size:20px;color:${EMAIL_COLORS.textPrimary};font-weight:600;font-family:'Raleway', sans-serif;">${heading}</h2>
+      <p style="margin:0 0 24px;color:${EMAIL_COLORS.textPrimary};font-size:14px;">${greeting},</p>
       <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;line-height:1.5715;">
         ${intro}
       </p>
@@ -410,28 +390,34 @@ export default function EmailTemplate(props) {
           { label: 'Violation ID', value: violationId, fontWeight: '700' },
           { label: 'Violation type', value: violationType },
           { label: 'Business name', value: businessName },
-          { label: 'Deadline', value: deadline, color: EMAIL_COLORS.antError, fontSize: '16px', fontWeight: '700' }
+          { label: 'Deadline', value: deadline, color: EMAIL_COLORS.antError, fontSize: '14px', fontWeight: '700' }
         ]
       })}
+      <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;">
+        Regards, BizClear Team
+      </p>
     </div>
     `
     html = buildEmailHtml({ bodyContent })
   } else if (isInspectionReminder) {
     const bodyContent = `
     <div style="padding:40px 32px;">
-      <h2 style="margin:0 0 16px;font-size:20px;color:${EMAIL_COLORS.textPrimary};font-weight:600;font-family:'Raleway', sans-serif;">${heading}</h2>
+      <p style="margin:0 0 24px;color:${EMAIL_COLORS.textPrimary};font-size:14px;">${greeting},</p>
       <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;line-height:1.5715;">
         ${intro}
       </p>
       ${buildInfoBox({
         fields: [
           { label: 'Inspection ID', value: inspectionId, fontWeight: '700' },
-          { label: 'Date', value: inspectionDate, color: EMAIL_COLORS.primary, fontSize: '16px', fontWeight: '700' },
-          { label: 'Time', value: inspectionTime, color: EMAIL_COLORS.primary, fontSize: '16px', fontWeight: '700' },
+          { label: 'Date', value: inspectionDate, color: EMAIL_COLORS.primary, fontSize: '14px', fontWeight: '700' },
+          { label: 'Time', value: inspectionTime, color: EMAIL_COLORS.primary, fontSize: '14px', fontWeight: '700' },
           { label: 'Business name', value: businessName },
           { label: 'Inspector', value: inspectorName }
         ]
       })}
+      <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;">
+        Regards, BizClear Team
+      </p>
     </div>
     `
     html = buildEmailHtml({ bodyContent })
@@ -439,7 +425,7 @@ export default function EmailTemplate(props) {
     const statusColor = status === 'Approved' ? EMAIL_COLORS.success : status === 'Rejected' ? EMAIL_COLORS.antError : EMAIL_COLORS.primary
     const bodyContent = `
     <div style="padding:40px 32px;">
-      <h2 style="margin:0 0 16px;font-size:20px;color:${EMAIL_COLORS.textPrimary};font-weight:600;font-family:'Raleway', sans-serif;">${heading}</h2>
+      <p style="margin:0 0 24px;color:${EMAIL_COLORS.textPrimary};font-size:14px;">${greeting},</p>
       <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;line-height:1.5715;">
         ${intro}
       </p>
@@ -447,9 +433,12 @@ export default function EmailTemplate(props) {
         fields: [
           { label: 'Clearance ID', value: clearanceId, fontWeight: '700' },
           { label: 'Business name', value: businessName },
-          { label: 'Status', value: status, color: statusColor, fontSize: '16px', fontWeight: '700' }
+          { label: 'Status', value: status, color: statusColor, fontSize: '14px', fontWeight: '700' }
         ]
       })}
+      <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;">
+        Regards, BizClear Team
+      </p>
     </div>
     `
     html = buildEmailHtml({ bodyContent })
@@ -457,16 +446,13 @@ export default function EmailTemplate(props) {
     // Generic notification template
     const bodyContent = `
     <div style="padding:40px 32px;text-align:left;">
-      <h2 style="margin:0 0 16px;font-size:20px;color:${EMAIL_COLORS.textPrimary};font-weight:600;font-family:'Raleway', sans-serif;">${heading}</h2>
-      ${firstName ? `<p style="margin:0 0 8px;color:${EMAIL_COLORS.textPrimary};font-size:14px;">Hi ${firstName},</p>` : ''}
-      ${adminName && !firstName ? `<p style="margin:0 0 8px;color:${EMAIL_COLORS.textPrimary};font-size:14px;">Hi ${adminName},</p>` : ''}
+      <p style="margin:0 0 24px;color:${EMAIL_COLORS.textPrimary};font-size:14px;">${greeting},</p>
       <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;line-height:1.5715;">
         ${intro}
       </p>
-      ${instruction ? `<div style="background:${EMAIL_COLORS.bgWarning};border:1px solid ${EMAIL_COLORS.borderWarning};padding:16px;border-radius:6px;margin-bottom:24px;text-align:left;">
-        <p style="margin:0;color:${EMAIL_COLORS.textSecondary};font-size:14px;line-height:1.5;">${instruction}</p>
-      </div>` : ''}
-      ${loginUrl ? buildButton({ text: 'Log In', href: loginUrl }) : ''}
+      <p style="margin:0 0 24px;color:rgba(0,0,0,0.88);font-size:14px;">
+        Regards, BizClear Team
+      </p>
     </div>
     `
     html = buildEmailHtml({ bodyContent })

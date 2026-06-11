@@ -138,7 +138,7 @@ export default function BusinessOwnerOnboarding() {
     <BusinessOwnerLayout hideSidebar pageTitle="Onboarding" pageIcon={<ShopOutlined />}>
       <div
         style={{
-          padding: '40px 24px',
+          paddingBottom: 128,
           background: token.colorBgContainer,
           flex: 1,
           display: 'flex',
