@@ -2,13 +2,13 @@ import { Typography, Tag, Descriptions, Empty } from 'antd'
 
 const { Text } = Typography
 
-const STATUS_LABELS = {
-  open: 'Open',
-  in_progress: 'In Progress',
-  needs_response: 'Needs Response',
-  waiting_for_business_owner: 'Waiting for Owner',
-  closed: 'Closed',
-  invalid: 'Invalid',
+const STATUS_CONFIG = {
+  open: { color: 'blue', label: 'Open' },
+  in_progress: { color: 'gold', label: 'In Progress' },
+  needs_response: { color: 'volcano', label: 'Needs Response' },
+  waiting_for_business_owner: { color: 'cyan', label: 'Waiting for Owner' },
+  closed: { color: 'green', label: 'Closed' },
+  invalid: { color: 'default', label: 'Invalid' },
 }
 
 const PRIORITY_LABELS = {
@@ -41,9 +41,8 @@ export default function HelpRequestAuditDetailPanel({ audit }) {
         <Descriptions.Item label="Event Type">
           {EVENT_TYPE_LABELS[audit.eventType] || audit.eventType}
         </Descriptions.Item>
-        <Descriptions.Item label="User ID">{audit.userId}</Descriptions.Item>
         <Descriptions.Item label="Timestamp">
-          {new Date(audit.timestamp).toLocaleString()}
+          {new Date(audit.createdAt).toLocaleString()}
         </Descriptions.Item>
         {metadata.claimedByName && (
           <Descriptions.Item label="Claimed By">{metadata.claimedByName}</Descriptions.Item>
@@ -58,12 +57,12 @@ export default function HelpRequestAuditDetailPanel({ audit }) {
         )}
         {metadata.status && (
           <Descriptions.Item label="Status Change">
-            <Tag color="blue">
-              {STATUS_LABELS[metadata.status.from] || metadata.status.from}
+            <Tag color={STATUS_CONFIG[metadata.status.from]?.color || 'default'}>
+              {STATUS_CONFIG[metadata.status.from]?.label || metadata.status.from}
             </Tag>
             {' → '}
-            <Tag color="green">
-              {STATUS_LABELS[metadata.status.to] || metadata.status.to}
+            <Tag color={STATUS_CONFIG[metadata.status.to]?.color || 'default'}>
+              {STATUS_CONFIG[metadata.status.to]?.label || metadata.status.to}
             </Tag>
           </Descriptions.Item>
         )}
@@ -75,6 +74,9 @@ export default function HelpRequestAuditDetailPanel({ audit }) {
               {PRIORITY_LABELS[metadata.priority.to] || metadata.priority.to}
             </Tag>
           </Descriptions.Item>
+        )}
+        {metadata.updatedByName && (
+          <Descriptions.Item label="Changed By">{metadata.updatedByName}</Descriptions.Item>
         )}
       </Descriptions>
     </div>

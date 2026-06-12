@@ -52,6 +52,10 @@ const HelpRequestSchema = new mongoose.Schema(
       default: "open",
       index: true,
     },
+    statusChangedAt: {
+      type: Date,
+      default: Date.now,
+    },
     priority: {
       type: String,
       enum: ["low", "normal", "high"],

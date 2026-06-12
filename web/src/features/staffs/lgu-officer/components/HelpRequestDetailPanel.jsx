@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Typography, Button, Tag, Select, Input, Empty, Divider, message, theme, Upload, Timeline, Card, Grid, Form, Modal } from 'antd'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Typography, Button, Tag, Select, Input, Empty, Divider, message, theme, Card, Grid, Form, Modal, Drawer } from 'antd'
 import {
-  UserOutlined, CustomerServiceOutlined,
-  SendOutlined, UploadOutlined, FileTextOutlined, CheckOutlined, CloseOutlined, HistoryOutlined,
+  SendOutlined, FileTextOutlined, CheckOutlined, CloseOutlined, HistoryOutlined, PlusOutlined, BookOutlined,
 } from '@ant-design/icons'
 import { get, put, post } from '@/lib/http.js'
 import { useAuthSession } from '@/features/authentication'
 import HelpRequestAuditHistoryModal from './HelpRequestAuditHistoryModal'
+import DynamicPageContent from '@/shared/components/DynamicPageContent'
 
 const { Text, Title, Paragraph } = Typography
 const { TextArea } = Input
@@ -21,19 +21,12 @@ const STATUS_CONFIG = {
   invalid: { color: 'default', label: 'Invalid' },
 }
 
-const PRIORITY_CONFIG = {
-  high: { color: 'red', label: 'High Priority' },
-  normal: { color: 'blue', label: 'Normal Priority' },
-  low: { color: 'default', label: 'Low Priority' },
-}
-
 export default function HelpRequestDetailPanel({ request, onRefresh }) {
   const { token } = theme.useToken()
   const { currentUser } = useAuthSession()
   const [detail, setDetail] = useState(null)
   const [loading, setLoading] = useState(false)
   const [replyContent, setReplyContent] = useState('')
-  const [replyAttachments, setReplyAttachments] = useState([])
   const [sending, setSending] = useState(false)
   const [noteContent, setNoteContent] = useState('')
   const [addingNote, setAddingNote] = useState(false)
@@ -41,6 +34,10 @@ export default function HelpRequestDetailPanel({ request, onRefresh }) {
   const [updatingPriority, setUpdatingPriority] = useState(false)
   const [claiming, setClaiming] = useState(false)
   const [historyModalOpen, setHistoryModalOpen] = useState(false)
+  const [manualVisible, setManualVisible] = useState(false)
+  const [replyConfirmOpen, setReplyConfirmOpen] = useState(false)
+  const messagesEndRef = useRef(null)
+  const messagesContainerRef = useRef(null)
 
   const fetchDetail = useCallback(async () => {
     if (!request?.requestId) return
@@ -59,11 +56,49 @@ export default function HelpRequestDetailPanel({ request, onRefresh }) {
     fetchDetail()
   }, [fetchDetail])
 
+  // Auto-scroll to bottom of messages when messages change
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
+    }
+  }, [detail?.messages])
+
   const formatDateTime = (dateStr) => {
     if (!dateStr) return ''
     const d = new Date(dateStr)
     return d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   }
+
+  // Calculate status lock status
+  const getStatusLockInfo = () => {
+    if (!detail) return null
+    // Only show status lock for terminal statuses (closed, invalid)
+    const isTerminalStatus = ['closed', 'invalid'].includes(detail.status)
+    if (!isTerminalStatus) return null
+
+    // Use statusChangedAt if available, otherwise fallback to createdAt for legacy data
+    const statusChangedAt = detail.statusChangedAt || detail.createdAt
+    if (!statusChangedAt) return null
+
+    const now = new Date()
+    const changedAt = new Date(statusChangedAt)
+    const hoursSinceChange = (now - changedAt) / (1000 * 60 * 60)
+
+    if (hoursSinceChange >= 24) {
+      return {
+        locked: true,
+        message: `Status permanent since ${formatDateTime(statusChangedAt)}`,
+      }
+    }
+
+    const lockDate = new Date(changedAt.getTime() + 24 * 60 * 60 * 1000)
+    return {
+      locked: false,
+      message: `Status can be changed until ${formatDateTime(lockDate)}`,
+    }
+  }
+
+  const statusLockInfo = getStatusLockInfo()
 
   const isClaimed = detail?.claimedBy
   const isClaimedByMe = detail?.claimedBy && String(detail.claimedBy) === String(currentUser?.id || currentUser?._id)
@@ -137,35 +172,93 @@ export default function HelpRequestDetailPanel({ request, onRefresh }) {
   }
 
   const handleStatusChange = async (status) => {
-    setUpdatingStatus(true)
-    try {
-      await put(`/api/help-requests/${request.requestId}/status`, { status })
-      message.success(`Status updated to ${STATUS_CONFIG[status]?.label || status}`)
-      fetchDetail()
-      onRefresh?.()
-    } catch (err) {
-      message.error(err?.error?.message || 'Failed to update status')
-    } finally {
-      setUpdatingStatus(false)
+    const newStatusLabel = STATUS_CONFIG[status]?.label || status
+
+    const getStatusMessage = (newStatus) => {
+      switch (newStatus) {
+        case 'closed':
+          return `This will close the request and send a notification to the business owner. The status can be reopened within 24 hours.`
+        case 'invalid':
+          return `This will mark the request as invalid and send a notification to the business owner. The status can be changed within 24 hours.`
+        case 'in_progress':
+          return `This will indicate that the request is being actively worked on.`
+        case 'needs_response':
+          return `This will indicate that a response is needed from the business owner.`
+        case 'waiting_for_business_owner':
+          return `This will indicate that the request is waiting for action from the business owner.`
+        case 'open':
+          return `This will reopen the request and make it available for processing.`
+        default:
+          return `Are you sure you want to change the status to ${newStatusLabel}?`
+      }
     }
+
+    Modal.confirm({
+      title: 'Change Status',
+      content: getStatusMessage(status),
+      okText: 'Change',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        setUpdatingStatus(true)
+        try {
+          await put(`/api/help-requests/${request.requestId}/status`, { status })
+          message.success(`Status updated to ${newStatusLabel}`)
+          fetchDetail()
+          onRefresh?.()
+        } catch (err) {
+          message.error(err?.error?.message || 'Failed to update status')
+        } finally {
+          setUpdatingStatus(false)
+        }
+      },
+    })
   }
 
   const handlePriorityChange = async (priority) => {
-    setUpdatingPriority(true)
-    try {
-      await put(`/api/help-requests/${request.requestId}/priority`, { priority })
-      message.success(`Priority updated to ${priority}`)
-      fetchDetail()
-      onRefresh?.()
-    } catch (err) {
-      message.error(err?.error?.message || 'Failed to update priority')
-    } finally {
-      setUpdatingPriority(false)
+    const priorityLabels = { low: 'Low', normal: 'Normal', high: 'High' }
+    const newPriorityLabel = priorityLabels[priority] || priority
+
+    const getPriorityMessage = (newPriority) => {
+      switch (newPriority) {
+        case 'high':
+          return `This will mark the request as high priority, giving it faster response time and visibility.`
+        case 'normal':
+          return `This will set the request to normal priority with standard response time.`
+        case 'low':
+          return `This will mark the request as low priority, which may delay response time.`
+        default:
+          return `Are you sure you want to change the priority to ${newPriorityLabel}?`
+      }
     }
+
+    Modal.confirm({
+      title: 'Change Priority',
+      content: getPriorityMessage(priority),
+      okText: 'Change',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        setUpdatingPriority(true)
+        try {
+          await put(`/api/help-requests/${request.requestId}/priority`, { priority })
+          message.success(`Priority updated to ${newPriorityLabel}`)
+          fetchDetail()
+          onRefresh?.()
+        } catch (err) {
+          message.error(err?.error?.message || 'Failed to update priority')
+        } finally {
+          setUpdatingPriority(false)
+        }
+      },
+    })
   }
 
   const handleSendReply = async () => {
     if (!replyContent.trim()) return message.warning('Please enter a message')
+    setReplyConfirmOpen(true)
+  }
+
+  const confirmSendReply = async () => {
+    setReplyConfirmOpen(false)
     setSending(true)
     try {
       await post(`/api/help-requests/${request.requestId}/messages`, {
@@ -174,7 +267,6 @@ export default function HelpRequestDetailPanel({ request, onRefresh }) {
       })
       message.success('Reply sent & email notification delivered')
       setReplyContent('')
-      setReplyAttachments([])
       fetchDetail()
       onRefresh?.()
     } catch (err) {
@@ -217,13 +309,7 @@ export default function HelpRequestDetailPanel({ request, onRefresh }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Header */}
       <div style={{ padding: 16, borderBottom: `1px solid ${token.colorBorderSecondary}` }}>
-        {/* Row 1: Title */}
-        <div style={{ marginBottom: 12 }}>
-          <Text strong style={{ fontSize: 16, lineHeight: '1.4' }}>
-            {detail.subject}
-          </Text>
-        </div>
-        {/* Row 2: Buttons */}
+        {/* Row 1: Buttons */}
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', width: screens.md ? 'auto' : '100%' }}>
             {!isClaimed ? (
@@ -239,8 +325,11 @@ export default function HelpRequestDetailPanel({ request, onRefresh }) {
                 Claimed by: {detail.claimedByName}
               </Button>
             )}
-            <Button icon={<HistoryOutlined />} onClick={() => setHistoryModalOpen(true)} style={{ flex: screens.md ? 'auto' : 'none'}}>
-              History
+            <Button onClick={() => setHistoryModalOpen(true)} style={{ flex: screens.md ? 'auto' : 'none'}}>
+              History <HistoryOutlined />
+            </Button>
+            <Button onClick={() => setManualVisible(true)} style={{ flex: screens.md ? 'auto' : 'none'}}>
+              Manual <BookOutlined />
             </Button>
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', width: screens.md ? 'auto' : '100%' }}>
@@ -250,7 +339,7 @@ export default function HelpRequestDetailPanel({ request, onRefresh }) {
                 onChange={handleStatusChange}
                 loading={updatingStatus}
                 style={{ width: screens.md ? 160 : '100%' }}
-                disabled={!isClaimedByMe && detail.status !== 'closed' && detail.status !== 'invalid'}
+                disabled={statusLockInfo?.locked || (!isClaimedByMe && detail.status !== 'closed' && detail.status !== 'invalid')}
                 options={
                   (detail.status === 'closed' || detail.status === 'invalid')
                     ? [
@@ -292,7 +381,7 @@ export default function HelpRequestDetailPanel({ request, onRefresh }) {
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* Request Info */}
         <Card
           size="small"
@@ -347,152 +436,158 @@ export default function HelpRequestDetailPanel({ request, onRefresh }) {
                 <Text type="secondary" style={{ fontSize: 12 }}>Claimed By</Text>
                 <div><Text strong>{detail.claimedByName || 'Not claimed'}</Text></div>
               </div>
+              {statusLockInfo && (
+                <div style={{ minWidth: '100px', flex: '1 1 150px' }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Status Lock</Text>
+                  <div><Text strong>{statusLockInfo.message}</Text></div>
+                </div>
+              )}
             </div>
           </div>
         </Card>
 
-        <Divider />
-
         {/* Conversation */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Text strong style={{ fontSize: 14 }}>Conversation ({(detail.messages || []).length})</Text>
-          {/* Message Thread */}
-          <div style={{ maxHeight: 360, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {(detail.messages || []).length === 0 ? (
-              <Empty description="No messages yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            ) : (
-              (detail.messages || []).map((msg, idx) => {
-                const isOfficer = msg.sender === 'officer'
-                return (
+        <Card
+          size="small"
+          title="Conversation"
+          style={{
+            border: `1px solid ${token.colorBorder}`,
+            borderRadius: token.borderRadiusLG,
+            background: token.colorBgContainer,
+          }}
+          bodyStyle={{ padding: 0 }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {/* Message Thread */}
+            <div ref={messagesContainerRef} style={{ maxHeight: 360, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, borderBottom: `1px solid ${token.colorBorderSecondary}`, padding: "12px 12px" }}>
+              {(detail.messages || []).length === 0 ? (
+                <Empty description="No messages yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              ) : (
+                (detail.messages || []).map((msg, idx) => {
+                  const isOfficer = msg.sender === 'officer'
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: token.borderRadius,
+                        background: isOfficer ? 'transparent' : token.colorBgLayout,
+                        border: `1px solid ${token.colorBorderSecondary}`,
+                        alignSelf: isOfficer ? 'flex-end' : 'flex-start',
+                        maxWidth: '85%',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, gap: 12 }}>
+                        <Text strong style={{ fontSize: 12 }}>
+                          {isOfficer ? msg.senderName || 'Officer' : 'Requester'}
+                        </Text>
+                        <Text type="secondary" style={{ fontSize: 11 }}>{formatDateTime(msg.createdAt)}</Text>
+                      </div>
+                      <Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>
+                        {msg.content}
+                      </Paragraph>
+                      {msg.attachments && msg.attachments.length > 0 && (
+                        <div style={{ marginTop: 6 }}>
+                          {msg.attachments.map((cid, i) => (
+                            <Tag key={i} icon={<FileTextOutlined />} style={{ fontSize: 11 }}>
+                              Attachment {i + 1}
+                            </Tag>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Reply Form */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px' }}>
+              <TextArea
+                placeholder="Type your response..."
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                rows={3}
+                maxLength={2000}
+                disabled={!isClaimedByMe || detail.status === 'closed' || detail.status === 'invalid'}
+              />
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                <Button
+                  type="primary"
+                  onClick={handleSendReply}
+                  disabled={!replyContent.trim() || !isClaimedByMe || detail.status === 'closed' || detail.status === 'invalid'}
+                >
+                  Send Reply <SendOutlined />
+                </Button>
+              </div>
+
+            </div>
+          </div>
+        </Card>
+
+        {/* Notes */}
+        <Card
+          size="small"
+          title="Internal Notes"
+          style={{
+            border: `1px solid ${token.colorBorder}`,
+            borderRadius: token.borderRadiusLG,
+            background: token.colorBgContainer,
+          }}
+          bodyStyle={{ padding: 0 }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {/* Notes List */}
+            <div style={{ maxHeight: 300, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, borderBottom: `1px solid ${token.colorBorderSecondary}`, padding: '12px' }}>
+              {(detail.internalNotes || []).length === 0 ? (
+                <Empty description="No internal notes" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              ) : (
+                (detail.internalNotes || []).map((note, idx) => (
                   <div
                     key={idx}
                     style={{
                       padding: '10px 14px',
                       borderRadius: token.borderRadius,
-                      background: isOfficer ? token.colorPrimaryBg : token.colorBgLayout,
-                      border: `1px solid ${isOfficer ? token.colorPrimaryBorderHover : token.colorBorderSecondary}`,
-                      alignSelf: isOfficer ? 'flex-end' : 'flex-start',
-                      maxWidth: '85%',
+                      background: 'transparent',
+                      border: `1px solid ${token.colorBorderSecondary}`,
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, gap: 12 }}>
                       <Text strong style={{ fontSize: 12 }}>
-                        {isOfficer ? (
-                          <><CustomerServiceOutlined style={{ marginRight: 4 }} />Officer</>
-                        ) : (
-                          <><UserOutlined style={{ marginRight: 4 }} />Business Owner</>
-                        )}
+                        {note.addedByName || 'Officer'}
                       </Text>
-                      <Text type="secondary" style={{ fontSize: 11 }}>{formatDateTime(msg.createdAt)}</Text>
+                      <Text type="secondary" style={{ fontSize: 11 }}>{formatDateTime(note.createdAt)}</Text>
                     </div>
-                    <Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap', fontSize: 13 }}>
-                      {msg.content}
+                    <Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>
+                      {note.content}
                     </Paragraph>
-                    {msg.attachments && msg.attachments.length > 0 && (
-                      <div style={{ marginTop: 6 }}>
-                        {msg.attachments.map((cid, i) => (
-                          <Tag key={i} icon={<FileTextOutlined />} style={{ fontSize: 11 }}>
-                            Attachment {i + 1}
-                          </Tag>
-                        ))}
-                      </div>
-                    )}
                   </div>
-                )
-              })
-            )}
-          </div>
+                ))
+              )}
+            </div>
 
-          {/* Reply Form */}
-          <Divider style={{ margin: '8px 0' }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <Text strong style={{ fontSize: 13 }}>Reply</Text>
-            <TextArea
-              placeholder="Type your response..."
-              value={replyContent}
-              onChange={(e) => setReplyContent(e.target.value)}
-              rows={3}
-              maxLength={2000}
-              disabled={!isClaimedByMe || detail.status === 'closed' || detail.status === 'invalid'}
-            />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Upload
-                fileList={replyAttachments}
-                onChange={({ fileList }) => setReplyAttachments(fileList)}
-                beforeUpload={() => false}
-                maxCount={3}
+            {/* Add Note Form */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px' }}>
+              <TextArea
+                placeholder="Internal note (visible to officers only)..."
+                value={noteContent}
+                onChange={(e) => setNoteContent(e.target.value)}
+                rows={2}
+                maxLength={1000}
                 disabled={!isClaimedByMe || detail.status === 'closed' || detail.status === 'invalid'}
-              >
-                <Button icon={<UploadOutlined />} size="small" disabled={!isClaimedByMe || detail.status === 'closed' || detail.status === 'invalid'}>Attach</Button>
-              </Upload>
+              />
               <Button
-                type="primary"
-                icon={<SendOutlined />}
-                onClick={handleSendReply}
-                loading={sending}
-                disabled={!replyContent.trim() || !isClaimedByMe || detail.status === 'closed' || detail.status === 'invalid'}
-                size="small"
+                onClick={handleAddNote}
+                loading={addingNote}
+                disabled={!noteContent.trim() || !isClaimedByMe || detail.status === 'closed' || detail.status === 'invalid'}
+                style={{ alignSelf: 'flex-end' }}
               >
-                Send Reply
+                Add Note <PlusOutlined />
               </Button>
             </div>
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              The business owner will be notified by email.
-            </Text>
           </div>
-        </div>
-
-        <Divider />
-
-        {/* Notes */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Text strong style={{ fontSize: 14 }}>Internal Notes ({(detail.internalNotes || []).length})</Text>
-          {/* Notes List */}
-          <div style={{ maxHeight: 300, overflowY: 'auto' }}>
-            {(detail.internalNotes || []).length === 0 ? (
-              <Empty description="No internal notes" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            ) : (
-              <Timeline
-                items={(detail.internalNotes || []).map((note, idx) => ({
-                  color: 'gray',
-                  children: (
-                    <div key={idx}>
-                      <Text style={{ fontSize: 13 }}>{note.content}</Text>
-                      <div style={{ marginTop: 4 }}>
-                        <Text type="secondary" style={{ fontSize: 11 }}>
-                          {note.addedByName || 'Officer'} &middot; {formatDateTime(note.createdAt)}
-                        </Text>
-                      </div>
-                    </div>
-                  ),
-                }))}
-              />
-            )}
-          </div>
-
-          {/* Add Note Form */}
-          <Divider style={{ margin: '8px 0' }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <Text strong style={{ fontSize: 13 }}>Add Internal Note</Text>
-            <TextArea
-              placeholder="Internal note (visible to officers only)..."
-              value={noteContent}
-              onChange={(e) => setNoteContent(e.target.value)}
-              rows={2}
-              maxLength={1000}
-              disabled={!isClaimedByMe || detail.status === 'closed' || detail.status === 'invalid'}
-            />
-            <Button
-              onClick={handleAddNote}
-              loading={addingNote}
-              disabled={!noteContent.trim() || !isClaimedByMe || detail.status === 'closed' || detail.status === 'invalid'}
-              size="small"
-              style={{ alignSelf: 'flex-end' }}
-            >
-              Add Note
-            </Button>
-          </div>
-        </div>
+        </Card>
       </div>
 
       <HelpRequestAuditHistoryModal
@@ -500,6 +595,55 @@ export default function HelpRequestDetailPanel({ request, onRefresh }) {
         onClose={() => setHistoryModalOpen(false)}
         requestId={detail.requestId}
       />
+
+      {screens.md ? (
+        <Modal
+          title="BizClear Manual"
+          open={manualVisible}
+          onCancel={() => setManualVisible(false)}
+          footer={null}
+          width={800}
+          style={{ top: 20 }}
+        >
+          <DynamicPageContent slotId="bizclear-manual" embedded compact />
+        </Modal>
+      ) : (
+        <Drawer
+          title="BizClear Manual"
+          open={manualVisible}
+          onClose={() => setManualVisible(false)}
+          placement="right"
+          width="100%"
+        >
+          <DynamicPageContent slotId="bizclear-manual" embedded compact />
+        </Drawer>
+      )}
+
+      <Modal
+        title="Send Reply"
+        open={replyConfirmOpen}
+        onOk={confirmSendReply}
+        onCancel={() => setReplyConfirmOpen(false)}
+        okText="Send"
+        cancelText="Cancel"
+        okButtonProps={{ loading: sending }}
+      >
+        <p>Please ensure your reply is correct before sending. This message will be sent to the requester.</p>
+        <div style={{ marginBottom: 16 }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>Message Preview:</Text>
+          <div style={{
+            marginTop: 8,
+            padding: 12,
+            background: token.colorBgLayout,
+            borderRadius: token.borderRadius,
+            whiteSpace: 'pre-wrap',
+            maxHeight: 200,
+            overflowY: 'auto'
+          }}>
+            {replyContent}
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -146,7 +146,7 @@ async function sendOfficerReplyNotification(to, requestId, messagePreview) {
 
   const html = buildNotificationEmailBody({
     greeting: "Hello",
-    intro: "Our team has responded to your help request.",
+    intro: "Our team has responded to your help request. Please note that you are limited to sending one reply.",
     fields: {
       fields: [
         { label: "Reference", value: requestId, color: EMAIL_COLORS.primary, fontSize: "14px", fontWeight: "700" },

@@ -82,6 +82,10 @@ const AuditLogSchema = new mongoose.Schema(
         "security_event",
         "restricted_field_attempt",
         "error_critical",
+        "claim",
+        "release",
+        "status_update",
+        "priority_update",
       ],
       index: true,
     },
@@ -167,6 +171,16 @@ const AuditLogSchema = new mongoose.Schema(
     },
     blockchainError: { type: String, default: "" },
     blockchainRetries: { type: Number, default: 0 },
+    entityType: {
+      type: String,
+      default: "",
+      index: true,
+    },
+    entityId: {
+      type: String,
+      default: "",
+      index: true,
+    },
     verified: {
       type: Boolean,
       default: false,
@@ -190,5 +204,6 @@ AuditLogSchema.plugin(encryptionPlugin, {
 
 AuditLogSchema.index({ userId: 1, createdAt: -1 });
 AuditLogSchema.index({ eventType: 1, createdAt: -1 });
+AuditLogSchema.index({ entityType: 1, entityId: 1, createdAt: -1 });
 
 module.exports = mongoose.model("AuditLog", AuditLogSchema);

@@ -371,6 +371,7 @@ router.put(
       await helpRequest.save();
 
       // Log audit event
+      console.log("[HelpRequests] Attempting to log audit event for claim:", requestId);
       logAuditEvent(
         "claim",
         req._userId,
@@ -441,6 +442,7 @@ router.put(
       await helpRequest.save();
 
       // Log audit event
+      console.log("[HelpRequests] Attempting to log audit event for release:", requestId);
       logAuditEvent(
         "release",
         req._userId,
@@ -494,8 +496,27 @@ router.put(
         return respond.error(res, 404, "not_found", "Help request not found");
       }
 
+      // Check if 24-hour window has passed for terminal statuses (closed, invalid)
+      const isTerminalStatus = ["closed", "invalid"].includes(helpRequest.status);
+      const isChangingToTerminal = ["closed", "invalid"].includes(status);
+
+      if (isTerminalStatus && isChangingToTerminal) {
+        // Changing from one terminal status to another - check lock
+        const statusChangedAt = helpRequest.statusChangedAt || helpRequest.createdAt;
+        const hoursSinceChange = (Date.now() - new Date(statusChangedAt).getTime()) / (1000 * 60 * 60);
+        if (hoursSinceChange >= 24) {
+          return respond.error(
+            res,
+            403,
+            "status_locked",
+            "Terminal status can only be changed within 24 hours. This status is now permanent.",
+          );
+        }
+      }
+
       const previousStatus = helpRequest.status;
       helpRequest.status = status;
+      helpRequest.statusChangedAt = new Date();
       await helpRequest.save();
 
       // Log audit event
@@ -506,6 +527,7 @@ router.put(
         requestId,
         {
           status: { from: previousStatus, to: status },
+          updatedByName: req._userEmail,
         }
       ).catch((err) => logger.error("Failed to log status update audit", { error: err.message }));
 
@@ -584,6 +606,7 @@ router.put(
         requestId,
         {
           priority: { from: previousPriority, to: priority },
+          updatedByName: req._userEmail,
         }
       ).catch((err) => logger.error("Failed to log priority update audit", { error: err.message }));
 
@@ -627,9 +650,14 @@ router.post(
         return respond.error(res, 404, "not_found", "Help request not found");
       }
 
+      // Fetch officer's name for display
+      const User = require("../models/User");
+      const officer = await User.findById(req._userId).select("firstName lastName").lean();
+      const officerName = officer ? `${officer.firstName} ${officer.lastName}` : (req._userEmail || "Officer");
+
       helpRequest.messages.push({
         sender: "officer",
-        senderName: req._userEmail || "Officer",
+        senderName: officerName,
         content: content.trim(),
         attachments: Array.isArray(attachments)
           ? attachments.filter(Boolean)
@@ -730,10 +758,10 @@ router.get(
       // Query AuditLog directly from database (consistent with other services)
       const AuditLog = require("../models/AuditLog");
       const skip = (parseInt(page) - 1) * parseInt(limit);
-      
+
       const filter = {
-        "metadata.entityType": "help_request",
-        "metadata.entityId": requestId,
+        entityType: "help_request",
+        entityId: requestId,
       };
 
       const [logs, total] = await Promise.all([

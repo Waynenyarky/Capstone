@@ -1,10 +1,12 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Typography, Tag, Input, Empty, theme, Grid, Button, Tooltip, Select, Card } from 'antd'
+import { Typography, Tag, Input, Empty, theme, Grid, Button, Tooltip, Select, Card, Pagination } from 'antd'
 import { SearchOutlined, FilterOutlined, CloseOutlined } from '@ant-design/icons'
 
 const { Text } = Typography
 const { useBreakpoint } = Grid
+
+const PAGE_SIZE = 20
 
 const STATUS_CONFIG = {
   open: { color: 'blue', label: 'Open' },
@@ -39,6 +41,7 @@ export default function HelpRequestsPanel({ helpRequests = [], onSelectRequest, 
   const [filterOpen, setFilterOpen] = useState(false)
   const [filterPosition, setFilterPosition] = useState({ top: 0, left: 0 })
   const filterButtonRef = useRef(null)
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
     if (filterOpen && filterButtonRef.current && !screens.xs) {
@@ -70,6 +73,17 @@ export default function HelpRequestsPanel({ helpRequests = [], onSelectRequest, 
 
     return list
   }, [helpRequests, statusFilter, search])
+
+  const paginatedRequests = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE
+    const end = start + PAGE_SIZE
+    return filteredRequests.slice(start, end)
+  }, [filteredRequests, page])
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1)
+  }, [statusFilter, search])
 
   const formatDate = (dateStr) => {
     if (!dateStr) return ''
@@ -160,7 +174,7 @@ export default function HelpRequestsPanel({ helpRequests = [], onSelectRequest, 
           />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {filteredRequests.map((request) => {
+            {paginatedRequests.map((request) => {
               const statusConf = STATUS_CONFIG[request.status] || STATUS_CONFIG.open
               const priorityConf = PRIORITY_CONFIG[request.priority] || PRIORITY_CONFIG.low
 
@@ -203,11 +217,6 @@ export default function HelpRequestsPanel({ helpRequests = [], onSelectRequest, 
                     )}
                   </div>
                   <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${token.colorBorderSecondary}`, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {request.messageCount > 0 && (
-                      <Tag style={{ margin: 0, fontSize: 11 }}>
-                        {request.messageCount} msg{request.messageCount > 1 ? 's' : ''}
-                      </Tag>
-                    )}
                     <Tag color={statusConf.color} style={{ margin: 0, fontSize: 11, textTransform: 'capitalize' }}>
                       {statusConf.label}
                     </Tag>
@@ -223,6 +232,21 @@ export default function HelpRequestsPanel({ helpRequests = [], onSelectRequest, 
             })}
           </div>
         )}
+      </div>
+
+      {/* Pagination */}
+      <div style={{ padding: '12px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${token.colorBorderSecondary}` }}>
+        <Text type="secondary" style={{ fontSize: 12, paddingLeft: 8 }}>
+          Showing {paginatedRequests.length} out of {filteredRequests.length}
+        </Text>
+        <Pagination
+          current={page}
+          total={filteredRequests.length}
+          pageSize={PAGE_SIZE}
+          showSizeChanger={false}
+          onChange={setPage}
+          size="small"
+        />
       </div>
     </div>
   )

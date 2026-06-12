@@ -222,6 +222,8 @@ class ErrorTrackingService {
 
   /**
    * Send alert notification (email + in-app to admins, rate-limited)
+   * DISABLED: Email alerts disabled to prevent excessive Resend credit usage.
+   * Alerts are still logged for monitoring via logger.warn below.
    */
   async sendAlert(alertType, details) {
     logger.warn(`Alert: ${alertType}`, {
@@ -232,15 +234,17 @@ class ErrorTrackingService {
       },
     });
 
-    try {
-      const { notifyAdminsOfSystemAlert } = require("./notificationService");
-      await notifyAdminsOfSystemAlert(alertType, details);
-    } catch (err) {
-      logger.error("Failed to send admin alert for error-tracking", {
-        alertType,
-        error: err.message,
-      });
-    }
+    // Email notifications disabled - alerts are logged only
+    // To re-enable, uncomment the block below:
+    // try {
+    //   const { notifyAdminsOfSystemAlert } = require("./notificationService");
+    //   await notifyAdminsOfSystemAlert(alertType, details);
+    // } catch (err) {
+    //   logger.error("Failed to send admin alert for error-tracking", {
+    //     alertType,
+    //     error: err.message,
+    //   });
+    // }
   }
 
   /**
