@@ -20,7 +20,7 @@ export default function OfficeLocationSection() {
         padding: `80px ${horizontalPadding}`,
       }}
     >
-      <div style={{ maxWidth: screens.lg ? 1200 : '100%' }}>
+      <div>
         <div style={{ marginBottom: 32 }}>
           <Title
             level={4}

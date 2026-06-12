@@ -25,11 +25,7 @@ export default function FaqSection() {
           flex: 1,
         }}
       >
-        <div
-          style={{
-            maxWidth: 1200,
-          }}
-        >
+        <div>
           <div style={{ marginBottom: 32 }}>
             <Title
               level={4}

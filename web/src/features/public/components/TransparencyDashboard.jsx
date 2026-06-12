@@ -60,7 +60,7 @@ export default function TransparencyDashboard({ publicStats }) {
         boxSizing: 'border-box',
       }}
     >
-      <div style={{ maxWidth: 1200 }}>
+      <div>
         <BlurFade delay={0.05} duration={0.45} onViewport={true}>
           <div style={{ marginBottom: 32, textAlign: 'left' }}>
             <Title
