@@ -214,22 +214,9 @@ function detectSuspiciousActivity(req) {
       method: req.method,
     });
 
-    // Track error for alerting
-    errorTracking.trackError(
-      new Error(
-        `Suspicious activity detected: ${suspiciousPatterns.join(", ")}`,
-      ),
-      {
-        correlationId: req.correlationId,
-        userId: req._userId,
-        request: {
-          method: req.method,
-          path: req.path,
-          ip,
-        },
-        severity: "high",
-      },
-    );
+    // Note: Removed errorTracking.trackError call to prevent false-positive error rate spikes
+    // from legitimate service-to-service calls (e.g., empty user-agent from docker internal network)
+    // Security logging and audit trail remain active via logSecurityEvent above
   }
 
   return suspiciousPatterns.length > 0;

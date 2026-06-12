@@ -71,6 +71,7 @@ async function sendEmail(opts) {
           subject: opts.subject,
           text: opts.text || "",
           html: opts.html || "",
+          reply_to: opts.replyTo || undefined,
         },
         {
           headers: {
@@ -100,6 +101,7 @@ async function sendEmail(opts) {
             },
           ],
           from: { email: fromEmail },
+          reply_to: { email: opts.replyTo || fromEmail },
           content: [
             {
               type: opts.html ? "text/html" : "text/plain",
@@ -134,6 +136,7 @@ async function sendEmail(opts) {
           subject: opts.subject,
           text: opts.text || "",
           html: opts.html || "",
+          "h:Reply-To": opts.replyTo || undefined,
         }),
         {
           auth: {

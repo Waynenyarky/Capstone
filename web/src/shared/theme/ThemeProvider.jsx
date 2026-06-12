@@ -6,15 +6,6 @@ import { getCurrentUser, subscribeAuth } from '@/features/authentication/lib/aut
 const ThemeContext = createContext();
 
 // eslint-disable-next-line react-refresh/only-export-components
-export const useAppTheme = () => {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useAppTheme must be used within a ThemeProvider');
-  }
-  return context;
-};
-
-// eslint-disable-next-line react-refresh/only-export-components
 export const THEMES = {
   DEFAULT: 'default',
   DARK: 'dark',
@@ -155,6 +146,26 @@ const themeConfig = {
       }
     },
   },
+};
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const useAppTheme = () => {
+  const context = useContext(ThemeContext);
+  if (!context) {
+    // Return default values instead of throwing to handle error boundary recovery
+    return {
+      currentTheme: THEMES.DEFAULT,
+      savedTheme: THEMES.DEFAULT,
+      setTheme: () => {},
+      setPreviewTheme: () => {},
+      themeOverrides: {},
+      setThemeOverrides: () => {},
+      replaceThemeOverrides: () => {},
+      setPreviewOverrides: () => {},
+      availableThemes: themeConfig,
+    };
+  }
+  return context;
 };
 
 // Helper functions for user-specific theme storage
@@ -428,7 +439,7 @@ export function ThemeProvider({ children }) {
   const navyColorOverrides = isNavyPrimary ? {
     Menu: {
       // For Dark menu (sidebar), use a transparent white background instead of the primary color (which is navy and invisible)
-      darkItemSelectedBg: 'rgba(255, 255, 255, 0.1)', 
+      darkItemSelectedBg: 'rgba(255, 255, 255, 0.1)',
       darkItemHoverBg: 'rgba(255, 255, 255, 0.05)',
       // Ensure text is white
       darkItemSelectedColor: '#ffffff',
@@ -440,6 +451,13 @@ export function ThemeProvider({ children }) {
       optionSelectedColor: '#001529', // Navy text for selected (readable on light bg)
     },
   } : {};
+
+  // Font override for Message/Toast component to ensure it uses Urbanist
+  const messageFontOverride = {
+    Message: {
+      fontFamily: activeThemeConfig.config.token.fontFamily,
+    },
+  };
 
   let algorithm = activeThemeConfig.config.algorithm;
   if (activeOverrides.compact) {
@@ -460,6 +478,7 @@ export function ThemeProvider({ children }) {
     components: {
       ...activeThemeConfig.config.components,
       ...navyColorOverrides,
+      ...messageFontOverride,
     }
   };
 

@@ -213,7 +213,7 @@ export default function HelpPage() {
                       onClick={() => setForm({
                         subject: 'Test Subject - Issue with Business Permit',
                         message: 'This is a test message describing an issue with a business permit. The system is not allowing me to complete the application process.',
-                        contactEmail: 'test@example.com',
+                        contactEmail: 'stephendiaz.syv@gmail.com',
                         businessPermitNumber: 'BP-2024-001234',
                       })}
                       block

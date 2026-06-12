@@ -1,18 +1,18 @@
 import { useMemo, useState } from 'react'
 import { useAuthSession } from '@/features/authentication'
 import { useLocation } from 'react-router-dom'
-import { 
-  DashboardOutlined, 
-  FileTextOutlined, 
-  StopOutlined, 
-  AuditOutlined, 
-  UserOutlined, 
+import {
+  DashboardOutlined,
+  FileTextOutlined,
+  StopOutlined,
+  AuditOutlined,
+  UserOutlined,
   LogoutOutlined,
   TeamOutlined,
   SafetyCertificateOutlined,
   SolutionOutlined,
   BarChartOutlined,
-  CustomerServiceOutlined,
+  QuestionCircleOutlined,
   FormOutlined,
   DollarOutlined,
   EditOutlined,
@@ -61,7 +61,7 @@ export default function useSidebar() {
         { key: 'cessation', label: 'Cessation (Review)', to: '/staff/cessation', icon: <StopOutlined /> },
         { key: 'appeals', label: 'Appeals', to: '/staff/appeals', icon: <AuditOutlined /> },
         { key: 'reports', label: 'Reports / Analytics', to: '/staff/reports', icon: <BarChartOutlined /> },
-        { key: 'support', label: 'Customer Support / Inquiry', to: '/staff/support', icon: <CustomerServiceOutlined /> },
+        { key: 'support', label: 'Customer Support / Inquiry', to: '/staff/support', icon: <QuestionCircleOutlined /> },
         { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
         { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
       ],
@@ -79,7 +79,7 @@ export default function useSidebar() {
         { key: 'renewals', label: 'Renewals', to: '/staff/renewals', icon: <ReloadOutlined /> },
         { key: 'cessation', label: 'Cessations', to: '/staff/cessation', icon: <StopOutlined /> },
         { key: 'inspections', label: 'Inspections', to: '/staff/inspections', icon: <SafetyCertificateOutlined /> },
-        { key: 'help-requests', label: 'Help Requests', to: '/staff/help-requests', icon: <CustomerServiceOutlined /> },
+        { key: 'help-requests', label: 'Help Requests', to: '/staff/help-requests', icon: <QuestionCircleOutlined /> },
         { key: 'drafts', label: 'My Drafts', to: '/staff/drafts', icon: <FormOutlined /> },
         { key: 'owners', label: 'Owners', to: '/staff/owners', icon: <UserOutlined /> },
         { key: 'logs', label: 'Logs', to: '/staff/logs', icon: <HistoryOutlined /> },
@@ -98,7 +98,7 @@ export default function useSidebar() {
       ],
       cso: [
         { key: 'dashboard', label: 'Dashboard', to: '/staff', icon: <DashboardOutlined /> },
-        { key: 'support', label: 'Customer Support / Inquiry', to: '/staff/support', icon: <CustomerServiceOutlined /> },
+        { key: 'support', label: 'Customer Support / Inquiry', to: '/staff/support', icon: <QuestionCircleOutlined /> },
         { key: 'profile', label: 'Profile / Settings', to: '/settings-profile', icon: <UserOutlined /> },
         { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
       ],

@@ -1,23 +1,24 @@
-import { useState, useMemo } from 'react'
-import { Typography, Tag, Input, Select, Empty, theme, Grid } from 'antd'
-import { SearchOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import { useState, useMemo, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { Typography, Tag, Input, Empty, theme, Grid, Button, Tooltip, Select, Card } from 'antd'
+import { SearchOutlined, FilterOutlined, CloseOutlined } from '@ant-design/icons'
 
 const { Text } = Typography
 const { useBreakpoint } = Grid
 
 const STATUS_CONFIG = {
   open: { color: 'blue', label: 'Open' },
-  in_progress: { color: 'processing', label: 'In Progress' },
-  needs_response: { color: 'orange', label: 'Needs Response' },
-  waiting_for_business_owner: { color: 'purple', label: 'Waiting for Owner' },
-  closed: { color: 'success', label: 'Closed' },
+  in_progress: { color: 'gold', label: 'In Progress' },
+  needs_response: { color: 'volcano', label: 'Needs Response' },
+  waiting_for_business_owner: { color: 'cyan', label: 'Waiting for Owner' },
+  closed: { color: 'green', label: 'Closed' },
   invalid: { color: 'default', label: 'Invalid' },
 }
 
 const PRIORITY_CONFIG = {
-  high: { color: '#ff4d4f', label: 'High' },
-  normal: { color: '#1677ff', label: 'Normal' },
-  low: { color: '#8c8c8c', label: 'Low' },
+  high: { color: 'red', label: 'High Priority' },
+  normal: { color: 'blue', label: 'Normal Priority' },
+  low: { color: 'default', label: 'Low Priority' },
 }
 
 const STATUS_OPTIONS = [
@@ -30,11 +31,26 @@ const STATUS_OPTIONS = [
   { value: 'invalid', label: 'Invalid' },
 ]
 
-export default function HelpRequestsPanel({ helpRequests = [], onSelectRequest, isLoading }) {
+export default function HelpRequestsPanel({ helpRequests = [], onSelectRequest, isLoading, selectedId }) {
   const { token } = theme.useToken()
   const screens = useBreakpoint()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [filterPosition, setFilterPosition] = useState({ top: 0, left: 0 })
+  const filterButtonRef = useRef(null)
+
+  useEffect(() => {
+    if (filterOpen && filterButtonRef.current && !screens.xs) {
+      const rect = filterButtonRef.current.getBoundingClientRect()
+      setFilterPosition({
+        top: rect.bottom + 6,
+        right: window.innerWidth - rect.right,
+      })
+    }
+  }, [filterOpen, screens.xs])
+
+  const activeFilterCount = statusFilter !== 'all' ? 1 : 0
 
   const filteredRequests = useMemo(() => {
     let list = [...helpRequests]
@@ -61,29 +77,82 @@ export default function HelpRequestsPanel({ helpRequests = [], onSelectRequest, 
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
+  const filterContent = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <Text type="secondary" style={{ fontSize: 12 }}>Status</Text>
+        <Select
+          placeholder="All statuses"
+          allowClear
+          value={statusFilter === 'all' ? undefined : statusFilter}
+          onChange={(val) => setStatusFilter(val || 'all')}
+          style={{ width: '100%' }}
+          options={STATUS_OPTIONS.filter(opt => opt.value !== 'all')}
+        />
+      </div>
+      {activeFilterCount > 0 && (
+        <Button size="small" type="link" onClick={() => setStatusFilter('all')} style={{ alignSelf: 'flex-start', padding: 0 }}>
+          Clear all filters
+        </Button>
+      )}
+    </div>
+  )
+
+  const filterDropdown = filterOpen ? (
+    <div
+      style={{
+        position: 'fixed',
+        top: filterPosition.top,
+        right: filterPosition.right,
+        padding: '16px 20px',
+        background: token.colorBgElevated,
+        borderRadius: 10,
+        border: `1px solid ${token.colorBorderSecondary}`,
+        boxShadow: token.boxShadowSecondary,
+        zIndex: 1050,
+        minWidth: 280,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text strong style={{ fontSize: 13 }}>Filters</Text>
+        <Button type="text" size="small" icon={<CloseOutlined style={{ fontSize: 12 }} />} onClick={() => setFilterOpen(false)} aria-label="Close filters" />
+      </div>
+      {filterContent}
+    </div>
+  ) : null
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Filters */}
-      <div style={{ padding: '12px', borderBottom: `1px solid ${token.colorBorderSecondary}`, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{ padding: '12px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <Input
           placeholder="Search requests..."
-          prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+          prefix={<SearchOutlined style={{ color: token.colorTextQuaternary }} />}
           allowClear
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ flex: 1, minWidth: 160 }}
         />
-        <Select
-          value={statusFilter}
-          onChange={setStatusFilter}
-          options={STATUS_OPTIONS}
-          style={{ width: 160 }}
-          size="middle"
-        />
+        <div style={{ position: 'relative' }}>
+          <Tooltip title="Filter by status">
+            <Button
+              ref={filterButtonRef}
+              icon={<FilterOutlined />}
+              type={activeFilterCount > 0 ? 'primary' : 'default'}
+              ghost={activeFilterCount > 0}
+              onClick={() => setFilterOpen(!filterOpen)}
+              aria-label="Toggle filters"
+            />
+          </Tooltip>
+          {filterDropdown && createPortal(filterDropdown, document.body)}
+        </div>
       </div>
 
       {/* List */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0 12px 12px 12px' }}>
         {filteredRequests.length === 0 ? (
           <Empty
             description={isLoading ? 'Loading...' : 'No help requests found'}
@@ -96,59 +165,60 @@ export default function HelpRequestsPanel({ helpRequests = [], onSelectRequest, 
               const priorityConf = PRIORITY_CONFIG[request.priority] || PRIORITY_CONFIG.low
 
               return (
-                <div
+                <Card
                   key={request._id || request.requestId}
-                  role="button"
-                  tabIndex={0}
+                  size="small"
+                  hoverable
                   onClick={() => onSelectRequest(request)}
-                  onKeyDown={(e) => e.key === 'Enter' && onSelectRequest(request)}
+                  title={request.subject}
                   style={{
-                    padding: '12px 14px',
-                    borderRadius: token.borderRadius,
-                    border: `1px solid ${token.colorBorderSecondary}`,
                     cursor: 'pointer',
-                    transition: 'all 0.15s',
-                    background: token.colorBgContainer,
+                    border: selectedId === request.requestId ? `1px solid ${token.colorPrimary}` : undefined,
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = token.colorPrimary }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = token.colorBorderSecondary }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                    <Text strong style={{ fontSize: 13, flex: 1, lineHeight: 1.4 }} ellipsis>
-                      {request.subject}
-                    </Text>
-                    <div style={{
-                      width: 8, height: 8, borderRadius: '50%',
-                      background: priorityConf.color,
-                      flexShrink: 0, marginLeft: 8, marginTop: 4,
-                    }} title={`Priority: ${priorityConf.label}`} />
+                  <div
+                    style={{
+                      fontSize: 13,
+                      lineHeight: '1.3em',
+                      maxHeight: '2.6em',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      marginBottom: 12,
+                      color: token.colorTextSecondary,
+                    }}
+                  >
+                    {request.message}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <Tag color={statusConf.color} style={{ margin: 0, fontSize: 11 }}>
-                      {statusConf.label}
-                    </Tag>
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                      {request.requestId}
+                  <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Last updated: {formatDate(request.updatedAt)}
                     </Text>
-                    {request.messageCount > 0 && (
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        {request.messageCount} msg{request.messageCount > 1 ? 's' : ''}
+                    {request.claimedByName && (
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        Claimed by: {request.claimedByName}
                       </Text>
                     )}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-                    <Text type="secondary" style={{ fontSize: 11 }}>{request.contactEmail}</Text>
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                      <ClockCircleOutlined style={{ marginRight: 4 }} />
-                      {formatDate(request.createdAt)}
-                    </Text>
+                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${token.colorBorderSecondary}`, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {request.messageCount > 0 && (
+                      <Tag style={{ margin: 0, fontSize: 11 }}>
+                        {request.messageCount} msg{request.messageCount > 1 ? 's' : ''}
+                      </Tag>
+                    )}
+                    <Tag color={statusConf.color} style={{ margin: 0, fontSize: 11, textTransform: 'capitalize' }}>
+                      {statusConf.label}
+                    </Tag>
+                    <Tag color={priorityConf.color} style={{ margin: 0, fontSize: 11 }}>
+                      {priorityConf.label}
+                    </Tag>
+                    <Tag style={{ margin: 0, fontSize: 11 }}>
+                      {request.requestId}
+                    </Tag>
                   </div>
-                  {request.claimedByName && (
-                    <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-                      Claimed by: {request.claimedByName}
-                    </Text>
-                  )}
-                </div>
+                </Card>
               )
             })}
           </div>

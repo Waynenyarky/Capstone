@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Typography, Button, Tag, Select, Input, Tabs, Empty, Divider, message, theme, Upload, Timeline, Grid } from 'antd'
+import { Typography, Button, Tag, Select, Input, Empty, Divider, message, theme, Upload, Timeline, Card, Grid, Form, Modal } from 'antd'
 import {
-  ArrowLeftOutlined, UserOutlined, CustomerServiceOutlined,
-  SendOutlined, UploadOutlined, FileTextOutlined,
+  UserOutlined, CustomerServiceOutlined,
+  SendOutlined, UploadOutlined, FileTextOutlined, CheckOutlined, CloseOutlined, HistoryOutlined,
 } from '@ant-design/icons'
 import { get, put, post } from '@/lib/http.js'
 import { useAuthSession } from '@/features/authentication'
+import HelpRequestAuditHistoryModal from './HelpRequestAuditHistoryModal'
 
 const { Text, Title, Paragraph } = Typography
 const { TextArea } = Input
@@ -13,22 +14,21 @@ const { useBreakpoint } = Grid
 
 const STATUS_CONFIG = {
   open: { color: 'blue', label: 'Open' },
-  in_progress: { color: 'processing', label: 'In Progress' },
-  needs_response: { color: 'orange', label: 'Needs Response' },
-  waiting_for_business_owner: { color: 'purple', label: 'Waiting for Owner' },
-  closed: { color: 'success', label: 'Closed' },
+  in_progress: { color: 'gold', label: 'In Progress' },
+  needs_response: { color: 'volcano', label: 'Needs Response' },
+  waiting_for_business_owner: { color: 'cyan', label: 'Waiting for Owner' },
+  closed: { color: 'green', label: 'Closed' },
   invalid: { color: 'default', label: 'Invalid' },
 }
 
 const PRIORITY_CONFIG = {
-  high: { color: '#ff4d4f', label: 'High', tagColor: 'error' },
-  normal: { color: '#1677ff', label: 'Normal', tagColor: 'processing' },
-  low: { color: '#8c8c8c', label: 'Low', tagColor: 'default' },
+  high: { color: 'red', label: 'High Priority' },
+  normal: { color: 'blue', label: 'Normal Priority' },
+  low: { color: 'default', label: 'Low Priority' },
 }
 
-export default function HelpRequestDetailPanel({ request, onBack, onRefresh }) {
+export default function HelpRequestDetailPanel({ request, onRefresh }) {
   const { token } = theme.useToken()
-  const screens = useBreakpoint()
   const { currentUser } = useAuthSession()
   const [detail, setDetail] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -40,6 +40,7 @@ export default function HelpRequestDetailPanel({ request, onBack, onRefresh }) {
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [updatingPriority, setUpdatingPriority] = useState(false)
   const [claiming, setClaiming] = useState(false)
+  const [historyModalOpen, setHistoryModalOpen] = useState(false)
 
   const fetchDetail = useCallback(async () => {
     if (!request?.requestId) return
@@ -58,32 +59,81 @@ export default function HelpRequestDetailPanel({ request, onBack, onRefresh }) {
     fetchDetail()
   }, [fetchDetail])
 
+  const formatDateTime = (dateStr) => {
+    if (!dateStr) return ''
+    const d = new Date(dateStr)
+    return d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  }
+
+  const isClaimed = detail?.claimedBy
+  const isClaimedByMe = detail?.claimedBy && String(detail.claimedBy) === String(currentUser?.id || currentUser?._id)
+  const screens = useBreakpoint()
+
   const handleClaim = async () => {
-    setClaiming(true)
-    try {
-      await put(`/api/help-requests/${request.requestId}/claim`)
-      message.success('Request claimed')
-      fetchDetail()
-      onRefresh?.()
-    } catch (err) {
-      message.error(err?.error?.message || 'Failed to claim')
-    } finally {
-      setClaiming(false)
+    if (isClaimed && !isClaimedByMe) {
+      Modal.confirm({
+        title: 'Override Claim',
+        content: `This help request is already claimed by ${detail.claimedByName}. Are you sure you want to override their claim?`,
+        okText: 'Override',
+        okButtonProps: { danger: true },
+        cancelText: 'Cancel',
+        onOk: async () => {
+          setClaiming(true)
+          try {
+            await put(`/api/help-requests/${request.requestId}/claim`)
+            message.success('Request claimed')
+            fetchDetail()
+            onRefresh?.()
+          } catch (err) {
+            message.error(err?.error?.message || 'Failed to claim')
+          } finally {
+            setClaiming(false)
+          }
+        },
+      })
+    } else {
+      Modal.confirm({
+        title: 'Claim Request',
+        content: `Are you sure you want to claim this help request? (${detail.requestId})`,
+        okText: 'Claim',
+        cancelText: 'Cancel',
+        onOk: async () => {
+          setClaiming(true)
+          try {
+            await put(`/api/help-requests/${request.requestId}/claim`)
+            message.success('Request claimed')
+            fetchDetail()
+            onRefresh?.()
+          } catch (err) {
+            message.error(err?.error?.message || 'Failed to claim')
+          } finally {
+            setClaiming(false)
+          }
+        },
+      })
     }
   }
 
   const handleRelease = async () => {
-    setClaiming(true)
-    try {
-      await put(`/api/help-requests/${request.requestId}/release`)
-      message.success('Request released')
-      fetchDetail()
-      onRefresh?.()
-    } catch (err) {
-      message.error(err?.error?.message || 'Failed to release')
-    } finally {
-      setClaiming(false)
-    }
+    Modal.confirm({
+      title: 'Release Request',
+      content: `Are you sure you want to release this help request? (${detail.requestId})`,
+      okText: 'Release',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        setClaiming(true)
+        try {
+          await put(`/api/help-requests/${request.requestId}/release`)
+          message.success('Request released')
+          fetchDetail()
+          onRefresh?.()
+        } catch (err) {
+          message.error(err?.error?.message || 'Failed to release')
+        } finally {
+          setClaiming(false)
+        }
+      },
+    })
   }
 
   const handleStatusChange = async (status) => {
@@ -151,17 +201,6 @@ export default function HelpRequestDetailPanel({ request, onBack, onRefresh }) {
     }
   }
 
-  const formatDateTime = (dateStr) => {
-    if (!dateStr) return ''
-    const d = new Date(dateStr)
-    return d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-  }
-
-  const isClaimed = detail?.claimedBy
-  const isClaimedByMe = detail?.claimedBy && String(detail.claimedBy) === String(currentUser?.id || currentUser?._id)
-  const statusConf = STATUS_CONFIG[detail?.status] || STATUS_CONFIG.open
-  const priorityConf = PRIORITY_CONFIG[detail?.priority] || PRIORITY_CONFIG.low
-
   if (loading && !detail) {
     return (
       <div style={{ padding: 24, textAlign: 'center' }}>
@@ -174,101 +213,149 @@ export default function HelpRequestDetailPanel({ request, onBack, onRefresh }) {
     return <Empty description="Request not found" />
   }
 
-  const tabItems = [
-    {
-      key: 'details',
-      label: 'Details',
-      children: (
-        <div style={{ padding: '16px 0', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Request Info */}
-          <div style={{ padding: 16, background: token.colorBgLayout, borderRadius: token.borderRadius }}>
-            <div style={{ marginBottom: 12 }}>
-              <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>Subject</Text>
-              <div><Text strong>{detail.subject}</Text></div>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>Message</Text>
-              <Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{detail.message}</Paragraph>
-            </div>
-            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-              <div>
-                <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>Contact Email</Text>
-                <div><Text>{detail.contactEmail}</Text></div>
-              </div>
-              {detail.businessPermitNumber && (
-                <div>
-                  <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>Permit No.</Text>
-                  <div><Text code>{detail.businessPermitNumber}</Text></div>
-                </div>
-              )}
-              <div>
-                <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>Submitted</Text>
-                <div><Text>{formatDateTime(detail.createdAt)}</Text></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{ padding: 16, borderBottom: `1px solid ${token.colorBorderSecondary}` }}>
+        {/* Row 1: Title */}
+        <div style={{ marginBottom: 12 }}>
+          <Text strong style={{ fontSize: 16, lineHeight: '1.4' }}>
+            {detail.subject}
+          </Text>
+        </div>
+        {/* Row 2: Buttons */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', width: screens.md ? 'auto' : '100%' }}>
             {!isClaimed ? (
-              <Button type="primary" onClick={handleClaim} loading={claiming} size="small">
-                Claim Request
+              <Button type="primary" onClick={handleClaim} loading={claiming} style={{ flex: screens.xs ? 1 : 'auto' }}>
+                Claim Request <CheckOutlined />
               </Button>
             ) : isClaimedByMe ? (
-              <Button onClick={handleRelease} loading={claiming} size="small">
-                Release Request
+              <Button onClick={handleRelease} loading={claiming} disabled={detail.status === 'closed' || detail.status === 'invalid'} style={{ flex: screens.xs ? 1 : 'auto' }}>
+                Release Request <CloseOutlined />
               </Button>
             ) : (
-              <Text type="secondary" style={{ fontSize: 12 }}>
+              <Button onClick={handleClaim} loading={claiming} style={{ flex: screens.xs ? 1 : 'auto' }}>
                 Claimed by: {detail.claimedByName}
-              </Text>
+              </Button>
             )}
+            <Button icon={<HistoryOutlined />} onClick={() => setHistoryModalOpen(true)} style={{ flex: screens.md ? 'auto' : 'none'}}>
+              History
+            </Button>
           </div>
-
-          {/* Status & Priority Controls */}
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-            <div>
-              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>Status</Text>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', width: screens.md ? 'auto' : '100%' }}>
+            <Form.Item label="Status" style={{ marginBottom: 0, flex: screens.md ? 'none' : 1 }}>
               <Select
                 value={detail.status}
                 onChange={handleStatusChange}
                 loading={updatingStatus}
-                size="small"
-                style={{ width: 180 }}
-                options={[
-                  { value: 'open', label: 'Open' },
-                  { value: 'in_progress', label: 'In Progress' },
-                  { value: 'needs_response', label: 'Needs Response' },
-                  { value: 'waiting_for_business_owner', label: 'Waiting for Owner' },
-                  { value: 'closed', label: 'Closed' },
-                  { value: 'invalid', label: 'Invalid' },
-                ]}
+                style={{ width: screens.md ? 160 : '100%' }}
+                disabled={!isClaimedByMe && detail.status !== 'closed' && detail.status !== 'invalid'}
+                options={
+                  (detail.status === 'closed' || detail.status === 'invalid')
+                    ? [
+                        { value: 'open', label: 'Open' },
+                        { value: 'in_progress', label: 'In Progress' },
+                        { value: 'needs_response', label: 'Needs Response' },
+                        { value: 'waiting_for_business_owner', label: 'Waiting for Owner' },
+                        { value: 'closed', label: 'Closed' },
+                        { value: 'invalid', label: 'Invalid' },
+                      ]
+                    : isClaimedByMe
+                    ? [
+                        { value: 'in_progress', label: 'In Progress' },
+                        { value: 'needs_response', label: 'Needs Response' },
+                        { value: 'waiting_for_business_owner', label: 'Waiting for Owner' },
+                        { value: 'closed', label: 'Closed' },
+                        { value: 'invalid', label: 'Invalid' },
+                      ]
+                    : [{ value: 'open', label: 'Open' }]
+                }
               />
-            </div>
-            <div>
-              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>Priority</Text>
+            </Form.Item>
+            <Form.Item label="Priority" style={{ marginBottom: 0, flex: screens.md ? 'none' : 1 }}>
               <Select
                 value={detail.priority}
                 onChange={handlePriorityChange}
                 loading={updatingPriority}
-                size="small"
-                style={{ width: 120 }}
+                style={{ width: screens.md ? 100 : '100%' }}
+                disabled={!isClaimedByMe || detail.status === 'closed' || detail.status === 'invalid'}
                 options={[
                   { value: 'low', label: 'Low' },
                   { value: 'normal', label: 'Normal' },
                   { value: 'high', label: 'High' },
                 ]}
               />
-            </div>
+            </Form.Item>
           </div>
         </div>
-      ),
-    },
-    {
-      key: 'conversation',
-      label: `Conversation (${(detail.messages || []).length})`,
-      children: (
-        <div style={{ padding: '16px 0', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {/* Request Info */}
+        <Card
+          size="small"
+          style={{
+            border: `1px solid ${token.colorBorder}`,
+            borderRadius: token.borderRadiusLG,
+            background: token.colorBgContainer,
+          }}
+          bodyStyle={{ padding: 0, display: 'flex', flexDirection: screens.md ? 'row' : 'column' }}
+        >
+          {/* Left Panel - Icon and Title */}
+          <div style={{ flex: screens.md ? '0 0 50%' : 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: screens.md ? '20px 16px' : '96px 24px 16px' }}>
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>Subject</Text>
+              <Typography.Title level={5} style={{ margin: 0 }}>{detail.subject}</Typography.Title>
+            </div>
+            <Divider style={{ margin: '16px 0' }} />
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>Message</Text>
+              <Text style={{ marginTop: 4, display: 'block' }}>
+                {detail.message}
+              </Text>
+            </div>
+          </div>
+
+          {/* Right Panel - Details Grid */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: screens.md ? '24px' : '16px 24px 24px', borderLeft: screens.md ? `1px solid ${token.colorBorderSecondary}` : 'none', borderTop: screens.md ? 'none' : `1px solid ${token.colorBorderSecondary}` }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+              <div style={{ minWidth: '100px', flex: '1 1 150px' }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>Reference Number</Text>
+                <div><Text strong>{detail.requestId}</Text></div>
+              </div>
+              <div style={{ minWidth: '100px', flex: '1 1 150px' }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>Contact Email</Text>
+                <div><Text strong>{detail.contactEmail}</Text></div>
+              </div>
+              {detail.businessPermitNumber && (
+                <div style={{ minWidth: '100px', flex: '1 1 150px' }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Business Permit Number</Text>
+                  <div><Text strong>{detail.businessPermitNumber}</Text></div>
+                </div>
+              )}
+              <div style={{ minWidth: '100px', flex: '1 1 150px' }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>Submitted On</Text>
+                <div><Text strong>{formatDateTime(detail.createdAt)}</Text></div>
+              </div>
+              <div style={{ minWidth: '100px', flex: '1 1 150px' }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>Last Updated</Text>
+                <div><Text strong>{formatDateTime(detail.updatedAt)}</Text></div>
+              </div>
+              <div style={{ minWidth: '100px', flex: '1 1 150px' }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>Claimed By</Text>
+                <div><Text strong>{detail.claimedByName || 'Not claimed'}</Text></div>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        <Divider />
+
+        {/* Conversation */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Text strong style={{ fontSize: 14 }}>Conversation ({(detail.messages || []).length})</Text>
           {/* Message Thread */}
           <div style={{ maxHeight: 360, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
             {(detail.messages || []).length === 0 ? (
@@ -326,6 +413,7 @@ export default function HelpRequestDetailPanel({ request, onBack, onRefresh }) {
               onChange={(e) => setReplyContent(e.target.value)}
               rows={3}
               maxLength={2000}
+              disabled={!isClaimedByMe || detail.status === 'closed' || detail.status === 'invalid'}
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Upload
@@ -333,15 +421,16 @@ export default function HelpRequestDetailPanel({ request, onBack, onRefresh }) {
                 onChange={({ fileList }) => setReplyAttachments(fileList)}
                 beforeUpload={() => false}
                 maxCount={3}
+                disabled={!isClaimedByMe || detail.status === 'closed' || detail.status === 'invalid'}
               >
-                <Button icon={<UploadOutlined />} size="small">Attach</Button>
+                <Button icon={<UploadOutlined />} size="small" disabled={!isClaimedByMe || detail.status === 'closed' || detail.status === 'invalid'}>Attach</Button>
               </Upload>
               <Button
                 type="primary"
                 icon={<SendOutlined />}
                 onClick={handleSendReply}
                 loading={sending}
-                disabled={!replyContent.trim()}
+                disabled={!replyContent.trim() || !isClaimedByMe || detail.status === 'closed' || detail.status === 'invalid'}
                 size="small"
               >
                 Send Reply
@@ -352,13 +441,12 @@ export default function HelpRequestDetailPanel({ request, onBack, onRefresh }) {
             </Text>
           </div>
         </div>
-      ),
-    },
-    {
-      key: 'notes',
-      label: `Notes (${(detail.internalNotes || []).length})`,
-      children: (
-        <div style={{ padding: '16px 0', display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+        <Divider />
+
+        {/* Notes */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Text strong style={{ fontSize: 14 }}>Internal Notes ({(detail.internalNotes || []).length})</Text>
           {/* Notes List */}
           <div style={{ maxHeight: 300, overflowY: 'auto' }}>
             {(detail.internalNotes || []).length === 0 ? (
@@ -392,11 +480,12 @@ export default function HelpRequestDetailPanel({ request, onBack, onRefresh }) {
               onChange={(e) => setNoteContent(e.target.value)}
               rows={2}
               maxLength={1000}
+              disabled={!isClaimedByMe || detail.status === 'closed' || detail.status === 'invalid'}
             />
             <Button
               onClick={handleAddNote}
               loading={addingNote}
-              disabled={!noteContent.trim()}
+              disabled={!noteContent.trim() || !isClaimedByMe || detail.status === 'closed' || detail.status === 'invalid'}
               size="small"
               style={{ alignSelf: 'flex-end' }}
             >
@@ -404,45 +493,13 @@ export default function HelpRequestDetailPanel({ request, onBack, onRefresh }) {
             </Button>
           </div>
         </div>
-      ),
-    },
-  ]
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{
-        padding: '12px 16px',
-        borderBottom: `1px solid ${token.colorBorderSecondary}`,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        flexShrink: 0,
-      }}>
-        <Button type="text" icon={<ArrowLeftOutlined />} onClick={onBack} size="small" />
-        <div style={{ flex: 1 }}>
-          <Text strong style={{ fontSize: 14 }} ellipsis>{detail.subject}</Text>
-          <div style={{ display: 'flex', gap: 8, marginTop: 2, alignItems: 'center' }}>
-            <Text type="secondary" style={{ fontSize: 11 }}>{detail.requestId}</Text>
-            <Tag color={statusConf.color} style={{ fontSize: 10, margin: 0, lineHeight: '16px', padding: '0 6px' }}>
-              {statusConf.label}
-            </Tag>
-            <Tag color={priorityConf.tagColor} style={{ fontSize: 10, margin: 0, lineHeight: '16px', padding: '0 6px' }}>
-              {priorityConf.label}
-            </Tag>
-          </div>
-        </div>
       </div>
 
-      {/* Tabs Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px' }}>
-        <Tabs
-          items={tabItems}
-          defaultActiveKey="details"
-          size="small"
-          style={{ height: '100%' }}
-        />
-      </div>
+      <HelpRequestAuditHistoryModal
+        open={historyModalOpen}
+        onClose={() => setHistoryModalOpen(false)}
+        requestId={detail.requestId}
+      />
     </div>
   )
 }

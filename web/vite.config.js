@@ -289,6 +289,9 @@ export default defineConfig({
     host: '0.0.0.0', // Listen on all network interfaces (required for mobile device access)
     port: 5173,
     hmr: true, // Hot Module Replacement (default: true) — ensures dev server pushes updates
+    allowedHosts: [
+      '.trycloudflare.com', // Allow Cloudflare tunnel URLs for HTTPS mobile access
+    ],
     headers: SECURITY_HEADERS,
     proxy: USE_MICROSERVICES ? {
       // MICROSERVICES MODE: Route to specific service ports

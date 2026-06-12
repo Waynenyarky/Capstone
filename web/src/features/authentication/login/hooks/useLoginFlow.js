@@ -216,6 +216,7 @@ export function useLoginFlow({ onSubmit, getCaptchaToken } = {}) {
   const prefillAdmin3 = () => prefill(env.VITE_DEV_EMAIL_ADMIN3 || 'admin3@example.com', devPassword)
   const prefillUser = () => prefill(env.VITE_DEV_EMAIL_BUSINESS || 'business@example.com', devPassword)
   const prefillLguOfficer = () => prefill(env.VITE_DEV_EMAIL_OFFICER || 'officer@example.com', devPassword)
+  const prefillLguOfficer2 = () => prefill(env.VITE_DEV_EMAIL_OFFICER2 || 'officer2@example.com', devPassword)
   const prefillLguManager = () => prefill(env.VITE_DEV_EMAIL_MANAGER || 'manager@example.com', devPassword)
   const prefillInspector = () => prefill(env.VITE_DEV_EMAIL_INSPECTOR || 'inspector@example.com', devPassword)
   const prefillCso = () => prefill(env.VITE_DEV_EMAIL_CSO || 'cso@example.com', devPassword)
@@ -249,6 +250,7 @@ export function useLoginFlow({ onSubmit, getCaptchaToken } = {}) {
     prefillAdmin,
     prefillUser,
     prefillLguOfficer,
+    prefillLguOfficer2,
     prefillLguManager,
     prefillInspector,
     prefillCso,

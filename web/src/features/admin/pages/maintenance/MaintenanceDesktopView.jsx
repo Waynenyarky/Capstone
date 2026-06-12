@@ -180,6 +180,23 @@ export default function MaintenanceDesktopView({
             </Text>
             {statusTag}
           </div>
+          <Space>
+            {setInfoOpen && (
+              <Tooltip title="About">
+                <Button icon={<InfoCircleOutlined />} onClick={() => setInfoOpen(true)} />
+              </Tooltip>
+            )}
+            {current?.isActive && (
+              <Tooltip title="Schedule">
+                <Button icon={<ClockCircleOutlined />} onClick={() => openRequestModalOrBlock({ forceScheduleMode: true })} />
+              </Tooltip>
+            )}
+            <Tooltip title={current?.isActive ? 'Disable' : 'Schedule'}>
+              <Button type="primary" icon={current?.isActive ? <StopOutlined /> : <ClockCircleOutlined />} onClick={openRequestModalOrBlock}>
+                {current?.isActive ? 'Disable' : 'Schedule'}
+              </Button>
+            </Tooltip>
+          </Space>
         </div>
       </div>
 

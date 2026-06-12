@@ -18,9 +18,13 @@ function getSendEmail() {
   try {
     const {
       sendEmail,
-    } = require("../../../../../../backend/services/admin-service/src/lib/mailer");
+    } = require("../../admin-service/src/lib/mailer");
     sendEmailFn = sendEmail;
-  } catch {
+    logger.info("HelpRequest Email: using shared admin-service mailer");
+  } catch (err) {
+    logger.warn("HelpRequest Email: failed to load admin-service mailer, using fallback", {
+      error: err.message,
+    });
     // Fallback: inline minimal implementation matching admin-service pattern
     const axios = require("axios");
     sendEmailFn = async (opts) => {
@@ -31,6 +35,10 @@ function getSendEmail() {
       const devRedirectTo = process.env.EMAIL_DEV_REDIRECT_TO;
       let actualTo = opts.to;
       if (devRedirectTo && devRedirectTo.includes("@")) {
+        logger.info("HelpRequest Email: dev redirect", {
+          originalTo: opts.to,
+          redirectTo: devRedirectTo,
+        });
         actualTo = devRedirectTo.trim();
       }
 
@@ -66,6 +74,7 @@ function getSendEmail() {
             subject: opts.subject,
             text: opts.text || "",
             html: opts.html || "",
+            reply_to: opts.replyTo || undefined,
           },
           {
             headers: {
@@ -131,6 +140,8 @@ async function sendHelpRequestConfirmation(to, requestId, subject) {
 }
 
 async function sendOfficerReplyNotification(to, requestId, messagePreview) {
+  const appUrl =
+    process.env.FRONTEND_URL || process.env.APP_URL || "http://localhost:5173";
   const brandName = "BizClear";
 
   const html = buildNotificationEmailBody({
@@ -148,13 +159,15 @@ async function sendOfficerReplyNotification(to, requestId, messagePreview) {
 
   try {
     const sendEmail = getSendEmail();
+    const replyToEmail = process.env.HELP_REQUEST_REPLY_TO || "help@erkokoidda.resend.app";
     await sendEmail({
       to,
-      subject: `Reply to Help Request - ${requestId}`,
+      subject: `Reply to Help Request ${requestId}`,
       text,
       html,
+      replyTo: replyToEmail,
     });
-    logger.info("Officer reply notification sent", { to, requestId });
+    logger.info("Officer reply notification sent", { to, requestId, replyTo: replyToEmail });
   } catch (err) {
     logger.error("Failed to send officer reply notification", {
       to,

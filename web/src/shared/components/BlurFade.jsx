@@ -13,6 +13,10 @@ export default function BlurFade({
 }) {
   const ref = useRef(null)
 
+  // Disable blur on iOS to avoid animation conflicts with nested animated elements
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  const effectiveBlur = isIOS ? '0px' : blur
+
   // Inject keyframes once
   useEffect(() => {
     if (!document.getElementById('blur-fade-keyframes')) {
@@ -47,7 +51,7 @@ export default function BlurFade({
       right: '20px',
     }
 
-    element.style.setProperty('--blur', blur)
+    element.style.setProperty('--blur', effectiveBlur)
     element.style.setProperty('--translate-y', translateMap[direction] || '20px')
     element.style.opacity = '0'
 
@@ -77,7 +81,7 @@ export default function BlurFade({
       element.style.animation = ''
       element.style.opacity = ''
     }
-  }, [delay, duration, direction, blur, onViewport, rootMargin])
+  }, [delay, duration, direction, effectiveBlur, onViewport, rootMargin])
 
   return (
     <div ref={ref} className={className} style={{ height: fullHeight ? '100%' : 'auto', width: '100%' }}>

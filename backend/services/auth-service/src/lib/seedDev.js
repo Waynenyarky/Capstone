@@ -153,6 +153,9 @@ async function seedDevDataIfEmpty() {
       officer:
         process.env.DEV_EMAIL_OFFICER ||
         (isProduction ? roleEmailDefaults.officer : "officer@example.com"),
+      officer2:
+        process.env.DEV_EMAIL_OFFICER2 ||
+        (isProduction ? roleEmailDefaults.officer : "officer2@example.com"),
       manager:
         process.env.DEV_EMAIL_MANAGER ||
         (isProduction ? roleEmailDefaults.manager : "manager@example.com"),
@@ -322,6 +325,19 @@ async function seedDevDataIfEmpty() {
       "Larry",
       "Officer",
       "+1-555-0303",
+      {
+        mustChangeCredentials: true,
+        mustSetupMfa: true,
+        isStaff: true,
+        office: "OSBC",
+      },
+    );
+    await ensureUser(
+      devEmails.officer2,
+      "lgu_officer",
+      "Linda",
+      "Officer",
+      "+1-555-0304",
       {
         mustChangeCredentials: true,
         mustSetupMfa: true,

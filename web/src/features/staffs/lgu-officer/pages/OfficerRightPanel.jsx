@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react'
-import { Empty, Typography, Splitter, Input, Button, Tooltip, Select, Tag, theme } from 'antd'
+import { Empty, Typography, Splitter, Input, Button, Tooltip, Select, Tag, theme, Drawer, Grid } from 'antd'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { SearchOutlined, PlusOutlined, FormOutlined, FilterOutlined, CloseOutlined, FileTextOutlined, AuditOutlined, EditOutlined, StopOutlined, SafetyCertificateOutlined, ClockCircleFilled, MinusCircleOutlined } from '@ant-design/icons'
 import ApplicationDetailPanel from '../components/ApplicationDetailPanel'
@@ -24,6 +24,7 @@ import { usePermitApplications } from '@/features/lgu-officer/presentation/hooks
 import { put } from '@/lib/http.js'
 
 const { Text } = Typography
+const { useBreakpoint } = Grid
 
 export default function OfficerRightPanel({
   selectedItem,
@@ -40,6 +41,7 @@ export default function OfficerRightPanel({
   themeSettings,
 }) {
   const { token } = theme.useToken()
+  const screens = useBreakpoint()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState(null)
   const [filterOpen, setFilterOpen] = useState(false)
@@ -52,6 +54,7 @@ export default function OfficerRightPanel({
   const [formSubmitting, setFormSubmitting] = useState(false)
   const [editOwnerModalOpen, setEditOwnerModalOpen] = useState(false)
   const [editingOwner, setEditingOwner] = useState(null)
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false)
   
   // Filter nav items for staff (security and theme sections only)
   const settingsNavItems = useMemo(() => {
@@ -82,6 +85,15 @@ export default function OfficerRightPanel({
       setSubItemIndex(0)
     }
   }, [activeTab, selectedItem?._itemId])
+
+  // Open detail drawer on mobile when help request is selected
+  useEffect(() => {
+    if (activeTab === 'helpRequests' && selectedItem?._itemType === 'helpRequests' && !screens.lg) {
+      setDetailDrawerOpen(true)
+    } else if (activeTab !== 'helpRequests' || selectedItem?._itemType !== 'helpRequests') {
+      setDetailDrawerOpen(false)
+    }
+  }, [activeTab, selectedItem, screens.lg])
 
   // Close filter panel on outside click
   useEffect(() => {
@@ -736,12 +748,48 @@ export default function OfficerRightPanel({
 
   // Help Requests tab - dedicated panel layout
   if (activeTab === 'helpRequests' && !showSettings) {
+    // Mobile view: list as main panel, detail in bottom drawer
+    if (!screens.lg) {
+      return (
+        <>
+          <div style={{ height: '100%', overflow: 'hidden' }}>
+            <HelpRequestsPanel
+              helpRequests={officerData?.helpRequests || []}
+              isLoading={officerData?.loadingMap?.helpRequests}
+              selectedId={selectedItem?._itemId}
+              onSelectRequest={(req) => onItemSelect({ ...req, _itemType: 'helpRequests', _itemId: req.requestId })}
+            />
+          </div>
+          <Drawer
+            title="Request details"
+            open={detailDrawerOpen}
+            onClose={() => {
+              setDetailDrawerOpen(false)
+              onItemSelect(null)
+            }}
+            placement="bottom"
+            height="100%"
+            styles={{ body: { padding: 0 } }}
+          >
+            {selectedItem?._itemType === 'helpRequests' && (
+              <HelpRequestDetailPanel
+                request={selectedItem}
+                onRefresh={() => officerData?.refreshHelpRequests?.()}
+              />
+            )}
+          </Drawer>
+        </>
+      )
+    }
+
+    // Desktop view: splitter layout
     return (
       <Splitter style={{ height: '100%' }}>
         <Splitter.Panel min="30%" defaultSize="30%" style={{ overflow: 'hidden' }}>
           <HelpRequestsPanel
             helpRequests={officerData?.helpRequests || []}
             isLoading={officerData?.loadingMap?.helpRequests}
+            selectedId={selectedItem?._itemId}
             onSelectRequest={(req) => onItemSelect({ ...req, _itemType: 'helpRequests', _itemId: req.requestId })}
           />
         </Splitter.Panel>

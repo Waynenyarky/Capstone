@@ -39,6 +39,7 @@ export default function LoginForm({ onSubmit } = {}) {
     prefillAdmin3,
     prefillUser,
     prefillLguOfficer,
+    prefillLguOfficer2,
     prefillLguManager,
     prefillInspector,
     prefillCso,
@@ -78,7 +79,7 @@ export default function LoginForm({ onSubmit } = {}) {
   })
   useDevPrefill({
     prefillAdmin, prefillAdmin2, prefillAdmin3,
-    prefillUser, prefillLguOfficer, prefillLguManager,
+    prefillUser, prefillLguOfficer, prefillLguOfficer2, prefillLguManager,
     prefillInspector, prefillCso, prefillInvalid,
     setFieldsReadOnly,
   })
@@ -298,6 +299,7 @@ export default function LoginForm({ onSubmit } = {}) {
               { key: 'admin2', label: env.VITE_DEV_EMAIL_ADMIN2 || 'admin2@example.com', role: 'Admin 2' },
               { key: 'admin3', label: env.VITE_DEV_EMAIL_ADMIN3 || 'admin3@example.com', role: 'Admin 3' },
               { key: 'officer', label: env.VITE_DEV_EMAIL_OFFICER || 'officer@example.com', role: 'LGU Officer' },
+              { key: 'officer2', label: env.VITE_DEV_EMAIL_OFFICER2 || 'officer2@example.com', role: 'LGU Officer 2' },
               { key: 'manager', label: env.VITE_DEV_EMAIL_MANAGER || 'manager@example.com', role: 'Manager' },
               { key: 'inspector', label: env.VITE_DEV_EMAIL_INSPECTOR || 'inspector@example.com', role: 'Inspector' },
               { key: 'invalid', label: 'wrong@example.com', role: 'Invalid credentials' },
@@ -316,6 +318,7 @@ export default function LoginForm({ onSubmit } = {}) {
                       else if (key === 'admin2') prefillAdmin2()
                       else if (key === 'admin3') prefillAdmin3()
                       else if (key === 'officer') prefillLguOfficer()
+                      else if (key === 'officer2') prefillLguOfficer2()
                       else if (key === 'manager') prefillLguManager()
                       else if (key === 'inspector') prefillInspector()
                       else if (key === 'invalid') prefillInvalid()

@@ -380,36 +380,38 @@ async function start() {
     }
 
     // Seed tamper incidents when SEED_TAMPER_INCIDENTS or SEED_DEV is set (idempotent)
-    if (
-      process.env.NODE_ENV !== "test" &&
-      (process.env.SEED_TAMPER_INCIDENTS === "true" ||
-        process.env.SEED_DEV === "true")
-    ) {
-      try {
-        const {
-          seedTamperIncidentsIfEmpty,
-        } = require("./seed/seedTamperIncidents");
-        const result = await seedTamperIncidentsIfEmpty();
-        if (result.seeded) {
-          logger.info("Tamper incidents seeded", { created: result.created });
-        }
-      } catch (error) {
-        logger.warn("Tamper incidents seed failed", { error: error.message });
-      }
-    }
+    // DISABLED: Prevents fake security events from contributing to noise
+    // if (
+    //   process.env.NODE_ENV !== "test" &&
+    //   (process.env.SEED_TAMPER_INCIDENTS === "true" ||
+    //     process.env.SEED_DEV === "true")
+    // ) {
+    //   try {
+    //     const {
+    //       seedTamperIncidentsIfEmpty,
+    //     } = require("./seed/seedTamperIncidents");
+    //     const result = await seedTamperIncidentsIfEmpty();
+    //     if (result.seeded) {
+    //       logger.info("Tamper incidents seeded", { created: result.created });
+    //     }
+    //   } catch (error) {
+    //     logger.warn("Tamper incidents seed failed", { error: error.message });
+    //   }
+    // }
 
     // Seed audit logs for dashboard "Recent admin activity" when SEED_DEV is set (idempotent)
-    if (process.env.NODE_ENV !== "test" && process.env.SEED_DEV === "true") {
-      try {
-        const { seedAuditLogsIfEmpty } = require("./seed/seedAuditLogs");
-        const result = await seedAuditLogsIfEmpty();
-        if (result.seeded) {
-          logger.info("Audit logs seeded", { created: result.created });
-        }
-      } catch (error) {
-        logger.warn("Audit logs seed failed", { error: error.message });
-      }
-    }
+    // DISABLED: Prevents fake audit events from contributing to noise
+    // if (process.env.NODE_ENV !== "test" && process.env.SEED_DEV === "true") {
+    //   try {
+    //     const { seedAuditLogsIfEmpty } = require("./seed/seedAuditLogs");
+    //     const result = await seedAuditLogsIfEmpty();
+    //     if (result.seeded) {
+    //       logger.info("Audit logs seeded", { created: result.created });
+    //     }
+    //   } catch (error) {
+    //     logger.warn("Audit logs seed failed", { error: error.message });
+    //   }
+    // }
 
     // Seed announcements for landing page when SEED_ANNOUNCEMENTS or SEED_DEV is set (idempotent)
     if (

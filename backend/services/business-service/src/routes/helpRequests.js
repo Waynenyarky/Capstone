@@ -4,6 +4,7 @@ const { requireJwt, requireRole } = require("../middleware/auth");
 const respond = require("../middleware/respond");
 const HelpRequest = require("../models/HelpRequest");
 const logger = require("../lib/logger");
+const { logAuditEvent } = require("../lib/auditClient");
 const {
   sendHelpRequestConfirmation,
   sendOfficerReplyNotification,
@@ -284,6 +285,7 @@ router.get(
           _id: r._id,
           requestId: r.requestId,
           subject: r.subject,
+          message: r.message,
           contactEmail: r.contactEmail,
           businessPermitNumber: r.businessPermitNumber,
           status: r.status,
@@ -356,25 +358,37 @@ router.put(
         return respond.error(res, 404, "not_found", "Help request not found");
       }
 
-      if (
-        helpRequest.claimedBy &&
-        String(helpRequest.claimedBy) !== req._userId
-      ) {
-        return respond.error(
-          res,
-          409,
-          "already_claimed",
-          "This request is already claimed by another officer",
-        );
-      }
+      const previousClaimedBy = helpRequest.claimedBy;
+      const previousClaimedByName = helpRequest.claimedByName;
 
       helpRequest.claimedBy = req._userId;
       helpRequest.claimedByName = req._userEmail || "";
       helpRequest.claimedAt = new Date();
+      const previousStatus = helpRequest.status;
       if (helpRequest.status === "open") {
         helpRequest.status = "in_progress";
       }
       await helpRequest.save();
+
+      // Log audit event
+      logAuditEvent(
+        "claim",
+        req._userId,
+        "help_request",
+        requestId,
+        {
+          claimedBy: req._userId,
+          claimedByName: req._userEmail,
+          claimedAt: helpRequest.claimedAt,
+          status: { from: previousStatus, to: helpRequest.status },
+          ...(previousClaimedBy && {
+            override: {
+              from: previousClaimedBy,
+              fromName: previousClaimedByName,
+            },
+          }),
+        }
+      ).catch((err) => logger.error("Failed to log claim audit", { error: err.message }));
 
       return res.json({ success: true, data: helpRequest.toObject() });
     } catch (err) {
@@ -420,10 +434,25 @@ router.put(
       helpRequest.claimedBy = null;
       helpRequest.claimedByName = "";
       helpRequest.claimedAt = null;
+      const previousStatus = helpRequest.status;
       if (helpRequest.status === "in_progress") {
         helpRequest.status = "open";
       }
       await helpRequest.save();
+
+      // Log audit event
+      logAuditEvent(
+        "release",
+        req._userId,
+        "help_request",
+        requestId,
+        {
+          releasedBy: req._userId,
+          releasedByName: req._userEmail,
+          releasedAt: new Date(),
+          status: { from: previousStatus, to: helpRequest.status },
+        }
+      ).catch((err) => logger.error("Failed to log release audit", { error: err.message }));
 
       return res.json({ success: true, data: helpRequest.toObject() });
     } catch (err) {
@@ -465,8 +494,20 @@ router.put(
         return respond.error(res, 404, "not_found", "Help request not found");
       }
 
+      const previousStatus = helpRequest.status;
       helpRequest.status = status;
       await helpRequest.save();
+
+      // Log audit event
+      logAuditEvent(
+        "status_update",
+        req._userId,
+        "help_request",
+        requestId,
+        {
+          status: { from: previousStatus, to: status },
+        }
+      ).catch((err) => logger.error("Failed to log status update audit", { error: err.message }));
 
       // Send email notifications for terminal statuses
       if (status === "closed") {
@@ -531,8 +572,20 @@ router.put(
         return respond.error(res, 404, "not_found", "Help request not found");
       }
 
+      const previousPriority = helpRequest.priority;
       helpRequest.priority = priority;
       await helpRequest.save();
+
+      // Log audit event
+      logAuditEvent(
+        "priority_update",
+        req._userId,
+        "help_request",
+        requestId,
+        {
+          priority: { from: previousPriority, to: priority },
+        }
+      ).catch((err) => logger.error("Failed to log priority update audit", { error: err.message }));
 
       return res.json({ success: true, data: helpRequest.toObject() });
     } catch (err) {
@@ -657,5 +710,235 @@ router.post(
     }
   },
 );
+
+// ─── OFFICER: Get Audit History ───────────────────────────────────────────────
+// GET /api/help-requests/:requestId/audit
+router.get(
+  "/:requestId/audit",
+  requireJwt,
+  requireRole(["lgu_officer", "admin"]),
+  async (req, res) => {
+    try {
+      const { requestId } = req.params;
+      const { page = 1, limit = 20 } = req.query;
+
+      const helpRequest = await HelpRequest.findOne({ requestId });
+      if (!helpRequest) {
+        return respond.error(res, 404, "not_found", "Help request not found");
+      }
+
+      // Query AuditLog directly from database (consistent with other services)
+      const AuditLog = require("../models/AuditLog");
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      
+      const filter = {
+        "metadata.entityType": "help_request",
+        "metadata.entityId": requestId,
+      };
+
+      const [logs, total] = await Promise.all([
+        AuditLog.find(filter)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(parseInt(limit))
+          .lean(),
+        AuditLog.countDocuments(filter),
+      ]);
+
+      const totalPages = Math.ceil(total / parseInt(limit));
+
+      return res.json({
+        success: true,
+        logs,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          totalPages,
+        },
+      });
+    } catch (err) {
+      logger.error("GET /api/help-requests/:requestId/audit error", {
+        error: err.message,
+      });
+      return respond.error(
+        res,
+        500,
+        "fetch_failed",
+        "Failed to fetch audit history",
+      );
+    }
+  },
+);
+
+// ─── INBOUND EMAIL WEBHOOK (Resend) ─────────────────────────────────────────────
+// POST /api/help-requests/inbound
+// Handles incoming email replies from business owners
+router.post("/inbound", async (req, res) => {
+  try {
+    // Resend sends webhook with format: { type: "email.received", data: { email_id, from, to, subject, ... } }
+    const { type, data } = req.body || {};
+
+    if (type !== "email.received") {
+      logger.warn("Inbound webhook wrong event type", { type });
+      return res.status(200).json({ message: "Accepted but wrong event type" });
+    }
+
+    // Log the full webhook data to see what fields are available
+    logger.info("Received inbound email webhook", {
+      email_id: data.email_id,
+      from: data.from,
+      to: data.to,
+      subject: data.subject,
+      dataKeys: Object.keys(data),
+      hasText: !!data.text,
+      hasHtml: !!data.html,
+      hasRaw: !!data.raw,
+    });
+
+    const { email_id, from, to, subject, text: webhookText, html: webhookHtml } = data || {};
+
+    if (!to || !subject) {
+      logger.warn("Inbound email missing required fields", { to, subject });
+      return res.status(200).json({ message: "Accepted but missing fields" });
+    }
+
+    // Extract requestId from subject (format: "Reply to Help Request HR-XXX" or "HR-XXX")
+    const requestIdMatch = subject.match(/HR-[A-Z0-9-]+/i);
+    if (!requestIdMatch) {
+      logger.warn("Inbound email subject does not contain requestId", { subject });
+      return res.status(200).json({ message: "Accepted but no requestId in subject" });
+    }
+
+    const requestId = requestIdMatch[0].toUpperCase();
+    const helpRequest = await HelpRequest.findOne({ requestId });
+
+    if (!helpRequest) {
+      logger.warn("Inbound email for non-existent help request", { requestId });
+      return res.status(200).json({ message: "Accepted but request not found" });
+    }
+
+    // Verify sender email matches the original contact email
+    const senderEmail = from?.match(/<(.+)>/)?.[1] || from;
+    if (senderEmail?.toLowerCase() !== helpRequest.contactEmail.toLowerCase()) {
+      logger.warn("Inbound email sender does not match original contact email", {
+        requestId,
+        senderEmail,
+        originalEmail: helpRequest.contactEmail,
+      });
+      return res.status(200).json({ message: "Accepted but sender mismatch" });
+    }
+
+    // Fetch full email content from Resend API with delay + retry
+    const axios = require("axios");
+    const resendApiKey = process.env.EMAIL_API_KEY;
+    let text = webhookText || "", html = webhookHtml || "", attachments = [];
+
+    // If webhook didn't include content, try fetching from API
+    // Add initial delay because Resend may not have content ready when webhook fires
+    if (!text && email_id && resendApiKey) {
+      const maxRetries = 4;
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        // Wait before each attempt (increasing delay: 3s, 5s, 7s, 9s)
+        await new Promise(resolve => setTimeout(resolve, 1000 + attempt * 2000));
+
+        try {
+          const response = await axios.get(
+            `https://api.resend.com/emails/receiving/${email_id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${resendApiKey}`,
+              },
+            }
+          );
+          const emailData = response.data;
+          logger.info("Fetched email content from Resend", {
+            email_id,
+            attempt,
+            hasText: !!emailData.text,
+            hasHtml: !!emailData.html,
+            textLength: emailData.text?.length || 0,
+            htmlLength: emailData.html?.length || 0,
+          });
+          text = emailData.text || "";
+          html = emailData.html || "";
+          attachments = emailData.attachments || [];
+          if (text || html) break; // Got content, exit loop
+        } catch (err) {
+          logger.warn(`Failed to fetch email content from Resend (attempt ${attempt}/${maxRetries})`, {
+            email_id,
+            error: err.message,
+            responseStatus: err.response?.status,
+          });
+        }
+      }
+    }
+
+    // Add message to help request
+    let messageContent = text || html?.replace(/<[^>]*>/g, "") || "";
+    
+    // Strip quoted reply content (Gmail and other clients add "On [date], [sender] wrote:")
+    // Handle multi-line patterns where "wrote:" might be on a separate line
+    const quotedReplyPatterns = [
+      /On .+?wrote:\s*$/im,  // "On [date] [sender] wrote:" (multi-line)
+      /On .+?wrote:/i,       // "On [date] [sender] wrote:" (single-line)
+      /From: .+/i,           // "From: [email]"
+      /-----Original Message-----/i,
+      />+ On .+?wrote:/i,     // Quoted reply starting with >
+    ];
+    
+    for (const pattern of quotedReplyPatterns) {
+      const match = messageContent.match(pattern);
+      if (match) {
+        const quotedIndex = messageContent.indexOf(match[0]);
+        if (quotedIndex > 0) {
+          messageContent = messageContent.substring(0, quotedIndex).trim();
+          break;
+        }
+      }
+    }
+    
+    // Also strip common quote markers like "> "
+    messageContent = messageContent.split('\n')
+      .filter(line => !line.trim().startsWith('>'))
+      .join('\n')
+      .trim();
+    
+    if (!messageContent) {
+      logger.warn("Inbound email has no message content after stripping quotes", { requestId });
+      return res.status(200).json({ message: "Accepted but no content" });
+    }
+
+    helpRequest.messages.push({
+      sender: "business_owner",
+      senderName: senderEmail,
+      content: messageContent.trim(),
+      attachments: Array.isArray(attachments) ? attachments.map(a => ({
+        filename: a.filename,
+        contentType: a.content_type,
+        size: a.size,
+        cid: a.content_id,
+      })) : [],
+    });
+
+    // Update status to in_progress (officer needs to respond)
+    helpRequest.status = "in_progress";
+    await helpRequest.save();
+
+    logger.info("Inbound email added to help request", {
+      requestId,
+      senderEmail,
+    });
+
+    return res.status(200).json({ message: "OK" });
+  } catch (err) {
+    logger.error("Inbound email webhook error", {
+      error: err.message,
+    });
+    // Return 200 to avoid Resend retrying indefinitely
+    return res.status(200).json({ message: "Error processing" });
+  }
+});
 
 module.exports = router;

@@ -98,6 +98,20 @@ export function getDevActions({ pathname, navigate, emitEvent, notify }) {
       run: () => fireLoginPrefill('manager'),
     })
     addAction({
+      id: 'login-prefill-officer',
+      category: 'Authentication',
+      label: 'Prefill LGU Officer Login',
+      description: 'Fill LGU officer credentials into login form',
+      run: () => fireLoginPrefill('officer'),
+    })
+    addAction({
+      id: 'login-prefill-officer2',
+      category: 'Authentication',
+      label: 'Prefill LGU Officer 2 Login',
+      description: 'Fill second LGU officer credentials into login form',
+      run: () => fireLoginPrefill('officer2'),
+    })
+    addAction({
       id: 'login-prefill-owner',
       category: 'Authentication',
       label: 'Prefill Business Owner Login',

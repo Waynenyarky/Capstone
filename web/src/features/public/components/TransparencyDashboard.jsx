@@ -62,7 +62,7 @@ export default function TransparencyDashboard({ publicStats }) {
     >
       <div style={{ maxWidth: 1200 }}>
         <BlurFade delay={0.05} duration={0.45} onViewport={true}>
-          <div style={{ marginBottom: 32, textAlign: screens.md ? 'left' : 'center' }}>
+          <div style={{ marginBottom: 32, textAlign: 'left' }}>
             <Title
               level={4}
               style={{
@@ -71,7 +71,7 @@ export default function TransparencyDashboard({ publicStats }) {
                 fontSize: screens.md ? 20 : 18,
                 lineHeight: 1.25,
                 color: token.colorTextHeading,
-                textAlign: screens.md ? 'left' : 'center',
+                textAlign: 'left',
               }}
             >
               Trusted public progress
@@ -84,7 +84,7 @@ export default function TransparencyDashboard({ publicStats }) {
                 fontSize: screens.md ? 13 : 13,
                 lineHeight: 1.25,
                 color: token.colorTextSecondary,
-                textAlign: screens.md ? 'left' : 'center',
+                textAlign: 'left',
               }}
             >
               See the momentum behind every business permit and approval.
@@ -117,7 +117,14 @@ export default function TransparencyDashboard({ publicStats }) {
                     boxShadow: screens.md && hoveredCard === index ? token.boxShadowCard : 'none',
                     transform: screens.md && hoveredCard === index ? 'scale(1.02)' : 'scale(1)',
                   }}
-                  styles={{ body: { padding: screens.md ? '96px 14px 12px' : '96px 12px' } }}
+                  styles={{ body: { 
+                    padding: screens.md ? '96px 14px 12px' : '48px 12px 12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'flex-end',
+                    alignItems: 'flex-start',
+                    textAlign: 'left',
+                  } }}
                   onMouseEnter={screens.md ? () => setHoveredCard(index) : undefined}
                   onMouseLeave={screens.md ? () => setHoveredCard(null) : undefined}
                 >

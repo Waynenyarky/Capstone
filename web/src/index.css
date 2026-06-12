@@ -80,3 +80,22 @@ h1, h2, h3, h4, h5, h6 {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgb(0 58 112 / 50%);
 }
+
+/* Force Ant Design Message/Toast to use Urbanist font */
+.ant-message,
+.ant-message-notice-content,
+.ant-notification,
+.ant-notification-notice-message,
+.ant-notification-notice-description {
+  font-family: Urbanist, sans-serif !important;
+}
+
+/* Force Ant Design Modal to use Urbanist font */
+.ant-modal,
+.ant-modal-title,
+.ant-modal-content,
+.ant-modal-body,
+.ant-modal-confirm-title,
+.ant-modal-confirm-content {
+  font-family: Urbanist, sans-serif !important;
+}
