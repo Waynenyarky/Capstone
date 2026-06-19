@@ -52,27 +52,26 @@ export default function HomeHeader({ visible = true, onNavigate, fadingOut = fal
       transition: 'opacity 0.3s ease-out, transform 0.3s ease-out',
       pointerEvents: fadingOut ? 'none' : (visible ? 'auto' : 'none'),
     }}>
-      <div
-        role="button"
-        tabIndex={0}
-        style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
-        onClick={() => onNavigate?.('/')}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            onNavigate?.('/')
-          }
-        }}
-        onMouseEnter={handleMouseEnter}
-      >
-        <div style={{ width: screens.sm ? 40 : 32, height: screens.sm ? 40 : 32 }}>
-          {View}
+      <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none' }}>
+        <div
+          role="button"
+          tabIndex={0}
+          style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
+          onMouseEnter={handleMouseEnter}
+        >
+          <div style={{ width: screens.sm ? 40 : 32, height: screens.sm ? 40 : 32 }}>
+            {View}
+          </div>
+          <Title level={4} style={{ margin: 0, lineHeight: 1.2, color: token.colorText, fontSize: screens.sm ? '20px' : '18px' }}>BizClear</Title>
         </div>
-        <Title level={4} style={{ margin: 0, lineHeight: 1.2, color: token.colorText, fontSize: screens.sm ? '20px' : '18px' }}>BizClear</Title>
-      </div>
+      </Link>
       <Space size={screens.sm ? 'middle' : 'small'}>
-        <Button onClick={() => onNavigate?.('/login') }>Log In</Button>
-        <Button type="primary" onClick={() => onNavigate?.('/sign-up')}>{screens.sm ? 'Apply Now' : 'Apply'}</Button>
+        <Link to="/login">
+          <Button>Log In</Button>
+        </Link>
+        <Link to="/sign-up">
+          <Button type="primary">{screens.sm ? 'Apply Now' : 'Apply'}</Button>
+        </Link>
       </Space>
     </Header>
   )

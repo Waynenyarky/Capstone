@@ -15,6 +15,8 @@ export const BENTO_CARDS = [
     icon: 'bizclear',
     span: 12,
     isTall: true,
+    link: '/',
+    linkText: 'Home →',
   },
   {
     id: 'login',

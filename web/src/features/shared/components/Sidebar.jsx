@@ -1,6 +1,7 @@
   import React, { useState } from 'react'
   import { Layout, Menu, Typography, Grid, Drawer, Button, theme, ConfigProvider } from 'antd'
   import { MenuOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons'
+  import { Link } from 'react-router-dom'
   import { useAppTheme, THEMES } from '@/shared/theme/ThemeProvider'
   import BizClearLogo from '@/shared/components/BizClearLogo.jsx'
 
@@ -166,31 +167,33 @@
           transition: 'none',
           background: menuBg
         }}>
-          <div style={{
-            width: 32,
-            height: 32,
-            flexShrink: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden',
-            borderRadius: 8
-          }}>
-            <BizClearLogo width={24} />
-          </div>
-          {!collapsed && (
-            <span style={{
-              marginLeft: 12,
-              fontWeight: 700,
-              fontSize: 16,
-              color: textColor,
-              whiteSpace: 'nowrap',
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none' }}>
+            <div style={{
+              width: 32,
+              height: 32,
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               overflow: 'hidden',
-              textOverflow: 'ellipsis'
+              borderRadius: 8
             }}>
-              {import.meta.env.VITE_APP_BRAND_NAME || 'BizClear'}
-            </span>
-          )}
+              <BizClearLogo width={24} />
+            </div>
+            {!collapsed && (
+              <span style={{
+                marginLeft: 12,
+                fontWeight: 700,
+                fontSize: 16,
+                color: textColor,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                {import.meta.env.VITE_APP_BRAND_NAME || 'BizClear'}
+              </span>
+            )}
+          </Link>
         </div>
 
         <ConfigProvider

@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { Typography, Input, Button, theme, Grid, Layout } from 'antd'
 import HomeHeader from '../components/HomeHeader'
-import FaqSection from '../components/FaqSection'
-import HomeFooter from '../components/HomeFooter'
 import ZipperReveal from '@/shared/components/MosaicArt.jsx'
 import PanAnimation from '@/shared/components/PanAnimation.jsx'
 import BlurFade from '@/shared/components/BlurFade.jsx'
@@ -57,17 +55,17 @@ export default function ApplicationTracker() {
           <div style={{
             width: screens.md ? '40%' : '100%',
             background: token.colorBgContainer,
-            padding: screens.md ? '32px 48px 32px 48px' : '32px 24px 32px 16px',
+            padding: screens.md ? '16px 48px 32px 48px' : '16px 24px 32px 16px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'flex-start',
             justifyContent: 'flex-start',
-            overflowY: screens.md ? 'auto' : 'visible',
+            overflowY: 'auto',
           }}>
             {!showResult ? (
               <BlurFade delay={0.2} duration={0.5} fullHeight={false}>
                 <div style={{ width: '100%', maxWidth: 400 }}>
-                  <Title level={2} style={{ marginBottom: 16, marginTop: 8, fontSize: screens.md ? 32 : 24 }}>
+                  <Title level={2} style={{ marginBottom: 16, marginTop: 120, fontSize: screens.md ? 32 : 24 }}>
                     Application Tracker
                   </Title>
                   <Paragraph style={{ marginBottom: 32, lineHeight: 1.6, color: token.colorTextSecondary }}>
@@ -98,7 +96,7 @@ export default function ApplicationTracker() {
             ) : (
               <BlurFade delay={0.2} duration={0.5} fullHeight={false}>
                 <div style={{ width: '100%', maxWidth: 400 }}>
-                  <Title level={2} style={{ marginBottom: 24, marginTop: 8, fontSize: screens.md ? 32 : 24 }}>
+                  <Title level={2} style={{ marginBottom: 24, marginTop: 140, fontSize: screens.md ? 32 : 24 }}>
                     Application Status Checker
                   </Title>
 
@@ -172,15 +170,7 @@ export default function ApplicationTracker() {
             </ZipperReveal>
           )}
         </div>
-
-        {/* FAQ Section - Only show when result is displayed */}
-        {showResult && (
-          <div style={{ padding: screens.md ? '60px 48px' : '40px 16px', maxWidth: 400, margin: '0 auto' }}>
-            <FaqSection />
-          </div>
-        )}
       </Content>
-      <HomeFooter />
     </Layout>
   )
 }

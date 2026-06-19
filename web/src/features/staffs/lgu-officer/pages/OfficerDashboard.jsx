@@ -3,6 +3,7 @@ import { Typography, Space, Button, Drawer, Modal, Form, Input, Select, App, the
 import { 
   IdcardOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined
 } from '@ant-design/icons'
+import { Link } from 'react-router-dom'
 import { LayoutPageHeader } from '@/features/shared'
 import { SiteStatusPill } from '@/features/shared/components'
 import BizClearLogo from '@/shared/components/BizClearLogo.jsx'
@@ -19,7 +20,7 @@ const { Text } = Typography
 function BrandHeader() {
   const { token } = theme.useToken()
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none' }}>
       <div style={{
         width: 32, height: 32, flexShrink: 0, display: 'flex',
         alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 8
@@ -29,7 +30,7 @@ function BrandHeader() {
       <span style={{ fontWeight: 700, fontSize: 16, color: token.colorTextBase, whiteSpace: 'nowrap' }}>
         {import.meta.env.VITE_APP_BRAND_NAME || 'BizClear'}
       </span>
-    </div>
+    </Link>
   )
 }
 

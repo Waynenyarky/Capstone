@@ -5,7 +5,7 @@ const { Title, Text } = Typography
 
 export default function BusinessProfile({ business, onReport, onBack, token, screens }) {
   return (
-    <div>
+    <div style={{ marginTop: screens.md ? 120 : 120 }}>
       <Button
         type="default"
         onClick={onBack}

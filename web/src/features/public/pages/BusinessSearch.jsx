@@ -1,9 +1,7 @@
 import { useState } from 'react'
-import { Typography, Input, Button, theme, Grid, Layout } from 'antd'
+import { Typography, Input, Button, theme, Grid, Layout, Pagination } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
 import HomeHeader from '../components/HomeHeader'
-import FaqSection from '../components/FaqSection'
-import HomeFooter from '../components/HomeFooter'
 import { BusinessCard, BusinessProfile, ReportBusinessModal } from './business-search/components'
 import { MOCK_BUSINESSES } from './business-search/constants/businessSearch.constants.js'
 import ZipperReveal from '@/shared/components/MosaicArt.jsx'
@@ -24,8 +22,13 @@ export default function BusinessSearch() {
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 5
 
+  const filteredBusinesses = MOCK_BUSINESSES.filter(business =>
+    business.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
   const handleSearch = () => {
-    // No functionality for now - just show mock results
+    // Filter mock businesses based on search query
+    setCurrentPage(1)
   }
 
   const handleBusinessClick = (business) => {
@@ -54,13 +57,13 @@ export default function BusinessSearch() {
     setCurrentPage(page)
   }
 
-  const paginatedBusinesses = MOCK_BUSINESSES.slice(
+  const paginatedBusinesses = filteredBusinesses.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   )
 
   const startIndex = (currentPage - 1) * pageSize + 1
-  const endIndex = Math.min(currentPage * pageSize, MOCK_BUSINESSES.length)
+  const endIndex = Math.min(currentPage * pageSize, filteredBusinesses.length)
 
   return (
     <Layout style={{ minHeight: '100vh', background: token.colorBgContainer }}>
@@ -79,7 +82,7 @@ export default function BusinessSearch() {
           <div style={{
             width: screens.md ? '40%' : '100%',
             background: token.colorBgContainer,
-            padding: screens.md ? '32px 32px' : '32px 24px',
+            padding: screens.md ? '16px 32px 32px 32px' : '16px 24px 32px 16px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'flex-start',
@@ -89,7 +92,7 @@ export default function BusinessSearch() {
             {!showProfile ? (
               <BlurFade delay={0.2} duration={0.5} fullHeight={false}>
                 <div style={{ width: '100%', maxWidth: 400 }}>
-                  <Title level={2} style={{ marginBottom: 16, marginTop: 8, fontSize: screens.md ? 32 : 24 }}>
+                  <Title level={2} style={{ marginBottom: 16, marginTop: 120, fontSize: screens.md ? 32 : 24 }}>
                     Business Search
                   </Title>
                   <Paragraph style={{ marginBottom: 32, lineHeight: 1.6, color: token.colorTextSecondary }}>
@@ -121,35 +124,43 @@ export default function BusinessSearch() {
                   <div style={{
                     marginBottom: screens.md ? 32 : 24,
                   }}>
-                    {paginatedBusinesses.map((business) => (
-                      <BusinessCard
-                        key={business.id}
-                        business={business}
-                        onClick={handleBusinessClick}
-                        token={token}
-                        screens={screens}
-                      />
-                    ))}
+                    {paginatedBusinesses.length > 0 ? (
+                      paginatedBusinesses.map((business) => (
+                        <BusinessCard
+                          key={business.id}
+                          business={business}
+                          onClick={handleBusinessClick}
+                          token={token}
+                          screens={screens}
+                        />
+                      ))
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '40px 0', color: token.colorTextSecondary }}>
+                        <Text>No businesses found matching "{searchQuery}"</Text>
+                      </div>
+                    )}
 
-                    <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        Showing {startIndex}-{endIndex} of {MOCK_BUSINESSES.length}
-                      </Text>
-                      <Pagination
-                        current={currentPage}
-                        total={MOCK_BUSINESSES.length}
-                        pageSize={pageSize}
-                        showSizeChanger={false}
-                        onChange={handlePageChange}
-                        size="small"
-                      />
-                    </div>
+                    {filteredBusinesses.length > 0 && (
+                      <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          Showing {startIndex}-{endIndex} of {filteredBusinesses.length}
+                        </Text>
+                        <Pagination
+                          current={currentPage}
+                          total={filteredBusinesses.length}
+                          pageSize={pageSize}
+                          showSizeChanger={false}
+                          onChange={handlePageChange}
+                          size="small"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </BlurFade>
             ) : (
               <BlurFade delay={0.2} duration={0.5} fullHeight={false}>
-                <div style={{ width: '100%', maxWidth: 400 }}>
+                <div style={{ width: '100%' }}>
                   <BusinessProfile
                     business={selectedBusiness}
                     onReport={handleReport}
@@ -180,13 +191,7 @@ export default function BusinessSearch() {
             </ZipperReveal>
           )}
         </div>
-
-        {/* FAQ Section */}
-        <div style={{ padding: screens.md ? '60px 20px' : '40px 16px', maxWidth: 400, margin: '0 auto' }}>
-          <FaqSection />
-        </div>
       </Content>
-      <HomeFooter />
       
       <ReportBusinessModal
         visible={showReportModal}

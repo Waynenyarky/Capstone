@@ -1,4 +1,5 @@
 import { Layout, Typography, Grid, theme } from 'antd'
+import { Link } from 'react-router-dom'
 import { LayoutPageHeader } from '@/features/shared'
 import BizClearLogo from '@/shared/components/BizClearLogo.jsx'
 
@@ -9,7 +10,7 @@ const { useBreakpoint } = Grid
 function BrandHeader() {
   const { token } = theme.useToken()
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none' }}>
       <div style={{
         width: 32,
         height: 32,
@@ -30,7 +31,7 @@ function BrandHeader() {
       }}>
         {import.meta.env.VITE_APP_BRAND_NAME || 'BizClear'}
       </span>
-    </div>
+    </Link>
   )
 }
 
