@@ -96,6 +96,7 @@ h1, h2, h3, h4, h5, h6 {
 .ant-modal-content,
 .ant-modal-body,
 .ant-modal-confirm-title,
-.ant-modal-confirm-content {
+.ant-modal-confirm-content,
+.ant-modal-confirm-btns .ant-btn {
   font-family: Urbanist, sans-serif !important;
 }

@@ -36,6 +36,7 @@ const AdminFinance = lazy(() => import("@/features/admin").then(m => ({ default:
 const AdminLobTrainer = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminLobTrainer })))
 // Phase 2 admin pages
 const AdminFeeConfiguration = lazy(() => import("@/features/admin/pages/AdminFeeConfiguration.jsx"))
+const AdminFees = lazy(() => import("@/features/admin/pages/AdminFees.jsx"))
 const BusinessOwnerDashboard = lazy(() => import("@/features/business-owner").then(m => ({ default: m.BusinessOwnerDashboard })))
 
 const ApplicationNewPage = lazy(() => import("@/features/business-owner/pages/ApplicationNewPage.jsx"))
@@ -115,6 +116,7 @@ function App() {
         <Route path="form-definitions/:id" element={<AdminFormDefinitionEditor />} />
         <Route path="penalty-configuration" element={<Navigate to="/admin/fee-configuration?tab=penalty" replace />} />
         <Route path="fee-configuration" element={<AdminFeeConfiguration />} />
+        <Route path="fees" element={<AdminFees />} />
         <Route path="finance" element={<AdminFinance />} />
         <Route path="security" element={<AdminAuditTamper />} />
         <Route path="audit-tamper" element={<Navigate to="/admin/security" replace />} />

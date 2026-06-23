@@ -40,8 +40,8 @@ export default function ContentManagementPage() {
   const activeFilterCount = [statusFilter, priorityFilter].filter(Boolean).length
 
   // ─── Announcements data ───────────────────────────────────────────────────────
-  const announcementsPublic = useAnnouncementsTab('public')
-  const announcementsStaff = useAnnouncementsTab('staff')
+  const announcementsPublic = useAnnouncementsTab('public', selectedItem, setSelectedItem)
+  const announcementsStaff = useAnnouncementsTab('staff', selectedItem, setSelectedItem)
 
   // ─── FAQ data ─────────────────────────────────────────────────────────────────
   const [faqSections, setFaqSections] = useState([])
@@ -268,7 +268,10 @@ export default function ContentManagementPage() {
             saving={announcementsPublic.saving}
             onSave={announcementsPublic.handleSave}
             onDelete={announcementsPublic.handleDelete}
+            onUnpublish={announcementsPublic.handleUnpublish}
             audience="public"
+            form={announcementsPublic.form}
+            onFillTestData={announcementsPublic.handleFillTestData}
           />
         )
       case 'staff-announcements':
@@ -278,7 +281,10 @@ export default function ContentManagementPage() {
             saving={announcementsStaff.saving}
             onSave={announcementsStaff.handleSave}
             onDelete={announcementsStaff.handleDelete}
+            onUnpublish={announcementsStaff.handleUnpublish}
             audience="staff"
+            form={announcementsStaff.form}
+            onFillTestData={announcementsStaff.handleFillTestData}
           />
         )
       case 'faqs':

@@ -205,6 +205,15 @@ router.put("/:id", requireJwt, requireRole(["admin"]), async (req, res) => {
         ? now
         : null);
 
+    // When publishing, default isActive to true unless explicitly set to false
+    // When unpublishing (draft), use the provided isActive value
+    const resolvedIsActive =
+      status === "published"
+        ? isActive !== false
+        : isActive !== undefined
+          ? isActive
+          : currentAnnouncement.isActive;
+
     const audience =
       req.body.audience && ["public", "staff"].includes(req.body.audience)
         ? req.body.audience
@@ -217,7 +226,7 @@ router.put("/:id", requireJwt, requireRole(["admin"]), async (req, res) => {
         priority,
         status,
         audience,
-        isActive,
+        isActive: resolvedIsActive,
         publishAt: publishDate,
         publishedAt,
         expiresAt: expiryDate,

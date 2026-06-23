@@ -1,91 +1,40 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Row, Col, Card, Typography, Space, Tag, List, message, theme, Button } from 'antd'
-import { Link } from 'react-router-dom'
-import { DashboardOutlined, CheckCircleOutlined, SafetyCertificateOutlined, ToolOutlined, FileTextOutlined, InfoCircleOutlined, ShopOutlined, DollarOutlined, TeamOutlined, ClockCircleOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
+import { Row, Col, Card, Typography, Space, message } from 'antd'
+import { Link, useNavigate } from 'react-router-dom'
+import { DashboardOutlined, ToolOutlined, FileTextOutlined, DollarOutlined } from '@ant-design/icons'
 import DashboardInfoModal from './DashboardInfoModal'
 import AdminLayout from '../components/AdminLayout'
-import { TamperIncidentsPanel } from '@/features/admin'
-import { getApprovals } from '@/features/admin/services/approvalService'
-import { fetchTamperStats } from '@/features/admin/services/tamperService'
-import { getFormGroupStats } from '@/features/admin/services/formDefinitionService'
 import { getMaintenanceCurrent } from '@/features/admin/services/maintenanceService'
-import { get } from '@/lib/http.js'
+import DetailCard from '@/shared/components/DetailCard.jsx'
+import { useDashboardCmsCards } from './dashboard/hooks/useDashboardCmsCards.js'
 
 const { Text } = Typography
 
-const STAT_CARD_COLORS = {
-  pending: '#1890ff',
-  tamper: '#52c41a',
-  tamperAlert: '#ff4d4f',
-  forms: '#722ed1',
-  businesses: '#13c2c2',
-  pendingApps: '#fa8c16',
-  revenue: '#52c41a',
-  staff: '#722ed1',
-}
-
-const ACTION_COLORS = {
-  create: 'green',
-  update: 'blue',
-  delete: 'red',
-  approve: 'cyan',
-  reject: 'orange',
-  login: 'purple',
-  profile_update: 'blue',
-  admin_approval: 'cyan',
-  other: 'default',
-}
+const CARD_COL_PROPS = { xs: 24, md: 12, lg: 8 }
 
 export default function AdminDashboard() {
+  const navigate = useNavigate()
   const [kpiLoading, setKpiLoading] = useState(true)
-  const [recentActivityLoading, setRecentActivityLoading] = useState(true)
-  const [pendingRequests, setPendingRequests] = useState(0)
-  const [openTamper, setOpenTamper] = useState(0)
-  const [formStats, setFormStats] = useState(null)
   const [maintenanceStatus, setMaintenanceStatus] = useState(null)
-  const [recentLogs, setRecentLogs] = useState([])
   const [lastUpdated, setLastUpdated] = useState(null)
   const [infoOpen, setInfoOpen] = useState(false)
-  const [businessStats, setBusinessStats] = useState(null)
-  const [paymentSummary, setPaymentSummary] = useState(null)
-  const [staffCount, setStaffCount] = useState(null)
+
+  const {
+    publicAnnouncements,
+    staffAnnouncements,
+    cmsTotal,
+    trends,
+    loading: cmsLoading,
+    loadCmsCards,
+    refresh: refreshCmsCards,
+  } = useDashboardCmsCards()
 
   const loadKpis = useCallback(async () => {
     setKpiLoading(true)
     try {
-      const [approvalsRes, tamperRes, formsRes, maintenanceRes, bizStatsRes, paymentRes, staffRes] = await Promise.allSettled([
-        getApprovals({ status: 'pending' }),
-        fetchTamperStats(),
-        getFormGroupStats(),
-        getMaintenanceCurrent(),
-        get('/api/business/admin/stats'),
-        get('/api/business/admin/payments/summary'),
-        get('/api/auth/users/count?role=staff'),
-      ])
-      if (approvalsRes.status === 'fulfilled') {
-        const list = approvalsRes.value?.approvals ?? []
-        setPendingRequests(Array.isArray(list) ? list.length : 0)
-      }
-      if (tamperRes.status === 'fulfilled') {
-        const stats = tamperRes.value?.stats ?? tamperRes.value
-        const open = (stats?.open ?? 0) + (stats?.acknowledged ?? 0)
-        setOpenTamper(typeof open === 'number' ? open : (stats?.open ?? 0))
-      }
-      if (formsRes.status === 'fulfilled') {
-        setFormStats(formsRes.value ?? null)
-      }
-      if (maintenanceRes.status === 'fulfilled') {
-        setMaintenanceStatus(maintenanceRes.value ?? null)
-      }
-      if (bizStatsRes.status === 'fulfilled') {
-        setBusinessStats(bizStatsRes.value?.data ?? bizStatsRes.value ?? null)
-      }
-      if (paymentRes.status === 'fulfilled') {
-        setPaymentSummary(paymentRes.value?.data ?? paymentRes.value ?? null)
-      }
-      if (staffRes.status === 'fulfilled') {
-        setStaffCount(staffRes.value?.data?.count ?? staffRes.value?.count ?? null)
+      const maintenanceRes = await getMaintenanceCurrent()
+      if (maintenanceRes) {
+        setMaintenanceStatus(maintenanceRes ?? null)
       }
     } catch {
       message.error('Failed to load dashboard stats')
@@ -95,148 +44,36 @@ export default function AdminDashboard() {
     }
   }, [])
 
-  const loadRecentActivity = useCallback(async () => {
-    setRecentActivityLoading(true)
-    try {
-      const res = await get('/api/admin/monitoring/audit-logs?page=1&limit=10')
-      const logs = res?.data?.logs ?? res?.data ?? []
-      setRecentLogs(Array.isArray(logs) ? logs : [])
-    } catch {
-      setRecentLogs([])
-    } finally {
-      setRecentActivityLoading(false)
-      setLastUpdated(new Date())
-    }
-  }, [])
-
   useEffect(() => {
     loadKpis()
-  }, [loadKpis])
-
-  useEffect(() => {
-    loadRecentActivity()
-  }, [loadRecentActivity])
+    loadCmsCards()
+  }, [loadKpis, loadCmsCards])
 
   const onRefresh = useCallback(() => {
     loadKpis()
-    loadRecentActivity()
+    refreshCmsCards()
     setLastUpdated(new Date())
-  }, [loadKpis, loadRecentActivity])
+  }, [loadKpis, refreshCmsCards])
 
   useEffect(() => {
     window.addEventListener('admin-dashboard-refresh', onRefresh)
     return () => window.removeEventListener('admin-dashboard-refresh', onRefresh)
   }, [onRefresh])
 
-  const formCount = formStats?.activated != null ? Number(formStats.activated) + Number(formStats.deactivated || 0) + Number(formStats.retired || 0) : null
   const hasMaintenance = maintenanceStatus?.active === true || maintenanceStatus?.status === 'active'
-  const { token } = theme.useToken()
-
-  const statCards = [
-    {
-      key: 'pending',
-      label: 'Pending requests',
-      value: pendingRequests,
-      icon: CheckCircleOutlined,
-      to: '/admin/requests',
-      linkable: true,
-    },
-    {
-      key: 'tamper',
-      label: 'Open tamper incidents',
-      value: openTamper,
-      icon: SafetyCertificateOutlined,
-      to: '/admin/security',
-      colorKey: openTamper > 0 ? 'tamperAlert' : 'tamper',
-      linkable: true,
-    },
-    {
-      key: 'forms',
-      label: 'Form groups',
-      value: formCount != null ? formCount : '—',
-      icon: FileTextOutlined,
-      to: '/admin/form-definitions',
-      linkable: formCount != null,
-    },
-    {
-      key: 'businesses',
-      label: 'Active businesses',
-      value: businessStats?.activeBusinesses ?? '—',
-      icon: ShopOutlined,
-      linkable: false,
-    },
-    {
-      key: 'pendingApps',
-      label: 'Pending applications',
-      value: businessStats?.pendingApplications ?? '—',
-      icon: ClockCircleOutlined,
-      linkable: false,
-    },
-    {
-      key: 'revenue',
-      label: 'Revenue this month',
-      value: paymentSummary?.revenueThisMonth != null ? `₱${Number(paymentSummary.revenueThisMonth).toLocaleString()}` : '—',
-      icon: DollarOutlined,
-      to: '/admin/finance',
-      linkable: paymentSummary?.revenueThisMonth != null,
-    },
-    {
-      key: 'staff',
-      label: 'Staff count',
-      value: staffCount ?? '—',
-      icon: TeamOutlined,
-      to: '/admin/users',
-      linkable: staffCount != null,
-    },
-  ]
-
 
   return (
     <AdminLayout
       pageTitle="Admin Dashboard"
       pageIcon={<DashboardOutlined />}
-      onRefresh={loadKpis}
+      onRefresh={onRefresh}
       lastUpdated={lastUpdated}
-      loading={kpiLoading}
+      loading={kpiLoading || cmsLoading}
       infoSlotId="admin-dashboard-info"
       infoModalTitle="About Admin Dashboard"
     >
       <div style={{ padding: 16 }}>
         <Row gutter={[16, 16]}>
-          {/* KPI cards - same style as user management Overview tab */}
-          {statCards.map(({ key, label, value, icon: Icon, to, colorKey, linkable }) => (
-            <Col xs={12} sm={8} md={6} lg={6} key={key}>
-              <Card size="small" loading={kpiLoading} style={{ height: '100%' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span style={{ fontSize: 13, color: token.colorTextSecondary }}>{label}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: token.borderRadius,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                        background: STAT_CARD_COLORS[colorKey || key] || token.colorPrimary,
-                        color: '#fff',
-                      }}
-                    >
-                      <Icon style={{ fontSize: 18 }} />
-                    </span>
-                    {to && linkable ? (
-                      <Link to={to}>
-                        <span style={{ fontSize: 16, fontWeight: 600 }}>{value}</span>
-                      </Link>
-                    ) : (
-                      <span style={{ fontSize: 16, fontWeight: 600 }}>{value}</span>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            </Col>
-          ))}
 
           {/* Optional maintenance status */}
           {hasMaintenance && (
@@ -251,44 +88,32 @@ export default function AdminDashboard() {
             </Col>
           )}
 
-          {/* Recent admin activity */}
-          <Col xs={24} md={12}>
-            <Card
-              size="small"
-              title="Recent admin activity"
-              loading={recentActivityLoading}
-            >
-              {!recentActivityLoading && recentLogs.length === 0 ? (
-                <Text type="secondary">No recent activity.</Text>
-              ) : (
-                <List
-                  size="small"
-                  dataSource={recentLogs}
-                  renderItem={(log) => (
-                    <List.Item>
-                      <Space direction="vertical" size={0} style={{ width: '100%' }}>
-                        <Space wrap>
-                          <Tag color={ACTION_COLORS[log.action?.toLowerCase()] || 'default'}>
-                            {log.action || '—'}
-                          </Tag>
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            {log.userEmail || log.userId || '—'}
-                          </Text>
-                        </Space>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          {log.createdAt ? dayjs(log.createdAt).format('MMM D, h:mm A') : '—'}
-                        </Text>
-                      </Space>
-                    </List.Item>
-                  )}
-                />
-              )}
-            </Card>
+          {/* CMS Content Card */}
+          <Col {...CARD_COL_PROPS}>
+            <DetailCard
+              icon={FileTextOutlined}
+              title="Content Management"
+              details={[
+                { label: 'Public Announcements', value: `${publicAnnouncements.length}`, trend: trends?.public },
+                { label: 'Staff Announcements', value: `${staffAnnouncements.length}`, trend: trends?.staff },
+                { label: 'Recent Changes', value: `${cmsTotal}`, trend: trends?.cms },
+              ]}
+              onClick={() => navigate('/admin/content-management')}
+            />
           </Col>
 
-          {/* Tamper / security summary */}
-          <Col xs={24} md={12}>
-            <TamperIncidentsPanel />
+          {/* Fees Management Card */}
+          <Col {...CARD_COL_PROPS}>
+            <DetailCard
+              icon={DollarOutlined}
+              title="Fees Management"
+              details={[
+                { label: 'Total Fees', value: '12' },
+                { label: 'Fee Groups', value: '5' },
+                { label: 'Penalty Rules', value: '3' },
+              ]}
+              onClick={() => navigate('/admin/fees')}
+            />
           </Col>
         </Row>
       </div>

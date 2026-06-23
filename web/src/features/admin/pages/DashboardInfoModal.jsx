@@ -5,8 +5,8 @@ const { Text } = Typography
 const FAQ_ITEMS = [
   {
     key: '1',
-    label: 'What do the KPI numbers mean?',
-    children: 'Pending shows requests awaiting your action (e.g. maintenance mode, profile edits). Open tamper is the count of security incidents that are not yet resolved. Forms shows how many form groups and published versions exist. Click any card to go to that section.',
+    label: 'What are the content cards?',
+    children: 'The three content cards show public announcements, staff announcements, and CMS updates. These display published and active items only (matching the landing page behavior). Click any card to go to Content Management for full control.',
   },
   {
     key: '2',
@@ -21,7 +21,7 @@ const FAQ_ITEMS = [
   {
     key: '4',
     label: 'Can I customize what appears on the dashboard?',
-    children: 'The dashboard is fixed to key metrics and recent activity. Use the links on each KPI card to jump to the corresponding admin page (Requests, Security, Form Definitions) for full control.',
+    children: 'The dashboard is fixed to content cards and maintenance status. Use the links on each card to jump to the corresponding admin page (Content Management, Site Settings) for full control.',
   },
 ]
 
@@ -44,10 +44,8 @@ export default function DashboardInfoModal({ open, onClose }) {
         <div>
           <Text strong>What you see here</Text>
           <ul style={{ margin: '4px 0 0 0', paddingLeft: 20 }}>
-            <li><Text><strong>KPI cards</strong> — Pending approval requests, open tamper incidents, and form group counts. Click a card to go to the related section (Requests, Security, Form Definitions).</Text></li>
+            <li><Text><strong>Content cards</strong> — Public announcements, staff announcements, and CMS updates. These show published and active items only. Click a card to go to Content Management.</Text></li>
             <li><Text><strong>Maintenance status</strong> — Whether the system is in maintenance mode and the current message shown to users.</Text></li>
-            <li><Text><strong>Recent admin activity</strong> — Latest audit log entries from admin actions (logins, approvals, updates). Helps you spot recent changes.</Text></li>
-            <li><Text><strong>Security summary</strong> — Tamper incident counts and a quick link to acknowledge, contain, or resolve incidents in the Security section.</Text></li>
           </ul>
         </div>
 

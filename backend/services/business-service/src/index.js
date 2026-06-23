@@ -214,9 +214,10 @@ const clearanceRouter = require("./routes/clearances");
 const treasuryRouter = require("./routes/treasury");
 const inspectionSchedulingRouter = require("./routes/inspectionScheduling");
 const permitsRouter = require("./routes/permits");
+const adminFeesRouter = require("./routes/adminFees");
+const adminFeeGroupsRouter = require("./routes/adminFeeGroups");
+const adminPenaltyRulesRouter = require("./routes/adminPenaltyRules");
 
-app.use("/api/business/admin/fee-configuration", feeConfigurationRouter);
-app.use("/api/business/admin/regulatory-fee-config", regulatoryFeeConfigRouter);
 app.use("/api/business/general-permits", generalPermitsRouter);
 app.use("/api/business/occupational-permits", occupationalPermitsRouter);
 app.use("/api/business/appeals", appealsRouter);
@@ -237,6 +238,11 @@ app.use("/api/business/clearances", clearanceRouter);
 app.use("/api/business/permits", permitsRouter);
 app.use("/api/treasury", treasuryRouter);
 app.use("/api/inspections", inspectionSchedulingRouter);
+app.use("/api/business/admin/fee-configuration", feeConfigurationRouter);
+app.use("/api/business/admin/regulatory-fee-config", regulatoryFeeConfigRouter);
+app.use("/api/business/admin/fees", adminFeesRouter);
+app.use("/api/business/admin/fee-groups", adminFeeGroupsRouter);
+app.use("/api/business/admin/penalty-rules", adminPenaltyRulesRouter);
 
 // Help Requests (public + officer)
 const helpRequestsRouter = require("./routes/helpRequests");
@@ -354,7 +360,7 @@ async function start() {
     dbReady = true;
     logger.info("Business Service database ready");
 
-    // Seed fee configuration if empty (idempotent). Runs when SEED_FEE_CONFIGURATION=true (Docker) or in non-production.
+    // Seed fees if empty (idempotent). Runs when SEED_FEE_CONFIGURATION=true (Docker) or in non-production.
     const shouldSeedFeeConfig =
       process.env.NODE_ENV !== "test" &&
       (process.env.SEED_FEE_CONFIGURATION === "true" ||
@@ -364,19 +370,19 @@ async function start() {
       const seedRetryDelayMs = 3000;
       for (let attempt = 1; attempt <= maxSeedRetries; attempt++) {
         try {
-          const { seedIfEmpty } = require("./seed/seedFeeConfiguration");
+          const { seedIfEmpty } = require("./seed/seedFees");
           const result = await seedIfEmpty();
           if (result.seeded) {
-            logger.info("Fee configuration seeded", { count: result.count });
+            logger.info("Fees seeded", { count: result.count });
           }
           break;
         } catch (error) {
           logger.warn(
-            `Fee configuration seed attempt ${attempt}/${maxSeedRetries} failed`,
+            `Fees seed attempt ${attempt}/${maxSeedRetries} failed`,
             { error: error.message },
           );
           if (attempt === maxSeedRetries) {
-            logger.warn("Fee configuration seed failed after retries", {
+            logger.warn("Fees seed failed after retries", {
               error: error.message,
             });
           } else {

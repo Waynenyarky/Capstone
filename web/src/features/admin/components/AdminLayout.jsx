@@ -29,7 +29,7 @@ export default function AdminLayout({
       infoSlotId={infoSlotId}
       infoModalTitle={infoModalTitle}
       contentPadding={0}
-      background="colorBgLayout"
+      background="colorBgContainer"
     >
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {children}

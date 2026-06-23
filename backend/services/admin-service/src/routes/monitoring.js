@@ -251,10 +251,29 @@ router.get(
         : null;
       const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom) : null;
       const dateTo = req.query.dateTo ? new Date(req.query.dateTo) : null;
+      const cmsOnly = req.query.cmsOnly === 'true';
+      const daysSince = req.query.daysSince ? parseInt(req.query.daysSince) : null;
 
       const query = {};
       if (adminId) query.userId = adminId;
       if (eventType) query.eventType = eventType;
+      if (cmsOnly) {
+        query.eventType = {
+          $in: [
+            'faq_updated',
+            'instruction_updated',
+            'page_updated',
+            'announcement_created',
+            'announcement_updated',
+            'announcement_deleted',
+          ],
+        };
+      }
+      if (daysSince) {
+        const sinceDate = new Date();
+        sinceDate.setDate(sinceDate.getDate() - daysSince);
+        query.createdAt = { $gte: sinceDate };
+      }
       if (announcementId) {
         if (mongoose.Types.ObjectId.isValid(announcementId)) {
           query["metadata.announcementId"] = new mongoose.Types.ObjectId(
