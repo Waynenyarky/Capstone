@@ -1,11 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Form } from '@/shared/components/AppForm'
-import { Typography, Button, Card, Space, Alert, App, Input, Select, Upload, Checkbox, Row, Col, Modal } from 'antd'
+import { Typography, Button, Card, Space, Alert, App, Input, Select, Upload, Checkbox, Row, Col } from 'antd'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
-import { ArrowLeftOutlined, ShopOutlined, FileProtectOutlined, CheckCircleOutlined, UploadOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, ShopOutlined, FileProtectOutlined, CheckCircleOutlined, UploadOutlined } from '@ant-design/icons'
 import BusinessOwnerLayout from '../components/shared/BusinessOwnerLayout'
 import { addBusiness, submitBusinessApplication } from '../services/businessProfileService'
+import { getFeeGroupForForm } from '../services/feeService'
+import { post } from '@/lib/http'
+import MockPaymentModal from '../components/MockPaymentModal'
+import PaymentReceiptModal from '../components/PaymentReceiptModal'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -16,6 +20,28 @@ export default function ApplicationNewPage() {
   const [form] = Form.useForm()
   const [submitting, setSubmitting] = useState(false)
   const [businessCreated, setBusinessCreated] = useState(null)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [feeData, setFeeData] = useState(null)
+  const [loadingFees, setLoadingFees] = useState(true)
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
+  const [showReceiptModal, setShowReceiptModal] = useState(false)
+  const [receiptData, setReceiptData] = useState(null)
+
+  useEffect(() => {
+    const fetchFees = async () => {
+      try {
+        setLoadingFees(true)
+        const response = await getFeeGroupForForm('permit')
+        setFeeData(response)
+      } catch (err) {
+        console.error('Failed to fetch fee data:', err)
+        setFeeData(null)
+      } finally {
+        setLoadingFees(false)
+      }
+    }
+    fetchFees()
+  }, [])
 
   const handleBack = () => {
     navigate('/owner')
@@ -40,6 +66,61 @@ export default function ApplicationNewPage() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const handleSubmitAndPay = () => {
+    setShowPaymentModal(true)
+  }
+
+  const handlePaymentSuccess = async (receiptId) => {
+    setShowPaymentModal(false)
+    setIsSubmittingPayment(true)
+    // Store receipt data to show after submission
+    const receiptInfo = {
+      receiptId,
+      transactionDate: new Date().toLocaleString(),
+      transactionName: 'Business Permit Application',
+      fees: feeData?.fees || [],
+      totalAmount: feeData?.total || 0,
+      applicationReferenceNumber: businessCreated?.applicationReferenceNumber || 'N/A',
+    }
+    setReceiptData(receiptInfo)
+    // Submit application after successful payment
+    try {
+      const values = await form.validateFields()
+      await handleSubmit(values)
+      
+      // Create mock payment record in backend
+      let backendReceiptNumber = null
+      try {
+        const businessId = businessCreated?.businessId || businessCreated?._id
+        const paymentResponse = await post('/api/business/payments/mock', {
+          businessId,
+          amount: receiptInfo.totalAmount,
+          fees: receiptInfo.fees,
+          transactionName: receiptInfo.transactionName,
+        })
+        backendReceiptNumber = paymentResponse?.data?.receiptNumber
+      } catch (err) {
+        console.error('Failed to create mock payment record:', err)
+        // Continue anyway - payment record creation is non-blocking
+      }
+      
+      // Update receipt data with backend receipt number
+      setReceiptData(prev => ({ ...prev, receiptNumber: backendReceiptNumber }))
+      
+      // Show receipt modal after successful submission
+      setShowReceiptModal(true)
+    } catch (error) {
+      message.error(error.message || 'Failed to submit application')
+    } finally {
+      setIsSubmittingPayment(false)
+    }
+  }
+
+  const handlePaymentFail = () => {
+    setShowPaymentModal(false)
+    message.error('Payment cancelled. Application was not submitted.')
   }
 
   return (
@@ -235,18 +316,10 @@ export default function ApplicationNewPage() {
                 <Button
                   type="primary"
                   size="large"
-                  loading={submitting}
+                  loading={submitting || isSubmittingPayment}
                   data-testid="submit-application-button"
-                  onClick={() => {
-                    Modal.confirm({
-                      title: 'Confirm Application Submission',
-                      icon: <ExclamationCircleOutlined />,
-                      content: 'Are you sure you want to submit this business permit application? This action cannot be undone.',
-                      okText: 'Yes, Submit',
-                      cancelText: 'Cancel',
-                      onOk: () => form.submit()
-                    })
-                  }}
+                  onClick={handleSubmitAndPay}
+                  disabled={isSubmittingPayment}
                 >
                   <CheckCircleOutlined /> Submit Application
                 </Button>
@@ -263,6 +336,28 @@ export default function ApplicationNewPage() {
               <p>Submitting your application...</p>
             </div>
           )}
+
+          <MockPaymentModal
+            visible={showPaymentModal}
+            onClose={() => setShowPaymentModal(false)}
+            onSuccess={handlePaymentSuccess}
+            onFail={handlePaymentFail}
+            amount={feeData?.total || 0}
+            transactionName="Business Permit Application"
+            fees={feeData?.fees || []}
+          />
+          
+          <PaymentReceiptModal
+            visible={showReceiptModal}
+            onClose={() => setShowReceiptModal(false)}
+            receiptId={receiptData?.receiptId}
+            receiptNumber={receiptData?.receiptNumber}
+            transactionDate={receiptData?.transactionDate}
+            transactionName={receiptData?.transactionName}
+            fees={receiptData?.fees}
+            totalAmount={receiptData?.totalAmount}
+            applicationReferenceNumber={receiptData?.applicationReferenceNumber}
+          />
         </Card>
       </div>
     </BusinessOwnerLayout>

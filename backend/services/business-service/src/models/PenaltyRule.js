@@ -24,6 +24,15 @@ const PenaltyRuleSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    isDraft: {
+      type: Boolean,
+      default: false,
+    },
+    draftOf: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PenaltyRule",
+      default: null,
+    },
     version: {
       type: Number,
       default: 1,

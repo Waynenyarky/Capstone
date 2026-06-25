@@ -22,7 +22,7 @@ const { Title, Text } = Typography
 const { TextArea } = Input
 
 export default function PaymentVerificationDashboard() {
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const [form] = Form.useForm()
   const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -389,7 +389,7 @@ export default function PaymentVerificationDashboard() {
                   <Button 
                     danger
                     onClick={() => {
-                      Modal.confirm({
+                      modal.confirm({
                         title: 'Reject Payment',
                         content: (
                           <Form layout="vertical">

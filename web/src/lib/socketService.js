@@ -32,17 +32,14 @@ export function initializeSocket(token) {
 
   // Token changed or stale socket: disconnect and recreate
   if (socket) {
-    console.log('[Socket] Reconnecting with new token...')
     socket.disconnect()
     socket = null
   }
 
   // Determine the socket URL based on environment
-  const socketUrl = import.meta.env.VITE_SOCKET_URL || 
-                    import.meta.env.VITE_BUSINESS_API_URL || 
+  const socketUrl = import.meta.env.VITE_SOCKET_URL ||
+                    import.meta.env.VITE_BUSINESS_API_URL ||
                     'http://localhost:3002'
-
-  console.log('[Socket] Connecting to:', socketUrl)
 
   socket = io(socketUrl, {
     auth: { token },
@@ -56,24 +53,19 @@ export function initializeSocket(token) {
   socketToken = token
 
   socket.on('connect', () => {
-    console.log('[Socket] Connected:', socket.id)
     reconnectAttempts = 0
   })
 
-  socket.on('disconnect', (reason) => {
-    console.log('[Socket] Disconnected:', reason)
+  socket.on('disconnect', (_reason) => {
+    // Silent disconnect
   })
 
-  socket.on('connect_error', (error) => {
-    console.warn('[Socket] Connection error:', error.message)
+  socket.on('connect_error', (_error) => {
     reconnectAttempts++
-    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-      console.warn('[Socket] Max reconnection attempts reached')
-    }
   })
 
-  socket.on('pong', (data) => {
-    console.log('[Socket] Pong received:', data)
+  socket.on('pong', (_data) => {
+    // Silent pong
   })
 
   return socket

@@ -1,5 +1,5 @@
 import { useRef, useEffect, useMemo } from 'react'
-import { Typography, Select, theme, Row, Empty, Input, Button, Tooltip, Drawer } from 'antd'
+import { Typography, Select, theme, Row, Empty, Input, Button, Tooltip, Drawer, Space, Tag } from 'antd'
 import { SearchOutlined, PlusOutlined, FilterOutlined, CloseOutlined } from '@ant-design/icons'
 
 import FeeGroupDetailPanel from '../components/FeeGroupDetailPanel'
@@ -68,7 +68,7 @@ export default function AdminFeesMobileView() {
 
   const rightPanelContent = selectedItemId ? (
     <>
-      {selectedType === 'fee_groups' && (
+      {selectedType === 'fee_groups' && selectedItem && (
         <FeeGroupDetailPanel
           groupId={selectedItemId}
           group={selectedItemId === 'new' ? null : selectedItem}
@@ -78,9 +78,10 @@ export default function AdminFeesMobileView() {
             onDelete(selectedItemId)
             setSelectedItemId(null)
           }}
+          isMobile={true}
         />
       )}
-      {selectedType === 'fees' && (
+      {selectedType === 'fees' && selectedItem && (
         <FeeDetailPanel
           feeId={selectedItemId}
           fee={selectedItemId === 'new' ? null : selectedItem}
@@ -89,9 +90,10 @@ export default function AdminFeesMobileView() {
             onDelete(selectedItemId)
             setSelectedItemId(null)
           }}
+          isMobile={true}
         />
       )}
-      {selectedType === 'penalty_rules' && (
+      {selectedType === 'penalty_rules' && selectedItem && (
         <PenaltyRuleDetailPanel
           ruleId={selectedItemId}
           rule={selectedItemId === 'new' ? null : selectedItem}
@@ -100,6 +102,7 @@ export default function AdminFeesMobileView() {
             onDelete(selectedItemId)
             setSelectedItemId(null)
           }}
+          isMobile={true}
         />
       )}
     </>
@@ -207,7 +210,32 @@ export default function AdminFeesMobileView() {
       <Drawer
         open={!!selectedItemId}
         onClose={() => onSelectItem(null)}
-        title={selectedItemId === 'new' ? addButtonLabel : selectedItem?.name}
+        title={
+          <Space>
+            <span>
+              {(() => {
+                if (selectedItemId === 'new') {
+                  if (selectedType === 'fee_groups') return 'New Fee Group'
+                  if (selectedType === 'fees') return 'New Fee'
+                  if (selectedType === 'penalty_rules') return 'New Penalty Rule'
+                  return 'New'
+                }
+                if (selectedType === 'fee_groups') return 'Fee Group Detail'
+                if (selectedType === 'fees') return 'Fee Detail'
+                if (selectedType === 'penalty_rules') return 'Penalty Rule Detail'
+                return 'Detail'
+              })()}
+            </span>
+            {selectedItemId !== 'new' && (
+              <Tag
+                color="success"
+                style={{ fontWeight: 'normal' }}
+              >
+                Saved
+              </Tag>
+            )}
+          </Space>
+        }
         placement="right"
         width="100%"
         bodyStyle={{ padding: 0 }}

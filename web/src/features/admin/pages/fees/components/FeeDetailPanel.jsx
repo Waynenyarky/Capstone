@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react'
-import { Form, Input, InputNumber, Button, Space, Typography, theme, Modal, Select, message } from 'antd'
-import { SaveOutlined, InfoCircleOutlined, HistoryOutlined } from '@ant-design/icons'
+import { useState, useEffect, useCallback } from 'react'
+import { Form, Input, InputNumber, Button, Space, Typography, theme, App, Select, message, Tag } from 'antd'
+import { SaveOutlined, InfoCircleOutlined, HistoryOutlined, UndoOutlined, RedoOutlined, RollbackOutlined } from '@ant-design/icons'
 import AuditHistoryModal from '@/shared/components/AuditHistoryModal'
-import { createFee, updateFee, disableFee } from '@/features/admin/services/feeService'
+import { createFee, updateFee, disableFee, getFeeDraft, saveFeeDraft, publishFeeDraft, getFeeAuditHistory } from '@/features/admin/services/feeService'
+import useFeesAutosave from '../hooks/useFeesAutosave'
+import useFeesUndoRedo from '../hooks/useFeesUndoRedo'
+import { useAdminStepUp } from '@/features/admin/hooks/useAdminStepUp'
 
 const { Text } = Typography
 const { TextArea } = Input
@@ -12,46 +15,148 @@ const STATUS_OPTIONS = [
   { value: 'disabled', label: 'Disabled' },
 ]
 
-export default function FeeDetailPanel({ feeId, fee, onSave, onDelete }) {
+export default function FeeDetailPanel({ feeId, fee, onSave, onDelete, isMobile = false }) {
   const { token } = theme.useToken()
+  const { modal } = App.useApp()
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [historyModalOpen, setHistoryModalOpen] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
+  const [draft, setDraft] = useState(null)
+  const [formValues, setFormValues] = useState({})
+  const [auditLogs, setAuditLogs] = useState([])
+  const [auditLoading, setAuditLoading] = useState(false)
+  const { runWithStepUp, stepUpModal } = useAdminStepUp()
 
   const isNew = feeId === 'new'
 
-  const initialValues = {
+  const initialValues = draft || {
     name: fee?.name || '',
     description: fee?.description || '',
     amount: fee?.amount || 0,
   }
 
+  const { undo, redo, pushHistory, resetHistory, canUndo, canRedo } = useFeesUndoRedo()
+
+  const handleUndo = useCallback(() => {
+    const entry = undo()
+    if (entry) {
+      form.setFieldsValue(entry)
+      setFormValues(entry)
+    }
+  }, [form, undo])
+
+  const handleRedo = useCallback(() => {
+    const entry = redo()
+    if (entry) {
+      form.setFieldsValue(entry)
+      setFormValues(entry)
+    }
+  }, [form, redo])
+
+  const handleRevert = useCallback(() => {
+    const revertValues = draft || {
+      name: fee?.name || '',
+      description: fee?.description || '',
+      amount: fee?.amount || 0,
+    }
+    form.setFieldsValue(revertValues)
+    setFormValues(revertValues)
+    setHasChanges(false)
+    resetHistory(revertValues)
+    message.success('Reverted to original')
+  }, [draft, fee, form, resetHistory])
+
+  const loadAuditLogs = useCallback(async () => {
+    if (isNew) return
+    try {
+      setAuditLoading(true)
+      const logs = await getFeeAuditHistory(feeId, { limit: 20 })
+      setAuditLogs(logs)
+    } catch {
+      setAuditLogs([])
+    } finally {
+      setAuditLoading(false)
+    }
+  }, [feeId, isNew])
+
+  const handleHistoryModalOpen = useCallback(() => {
+    loadAuditLogs()
+    setHistoryModalOpen(true)
+  }, [loadAuditLogs])
+
+  // Load draft when fee changes
   useEffect(() => {
-    form.setFieldsValue(initialValues)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fee?.name, fee?.description, fee?.amount, form])
+    const loadDraft = async () => {
+      if (!isNew && feeId) {
+        try {
+          const draftData = await getFeeDraft(feeId)
+          setDraft(draftData)
+          const loadedValues = draftData || {
+            name: fee?.name || '',
+            description: fee?.description || '',
+            amount: fee?.amount || 0,
+          }
+          form.setFieldsValue(loadedValues)
+          setFormValues(loadedValues)
+          resetHistory(loadedValues)
+        } catch (err) {
+          console.error('Failed to load draft:', err)
+        }
+      }
+    }
+    loadDraft()
+  }, [feeId, fee, isNew, form, resetHistory])
+
+  // Autosave to draft
+  const handleAutosave = async (values) => {
+    if (isNew) return
+    await saveFeeDraft(feeId, values, { requireStepUp: false })
+  }
+
+  useFeesAutosave(
+    isNew ? null : formValues,
+    handleAutosave,
+    !isNew,
+    hasChanges
+  )
+
+  useEffect(() => {
+    if (!draft) {
+      form.setFieldsValue({
+        name: fee?.name || '',
+        description: fee?.description || '',
+        amount: fee?.amount || 0,
+      })
+    }
+  }, [fee?.name, fee?.description, fee?.amount, form, draft])
 
   const handleSave = async () => {
     try {
       setSaving(true)
       await form.validateFields()
       const values = form.getFieldsValue()
-      
+
       if (isNew) {
-        await createFee(values, { requireStepUp: true })
+        await runWithStepUp(async (stepUpToken) => {
+          await createFee(values, { stepUpToken })
+        })
         message.success('Fee created successfully')
       } else {
-        await updateFee(feeId, values, { requireStepUp: true })
-        message.success('Fee updated successfully')
+        // Publish draft to original fee
+        await runWithStepUp(async (stepUpToken) => {
+          await publishFeeDraft(feeId, { stepUpToken })
+        })
+        message.success('Fee published successfully')
+        setDraft(null) // Clear draft after publishing
       }
-      
-      setHasChanges(false)
-      if (onSave) onSave()
+      onSave()
     } catch (error) {
-      console.error('Failed to save fee:', error)
-      message.error(error.message || 'Failed to save fee')
+      if (error?.message !== 'Step-up cancelled') {
+        console.error('Failed to save fee:', error)
+        message.error(error.message || 'Failed to save fee')
+      }
     } finally {
       setSaving(false)
     }
@@ -59,10 +164,14 @@ export default function FeeDetailPanel({ feeId, fee, onSave, onDelete }) {
 
   const handleValuesChange = () => {
     const currentValues = form.getFieldsValue()
+    setFormValues(currentValues)
     const changed = Object.keys(initialValues).some(
       (key) => currentValues[key] !== initialValues[key]
     )
     setHasChanges(changed)
+    if (changed) {
+      pushHistory(currentValues)
+    }
   }
 
   const handleStatusChange = async (status) => {
@@ -79,7 +188,7 @@ export default function FeeDetailPanel({ feeId, fee, onSave, onDelete }) {
       }
     }
 
-    Modal.confirm({
+    modal.confirm({
       title: 'Change Status',
       content: getStatusMessage(status),
       okText: 'Change',
@@ -116,35 +225,66 @@ export default function FeeDetailPanel({ feeId, fee, onSave, onDelete }) {
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+        <div style={{ marginBottom: 12 }}>
           <Space>
-            <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving} disabled={!hasChanges && !isNew}>
+            <Text strong style={{ fontSize: 16 }}>
+              {isNew ? 'New Fee' : 'Fee Detail'}
+            </Text>
+            {!isNew && (
+              <Tag color={draft ? 'blue' : hasChanges ? 'warning' : 'success'} style={{ fontWeight: 'normal' }}>
+                {draft ? 'Draft' : hasChanges ? 'Unsaved' : 'Published'}
+              </Tag>
+            )}
+          </Space>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 8 : 0 }}>
+          <div style={{ display: 'flex', gap: 8, width: isMobile ? '100%' : 'auto' }}>
+            <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving} disabled={!hasChanges && !isNew} style={{ flex: isMobile ? 1 : 'auto' }}>
               Publish Changes
             </Button>
             {!isNew && (
               <>
-                <div style={{ width: 1, height: 24, background: token.colorBorderSecondary, margin: '0 8px' }} />
+                <Space.Compact>
+                  <Button icon={<UndoOutlined />} onClick={handleUndo} disabled={!canUndo} />
+                  <Button icon={<RedoOutlined />} onClick={handleRedo} disabled={!canRedo} />
+                  <Button icon={<RollbackOutlined />} onClick={handleRevert} />
+                </Space.Compact>
                 <Space.Compact>
                   <Button icon={<InfoCircleOutlined />} disabled />
-                  <Button icon={<HistoryOutlined />} onClick={() => setHistoryModalOpen(true)} />
+                  <Button icon={<HistoryOutlined />} onClick={handleHistoryModalOpen} />
                 </Space.Compact>
               </>
             )}
-          </Space>
-          <Space>
-            {!isNew && (
-              <Form.Item label="Status" style={{ marginBottom: 0 }}>
-                <Select
-                  value={fee?.isActive ? 'active' : 'disabled'}
-                  onChange={handleStatusChange}
-                  loading={updatingStatus}
-                  style={{ width: 120 }}
-                  options={STATUS_OPTIONS}
-                />
-              </Form.Item>
-            )}
-          </Space>
+          </div>
+          {!isMobile && (
+            <Space>
+              {!isNew && (
+                <Form.Item label="Status" style={{ marginBottom: 0 }}>
+                  <Select
+                    value={fee?.isActive ? 'active' : 'disabled'}
+                    onChange={handleStatusChange}
+                    loading={updatingStatus}
+                    style={{ width: 120 }}
+                    options={STATUS_OPTIONS}
+                  />
+                </Form.Item>
+              )}
+            </Space>
+          )}
         </div>
+        {isMobile && !isNew && (
+          <div style={{ marginTop: 12 }}>
+            <Form.Item label="Status" style={{ marginBottom: 0 }}>
+              <Select
+                value={fee?.isActive ? 'active' : 'disabled'}
+                onChange={handleStatusChange}
+                loading={updatingStatus}
+                style={{ width: '100%' }}
+                options={STATUS_OPTIONS}
+              />
+            </Form.Item>
+          </div>
+        )}
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
@@ -188,8 +328,10 @@ export default function FeeDetailPanel({ feeId, fee, onSave, onDelete }) {
       <AuditHistoryModal
         open={historyModalOpen}
         onClose={() => setHistoryModalOpen(false)}
-        auditLogs={[]}
+        auditLogs={auditLogs}
+        loading={auditLoading}
       />
+      {stepUpModal}
     </div>
   )
 }

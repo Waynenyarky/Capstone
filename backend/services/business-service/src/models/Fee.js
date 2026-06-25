@@ -24,6 +24,15 @@ const FeeSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    isDraft: {
+      type: Boolean,
+      default: false,
+    },
+    draftOf: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Fee",
+      default: null,
+    },
     version: {
       type: Number,
       default: 1,

@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const { requireJwt, requireRole } = require("../middleware/auth");
 const respond = require("../middleware/respond");
 const HelpRequest = require("../models/HelpRequest");
+const User = require("../models/User");
 const logger = require("../lib/logger");
 const { logAuditEvent } = require("../lib/auditClient");
 const {
@@ -251,6 +252,7 @@ router.get(
       }
 
       const requests = await HelpRequest.find(filter)
+        .populate("claimedBy", "firstName lastName email")
         .sort({ createdAt: -1 })
         .limit(Number(limit))
         .lean();
@@ -291,7 +293,9 @@ router.get(
           status: r.status,
           priority: r.priority,
           claimedBy: r.claimedBy,
-          claimedByName: r.claimedByName,
+          claimedByName: r.claimedBy?.firstName && r.claimedBy?.lastName
+            ? `${r.claimedBy.firstName} ${r.claimedBy.lastName}`
+            : r.claimedByName || "",
           claimedAt: r.claimedAt,
           messageCount: (r.messages || []).length,
           createdAt: r.createdAt,
@@ -321,7 +325,9 @@ router.get(
   async (req, res) => {
     try {
       const { requestId } = req.params;
-      const helpRequest = await HelpRequest.findOne({ requestId });
+      const helpRequest = await HelpRequest.findOne({ requestId })
+        .populate("claimedBy", "firstName lastName email")
+        .populate("internalNotes.addedBy", "firstName lastName email");
       if (!helpRequest) {
         return respond.error(res, 404, "not_found", "Help request not found");
       }
@@ -361,8 +367,11 @@ router.put(
       const previousClaimedBy = helpRequest.claimedBy;
       const previousClaimedByName = helpRequest.claimedByName;
 
+      const officer = await User.findById(req._userId).select("firstName lastName").lean();
+      const officerName = officer ? `${officer.firstName} ${officer.lastName}` : (req._userEmail || "Officer");
+
       helpRequest.claimedBy = req._userId;
-      helpRequest.claimedByName = req._userEmail || "";
+      helpRequest.claimedByName = officerName;
       helpRequest.claimedAt = new Date();
       const previousStatus = helpRequest.status;
       if (helpRequest.status === "open") {
@@ -379,7 +388,7 @@ router.put(
         requestId,
         {
           claimedBy: req._userId,
-          claimedByName: req._userEmail,
+          claimedByName: officerName,
           claimedAt: helpRequest.claimedAt,
           status: { from: previousStatus, to: helpRequest.status },
           ...(previousClaimedBy && {
@@ -432,6 +441,9 @@ router.put(
         );
       }
 
+      const officer = await User.findById(req._userId).select("firstName lastName").lean();
+      const officerName = officer ? `${officer.firstName} ${officer.lastName}` : (req._userEmail || "Officer");
+
       helpRequest.claimedBy = null;
       helpRequest.claimedByName = "";
       helpRequest.claimedAt = null;
@@ -450,7 +462,7 @@ router.put(
         requestId,
         {
           releasedBy: req._userId,
-          releasedByName: req._userEmail,
+          releasedByName: officerName,
           releasedAt: new Date(),
           status: { from: previousStatus, to: helpRequest.status },
         }
@@ -514,6 +526,9 @@ router.put(
         }
       }
 
+      const officer = await User.findById(req._userId).select("firstName lastName").lean();
+      const officerName = officer ? `${officer.firstName} ${officer.lastName}` : (req._userEmail || "Officer");
+
       const previousStatus = helpRequest.status;
       helpRequest.status = status;
       helpRequest.statusChangedAt = new Date();
@@ -527,7 +542,7 @@ router.put(
         requestId,
         {
           status: { from: previousStatus, to: status },
-          updatedByName: req._userEmail,
+          updatedByName: officerName,
         }
       ).catch((err) => logger.error("Failed to log status update audit", { error: err.message }));
 
@@ -594,6 +609,9 @@ router.put(
         return respond.error(res, 404, "not_found", "Help request not found");
       }
 
+      const officer = await User.findById(req._userId).select("firstName lastName").lean();
+      const officerName = officer ? `${officer.firstName} ${officer.lastName}` : (req._userEmail || "Officer");
+
       const previousPriority = helpRequest.priority;
       helpRequest.priority = priority;
       await helpRequest.save();
@@ -606,7 +624,7 @@ router.put(
         requestId,
         {
           priority: { from: previousPriority, to: priority },
-          updatedByName: req._userEmail,
+          updatedByName: officerName,
         }
       ).catch((err) => logger.error("Failed to log priority update audit", { error: err.message }));
 
@@ -717,10 +735,13 @@ router.post(
         return respond.error(res, 404, "not_found", "Help request not found");
       }
 
+      const officer = await User.findById(req._userId).select("firstName lastName").lean();
+      const officerName = officer ? `${officer.firstName} ${officer.lastName}` : (req._userEmail || "Officer");
+
       helpRequest.internalNotes.push({
         content: content.trim(),
         addedBy: req._userId,
-        addedByName: req._userEmail || "Officer",
+        addedByName: officerName,
       });
       await helpRequest.save();
 

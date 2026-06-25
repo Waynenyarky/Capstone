@@ -65,7 +65,7 @@ export default function PermitApplicationDetail({
   const [application, setApplication] = useState(initialApplication)
   const [decision, setDecision] = useState(null)
   const { token } = theme.useToken()
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const screens = useBreakpoint()
   const isMobile = !screens.md
 
@@ -233,7 +233,7 @@ export default function PermitApplicationDetail({
       : decisionValue === 'reject'
         ? 'reject'
         : 'request changes for'
-    Modal.confirm({
+    modal.confirm({
       title: 'Submit Review?',
       content: `You are about to ${decisionLabel} this application. Do you want to continue?`,
       okText: 'Submit Review',

@@ -10,6 +10,7 @@ const finalizeAccountDeletions = require("./finalizeAccountDeletions");
 const sendDeletionReminders = require("./sendDeletionReminders");
 const notifyTamperIncidents = require("./notifyTamperIncidents");
 const expirePendingApprovals = require("./expirePendingApprovals");
+const executePendingActions = require("./executePendingActions");
 const {
   checkAndSendMaintenanceNotifications,
 } = require("../cron/maintenanceNotification");
@@ -129,6 +130,19 @@ function startJobs() {
       }
     },
     "checkAndSendMaintenanceNotifications",
+  );
+
+  // Execute expired pending actions (run every minute)
+  scheduleJob(
+    "* * * * *",
+    async () => {
+      try {
+        await executePendingActions();
+      } catch (error) {
+        logger.error("Error in executePendingActions job", { error });
+      }
+    },
+    "executePendingActions",
   );
 
   logger.info("Admin Service background jobs started successfully");

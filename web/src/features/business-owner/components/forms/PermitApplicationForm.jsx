@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo, useRef, forwardRef, useImperativeHandle, useCallback } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Typography, Button, Space, Result, Grid, theme, App, Empty, Modal } from 'antd'
+import { Typography, Button, Space, Result, Grid, theme, App, Empty } from 'antd'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { BugOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import { addBusiness } from '../../services/businessProfileService'
+import { getFeeGroupForForm } from '../../services/feeService'
+import { post } from '@/lib/http'
 import DynamicFormRenderer from './DynamicFormRenderer'
 import { filterSectionsByFormValues } from '../../utils/formUtils.js'
 import { resolveIpfsUrl } from '@/lib/ipfsUtils'
@@ -19,6 +21,8 @@ import { useSectionCompletion } from '../../hooks/useSectionCompletion.js'
 import { useDraftPersistence } from '../../hooks/useDraftPersistence.js'
 import { useFormDefinitionLoader } from '../../hooks/useFormDefinitionLoader.js'
 import FormSectionTabs from './FormSectionTabs.jsx'
+import MockPaymentModal from '../MockPaymentModal'
+import PaymentReceiptModal from '../PaymentReceiptModal'
 
 const { Title, Text, Paragraph } = Typography
 const { useBreakpoint } = Grid
@@ -38,7 +42,7 @@ export default forwardRef(function PermitApplicationForm({
   updateFn = null, // Optional: override updateBusiness (officer walk-in uses PUT /api/business/walk-in/:id)
 }, ref) {
   const { token } = theme.useToken()
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const screens = useBreakpoint()
   const isMobile = !screens.lg
   const [form] = Form.useForm()
@@ -63,6 +67,12 @@ export default forwardRef(function PermitApplicationForm({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [documentCids, setDocumentCids] = useState({})
   const [draftBusinessId, setDraftBusinessId] = useState(null)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [feeData, setFeeData] = useState(null)
+  const [loadingFees, setLoadingFees] = useState(true)
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
+  const [showReceiptModal, setShowReceiptModal] = useState(false)
+  const [receiptData, setReceiptData] = useState(null)
   const currentApplicationStatus = (editingApplication?.applicationStatus || '').toLowerCase()
   const isRevisionMode = isEditing && currentApplicationStatus === 'needs_revision' && !readOnlyProp
   const isResubmissionMode = isEditing && (currentApplicationStatus === 'needs_revision' || currentApplicationStatus === 'resubmit') && !readOnlyProp
@@ -74,6 +84,23 @@ export default forwardRef(function PermitApplicationForm({
       setActiveSectionIndex(0)
     }
   }, [formReadOnly, activeSectionIndex])
+  useEffect(() => {
+    const fetchFees = async () => {
+      if (!registrationType) return
+      try {
+        setLoadingFees(true)
+        const category = registrationType === 'general_permit' ? generalPermitCategory : null
+        const response = await getFeeGroupForForm(registrationType, category)
+        setFeeData(response)
+      } catch (err) {
+        console.error('Failed to fetch fee data:', err)
+        setFeeData(null)
+      } finally {
+        setLoadingFees(false)
+      }
+    }
+    fetchFees()
+  }, [registrationType, generalPermitCategory])
 
   const revisionFieldKeys = useMemo(() => 
     calculateRevisionFieldKeys(editingApplication?.fieldReviewDecisions),
@@ -191,6 +218,61 @@ export default forwardRef(function PermitApplicationForm({
     setHasUnsavedChanges,
     updateFn,
   })
+
+  const handleSubmitAndPay = () => {
+    setShowPaymentModal(true)
+  }
+
+  const handlePaymentSuccess = async (receiptId) => {
+    setShowPaymentModal(false)
+    setIsSubmittingPayment(true)
+    // Store receipt data to show after submission
+    const receiptInfo = {
+      receiptId,
+      transactionDate: new Date().toLocaleString(),
+      transactionName: 'Business Permit Application',
+      fees: feeData?.fees || [],
+      totalAmount: feeData?.total || 0,
+      applicationReferenceNumber: editingApplication?.applicationReferenceNumber || 'N/A',
+    }
+    setReceiptData(receiptInfo)
+    // Submit application after successful payment
+    try {
+      const values = await form.validateFields()
+      await handleSubmit(values, true)
+      
+      // Create mock payment record in backend
+      let backendReceiptNumber = null
+      try {
+        const businessId = editingApplication?.businessId || editingApplication?._id
+        const paymentResponse = await post('/api/business/payments/mock', {
+          businessId,
+          amount: receiptInfo.totalAmount,
+          fees: receiptInfo.fees,
+          transactionName: receiptInfo.transactionName,
+        })
+        backendReceiptNumber = paymentResponse?.data?.receiptNumber
+      } catch (err) {
+        console.error('Failed to create mock payment record:', err)
+        // Continue anyway - payment record creation is non-blocking
+      }
+      
+      // Update receipt data with backend receipt number
+      setReceiptData(prev => ({ ...prev, receiptNumber: backendReceiptNumber }))
+      
+      // Show receipt modal after successful submission
+      setShowReceiptModal(true)
+    } catch {
+      // Form validation or submission error - let the existing error handling work
+    } finally {
+      setIsSubmittingPayment(false)
+    }
+  }
+
+  const handlePaymentFail = () => {
+    setShowPaymentModal(false)
+    message.error('Payment cancelled. Application was not submitted.')
+  }
 
   useEffect(() => {
     onSubmittingChange?.(submitting)
@@ -385,9 +467,12 @@ export default forwardRef(function PermitApplicationForm({
   }, [formDefinition, generalPermitCategory, form, message, isEditing, draftBusinessId, registrationType, addBusiness, setDraftBusinessId])
 
   useImperativeHandle(ref, () => ({
-    submitApplication: () => form.submit(),
+    submitApplication: async () => {
+      const values = await form.validateFields()
+      return handleSubmit(values, true)
+    },
     fillTestData: doFillTestData,
-  }), [form, doFillTestData])
+  }), [form, doFillTestData, handleSubmit])
 
   // Auto-save draft when switching between sections
   const previousSectionRef = useRef(-1)
@@ -480,77 +565,9 @@ export default forwardRef(function PermitApplicationForm({
                     <Button
                       type="primary"
                       htmlType="button"
-                      loading={submitting}
-                      onClick={async (e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        try {
-                          const values = await form.validateFields()
-                          await handleSubmit(values, true)
-                        } catch (err) {
-                          const errorFields = err?.errorFields || []
-                          const firstErrorName = errorFields[0]?.name
-
-                          const doSwitchAndFocus = () => {
-                            let switched = false
-                            // 1. Try DOM: find first error element
-                            const firstErrorEl = document.querySelector('.ant-form-item-has-error')
-                            if (firstErrorEl) {
-                              const sectionWrapper = firstErrorEl.closest('[data-section-index]')
-                              if (sectionWrapper != null) {
-                                const idx = parseInt(sectionWrapper.getAttribute('data-section-index'), 10)
-                                if (!Number.isNaN(idx)) {
-                                  setActiveSectionIndex(idx)
-                                  switched = true
-                                }
-                              }
-                            }
-                            // 2. Fallback: use field name from error
-                            if (!switched && firstErrorName != null) {
-                              const nameParts = Array.isArray(firstErrorName) ? firstErrorName : [firstErrorName]
-                              for (const part of nameParts) {
-                                const sectionIdx = fieldToSectionIndex[part]
-                                if (typeof sectionIdx === 'number') {
-                                  setActiveSectionIndex(sectionIdx)
-                                  break
-                                }
-                              }
-                            }
-                            // 3. Fallback: iterate sections to find which contains this field
-                            if (!switched && firstErrorName != null && visibleSections.length > 0) {
-                              const searchKey = Array.isArray(firstErrorName) ? firstErrorName[0] : firstErrorName
-                              const lobFieldNames = ['businessDescriptionText', 'hasAnalyzedBusinessDescription', 'businessActivities']
-                              for (let i = 0; i < visibleSections.length; i++) {
-                                const items = visibleSections[i].items || []
-                                const hasField =
-                                  items.some(
-                                    (it) =>
-                                      (it.key || it.label) === searchKey ||
-                                      ((it.type === 'address' || it.type === 'address_alaminos') && (it.key || it.label) === searchKey)
-                                  ) ||
-                                  (lobFieldNames.includes(searchKey) &&
-                                    items.some((it) => it.type === 'ai_lob_recommendation' || it.key === 'aiLobRecommendation'))
-                                if (hasField) {
-                                  setActiveSectionIndex(i)
-                                  break
-                                }
-                              }
-                            }
-                            // 3. Focus and scroll
-                            const firstErrorControl = document.querySelector(
-                              '.ant-form-item-has-error input:not([type="hidden"]), .ant-form-item-has-error select, .ant-form-item-has-error textarea, .ant-form-item-has-error .ant-picker-input input, .ant-form-item-has-error .ant-input-number-input'
-                            )
-                            if (firstErrorControl) {
-                              firstErrorControl.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                              if (typeof firstErrorControl.focus === 'function') firstErrorControl.focus()
-                            }
-                          }
-
-                          // Run after React has applied Form error state to DOM
-                          setTimeout(doSwitchAndFocus, 0)
-                          setTimeout(doSwitchAndFocus, 150)
-                        }
-                      }}
+                      loading={submitting || isSubmittingPayment}
+                      onClick={handleSubmitAndPay}
+                      disabled={isSubmittingPayment}
                     >
                       Submit
                     </Button>
@@ -580,81 +597,7 @@ export default forwardRef(function PermitApplicationForm({
                   type="primary"
                   htmlType="button"
                   loading={submitting}
-                  onClick={(e) => {
-                    e.preventDefault()
-                    Modal.confirm({
-                      title: 'Confirm Application Submission',
-                      icon: <ExclamationCircleOutlined />,
-                      content: isRevisionMode
-                        ? 'Are you sure you want to resubmit this application with your revisions? This action cannot be undone.'
-                        : 'Are you sure you want to submit this business permit application? This action cannot be undone.',
-                      okText: 'Yes, Submit',
-                      cancelText: 'Cancel',
-                      onOk: async () => {
-                        try {
-                          const values = await form.validateFields()
-                          await handleSubmit(values, true)
-                        } catch (err) {
-                          const errorFields = err?.errorFields || []
-                          const firstErrorName = errorFields[0]?.name
-
-                          const doSwitchAndFocus = () => {
-                            let switched = false
-                            const firstErrorEl = document.querySelector('.ant-form-item-has-error')
-                            if (firstErrorEl) {
-                              const sectionWrapper = firstErrorEl.closest('[data-section-index]')
-                              if (sectionWrapper != null) {
-                                const idx = parseInt(sectionWrapper.getAttribute('data-section-index'), 10)
-                                if (!Number.isNaN(idx)) {
-                                  setActiveSectionIndex(idx)
-                                  switched = true
-                                }
-                              }
-                            }
-                            if (!switched && firstErrorName != null) {
-                              const nameParts = Array.isArray(firstErrorName) ? firstErrorName : [firstErrorName]
-                              for (const part of nameParts) {
-                                const sectionIdx = fieldToSectionIndex[part]
-                                if (typeof sectionIdx === 'number') {
-                                  setActiveSectionIndex(sectionIdx)
-                                  break
-                                }
-                              }
-                            }
-                            if (!switched && firstErrorName != null && visibleSections.length > 0) {
-                              const searchKey = Array.isArray(firstErrorName) ? firstErrorName[0] : firstErrorName
-                              const lobFieldNames = ['businessDescriptionText', 'hasAnalyzedBusinessDescription', 'businessActivities']
-                              for (let i = 0; i < visibleSections.length; i++) {
-                                const items = visibleSections[i].items || []
-                                const hasField =
-                                  items.some(
-                                    (it) =>
-                                      (it.key || it.label) === searchKey ||
-                                      ((it.type === 'address' || it.type === 'address_alaminos') && (it.key || it.label) === searchKey)
-                                  ) ||
-                                  (lobFieldNames.includes(searchKey) &&
-                                    items.some((it) => it.type === 'ai_lob_recommendation' || it.key === 'aiLobRecommendation'))
-                                if (hasField) {
-                                  setActiveSectionIndex(i)
-                                  break
-                                }
-                              }
-                            }
-                            const firstErrorControl = document.querySelector(
-                              '.ant-form-item-has-error input:not([type="hidden"]), .ant-form-item-has-error select, .ant-form-item-has-error textarea, .ant-form-item-has-error .ant-picker-input input, .ant-form-item-has-error .ant-input-number-input'
-                            )
-                            if (firstErrorControl) {
-                              firstErrorControl.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                              if (typeof firstErrorControl.focus === 'function') firstErrorControl.focus()
-                            }
-                          }
-
-                          setTimeout(doSwitchAndFocus, 0)
-                          setTimeout(doSwitchAndFocus, 150)
-                        }
-                      }
-                    })
-                  }}
+                  onClick={handleSubmitAndPay}
                 >
                   {isRevisionMode ? 'Resubmit Application' : 'Submit'}
                 </Button>
@@ -715,6 +658,8 @@ export default forwardRef(function PermitApplicationForm({
                     visibleSections={visibleSections}
                     sectionCompleteMap={sectionCompleteMap}
                     token={token}
+                    formType={registrationType}
+                    category={generalPermitCategory}
                   />
                 )}
                 {/* Always render form fields so they're in DOM for validation */}
@@ -800,6 +745,28 @@ export default forwardRef(function PermitApplicationForm({
           <Form form={form} style={{ display: 'none' }} />
         </div>
       )}
+
+      <MockPaymentModal
+        visible={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onSuccess={handlePaymentSuccess}
+        onFail={handlePaymentFail}
+        amount={feeData?.total || 0}
+        transactionName="Business Permit Application"
+        fees={feeData?.fees || []}
+      />
+      
+      <PaymentReceiptModal
+        visible={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+        receiptId={receiptData?.receiptId}
+        receiptNumber={receiptData?.receiptNumber}
+        transactionDate={receiptData?.transactionDate}
+        transactionName={receiptData?.transactionName}
+        fees={receiptData?.fees}
+        totalAmount={receiptData?.totalAmount}
+        applicationReferenceNumber={receiptData?.applicationReferenceNumber}
+      />
     </>
   )
 })

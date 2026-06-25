@@ -429,11 +429,31 @@ class PermitApplicationService {
             createdByOfficer: app.createdByOfficer || false,
           };
         }
-      }),
+      })
     );
 
+    // Populate officer names for reviewedBy field
+    const officerIds = [...new Set(applications.map(app => app.reviewedBy).filter(Boolean))];
+    const officersMap = new Map();
+    if (officerIds.length > 0) {
+      const officers = await User.find({ _id: { $in: officerIds } })
+        .select("firstName lastName email")
+        .lean();
+      for (const officer of officers) {
+        const decrypted = decryptObject(officer);
+        const officerId = String(officer._id);
+        officersMap.set(officerId, `${decrypted.firstName || ''} ${decrypted.lastName || ''}`.trim() || decrypted.email || 'Unknown');
+      }
+    }
+
+    // Attach officer names to applications
+    const applicationsWithOfficerNames = applications.map(app => ({
+      ...app,
+      reviewedByName: app.reviewedBy ? officersMap.get(String(app.reviewedBy)) : null,
+    }));
+
     return {
-      applications,
+      applications: applicationsWithOfficerNames,
       pagination: {
         page,
         limit,
@@ -556,6 +576,7 @@ class PermitApplicationService {
       businessId: resolvedBusinessId,
       userId: decryptedProfile.userId,
       businessName: business.businessName,
+      ownerName: ownerFullName,
       applicationReferenceNumber:
         business.applicationReferenceNumber ||
         `APP-${String(business.businessId).slice(-8)}`,
@@ -567,6 +588,7 @@ class PermitApplicationService {
       submittedToLguOfficer: business.submittedToLguOfficer || false,
       isSubmitted: business.isSubmitted || false,
       reviewedBy: business.reviewedBy,
+      reviewedByName: business.reviewedByName,
       reviewedAt: business.reviewedAt,
       reviewComments: business.reviewComments,
       rejectionReason: business.rejectionReason,
@@ -580,6 +602,7 @@ class PermitApplicationService {
         typeof business.fieldReviewDecisions === "object"
           ? business.fieldReviewDecisions
           : {},
+      pendingAction: business.pendingAction || null,
       // Form definition–driven application (for review UI)
       formType: business.formType || "",
       formDefinitionId: business.formDefinitionId || null,
@@ -819,11 +842,15 @@ class PermitApplicationService {
       return result;
     }
 
+    // Use officer from verifyOfficerRole to get name for reviewedByName
+    const officerName = officer ? `${officer.firstName} ${officer.lastName}`.trim() : "Officer";
+
     // Update status to under_review using findOneAndUpdate to bypass enum validation on encrypted fields
     const updateQuery = {
       $set: {
         [`businesses.${businessIndex}.applicationStatus`]: "under_review",
         [`businesses.${businessIndex}.reviewedBy`]: officerId,
+        [`businesses.${businessIndex}.reviewedByName`]: officerName,
         [`businesses.${businessIndex}.reviewedAt`]: new Date(),
         [`businesses.${businessIndex}.updatedAt`]: new Date(),
       },
@@ -1064,9 +1091,13 @@ class PermitApplicationService {
       newStatus = "needs_revision";
     }
 
+    // Use officer from verifyOfficerRole to get name for reviewedByName
+    const officerName = officer ? `${officer.firstName} ${officer.lastName}`.trim() : "Officer";
+
     // Update application status
     profile.businesses[businessIndex].applicationStatus = newStatus;
     profile.businesses[businessIndex].reviewedBy = officerId;
+    profile.businesses[businessIndex].reviewedByName = officerName;
     profile.businesses[businessIndex].reviewedAt = new Date();
     // Save comments only if explicitly provided; preserve empty string if provided
     if (comments !== undefined && comments !== null) {
@@ -1126,6 +1157,7 @@ class PermitApplicationService {
     const updateFields = {
       [`businesses.${businessIndex}.applicationStatus`]: newStatus,
       [`businesses.${businessIndex}.reviewedBy`]: officerId,
+      [`businesses.${businessIndex}.reviewedByName`]: officerName,
       [`businesses.${businessIndex}.reviewedAt`]: new Date(),
       [`businesses.${businessIndex}.updatedAt`]: new Date(),
     };
@@ -1541,6 +1573,9 @@ class PermitApplicationService {
    * @returns {Promise<object>} Updated application with fieldReviewDecisions
    */
   async updateFieldDecisions(applicationId, businessId, officerId, payload) {
+    // Fetch officer name for audit trail
+    const officer = await User.findById(officerId).select("firstName lastName").lean();
+    const officerName = officer ? `${officer.firstName} ${officer.lastName}`.trim() : "Officer";
     const targetId = businessId || applicationId;
     const profile = await findProfileByBusinessId(targetId);
     if (!profile) throw new Error("Application not found");
@@ -1548,8 +1583,9 @@ class PermitApplicationService {
     if (idx === -1) throw new Error("Application not found");
     const business = profile.businesses[idx];
     const status = business.applicationStatus || "draft";
-    if (status !== "under_review") {
-      throw new Error("Application is not in an active review state");
+    const reviewableStatuses = ['submitted', 'resubmit', 'under_review', 'pending_review', 'appeal_pending'];
+    if (!reviewableStatuses.includes(status)) {
+      throw new Error("Application is not in a reviewable status");
     }
     const decisions =
       business.fieldReviewDecisions &&
@@ -1557,33 +1593,56 @@ class PermitApplicationService {
         ? { ...business.fieldReviewDecisions }
         : {};
     const items = Array.isArray(payload) ? payload : [payload];
+
     for (const item of items) {
       const {
         fieldKey,
         status: decisionStatus,
+        requestCode,
+        requestOther,
         reasonCode,
         reasonOther,
       } = item;
-      if (!fieldKey || !decisionStatus) continue;
-      if (!["accepted", "rejected"].includes(decisionStatus)) continue;
+      if (!fieldKey) continue;
+
+      // Clear decision if status is null
+      if (decisionStatus === null || decisionStatus === undefined) {
+        delete decisions[fieldKey];
+        continue;
+      }
+
+      if (!["accepted", "request_changes"].includes(decisionStatus)) continue;
       decisions[fieldKey] = {
         status: decisionStatus,
-        reasonCode:
-          decisionStatus === "rejected" ? reasonCode || null : undefined,
-        reasonOther:
-          decisionStatus === "rejected" ? reasonOther || null : undefined,
+        requestCode:
+          decisionStatus === "request_changes" ? (reasonCode || requestCode || null) : undefined,
+        requestOther:
+          decisionStatus === "request_changes" ? (reasonOther || requestOther || null) : undefined,
         decidedAt: new Date(),
+        decidedBy: officerId,
+        decidedByName: officerName,
       };
     }
+
     // Use updateOne to bypass Mongoose validation on encrypted enum fields
+    const updateOperation = {
+      $set: {
+        [`businesses.${idx}.updatedAt`]: new Date(),
+        [`businesses.${idx}.fieldReviewDecisions`]: decisions,
+      },
+    };
+
+    // Preserve reviewedBy and reviewedByName to prevent them from being cleared
+    if (business.reviewedBy) {
+      updateOperation.$set[`businesses.${idx}.reviewedBy`] = business.reviewedBy;
+    }
+    if (business.reviewedByName) {
+      updateOperation.$set[`businesses.${idx}.reviewedByName`] = business.reviewedByName;
+    }
+
     await BusinessProfile.updateOne(
       { _id: profile._id },
-      {
-        $set: {
-          [`businesses.${idx}.fieldReviewDecisions`]: decisions,
-          [`businesses.${idx}.updatedAt`]: new Date(),
-        },
-      },
+      updateOperation,
     );
     return this.getApplicationById(applicationId, businessId);
   }
@@ -1621,16 +1680,165 @@ class PermitApplicationService {
       formData.businessActivities = payload.businessActivities;
     }
     // Use updateOne to bypass Mongoose validation on encrypted enum fields
+    const updateFields = {
+      [`businesses.${idx}.formData`]: formData,
+      [`businesses.${idx}.updatedAt`]: new Date(),
+    };
+
+    // Preserve reviewedBy and reviewedByName to prevent them from being cleared
+    if (business.reviewedBy) {
+      updateFields[`businesses.${idx}.reviewedBy`] = business.reviewedBy;
+    }
+    if (business.reviewedByName) {
+      updateFields[`businesses.${idx}.reviewedByName`] = business.reviewedByName;
+    }
+
+    await BusinessProfile.updateOne(
+      { _id: profile._id },
+      { $set: updateFields },
+    );
+    return this.getApplicationById(applicationId, businessId);
+  }
+
+  /**
+   * Create a pending action with undo window
+   * @param {string} applicationId - Application ID
+   * @param {string} businessId - Business ID
+   * @param {string} actionType - 'complete_review' | 'reject' | 'return'
+   * @param {object} payload - Action payload (reason, comments, requestType, etc.)
+   * @param {number} delayMinutes - Delay before execution (default: 10)
+   * @returns {Promise<object>} Updated application
+   */
+  async createPendingAction(applicationId, businessId, actionType, payload, delayMinutes = 10) {
+    const targetId = businessId || applicationId;
+    const profile = await findProfileByBusinessId(targetId);
+    if (!profile) throw new Error("Application not found");
+    const idx = findBusinessIndex(profile, targetId);
+    if (idx === -1) throw new Error("Application not found");
+    const business = profile.businesses[idx];
+
+    // Check if there's already a pending action
+    if (business.pendingAction?.actionType) {
+      throw new Error("A pending action already exists. Cancel it first.");
+    }
+
+    const now = new Date();
+    const scheduledAt = new Date(now.getTime() + delayMinutes * 60 * 1000);
+
     await BusinessProfile.updateOne(
       { _id: profile._id },
       {
         $set: {
-          [`businesses.${idx}.formData`]: formData,
+          [`businesses.${idx}.pendingAction`]: {
+            actionType,
+            scheduledAt,
+            payload,
+            expiresAt: scheduledAt,
+            createdAt: now,
+          },
           [`businesses.${idx}.updatedAt`]: new Date(),
         },
       },
     );
+
     return this.getApplicationById(applicationId, businessId);
+  }
+
+  /**
+   * Cancel a pending action (undo)
+   * @param {string} applicationId - Application ID
+   * @param {string} businessId - Business ID
+   * @returns {Promise<object>} Updated application
+   */
+  async cancelPendingAction(applicationId, businessId) {
+    const targetId = businessId || applicationId;
+    const profile = await findProfileByBusinessId(targetId);
+    if (!profile) throw new Error("Application not found");
+    const idx = findBusinessIndex(profile, targetId);
+    if (idx === -1) throw new Error("Application not found");
+
+    await BusinessProfile.updateOne(
+      { _id: profile._id },
+      {
+        $set: {
+          [`businesses.${idx}.pendingAction`]: null,
+          [`businesses.${idx}.updatedAt`]: new Date(),
+        },
+      },
+    );
+
+    return this.getApplicationById(applicationId, businessId);
+  }
+
+  /**
+   * Execute a pending action (called by scheduled job)
+   * @param {string} applicationId - Application ID
+   * @param {string} businessId - Business ID
+   * @returns {Promise<object>} Updated application
+   */
+  async executePendingAction(applicationId, businessId) {
+    const targetId = businessId || applicationId;
+    const profile = await findProfileByBusinessId(targetId);
+    if (!profile) throw new Error("Application not found");
+    const idx = findBusinessIndex(profile, targetId);
+    if (idx === -1) throw new Error("Application not found");
+    const business = profile.businesses[idx];
+    const pendingAction = business.pendingAction;
+
+    if (!pendingAction || !pendingAction.actionType) {
+      throw new Error("No pending action to execute");
+    }
+
+    const { actionType, payload } = pendingAction;
+    const officerId = business.reviewedBy;
+
+    // Execute the appropriate action based on type
+    let updated;
+    switch (actionType) {
+      case "complete_review":
+        updated = await this.reviewApplication(
+          applicationId,
+          businessId,
+          officerId,
+          "approve",
+          payload.comments || ""
+        );
+        break;
+      case "reject":
+        updated = await this.reviewApplication(
+          applicationId,
+          businessId,
+          officerId,
+          "reject",
+          payload.comments || "",
+          payload.rejectionReason || payload.decision || ""
+        );
+        break;
+      case "return":
+        updated = await this.reviewApplication(
+          applicationId,
+          businessId,
+          officerId,
+          "request_changes",
+          payload.requestOther || payload.requestType || ""
+        );
+        break;
+      default:
+        throw new Error(`Unknown action type: ${actionType}`);
+    }
+
+    // Clear pending action after execution
+    await BusinessProfile.updateOne(
+      { _id: profile._id },
+      {
+        $set: {
+          [`businesses.${idx}.pendingAction`]: null,
+          [`businesses.${idx}.updatedAt`]: new Date(),
+        },
+      },
+    );
+
+    return updated;
   }
 }
 

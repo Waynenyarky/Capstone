@@ -27,6 +27,7 @@ const AdminDashboard = lazy(() => import("@/features/admin").then(m => ({ defaul
 const AdminUsers = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminUsers })))
 const AdminContentManagement = lazy(() => import("@/features/admin/pages/content-management").then(m => ({ default: m.ContentManagementPage })))
 const AdminSiteSettings = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminSiteSettings })))
+const AdminForms = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminForms })))
 const AdminFormDefinitions = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminFormDefinitions })))
 const AdminFormGroupDetail = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminFormGroupDetail })))
 const AdminFormDefinitionEditor = lazy(() => import("@/features/admin").then(m => ({ default: m.AdminFormDefinitionEditor })))
@@ -46,6 +47,20 @@ const ApplicationNewPage = lazy(() => import("@/features/business-owner/pages/Ap
 const StaffDashboard = lazy(() => import("@/features/staffs").then(m => ({ default: m.StaffDashboard })))
 const StaffOnboarding = lazy(() => import("@/features/staffs").then(m => ({ default: m.StaffOnboarding })))
 const OfficerDashboard = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerDashboard.jsx"))
+const OfficerDashboardPage = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerDashboardPage.jsx"))
+const OfficerApplications = lazy(() => import("@/features/staffs/lgu-officer/pages/applications/index.jsx"))
+const OfficerAppeals = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerAppeals.jsx"))
+const OfficerEditRequests = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerEditRequests.jsx"))
+const OfficerRenewals = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerRenewals.jsx"))
+const OfficerCessation = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerCessation.jsx"))
+const OfficerInspections = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerInspections.jsx"))
+const OfficerHelpRequests = lazy(() => import("@/features/staffs/lgu-officer/pages/help-requests/index.jsx"))
+const OfficerDrafts = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerDrafts.jsx"))
+const OfficerOwners = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerOwners.jsx"))
+const OfficerLedger = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerLedger.jsx"))
+const OfficerLogs = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerLogs.jsx"))
+const OfficerToReview = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerToReview.jsx"))
+const OfficerBookmarks = lazy(() => import("@/features/staffs/lgu-officer/pages/bookmarks/index.jsx"))
 const PlaceholderPage = lazy(() => import("@/features/shared/pages/PlaceholderPage.jsx"))
 const AgencyDashboard = lazy(() => import("@/features/staffs/lgu-officer/pages/AgencyDashboard.jsx"))
 const TreasuryDashboard = lazy(() => import("@/features/treasury/components/TreasuryDashboard.jsx"))
@@ -111,6 +126,7 @@ function App() {
         <Route path="content-management" element={<AdminContentManagement />} />
         <Route path="site-settings" element={<AdminSiteSettings />} />
         <Route path="maintenance" element={<Navigate to="/admin/site-settings" replace />} />
+        <Route path="forms" element={<AdminForms />} />
         <Route path="form-definitions" element={<AdminFormDefinitions />} />
         <Route path="form-definitions/group/:groupId" element={<AdminFormGroupDetail />} />
         <Route path="form-definitions/:id" element={<AdminFormDefinitionEditor />} />
@@ -134,19 +150,20 @@ function App() {
       {/* <Route path="/inspections/schedule" element={<ProtectedRoute allowedRoles={['business_owner']}><InspectionCalendar /></ProtectedRoute>} /> */}
       
       {/* Staff Routes */}
-      <Route path="/staff" element={<ProtectedRoute allowedRoles={['staff', 'lgu_officer', 'lgu_manager', 'inspector', 'cso']}><Outlet /></ProtectedRoute>}>
-        <Route index element={<StaffDashboard />} />
-        <Route path="onboarding" element={<StaffOnboarding />} />
-        <Route path="applications" element={<OfficerDashboard />} />
-        <Route path="appeals" element={<OfficerDashboard />} />
-        <Route path="edit-requests" element={<OfficerDashboard />} />
-        <Route path="renewals" element={<OfficerDashboard />} />
-        <Route path="cessation" element={<OfficerDashboard />} />
-        <Route path="inspections" element={<OfficerDashboard />} />
-        <Route path="help-requests" element={<OfficerDashboard />} />
-        <Route path="drafts" element={<OfficerDashboard />} />
-        <Route path="owners" element={<OfficerDashboard />} />
-        <Route path="logs" element={<OfficerDashboard />} />
+      <Route path="/staff" element={<ProtectedRoute allowedRoles={['staff', 'lgu_officer', 'lgu_manager', 'inspector', 'cso']}><OfficerDashboard /></ProtectedRoute>}>
+        <Route index element={<OfficerDashboardPage />} />
+        <Route path="applications" element={<OfficerApplications />} />
+        <Route path="appeals" element={<OfficerAppeals />} />
+        <Route path="edit-requests" element={<OfficerEditRequests />} />
+        <Route path="renewals" element={<OfficerRenewals />} />
+        <Route path="cessation" element={<OfficerCessation />} />
+        <Route path="inspections" element={<OfficerInspections />} />
+        <Route path="help-requests" element={<OfficerHelpRequests />} />
+        <Route path="drafts" element={<OfficerDrafts />} />
+        <Route path="owners" element={<OfficerOwners />} />
+        <Route path="ledger" element={<OfficerLedger />} />
+        <Route path="logs" element={<OfficerLogs />} />
+        <Route path="bookmarks" element={<OfficerBookmarks />} />
         <Route path="agency/:agency" element={<AgencyDashboard />} />
         <Route path="treasury" element={<TreasuryDashboard />} />
       </Route>

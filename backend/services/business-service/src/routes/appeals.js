@@ -457,13 +457,29 @@ router.put("/:id", requireJwt, async (req, res) => {
       }
     }
     await appeal.save();
-    logAuditEvent(
-      "appeal_resolved",
-      req._userId,
-      "Appeal",
-      appeal._id.toString(),
-      { status: appeal.status },
-    );
+    
+    // Log appropriate audit event based on resolution
+    if (normalizedStatus === "rejected") {
+      logAuditEvent(
+        "appeal_rejected",
+        req._userId,
+        "Appeal",
+        appeal._id.toString(),
+        { 
+          status: appeal.status,
+          resolution: appeal.resolution,
+          businessId: appeal.businessId,
+        },
+      );
+    } else {
+      logAuditEvent(
+        "appeal_resolved",
+        req._userId,
+        "Appeal",
+        appeal._id.toString(),
+        { status: appeal.status },
+      );
+    }
     return res.json({ data: appeal });
   } catch (err) {
     console.error("PUT /appeals error:", err);

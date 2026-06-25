@@ -1,5 +1,5 @@
 import React from 'react'
-import { Typography, Card, Space, theme, Button, Alert, Modal, Divider, Grid } from 'antd'
+import { Typography, Card, Space, theme, Button, Alert, Modal, Divider, Grid, App } from 'antd'
 import {
   ExclamationCircleOutlined,
   EditOutlined,
@@ -16,6 +16,8 @@ import ApplicationProgressTimeline from './pending-application/ApplicationProgre
 import DynamicFaqSection from '@/shared/components/DynamicFaqSection.jsx'
 import AppealModal from './pending-application/AppealModal.jsx'
 import { useAppeal } from '../../hooks/useAppeal.js'
+import PaymentReceiptModal from '../PaymentReceiptModal'
+import { getFeeGroupForForm } from '../../services/feeService'
 
 const { Text } = Typography
 
@@ -37,6 +39,7 @@ function getStatusLabel(statusLower) {
 
 export default function PendingApplicationView({ business, onEdit, onSubmit, onDelete, onOpenForm: _onOpenForm, submitting }) {
   const { token } = theme.useToken()
+  const { modal } = App.useApp()
   const screens = Grid.useBreakpoint()
   const [formDefinition, setFormDefinition] = React.useState(null)
   const status = business.applicationStatus || business.permitStatus || 'submitted'
@@ -56,6 +59,22 @@ export default function PendingApplicationView({ business, onEdit, onSubmit, onD
   } = useAppeal(businessId, isRejected)
 
   const [progressModalOpen, setProgressModalOpen] = React.useState(false)
+  const [showReceiptModal, setShowReceiptModal] = React.useState(false)
+  const [feeData, setFeeData] = React.useState(null)
+  const [receiptData, setReceiptData] = React.useState(null)
+  
+  // Load fee data for receipt
+  React.useEffect(() => {
+    const loadFeeData = async () => {
+      try {
+        const response = await getFeeGroupForForm('permit')
+        setFeeData(response)
+      } catch (err) {
+        console.error('Failed to fetch fee data:', err)
+      }
+    }
+    loadFeeData()
+  }, [])
   
   // Load form definition for proper field labels
   React.useEffect(() => {
@@ -86,7 +105,7 @@ export default function PendingApplicationView({ business, onEdit, onSubmit, onD
   const handleOpenAppeal = () => setAppealOpen(true)
 
   const handleDeleteClick = () => {
-    Modal.confirm({
+    modal.confirm({
       title: 'Delete application?',
       content: 'This will permanently remove this draft application. You can add a new business later if needed.',
       okText: 'Delete',
@@ -94,6 +113,24 @@ export default function PendingApplicationView({ business, onEdit, onSubmit, onD
       cancelText: 'Cancel',
       onOk: () => onDelete?.(business),
     })
+  }
+
+  const handleViewReceipt = () => {
+    // Generate a mock receipt ID based on submission date
+    const submittedDate = business.submittedAt ? new Date(business.submittedAt) : new Date()
+    const dateStr = submittedDate.toISOString().split('T')[0].replace(/-/g, '')
+    const random = Math.random().toString(36).substring(2, 8).toUpperCase()
+    const receiptId = `MOCK-${dateStr}-${random}`
+    
+    setReceiptData({
+      receiptId,
+      transactionDate: submittedDate.toLocaleString(),
+      transactionName: 'Business Permit Application',
+      fees: feeData?.fees || [],
+      totalAmount: feeData?.total || 0,
+      applicationReferenceNumber: business.applicationReferenceNumber || 'N/A',
+    })
+    setShowReceiptModal(true)
   }
 
   return (
@@ -174,12 +211,23 @@ export default function PendingApplicationView({ business, onEdit, onSubmit, onD
                 <Text type="secondary" style={{ fontSize: 12 }}>Reference Number</Text>
                 <div><Text strong>{business.applicationReferenceNumber || 'Pending'}</Text></div>
               </div>
-              {business.reviewedBy && (
-                  <div style={{ gridColumn: '1 / -1', paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Reviewing Officer</Text>
-                    <div><Text strong>{business.reviewedBy.name || business.reviewedBy.fullName || 'LGU Officer'}</Text></div>
+              {!isDraft && (
+                <div>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Payment Receipt</Text>
+                  <div>
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={handleViewReceipt}
+                      style={{ padding: 0, height: 'auto', fontWeight: 600, textDecoration: 'underline' }}
+                    >
+                      <span>
+                        View Receipt
+                      </span>
+                    </Button>
                   </div>
-                )}
+                </div>
+              )}
             </div>
           </div>
         </Card>
@@ -356,6 +404,18 @@ export default function PendingApplicationView({ business, onEdit, onSubmit, onD
         submitting={appealSubmitting}
       />
 
+      <PaymentReceiptModal
+        visible={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+        receiptId={receiptData?.receiptId}
+        transactionDate={receiptData?.transactionDate}
+        transactionName={receiptData?.transactionName}
+        fees={receiptData?.fees}
+        totalAmount={receiptData?.totalAmount}
+        applicationReferenceNumber={receiptData?.applicationReferenceNumber}
+        buttonText="Download Receipt"
+      />
+
       <Modal
         title="Application Progress"
         open={progressModalOpen}
@@ -363,9 +423,7 @@ export default function PendingApplicationView({ business, onEdit, onSubmit, onD
         footer={null}
         width={600}
       >
-        <div style={{ marginBottom: 24 }}>
-          <Text >Track your application&apos;s journey through the review process.</Text>
-        </div>
+        
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <ApplicationProgressTimeline
             business={business}

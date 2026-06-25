@@ -46,6 +46,21 @@ const EXCLUDED_BUSINESS_FIELDS = [
   "submittedToLguOfficer",
   "reviewedBy",
   "claimedBy",
+  "formType",
+  "category",
+  "businessRegistrationNumber",
+  "registrationAgency",
+  "formData",
+  "formDefinitionId",
+  "businessRegistration",
+  "ownerIdentity",
+  "location",
+  "birRegistration",
+  "otherAgencyRegistrations",
+  "lguDocuments",
+  "fieldReviewDecisions",
+  "reviewedByName",
+  "ownerName",
 ];
 
 // Models where businessId moved from fields → deterministicFields

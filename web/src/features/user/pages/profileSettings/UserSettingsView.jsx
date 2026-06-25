@@ -11,7 +11,6 @@ import ConsolidatedProfileNav from './ConsolidatedProfileNav'
 import ConsolidatedContentRenderer from './ConsolidatedContentRenderer'
 import { CONSOLIDATED_NAV_ITEMS } from './constants'
 import ApplicationsList from '@/features/business-owner/components/dashboard/ApplicationsList'
-import OfficerLeftPanel from '@/features/staffs/lgu-officer/components/OfficerLeftPanel'
 import { getBusinesses } from '@/features/business-owner/services/businessProfileService'
 import { useAuthSession } from '@/features/authentication'
 import { App as AntApp } from 'antd'
@@ -234,22 +233,6 @@ export default function UserSettingsView({
             showPageHeader
           />
           <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: token.colorBgContainer }}>
-            {/* Left Panel - Officer Sidebar */}
-            <div style={{
-              width: 240, minWidth: 240, maxWidth: 240,
-              flexShrink: 0,
-              borderRight: `1px solid ${token.colorBorderSecondary}`,
-              display: 'flex', flexDirection: 'column',
-              overflow: 'hidden',
-              background: token.colorBgContainer,
-            }}>
-              <OfficerLeftPanel
-                activeTab="settings" // Keep active tab as settings
-                onTabChange={() => {}} // Disable tab changes in settings mode
-                counts={{}}
-              />
-            </div>
-
             {/* Right Panel - Settings Content */}
             <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               {content}

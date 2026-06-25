@@ -105,7 +105,7 @@ app.use(
   "/api/business",
   createCsrfMiddleware({
     cookieName: "csrf-token-business",
-    skipPaths: ["/api/business/csrf-token"],
+    skipPaths: ["/api/business/csrf-token", "/api/business/payments/mock"],
     disabled: csrfDisabled,
   }),
 );
@@ -247,6 +247,10 @@ app.use("/api/business/admin/penalty-rules", adminPenaltyRulesRouter);
 // Help Requests (public + officer)
 const helpRequestsRouter = require("./routes/helpRequests");
 app.use("/api/help-requests", helpRequestsRouter);
+
+// Bookmarks
+const bookmarksRouter = require("./routes/bookmarks");
+app.use("/api/bookmarks", bookmarksRouter);
 
 const adminStatsRouter = require("./routes/adminStats");
 app.use("/api/business/admin", adminStatsRouter);

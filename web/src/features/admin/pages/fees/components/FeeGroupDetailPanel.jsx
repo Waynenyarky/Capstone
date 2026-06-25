@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react'
-import { Form, Input, Select, Button, Space, Typography, Divider, theme, Modal, message } from 'antd'
-import { SaveOutlined, InfoCircleOutlined, HistoryOutlined } from '@ant-design/icons'
+import { useState, useEffect, useCallback } from 'react'
+import { Form, Input, Select, Button, Space, Typography, Divider, theme, App, message, Tag } from 'antd'
+import { SaveOutlined, InfoCircleOutlined, HistoryOutlined, UndoOutlined, RedoOutlined, RollbackOutlined } from '@ant-design/icons'
 import AuditHistoryModal from '@/shared/components/AuditHistoryModal'
-import { createFeeGroup, updateFeeGroup, disableFeeGroup } from '@/features/admin/services/feeService'
+import { createFeeGroup, updateFeeGroup, disableFeeGroup, getFeeGroupDraft, saveFeeGroupDraft, publishFeeGroupDraft, getFeeGroupAuditHistory } from '@/features/admin/services/feeService'
+import useFeesAutosave from '../hooks/useFeesAutosave'
+import useFeesUndoRedo from '../hooks/useFeesUndoRedo'
+import { useAdminStepUp } from '@/features/admin/hooks/useAdminStepUp'
 
 const { Text } = Typography
 const { TextArea } = Input
@@ -12,52 +15,154 @@ const STATUS_OPTIONS = [
   { value: 'disabled', label: 'Disabled' },
 ]
 
-export default function FeeGroupDetailPanel({ groupId, group, availableFees, onSave, onDelete }) {
+export default function FeeGroupDetailPanel({ groupId, group, availableFees, onSave, onDelete, isMobile = false }) {
   const { token } = theme.useToken()
+  const { modal } = App.useApp()
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [historyModalOpen, setHistoryModalOpen] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
+  const [draft, setDraft] = useState(null)
+  const [formValues, setFormValues] = useState({})
+  const [auditLogs, setAuditLogs] = useState([])
+  const [auditLoading, setAuditLoading] = useState(false)
   const selectedFees = Form.useWatch('fees', form)
+  const { runWithStepUp, stepUpModal } = useAdminStepUp()
 
   const isNew = groupId === 'new'
+
+  const initialValues = draft || {
+    name: group?.name || '',
+    description: group?.description || '',
+    fees: group?.fees?.map(f => typeof f === 'object' ? f._id : f) || [],
+  }
+
+  const { undo, redo, pushHistory, resetHistory, canUndo, canRedo } = useFeesUndoRedo()
+
+  const handleUndo = useCallback(() => {
+    const entry = undo()
+    if (entry) {
+      form.setFieldsValue(entry)
+      setFormValues(entry)
+    }
+  }, [form, undo])
+
+  const handleRedo = useCallback(() => {
+    const entry = redo()
+    if (entry) {
+      form.setFieldsValue(entry)
+      setFormValues(entry)
+    }
+  }, [form, redo])
+
+  const handleRevert = useCallback(() => {
+    const revertValues = draft || {
+      name: group?.name || '',
+      description: group?.description || '',
+      fees: group?.fees?.map(f => typeof f === 'object' ? f._id : f) || [],
+    }
+    form.setFieldsValue(revertValues)
+    setFormValues(revertValues)
+    setHasChanges(false)
+    resetHistory(revertValues)
+    message.success('Reverted to original')
+  }, [draft, group, form, resetHistory])
+
+  const loadAuditLogs = useCallback(async () => {
+    if (isNew) return
+    try {
+      setAuditLoading(true)
+      const logs = await getFeeGroupAuditHistory(groupId, { limit: 20 })
+      setAuditLogs(logs)
+    } catch {
+      setAuditLogs([])
+    } finally {
+      setAuditLoading(false)
+    }
+  }, [groupId, isNew])
+
+  const handleHistoryModalOpen = useCallback(() => {
+    loadAuditLogs()
+    setHistoryModalOpen(true)
+  }, [loadAuditLogs])
 
   const feeOptions = (availableFees || []).map((fee) => ({
     label: `${fee.name} (₱${fee.amount})`,
     value: fee._id,
   }))
 
-  const initialValues = {
-    name: group?.name || '',
-    description: group?.description || '',
-    fees: group?.fees?.map(f => typeof f === 'object' ? f._id : f) || [],
+  // Load draft when group changes
+  useEffect(() => {
+    const loadDraft = async () => {
+      if (!isNew && groupId) {
+        try {
+          const draftData = await getFeeGroupDraft(groupId)
+          setDraft(draftData)
+          const loadedValues = draftData || {
+            name: group?.name || '',
+            description: group?.description || '',
+            fees: group?.fees?.map(f => typeof f === 'object' ? f._id : f) || [],
+          }
+          form.setFieldsValue(loadedValues)
+          setFormValues(loadedValues)
+          resetHistory(loadedValues)
+        } catch (err) {
+          console.error('Failed to load draft:', err)
+        }
+      }
+    }
+    loadDraft()
+  }, [groupId, group, isNew, form, resetHistory])
+
+  // Autosave to draft
+  const handleAutosave = async (values) => {
+    if (isNew) return
+    await saveFeeGroupDraft(groupId, values, { requireStepUp: false })
   }
 
+  useFeesAutosave(
+    isNew ? null : formValues,
+    handleAutosave,
+    !isNew,
+    hasChanges
+  )
+
   useEffect(() => {
-    form.setFieldsValue(initialValues)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [group?.name, group?.description, group?.fees, form])
+    if (!draft) {
+      form.setFieldsValue({
+        name: group?.name || '',
+        description: group?.description || '',
+        fees: group?.fees?.map(f => typeof f === 'object' ? f._id : f) || [],
+      })
+    }
+  }, [group?.name, group?.description, group?.fees, form, draft])
 
   const handleSave = async () => {
     try {
       setSaving(true)
       await form.validateFields()
       const values = form.getFieldsValue()
-      
+
       if (isNew) {
-        await createFeeGroup(values, { requireStepUp: true })
+        await runWithStepUp(async (stepUpToken) => {
+          await createFeeGroup(values, { stepUpToken })
+        })
         message.success('Fee group created successfully')
       } else {
-        await updateFeeGroup(groupId, values, { requireStepUp: true })
-        message.success('Fee group updated successfully')
+        // Publish draft to original fee group
+        await runWithStepUp(async (stepUpToken) => {
+          await publishFeeGroupDraft(groupId, { stepUpToken })
+        })
+        message.success('Fee group published successfully')
+        setDraft(null) // Clear draft after publishing
       }
-      
-      setHasChanges(false)
-      if (onSave) onSave()
+      onSave()
     } catch (error) {
-      console.error('Failed to save fee group:', error)
-      message.error(error.message || 'Failed to save fee group')
+      if (error?.message !== 'Step-up cancelled') {
+        console.error('Failed to save fee group:', error)
+        message.error(error.message || 'Failed to save fee group')
+      }
     } finally {
       setSaving(false)
     }
@@ -65,10 +170,14 @@ export default function FeeGroupDetailPanel({ groupId, group, availableFees, onS
 
   const handleValuesChange = () => {
     const currentValues = form.getFieldsValue()
+    setFormValues(currentValues)
     const changed = Object.keys(initialValues).some(
       (key) => JSON.stringify(currentValues[key]) !== JSON.stringify(initialValues[key])
     )
     setHasChanges(changed)
+    if (changed) {
+      pushHistory(currentValues)
+    }
   }
 
   const handleStatusChange = async (status) => {
@@ -85,7 +194,7 @@ export default function FeeGroupDetailPanel({ groupId, group, availableFees, onS
       }
     }
 
-    Modal.confirm({
+    modal.confirm({
       title: 'Change Status',
       content: getStatusMessage(status),
       okText: 'Change',
@@ -122,35 +231,66 @@ export default function FeeGroupDetailPanel({ groupId, group, availableFees, onS
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ marginBottom: 12 }}>
           <Space>
-            <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving} disabled={!hasChanges && !isNew}>
+            <Text strong style={{ fontSize: 16 }}>
+              {isNew ? 'New Fee Group' : 'Fee Group Detail'}
+            </Text>
+            {!isNew && (
+              <Tag color={draft ? 'blue' : hasChanges ? 'warning' : 'success'} style={{ fontWeight: 'normal' }}>
+                {draft ? 'Draft' : hasChanges ? 'Unsaved' : 'Published'}
+              </Tag>
+            )}
+          </Space>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 8 : 0 }}>
+          <div style={{ display: 'flex', gap: 8, width: isMobile ? '100%' : 'auto' }}>
+            <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving} disabled={!hasChanges && !isNew} style={{ flex: isMobile ? 1 : 'auto' }}>
               Publish Changes
             </Button>
             {!isNew && (
               <>
-                <div style={{ width: 1, height: 24, background: token.colorBorderSecondary, margin: '0 8px' }} />
+                <Space.Compact>
+                  <Button icon={<UndoOutlined />} onClick={handleUndo} disabled={!canUndo} />
+                  <Button icon={<RedoOutlined />} onClick={handleRedo} disabled={!canRedo} />
+                  <Button icon={<RollbackOutlined />} onClick={handleRevert} />
+                </Space.Compact>
                 <Space.Compact>
                   <Button icon={<InfoCircleOutlined />} disabled />
-                  <Button icon={<HistoryOutlined />} onClick={() => setHistoryModalOpen(true)} />
+                  <Button icon={<HistoryOutlined />} onClick={handleHistoryModalOpen} />
                 </Space.Compact>
               </>
             )}
-          </Space>
-          <Space>
-            {!isNew && (
-              <Form.Item label="Status" style={{ marginBottom: 0 }}>
-                <Select
-                  value={group?.isActive ? 'active' : 'disabled'}
-                  onChange={handleStatusChange}
-                  loading={updatingStatus}
-                  style={{ width: 120 }}
-                  options={STATUS_OPTIONS}
-                />
-              </Form.Item>
-            )}
-          </Space>
+          </div>
+          {!isMobile && (
+            <Space>
+              {!isNew && (
+                <Form.Item label="Status" style={{ marginBottom: 0 }}>
+                  <Select
+                    value={group?.isActive ? 'active' : 'disabled'}
+                    onChange={handleStatusChange}
+                    loading={updatingStatus}
+                    style={{ width: 120 }}
+                    options={STATUS_OPTIONS}
+                  />
+                </Form.Item>
+              )}
+            </Space>
+          )}
         </div>
+        {isMobile && !isNew && (
+          <div style={{ marginTop: 12 }}>
+            <Form.Item label="Status" style={{ marginBottom: 0 }}>
+              <Select
+                value={group?.isActive ? 'active' : 'disabled'}
+                onChange={handleStatusChange}
+                loading={updatingStatus}
+                style={{ width: '100%' }}
+                options={STATUS_OPTIONS}
+              />
+            </Form.Item>
+          </div>
+        )}
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
@@ -188,7 +328,8 @@ export default function FeeGroupDetailPanel({ groupId, group, availableFees, onS
               style={{ width: '100%' }}
               tagRender={(props) => {
                 const { value, onClose } = props
-                const fee = (availableFees || []).find(f => f._id === value)
+                const fee = (availableFees || []).find(f => f && f._id === value)
+                if (!fee) return null
                 return (
                   <span
                     style={{
@@ -202,7 +343,7 @@ export default function FeeGroupDetailPanel({ groupId, group, availableFees, onS
                       fontSize: 12,
                     }}
                   >
-                    {fee?.name} (₱{fee?.amount})
+                    {fee.name} (₱{fee.amount})
                     <span
                       onClick={onClose}
                       onKeyDown={(e) => {
@@ -231,7 +372,7 @@ export default function FeeGroupDetailPanel({ groupId, group, availableFees, onS
             <div>
               <Text strong>
                 ₱{selectedFees?.reduce((sum, feeId) => {
-                  const fee = (availableFees || []).find(f => f._id === feeId)
+                  const fee = (availableFees || []).find(f => f && f._id === feeId)
                   return sum + (fee?.amount || 0)
                 }, 0).toFixed(2) || '0.00'}
               </Text>
@@ -243,8 +384,10 @@ export default function FeeGroupDetailPanel({ groupId, group, availableFees, onS
       <AuditHistoryModal
         open={historyModalOpen}
         onClose={() => setHistoryModalOpen(false)}
-        auditLogs={[]}
+        auditLogs={auditLogs}
+        loading={auditLoading}
       />
+      {stepUpModal}
     </div>
   )
 }

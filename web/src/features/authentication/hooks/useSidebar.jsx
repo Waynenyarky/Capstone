@@ -23,6 +23,7 @@ import {
   EyeOutlined,
   ReloadOutlined,
   HistoryOutlined,
+  StarOutlined,
 } from '@ant-design/icons'
 
 // Role keys used across the app: 'business_owner', 'admin', 'inspector', 'lgu_officer', 'lgu_manager', 'cso', 'user'
@@ -45,7 +46,8 @@ export default function useSidebar() {
         { key: 'admin-users', label: 'User Management', to: '/admin/users', icon: <TeamOutlined /> },
         { key: 'admin-requests', label: 'Requests', to: '/admin/requests', icon: <CheckCircleOutlined /> },
         { key: 'content-management', label: 'Content Management', to: '/admin/content-management', icon: <FileTextOutlined /> },
-        { key: 'form-definitions', label: 'Form Definitions', to: '/admin/form-definitions', icon: <FormOutlined /> },
+        { key: 'forms', label: 'Forms', to: '/admin/forms', icon: <FormOutlined /> },
+        { key: 'form-definitions', label: 'Form Definitions (old)', to: '/admin/form-definitions', icon: <FormOutlined /> },
         { key: 'fees', label: 'Fees', to: '/admin/fees', icon: <DollarOutlined /> },
         { key: 'fee-configuration', label: 'Fee Configuration (Old)', to: '/admin/fee-configuration', icon: <SettingOutlined /> },
         { key: 'finance', label: 'Finance', to: '/admin/finance', icon: <AccountBookOutlined /> },
@@ -73,6 +75,7 @@ export default function useSidebar() {
         { key: 'logout', label: 'Logout', type: 'action', icon: <LogoutOutlined /> },
       ],
       lgu_officer: [
+        { key: 'dashboard', label: 'Dashboard', to: '/staff', icon: <DashboardOutlined /> },
         { key: 'to-review', label: 'To Review', to: '/staff', icon: <EyeOutlined /> },
         { key: 'applications', label: 'Applications', to: '/staff/applications', icon: <FileTextOutlined /> },
         { key: 'appeals', label: 'Appeals', to: '/staff/appeals', icon: <AuditOutlined /> },
@@ -83,7 +86,9 @@ export default function useSidebar() {
         { key: 'help-requests', label: 'Help Requests', to: '/staff/help-requests', icon: <QuestionCircleOutlined /> },
         { key: 'drafts', label: 'My Drafts', to: '/staff/drafts', icon: <FormOutlined /> },
         { key: 'owners', label: 'Owners', to: '/staff/owners', icon: <UserOutlined /> },
+        { key: 'ledger', label: 'Ledger', to: '/staff/ledger', icon: <DollarOutlined /> },
         { key: 'logs', label: 'Logs', to: '/staff/logs', icon: <HistoryOutlined /> },
+        { key: 'bookmarks', label: 'Bookmarks', to: '/staff/bookmarks', icon: <StarOutlined /> },
         { key: 'profile', label: 'Settings', to: '/settings-profile', icon: <SettingOutlined /> },
       ],
       lgu_manager: [

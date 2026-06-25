@@ -1979,4 +1979,73 @@ router.post(
   },
 );
 
+// ─── OFFICER: Get Audit History for Application ─────────────────────────────────
+// GET /api/applications/:applicationId/audit
+router.get(
+  "/applications/:applicationId/audit",
+  requireJwt,
+  requireRole(["lgu_officer", "admin"]),
+  async (req, res) => {
+    try {
+      const { applicationId } = req.params;
+      const { page = 1, limit = 20 } = req.query;
+
+      // Find business profile containing the application (by businessId OR subdoc _id)
+      const mongoose = require("mongoose");
+      let profile = await BusinessProfile.findOne({
+        "businesses.businessId": applicationId,
+      }).lean();
+
+      if (!profile && mongoose.Types.ObjectId.isValid(applicationId)) {
+        profile = await BusinessProfile.findOne({
+          "businesses._id": new mongoose.Types.ObjectId(applicationId),
+        }).lean();
+      }
+
+      if (!profile) {
+        return respond.error(res, 404, "not_found", "Application not found");
+      }
+
+      // Query AuditLog directly from database (consistent with other services)
+      const AuditLog = require("../models/AuditLog");
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      const filter = {
+        entityType: "application",
+        entityId: applicationId,
+      };
+
+      const [logs, total] = await Promise.all([
+        AuditLog.find(filter)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(parseInt(limit))
+          .lean(),
+        AuditLog.countDocuments(filter),
+      ]);
+
+      const totalPages = Math.ceil(total / parseInt(limit));
+
+      return res.json({
+        success: true,
+        logs,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          totalPages,
+        },
+      });
+    } catch (err) {
+      console.error("GET /api/applications/:applicationId/audit error:", err);
+      return respond.error(
+        res,
+        500,
+        "fetch_failed",
+        "Failed to fetch audit history",
+      );
+    }
+  },
+);
+
 module.exports = router;

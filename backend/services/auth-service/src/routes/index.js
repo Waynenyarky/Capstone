@@ -42,6 +42,7 @@ router.use(
     skipPaths: [
       "/api/auth/csrf-token",
       "/api/auth/login/verify-totp", // TOTP verification is a public auth endpoint, exempt from CSRF
+      "/api/auth/session/activity", // Already protected by JWT authentication, CSRF is redundant
     ],
     disabled: csrfDisabled,
   }),

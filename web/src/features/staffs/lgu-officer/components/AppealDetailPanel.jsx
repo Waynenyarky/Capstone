@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { Typography, Descriptions, Tag, Card, Form, Input, Button, Space, Empty, theme, Modal } from 'antd'
+import { Typography, Descriptions, Tag, Card, Form, Input, Button, Space, Empty, theme, App } from 'antd'
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { put } from '@/lib/http.js'
 import { useNotifier } from '@/shared/notifications.js'
@@ -25,6 +25,7 @@ const STATUS_COLORS = {
 
 export default function AppealDetailPanel({ appeal, onReviewComplete }) {
   const { token } = theme.useToken()
+  const { modal } = App.useApp()
   const [form] = Form.useForm()
   const [processing, setProcessing] = useState(false)
   const { success, error: notifyError } = useNotifier()
@@ -50,7 +51,7 @@ export default function AppealDetailPanel({ appeal, onReviewComplete }) {
 
   const confirmReview = useCallback((decision) => {
     const isApproved = decision === 'approved'
-    Modal.confirm({
+    modal.confirm({
       title: isApproved ? 'Uphold this appeal?' : 'Overturn / deny this appeal?',
       content: isApproved
         ? 'This will move the linked application back to Under Review for re-evaluation.'

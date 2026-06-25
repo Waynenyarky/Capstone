@@ -1,8 +1,11 @@
+import { useState, useEffect } from 'react'
 import { Space, Button, Typography, Tag, App } from 'antd'
-import { ShopOutlined, BugOutlined, DeleteOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
+import { ShopOutlined, BugOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { getBusinessDisplayName } from '../../utils/statusUtils'
+import { getFeeGroupForForm } from '../../services/feeService'
+import MockPaymentModal from '../MockPaymentModal'
 
-const { Title } = Typography
+const { Title, Text } = Typography
 
 export default function ApplicationHeader({
   business,
@@ -15,6 +18,7 @@ export default function ApplicationHeader({
   isMobile = false,
   onDeleteDraft,
   onSubmitApplication,
+  onPaymentSuccess,
   onFillTestData,
   onToggleForm,
   onOpenForm,
@@ -25,8 +29,51 @@ export default function ApplicationHeader({
   hasUnsavedChanges = false,
   isFooter = false
 }) {
-  const { modal } = App.useApp()
+  const { message } = App.useApp()
   const displayName = getBusinessDisplayName(business)
+  const [feeData, setFeeData] = useState(null)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+
+  useEffect(() => {
+    const fetchFees = async () => {
+      try {
+        const response = await getFeeGroupForForm('permit')
+        setFeeData(response)
+      } catch (err) {
+        console.error('Failed to fetch fee data:', err)
+        setFeeData(null)
+      }
+    }
+    fetchFees()
+  }, [])
+
+  const handleSubmitAndPay = () => {
+    setShowPaymentModal(true)
+  }
+
+  const handlePaymentSuccess = (receiptId) => {
+    setShowPaymentModal(false)
+    const receiptInfo = {
+      receiptId,
+      transactionDate: new Date().toLocaleString(),
+      transactionName: 'Business Permit Application',
+      fees: feeData?.fees || [],
+      totalAmount: feeData?.total || 0,
+      applicationReferenceNumber: business?.applicationReferenceNumber || 'N/A',
+    }
+    // If parent handles payment success (DraftView), delegate to it
+    if (onPaymentSuccess) {
+      onPaymentSuccess(receiptInfo)
+    } else {
+      // Fallback: just submit (revision resubmit flow)
+      onSubmitApplication?.()
+    }
+  }
+
+  const handlePaymentFail = () => {
+    setShowPaymentModal(false)
+    message.error('Payment cancelled. Application was not submitted.')
+  }
 
   return (
     <div
@@ -82,16 +129,7 @@ export default function ApplicationHeader({
               {isNeedsRevision && showAddForm && (
                 <Button
                   type="primary"
-                  onClick={() => {
-                    modal.confirm({
-                      title: 'Confirm Application Resubmission',
-                      icon: <ExclamationCircleOutlined />,
-                      content: 'Are you sure you want to resubmit this application with your revisions? This action cannot be undone.',
-                      okText: 'Yes, Resubmit',
-                      cancelText: 'Cancel',
-                      onOk: onSubmitApplication
-                    })
-                  }}
+                  onClick={handleSubmitAndPay}
                   loading={formSubmitting}
                 >
                   Resubmit Application
@@ -122,16 +160,7 @@ export default function ApplicationHeader({
                 type="primary"
                 icon={<CheckCircleOutlined />}
                 iconPosition="end"
-                onClick={() => {
-                  modal.confirm({
-                    title: 'Confirm Application Submission',
-                    icon: <ExclamationCircleOutlined />,
-                    content: 'Are you sure you want to submit this business permit application? This action cannot be undone.',
-                    okText: 'Yes, Submit',
-                    cancelText: 'Cancel',
-                    onOk: onSubmitApplication
-                  })
-                }}
+                onClick={handleSubmitAndPay}
                 loading={formSubmitting}
                 disabled={!allSectionsComplete}
               >
@@ -141,6 +170,16 @@ export default function ApplicationHeader({
           ) : null}
         </Space>
       </div>
+      
+      <MockPaymentModal
+        visible={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onSuccess={handlePaymentSuccess}
+        onFail={handlePaymentFail}
+        amount={feeData?.total || 0}
+        transactionName="Business Permit Application"
+        fees={feeData?.fees || []}
+      />
     </div>
   )
 }

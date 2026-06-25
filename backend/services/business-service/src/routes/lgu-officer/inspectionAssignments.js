@@ -4,15 +4,19 @@ const router = express.Router();
 const { requireJwt, requireRole } = require("../../middleware/auth");
 const BusinessProfile = require("../../models/BusinessProfile");
 const Inspection = require("../../models/Inspection");
+const Payment = require("../../models/Payment");
 const respond = require("../../middleware/respond");
 const Violation = require("../../models/Violation");
 const User = require("../../models/User");
 const Role = require("../../models/Role");
+const AuditLog = require("../../models/AuditLog");
 const {
   createChecklistFromTemplate,
 } = require("../../data/inspectionChecklistTemplate");
 const notificationService = require("../../services/notificationService");
 const { logAuditEvent } = require("../../lib/auditClient");
+const { decrypt, isEncrypted } = require("../../../../../shared/lib/fieldCipher");
+const { crossClaimForBusiness } = require("../../lib/crossClaimService");
 
 // Helper: build query that matches either businessId or subdoc _id
 function buildBusinessLookupQuery(identifier) {
@@ -33,6 +37,43 @@ function findBusinessInProfile(profile, identifier) {
   );
   return { business: index >= 0 ? profile.businesses[index] : null, index };
 }
+
+/**
+ * GET /api/lgu-officer/payments
+ * Get all payments for officer ledger view
+ */
+router.get(
+  "/payments",
+  requireJwt,
+  requireRole(["lgu_officer", "lgu_manager", "staff"]),
+  async (req, res) => {
+    try {
+      const { page = 1, limit = 20, status, paymentType } = req.query;
+
+      const filter = {};
+      if (status) filter.status = status;
+      if (paymentType) filter.paymentType = paymentType;
+
+      const skip = (page - 1) * limit;
+      const [payments, total] = await Promise.all([
+        Payment.find(filter)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(parseInt(limit))
+          .lean(),
+        Payment.countDocuments(filter),
+      ]);
+
+      return respond.success(res, 200, {
+        data: payments,
+        meta: { total, page: parseInt(page), limit: parseInt(limit) },
+      });
+    } catch (err) {
+      console.error("GET /api/lgu-officer/payments error:", err);
+      return respond.error(res, 500, "fetch_error", "Failed to fetch payments");
+    }
+  }
+);
 
 /**
  * GET /api/lgu-officer/businesses-for-inspection
@@ -659,6 +700,348 @@ router.post(
 );
 
 /**
+ * PUT /api/lgu-officer/permit-applications/:applicationId/claim
+ * Claim a permit application for review
+ */
+router.put(
+  "/permit-applications/:applicationId/claim",
+  requireJwt,
+  requireRole(["lgu_officer", "lgu_manager", "admin"]),
+  async (req, res) => {
+    try {
+      const { applicationId } = req.params;
+      let profile = await BusinessProfile.findOne({
+        "businesses.applicationId": applicationId,
+      });
+
+      if (!profile) {
+        profile = await BusinessProfile.findOne(
+          buildBusinessLookupQuery(applicationId),
+        );
+
+        if (!profile) {
+          return respond.error(res, 404, "not_found", "Application not found");
+        }
+      }
+
+      const businessIndex = profile.businesses.findIndex(
+        (b) => b.applicationId === applicationId || String(b._id) === applicationId,
+      );
+      if (businessIndex === -1) {
+        return respond.error(res, 404, "not_found", "Application not found in profile");
+      }
+
+      const business = profile.businesses[businessIndex];
+
+      if (business.reviewedBy && String(business.reviewedBy) !== String(req._userId)) {
+        return respond.error(res, 409, "already_claimed", "Application is already claimed by another officer");
+      }
+
+      const officer = await User.findById(req._userId).select("firstName lastName").lean();
+      const officerName = officer ? `${officer.firstName} ${officer.lastName}`.trim() : (req._userEmail || "Officer");
+
+      profile.businesses[businessIndex].reviewedBy = req._userId;
+      profile.businesses[businessIndex].reviewedByName = officerName;
+      profile.businesses[businessIndex].reviewedAt = new Date();
+      profile.businesses[businessIndex].updatedAt = new Date();
+      // Change status to under_review when claimed
+      if (profile.businesses[businessIndex].applicationStatus === 'submitted') {
+        profile.businesses[businessIndex].applicationStatus = 'under_review';
+      }
+      await profile.save();
+
+      console.log("[PermitApplications] Attempting to log audit event for claim:", applicationId);
+      logAuditEvent(
+        "claim",
+        req._userId,
+        "BusinessProfile",
+        applicationId,
+        {
+          claimedBy: req._userId,
+          claimedByName: officerName,
+          claimedAt: new Date(),
+          businessId: business.businessId,
+        }
+      ).catch((err) => console.error("Failed to log claim audit", { error: err.message }));
+
+      const bizId = business.businessId || String(business._id);
+      await crossClaimForBusiness(bizId, req._userId, { skipModel: "PermitApplication" });
+
+      return respond.success(res, 200, {
+        message: "Application claimed successfully",
+        application: profile.businesses[businessIndex],
+      });
+    } catch (err) {
+      console.error("PUT /api/lgu-officer/permit-applications/:applicationId/claim error:", err);
+      return respond.error(res, 500, "claim_failed", "Failed to claim application");
+    }
+  },
+);
+
+/**
+ * PUT /api/lgu-officer/permit-applications/:applicationId/release
+ * Release a permit application back to the pool
+ */
+router.put(
+  "/permit-applications/:applicationId/release",
+  requireJwt,
+  requireRole(["lgu_officer", "lgu_manager", "admin"]),
+  async (req, res) => {
+    try {
+      const { applicationId } = req.params;
+      let profile = await BusinessProfile.findOne({
+        "businesses.applicationId": applicationId,
+      });
+
+      if (!profile) {
+        profile = await BusinessProfile.findOne(
+          buildBusinessLookupQuery(applicationId),
+        );
+
+        if (!profile) {
+          return respond.error(res, 404, "not_found", "Application not found");
+        }
+      }
+
+      const businessIndex = profile.businesses.findIndex(
+        (b) => b.applicationId === applicationId || String(b._id) === applicationId,
+      );
+      if (businessIndex === -1) {
+        return respond.error(res, 404, "not_found", "Application not found in profile");
+      }
+
+      const business = profile.businesses[businessIndex];
+
+      if (business.reviewedBy && String(business.reviewedBy) !== String(req._userId)) {
+        const isManagerOrAdmin = req._userRole === "lgu_manager" || req._userRole === "admin";
+        if (!isManagerOrAdmin) {
+          return respond.error(res, 403, "not_owner", "Only the claiming officer can release this application");
+        }
+      }
+
+      const officer = await User.findById(req._userId).select("firstName lastName").lean();
+      const officerName = officer ? `${officer.firstName} ${officer.lastName}`.trim() : (req._userEmail || "Officer");
+
+      profile.businesses[businessIndex].reviewedBy = null;
+      profile.businesses[businessIndex].reviewedByName = "";
+      profile.businesses[businessIndex].reviewedAt = null;
+      profile.businesses[businessIndex].updatedAt = new Date();
+      await profile.save();
+
+      console.log("[PermitApplications] Attempting to log audit event for release:", applicationId);
+      logAuditEvent(
+        "release",
+        req._userId,
+        "BusinessProfile",
+        applicationId,
+        {
+          releasedBy: req._userId,
+          releasedByName: officerName,
+          releasedAt: new Date(),
+          businessId: business.businessId,
+        }
+      ).catch((err) => console.error("Failed to log release audit", { error: err.message }));
+
+      const bizId = business.businessId || String(business._id);
+      await crossClaimForBusiness(bizId, null, { skipModel: "PermitApplication" });
+
+      return respond.success(res, 200, {
+        message: "Application released successfully",
+        application: profile.businesses[businessIndex],
+      });
+    } catch (err) {
+      console.error("PUT /api/lgu-officer/permit-applications/:applicationId/release error:", err);
+      return respond.error(res, 500, "release_failed", "Failed to release application");
+    }
+  },
+);
+
+/**
+ * GET /api/lgu-officer/permit-applications
+ * List permit applications with optional filters
+ */
+router.get(
+  "/permit-applications",
+  requireJwt,
+  requireRole(["lgu_officer", "lgu_manager", "admin"]),
+  async (req, res) => {
+    try {
+      // Disable caching for this endpoint
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+
+      const { status, reviewedBy, page = 1, limit = 20 } = req.query;
+
+      const filter = {};
+      if (status) {
+        const statuses = status.split(",");
+        filter["businesses.applicationStatus"] = { $in: statuses };
+      }
+      if (reviewedBy) {
+        filter["businesses.reviewedBy"] = reviewedBy;
+      }
+
+      console.log("GET /api/lgu-officer/permit-applications filter:", filter);
+
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      const profiles = await BusinessProfile.find(filter)
+        .select("businesses userId")
+        .lean();
+
+      console.log("GET /api/lgu-officer/permit-applications profiles found:", profiles.length);
+
+      // Flatten businesses from all profiles
+      let applications = [];
+      profiles.forEach((profile) => {
+        if (profile.businesses && profile.businesses.length > 0) {
+          profile.businesses.forEach((business) => {
+            // Apply additional filters that couldn't be done at the profile level
+            if (status && !status.split(",").includes(business.applicationStatus)) {
+              return;
+            }
+            if (reviewedBy && String(business.reviewedBy) !== reviewedBy) {
+              return;
+            }
+            applications.push({
+              ...business,
+              _id: business._id,
+              businessProfileId: profile._id,
+              userId: profile.userId,
+            });
+          });
+        }
+      });
+
+      // Apply pagination
+      const total = applications.length;
+      const paginatedApplications = applications
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+        .slice(skip, skip + parseInt(limit));
+
+      return respond.success(res, 200, {
+        applications: paginatedApplications,
+        pagination: {
+          total,
+          page: parseInt(page),
+          limit: parseInt(limit),
+        },
+      });
+    } catch (err) {
+      console.error("GET /api/lgu-officer/permit-applications error:", err);
+      return respond.error(res, 500, "fetch_error", "Failed to fetch permit applications");
+    }
+  },
+);
+
+/**
+ * GET /api/lgu-officer/permit-applications/:applicationId
+ * Get a single permit application by ID
+ */
+router.get(
+  "/permit-applications/:applicationId",
+  requireJwt,
+  requireRole(["lgu_officer", "lgu_manager", "admin"]),
+  async (req, res) => {
+    try {
+      // Disable caching for this endpoint
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+
+      const { applicationId } = req.params;
+
+      const query = buildBusinessLookupQuery(applicationId);
+      const profile = await BusinessProfile.findOne(query).lean();
+
+      if (!profile) {
+        return respond.error(res, 404, "not_found", "Application not found");
+      }
+
+      const { business, index } = findBusinessInProfile(profile, applicationId);
+      if (!business) {
+        return respond.error(res, 404, "not_found", "Application not found");
+      }
+
+      // Fetch user record for owner name as fallback
+      let user = null;
+      if (profile.userId) {
+        try {
+          user = await User.findById(profile.userId).select("firstName lastName").lean();
+        } catch (err) {
+          console.error("Failed to fetch user:", err);
+        }
+      }
+
+      // Get owner full name with priority
+      const ownerFullName =
+        (profile.ownerIdentity?.fullName && profile.ownerIdentity.fullName.trim()) ||
+        (business.ownerFullName && business.ownerFullName.trim()) ||
+        (user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "") ||
+        "";
+
+      return respond.success(res, 200, {
+        ...business,
+        _id: business._id,
+        businessProfileId: profile._id,
+        userId: profile.userId,
+        ownerName: ownerFullName || "N/A",
+      });
+    } catch (err) {
+      console.error("GET /api/lgu-officer/permit-applications/:applicationId error:", err);
+      return respond.error(res, 500, "fetch_error", "Failed to fetch permit application");
+    }
+  },
+);
+
+/**
+ * GET /api/lgu-officer/permit-applications/:applicationId/audit
+ * Get audit history for a permit application
+ */
+router.get(
+  "/permit-applications/:applicationId/audit",
+  requireJwt,
+  requireRole(["lgu_officer", "lgu_manager", "admin"]),
+  async (req, res) => {
+    try {
+      const { applicationId } = req.params;
+      const { page = 1, limit = 20 } = req.query;
+
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      const filter = {
+        entityType: "BusinessProfile",
+        entityId: applicationId,
+      };
+
+      const [logs, total] = await Promise.all([
+        AuditLog.find(filter)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(parseInt(limit))
+          .lean(),
+        AuditLog.countDocuments(filter),
+      ]);
+
+      const totalPages = Math.ceil(total / parseInt(limit));
+
+      return respond.success(res, 200, {
+        logs,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          totalPages,
+        },
+      });
+    } catch (err) {
+      console.error("GET /api/lgu-officer/permit-applications/:applicationId/audit error:", err);
+      return respond.error(res, 500, "audit_fetch_failed", "Failed to fetch audit logs");
+    }
+  },
+);
+
+/**
  * PUT /api/lgu-officer/inspections/:id/reschedule
  * Reschedule an existing inspection to a new date/time
  */
@@ -994,6 +1377,78 @@ router.put(
         500,
         "resolve_error",
         err.message || "Failed to resolve violation",
+      );
+    }
+  },
+);
+
+/**
+ * GET /api/lgu-officer/owner-profile/:userId
+ * Get owner profile data for LGU officers
+ */
+router.get(
+  "/owner-profile/:userId",
+  requireJwt,
+  requireRole(["lgu_officer", "lgu_manager", "staff"]),
+  async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return respond.error(res, 400, "invalid_id", "Invalid user ID");
+      }
+
+      const user = await User.findById(userId)
+        .select("firstName lastName middleName suffix email phoneNumber dateOfBirth sex maritalStatus placeOfBirth nationality highestEducationalAttainment fatherName motherName distinctiveMark address")
+        .lean();
+
+      if (!user) {
+        return respond.error(res, 404, "not_found", "Owner profile not found");
+      }
+
+      // Decrypt encrypted fields
+      const decryptedProfile = { ...user };
+      const fieldsToDecrypt = [
+        'middleName', 'placeOfBirth', 'nationality', 'fatherName', 'motherName',
+        'address.street', 'address.streetAddress', 'address.barangayName', 'address.barangay',
+        'address.cityName', 'address.city', 'address.provinceName', 'address.province',
+        'address.postalCode', 'address.zipCode'
+      ];
+
+      fieldsToDecrypt.forEach(field => {
+        const keys = field.split('.');
+        let value = decryptedProfile;
+        for (const key of keys) {
+          if (value) value = value[key];
+        }
+        if (value && isEncrypted(value)) {
+          try {
+            const decrypted = decrypt(value);
+            // Set the decrypted value back to the nested object
+            if (keys.length === 1) {
+              decryptedProfile[keys[0]] = decrypted;
+            } else {
+              let obj = decryptedProfile;
+              for (let i = 0; i < keys.length - 1; i++) {
+                if (!obj[keys[i]]) obj[keys[i]] = {};
+                obj = obj[keys[i]];
+              }
+              obj[keys[keys.length - 1]] = decrypted;
+            }
+          } catch (err) {
+            console.error(`Failed to decrypt ${field}:`, err);
+          }
+        }
+      });
+
+      return res.json({ success: true, profile: decryptedProfile });
+    } catch (err) {
+      console.error("GET /api/lgu-officer/owner-profile/:userId error:", err);
+      return respond.error(
+        res,
+        500,
+        "fetch_error",
+        err.message || "Failed to fetch owner profile",
       );
     }
   },

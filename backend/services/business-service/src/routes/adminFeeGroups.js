@@ -1,6 +1,7 @@
 const express = require("express");
 const FeeGroup = require("../models/FeeGroup");
 const Fee = require("../models/Fee");
+const AuditLog = require("../models/AuditLog");
 const {
   requireJwt,
   requireRole,
@@ -10,11 +11,12 @@ const { createAuditLog } = require("../lib/auditLogger");
 
 const router = express.Router();
 
-// GET /api/business/admin/fee-groups — list all fee groups
+// GET /api/business/admin/fee-groups — list all fee groups (excluding drafts)
 router.get("/", requireJwt, async (req, res) => {
   try {
-    const { isActive } = req.query;
-    const filter = {};
+    const { isActive, includeDrafts } = req.query;
+    const filter = { isDraft: { $ne: true } };
+    if (includeDrafts === "true") delete filter.isDraft;
     if (isActive !== undefined) filter.isActive = isActive === "true";
 
     const feeGroups = await FeeGroup.find(filter)
@@ -33,7 +35,7 @@ router.get("/", requireJwt, async (req, res) => {
   }
 });
 
-// GET /api/business/admin/fee-groups/:id — get single fee group
+// GET /api/business/admin/fee-groups/:id — get single fee group (or draft)
 router.get("/:id", requireJwt, async (req, res) => {
   try {
     const feeGroup = await FeeGroup.findById(req.params.id)
@@ -54,6 +56,215 @@ router.get("/:id", requireJwt, async (req, res) => {
       error: {
         code: "INTERNAL",
         message: "Failed to fetch fee group",
+      },
+    });
+  }
+});
+
+// GET /api/business/admin/fee-groups/:id/audit — get audit history for a fee group
+router.get("/:id/audit", requireJwt, requireRole(["admin"]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+
+    const feeGroup = await FeeGroup.findById(id);
+    if (!feeGroup) {
+      return res.status(404).json({
+        error: {
+          code: "NOT_FOUND",
+          message: "Fee group not found",
+        },
+      });
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const filter = {
+      entityType: "fee_group",
+      entityId: id,
+    };
+
+    const [logs, total] = await Promise.all([
+      AuditLog.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      AuditLog.countDocuments(filter),
+    ]);
+
+    const totalPages = Math.ceil(total / parseInt(limit));
+
+    return res.json({
+      success: true,
+      logs,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages,
+      },
+    });
+  } catch (err) {
+    console.error("GET /admin/fee-groups/:id/audit error:", err);
+    return res.status(500).json({
+      error: {
+        code: "INTERNAL",
+        message: "Failed to fetch audit history",
+      },
+    });
+  }
+});
+
+// GET /api/business/admin/fee-groups/:id/draft — get draft for a fee group
+router.get("/:id/draft", requireJwt, async (req, res) => {
+  try {
+    const draft = await FeeGroup.findOne({ draftOf: req.params.id })
+      .populate("fees")
+      .lean();
+    return res.json({ data: draft || null });
+  } catch (err) {
+    console.error("GET /admin/fee-groups/:id/draft error:", err);
+    return res.status(500).json({
+      error: {
+        code: "INTERNAL",
+        message: "Failed to fetch draft",
+      },
+    });
+  }
+});
+
+// POST /api/business/admin/fee-groups/:id/draft — create or update draft
+router.post("/:id/draft", requireJwt, requireRole(["admin"]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, fees } = req.body;
+
+    const originalFeeGroup = await FeeGroup.findById(id);
+    if (!originalFeeGroup) {
+      return res.status(404).json({
+        error: {
+          code: "NOT_FOUND",
+          message: "Fee group not found",
+        },
+      });
+    }
+
+    // Check if draft already exists
+    let draft = await FeeGroup.findOne({ draftOf: id });
+
+    if (draft) {
+      // Update existing draft
+      if (name !== undefined) draft.name = String(name).trim();
+      if (description !== undefined) draft.description = String(description).trim();
+      if (fees !== undefined) draft.fees = fees;
+      await draft.save();
+    } else {
+      // Create new draft
+      draft = new FeeGroup({
+        name: name !== undefined ? String(name).trim() : originalFeeGroup.name,
+        description: description !== undefined ? String(description).trim() : originalFeeGroup.description,
+        fees: fees !== undefined ? fees : originalFeeGroup.fees,
+        isActive: originalFeeGroup.isActive,
+        isDraft: true,
+        draftOf: id,
+        version: originalFeeGroup.version,
+        effectiveDate: originalFeeGroup.effectiveDate,
+      });
+      await draft.save();
+    }
+
+    return res.json({ data: draft });
+  } catch (err) {
+    console.error("POST /admin/fee-groups/:id/draft error:", err);
+    return res.status(500).json({
+      error: {
+        code: "INTERNAL",
+        message: "Failed to save draft",
+      },
+    });
+  }
+});
+
+// POST /api/business/admin/fee-groups/:id/publish — publish draft to original fee group
+router.post("/:id/publish", requireJwt, requireRole(["admin"]), requireAdminStepUp, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const draft = await FeeGroup.findOne({ draftOf: id });
+    if (!draft) {
+      return res.status(404).json({
+        error: {
+          code: "NOT_FOUND",
+          message: "Draft not found",
+        },
+      });
+    }
+
+    const originalFeeGroup = await FeeGroup.findById(id);
+    if (!originalFeeGroup) {
+      return res.status(404).json({
+        error: {
+          code: "NOT_FOUND",
+          message: "Original fee group not found",
+        },
+      });
+    }
+
+    const oldValues = {
+      name: originalFeeGroup.name,
+      description: originalFeeGroup.description,
+      fees: originalFeeGroup.fees,
+      isActive: originalFeeGroup.isActive,
+      version: originalFeeGroup.version,
+    };
+
+    // Update original fee group with draft values
+    originalFeeGroup.name = draft.name;
+    originalFeeGroup.description = draft.description;
+    originalFeeGroup.fees = draft.fees;
+    originalFeeGroup.version += 1;
+    originalFeeGroup.effectiveDate = new Date();
+
+    await originalFeeGroup.save();
+
+    // Delete the draft
+    await FeeGroup.deleteOne({ _id: draft._id });
+
+    const changes = {
+      name: { from: oldValues.name, to: originalFeeGroup.name },
+      description: { from: oldValues.description, to: originalFeeGroup.description },
+      fees: { from: oldValues.fees, to: originalFeeGroup.fees },
+    };
+
+    createAuditLog(
+      req._userId,
+      "fee_group_published",
+      "fee_group",
+      JSON.stringify(oldValues),
+      JSON.stringify({
+        name: originalFeeGroup.name,
+        description: originalFeeGroup.description,
+        fees: originalFeeGroup.fees,
+        isActive: originalFeeGroup.isActive,
+        version: originalFeeGroup.version,
+      }),
+      "admin",
+      {
+        feeGroupId: String(originalFeeGroup._id),
+        changes,
+        version: originalFeeGroup.version,
+        ip: req.ip,
+        userAgent: req.get("user-agent"),
+      },
+    ).catch((err) => console.error("Failed to create audit log for fee group publish", err));
+
+    return res.json({ data: originalFeeGroup });
+  } catch (err) {
+    console.error("POST /admin/fee-groups/:id/publish error:", err);
+    return res.status(500).json({
+      error: {
+        code: "INTERNAL",
+        message: "Failed to publish draft",
       },
     });
   }
@@ -135,7 +346,6 @@ router.put(
   "/:id",
   requireJwt,
   requireRole(["admin"]),
-  requireAdminStepUp,
   async (req, res) => {
     try {
       const { id } = req.params;

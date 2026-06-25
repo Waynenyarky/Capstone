@@ -240,8 +240,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
             onChange={(e) => onUpdate({ ...field, label: e.target.value })}
             placeholder={isDownload ? 'Form name (e.g. Duly accomplished application form)' : 'Field label'}
             style={{ flex: 1, minWidth: isMobile ? '100%' : 120 }}
-            size="small"
-          />
+                      />
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap' }}>
           {readOnly ? (
@@ -254,8 +253,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
               onChange={(val) => onUpdate(applyFieldTypeDefaults(field, val))}
               options={FIELD_TYPES}
               style={{ width: isMobile ? 130 : 160 }}
-              size="small"
-              popupMatchSelectWidth={false}
+                            popupMatchSelectWidth={false}
             />
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -264,8 +262,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
               <>
                 <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>Req</Text>
                 <Switch
-                  size="small"
-                  checked={field.required}
+                                    checked={field.required}
                   onChange={(checked) => onUpdate({ ...field, required: checked })}
                 />
               </>
@@ -275,15 +272,14 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
             <>
               <Button
                 type="text"
-                size="small"
-                icon={<SettingOutlined />}
+                                icon={<SettingOutlined />}
                 onClick={() => setExpanded(!expanded)}
                 style={{ color: expanded ? token.colorPrimary : undefined }}
               />
-              <Button type="text" size="small" icon={<UpOutlined />} disabled={isFirst} onClick={onMoveUp} />
-              <Button type="text" size="small" icon={<DownOutlined />} disabled={isLast} onClick={onMoveDown} />
+              <Button type="text"  icon={<UpOutlined />} disabled={isFirst} onClick={onMoveUp} />
+              <Button type="text"  icon={<DownOutlined />} disabled={isLast} onClick={onMoveDown} />
               <Popconfirm title="Delete this field?" onConfirm={onDelete} okText="Delete Field" okButtonProps={{ danger: true }}>
-                <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                <Button type="text"  danger icon={<DeleteOutlined />} />
               </Popconfirm>
             </>
           )}
@@ -335,7 +331,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                       accept=".pdf,.doc,.docx,.xls,.xlsx"
                       maxCount={1}
                     >
-                      <Button size="small" type="link">Replace</Button>
+                      <Button  type="link">Replace</Button>
                     </Upload>
                   </div>
                 ) : (
@@ -366,8 +362,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                   value={field.helpText}
                   onChange={(e) => onUpdate({ ...field, helpText: e.target.value })}
                   placeholder="e.g. Download this form, fill it out, then upload the completed version"
-                  size="small"
-                />
+                                  />
               </div>
             </>
           )}
@@ -381,8 +376,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                   value={field.helpText}
                   onChange={(e) => onUpdate({ ...field, helpText: e.target.value })}
                   placeholder="e.g. Add one row for each business activity"
-                  size="small"
-                />
+                                  />
               </div>
               <div style={{ display: 'flex', gap: 12 }}>
                 <div style={{ flex: 1 }}>
@@ -391,8 +385,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                     type="number"
                     value={field.minRows ?? 1}
                     onChange={(e) => onUpdate({ ...field, minRows: Number(e.target.value) || 0 })}
-                    size="small"
-                    min={0}
+                                        min={0}
                   />
                 </div>
                 <div style={{ flex: 1 }}>
@@ -401,8 +394,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                     type="number"
                     value={field.maxRows ?? 20}
                     onChange={(e) => onUpdate({ ...field, maxRows: Number(e.target.value) || 20 })}
-                    size="small"
-                    min={1}
+                                        min={1}
                   />
                 </div>
               </div>
@@ -411,8 +403,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                   <Text type="secondary" style={{ fontSize: 12 }}>Columns (sub-fields per row)</Text>
                   <Button
                     type="dashed"
-                    size="small"
-                    icon={<PlusOutlined />}
+                                        icon={<PlusOutlined />}
                     onClick={() => {
                       const newGf = {
                         id: createId(),
@@ -458,8 +449,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                           onUpdate({ ...field, groupFields: updated })
                         }}
                         placeholder="Column label"
-                        size="small"
-                        style={{ flex: 1 }}
+                                                style={{ flex: 1 }}
                       />
                       <Select
                         value={gf.type}
@@ -476,12 +466,10 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                           { value: 'multiselect', label: 'Multi-select' },
                         ]}
                         style={{ width: 120 }}
-                        size="small"
-                        popupMatchSelectWidth={false}
+                                                popupMatchSelectWidth={false}
                       />
                       <Switch
-                        size="small"
-                        checked={gf.required}
+                                                checked={gf.required}
                         onChange={(checked) => {
                           const updated = [...field.groupFields]
                           updated[gfIdx] = { ...gf, required: checked }
@@ -498,7 +486,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                         okText="Remove Column"
                         okButtonProps={{ danger: true }}
                       >
-                        <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                        <Button type="text"  danger icon={<DeleteOutlined />} />
                       </Popconfirm>
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -510,8 +498,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                           onUpdate({ ...field, groupFields: updated })
                         }}
                         placeholder="Placeholder text"
-                        size="small"
-                        style={{ flex: 1, minWidth: 120 }}
+                                                style={{ flex: 1, minWidth: 120 }}
                       />
                       <Input
                         value={gf.key}
@@ -521,8 +508,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                           onUpdate({ ...field, groupFields: updated })
                         }}
                         placeholder="Storage key"
-                        size="small"
-                        style={{ flex: 1, minWidth: 120 }}
+                                                style={{ flex: 1, minWidth: 120 }}
                       />
                     </div>
                     {(gf.type === 'select' || gf.type === 'multiselect') && (
@@ -536,8 +522,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                             onUpdate({ ...field, groupFields: updated })
                           }}
                           placeholder="Options (comma-separated)"
-                          size="small"
-                        />
+                                                  />
                       </div>
                     )}
                   </div>
@@ -560,12 +545,10 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                       value={field.key ?? ''}
                       onChange={(e) => onUpdate({ ...field, key: e.target.value.trim() })}
                       placeholder={slugifyLabelToKey(field.label) || 'e.g. idPicture'}
-                      size="small"
-                      style={{ flex: 1 }}
+                                            style={{ flex: 1 }}
                     />
                     <Button
-                      size="small"
-                      onClick={() => onUpdate({ ...field, key: slugifyLabelToKey(field.label) })}
+                                            onClick={() => onUpdate({ ...field, key: slugifyLabelToKey(field.label) })}
                     >
                       Suggest from label
                     </Button>
@@ -584,8 +567,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                   onChange={(val) => onUpdate({ ...field, span: val })}
                   options={FIELD_SPAN_OPTIONS}
                   style={{ width: 160 }}
-                  size="small"
-                />
+                                  />
               </div>
 
               {/* Row 1: Placeholder + Help text */}
@@ -596,8 +578,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                     value={field.placeholder}
                     onChange={(e) => onUpdate({ ...field, placeholder: e.target.value })}
                     placeholder="Text shown inside the input"
-                    size="small"
-                  />
+                                      />
                 </div>
                 <div style={{ flex: 1 }}>
                   <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Help text (shown to user)</Text>
@@ -605,8 +586,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                     value={field.helpText}
                     onChange={(e) => onUpdate({ ...field, helpText: e.target.value })}
                     placeholder="Description shown below the field"
-                    size="small"
-                  />
+                                      />
                 </div>
               </div>
 
@@ -619,8 +599,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                     onChange={(val) => onUpdate({ ...field, dropdownSource: val })}
                     options={DROPDOWN_SOURCES}
                     style={{ width: '100%' }}
-                    size="small"
-                  />
+                                      />
                   {field.dropdownSource === 'static' && (
                     <div style={{ marginTop: 8 }}>
                       <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
@@ -633,8 +612,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                           onUpdate({ ...field, dropdownOptions: opts })
                         }}
                         placeholder="e.g. Option A, Option B, Option C"
-                        size="small"
-                      />
+                                              />
                     </div>
                   )}
                   {field.dropdownSource && field.dropdownSource !== 'static' && (
@@ -673,8 +651,7 @@ function FieldRow({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, is
                             onUpdate({ ...field, validation: newValidation })
                           }}
                           placeholder={rule.inputType === 'number' ? '0' : 'value'}
-                          size="small"
-                          style={{ width: 80 }}
+                                                    style={{ width: 80 }}
                           type={rule.inputType}
                         />
                       </div>
@@ -733,10 +710,10 @@ function SectionPanel({ section, sectionIndex, onUpdate, onDelete, onMoveUp, onM
 
   const extra = readOnly ? null : (
     <Space size={4} onClick={(e) => e.stopPropagation()}>
-      <Button type="text" size="small" icon={<UpOutlined />} disabled={isFirst} onClick={onMoveUp} />
-      <Button type="text" size="small" icon={<DownOutlined />} disabled={isLast} onClick={onMoveDown} />
+      <Button type="text"  icon={<UpOutlined />} disabled={isFirst} onClick={onMoveUp} />
+      <Button type="text"  icon={<DownOutlined />} disabled={isLast} onClick={onMoveDown} />
       <Popconfirm title="Delete this section and all its fields?" onConfirm={onDelete} okText="Delete Section" okButtonProps={{ danger: true }}>
-        <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+        <Button type="text"  danger icon={<DeleteOutlined />} />
       </Popconfirm>
     </Space>
   )
@@ -744,7 +721,7 @@ function SectionPanel({ section, sectionIndex, onUpdate, onDelete, onMoveUp, onM
   return (
     <Collapse
       defaultActiveKey={['content']}
-      style={{ marginBottom: 12 }}
+      style={{ marginBottom: 12, background: token.colorBgContainer, border: `1px solid ${token.colorBorderSecondary}` }}
       items={[
         {
           key: 'content',
@@ -780,8 +757,7 @@ function SectionPanel({ section, sectionIndex, onUpdate, onDelete, onMoveUp, onM
                         value={section.category}
                         onChange={(e) => onUpdate({ ...section, category: e.target.value })}
                         placeholder="e.g. Local Government Unit (LGU)"
-                        size="small"
-                      />
+                                              />
                     </div>
                     <div style={{ flex: 1 }}>
                       <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Source / issuing agency</Text>
@@ -790,8 +766,7 @@ function SectionPanel({ section, sectionIndex, onUpdate, onDelete, onMoveUp, onM
                         onChange={(val) => onUpdate({ ...section, source: val || '' })}
                         placeholder="Select issuing agency"
                         allowClear
-                        size="small"
-                        style={{ width: '100%' }}
+                                                style={{ width: '100%' }}
                         options={ISSUING_AGENCY_GROUPS}
                       />
                     </div>
@@ -803,8 +778,7 @@ function SectionPanel({ section, sectionIndex, onUpdate, onDelete, onMoveUp, onM
                       onChange={(e) => onUpdate({ ...section, notes: e.target.value })}
                       placeholder="Internal notes about this section..."
                       autoSize={{ minRows: 1, maxRows: 3 }}
-                      size="small"
-                    />
+                                          />
                   </div>
 
                   {/* Show when (conditional visibility) */}
@@ -820,8 +794,7 @@ function SectionPanel({ section, sectionIndex, onUpdate, onDelete, onMoveUp, onM
                               onUpdate({ ...section, showWhen: null })
                             }
                           }}
-                          size="small"
-                        />
+                                                  />
                         <Text type="secondary" style={{ fontSize: 12 }}>Only show when a form field matches</Text>
                       </Space>
                       {section.showWhen && section.showWhen.field && (
@@ -832,8 +805,7 @@ function SectionPanel({ section, sectionIndex, onUpdate, onDelete, onMoveUp, onM
                               value={section.showWhen.field}
                               onChange={(e) => onUpdate({ ...section, showWhen: { ...section.showWhen, field: e.target.value } })}
                               placeholder="e.g. generalPermitCategory"
-                              size="small"
-                              style={{ maxWidth: 240 }}
+                                                            style={{ maxWidth: 240 }}
                             />
                           </div>
                           <Space>
@@ -854,8 +826,7 @@ function SectionPanel({ section, sectionIndex, onUpdate, onDelete, onMoveUp, onM
                                 { value: 'value', label: 'Single value' },
                                 { value: 'values', label: 'Any of these values' },
                               ]}
-                              size="small"
-                              style={{ width: 160 }}
+                                                            style={{ width: 160 }}
                             />
                             {section.showWhen.values !== undefined ? (
                               <Select
@@ -863,8 +834,7 @@ function SectionPanel({ section, sectionIndex, onUpdate, onDelete, onMoveUp, onM
                                 value={section.showWhen.values || []}
                                 onChange={(vals) => onUpdate({ ...section, showWhen: { ...section.showWhen, values: vals || [] } })}
                                 placeholder="e.g. cooperative, peddlers"
-                                size="small"
-                                style={{ minWidth: 200, flex: 1 }}
+                                                                style={{ minWidth: 200, flex: 1 }}
                                 tokenSeparators={[',']}
                               />
                             ) : (
@@ -872,8 +842,7 @@ function SectionPanel({ section, sectionIndex, onUpdate, onDelete, onMoveUp, onM
                                 value={section.showWhen.value || ''}
                                 onChange={(e) => onUpdate({ ...section, showWhen: { ...section.showWhen, value: e.target.value } })}
                                 placeholder="e.g. cooperative"
-                                size="small"
-                                style={{ width: 160 }}
+                                                                style={{ width: 160 }}
                               />
                             )}
                           </Space>
@@ -923,8 +892,7 @@ function SectionPanel({ section, sectionIndex, onUpdate, onDelete, onMoveUp, onM
               {!readOnly && (
                 <Button
                   type="dashed"
-                  size="small"
-                  icon={<PlusOutlined />}
+                                    icon={<PlusOutlined />}
                   onClick={() => { addItem(); onChange?.() }}
                   style={{ width: '100%', marginTop: 4 }}
                 >
@@ -1060,8 +1028,8 @@ const FormContentEditor = forwardRef(function FormContentEditor({ initialSection
   const { token } = theme.useToken()
 
   const [sections, setSections] = useState(() => {
-    if (initialSections && initialSections.length > 0) {
-      return hydrateFromApi(initialSections)
+    if (initialSections !== undefined) {
+      return initialSections.length > 0 ? hydrateFromApi(initialSections) : []
     }
     return getInitialSections()
   })
@@ -1077,6 +1045,9 @@ const FormContentEditor = forwardRef(function FormContentEditor({ initialSection
   useImperativeHandle(ref, () => ({
     getSections: () => dehydrateForApi(sections),
     getRawSections: () => sections,
+    setSections: (newSections) => {
+      setSections(newSections)
+    },
   }), [sections])
 
   const updateSections = useCallback((newSections) => {

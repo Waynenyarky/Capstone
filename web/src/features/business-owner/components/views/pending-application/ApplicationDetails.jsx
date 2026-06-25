@@ -22,12 +22,6 @@ export default function ApplicationDetails({ business }) {
         <Text type="secondary" style={{ fontSize: 12 }}>Reference Number</Text>
         <div><Text strong>{business.applicationReferenceNumber || 'Pending'}</Text></div>
       </div>
-      {business.reviewedBy && (
-        <div style={{ gridColumn: '1 / -1', paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>Reviewing Officer</Text>
-          <div><Text strong>{business.reviewedBy.name || 'LGU Officer'}</Text></div>
-        </div>
-      )}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Select, Button, Typography, theme, Space, Badge, Empty, Modal, message, Alert, Tag, Row, Col, Card } from 'antd'
+import { Select, Button, Typography, theme, Space, Badge, Empty, App, message, Alert, Tag, Row, Col, Card } from 'antd'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import {
   ArrowLeftOutlined,
@@ -77,6 +77,7 @@ function isGroupDeactivated(group) {
 
 function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
   const { token } = theme.useToken()
+  const { modal } = App.useApp()
   const editorRef = useRef(null)
   const [deactivateForm] = Form.useForm()
   const { runWithStepUp, stepUpModal } = useAdminStepUp()
@@ -239,7 +240,7 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
 
   const handleDelete = () => {
     if (!currentDefinition) return
-    Modal.confirm({
+    modal.confirm({
       title: 'Delete draft',
       content: 'Are you sure you want to delete this draft? This action cannot be undone.',
       okText: 'Delete Draft',
@@ -263,7 +264,7 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
 
   const handlePublish = () => {
     if (!currentDefinition) return
-    Modal.confirm({
+    modal.confirm({
       title: 'Submit for approval',
       content: 'This form will be submitted for approval. It will only be published once other admins have approved it.',
       okText: 'Submit for Approval',
@@ -296,7 +297,7 @@ function FormDefinitionsMobileView({ refreshKey = 0, onLastUpdated } = {}) {
 
   const handleBack = () => {
     if (hasUnsavedChanges) {
-      Modal.confirm({
+      modal.confirm({
         title: 'Unsaved changes',
         content: 'You have unsaved changes. Are you sure you want to leave?',
         okText: 'Leave',

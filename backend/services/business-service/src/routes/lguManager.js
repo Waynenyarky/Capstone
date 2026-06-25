@@ -749,6 +749,39 @@ router.post("/reports/generate", async (req, res) => {
 });
 
 /**
+ * GET /api/lgu-manager/payments
+ * Get all payments for officer ledger view
+ */
+router.get("/payments", async (req, res) => {
+  try {
+    const Payment = require("../models/Payment");
+    const { page = 1, limit = 20, status, paymentType } = req.query;
+
+    const filter = {};
+    if (status) filter.status = status;
+    if (paymentType) filter.paymentType = paymentType;
+
+    const skip = (page - 1) * limit;
+    const [payments, total] = await Promise.all([
+      Payment.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      Payment.countDocuments(filter),
+    ]);
+
+    return respond.success(res, 200, {
+      data: payments,
+      meta: { total, page: parseInt(page), limit: parseInt(limit) },
+    });
+  } catch (err) {
+    console.error("GET /api/lgu-manager/payments error:", err);
+    return respond.error(res, 500, "fetch_error", "Failed to fetch payments");
+  }
+});
+
+/**
  * GET /api/lgu-manager/payments/pending
  * Get pending payments that need verification
  */

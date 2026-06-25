@@ -4,6 +4,7 @@ const multer = require("multer");
 const { requireJwt, requireRole, optionalJwt } = require("../middleware/auth");
 const respond = require("../middleware/respond");
 const PermitFormsSection = require("../models/PermitFormsSection");
+const PermitTypeFormGroup = require("../models/PermitTypeFormGroup");
 const { createAuditLog } = require("../lib/auditLogger");
 const ipfsService = require("../lib/ipfsService");
 const AuditLog = require("../models/AuditLog");
@@ -346,6 +347,207 @@ router.get("/audit", requireJwt, requireRole(["admin"]), async (req, res) => {
   } catch (err) {
     console.error("GET /api/admin/permit-forms/audit error:", err);
     return respond.error(res, 500, "fetch_error", "Failed to fetch audit logs");
+  }
+});
+
+// Version management routes for permit types
+
+// GET /:cardId/versions — get versions for a permit type
+router.get("/:cardId/versions", requireJwt, requireRole(["admin"]), async (req, res) => {
+  try {
+    const { cardId } = req.params;
+    const formGroup = await PermitTypeFormGroup.findOne({ cardId, retiredAt: null });
+    
+    if (!formGroup) {
+      return respond.success(res, 200, { versions: [] });
+    }
+
+    return respond.success(res, 200, { versions: formGroup.versions });
+  } catch (err) {
+    console.error("GET /api/admin/permit-forms/:cardId/versions error:", err);
+    return respond.error(res, 500, "fetch_error", "Failed to fetch versions");
+  }
+});
+
+// POST /:cardId/versions — create new version
+router.post("/:cardId/versions", requireJwt, requireRole(["admin"]), async (req, res) => {
+  try {
+    const { cardId } = req.params;
+    const { sections, feeGroupId, copyFromVersionId } = req.body;
+
+    let formGroup = await PermitTypeFormGroup.findOne({ cardId, retiredAt: null });
+    
+    if (!formGroup) {
+      formGroup = await PermitTypeFormGroup.create({
+        cardId,
+        formType: "permit",
+        industryScope: "all",
+        versions: [],
+      });
+    }
+
+    const newVersionNumber = formGroup.getNextVersionNumber();
+    let newSections = sections || [];
+    let newFeeGroupId = feeGroupId || null;
+
+    // Copy from existing version if specified
+    if (copyFromVersionId) {
+      const sourceVersion = formGroup.versions.id(copyFromVersionId);
+      if (sourceVersion) {
+        newSections = sourceVersion.sections;
+        newFeeGroupId = sourceVersion.feeGroupId;
+      }
+    }
+
+    const newVersion = {
+      version: newVersionNumber,
+      status: "draft",
+      sections: newSections,
+      feeGroupId: newFeeGroupId,
+      createdAt: new Date(),
+      createdBy: req._userId,
+      updatedAt: new Date(),
+      updatedBy: req._userId,
+    };
+
+    formGroup.versions.push(newVersion);
+    await formGroup.save();
+
+    return respond.success(res, 201, { version: newVersion });
+  } catch (err) {
+    console.error("POST /api/admin/permit-forms/:cardId/versions error:", err);
+    return respond.error(res, 500, "create_error", "Failed to create version");
+  }
+});
+
+// GET /:cardId/versions/:versionId — get specific version
+router.get("/:cardId/versions/:versionId", requireJwt, requireRole(["admin"]), async (req, res) => {
+  try {
+    const { cardId, versionId } = req.params;
+    const formGroup = await PermitTypeFormGroup.findOne({ cardId, retiredAt: null });
+    
+    if (!formGroup) {
+      return respond.error(res, 404, "not_found", "Permit type not found");
+    }
+
+    const version = formGroup.versions.id(versionId);
+    if (!version) {
+      return respond.error(res, 404, "not_found", "Version not found");
+    }
+
+    return respond.success(res, 200, { version });
+  } catch (err) {
+    console.error("GET /api/admin/permit-forms/:cardId/versions/:versionId error:", err);
+    return respond.error(res, 500, "fetch_error", "Failed to fetch version");
+  }
+});
+
+// PUT /:cardId/versions/:versionId — update version (save draft)
+router.put("/:cardId/versions/:versionId", requireJwt, requireRole(["admin"]), async (req, res) => {
+  try {
+    const { cardId, versionId } = req.params;
+    const { sections, feeGroupId } = req.body;
+
+    const formGroup = await PermitTypeFormGroup.findOne({ cardId, retiredAt: null });
+    
+    if (!formGroup) {
+      return respond.error(res, 404, "not_found", "Permit type not found");
+    }
+
+    const version = formGroup.versions.id(versionId);
+    if (!version) {
+      return respond.error(res, 404, "not_found", "Version not found");
+    }
+
+    if (version.status !== "draft") {
+      return respond.error(res, 400, "invalid_status", "Can only update draft versions");
+    }
+
+    if (sections !== undefined) {
+      version.sections = sections;
+    }
+    if (feeGroupId !== undefined) {
+      version.feeGroupId = feeGroupId;
+    }
+    version.updatedAt = new Date();
+    version.updatedBy = req._userId;
+
+    await formGroup.save();
+
+    return respond.success(res, 200, { version });
+  } catch (err) {
+    console.error("PUT /api/admin/permit-forms/:cardId/versions/:versionId error:", err);
+    return respond.error(res, 500, "update_error", "Failed to update version");
+  }
+});
+
+// DELETE /:cardId/versions/:versionId — delete draft
+router.delete("/:cardId/versions/:versionId", requireJwt, requireRole(["admin"]), async (req, res) => {
+  try {
+    const { cardId, versionId } = req.params;
+
+    const formGroup = await PermitTypeFormGroup.findOne({ cardId, retiredAt: null });
+    
+    if (!formGroup) {
+      return respond.error(res, 404, "not_found", "Permit type not found");
+    }
+
+    const version = formGroup.versions.id(versionId);
+    if (!version) {
+      return respond.error(res, 404, "not_found", "Version not found");
+    }
+
+    if (version.status !== "draft") {
+      return respond.error(res, 400, "invalid_status", "Can only delete draft versions");
+    }
+
+    formGroup.versions.pull(versionId);
+    await formGroup.save();
+
+    return respond.success(res, 200, { message: "Draft deleted" });
+  } catch (err) {
+    console.error("DELETE /api/admin/permit-forms/:cardId/versions/:versionId error:", err);
+    return respond.error(res, 500, "delete_error", "Failed to delete draft");
+  }
+});
+
+// POST /:cardId/versions/:versionId/publish — publish version
+router.post("/:cardId/versions/:versionId/publish", requireJwt, requireRole(["admin"]), async (req, res) => {
+  try {
+    const { cardId, versionId } = req.params;
+
+    const formGroup = await PermitTypeFormGroup.findOne({ cardId, retiredAt: null });
+    
+    if (!formGroup) {
+      return respond.error(res, 404, "not_found", "Permit type not found");
+    }
+
+    const version = formGroup.versions.id(versionId);
+    if (!version) {
+      return respond.error(res, 404, "not_found", "Version not found");
+    }
+
+    if (version.status !== "draft") {
+      return respond.error(res, 400, "invalid_status", "Can only publish draft versions");
+    }
+
+    // Archive previously published versions
+    formGroup.versions.forEach((v) => {
+      if (v.status === "published" && v._id.toString() !== versionId) {
+        v.status = "archived";
+      }
+    });
+
+    version.status = "published";
+    version.updatedAt = new Date();
+    version.updatedBy = req._userId;
+
+    await formGroup.save();
+
+    return respond.success(res, 200, { version });
+  } catch (err) {
+    console.error("POST /api/admin/permit-forms/:cardId/versions/:versionId/publish error:", err);
+    return respond.error(res, 500, "publish_error", "Failed to publish version");
   }
 });
 

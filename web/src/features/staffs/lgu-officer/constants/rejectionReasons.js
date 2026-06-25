@@ -64,9 +64,9 @@ export function getFieldKey(sectionIdx, item, rowIndex = undefined) {
 /**
  * LOB field keys (used when section is the LOB section)
  */
-export const LOB_FIELD_DESCRIPTION = 'lob_description'
+export const LOB_FIELD_DESCRIPTION = 'businessDescriptionText'
 export function getLobActivityFieldKey(index) {
-  return `lob_activity_${index}`
+  return `businessActivities.${index}`
 }
 
 /**

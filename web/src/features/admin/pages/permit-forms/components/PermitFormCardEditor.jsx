@@ -1,4 +1,4 @@
-import { Card, Input, InputNumber, Button, Space, Typography, Tooltip, Modal } from 'antd'
+import { Card, Input, InputNumber, Button, Space, Typography, Tooltip, App } from 'antd'
 import {
   DeleteOutlined,
   PlusOutlined,
@@ -21,6 +21,7 @@ export default function PermitFormCardEditor({
   dragHandleProps,
   token,
 }) {
+  const { modal } = App.useApp()
   const handleTitleChange = (e) => {
     onUpdate(card.cardId, { title: e.target.value })
   }
@@ -76,7 +77,7 @@ export default function PermitFormCardEditor({
   }
 
   const handleDelete = () => {
-    Modal.confirm({
+    modal.confirm({
       title: 'Delete this permit form card?',
       content: `Are you sure you want to delete "${card.title || 'Untitled Card'}"? This action cannot be undone.`,
       okText: 'Delete',

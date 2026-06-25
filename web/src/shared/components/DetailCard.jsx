@@ -33,7 +33,7 @@ export default function DetailCard({
       onClick={onClick}
     >
       {/* Left Panel - Icon and Title */}
-      <div style={{ flex: screens.md ? '0 0 40%' : 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-end', padding: screens.md ? '96px 20px 16px' : '96px 24px 16px' }}>
+      <div style={{ flex: screens.md ? '0 0 40%' : 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-end', padding: screens.md ? '96px 24px 24px' : '96px 24px' }}>
         {Icon && (
           <Icon style={{ fontSize: 24, color: token.colorTextSecondary, marginBottom: 8 }} />
         )}

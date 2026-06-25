@@ -20,6 +20,15 @@ const FeeGroupSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    isDraft: {
+      type: Boolean,
+      default: false,
+    },
+    draftOf: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "FeeGroup",
+      default: null,
+    },
     version: {
       type: Number,
       default: 1,

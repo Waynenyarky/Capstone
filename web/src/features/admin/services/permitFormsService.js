@@ -65,3 +65,49 @@ export async function getPermitFormsAudit(page = 1, limit = 20) {
   const params = new URLSearchParams({ page: String(page), limit: String(limit) })
   return fetchJsonWithFallback(`${BASE}/audit?${params.toString()}`, { method: 'GET', headers })
 }
+
+// Version management functions for permit types
+
+export async function getPermitTypeVersions(cardId) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, 'admin')
+  return fetchJsonWithFallback(`${BASE}/${cardId}/versions`, { method: 'GET', headers })
+}
+
+export async function createPermitTypeVersion(cardId, data) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, 'admin', { 'Content-Type': 'application/json' })
+  return fetchJsonWithFallback(`${BASE}/${cardId}/versions`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data),
+  })
+}
+
+export async function getPermitTypeVersion(cardId, versionId) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, 'admin')
+  return fetchJsonWithFallback(`${BASE}/${cardId}/versions/${versionId}`, { method: 'GET', headers })
+}
+
+export async function updatePermitTypeVersion(cardId, versionId, data) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, 'admin', { 'Content-Type': 'application/json' })
+  return fetchJsonWithFallback(`${BASE}/${cardId}/versions/${versionId}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deletePermitTypeVersion(cardId, versionId) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, 'admin')
+  return fetchJsonWithFallback(`${BASE}/${cardId}/versions/${versionId}`, { method: 'DELETE', headers })
+}
+
+export async function publishPermitTypeVersion(cardId, versionId) {
+  const current = getCurrentUser()
+  const headers = authHeaders(current, 'admin')
+  return fetchJsonWithFallback(`${BASE}/${cardId}/versions/${versionId}/publish`, { method: 'POST', headers })
+}

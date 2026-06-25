@@ -3,7 +3,7 @@ const {
   buildNotificationEmailBody,
   buildInfoBox,
   EMAIL_COLORS,
-} = require("/backend/shared/lib/emailTemplateBuilder");
+} = require("../../../../shared/lib/emailTemplateBuilder");
 
 /**
  * Help Request Email Service

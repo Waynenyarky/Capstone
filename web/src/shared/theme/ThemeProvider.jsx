@@ -33,6 +33,7 @@ const themeConfig = {
         colorPrimary: BRAND_COLORS.blue,
         colorError: BRAND_COLORS.red,
         colorWarning: BRAND_COLORS.yellow,
+        colorBorder: 'rgb(240, 240, 240)',
       },
     },
   },
@@ -459,6 +460,13 @@ export function ThemeProvider({ children }) {
     },
   };
 
+  // Modal override to ensure confirmation modal buttons respect theme colorPrimary
+  const modalOverride = {
+    Modal: {
+      fontFamily: activeThemeConfig.config.token.fontFamily,
+    },
+  };
+
   let algorithm = activeThemeConfig.config.algorithm;
   if (activeOverrides.compact) {
      if (Array.isArray(algorithm)) {
@@ -479,6 +487,7 @@ export function ThemeProvider({ children }) {
       ...activeThemeConfig.config.components,
       ...navyColorOverrides,
       ...messageFontOverride,
+      ...modalOverride,
     }
   };
 

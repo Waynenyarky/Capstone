@@ -1,24 +1,45 @@
-import { useState } from 'react'
-import { Typography, Card, Grid, Divider, Modal, Drawer } from 'antd'
+import { useState, useEffect } from 'react'
+import { Typography, Card, Grid, Divider, Modal, Drawer, Spin, Progress, List } from 'antd'
 import { 
   FormOutlined,
   BookOutlined,
-  CustomerServiceOutlined
+  CustomerServiceOutlined,
+  DollarOutlined
 } from '@ant-design/icons'
 import DynamicFaqSection from '@/shared/components/DynamicFaqSection'
 import DynamicPageContent from '@/shared/components/DynamicPageContent'
+import { getFeeGroupForForm } from '../../services/feeService'
 
 const { Title, Text } = Typography
 const { useBreakpoint } = Grid
 
-export default function ApplicationOverview({ visibleSections, sectionCompleteMap, token }) {
+export default function ApplicationOverview({ visibleSections, sectionCompleteMap, token, formType = 'permit', category = null }) {
   const screens = useBreakpoint()
   const [hoveredCard, setHoveredCard] = useState(null)
   const [manualVisible, setManualVisible] = useState(false)
+  const [feeModalVisible, setFeeModalVisible] = useState(false)
+  const [feeData, setFeeData] = useState(null)
+  const [loadingFees, setLoadingFees] = useState(false)
 
   const completedCount = visibleSections.filter((_, idx) => sectionCompleteMap[idx] === true).length
   const totalCount = visibleSections.length
   const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+
+  useEffect(() => {
+    const fetchFeeData = async () => {
+      setLoadingFees(true)
+      try {
+        const data = await getFeeGroupForForm(formType, category)
+        setFeeData(data)
+      } catch (err) {
+        console.error('Failed to fetch fee data:', err)
+        setFeeData(null)
+      } finally {
+        setLoadingFees(false)
+      }
+    }
+    fetchFeeData()
+  }, [formType, category])
 
   const overviewCards = [
     {
@@ -26,12 +47,18 @@ export default function ApplicationOverview({ visibleSections, sectionCompleteMa
       icon: <FormOutlined />,
       title: 'How This Works',
       content: [
-        'Select a section below to start filling out your details',
-        'Complete all required sections to proceed',
-        'Once all sections are completed, you\'ll be able to review and submit your application',
-        'Check out the FAQ section if you need more information'
-      ],
-      spanRows: true
+        'Complete all sections to submit your application'
+      ]
+    },
+    {
+      key: 'fees',
+      icon: <DollarOutlined />,
+      title: feeData?.success ? `Application Fees - ₱${(feeData.total || 0).toFixed(2)}` : 'Application Fees',
+      isButton: true,
+      onClick: () => setFeeModalVisible(true),
+      isFeeCard: true,
+      feeData,
+      loadingFees
     },
     {
       key: 'manual',
@@ -80,7 +107,7 @@ export default function ApplicationOverview({ visibleSections, sectionCompleteMa
                 transition: screens.md ? 'border-color 0.2s, box-shadow 0.2s, transform 0.2s' : 'none',
                 boxShadow: screens.md && hoveredCard === card.key && card.isButton ? token.boxShadowCard : 'none',
                 transform: screens.md && hoveredCard === card.key && card.isButton ? 'scale(1.02)' : 'scale(1)',
-                gridRow: card.spanRows ? 'span 2' : 'auto',
+                gridRow: card.spanRows ? `span ${card.spanRows}` : 'auto',
               }}
               onMouseEnter={screens.md && card.isButton ? () => setHoveredCard(card.key) : undefined}
               onMouseLeave={screens.md && card.isButton ? () => setHoveredCard(null) : undefined}
@@ -119,6 +146,41 @@ export default function ApplicationOverview({ visibleSections, sectionCompleteMa
                       strokeColor={token.colorPrimary}
                     />
                   </div>
+                ) : card.isFeeCard ? (
+                  <>
+                    {card.loadingFees ? (
+                      <Spin size="small" />
+                    ) : (
+                      <Text type="secondary" style={{ marginTop: 4 }}>
+                        {card.feeData?.success 
+                          ? `${card.feeData.fees?.length || 0} fee item${(card.feeData.fees?.length || 0) > 1 ? 's' : ''}`
+                          : 'Fee information unavailable'
+                        }
+                      </Text>
+                    )}
+                    <div
+                      style={{
+                        maxHeight: screens.md && hoveredCard === card.key ? 30 : 0,
+                        overflow: 'hidden',
+                        transition: screens.md ? 'max-height 0.15s ease-out' : 'none',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          display: 'block',
+                          marginTop: 8,
+                          color: token.colorPrimary,
+                          fontSize: 12,
+                          fontWeight: 500,
+                          opacity: screens.md && hoveredCard === card.key ? 1 : 0,
+                          transform: screens.md && hoveredCard === card.key ? 'translateY(0)' : 'translateY(10px)',
+                          transition: screens.md ? 'opacity 0.15s ease-out, transform 0.15s ease-out' : 'none',
+                        }}
+                      >
+                        View fees →
+                      </Text>
+                    </div>
+                  </>
                 ) : card.isButton ? (
                   <>
                     <Text type="secondary" style={{ marginTop: 4 }}>
@@ -148,18 +210,28 @@ export default function ApplicationOverview({ visibleSections, sectionCompleteMa
                     </div>
                   </>
                 ) : (
-                  <ul style={{ 
-                    paddingLeft: 20, 
-                    margin: 0, 
-                    marginTop: 4,
-                    color: token.colorTextSecondary 
-                  }}>
-                    {card.content.map((item, idx) => (
-                      <li key={idx} style={{ marginBottom: idx < card.content.length - 1 ? 4 : 0 }}>
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
+                  card.key === 'how-it-works' ? (
+                    <Text style={{ 
+                      margin: 0, 
+                      marginTop: 4,
+                      color: token.colorTextSecondary 
+                    }}>
+                      {card.content[0]}
+                    </Text>
+                  ) : (
+                    <ul style={{ 
+                      paddingLeft: 20, 
+                      margin: 0, 
+                      marginTop: 4,
+                      color: token.colorTextSecondary 
+                    }}>
+                      {card.content.map((item, idx) => (
+                        <li key={idx} style={{ marginBottom: idx < card.content.length - 1 ? 4 : 0 }}>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  )
                 )}
               </div>
             </Card>
@@ -196,6 +268,45 @@ export default function ApplicationOverview({ visibleSections, sectionCompleteMa
           <DynamicPageContent slotId="bizclear-manual" embedded compact />
         </Drawer>
       )}
+
+      <Modal
+        title="Application Fee Breakdown"
+        open={feeModalVisible}
+        onCancel={() => setFeeModalVisible(false)}
+        footer={null}
+        width={500}
+      >
+        {loadingFees ? (
+          <div style={{ textAlign: 'center', padding: 24 }}>
+            <Spin />
+          </div>
+        ) : feeData?.success ? (
+          <div>
+            <List
+              size="small"
+              bordered
+              dataSource={feeData.fees || []}
+              renderItem={(item) => (
+                <List.Item style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Text>{item.label}</Text>
+                  <Text strong>₱{(item.amount || 0).toFixed(2)}</Text>
+                </List.Item>
+              )}
+              footer={
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text strong>Total Amount Due</Text>
+                  <Text strong style={{ color: token.colorPrimary, fontSize: 16 }}>₱{(feeData.total || 0).toFixed(2)}</Text>
+                </div>
+              }
+            />
+            <Text type="secondary" style={{ display: 'block', marginTop: 12, fontSize: 12 }}>
+              * Payment will be processed after submission
+            </Text>
+          </div>
+        ) : (
+          <Text type="secondary">Unable to load fee details</Text>
+        )}
+      </Modal>
     </div>
   )
 }

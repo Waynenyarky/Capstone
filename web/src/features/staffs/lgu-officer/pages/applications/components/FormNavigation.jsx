@@ -1,0 +1,137 @@
+import { Typography, Button, Select } from 'antd'
+import { CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import { theme } from 'antd'
+
+const { Text } = Typography
+
+export default function FormNavigation({ mainNavItems, formNavItems, activeTab, onTabChange, getSectionStatus, isMobile = false }) {
+  const { token } = theme.useToken()
+
+  const allNavItems = [...mainNavItems, ...formNavItems]
+
+  // Mobile: Select dropdown switcher
+  if (isMobile) {
+    return (
+      <div style={{ padding: 16, borderBottom: `1px solid ${token.colorBorderSecondary}`, flexShrink: 0 }}>
+        <Select
+          value={activeTab}
+          onChange={onTabChange}
+          style={{ width: '100%' }}
+          options={allNavItems.map((item) => {
+            let labelText = ''
+            if (typeof item.label === 'string') {
+              labelText = item.label
+            } else if (item.label?.props?.children) {
+              // Handle JSX labels like <Space><Icon /><span>Text</span></Space>
+              const children = item.label.props.children
+              if (Array.isArray(children)) {
+                // Find the text content (usually the second child after icon)
+                labelText = children.find(c => c?.props?.children)?.props?.children || String(item.key)
+              } else if (children?.props?.children) {
+                labelText = children.props.children
+              }
+            }
+            return {
+              value: item.key,
+              label: labelText || String(item.key),
+            }
+          })}
+        />
+      </div>
+    )
+  }
+
+  // Desktop: Vertical button navigation
+  return (
+    <div
+      style={{
+        width: 220,
+        flexShrink: 0,
+        alignSelf: 'stretch',
+        borderRight: `1px solid ${token.colorBorderSecondary}`,
+        padding: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 4,
+        overflowY: 'auto',
+        background: token.colorBgContainer,
+      }}
+    >
+      {mainNavItems.map((item) => {
+        const isSelected = activeTab === item.key
+        return (
+          <Button
+            key={item.key}
+            onClick={() => onTabChange(item.key)}
+            style={{
+              textAlign: 'left',
+              justifyContent: 'flex-start',
+              whiteSpace: 'normal',
+              height: 'auto',
+              minHeight: 40,
+              padding: '8px 12px',
+              lineHeight: 1.4,
+              border: isSelected ? `1px solid ${token.colorPrimary}` : undefined,
+            }}
+          >
+            <span style={{ display: 'inline-flex', alignItems: 'center', color: isSelected ? token.colorPrimary : undefined }}>
+              {item.label}
+            </span>
+          </Button>
+        )
+      })}
+      {formNavItems.length > 0 && (
+        <>
+          <div
+            style={{
+              marginTop: 12,
+              marginBottom: 4,
+              padding: '4px 12px 0',
+              borderTop: `1px solid ${token.colorBorderSecondary}`,
+            }}
+          >
+
+          </div>
+          {formNavItems.map((item) => {
+            const isSelected = activeTab === item.key
+            const sectionIdx = parseInt(String(item.key).replace('section-', ''), 10)
+            const status = getSectionStatus(sectionIdx)
+
+            let statusIcon = null
+            if (status === 'ok') {
+              statusIcon = <CheckCircleOutlined style={{ color: token.colorSuccess, marginRight: 8, flexShrink: 0 }} />
+            } else if (status === 'rejected') {
+              statusIcon = <CloseCircleOutlined style={{ color: token.colorError, marginRight: 8, flexShrink: 0 }} />
+            } else if (status === 'pending') {
+              statusIcon = <ClockCircleOutlined style={{ color: token.colorTextTertiary, marginRight: 8, flexShrink: 0 }} />
+            }
+
+            return (
+              <Button
+                key={item.key}
+                onClick={() => onTabChange(item.key)}
+                style={{
+                  textAlign: 'left',
+                  justifyContent: 'flex-start',
+                  whiteSpace: 'normal',
+                  height: 'auto',
+                  minHeight: 40,
+                  padding: '8px 12px',
+                  lineHeight: 1.4,
+                  border: isSelected ? `1px solid ${token.colorPrimary}` : undefined,
+                }}
+              >
+                <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  {statusIcon}
+                  <span style={{ color: isSelected ? token.colorPrimary : undefined }}>
+                    {item.label}
+                  </span>
+                </span>
+              </Button>
+            )
+          })}
+        </>
+      )}
+    </div>
+  )
+}

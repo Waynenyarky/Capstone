@@ -5,7 +5,7 @@ import {
   SafetyCertificateOutlined, CheckCircleOutlined, CloseCircleOutlined,
   ClockCircleOutlined,
 } from '@ant-design/icons'
-import ApplicationDetailPanel from './ApplicationDetailPanel'
+import ApplicationDetailPanel from '../pages/applications/components/ApplicationDetailPanel'
 import EditRequestDetailPanel from './EditRequestDetailPanel'
 import AppealDetailPanel from './AppealDetailPanel'
 import CessationDetailPanel from './CessationDetailPanel'

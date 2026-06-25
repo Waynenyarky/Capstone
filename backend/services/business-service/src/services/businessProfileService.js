@@ -1608,17 +1608,17 @@ class BusinessProfileService {
     // Audit log
     try {
       const user = await User.findById(userId).populate("role").lean();
-      const roleSlug =
-        user && user.role && user.role.slug ? user.role.slug : "business_owner";
-      const { createAuditLog } = require("../lib/auditLogger");
-      await createAuditLog(
+      const officerName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "Business Owner";
+      const { logAuditEvent } = require("../lib/auditClient");
+      await logAuditEvent(
+        "application_submitted",
         userId,
-        "business_application_submitted",
-        "applicationStatus",
-        business.applicationStatus,
-        "submitted",
-        roleSlug,
+        "BusinessProfile",
+        businessId,
         {
+          submittedBy: userId,
+          submittedByName: officerName,
+          submittedAt: new Date(),
           businessId,
           businessName: business.businessName,
           referenceNumber,

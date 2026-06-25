@@ -4,7 +4,7 @@
  * Used in the application review detail Owner tab. Does NOT include Identity documents or Position & TIN.
  */
 import { useState, useEffect } from 'react'
-import { Descriptions, Typography, Card, Tag, Empty } from 'antd'
+import { Descriptions, Typography, Card, Tag, Empty, Skeleton } from 'antd'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { ShopOutlined, RightOutlined } from '@ant-design/icons'
 import { get } from '@/lib/http'
@@ -67,47 +67,73 @@ export default function OwnerInfoReadOnlyView({
   ownerName,
   onSelectApplication,
 }) {
+  // Fetch other applications by the same owner
+  const [otherApplications, setOtherApplications] = useState([])
+  const [loadingOthers, setLoadingOthers] = useState(false)
+  const [ownerProfile, setOwnerProfile] = useState(null)
+  const [loadingProfile, setLoadingProfile] = useState(false)
+
+  const currentBusinessId = application?.businessId || application?.applicationId || application?._id
+  const ownerId = application?.userId
+
+  // Fetch owner profile
+  useEffect(() => {
+    if (!ownerId) return
+    let cancelled = false
+    setLoadingProfile(true)
+    get(`/api/lgu-officer/owner-profile/${ownerId}`)
+      .then((res) => {
+        if (cancelled) return
+        setOwnerProfile(res.profile)
+      })
+      .catch((err) => {
+        console.error('Failed to fetch owner profile:', err)
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingProfile(false)
+      })
+    return () => { cancelled = true }
+  }, [ownerId])
+
   const bo = application?.businessOwner || {}
-  const fullName = ownerName || ownerIdentity.fullName || businessReg.ownerFullName || bo.name || 'N/A'
+  const formData = application?.formData || {}
+  const profile = application?.profile || {}
+  const op = ownerProfile || {}
+
+  const fullName = ownerName || ownerIdentity.fullName || businessReg.ownerFullName || bo.name || formData.ownerName || profile.fullName || op.fullName || 'N/A'
 
   const parts = String(fullName).trim().split(/\s+/).filter(Boolean)
-  const firstName = bo.firstName || parts[0] || 'N/A'
-  const lastName = bo.lastName || (parts.length > 1 ? parts.slice(1).join(' ') : 'N/A')
-  const middleName = bo.middleName ?? ownerIdentity.middleName ?? ''
-  const suffix = bo.suffix ?? ownerIdentity.suffix ?? ''
+  const firstName = bo.firstName || formData.firstName || ownerIdentity.firstName || profile.firstName || op.firstName || parts[0] || 'N/A'
+  const lastName = bo.lastName || formData.lastName || ownerIdentity.lastName || profile.lastName || op.lastName || (parts.length > 1 ? parts.slice(1).join(' ') : 'N/A')
+  const middleName = bo.middleName ?? formData.middleName ?? ownerIdentity.middleName ?? profile.middleName ?? op.middleName ?? ''
+  const suffix = bo.suffix ?? formData.suffix ?? ownerIdentity.suffix ?? profile.suffix ?? op.suffix ?? ''
 
-  const email = businessReg.emailAddress || bo.email || 'N/A'
-  const phoneNumber = businessReg.mobileNumber || bo.phoneNumber || 'N/A'
-  const dateOfBirth = ownerIdentity.dateOfBirth || bo.dateOfBirth
-  const sex = ownerIdentity.sex || bo.sex
-  const maritalStatus = ownerIdentity.maritalStatus || bo.maritalStatus
-  const placeOfBirth = ownerIdentity.placeOfBirth || bo.placeOfBirth || ''
-  const nationality = ownerIdentity.nationality || bo.nationality || businessReg.ownerNationality || ''
-  const education = ownerIdentity.highestEducationalAttainment || bo.highestEducationalAttainment || ''
-  const fatherName = ownerIdentity.fatherName || bo.fatherName || ''
-  const motherName = ownerIdentity.motherName || bo.motherName || ''
-  const distinctiveMark = ownerIdentity.distinctiveMark || bo.distinctiveMark || ''
+  const email = businessReg.emailAddress || bo.email || formData.email || ownerIdentity.email || profile.email || op.email || 'N/A'
+  const phoneNumber = businessReg.mobileNumber || bo.phoneNumber || formData.phoneNumber || ownerIdentity.phoneNumber || profile.phoneNumber || op.phoneNumber || 'N/A'
+  const dateOfBirth = ownerIdentity.dateOfBirth || bo.dateOfBirth || formData.dateOfBirth || profile.dateOfBirth || op.dateOfBirth
+  const sex = ownerIdentity.sex || bo.sex || formData.sex || profile.sex || op.sex
+  const maritalStatus = ownerIdentity.maritalStatus || bo.maritalStatus || formData.maritalStatus || profile.maritalStatus || op.maritalStatus
+  const placeOfBirth = ownerIdentity.placeOfBirth || bo.placeOfBirth || formData.placeOfBirth || profile.placeOfBirth || op.placeOfBirth || ''
+  const nationality = ownerIdentity.nationality || bo.nationality || businessReg.ownerNationality || formData.nationality || profile.nationality || op.nationality || ''
+  const education = ownerIdentity.highestEducationalAttainment || bo.highestEducationalAttainment || formData.highestEducationalAttainment || profile.highestEducationalAttainment || op.highestEducationalAttainment || ''
+  const fatherName = ownerIdentity.fatherName || bo.fatherName || formData.fatherName || profile.fatherName || op.fatherName || ''
+  const motherName = ownerIdentity.motherName || bo.motherName || formData.motherName || profile.motherName || op.motherName || ''
+  const distinctiveMark = ownerIdentity.distinctiveMark || bo.distinctiveMark || formData.distinctiveMark || profile.distinctiveMark || op.distinctiveMark || ''
 
   // Address: same separate fields as registration / PhilippineAddressFields
-  const address = application?.businessOwner?.address || ownerIdentity.address || {}
-  const fallbackLine = businessReg.ownerResidentialAddress || ''
-  const street = address.street || address.streetAddress || ''
-  const barangay = address.barangayName || address.barangay || ''
-  const city = address.cityName || address.city || ''
-  const province = address.provinceName || address.province || ''
-  const zipCode = address.postalCode || address.zipCode || ''
+  const address = application?.businessOwner?.address || ownerIdentity.address || formData.address || profile.address || op.address || {}
+  const fallbackLine = businessReg.ownerResidentialAddress || formData.ownerResidentialAddress || profile.ownerResidentialAddress || op.ownerResidentialAddress || ''
+  const street = address.street || address.streetAddress || formData.street || profile.street || op.street || ''
+  const barangay = address.barangayName || address.barangay || formData.barangay || profile.barangay || op.barangay || ''
+  const city = address.cityName || address.city || formData.city || profile.city || op.city || ''
+  const province = address.provinceName || address.province || formData.province || profile.province || op.province || ''
+  const zipCode = address.postalCode || address.zipCode || formData.zipCode || profile.zipCode || op.zipCode || ''
   const hasStructuredAddress = [street, barangay, city, province, zipCode].some(v => v != null && String(v).trim() !== '')
 
   // Fixed label width so all sections have symmetrical left columns
   const descriptionLabelStyle = { width: 200, minWidth: 200 }
 
   // Fetch other applications by the same owner
-  const [otherApplications, setOtherApplications] = useState([])
-  const [loadingOthers, setLoadingOthers] = useState(false)
-
-  const currentBusinessId = application?.businessId || application?.applicationId || application?._id
-  const ownerId = application?.userId
-
   useEffect(() => {
     if (!ownerId) return
     let cancelled = false
@@ -138,48 +164,60 @@ export default function OwnerInfoReadOnlyView({
       {/* Basic information — same labels as Settings > General */}
       <div>
         <Text strong style={{ display: 'block', marginBottom: 12 }}>Basic information</Text>
-        <Descriptions column={1} size="small" bordered styles={{ label: descriptionLabelStyle }}>
-          <Descriptions.Item label="First Name">{na(firstName)}</Descriptions.Item>
-          <Descriptions.Item label="Last Name">{na(lastName)}</Descriptions.Item>
-          <Descriptions.Item label="Middle Name (optional)">{na(middleName)}</Descriptions.Item>
-          <Descriptions.Item label="Suffix (optional)">{na(suffix)}</Descriptions.Item>
-          <Descriptions.Item label="Email">{na(email)}</Descriptions.Item>
-          <Descriptions.Item label="Sex">{sex ? (SEX_LABELS[sex] || sex) : 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="Date of Birth (optional)">{formatDate(dateOfBirth)}</Descriptions.Item>
-          <Descriptions.Item label="Phone Number">{na(phoneNumber)}</Descriptions.Item>
-        </Descriptions>
+        {loadingProfile ? (
+          <Skeleton active paragraph={{ rows: 8 }} />
+        ) : (
+          <Descriptions column={1} size="small" bordered styles={{ label: descriptionLabelStyle }}>
+            <Descriptions.Item label="First Name">{na(firstName)}</Descriptions.Item>
+            <Descriptions.Item label="Last Name">{na(lastName)}</Descriptions.Item>
+            <Descriptions.Item label="Middle Name (optional)">{na(middleName)}</Descriptions.Item>
+            <Descriptions.Item label="Suffix (optional)">{na(suffix)}</Descriptions.Item>
+            <Descriptions.Item label="Email">{na(email)}</Descriptions.Item>
+            <Descriptions.Item label="Sex">{sex ? (SEX_LABELS[sex] || sex) : 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Date of Birth (optional)">{formatDate(dateOfBirth)}</Descriptions.Item>
+            <Descriptions.Item label="Phone Number">{na(phoneNumber)}</Descriptions.Item>
+          </Descriptions>
+        )}
       </div>
 
       {/* Address — separate fields like registration page (or single line if only ownerResidentialAddress) */}
       <div>
         <Text strong style={{ display: 'block', marginBottom: 12 }}>Address</Text>
-        <Descriptions column={1} size="small" bordered styles={{ label: descriptionLabelStyle }}>
-          {hasStructuredAddress ? (
-            <>
-              <Descriptions.Item label="House/Bldg No. & Street">{na(street)}</Descriptions.Item>
-              <Descriptions.Item label="Barangay">{na(barangay)}</Descriptions.Item>
-              <Descriptions.Item label="City/Municipality">{na(city)}</Descriptions.Item>
-              <Descriptions.Item label="Province">{na(province)}</Descriptions.Item>
-              <Descriptions.Item label="Postal Code">{na(zipCode)}</Descriptions.Item>
-            </>
-          ) : (
-            <Descriptions.Item label="Complete Address">{na(fallbackLine)}</Descriptions.Item>
-          )}
-        </Descriptions>
+        {loadingProfile ? (
+          <Skeleton active paragraph={{ rows: 5 }} />
+        ) : (
+          <Descriptions column={1} size="small" bordered styles={{ label: descriptionLabelStyle }}>
+            {hasStructuredAddress ? (
+              <>
+                <Descriptions.Item label="House/Bldg No. & Street">{na(street)}</Descriptions.Item>
+                <Descriptions.Item label="Barangay">{na(barangay)}</Descriptions.Item>
+                <Descriptions.Item label="City/Municipality">{na(city)}</Descriptions.Item>
+                <Descriptions.Item label="Province">{na(province)}</Descriptions.Item>
+                <Descriptions.Item label="Postal Code">{na(zipCode)}</Descriptions.Item>
+              </>
+            ) : (
+              <Descriptions.Item label="Complete Address">{na(fallbackLine)}</Descriptions.Item>
+            )}
+          </Descriptions>
+        )}
       </div>
 
       {/* Other information — same labels as Settings > General */}
       <div>
         <Text strong style={{ display: 'block', marginBottom: 12 }}>Other information</Text>
-        <Descriptions column={1} size="small" bordered styles={{ label: descriptionLabelStyle }}>
-          <Descriptions.Item label="Marital Status">{maritalStatus ? (MARITAL_LABELS[maritalStatus] || maritalStatus) : 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="Place of Birth">{na(placeOfBirth)}</Descriptions.Item>
-          <Descriptions.Item label="Nationality">{na(nationality)}</Descriptions.Item>
-          <Descriptions.Item label="Education">{education ? (EDUCATION_LABELS[education] || education) : 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="Father's Name">{na(fatherName)}</Descriptions.Item>
-          <Descriptions.Item label="Mother's Name">{na(motherName)}</Descriptions.Item>
-          <Descriptions.Item label="Distinctive Mark (optional)">{na(distinctiveMark)}</Descriptions.Item>
-        </Descriptions>
+        {loadingProfile ? (
+          <Skeleton active paragraph={{ rows: 7 }} />
+        ) : (
+          <Descriptions column={1} size="small" bordered styles={{ label: descriptionLabelStyle }}>
+            <Descriptions.Item label="Marital Status">{maritalStatus ? (MARITAL_LABELS[maritalStatus] || maritalStatus) : 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Place of Birth">{na(placeOfBirth)}</Descriptions.Item>
+            <Descriptions.Item label="Nationality">{na(nationality)}</Descriptions.Item>
+            <Descriptions.Item label="Education">{education ? (EDUCATION_LABELS[education] || education) : 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Father's Name">{na(fatherName)}</Descriptions.Item>
+            <Descriptions.Item label="Mother's Name">{na(motherName)}</Descriptions.Item>
+            <Descriptions.Item label="Distinctive Mark (optional)">{na(distinctiveMark)}</Descriptions.Item>
+          </Descriptions>
+        )}
       </div>
 
       {/* Other Business Applications by this Owner */}

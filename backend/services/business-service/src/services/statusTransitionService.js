@@ -161,6 +161,84 @@ class StatusTransitionService {
       // Save the profile (this will trigger the pre-save middleware validation again)
       await profile.save();
 
+      // Log audit event for rejection
+      if (newStatus === "rejected") {
+        try {
+          const { logAuditEvent } = require("../lib/auditClient");
+          const User = require("mongoose").model("User");
+          const officer = await User.findById(reviewedBy || userId).select("firstName lastName").lean();
+          const officerName = officer ? `${officer.firstName} ${officer.lastName}`.trim() : "Officer";
+          
+          await logAuditEvent(
+            "application_rejected",
+            reviewedBy || userId,
+            "BusinessProfile",
+            businessId,
+            {
+              rejectedBy: reviewedBy || userId,
+              rejectedByName: officerName,
+              rejectedAt: new Date(),
+              businessId,
+              rejectionReason,
+              reviewComments,
+            },
+          );
+        } catch (auditError) {
+          console.error("Failed to log application_rejected audit event:", auditError);
+        }
+      }
+
+      // Log audit event for application returned (needs_revision)
+      if (newStatus === "needs_revision") {
+        try {
+          const { logAuditEvent } = require("../lib/auditClient");
+          const User = require("mongoose").model("User");
+          const officer = await User.findById(reviewedBy || userId).select("firstName lastName").lean();
+          const officerName = officer ? `${officer.firstName} ${officer.lastName}`.trim() : "Officer";
+          
+          await logAuditEvent(
+            "application_returned",
+            reviewedBy || userId,
+            "BusinessProfile",
+            businessId,
+            {
+              returnedBy: reviewedBy || userId,
+              returnedByName: officerName,
+              returnedAt: new Date(),
+              businessId,
+              reviewComments,
+            },
+          );
+        } catch (auditError) {
+          console.error("Failed to log application_returned audit event:", auditError);
+        }
+      }
+
+      // Log audit event for completed review (approved)
+      if (newStatus === "approved") {
+        try {
+          const { logAuditEvent } = require("../lib/auditClient");
+          const User = require("mongoose").model("User");
+          const officer = await User.findById(reviewedBy || userId).select("firstName lastName").lean();
+          const officerName = officer ? `${officer.firstName} ${officer.lastName}`.trim() : "Officer";
+          
+          await logAuditEvent(
+            "completed_review",
+            reviewedBy || userId,
+            "BusinessProfile",
+            businessId,
+            {
+              reviewedBy: reviewedBy || userId,
+              reviewedByName: officerName,
+              reviewedAt: new Date(),
+              businessId,
+            },
+          );
+        } catch (auditError) {
+          console.error("Failed to log completed_review audit event:", auditError);
+        }
+      }
+
       // Log the successful transition
       logger.info("Status transition executed successfully", {
         userId,

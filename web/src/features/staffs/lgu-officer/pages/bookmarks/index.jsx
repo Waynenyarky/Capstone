@@ -1,0 +1,301 @@
+import { useState, useCallback, useMemo, useEffect } from 'react'
+import { Empty, Spin } from 'antd'
+import { useSearchParams } from 'react-router-dom'
+import ListPanel from '@/shared/components/ListPanel'
+import PanelCard from '@/shared/components/PanelCard'
+import SplitLayout from '@/shared/components/SplitLayout'
+import BookmarkService from '../../infrastructure/services/bookmarkService'
+import { PermitApplicationService } from '@/features/lgu-officer/infrastructure/services'
+import { get } from '@/lib/http'
+import ApplicationDetailPanel from '../applications/components/ApplicationDetailPanel'
+import HelpRequestDetailPanel from '../help-requests/components/HelpRequestDetailPanel'
+import dayjs from 'dayjs'
+
+const STATUS_CONFIG = {
+  submitted: { color: 'blue', label: 'Pending Review' },
+  under_review: { color: 'gold', label: 'Under Review' },
+  resubmit: { color: 'cyan', label: 'Resubmitted' },
+  approved: { color: 'green', label: 'Approved' },
+  rejected: { color: 'red', label: 'Rejected' },
+  returned: { color: 'warning', label: 'Returned' },
+  draft: { color: 'default', label: 'Draft' },
+}
+
+const HELP_REQUEST_STATUS_CONFIG = {
+  open: { color: 'blue', label: 'Open' },
+  in_progress: { color: 'gold', label: 'In Progress' },
+  resolved: { color: 'green', label: 'Resolved' },
+  closed: { color: 'default', label: 'Closed' },
+}
+
+export default function OfficerBookmarks() {
+  const [searchParams] = useSearchParams()
+  const [bookmarks, setBookmarks] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [selectedItem, setSelectedItem] = useState(null)
+  const [itemData, setItemData] = useState(null)
+  const [detailsLoading, setDetailsLoading] = useState(false)
+
+  const bookmarkService = useMemo(() => new BookmarkService(), [])
+  const permitService = useMemo(() => new PermitApplicationService(), [])
+
+  const loadBookmarks = useCallback(async () => {
+    setLoading(true)
+    try {
+      const response = await bookmarkService.getBookmarks()
+      const bookmarksData = Array.isArray(response) ? response : (response.data || [])
+      
+      // Fetch full data for each bookmark
+      const enrichedBookmarks = await Promise.all(
+        bookmarksData.map(async (bookmark) => {
+          try {
+            if (bookmark.itemType === 'application') {
+              const app = await permitService.getApplicationById(bookmark.itemId, bookmark.itemId)
+              return { ...bookmark, itemData: app }
+            } else if (bookmark.itemType === 'help_request') {
+              const res = await get(`/api/help-requests/${bookmark.itemId}`, { skipAutoLogout: true })
+              return { ...bookmark, itemData: res?.data || res }
+            }
+            return bookmark
+          } catch (error) {
+            console.error('Failed to fetch item data for bookmark:', bookmark._id, error)
+            return bookmark
+          }
+        })
+      )
+      
+      setBookmarks(enrichedBookmarks)
+    } catch (error) {
+      console.error('Failed to load bookmarks:', error)
+      setBookmarks([])
+    } finally {
+      setLoading(false)
+    }
+  }, [bookmarkService, permitService])
+
+  useEffect(() => {
+    loadBookmarks()
+  }, [loadBookmarks])
+
+  // Refresh bookmarks when page becomes visible (e.g., navigating back from other pages)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadBookmarks()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [loadBookmarks])
+
+  const handleSelectBookmark = useCallback(async (bookmark) => {
+    setSelectedItem(bookmark)
+    setDetailsLoading(true)
+    try {
+      if (bookmark.itemType === 'application') {
+        const app = await permitService.getApplicationById(bookmark.itemId, bookmark.itemId)
+        setItemData(app)
+      } else if (bookmark.itemType === 'help_request') {
+        // TODO: Fetch help request data
+        setItemData({ requestId: bookmark.itemId })
+      }
+    } catch (error) {
+      console.error('Failed to load item details:', error)
+    } finally {
+      setDetailsLoading(false)
+    }
+  }, [permitService])
+
+  // Auto-select bookmark from URL query param
+  useEffect(() => {
+    const bookmarkId = searchParams.get('bookmarkId')
+    if (bookmarkId && bookmarks.length > 0) {
+      const bookmark = bookmarks.find(b => b._id === bookmarkId)
+      if (bookmark) {
+        handleSelectBookmark(bookmark)
+      }
+    }
+  }, [searchParams, bookmarks, handleSelectBookmark])
+
+  const handleDrawerClose = useCallback(() => {
+    setSelectedItem(null)
+    setItemData(null)
+  }, [])
+
+  const handleRemoveBookmark = useCallback(async (bookmarkId) => {
+    try {
+      await bookmarkService.removeBookmark(bookmarkId)
+      setBookmarks(bookmarks.filter(b => b._id !== bookmarkId))
+      if (selectedItem?._id === bookmarkId) {
+        setSelectedItem(null)
+        setItemData(null)
+      }
+    } catch (error) {
+      console.error('Failed to remove bookmark:', error)
+    }
+  }, [bookmarks, selectedItem, bookmarkService])
+
+  const handleBookmarkToggle = useCallback(() => {
+    loadBookmarks()
+    // Clear detail panel since the item might have been unbookmarked
+    setSelectedItem(null)
+    setItemData(null)
+  }, [loadBookmarks])
+
+  const renderCard = (bookmark, currentSelectedId, onSelect) => {
+    const item = bookmark.itemData
+    if (!item) return null
+
+    if (bookmark.itemType === 'application') {
+      const statusConf = STATUS_CONFIG[item.status] || STATUS_CONFIG[item.applicationStatus] || { color: 'default', label: item.status || item.applicationStatus }
+      const permitType = item.formType === 'general_permit' ? (item.formData?.generalPermitCategory || 'General') : 'Regular'
+      const date = item.createdAt || item.updatedAt ? dayjs(item.createdAt || item.updatedAt).format('MMMM D, YYYY') : null
+
+      const tags = [
+        { label: 'Application', color: 'blue' },
+        { label: statusConf.label, color: statusConf.color },
+      ]
+      if (permitType) {
+        tags.push({ label: permitType, color: 'default' })
+      }
+      if (item.applicationReferenceNumber) {
+        tags.push({ label: item.applicationReferenceNumber, color: 'default' })
+      }
+
+      return (
+        <PanelCard
+          key={bookmark._id}
+          item={bookmark}
+          selected={currentSelectedId === bookmark._id}
+          onClick={() => onSelect(bookmark)}
+          title={item.businessName || item.formData?.businessName || 'Unnamed Business'}
+          description=''
+          metaInfo={[
+            ...(date ? [{ label: 'Last updated', value: date }] : []),
+            ...(item.reviewedByName ? [{ label: 'Claimed by', value: item.reviewedByName }] : []),
+          ]}
+          tags={tags}
+          isBookmarked={true}
+          actions={[
+            {
+              icon: 'star',
+              onClick: (e) => {
+                e.stopPropagation()
+                handleRemoveBookmark(bookmark._id)
+              },
+              title: 'Remove Bookmark',
+            },
+          ]}
+        />
+      )
+    } else if (bookmark.itemType === 'help_request') {
+      const statusConf = HELP_REQUEST_STATUS_CONFIG[item.status] || { color: 'default', label: item.status }
+      const date = item.createdAt ? dayjs(item.createdAt).format('MMMM D, YYYY') : null
+
+      const tags = [
+        { label: 'Help Request', color: 'gold' },
+        { label: statusConf.label, color: statusConf.color },
+      ]
+
+      return (
+        <PanelCard
+          key={bookmark._id}
+          item={bookmark}
+          selected={currentSelectedId === bookmark._id}
+          onClick={() => onSelect(bookmark)}
+          title={item.subject || 'No Subject'}
+          description={item.message || ''}
+          metaInfo={[
+            ...(date ? [{ label: 'Created', value: date }] : []),
+          ]}
+          tags={tags}
+          isBookmarked={true}
+          actions={[
+            {
+              icon: 'star',
+              onClick: (e) => {
+                e.stopPropagation()
+                handleRemoveBookmark(bookmark._id)
+              },
+              title: 'Remove Bookmark',
+            },
+          ]}
+        />
+      )
+    }
+
+    return null
+  }
+
+  if (loading) {
+    return (
+      <SplitLayout
+        listContent={
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            <Spin size="large" />
+          </div>
+        }
+        detailContent={
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            <Spin size="large" />
+          </div>
+        }
+        onDrawerClose={handleDrawerClose}
+      />
+    )
+  }
+
+  return (
+    <SplitLayout
+      listContent={
+        bookmarks.length === 0 ? (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            <Empty description="No bookmarks yet" />
+          </div>
+        ) : (
+          <ListPanel
+            items={bookmarks}
+            selectedId={selectedItem?._id}
+            onSelectItem={handleSelectBookmark}
+            renderCard={renderCard}
+          />
+        )
+      }
+      detailContent={
+        selectedItem ? (
+          detailsLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+              <Spin size="large" />
+            </div>
+          ) : (
+            <>
+              {selectedItem.itemType === 'application' && itemData ? (
+                <ApplicationDetailPanel
+                  application={itemData}
+                  onReviewComplete={() => {}}
+                  onBookmarkToggle={handleBookmarkToggle}
+                />
+              ) : selectedItem.itemType === 'help_request' && itemData ? (
+                <HelpRequestDetailPanel
+                  request={itemData}
+                  onReviewComplete={() => {}}
+                  onBookmarkToggle={handleBookmarkToggle}
+                />
+              ) : (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                  <Empty description="Details not available" />
+                </div>
+              )}
+            </>
+          )
+        ) : (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            <Empty description="Select a bookmark to view details" />
+          </div>
+        )
+      }
+      onDrawerClose={handleDrawerClose}
+    />
+  )
+}

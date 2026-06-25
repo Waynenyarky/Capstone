@@ -528,4 +528,123 @@ router.post("/:paymentId/receipt", requireJwt, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/business/payments/mock
+ * Create a mock payment record for testing (frontend simulation)
+ */
+router.post("/mock", requireJwt, async (req, res) => {
+  try {
+    const {
+      businessId,
+      amount,
+      fees = [],
+      transactionName = "Business Permit Application",
+    } = req.body;
+
+    if (!businessId || !amount) {
+      return res.status(400).json({
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "businessId and amount are required",
+        },
+      });
+    }
+
+    if (amount <= 0) {
+      return res.status(400).json({
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Amount must be greater than 0",
+        },
+      });
+    }
+
+    // Find business profile
+    let profile = await BusinessProfile.findOne(
+      buildBusinessLookupQuery(businessId),
+    );
+
+    // Fallback: try by current user
+    if (!profile) {
+      profile = await BusinessProfile.findOne({ userId: req._userId });
+    }
+
+    if (!profile) {
+      return res.status(404).json({
+        error: {
+          code: "PROFILE_NOT_FOUND",
+          message: "Business profile not found",
+        },
+      });
+    }
+
+    const business = findBusinessInProfile(profile, businessId);
+    if (!business) {
+      return res.status(404).json({
+        error: { code: "BUSINESS_NOT_FOUND", message: "Business not found" },
+      });
+    }
+
+    const paymentId = await generatePaymentId();
+    const receiptNumber = `RCP-${Date.now()}`;
+    
+    // Map fee breakdown to payment model format
+    const feeBreakdown = fees.map(fee => ({
+      label: fee.label || fee.description || "Fee",
+      amount: fee.amount || 0,
+      type: fee.type || "other",
+    }));
+
+    const payment = await Payment.create({
+      paymentId,
+      userId: profile.userId,
+      businessId,
+      businessProfileId: profile._id,
+      paymentType: "permit_application",
+      description: transactionName,
+      amount,
+      status: "paid",
+      paymentMethod: "demo_auto",
+      paidAt: new Date(),
+      receiptNumber,
+      breakdown: {
+        baseFee: amount,
+        surcharge: 0,
+        penalty: 0,
+        discount: 0,
+        tax: 0,
+      },
+      feeBreakdown,
+      metadata: {
+        isMockPayment: true,
+        transactionName,
+      },
+    });
+
+    logAuditEvent(
+      "mock_payment_recorded",
+      req._userId,
+      "Payment",
+      payment._id.toString(),
+      { amount, businessId, paymentId },
+    );
+
+    return res.status(201).json({ data: payment });
+  } catch (err) {
+    if (err.code === 11000 || err.message?.includes("E11000")) {
+      console.warn("POST /payments/mock duplicate:", err.keyValue || err.message);
+      return res.status(409).json({
+        error: {
+          code: "DUPLICATE",
+          message: "Payment already exists for this business",
+        },
+      });
+    }
+    console.error("POST /payments/mock error:", err);
+    return res.status(500).json({
+      error: { code: "INTERNAL", message: "Failed to create mock payment" },
+    });
+  }
+});
+
 module.exports = router;

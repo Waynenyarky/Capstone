@@ -342,14 +342,9 @@ async function seedCmsContentIfEmpty() {
   // ─── Instruction Content ────────────────────────────────────────────────────
   try {
     const existingInstructions = await InstructionContent.countDocuments();
-    if (existingInstructions > 0) {
-      results.instructions = {
-        seeded: false,
-        reason: "already has instruction content",
-        count: existingInstructions,
-      };
-    } else {
-      const instructionEntries = [
+    const existingSlotIds = (await InstructionContent.find().select('slotId').lean()).map(doc => doc.slotId);
+    
+    const instructionEntries = [
         {
           slotId: "maintenance-info",
           description:
@@ -475,17 +470,441 @@ async function seedCmsContentIfEmpty() {
             ],
           },
         },
+        {
+          slotId: "help-request-info",
+          description:
+            "Help Requests allow business owners to submit questions, issues, or support requests directly to LGU officers. Officers can claim, respond to, and track these requests through a conversation interface. Internal notes are visible only to officers.",
+          bulletPoints: [
+            {
+              title: "Claim requests",
+              content:
+                "Click 'Claim Request' to take ownership of a help request. Only you can respond and update the status while claimed. Release it when done so other officers can handle it.",
+            },
+            {
+              title: "Respond to requester",
+              content:
+                "Use the conversation panel to send replies. The business owner receives email notifications for your responses. Attachments can be included if needed.",
+            },
+            {
+              title: "Update status",
+              content:
+                "Change the request status to reflect progress: Open, In Progress, Needs Response, Waiting for Owner, Closed, or Invalid. Terminal statuses (Closed, Invalid) can be reopened within 24 hours.",
+            },
+            {
+              title: "Set priority",
+              content:
+                "Mark requests as Low, Normal, or High priority to help triage urgent issues. High priority requests get faster response times.",
+            },
+            {
+              title: "Internal notes",
+              content:
+                "Add internal notes visible only to officers. Use these for coordination, context sharing, or sensitive information that shouldn't be shared with the requester.",
+            },
+            {
+              title: "View history",
+              content:
+                "Click the History button to see the full audit trail of status changes, priority updates, claim/release actions, and other modifications.",
+            },
+          ],
+          faqItems: [
+            {
+              key: "1",
+              question: "What happens when I claim a request?",
+              answer:
+                "Claiming assigns the request to you. Only you can respond and change its status while claimed. Other officers see it as 'Claimed by: [your name]' and can override if necessary.",
+            },
+            {
+              key: "2",
+              question: "Can I release a request I've claimed?",
+              answer:
+                "Yes, click 'Release Request' to return it to the unclaimed pool. This allows other officers to pick it up. You cannot release closed or invalid requests.",
+            },
+            {
+              key: "3",
+              question: "What's the difference between status options?",
+              answer:
+                "Open: New request awaiting action. In Progress: Actively being worked on. Needs Response: Waiting for business owner to respond. Waiting for Owner: Waiting for business owner action. Closed: Resolved and completed. Invalid: Not a valid request.",
+            },
+            {
+              key: "4",
+              question: "Can I reopen a closed request?",
+              answer:
+                "Yes, you can reopen closed or invalid requests within 24 hours of the status change. After 24 hours, the status becomes permanent and cannot be changed.",
+            },
+            {
+              key: "5",
+              question: "Do business owners see internal notes?",
+              answer:
+                "No, internal notes are visible only to LGU officers. Use them for coordination, context sharing, or sensitive information that shouldn't be shared with the requester.",
+            },
+          ],
+          isPublished: true,
+          draftData: {
+            description:
+              "Help Requests allow business owners to submit questions, issues, or support requests directly to LGU officers. Officers can claim, respond to, and track these requests through a conversation interface. Internal notes are visible only to officers.",
+            bulletPoints: [
+              {
+                title: "Claim requests",
+                content:
+                  "Click 'Claim Request' to take ownership of a help request. Only you can respond and update the status while claimed. Release it when done so other officers can handle it.",
+              },
+              {
+                title: "Respond to requester",
+                content:
+                  "Use the conversation panel to send replies. The business owner receives email notifications for your responses. Attachments can be included if needed.",
+              },
+              {
+                title: "Update status",
+                content:
+                  "Change the request status to reflect progress: Open, In Progress, Needs Response, Waiting for Owner, Closed, or Invalid. Terminal statuses (Closed, Invalid) can be reopened within 24 hours.",
+              },
+              {
+                title: "Set priority",
+                content:
+                  "Mark requests as Low, Normal, or High priority to help triage urgent issues. High priority requests get faster response times.",
+              },
+              {
+                title: "Internal notes",
+                content:
+                  "Add internal notes visible only to officers. Use these for coordination, context sharing, or sensitive information that shouldn't be shared with the requester.",
+              },
+              {
+                title: "View history",
+                content:
+                  "Click the History button to see the full audit trail of status changes, priority updates, claim/release actions, and other modifications.",
+              },
+            ],
+            faqItems: [
+              {
+                key: "1",
+                question: "What happens when I claim a request?",
+                answer:
+                  "Claiming assigns the request to you. Only you can respond and change its status while claimed. Other officers see it as 'Claimed by: [your name]' and can override if necessary.",
+              },
+              {
+                key: "2",
+                question: "Can I release a request I've claimed?",
+                answer:
+                  "Yes, click 'Release Request' to return it to the unclaimed pool. This allows other officers to pick it up. You cannot release closed or invalid requests.",
+              },
+              {
+                key: "3",
+                question: "What's the difference between status options?",
+                answer:
+                  "Open: New request awaiting action. In Progress: Actively being worked on. Needs Response: Waiting for business owner to respond. Waiting for Owner: Waiting for business owner action. Closed: Resolved and completed. Invalid: Not a valid request.",
+              },
+              {
+                key: "4",
+                question: "Can I reopen a closed request?",
+                answer:
+                  "Yes, you can reopen closed or invalid requests within 24 hours of the status change. After 24 hours, the status becomes permanent and cannot be changed.",
+              },
+              {
+                key: "5",
+                question: "Do business owners see internal notes?",
+                answer:
+                  "No, internal notes are visible only to LGU officers. Use them for coordination, context sharing, or sensitive information that shouldn't be shared with the requester.",
+              },
+            ],
+          },
+          publishedData: {
+            description:
+              "Help Requests allow business owners to submit questions, issues, or support requests directly to LGU officers. Officers can claim, respond to, and track these requests through a conversation interface. Internal notes are visible only to officers.",
+            bulletPoints: [
+              {
+                title: "Claim requests",
+                content:
+                  "Click 'Claim Request' to take ownership of a help request. Only you can respond and update the status while claimed. Release it when done so other officers can handle it.",
+              },
+              {
+                title: "Respond to requester",
+                content:
+                  "Use the conversation panel to send replies. The business owner receives email notifications for your responses. Attachments can be included if needed.",
+              },
+              {
+                title: "Update status",
+                content:
+                  "Change the request status to reflect progress: Open, In Progress, Needs Response, Waiting for Owner, Closed, or Invalid. Terminal statuses (Closed, Invalid) can be reopened within 24 hours.",
+              },
+              {
+                title: "Set priority",
+                content:
+                  "Mark requests as Low, Normal, or High priority to help triage urgent issues. High priority requests get faster response times.",
+              },
+              {
+                title: "Internal notes",
+                content:
+                  "Add internal notes visible only to officers. Use these for coordination, context sharing, or sensitive information that shouldn't be shared with the requester.",
+              },
+              {
+                title: "View history",
+                content:
+                  "Click the History button to see the full audit trail of status changes, priority updates, claim/release actions, and other modifications.",
+              },
+            ],
+            faqItems: [
+              {
+                key: "1",
+                question: "What happens when I claim a request?",
+                answer:
+                  "Claiming assigns the request to you. Only you can respond and change its status while claimed. Other officers see it as 'Claimed by: [your name]' and can override if necessary.",
+              },
+              {
+                key: "2",
+                question: "Can I release a request I've claimed?",
+                answer:
+                  "Yes, click 'Release Request' to return it to the unclaimed pool. This allows other officers to pick it up. You cannot release closed or invalid requests.",
+              },
+              {
+                key: "3",
+                question: "What's the difference between status options?",
+                answer:
+                  "Open: New request awaiting action. In Progress: Actively being worked on. Needs Response: Waiting for business owner to respond. Waiting for Owner: Waiting for business owner action. Closed: Resolved and completed. Invalid: Not a valid request.",
+              },
+              {
+                key: "4",
+                question: "Can I reopen a closed request?",
+                answer:
+                  "Yes, you can reopen closed or invalid requests within 24 hours of the status change. After 24 hours, the status becomes permanent and cannot be changed.",
+              },
+              {
+                key: "5",
+                question: "Do business owners see internal notes?",
+                answer:
+                  "No, internal notes are visible only to LGU officers. Use them for coordination, context sharing, or sensitive information that shouldn't be shared with the requester.",
+              },
+            ],
+          },
+        },
+        {
+          slotId: "lgu-officer-application-review",
+          description:
+            "Application Review allows LGU officers to review and approve or reject business permit applications. Officers can review form sections, request corrections, approve applications, and generate payment instructions.",
+          bulletPoints: [
+            {
+              title: "Claim applications",
+              content:
+                "Click 'Claim Application' to take ownership of an application. Only you can review and make decisions while claimed. Release it when done so other officers can handle it.",
+            },
+            {
+              title: "Review form sections",
+              content:
+                "Navigate through the application form sections using the left sidebar. Review each field for completeness, accuracy, and compliance with requirements.",
+            },
+            {
+              title: "Make field decisions",
+              content:
+                "For each field, you can Approve (no issues), Reject (needs correction), or Request Change (minor issue). Add comments explaining your decision for the business owner.",
+            },
+            {
+              title: "Submit review decision",
+              content:
+                "After reviewing all fields, submit your final decision: Approve (issue permit), Reject (deny permit), or Needs Revision (request corrections). The business owner will be notified.",
+            },
+            {
+              title: "Generate payments",
+              content:
+                "When an application is approved, you can generate payment instructions. The system calculates fees based on business type, capitalization, and other factors.",
+            },
+            {
+              title: "View history",
+              content:
+                "Click the History button to see the full audit trail of status changes, review decisions, claim/release actions, and other modifications.",
+            },
+          ],
+          faqItems: [
+            {
+              key: "1",
+              question: "What happens when I claim an application?",
+              answer:
+                "Claiming assigns the application to you. Only you can review and make decisions while claimed. Other officers see it as 'Claimed by: [your name]' and can override if necessary.",
+            },
+            {
+              key: "2",
+              question: "Can I release an application I've claimed?",
+              answer:
+                "Yes, click 'Release Application' to return it to the unclaimed pool. This allows other officers to pick it up. You cannot release approved or rejected applications.",
+            },
+            {
+              key: "3",
+              question: "What's the difference between Approve, Reject, and Needs Revision?",
+              answer:
+                "Approve: Application meets all requirements, permit will be issued. Reject: Application fails requirements, permit denied. Needs Revision: Application has correctable issues, business owner must fix and resubmit.",
+            },
+            {
+              key: "4",
+              question: "When should I reject vs. request revision?",
+              answer:
+                "Reject for fundamental issues (missing documents, ineligible business type, violations). Request revision for correctable issues (typos, missing signatures, unclear information).",
+            },
+            {
+              key: "5",
+              question: "How are fees calculated?",
+              answer:
+                "Fees are automatically calculated based on business type, capitalization, gross sales, and local tax ordinances. The system applies the correct fee schedule based on the application data.",
+            },
+          ],
+          isPublished: true,
+          draftData: {
+            description:
+              "Application Review allows LGU officers to review and approve or reject business permit applications. Officers can review form sections, request corrections, approve applications, and generate payment instructions.",
+            bulletPoints: [
+              {
+                title: "Claim applications",
+                content:
+                  "Click 'Claim Application' to take ownership of an application. Only you can review and make decisions while claimed. Release it when done so other officers can handle it.",
+              },
+              {
+                title: "Review form sections",
+                content:
+                  "Navigate through the application form sections using the left sidebar. Review each field for completeness, accuracy, and compliance with requirements.",
+              },
+              {
+                title: "Make field decisions",
+                content:
+                  "For each field, you can Approve (no issues), Reject (needs correction), or Request Change (minor issue). Add comments explaining your decision for the business owner.",
+              },
+              {
+                title: "Submit review decision",
+                content:
+                  "After reviewing all fields, submit your final decision: Approve (issue permit), Reject (deny permit), or Needs Revision (request corrections). The business owner will be notified.",
+              },
+              {
+                title: "Generate payments",
+                content:
+                  "When an application is approved, you can generate payment instructions. The system calculates fees based on business type, capitalization, and other factors.",
+              },
+              {
+                title: "View history",
+                content:
+                  "Click the History button to see the full audit trail of status changes, review decisions, claim/release actions, and other modifications.",
+              },
+            ],
+            faqItems: [
+              {
+                key: "1",
+                question: "What happens when I claim an application?",
+                answer:
+                  "Claiming assigns the application to you. Only you can review and make decisions while claimed. Other officers see it as 'Claimed by: [your name]' and can override if necessary.",
+              },
+              {
+                key: "2",
+                question: "Can I release an application I've claimed?",
+                answer:
+                  "Yes, click 'Release Application' to return it to the unclaimed pool. This allows other officers to pick it up. You cannot release approved or rejected applications.",
+              },
+              {
+                key: "3",
+                question: "What's the difference between Approve, Reject, and Needs Revision?",
+                answer:
+                  "Approve: Application meets all requirements, permit will be issued. Reject: Application fails requirements, permit denied. Needs Revision: Application has correctable issues, business owner must fix and resubmit.",
+              },
+              {
+                key: "4",
+                question: "When should I reject vs. request revision?",
+                answer:
+                  "Reject for fundamental issues (missing documents, ineligible business type, violations). Request revision for correctable issues (typos, missing signatures, unclear information).",
+              },
+              {
+                key: "5",
+                question: "How are fees calculated?",
+                answer:
+                  "Fees are automatically calculated based on business type, capitalization, gross sales, and local tax ordinances. The system applies the correct fee schedule based on the application data.",
+              },
+            ],
+          },
+          publishedData: {
+            description:
+              "Application Review allows LGU officers to review and approve or reject business permit applications. Officers can review form sections, request corrections, approve applications, and generate payment instructions.",
+            bulletPoints: [
+              {
+                title: "Claim applications",
+                content:
+                  "Click 'Claim Application' to take ownership of an application. Only you can review and make decisions while claimed. Release it when done so other officers can handle it.",
+              },
+              {
+                title: "Review form sections",
+                content:
+                  "Navigate through the application form sections using the left sidebar. Review each field for completeness, accuracy, and compliance with requirements.",
+              },
+              {
+                title: "Make field decisions",
+                content:
+                  "For each field, you can Approve (no issues), Reject (needs correction), or Request Change (minor issue). Add comments explaining your decision for the business owner.",
+              },
+              {
+                title: "Submit review decision",
+                content:
+                  "After reviewing all fields, submit your final decision: Approve (issue permit), Reject (deny permit), or Needs Revision (request corrections). The business owner will be notified.",
+              },
+              {
+                title: "Generate payments",
+                content:
+                  "When an application is approved, you can generate payment instructions. The system calculates fees based on business type, capitalization, and other factors.",
+              },
+              {
+                title: "View history",
+                content:
+                  "Click the History button to see the full audit trail of status changes, review decisions, claim/release actions, and other modifications.",
+              },
+            ],
+            faqItems: [
+              {
+                key: "1",
+                question: "What happens when I claim an application?",
+                answer:
+                  "Claiming assigns the application to you. Only you can review and make decisions while claimed. Other officers see it as 'Claimed by: [your name]' and can override if necessary.",
+              },
+              {
+                key: "2",
+                question: "Can I release an application I've claimed?",
+                answer:
+                  "Yes, click 'Release Application' to return it to the unclaimed pool. This allows other officers to pick it up. You cannot release approved or rejected applications.",
+              },
+              {
+                key: "3",
+                question: "What's the difference between Approve, Reject, and Needs Revision?",
+                answer:
+                  "Approve: Application meets all requirements, permit will be issued. Reject: Application fails requirements, permit denied. Needs Revision: Application has correctable issues, business owner must fix and resubmit.",
+              },
+              {
+                key: "4",
+                question: "When should I reject vs. request revision?",
+                answer:
+                  "Reject for fundamental issues (missing documents, ineligible business type, violations). Request revision for correctable issues (typos, missing signatures, unclear information).",
+              },
+              {
+                key: "5",
+                question: "How are fees calculated?",
+                answer:
+                  "Fees are automatically calculated based on business type, capitalization, gross sales, and local tax ordinances. The system applies the correct fee schedule based on the application data.",
+              },
+            ],
+          },
+        },
       ];
 
-      await InstructionContent.insertMany(instructionEntries);
-      logger.info("CMS instruction content seeded", {
-        created: instructionEntries.length,
-      });
-      results.instructions = {
-        seeded: true,
-        created: instructionEntries.length,
-      };
-    }
+      // Filter out entries that already exist
+      const newEntries = instructionEntries.filter(entry => !existingSlotIds.includes(entry.slotId));
+      
+      if (newEntries.length > 0) {
+        await InstructionContent.insertMany(newEntries);
+        logger.info("CMS instruction content seeded", {
+          created: newEntries.length,
+          skipped: instructionEntries.length - newEntries.length,
+        });
+        results.instructions = {
+          seeded: true,
+          created: newEntries.length,
+          skipped: instructionEntries.length - newEntries.length,
+        };
+      } else {
+        results.instructions = {
+          seeded: false,
+          reason: "all instruction slots already exist",
+          count: existingInstructions,
+        };
+      }
   } catch (err) {
     logger.warn("Seed CMS instructions failed", { error: err.message });
     results.instructions = { seeded: false, error: err.message };

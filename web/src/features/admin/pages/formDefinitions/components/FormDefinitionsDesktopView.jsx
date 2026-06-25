@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Select, Button, Typography, theme, Space, Badge, Empty, Modal, message, Alert, Tag, Row, Col, Card, Table } from 'antd'
+import { Select, Button, Typography, theme, Space, Badge, Empty, App, message, Alert, Tag, Row, Col, Card, Table } from 'antd'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx' // Select still used for version dropdown
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -79,6 +79,7 @@ function formDisplayTitle(name) {
 
 export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdated } = {}) {
   const { token } = theme.useToken()
+  const { modal } = App.useApp()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const editorRef = useRef(null)
@@ -324,7 +325,7 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
 
   const handleDelete = () => {
     if (!currentDefinition) return
-    Modal.confirm({
+    modal.confirm({
       title: 'Delete draft',
       content: 'Are you sure you want to delete this draft? This action cannot be undone.',
       okText: 'Delete Draft',
@@ -348,7 +349,7 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
 
   const handlePublish = () => {
     if (!currentDefinition) return
-    Modal.confirm({
+    modal.confirm({
       title: 'Submit for approval',
       content: 'This form will be submitted for approval. It will only be published once other admins have approved it.',
       okText: 'Submit for Approval',
@@ -381,7 +382,7 @@ export default function FormDefinitionsDesktopView({ refreshKey = 0, onLastUpdat
 
   const handleBack = () => {
     if (hasUnsavedChanges) {
-      Modal.confirm({
+      modal.confirm({
         title: 'Unsaved changes',
         content: 'You have unsaved changes. Are you sure you want to leave?',
         okText: 'Leave',

@@ -5,6 +5,7 @@ import { DashboardOutlined, ToolOutlined, FileTextOutlined, DollarOutlined } fro
 import DashboardInfoModal from './DashboardInfoModal'
 import AdminLayout from '../components/AdminLayout'
 import { getMaintenanceCurrent } from '@/features/admin/services/maintenanceService'
+import { getFees, getFeeGroups, getPenaltyRules } from '@/features/admin/services/feeService'
 import DetailCard from '@/shared/components/DetailCard.jsx'
 import { useDashboardCmsCards } from './dashboard/hooks/useDashboardCmsCards.js'
 
@@ -18,6 +19,8 @@ export default function AdminDashboard() {
   const [maintenanceStatus, setMaintenanceStatus] = useState(null)
   const [lastUpdated, setLastUpdated] = useState(null)
   const [infoOpen, setInfoOpen] = useState(false)
+  const [feeStats, setFeeStats] = useState({ fees: 0, feeGroups: 0, penaltyRules: 0 })
+  const [feeTrends, setFeeTrends] = useState({ fees: null, feeGroups: null, penaltyRules: null })
 
   const {
     publicAnnouncements,
@@ -36,7 +39,57 @@ export default function AdminDashboard() {
       if (maintenanceRes) {
         setMaintenanceStatus(maintenanceRes ?? null)
       }
-    } catch {
+
+      // Load fee stats
+      const [fees, feeGroups, penaltyRules] = await Promise.all([
+        getFees({ _t: Date.now() }).catch(err => {
+          console.error('Failed to load fees:', err)
+          return []
+        }),
+        getFeeGroups({ _t: Date.now() }).catch(err => {
+          console.error('Failed to load fee groups:', err)
+          return []
+        }),
+        getPenaltyRules({ _t: Date.now() }).catch(err => {
+          console.error('Failed to load penalty rules:', err)
+          return []
+        }),
+      ])
+      setFeeStats({
+        fees: fees.length,
+        feeGroups: feeGroups.length,
+        penaltyRules: penaltyRules.length,
+      })
+
+      // Calculate trends (items created in last 30 days)
+      const daysSince = 30
+      const daysAgo = new Date()
+      daysAgo.setDate(daysAgo.getDate() - daysSince)
+
+      const newTrends = { fees: null, feeGroups: null, penaltyRules: null }
+
+      const recentlyCreatedFees = fees.filter(f => f.createdAt && new Date(f.createdAt) >= daysAgo)
+      if (recentlyCreatedFees.length > 0) {
+        newTrends.fees = `+${recentlyCreatedFees.length}`
+      }
+
+      const recentlyCreatedFeeGroups = feeGroups.filter(fg => fg.createdAt && new Date(fg.createdAt) >= daysAgo)
+      if (recentlyCreatedFeeGroups.length > 0) {
+        newTrends.feeGroups = `+${recentlyCreatedFeeGroups.length}`
+      }
+
+      const recentlyCreatedPenaltyRules = penaltyRules.filter(pr => pr.createdAt && new Date(pr.createdAt) >= daysAgo)
+      if (recentlyCreatedPenaltyRules.length > 0) {
+        newTrends.penaltyRules = `+${recentlyCreatedPenaltyRules.length}`
+      }
+
+      setFeeTrends(newTrends)
+
+      // Calculate total recent changes
+      const totalRecentChanges = recentlyCreatedFees.length + recentlyCreatedFeeGroups.length + recentlyCreatedPenaltyRules.length
+      setFeeStats(prev => ({ ...prev, recentChanges: totalRecentChanges }))
+    } catch (err) {
+      console.error('Failed to load dashboard stats:', err)
       message.error('Failed to load dashboard stats')
     } finally {
       setKpiLoading(false)
@@ -108,9 +161,9 @@ export default function AdminDashboard() {
               icon={DollarOutlined}
               title="Fees Management"
               details={[
-                { label: 'Total Fees', value: '12' },
-                { label: 'Fee Groups', value: '5' },
-                { label: 'Penalty Rules', value: '3' },
+                { label: 'Fee Groups', value: `${feeStats.feeGroups}`, trend: feeTrends.feeGroups },
+                { label: 'Penalty Rules', value: `${feeStats.penaltyRules}`, trend: feeTrends.penaltyRules },
+                { label: 'Recent Changes', value: `${feeStats.recentChanges || 0}`, trend: feeStats.recentChanges > 0 ? `+${feeStats.recentChanges}` : null },
               ]}
               onClick={() => navigate('/admin/fees')}
             />

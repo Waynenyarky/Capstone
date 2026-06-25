@@ -13,20 +13,22 @@ export default function ApplicationProgressTimeline({ business, status: _status,
   const steps = [
     {
       title: 'Draft Completed',
-      description: business.createdAt ? formatDate(business.createdAt) : 'Not started',
+      description: business.createdAt ? `Finished on: ${formatDate(business.createdAt)}` : 'Not started',
       status: 'finish'
     },
     {
       title: 'Submitted to LGU',
-      description: business.submittedAt ? formatDate(business.submittedAt) : 'Not submitted',
+      description: business.submittedAt ? `Finished on: ${formatDate(business.submittedAt)}` : 'Not submitted',
       status: ['submitted', 'under_review', 'needs_revision', 'resubmit', 'approved', 'rejected', 'appeal_pending'].includes(statusLower) ? 'finish' : 'wait'
     },
     {
       title: statusLower === 'needs_revision' ? 'Review Completed' : 'Under Review',
       description: statusLower === 'submitted' ? 'Expected within 24 hours'
-                  : statusLower === 'under_review' ? `Officer: ${business.reviewedBy?.name || 'Assigned'}`
-                  : statusLower === 'needs_revision' ? `Officer: ${business.reviewedBy?.name || 'Completed'}`
-                  : business.reviewedAt ? formatDate(business.reviewedAt)
+                  : statusLower === 'under_review' ? (business.reviewedAt
+                      ? `Started on: ${formatDate(business.reviewedAt)}`
+                      : 'In Review')
+                  : statusLower === 'needs_revision' ? `Started on: ${formatDate(business.updatedAt) || 'Completed'}`
+                  : business.reviewedAt ? `Finished on: ${formatDate(business.reviewedAt)}`
                   : 'Pending',
       status: statusLower === 'under_review' ? 'process'
            : statusLower === 'needs_revision' ? 'finish'
@@ -39,8 +41,8 @@ export default function ApplicationProgressTimeline({ business, status: _status,
            : isApproved ? 'Approved'
            : 'Decision Pending',
       description: statusLower === 'needs_revision' ? 'Make requested changes'
-                  : statusLower === 'approved' ? formatDate(business.reviewedAt)
-                  : (statusLower === 'rejected' || isAppealPending) ? formatDate(business.reviewedAt)
+                  : statusLower === 'approved' ? `Finished on: ${formatDate(business.reviewedAt)}`
+                  : (statusLower === 'rejected' || isAppealPending) ? `Finished on: ${formatDate(business.reviewedAt)}`
                   : 'Pending',
       status: statusLower === 'needs_revision' ? 'process'
            : (isRejected || isAppealPending) ? 'error'
@@ -54,7 +56,7 @@ export default function ApplicationProgressTimeline({ business, status: _status,
     // Step 5: Appeal Filed
     steps.push({
       title: 'Appeal Filed',
-      description: latestAppeal?.createdAt ? formatDate(latestAppeal.createdAt) : 'Submitted',
+      description: latestAppeal?.createdAt ? `Finished on: ${formatDate(latestAppeal.createdAt)}` : 'Submitted',
       status: 'finish'
     })
 
@@ -81,23 +83,17 @@ export default function ApplicationProgressTimeline({ business, status: _status,
     }
   }
 
-  // Add final "Approved" step only if not rejected
-  if (!isRejected) {
-    steps.push({
-      title: 'Approved',
-      description: statusLower === 'approved' ? formatDate(business.reviewedAt) : 'Pending',
-      status: statusLower === 'approved' ? 'finish' : 'wait'
-    })
-  }
-
-  const currentStep = steps.findIndex(step => step.status === 'process') || steps.findIndex(step => step.status === 'wait')
+  const currentStep = steps.findIndex(step => step.status === 'process')
+  // If no 'process' step, find first 'wait' step
+  const finalCurrentStep = currentStep === -1 ? steps.findIndex(step => step.status === 'wait') : currentStep
 
   return (
     <Steps
       direction="vertical"
       size="small"
-      current={currentStep}
+      current={finalCurrentStep}
       items={steps}
+      style={{ paddingTop: 8 }}
     />
   )
 }

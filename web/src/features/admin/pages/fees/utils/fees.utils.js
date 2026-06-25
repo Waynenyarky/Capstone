@@ -26,15 +26,9 @@ export function filterItemsByStatus(items, statusFilter) {
 /**
  * Get add button label by fee type
  */
-export function getAddButtonLabel(feeType) {
-  switch (feeType) {
-    case 'fee_groups':
-      return 'Add Fee Group'
     case 'fees':
       return 'Add Fee'
     case 'penalty_rules':
-      return 'Add Penalty'
-    default:
-      return 'New'
-  }
+export function getAddButtonLabel(_feeType) {
+  return 'Add'
 }

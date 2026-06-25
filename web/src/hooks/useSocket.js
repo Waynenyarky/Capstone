@@ -25,35 +25,28 @@ export function useSocketConnection() {
   useEffect(() => {
     // Get token from currentUser
     const token = currentUser?.token
-    
+
     if (!token) {
-      console.log('[useSocketConnection] No token available')
       setConnected(false)
       return
     }
 
-    console.log('[useSocketConnection] Initializing socket with token')
-    
     // Initialize socket connection
     const socket = initializeSocket(token)
     socketRef.current = socket
 
     if (!socket) {
-      console.warn('[useSocketConnection] Socket initialization failed')
       setConnected(false)
       return
     }
 
     const handleConnect = () => {
-      console.log('[useSocketConnection] Connected')
       setConnected(true)
     }
-    const handleDisconnect = (reason) => {
-      console.log('[useSocketConnection] Disconnected:', reason)
+    const handleDisconnect = (_reason) => {
       setConnected(false)
     }
-    const handleConnectError = (error) => {
-      console.warn('[useSocketConnection] Connection error:', error.message)
+    const handleConnectError = (_error) => {
       setConnected(false)
     }
 

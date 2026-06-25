@@ -176,4 +176,52 @@ export class PermitApplicationService extends PermitApplicationRepository {
     )
     return response
   }
+
+  /**
+   * Create a pending action with undo window
+   * @param {string} applicationId - Application ID
+   * @param {string} businessId - Business ID (optional)
+   * @param {string} actionType - 'complete_review' | 'reject' | 'return'
+   * @param {object} payload - Action payload
+   * @param {number} delayMinutes - Delay before execution (default: 10)
+   * @returns {Promise<object>} Updated application
+   */
+  async createPendingAction(applicationId, businessId, actionType, payload, delayMinutes = 10) {
+    const response = await fetchJsonWithFallback(
+      `/api/lgu-officer/permit-applications/${applicationId}/pending-action`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actionType, payload, delayMinutes })
+      }
+    )
+    return response
+  }
+
+  /**
+   * Cancel a pending action (undo)
+   * @param {string} applicationId - Application ID
+   * @param {string} _businessId - Business ID (optional, unused)
+   * @returns {Promise<object>} Updated application
+   */
+  async cancelPendingAction(applicationId, _businessId = null) {
+    const response = await fetchJsonWithFallback(
+      `/api/lgu-officer/permit-applications/${applicationId}/pending-action`,
+      { method: 'DELETE' }
+    )
+    return response
+  }
+
+  /**
+   * Execute a pending action immediately
+   * @param {string} applicationId - Application ID
+   * @returns {Promise<object>} Updated application
+   */
+  async executePendingActionNow(applicationId) {
+    const response = await fetchJsonWithFallback(
+      `/api/lgu-officer/permit-applications/${applicationId}/execute-pending-action`,
+      { method: 'PUT' }
+    )
+    return response
+  }
 }
