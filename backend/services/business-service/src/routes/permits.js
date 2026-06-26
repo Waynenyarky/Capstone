@@ -135,7 +135,7 @@ router.get("/verify/:permitNumber", async (req, res) => {
 router.put(
   "/:permitId/suspend",
   requireJwt,
-  requireRole(["lgu_officer", "lgu_manager"]),
+  requireRole(["lgu_officer"]),
   async (req, res) => {
     try {
       const { reason } = req.body;
@@ -169,12 +169,12 @@ router.put(
 
 /**
  * PUT /api/business/permits/:permitId/revoke
- * Revoke a permit (LGU Manager only)
+ * Revoke a permit (Admin only)
  */
 router.put(
   "/:permitId/revoke",
   requireJwt,
-  requireRole(["lgu_manager"]),
+  requireRole(["admin"]),
   async (req, res) => {
     try {
       const { reason } = req.body;

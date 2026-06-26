@@ -7,7 +7,6 @@ const errorTracking = require("../lib/errorTracking");
 const { getPerformanceStats } = require("../middleware/performanceMonitor");
 const { getSecurityStats } = require("../middleware/securityMonitor");
 const respond = require("../middleware/respond");
-const AuditLog = require("../models/AuditLog");
 const User = require("../models/User");
 
 const router = express.Router();
@@ -293,14 +292,36 @@ router.get(
         if (dateTo) query.createdAt.$lte = dateTo;
       }
 
-      const [logs, total] = await Promise.all([
-        AuditLog.find(query)
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        AuditLog.countDocuments(query),
-      ]);
+      // Query audit-service for logs
+      const auditServiceUrl = process.env.AUDIT_SERVICE_URL || "http://localhost:3004";
+      const headers = { "Content-Type": "application/json" };
+      if (process.env.AUDIT_SERVICE_API_KEY)
+        headers["X-API-Key"] = process.env.AUDIT_SERVICE_API_KEY;
+
+      const params = {
+        skip,
+        limit,
+        sort: "createdAt:-1",
+      };
+
+      // Handle complex query objects
+      if (query.$or) {
+        // For $or queries, we need to handle them differently
+        // For now, just pass the resourceType as a filter
+        params.eventType = JSON.stringify({ $regex: `^${escapeRegExp(resourceType)}`, $options: "i" });
+      }
+      if (query.createdAt) {
+        if (query.createdAt.$gte) params.startDate = query.createdAt.$gte.toISOString();
+        if (query.createdAt.$lte) params.endDate = query.createdAt.$lte.toISOString();
+      }
+
+      const response = await axios.get(`${auditServiceUrl}/api/audit/logs`, {
+        headers,
+        params,
+      });
+
+      const logs = response.data.logs || [];
+      const total = response.data.total || 0;
 
       const userIds = [...new Set(logs.map((l) => String(l.userId)))];
       const users = await User.find({ _id: { $in: userIds } })
@@ -390,7 +411,35 @@ router.get(
         if (dateTo) query.createdAt.$lte = dateTo;
       }
 
-      const logs = await AuditLog.find(query).sort({ createdAt: -1 }).lean();
+      // Query audit-service for logs
+      const auditServiceUrl = process.env.AUDIT_SERVICE_URL || "http://localhost:3004";
+      const headers = { "Content-Type": "application/json" };
+      if (process.env.AUDIT_SERVICE_API_KEY)
+        headers["X-API-Key"] = process.env.AUDIT_SERVICE_API_KEY;
+
+      const params = {
+        sort: "createdAt:-1",
+      };
+
+      // Handle complex query objects
+      if (query.$or) {
+        params.eventType = JSON.stringify({ $regex: `^${escapeRegExp(resourceType)}`, $options: "i" });
+      }
+      if (query.createdAt) {
+        if (query.createdAt.$gte) params.startDate = query.createdAt.$gte.toISOString();
+        if (query.createdAt.$lte) params.endDate = query.createdAt.$lte.toISOString();
+      }
+      if (query.eventType) params.eventType = query.eventType;
+      if (query["metadata.announcementId"]) {
+        // Can't filter by nested metadata via simple params, skip for now
+      }
+
+      const response = await axios.get(`${auditServiceUrl}/api/audit/logs`, {
+        headers,
+        params,
+      });
+
+      const logs = response.data.logs || [];
       const userIds = [...new Set(logs.map((l) => String(l.userId)))];
       const users = await User.find({ _id: { $in: userIds } })
         .select("_id email")

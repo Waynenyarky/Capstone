@@ -181,7 +181,7 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
     )
   }
 
-  const staffRoles = ['staff', 'lgu_manager', 'lgu_officer', 'inspector', 'cso']
+  const staffRoles = ['staff', 'lgu_officer', 'inspector']
 
   // Handle Deletion Pending State
   if (effectiveUser?.deletionPending) {

@@ -1,18 +1,11 @@
 import { Typography, Alert } from 'antd'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
-import PaymentStatusAlert from './PaymentStatusAlert'
 import ApplicationInfoCard from './ApplicationInfoCard'
-import AppealCard from './AppealCard'
-import IssuesToFix from './IssuesToFix'
-import { formatDate } from './utils/formatters'
 
 const { Text } = Typography
 
 export default function ReviewTabContent({
   application,
-  paymentGenStatus,
-  handleRetryPaymentGeneration,
-  retryingPayments,
   formDefLoading,
   formDefinition,
   ownerName,
@@ -21,27 +14,23 @@ export default function ReviewTabContent({
   allFieldKeys,
   decidedCount,
   _allFieldsReviewed,
-  rejectedFields,
+  _rejectedFields,
   fieldReviewDecisions,
   sections,
-  isWaitingForApplicant,
-  isFinalDecision,
+  _isWaitingForApplicant,
+  _isFinalDecision,
   _isDraft,
-  loadApplicationDetails,
+  _loadApplicationDetails,
   _message,
   ownerIdentity,
   businessReg,
+  onShowAppRejectionModal,
+  onShowAppealRejectionModal,
+  onShowAppealLetterModal,
+  onShowApprovalCommentModal,
 }) {
   return (
     <div style={{ padding: 16, overflow: 'auto' }}>
-      {application?.status === 'approved' && (
-        <PaymentStatusAlert
-          paymentGenStatus={paymentGenStatus}
-          onRetry={handleRetryPaymentGeneration}
-          retryingPayments={retryingPayments}
-          formatDate={formatDate}
-        />
-      )}
       {formDefLoading && (
         <div style={{ marginBottom: 16 }}>
           <LottieSpinner size="small" tip="Loading form sections..." />
@@ -68,22 +57,12 @@ export default function ReviewTabContent({
         allFieldKeys={allFieldKeys}
         fieldReviewDecisions={fieldReviewDecisions}
         sections={sections}
+        onShowAppRejectionModal={onShowAppRejectionModal}
+        onShowAppealRejectionModal={onShowAppealRejectionModal}
+        onShowAppealLetterModal={onShowAppealLetterModal}
+        onShowApprovalCommentModal={onShowApprovalCommentModal}
       />
 
-      {/* Appeal Card - shows for rejected applications with appeals */}
-      <AppealCard
-        application={application}
-        onAppealResolved={loadApplicationDetails}
-      />
-
-      {/* Issues to Fix Card - shows rejected fields when review is locked */}
-      {(isWaitingForApplicant || isFinalDecision) && rejectedFields.length > 0 && (
-        <IssuesToFix
-          rejectedFields={rejectedFields}
-          fieldReviewDecisions={fieldReviewDecisions}
-          sections={sections}
-        />
-      )}
     </div>
   )
 }

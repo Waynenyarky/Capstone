@@ -96,7 +96,7 @@ export async function checkPrerequisites(businessId) {
 }
 
 /**
- * Create inspection slots (LGU Manager only)
+ * Create inspection slots (Admin only)
  * @param {Object} data
  * @returns {Promise<Object>}
  */

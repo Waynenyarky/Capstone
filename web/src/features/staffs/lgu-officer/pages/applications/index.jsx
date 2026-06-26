@@ -17,6 +17,8 @@ const STATUS_FILTER_OPTIONS = [
   { value: 'approved', label: 'Approved' },
   { value: 'rejected', label: 'Rejected' },
   { value: 'returned', label: 'Returned' },
+  { value: 'appeal_pending', label: 'Appeal Pending' },
+  { value: 'appeal_rejected', label: 'Appeal Rejected' },
 ]
 
 const STATUS_CONFIG = {
@@ -26,6 +28,9 @@ const STATUS_CONFIG = {
   approved: { color: 'green', label: 'Approved' },
   rejected: { color: 'red', label: 'Rejected' },
   returned: { color: 'warning', label: 'Returned' },
+  needs_revision: { color: 'volcano', label: 'Needs Revision' },
+  appeal_pending: { color: 'purple', label: 'Appeal Pending' },
+  appeal_rejected: { color: 'red', label: 'Appeal Rejected' },
   draft: { color: 'default', label: 'Draft' },
 }
 

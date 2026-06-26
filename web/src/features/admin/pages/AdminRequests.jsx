@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react'
-import { Button, Grid, Typography } from 'antd'
-import { ReloadOutlined, CheckCircleOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { Grid, Typography } from 'antd'
 import AdminLayout from '../components/AdminLayout'
 import { RequestsDesktopView, RequestsMobileView } from './requests'
 import RequestsInfoModal from './requests/RequestsInfoModal'

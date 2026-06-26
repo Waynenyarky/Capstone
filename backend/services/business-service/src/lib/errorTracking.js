@@ -1,11 +1,5 @@
 const logger = require("./logger");
-// AuditLog is optional - only available in services that have it
-let AuditLog = null;
-try {
-  AuditLog = require("../models/AuditLog");
-} catch (e) {
-  // AuditLog not available in this service
-}
+const { logAuditEvent } = require("./auditClient");
 
 /**
  * Error Tracking Service
@@ -68,33 +62,23 @@ class ErrorTrackingService {
     // Check if alerting is needed
     await this.checkAlertThresholds(context);
 
-    // Log to audit trail for critical errors (if AuditLog is available)
-    if (severity === "critical" && context.userId && AuditLog) {
+    // Log to audit trail for critical errors
+    if (severity === "critical" && context.userId) {
       try {
-        await AuditLog.create({
-          userId: context.userId,
-          eventType: "error_critical",
-          fieldChanged: "system",
-          oldValue: "",
-          newValue: error.message || "Critical error occurred",
-          role: context.role || "system",
-          metadata: {
+        await logAuditEvent(
+          "error_critical",
+          context.userId,
+          "SystemError",
+          context.userId,
+          {
             errorName: error.name,
             errorCode: error.code,
             severity,
             correlationId: context.correlationId,
-            stack: error.stack?.substring(0, 500), // Limit stack trace length
+            stack: error.stack?.substring(0, 500),
+            role: context.role || "system",
           },
-          hash: require("crypto")
-            .createHash("sha256")
-            .update(
-              JSON.stringify({
-                error: error.message,
-                timestamp: new Date().toISOString(),
-              }),
-            )
-            .digest("hex"),
-        });
+        );
       } catch (auditError) {
         logger.error("Failed to log critical error to audit trail", {
           error: auditError,

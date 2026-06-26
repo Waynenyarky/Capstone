@@ -1,5 +1,3 @@
-import { REJECTION_REASON_OPTIONS } from '@/features/staffs/lgu-officer/constants/rejectionReasons'
-
 export function formatFieldKey(fieldKey) {
   if (!fieldKey || typeof fieldKey !== 'string') return 'Requested update'
   return fieldKey
@@ -67,11 +65,8 @@ export function getRejectedFieldItems(fieldReviewDecisions, sections) {
         fieldLabel = formatFieldKey(fieldKey)
       }
       
-      // Get reason using REJECTION_REASON_OPTIONS lookup (same as LGU officer side)
-      const reason = decision?.reasonOther || 
-                     REJECTION_REASON_OPTIONS.find((r) => r.value === decision?.reasonCode)?.label || 
-                     decision?.reasonCode || 
-                     'Needs correction'
+      // Get reason using free-text (reasonOther) or fallback to reasonCode
+      const reason = decision?.reasonOther || decision?.reasonCode || 'Needs correction'
       
       return {
         fieldKey,

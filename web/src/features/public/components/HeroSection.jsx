@@ -116,13 +116,15 @@ export default function HeroSection({
                     : 'none',
                   transform: (card.link || card.scrollTo) && screens.lg && hoveredCard === card.id ? 'scale(1.02)' : 'scale(1)',
                 }}
-                bodyStyle={{
-                  padding: screens.lg ? 16 : 12,
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'flex-end',
-                  alignItems: 'flex-start',
+                styles={{
+                  body: {
+                    padding: screens.lg ? 16 : 12,
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'flex-end',
+                    alignItems: 'flex-start',
+                  }
                 }}
                 onMouseEnter={screens.lg ? () => setHoveredCard(card.id) : undefined}
                 onMouseLeave={screens.lg ? () => setHoveredCard(null) : undefined}
@@ -211,14 +213,16 @@ export default function HeroSection({
                 border: `1px solid ${token.colorBorder}`,
                 borderRadius: token.borderRadiusLG,
               }}
-              bodyStyle={{
-                padding: screens.lg ? 16 : 12,
-                paddingTop: screens.lg ? 48 : 32,
-                height: 'auto',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'flex-end',
-                alignItems: 'flex-start',
+              styles={{
+                body: {
+                  padding: screens.lg ? 16 : 12,
+                  paddingTop: screens.lg ? 48 : 32,
+                  height: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-end',
+                  alignItems: 'flex-start',
+                }
               }}
             >
               <WarningOutlined style={{ fontSize: screens.lg ? 24 : 20, color: token.colorTextSecondary, marginBottom: 8 }} />
@@ -254,7 +258,9 @@ export default function HeroSection({
                 border: `1px solid ${token.colorBorder}`,
                 borderRadius: token.borderRadiusLG,
               }}
-              bodyStyle={{ padding: screens.lg ? '16px 16px 16px 16px' : '12px', paddingTop: screens.lg ? 90 : 48 }}
+              styles={{
+                body: { padding: screens.lg ? '16px 16px 16px 16px' : '12px', paddingTop: screens.lg ? 90 : 48 }
+              }}
             >
               {/* Card Header */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>

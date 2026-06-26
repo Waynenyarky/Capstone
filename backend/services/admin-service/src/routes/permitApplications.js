@@ -6,6 +6,7 @@ const respond = require("../middleware/respond");
 const permitApplicationService = require("../services/permitApplicationService");
 const BusinessProfile = require("../models/BusinessProfile");
 const User = require("../models/User");
+const { logAuditEvent } = require("../lib/auditClient");
 const logger = require("../lib/logger");
 
 // Cross-claim: when claiming an application, also claim related requests for the same business
@@ -33,7 +34,7 @@ function getSocketService() {
 router.get(
   "/",
   requireJwt,
-  requireRole(["lgu_officer", "staff", "lgu_manager"]),
+  requireRole(["lgu_officer", "staff"]),
   async (req, res) => {
     try {
       const filters = {
@@ -77,7 +78,7 @@ router.get(
 router.get(
   "/pending",
   requireJwt,
-  requireRole(["lgu_officer", "staff", "lgu_manager"]),
+  requireRole(["lgu_officer", "staff"]),
   async (req, res) => {
     try {
       const filters = {
@@ -117,7 +118,7 @@ router.get(
 router.get(
   "/:applicationId",
   requireJwt,
-  requireRole(["lgu_officer", "staff", "lgu_manager"]),
+  requireRole(["lgu_officer", "staff"]),
   async (req, res) => {
     try {
       const { applicationId } = req.params;
@@ -154,7 +155,7 @@ router.get(
 router.post(
   "/:applicationId/start-review",
   requireJwt,
-  requireRole(["lgu_officer", "staff", "lgu_manager"]),
+  requireRole(["lgu_officer", "staff"]),
   async (req, res) => {
     try {
       const { applicationId } = req.params;
@@ -210,7 +211,7 @@ router.post(
 router.post(
   "/:applicationId/review",
   requireJwt,
-  requireRole(["lgu_officer", "staff", "lgu_manager"]),
+  requireRole(["lgu_officer", "staff"]),
   async (req, res) => {
     try {
       const { applicationId } = req.params;
@@ -302,7 +303,7 @@ router.post(
 router.patch(
   "/:applicationId/field-decisions",
   requireJwt,
-  requireRole(["lgu_officer", "staff", "lgu_manager"]),
+  requireRole(["lgu_officer", "staff"]),
   async (req, res) => {
     try {
       const { applicationId } = req.params;
@@ -372,7 +373,7 @@ router.patch(
 router.patch(
   "/:applicationId/form-data",
   requireJwt,
-  requireRole(["lgu_officer", "staff", "lgu_manager"]),
+  requireRole(["lgu_officer", "staff"]),
   async (req, res) => {
     try {
       const { applicationId } = req.params;
@@ -419,15 +420,15 @@ router.patch(
 router.post(
   "/:applicationId/pending-action",
   requireJwt,
-  requireRole(["lgu_officer", "lgu_manager", "admin"]),
+  requireRole(["lgu_officer", "admin"]),
   async (req, res) => {
     try {
       const { applicationId } = req.params;
       const { actionType, payload, delayMinutes } = req.body;
       const officerId = req._userId;
 
-      if (!actionType || !["complete_review", "reject", "return"].includes(actionType)) {
-        return respond.error(res, 400, "invalid_data", "actionType must be one of: complete_review, reject, return");
+      if (!actionType || !["complete_review", "reject", "return", "reject_appeal"].includes(actionType)) {
+        return respond.error(res, 400, "invalid_data", "actionType must be one of: complete_review, reject, return, reject_appeal");
       }
 
       const updatedApplication = await permitApplicationService.createPendingAction(
@@ -458,7 +459,7 @@ router.post(
 router.delete(
   "/:applicationId/pending-action",
   requireJwt,
-  requireRole(["lgu_officer", "lgu_manager", "admin"]),
+  requireRole(["lgu_officer", "admin"]),
   async (req, res) => {
     try {
       const { applicationId } = req.params;
@@ -483,7 +484,7 @@ router.delete(
 router.get(
   "/:applicationId/pending-action",
   requireJwt,
-  requireRole(["lgu_officer", "lgu_manager", "admin"]),
+  requireRole(["lgu_officer", "admin"]),
   async (req, res) => {
     try {
       const { applicationId } = req.params;
@@ -508,7 +509,7 @@ router.get(
 router.put(
   "/:applicationId/execute-pending-action",
   requireJwt,
-  requireRole(["lgu_officer", "lgu_manager", "admin"]),
+  requireRole(["lgu_officer", "admin"]),
   async (req, res) => {
     try {
       const { applicationId } = req.params;
@@ -536,7 +537,7 @@ router.put(
 router.post(
   "/:applicationId/reset-status",
   requireJwt,
-  requireRole(["lgu_officer", "lgu_manager", "admin", "staff"]),
+  requireRole(["lgu_officer", "admin", "staff"]),
   async (req, res) => {
     try {
       const { applicationId } = req.params;
@@ -698,46 +699,25 @@ router.post(
         // Don't fail the request if email fails
       }
 
-      // Create audit log
-      try {
-        const AuditLog = require("../models/AuditLog");
-        const crypto = require("crypto");
-        const auditData = {
-          userId: officerId,
-          eventType: "decision_revoked",
-          fieldChanged: "applicationStatus",
-          oldValue: oldStatus,
-          newValue: newStatus,
+      // Create audit log via centralized audit-service
+      logAuditEvent(
+        "decision_revoked",
+        officerId,
+        "BusinessProfile",
+        applicationId,
+        {
+          applicationId,
+          businessId: applicationId,
+          officerId,
+          businessOwnerId: String(profile.userId),
+          businessName:
+            business.businessName || business.registeredBusinessName || "",
+          revokedAt: new Date().toISOString(),
           role: req._userRole || req.user?.role?.slug || "lgu_officer",
-          metadata: {
-            applicationId,
-            businessId: applicationId,
-            officerId,
-            businessOwnerId: String(profile.userId),
-            businessName:
-              business.businessName || business.registeredBusinessName || "",
-            revokedAt: new Date().toISOString(),
-          },
-        };
-        const hashableData = {
-          userId: String(auditData.userId),
-          eventType: auditData.eventType,
-          fieldChanged: auditData.fieldChanged,
-          oldValue: auditData.oldValue,
-          newValue: auditData.newValue,
-          role: auditData.role,
-          metadata: JSON.stringify(auditData.metadata),
-          timestamp: new Date().toISOString(),
-        };
-        auditData.hash = crypto
-          .createHash("sha256")
-          .update(JSON.stringify(hashableData))
-          .digest("hex");
-        await AuditLog.create(auditData);
-      } catch (auditError) {
-        console.error("[reset-status] Failed to create audit log:", auditError);
-        // Don't fail the request if audit logging fails
-      }
+        },
+      ).catch((err) => {
+        console.error("[reset-status] Failed to create audit log:", err);
+      });
 
       return respond.success(res, 200, {
         message:
@@ -766,7 +746,7 @@ router.post(
 router.put(
   "/:applicationId/claim",
   requireJwt,
-  requireRole(["lgu_officer", "lgu_manager", "staff"]),
+  requireRole(["lgu_officer", "staff"]),
   async (req, res) => {
     try {
       const { applicationId } = req.params;
@@ -828,41 +808,21 @@ router.put(
       const updatedProfile = await BusinessProfile.findById(profile._id);
       const updatedBusiness = updatedProfile?.businesses?.[businessIndex];
 
-      // Audit log
-      try {
-        const AuditLog = require("../models/AuditLog");
-        const crypto = require("crypto");
-        const auditData = {
-          userId: officerId,
-          eventType: "application_claimed",
-          fieldChanged: "reviewedBy",
-          oldValue: "",
-          newValue: officerId,
+      // Audit log via centralized audit-service
+      logAuditEvent(
+        "application_claimed",
+        officerId,
+        "BusinessProfile",
+        applicationId,
+        {
+          applicationId,
+          businessName:
+            business.businessName || business.registeredBusinessName,
           role: req._userRole || req.user?.role?.slug || "lgu_officer",
-          metadata: {
-            applicationId,
-            businessName:
-              business.businessName || business.registeredBusinessName,
-          },
-        };
-        const hashableData = {
-          userId: String(auditData.userId),
-          eventType: auditData.eventType,
-          fieldChanged: auditData.fieldChanged,
-          oldValue: auditData.oldValue,
-          newValue: auditData.newValue,
-          role: auditData.role,
-          metadata: JSON.stringify(auditData.metadata),
-          timestamp: new Date().toISOString(),
-        };
-        auditData.hash = crypto
-          .createHash("sha256")
-          .update(JSON.stringify(hashableData))
-          .digest("hex");
-        await AuditLog.create(auditData);
-      } catch (auditErr) {
-        console.error("[claim] Failed to create audit log:", auditErr);
-      }
+        },
+      ).catch((err) => {
+        console.error("[claim] Failed to create audit log:", err);
+      });
 
       // Emit realtime event for claim
       const socket = getSocketService();
@@ -907,7 +867,7 @@ router.put(
 router.put(
   "/:applicationId/release",
   requireJwt,
-  requireRole(["lgu_officer", "lgu_manager", "staff"]),
+  requireRole(["lgu_officer", "staff"]),
   async (req, res) => {
     try {
       const { applicationId } = req.params;
@@ -937,7 +897,6 @@ router.put(
       if (
         business.reviewedBy &&
         String(business.reviewedBy) !== String(officerId) &&
-        userRole !== "lgu_manager" &&
         userRole !== "admin"
       ) {
         return respond.error(
@@ -964,41 +923,21 @@ router.put(
 
       await BusinessProfile.updateOne({ _id: profile._id }, releaseUpdate);
 
-      // Audit log
-      try {
-        const AuditLog = require("../models/AuditLog");
-        const crypto = require("crypto");
-        const auditData = {
-          userId: officerId,
-          eventType: "application_released",
-          fieldChanged: "reviewedBy",
-          oldValue: String(business.reviewedBy || ""),
-          newValue: "",
+      // Audit log via centralized audit-service
+      logAuditEvent(
+        "application_released",
+        officerId,
+        "BusinessProfile",
+        applicationId,
+        {
+          applicationId,
+          businessName:
+            business.businessName || business.registeredBusinessName,
           role: req.user?.role?.slug || req._userRole || "lgu_officer",
-          metadata: {
-            applicationId,
-            businessName:
-              business.businessName || business.registeredBusinessName,
-          },
-        };
-        const hashableData = {
-          userId: String(auditData.userId),
-          eventType: auditData.eventType,
-          fieldChanged: auditData.fieldChanged,
-          oldValue: auditData.oldValue,
-          newValue: auditData.newValue,
-          role: auditData.role,
-          metadata: JSON.stringify(auditData.metadata),
-          timestamp: new Date().toISOString(),
-        };
-        auditData.hash = crypto
-          .createHash("sha256")
-          .update(JSON.stringify(hashableData))
-          .digest("hex");
-        await AuditLog.create(auditData);
-      } catch (auditErr) {
-        console.error("[release] Failed to create audit log:", auditErr);
-      }
+        },
+      ).catch((err) => {
+        console.error("[release] Failed to create audit log:", err);
+      });
 
       // Emit realtime event for release
       const socket = getSocketService();
@@ -1037,7 +976,7 @@ router.put(
 router.put(
   "/:applicationId/transfer",
   requireJwt,
-  requireRole(["lgu_officer", "lgu_manager", "staff"]),
+  requireRole(["lgu_officer", "staff"]),
   async (req, res) => {
     try {
       const { applicationId } = req.params;
@@ -1077,7 +1016,6 @@ router.put(
       if (
         business.reviewedBy &&
         String(business.reviewedBy) !== String(officerId) &&
-        userRole !== "lgu_manager" &&
         userRole !== "admin"
       ) {
         return respond.error(
@@ -1104,42 +1042,22 @@ router.put(
         },
       );
 
-      // Audit log
-      try {
-        const AuditLog = require("../models/AuditLog");
-        const crypto = require("crypto");
-        const auditData = {
-          userId: officerId,
-          eventType: "application_transferred",
-          fieldChanged: "reviewedBy",
-          oldValue: String(officerId),
-          newValue: String(targetOfficerId),
+      // Audit log via centralized audit-service
+      logAuditEvent(
+        "application_transferred",
+        officerId,
+        "BusinessProfile",
+        applicationId,
+        {
+          applicationId,
+          businessName:
+            business.businessName || business.registeredBusinessName,
+          targetOfficerId,
           role: req.user?.role?.slug || req._userRole || "lgu_officer",
-          metadata: {
-            applicationId,
-            businessName:
-              business.businessName || business.registeredBusinessName,
-            targetOfficerId,
-          },
-        };
-        const hashableData = {
-          userId: String(auditData.userId),
-          eventType: auditData.eventType,
-          fieldChanged: auditData.fieldChanged,
-          oldValue: auditData.oldValue,
-          newValue: auditData.newValue,
-          role: auditData.role,
-          metadata: JSON.stringify(auditData.metadata),
-          timestamp: new Date().toISOString(),
-        };
-        auditData.hash = crypto
-          .createHash("sha256")
-          .update(JSON.stringify(hashableData))
-          .digest("hex");
-        await AuditLog.create(auditData);
-      } catch (auditErr) {
-        console.error("[transfer] Failed to create audit log:", auditErr);
-      }
+        },
+      ).catch((err) => {
+        console.error("[transfer] Failed to create audit log:", err);
+      });
 
       // Cross-transfer all other requests for this business
       if (crossClaimForBusiness) {

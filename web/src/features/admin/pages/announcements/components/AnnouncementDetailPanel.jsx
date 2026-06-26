@@ -284,7 +284,9 @@ export default function AnnouncementDetailPanel({
                                   border: `1px solid ${token.colorBorder}`,
                                   borderRadius: token.borderRadiusLG,
                                 }}
-                                bodyStyle={{ padding: screens.md ? 16 : 12, paddingTop: screens.md ? 48 : 32 }}
+                                styles={{
+                                  body: { padding: screens.md ? 16 : 12, paddingTop: screens.md ? 48 : 32 }
+                                }}
                               >
                                 <WarningOutlined style={{ fontSize: screens.md ? 24 : 20, color: token.colorTextSecondary, marginBottom: 8 }} />
                                 <Title level={5} style={{ margin: 0 }}>
@@ -315,7 +317,9 @@ export default function AnnouncementDetailPanel({
                                   border: `1px solid ${token.colorBorder}`,
                                   borderRadius: token.borderRadiusLG,
                                 }}
-                                bodyStyle={{ padding: screens.md ? '16px 16px 16px 16px' : '12px', paddingTop: screens.md ? 48 : 32 }}
+                                styles={{
+                                  body: { padding: screens.md ? '16px 16px 16px 16px' : '12px', paddingTop: screens.md ? 48 : 32 }
+                                }}
                               >
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
                                   <NotificationOutlined style={{ fontSize: 20, color: token.colorTextSecondary }} />

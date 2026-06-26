@@ -15,14 +15,15 @@ const PaymentSchema = new mongoose.Schema(
       index: true,
     },
     businessId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Business",
       required: true,
       index: true,
     },
-    businessProfileId: {
+    applicationId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "BusinessProfile",
-      required: true,
+      ref: "Application",
+      default: null,
     },
     paymentType: {
       type: String,
@@ -153,7 +154,7 @@ PaymentSchema.plugin(encryptionPlugin, {
     "rejectionReason",
     "proofOfPayment",
   ],
-  deterministicFields: ["paymentId", "businessId"],
+  deterministicFields: ["paymentId"],
   nestedPaths: ["breakdown"],
   arrayPaths: [],
   mixedPaths: ["metadata", "webhookData"],

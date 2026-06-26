@@ -36,7 +36,9 @@ export default function HelpRequestConversation({
         flexDirection: 'column',
         height: '100%',
       }}
-      bodyStyle={{ padding: 0, display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
+      styles={{
+        body: { padding: 0, display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }
+      }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
         {/* Message Thread */}

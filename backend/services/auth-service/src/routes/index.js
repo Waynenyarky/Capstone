@@ -1,7 +1,6 @@
 const express = require("express");
 const { createCsrfMiddleware, getCsrfTokenHandler } = require("../lib/csrf");
 
-const signupRouter = require("./signup");
 const loginRouter = require("./login");
 const logoutRouter = require("./logout");
 const passwordResetRouter = require("./passwordReset");
@@ -11,7 +10,6 @@ const profileAvatarRouter = require("./profileAvatar");
 const profilePasswordRouter = require("./profilePassword");
 const profileEmailRouter = require("./profileEmail");
 const profileCoreRouter = require("./profileCore");
-const profileAdminRouter = require("./profileAdmin");
 const profileBusinessOwnerRouter = require("./profileBusinessOwner");
 const profileFirstLoginRouter = require("./profileFirstLogin");
 const auditRouter = require("./audit");
@@ -49,7 +47,6 @@ router.use(
 );
 
 // Compose feature routers under /api/auth
-router.use("/", signupRouter);
 router.use("/", loginRouter);
 router.use("/", logoutRouter);
 router.use("/", passwordResetRouter);
@@ -61,7 +58,6 @@ router.use("/", profileEmailRouter);
 router.use("/", profileCoreRouter);
 router.use("/audit", auditRouter);
 router.use("/", profileBusinessOwnerRouter); // Register before admin routes to avoid path conflicts
-router.use("/", profileAdminRouter);
 router.use("/", profileFirstLoginRouter);
 router.use("/", mfaRouter);
 router.use("/", mfaBootstrapRouter);

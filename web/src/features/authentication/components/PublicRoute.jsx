@@ -52,7 +52,7 @@ export default function PublicRoute({ children }) {
       return <Navigate to="/owner" replace state={state} />
     }
 
-    const staffRoles = ['staff', 'lgu_manager', 'lgu_officer', 'inspector', 'cso']
+    const staffRoles = ['staff', 'lgu_officer', 'inspector']
     if (staffRoles.includes(r)) {
       if (effectiveUser?.mustChangeCredentials || effectiveUser?.mustSetupMfa) {
         return <Navigate to="/staff/onboarding" replace state={state} />

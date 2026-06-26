@@ -43,6 +43,8 @@ export function useFees() {
         return fees
       case 'penalty_rules':
         return penaltyRules
+      case 'appeal_fees':
+        return fees.filter((fee) => fee.category === 'appeal')
       default:
         return []
     }

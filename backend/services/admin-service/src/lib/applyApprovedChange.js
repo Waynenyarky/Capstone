@@ -5,12 +5,12 @@
  */
 
 const User = require("../models/User");
-const AuditLog = require("../models/AuditLog");
 const MaintenanceWindow = require("../models/MaintenanceWindow");
 const FormDefinition = require("../models/FormDefinition");
 // bcrypt and passwordHistory are lazy-required inside the cases that need them
 // so maintenance_mode approval works even if bcryptjs is not installed
 const { logToBlockchain } = require("./interServiceClient");
+const { logAuditEvent } = require("./auditClient");
 const logger = require("./logger");
 
 /**
@@ -54,50 +54,27 @@ async function createAuditLog(
   metadata = {},
 ) {
   try {
-    // For now, create audit log directly (shared DB)
-    // TODO: Call Audit Service via HTTP when fully implemented
-    const timestamp = new Date().toISOString();
-    const hash = calculateAuditHash(
-      userId,
+    // Use centralized audit-service
+    await logAuditEvent(
       eventType,
-      fieldChanged,
-      oldValue || "",
-      newValue || "",
-      role,
-      metadata,
-      timestamp,
-    );
-
-    const auditLog = await AuditLog.create({
       userId,
-      eventType,
-      fieldChanged,
-      oldValue: oldValue || "",
-      newValue: newValue || "",
-      role,
-      metadata: {
+      "AdminApproval",
+      userId,
+      {
+        fieldChanged,
+        oldValue: oldValue || "",
+        newValue: newValue || "",
+        role,
         ...metadata,
         ip: metadata.ip || "unknown",
         userAgent: metadata.userAgent || "unknown",
       },
-      hash,
-    });
+    );
 
-    // Log to blockchain via Audit Service (non-blocking)
-    logToBlockchain("logAuditHash", {
-      hash: auditLog.hash,
-      eventType,
-      auditLogId: String(auditLog._id),
-    }).catch((err) => {
-      logger.warn("Failed to log to blockchain via Audit Service", {
-        error: err,
-      });
-    });
-
-    return auditLog;
+    return { success: true };
   } catch (error) {
     logger.error("Error creating audit log", { error });
-    return null;
+    return { success: false, error: error.message };
   }
 }
 

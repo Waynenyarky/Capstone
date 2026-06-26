@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const User = require("../../services/auth-service/src/models/User");
-const Role = require("../../services/auth-service/src/models/Role");
-const AuditLog = require("../../services/auth-service/src/models/AuditLog");
+const AuditLog = require("../../services/audit-service/src/models/AuditLog");
 const AdminApproval = require("../../services/auth-service/src/models/AdminApproval");
 const EmailChangeRequest = require("../../services/auth-service/src/models/EmailChangeRequest");
 const ResetRequest = require("../../services/auth-service/src/models/ResetRequest");
@@ -104,7 +103,7 @@ async function resetDatabase() {
         seedDevDataIfEmpty,
       } = require("../../services/auth-service/src/lib/seedDev");
       await seedDevDataIfEmpty();
-    } catch (err) {
+    } catch {
       // seedDev may not exist, that's okay
     }
   } catch (error) {

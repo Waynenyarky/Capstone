@@ -8,7 +8,4 @@ export * from './components'
 export * from './services'
 
 // Sub-feature pages (optional exports if needed elsewhere)
-export { default as InspectorDashboard } from './inspector/pages/InspectorDashboard'
-export { default as CSODashboard } from './cso/pages/CSODashboard'
-export { default as LGUManagerDashboard } from './lgu-manager/pages/LGUManagerDashboard'
 export { default as OfficerDashboard } from './lgu-officer/pages/OfficerDashboard'

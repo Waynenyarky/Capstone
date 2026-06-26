@@ -48,10 +48,8 @@ describe("Admin staff management endpoints", () => {
     const roles = [
       { name: "Admin", slug: "admin" },
       { name: "Business Owner", slug: "business_owner" },
-      { name: "LGU Manager", slug: "lgu_manager" },
       { name: "LGU Officer", slug: "lgu_officer" },
       { name: "LGU Inspector", slug: "inspector" },
-      { name: "CSO", slug: "cso" },
     ];
     for (const r of roles) {
       await Role.findOneAndUpdate({ slug: r.slug }, r, {
@@ -86,7 +84,8 @@ describe("Admin staff management endpoints", () => {
     });
     adminToken = signAccessToken({ _id: adminUser._id, role: adminRole }).token;
 
-    staffRole = await Role.findOne({ slug: "lgu_manager" });
+    staffRole = await Role.findOne({ slug: "lgu_officer" });
+
     const passwordHash = await bcrypt.hash("Temp#12345", 10);
     staffUser = await User.create({
       role: staffRole._id,

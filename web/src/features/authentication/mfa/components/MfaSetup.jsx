@@ -36,7 +36,7 @@ export default function MfaSetup({ onComplete, onSkip, allowSkip = false }) {
   const [isReturningUser, setIsReturningUser] = useState(false)
 
   const roleKey = String(role?.slug || role || '').toLowerCase()
-  const isStaffRole = ['lgu_officer', 'lgu_manager', 'inspector', 'cso', 'staff'].includes(roleKey)
+  const isStaffRole = ['lgu_officer', 'inspector', 'staff'].includes(roleKey)
   const isAdmin = roleKey === 'admin'
   const needsOnboarding = (isStaffRole || isAdmin) && (!!currentUser?.mustSetupMfa || !!currentUser?.mustChangeCredentials)
   const postMfaTarget = React.useMemo(() => {

@@ -8,7 +8,7 @@ const paymentGatewayService = require("../services/paymentGatewayService");
 router.post(
   "/payments/verify",
   requireJwt,
-  requireRole(["treasury", "lgu_manager", "admin"]),
+  requireRole(["treasury", "admin"]),
   async (req, res) => {
     try {
       const { paymentId, verificationNotes } = req.body;
@@ -45,7 +45,7 @@ router.post(
 router.get(
   "/payments/pending",
   requireJwt,
-  requireRole(["treasury", "lgu_manager", "admin"]),
+  requireRole(["treasury", "admin"]),
   async (req, res) => {
     try {
       const { page = 1, limit = 20 } = req.query;
@@ -70,7 +70,7 @@ router.get(
 router.get(
   "/collections/daily",
   requireJwt,
-  requireRole(["treasury", "lgu_manager", "admin"]),
+  requireRole(["treasury", "admin"]),
   async (req, res) => {
     try {
       const { date } = req.query;
@@ -94,7 +94,7 @@ router.get(
 router.post(
   "/receipts/generate",
   requireJwt,
-  requireRole(["treasury", "lgu_manager", "admin"]),
+  requireRole(["treasury", "admin"]),
   async (req, res) => {
     try {
       const { paymentId } = req.body;

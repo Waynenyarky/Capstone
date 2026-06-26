@@ -17,7 +17,7 @@ const FeeSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ["permit", "regulatory", "penalty", "other"],
+      enum: ["permit", "regulatory", "penalty", "appeal", "other"],
       default: "permit",
     },
     isActive: {

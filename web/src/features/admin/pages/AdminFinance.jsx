@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Button, Grid, Tabs, Typography } from 'antd'
-import { AccountBookOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { Grid, Tabs, Typography } from 'antd'
 import AdminLayout from '../components/AdminLayout'
 import FinanceDesktopView from './finance/FinanceDesktopView'
 import { FINANCE_NAV_ITEMS } from './finance/FinanceDesktopView'

@@ -8,7 +8,7 @@ const Payment = require("../models/Payment");
 router.get(
   "/stats",
   requireJwt,
-  requireRole(["admin", "lgu_manager"]),
+  requireRole(["admin"]),
   async (req, res) => {
     try {
       const [activeResult, pendingResult] = await Promise.all([
@@ -44,7 +44,7 @@ router.get(
 router.get(
   "/payments/summary",
   requireJwt,
-  requireRole(["admin", "lgu_manager"]),
+  requireRole(["admin"]),
   async (req, res) => {
     try {
       const now = new Date();
@@ -85,7 +85,7 @@ router.get(
 router.get(
   "/payments",
   requireJwt,
-  requireRole(["admin", "lgu_manager"]),
+  requireRole(["admin"]),
   async (req, res) => {
     try {
       const page = parseInt(req.query.page) || 1;
@@ -130,7 +130,7 @@ router.get(
 router.get(
   "/payments/report",
   requireJwt,
-  requireRole(["admin", "lgu_manager"]),
+  requireRole(["admin"]),
   async (req, res) => {
     try {
       const { period = "month", year, month } = req.query;

@@ -1,6 +1,5 @@
 const express = require("express");
 const User = require("../models/User");
-const AuditLog = require("../models/AuditLog");
 const AdminApproval = require("../models/AdminApproval");
 const respond = require("../middleware/respond");
 const { requireJwt } = require("../middleware/auth");
@@ -24,6 +23,7 @@ const {
   clearVerificationRequest,
 } = require("../lib/verificationService");
 const { checkFieldPermission } = require("../middleware/fieldPermissions");
+const axios = require("axios");
 
 const router = express.Router();
 
@@ -876,11 +876,28 @@ router.get("/profile/audit-history", requireJwt, async (req, res) => {
       if (endDate) query.createdAt.$lte = new Date(endDate);
     }
 
-    const auditLogs = await AuditLog.find(query)
-      .sort({ createdAt: -1 })
-      .limit(Number(limit))
-      .skip(Number(skip))
-      .lean();
+    // Query audit-service for logs
+    const auditServiceUrl = process.env.AUDIT_SERVICE_URL || "http://localhost:3004";
+    const headers = {
+      Authorization: req.headers.authorization,
+      "Content-Type": "application/json",
+    };
+
+    const params = {
+      userId: req._userId,
+      limit: Number(limit),
+      skip: Number(skip),
+    };
+    if (eventType) params.eventType = eventType;
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+
+    const response = await axios.get(`${auditServiceUrl}/api/audit/history`, {
+      headers,
+      params,
+    });
+
+    const auditLogs = response.data.logs || [];
 
     // Mask sensitive data
     const safeLogs = auditLogs.map((log) => ({
@@ -896,11 +913,9 @@ router.get("/profile/audit-history", requireJwt, async (req, res) => {
       blockNumber: log.blockNumber,
     }));
 
-    const total = await AuditLog.countDocuments(query);
-
     return res.json({
       logs: safeLogs,
-      total,
+      total: response.data.total || 0,
       limit: Number(limit),
       skip: Number(skip),
     });

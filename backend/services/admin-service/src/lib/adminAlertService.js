@@ -4,8 +4,7 @@ const {
   sendAdminAlert,
   createInAppNotificationsForAdmins,
 } = require("./notificationService");
-
-const AuditLog = require("../models/AuditLog");
+const { logAuditEvent } = require("./auditClient");
 
 /**
  * Admin Alert Service
@@ -56,52 +55,26 @@ async function alertRestrictedFieldAttempt(
     // For now, use 'profile_update' as the base event type
     const eventType = "profile_update"; // Use valid enum value
 
-    // Create audit log with high priority
-    const auditLog = await AuditLog.create({
-      userId,
+    // Create audit log via centralized audit-service
+    await logAuditEvent(
       eventType,
-      fieldChanged: field,
-      oldValue: "",
-      newValue:
-        typeof attemptedValue === "string"
-          ? attemptedValue
-          : JSON.stringify(attemptedValue),
-      role: roleSlug,
-      hash, // Set hash directly
-      metadata: {
+      userId,
+      "AdminAlert",
+      userId,
+      {
+        field,
+        oldValue: "",
+        newValue:
+          typeof attemptedValue === "string"
+            ? attemptedValue
+            : JSON.stringify(attemptedValue),
+        role: roleSlug,
         ...metadata,
         priority: "high",
         alertSent: false,
-        restrictedFieldAttempt: true, // Flag to identify restricted attempts
+        restrictedFieldAttempt: true,
       },
-    });
-
-    // Queue blockchain operation (non-blocking, with retry)
-    if (blockchainService.isAvailable()) {
-      blockchainQueue.queueBlockchainOperation(
-        "logAuditHash",
-        [auditLog.hash, "restricted_field_attempt"],
-        String(auditLog._id),
-      );
-
-      // Also log as critical event
-      blockchainQueue.queueBlockchainOperation(
-        "logCriticalEvent",
-        [
-          "restricted_field_attempt",
-          String(userId),
-          JSON.stringify({
-            field,
-            attemptedValue:
-              typeof attemptedValue === "string"
-                ? attemptedValue
-                : JSON.stringify(attemptedValue),
-            roleSlug,
-          }),
-        ],
-        null,
-      );
-    }
+    );
 
     // Send email notification to admins (non-blocking)
     sendAdminAlert(userId, field, attemptedValue, roleSlug, metadata).catch(
@@ -116,7 +89,7 @@ async function alertRestrictedFieldAttempt(
       "Restricted field attempt",
       `Staff (${roleSlug}) attempted to change restricted field "${field}". Review audit log.`,
       "system",
-      String(auditLog._id),
+      null,
       { userId: String(userId), field, roleSlug },
     ).catch((err) =>
       console.error(

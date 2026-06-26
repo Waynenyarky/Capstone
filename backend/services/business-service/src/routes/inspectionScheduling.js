@@ -212,7 +212,7 @@ router.get("/prerequisites/:businessId", requireJwt, async (req, res) => {
 router.post(
   "/slots/create",
   requireJwt,
-  requireRole(["lgu_manager", "admin"]),
+  requireRole(["admin"]),
   async (req, res) => {
     try {
       const { inspectorId, date, startTimes, location } = req.body;
@@ -260,7 +260,7 @@ router.post(
 router.get(
   "/inspector-schedule/:inspectorId",
   requireJwt,
-  requireRole(["inspector", "lgu_manager", "admin"]),
+  requireRole(["inspector", "admin"]),
   async (req, res) => {
     try {
       const { inspectorId } = req.params;

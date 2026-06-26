@@ -1,6 +1,6 @@
 const logger = require("../lib/logger");
 const errorTracking = require("../lib/errorTracking");
-const AuditLog = require("../models/AuditLog");
+const { logAuditEvent } = require("../lib/auditLogger");
 const mongoose = require("mongoose");
 
 /**
@@ -230,33 +230,19 @@ async function logSecurityEvent(eventType, details) {
     // For system-level security events, we need a userId. Use a system user or make it optional.
     // Since userId is required, we'll create a system-level audit log with a placeholder user ID if needed.
     // In practice, you might want to create a system user for this purpose.
-    const auditData = {
-      userId:
-        details.userId ||
-        new mongoose.Types.ObjectId("000000000000000000000000"), // System user ID
-      eventType: "security_event",
-      fieldChanged: "security",
-      oldValue: "",
-      newValue: eventType,
-      role: "system",
-      metadata: {
+    await logAuditEvent(
+      "security_event",
+      details.userId || new mongoose.Types.ObjectId("000000000000000000000000"),
+      "SecurityEvent",
+      details.userId || "system",
+      {
         ...details,
+        eventType,
+        role: "system",
         timestamp: new Date().toISOString(),
-        isSystemEvent: !details.userId, // Flag system events
+        isSystemEvent: !details.userId,
       },
-      hash: require("crypto")
-        .createHash("sha256")
-        .update(
-          JSON.stringify({
-            eventType,
-            details,
-            timestamp: new Date().toISOString(),
-          }),
-        )
-        .digest("hex"),
-    };
-
-    await AuditLog.create(auditData);
+    );
   } catch (error) {
     logger.error("Failed to log security event to audit trail", { error });
   }

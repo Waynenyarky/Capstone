@@ -5,6 +5,7 @@ const {
   isAdminRole,
   isBusinessOwnerRole,
 } = require("../lib/roleHelpers");
+const { logAuditEvent } = require("../lib/auditLogger");
 
 /**
  * Field Permission Matrix
@@ -45,8 +46,8 @@ const FIELD_PERMISSIONS = {
       canUncheck: false,
     },
   },
-  // Staff roles: lgu_officer, lgu_manager, inspector, cso
-  // All 4 staff roles share the same restrictions currently
+  // Staff roles: lgu_officer, inspector
+  // All staff roles share the same restrictions currently
   staff: {
     // Restricted fields (applies to all staff roles):
     // - password: admin-managed only
@@ -159,43 +160,21 @@ function requireFieldPermission(field) {
       if (isRestrictedFieldForStaff(field)) {
         // Log restricted field attempt
         const AdminApproval = require("../models/AdminApproval");
-        const AuditLog = require("../models/AuditLog");
 
         // Create audit log for restricted field attempt (async, don't wait)
         try {
-          const crypto = require("crypto");
-          const timestamp = new Date().toISOString();
-          const hashableData = {
-            userId: String(req._userId),
-            eventType: "restricted_field_attempt",
-            fieldChanged: field,
-            oldValue: "",
-            newValue: JSON.stringify(req.body[field] || req.body),
-            role: roleSlug,
-            metadata: JSON.stringify({
-              ip: req.ip || req.headers["x-forwarded-for"] || "unknown",
-              userAgent: req.headers["user-agent"] || "unknown",
-            }),
-            timestamp,
-          };
-          const hash = crypto
-            .createHash("sha256")
-            .update(JSON.stringify(hashableData))
-            .digest("hex");
-
-          AuditLog.create({
-            userId: req._userId,
-            eventType: "restricted_field_attempt",
-            fieldChanged: field,
-            oldValue: "",
-            newValue: JSON.stringify(req.body[field] || req.body),
-            role: roleSlug,
-            metadata: {
+          logAuditEvent(
+            "restricted_field_attempt",
+            req._userId,
+            "FieldPermission",
+            req._userId,
+            {
+              field,
+              role: roleSlug,
               ip: req.ip || req.headers["x-forwarded-for"] || "unknown",
               userAgent: req.headers["user-agent"] || "unknown",
             },
-            hash,
-          }).catch((err) => {
+          ).catch((err) => {
             console.error("Failed to log restricted field attempt:", err);
           });
         } catch (err) {

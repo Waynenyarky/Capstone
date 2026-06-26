@@ -2,12 +2,23 @@ const express = require("express");
 const mongoose = require("mongoose");
 const Appeal = require("../models/Appeal");
 const BusinessProfile = require("../models/BusinessProfile");
+const Application = require("../models/Application");
 const Violation = require("../models/Violation");
 const { requireJwt, requireRole } = require("../middleware/auth");
 const { logAuditEvent } = require("../lib/auditClient");
 const { crossClaimForBusiness } = require("../lib/crossClaimService");
 
 const router = express.Router();
+
+// Helper: build query that matches either applicationId or _id in Application collection
+function buildApplicationLookupQuery(identifier) {
+  const target = String(identifier || "");
+  const clauses = [{ applicationId: target }];
+  if (mongoose.Types.ObjectId.isValid(target)) {
+    clauses.push({ _id: new mongoose.Types.ObjectId(target) });
+  }
+  return clauses.length === 1 ? clauses[0] : { $or: clauses };
+}
 
 // Helper: build query that matches either businessId or subdoc _id
 function buildBusinessLookupQuery(identifier) {
@@ -181,6 +192,27 @@ router.get("/by-business/:businessId", requireJwt, async (req, res) => {
   }
 });
 
+// GET /api/business/appeals/:id - Get a specific appeal by ID
+router.get("/:id", requireJwt, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const appeal = await Appeal.findById(id).lean();
+    
+    if (!appeal) {
+      return res.status(404).json({
+        error: { code: "NOT_FOUND", message: "Appeal not found" },
+      });
+    }
+    
+    return res.json({ data: appeal });
+  } catch (err) {
+    console.error("GET /appeals/:id error:", err);
+    return res.status(500).json({
+      error: { code: "INTERNAL", message: "Failed to fetch appeal" },
+    });
+  }
+});
+
 // POST /api/business/appeals — submit appeal
 router.post("/", requireJwt, async (req, res) => {
   try {
@@ -232,30 +264,28 @@ router.post("/", requireJwt, async (req, res) => {
       appealType === "rejection_appeal" ||
       appealType === "wrong_assessment"
     ) {
-      // Find the business profile to check rejection date and appeal status
-      const profile = await BusinessProfile.findOne(
-        buildBusinessLookupQuery(businessId),
+      // Find the application to check rejection date and appeal status
+      const application = await Application.findOne(
+        buildApplicationLookupQuery(businessId),
       );
-      if (profile) {
-        const business = findBusinessInProfile(profile, businessId);
-        if (business) {
-          // Check if appeal is exhausted (previous appeal was rejected)
-          if (business.appealExhausted) {
-            return res.status(400).json({
-              error: {
-                code: "APPEAL_EXHAUSTED",
-                message:
-                  "You have already used your appeal for this application. No further appeals are allowed.",
-              },
-            });
-          }
+      if (application) {
+        // Check if appeal is exhausted (previous appeal was rejected)
+        if (application.appealExhausted) {
+          return res.status(400).json({
+            error: {
+              code: "APPEAL_EXHAUSTED",
+              message:
+                "You have already used your appeal for this application. No further appeals are allowed.",
+            },
+          });
+        }
 
-          // Check 30-day deadline from rejection date
-          if (
-            business.reviewedAt &&
-            business.applicationStatus === "rejected"
-          ) {
-            const rejectionDate = new Date(business.reviewedAt);
+        // Check 30-day deadline from rejection date
+        if (
+          application.reviewedAt &&
+          application.applicationStatus === "rejected"
+        ) {
+            const rejectionDate = new Date(application.reviewedAt);
             const deadlineDate = new Date(rejectionDate);
             deadlineDate.setDate(deadlineDate.getDate() + APPEAL_DEADLINE_DAYS);
 
@@ -267,7 +297,6 @@ router.post("/", requireJwt, async (req, res) => {
                 },
               });
             }
-          }
         }
       }
     }
@@ -341,18 +370,18 @@ router.post("/", requireJwt, async (req, res) => {
       ...(claimingOfficerId ? { reviewedBy: claimingOfficerId } : {}),
     });
 
-    // Update business profile to mark that an appeal is active and change status to appeal_pending
+    // Update application to mark that an appeal is active and change status to appeal_pending
     try {
-      await BusinessProfile.updateOne(buildBusinessLookupQuery(businessId), {
+      await Application.updateOne(buildApplicationLookupQuery(businessId), {
         $set: {
-          "businesses.$.hasActiveAppeal": true,
-          "businesses.$.appealId": appeal._id.toString(),
-          "businesses.$.applicationStatus": "appeal_pending",
+          hasActiveAppeal: true,
+          appealId: appeal._id.toString(),
+          applicationStatus: "appeal_pending",
         },
       });
     } catch (updateErr) {
       console.error(
-        "Failed to update business profile with appeal flag:",
+        "Failed to update application with appeal flag:",
         updateErr,
       );
     }
@@ -415,42 +444,42 @@ router.put("/:id", requireJwt, async (req, res) => {
         appeal.resolution = resolution || "";
         appeal.resolvedAt = new Date();
 
-        // Update business profile based on appeal outcome
+        // Update application based on appeal outcome
         const businessId = appeal.businessId;
         try {
-          const { profile, businessIndex } = await findProfileForAppeal(appeal);
+          const application = await Application.findOne(
+            buildApplicationLookupQuery(businessId),
+          );
 
-          if (profile && businessIndex !== -1) {
-            const business = profile.businesses[businessIndex];
-            business.hasActiveAppeal = false;
-            business.appealId = "";
+          if (application) {
+            application.hasActiveAppeal = false;
+            application.appealId = "";
 
             if (normalizedStatus === "approved") {
-              business.applicationStatus = "under_review";
-              business.appealExhausted = false;
-              business.rejectionReason = "";
-              business.reviewComments = "";
+              application.applicationStatus = "under_review";
+              application.appealExhausted = false;
+              application.rejectionReason = "";
+              application.reviewComments = "";
               console.log(
                 `[Appeal Approved] Application ${businessId} reset to under_review for re-review`,
               );
             } else {
-              business.appealExhausted = true;
-              business.applicationStatus = "rejected";
+              application.appealExhausted = true;
+              application.applicationStatus = "rejected";
               console.log(
                 `[Appeal Rejected] Application ${businessId} marked as appealExhausted, status set to rejected`,
               );
             }
 
-            profile.markModified("businesses");
-            await profile.save();
+            await application.save();
           } else {
             console.warn(
-              `[Appeal Resolution] No matching business profile found for appeal businessId=${businessId}`,
+              `[Appeal Resolution] No matching application found for appeal businessId=${businessId}`,
             );
           }
         } catch (updateErr) {
           console.error(
-            "Failed to synchronize business profile after appeal resolution:",
+            "Failed to synchronize application after appeal resolution:",
             updateErr,
           );
         }
@@ -493,7 +522,7 @@ router.put("/:id", requireJwt, async (req, res) => {
 router.put(
   "/:id/claim",
   requireJwt,
-  requireRole(["lgu_officer", "staff", "lgu_manager", "admin"]),
+  requireRole(["lgu_officer", "staff", "admin"]),
   async (req, res) => {
     try {
       const appeal = await Appeal.findById(req.params.id);
@@ -547,7 +576,7 @@ router.put(
 router.put(
   "/:id/release",
   requireJwt,
-  requireRole(["lgu_officer", "staff", "lgu_manager", "admin"]),
+  requireRole(["lgu_officer", "staff", "admin"]),
   async (req, res) => {
     try {
       const appeal = await Appeal.findById(req.params.id);
@@ -559,7 +588,7 @@ router.put(
 
       const userRole = req._userRole;
       const isManagerOrAdmin =
-        userRole === "lgu_manager" || userRole === "admin";
+        userRole === "admin";
       if (
         appeal.reviewedBy &&
         String(appeal.reviewedBy) !== String(req._userId) &&
@@ -600,7 +629,7 @@ router.put(
 router.put(
   "/:id/transfer",
   requireJwt,
-  requireRole(["lgu_officer", "staff", "lgu_manager", "admin"]),
+  requireRole(["lgu_officer", "staff", "admin"]),
   async (req, res) => {
     try {
       const { targetOfficerId } = req.body;
@@ -622,7 +651,7 @@ router.put(
 
       const userRole = req._userRole;
       const isManagerOrAdmin =
-        userRole === "lgu_manager" || userRole === "admin";
+        userRole === "admin";
       if (
         appeal.reviewedBy &&
         String(appeal.reviewedBy) !== String(req._userId) &&

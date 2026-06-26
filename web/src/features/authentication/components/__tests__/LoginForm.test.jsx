@@ -127,7 +127,6 @@ describe('LoginForm', () => {
       prefillAdmin3: vi.fn(),
       prefillUser: vi.fn(),
       prefillLguOfficer: vi.fn(),
-      prefillLguManager: vi.fn(),
       prefillInspector: vi.fn(),
       prefillCso: vi.fn(),
       verificationProps: null,

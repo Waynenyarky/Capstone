@@ -1,43 +1,30 @@
 import React from 'react'
-import { Typography, Card, Space, theme, Button, Alert, Modal, Divider, Grid, App } from 'antd'
+import { Typography, Card, Space, theme, Button, Alert, Modal, Divider, Grid, App, Upload, Input, Drawer, List } from 'antd'
 import {
-  ExclamationCircleOutlined,
   EditOutlined,
-  SendOutlined,
   DeleteOutlined,
-  FileTextOutlined,
+  UploadOutlined,
+  EyeOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons'
-import { getAppealStatusLabel } from '../../services/appealsService'
-import { REJECTION_REASON_OPTIONS } from '@/features/staffs/lgu-officer/constants/rejectionReasons'
-import { isDraftStatus, isRejectedStatus } from '../../utils/statusUtils'
+import { isDraftStatus } from '../../utils/statusUtils'
 import { formatDate } from '../../utils/formatters.js'
 import { getRejectedFieldItems } from '../../utils/pendingApplicationUtils.js'
 import ApplicationProgressTimeline from './pending-application/ApplicationProgressTimeline.jsx'
 import DynamicFaqSection from '@/shared/components/DynamicFaqSection.jsx'
-import AppealModal from './pending-application/AppealModal.jsx'
-import { useAppeal } from '../../hooks/useAppeal.js'
 import PaymentReceiptModal from '../PaymentReceiptModal'
+import MockPaymentModal from '../MockPaymentModal'
 import { getFeeGroupForForm } from '../../services/feeService'
+import { submitAppeal } from '../../services/appealsService'
+import { uploadFile } from '../../services/businessRegistrationService'
+import { resolveIpfsUrl } from '@/lib/ipfsUtils'
+import ApplicationInfoCard from '../ApplicationInfoCard'
 
 const { Text } = Typography
 
-function getStatusLabel(statusLower) {
-  switch (statusLower) {
-    case 'draft': return 'Draft'
-    case 'submitted': return 'Pending Review'
-    case 'under_review': return 'Under Review'
-    case 'needs_revision': return 'Action Required'
-    case 'resubmit': return 'Resubmitted'
-    case 'rejected': return 'Rejected'
-    case 'appeal_pending': return 'Appeal Pending'
-    case 'approved': return 'Approved'
-    default: return statusLower || 'Unknown'
-  }
-}
 
 
-
-export default function PendingApplicationView({ business, onEdit, onSubmit, onDelete, onOpenForm: _onOpenForm, submitting }) {
+export default function PendingApplicationView({ business, onEdit, onSubmit: _onSubmit, onDelete, onOpenForm: _onOpenForm, submitting: _submitting, onRefresh }) {
   const { token } = theme.useToken()
   const { modal } = App.useApp()
   const screens = Grid.useBreakpoint()
@@ -45,23 +32,51 @@ export default function PendingApplicationView({ business, onEdit, onSubmit, onD
   const status = business.applicationStatus || business.permitStatus || 'submitted'
   const statusLower = status.toLowerCase()
   const isDraft = isDraftStatus(status)
-  const isRejected = isRejectedStatus(status)
   const isNeedsRevision = statusLower === 'needs_revision'
   const isResubmitted = statusLower === 'resubmit'
-  const businessId = business?.businessId || business?._id
-
-  const {
-    appealOpen,
-    setAppealOpen,
-    appealSubmitting,
-    latestAppeal,
-    handleSubmitAppeal,
-  } = useAppeal(businessId, isRejected)
+  const isAppealRejected = statusLower === 'appeal_rejected'
 
   const [progressModalOpen, setProgressModalOpen] = React.useState(false)
   const [showReceiptModal, setShowReceiptModal] = React.useState(false)
   const [feeData, setFeeData] = React.useState(null)
   const [receiptData, setReceiptData] = React.useState(null)
+  const [appealModalOpen, setAppealModalOpen] = React.useState(false)
+  const [showAppealPaymentModal, setShowAppealPaymentModal] = React.useState(false)
+  const [appealLetter, setAppealLetter] = React.useState('')
+  const [appealFiles, setAppealFiles] = React.useState([])
+  const [previewModal, setPreviewModal] = React.useState({ open: false, url: null, label: '', type: 'other' })
+  const [submittingAppeal, setSubmittingAppeal] = React.useState(false)
+  const [appealReceiptData, setAppealReceiptData] = React.useState(null)
+  const [showAppealDetailsModal, setShowAppealDetailsModal] = React.useState(false)
+  const [appealDetails, setAppealDetails] = React.useState(null)
+  const [loadingAppealDetails, setLoadingAppealDetails] = React.useState(false)
+  const [showAppRejectionModal, setShowAppRejectionModal] = React.useState(false)
+  const [showAppealRejectionModal, setShowAppealRejectionModal] = React.useState(false)
+  const [showApprovalCommentModal, setShowApprovalCommentModal] = React.useState(false)
+
+  // Fetch appeal details when status is appeal_rejected
+  React.useEffect(() => {
+    if (!business?.appealId || !isAppealRejected) {
+      setAppealDetails(null)
+      return
+    }
+
+    const fetchAppealDetails = async () => {
+      setLoadingAppealDetails(true)
+      try {
+        const { get } = await import('@/lib/http')
+        const appeal = await get(`/api/business/appeals/${business.appealId}`)
+        setAppealDetails(appeal?.data || appeal)
+      } catch (err) {
+        console.error('Failed to fetch appeal details:', err)
+        setAppealDetails(null)
+      } finally {
+        setLoadingAppealDetails(false)
+      }
+    }
+
+    fetchAppealDetails()
+  }, [business?.appealId, isAppealRejected])
   
   // Load fee data for receipt
   React.useEffect(() => {
@@ -102,7 +117,9 @@ export default function PendingApplicationView({ business, onEdit, onSubmit, onD
   
   const sections = formDefinition?.sections || business?.formDefinition?.sections || business?.sections || []
   const rejectedFieldItems = getRejectedFieldItems(business.fieldReviewDecisions, sections)
-  const handleOpenAppeal = () => setAppealOpen(true)
+
+  // Extract rejection reason from business data
+  const rejectionReason = business?.rejectionReason || null
 
   const handleDeleteClick = () => {
     modal.confirm({
@@ -121,7 +138,7 @@ export default function PendingApplicationView({ business, onEdit, onSubmit, onD
     const dateStr = submittedDate.toISOString().split('T')[0].replace(/-/g, '')
     const random = Math.random().toString(36).substring(2, 8).toUpperCase()
     const receiptId = `MOCK-${dateStr}-${random}`
-    
+
     setReceiptData({
       receiptId,
       transactionDate: submittedDate.toLocaleString(),
@@ -133,104 +150,155 @@ export default function PendingApplicationView({ business, onEdit, onSubmit, onD
     setShowReceiptModal(true)
   }
 
+  const handleViewAppealReceipt = () => {
+    // If we have receipt data from the current session, use it
+    if (appealReceiptData) {
+      setReceiptData(appealReceiptData)
+      setShowReceiptModal(true)
+      return
+    }
+
+    // Otherwise, generate a mock receipt from the business data
+    const submittedDate = business.submittedAt ? new Date(business.submittedAt) : new Date()
+    const receiptId = `APPEAL-${business.applicationReferenceNumber || 'N/A'}-${submittedDate.getTime().toString().slice(-6)}`
+    
+    setReceiptData({
+      receiptId,
+      transactionDate: submittedDate.toLocaleString(),
+      transactionName: 'Appeal Processing Fee',
+      fees: [{ label: 'Appeal Processing Fee', amount: 500 }],
+      totalAmount: 500,
+      applicationReferenceNumber: business.applicationReferenceNumber || 'N/A',
+    })
+    setShowReceiptModal(true)
+  }
+
+  const handleContinueToPayment = () => {
+    if (!appealLetter.trim()) {
+      modal.warning({
+        title: 'Appeal Letter Required',
+        content: 'Please write your appeal letter before proceeding to payment.',
+      })
+      return
+    }
+    setShowAppealPaymentModal(true)
+  }
+
+  const handleAppealPaymentSuccess = async (receiptId) => {
+    setSubmittingAppeal(true)
+    try {
+      const businessId = business?.businessId || business?._id
+
+      // Upload files to IPFS first
+      const evidence = []
+      for (const file of appealFiles) {
+        if (file.originFileObj) {
+          try {
+            const uploadResult = await uploadFile(businessId, file.originFileObj, 'appeal_evidence')
+            const cid = uploadResult?.data?.cid || uploadResult?.cid || uploadResult?.url
+            if (cid) {
+              evidence.push(cid)
+            }
+          } catch (uploadErr) {
+            console.error('Failed to upload appeal evidence file:', uploadErr)
+            modal.warning({
+              title: 'Upload Failed',
+              content: `Failed to upload file: ${file.name}. The appeal will be submitted without this file.`,
+            })
+          }
+        } else if (file.url || file.cid) {
+          evidence.push(file.url || file.cid)
+        }
+      }
+
+      await submitAppeal({
+        businessId,
+        appealType: 'rejection_appeal',
+        description: appealLetter,
+        evidence,
+      })
+
+      // Store appeal receipt data
+      setAppealReceiptData({
+        receiptId,
+        transactionDate: new Date().toLocaleString(),
+        transactionName: 'Appeal Processing Fee',
+        fees: [{ label: 'Appeal Processing Fee', amount: 500 }],
+        totalAmount: 500,
+        applicationReferenceNumber: business.applicationReferenceNumber || 'N/A',
+      })
+
+      modal.success({
+        title: 'Appeal Submitted Successfully',
+        content: `Your appeal has been submitted with receipt ID: ${receiptId}. The LGU will review your case and respond within 5-7 business days.`,
+      })
+
+      setAppealLetter('')
+      setAppealFiles([])
+      setAppealModalOpen(false)
+      setShowAppealPaymentModal(false)
+      onRefresh?.()
+    } catch (err) {
+      modal.error({
+        title: 'Failed to Submit Appeal',
+        content: err?.message || 'An error occurred while submitting your appeal. Please try again.',
+      })
+    } finally {
+      setSubmittingAppeal(false)
+    }
+  }
+
+  const handleAppealPaymentFail = () => {
+    modal.error({
+      title: 'Payment Failed',
+      content: 'The payment transaction failed. Please try again or contact support if the issue persists.',
+    })
+    setShowAppealPaymentModal(false)
+  }
+
+  const handleViewAppealDetails = async () => {
+    if (!business?.appealId) {
+      modal.warning({
+        title: 'Appeal Not Found',
+        content: 'No appeal information available.',
+      })
+      return
+    }
+
+    setLoadingAppealDetails(true)
+    try {
+      const { get } = await import('@/lib/http')
+      const appeal = await get(`/api/business/appeals/${business.appealId}`)
+      setAppealDetails(appeal?.data || appeal)
+      setShowAppealDetailsModal(true)
+    } catch (err) {
+      modal.error({
+        title: 'Failed to Load Appeal Details',
+        content: err?.message || 'An error occurred while loading appeal details.',
+      })
+    } finally {
+      setLoadingAppealDetails(false)
+    }
+  }
+
   return (
     <>
     <div style={{ padding: 24 }}>
       {/* Single panel layout */}
       <div style={{ marginBottom: 24 }}>
-        {/* Application Details */}
-        <Card
-          size="small"
-          style={{
-            marginBottom: 24,
-            border: `1px solid ${token.colorBorder}`,
-            borderRadius: token.borderRadiusLG,
-            background: token.colorBgContainer,
-          }}
-          bodyStyle={{ padding: 0, display: 'flex', flexDirection: screens.md ? 'row' : 'column' }}
-        >
-          {/* Left Panel - Icon and Title */}
-          <div style={{ flex: screens.md ? '0 0 40%' : 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-end', padding: screens.md ? '96px 20px 16px' : '96px 24px 16px' }}>
-            <FileTextOutlined style={{ fontSize: 24, color: token.colorTextSecondary, marginBottom: 8 }} />
-            <Typography.Title level={5} style={{ margin: 0 }}>Application Details</Typography.Title>
-            <Text type="secondary" style={{ marginTop: 4, display: 'block' }}>
-              {statusLower === 'submitted' && 'Your application has been submitted and is waiting for assignment to an LGU officer.'}
-              {statusLower === 'under_review' && 'Your application is currently under review by an LGU officer. You\'ll be notified when a decision is made.'}
-              {statusLower === 'needs_revision' && 'Your application requires changes. Please review the feedback below and make the necessary updates.'}
-              {statusLower === 'resubmit' && 'Your application has been resubmitted and is awaiting review.'}
-              {statusLower === 'approved' && 'Congratulations! Your application has been approved.'}
-              {statusLower === 'rejected' && 'Your application was rejected. You may submit an appeal if you believe this was an error.'}
-              {statusLower === 'appeal_pending' && 'Your appeal is under review. You\'ll be notified of the decision.'}
-              {!['submitted', 'under_review', 'needs_revision', 'resubmit', 'approved', 'rejected', 'appeal_pending'].includes(statusLower) && 'View your application status and track its progress.'}
-            </Text>
-          </div>
-
-          {/* Right Panel - Details Grid */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: screens.md ? '24px' : '16px 24px 24px', borderLeft: screens.md ? `1px solid ${token.colorBorderSecondary}` : 'none', borderTop: screens.md ? 'none' : `1px solid ${token.colorBorderSecondary}` }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-              <div>
-                <Text type="secondary" style={{ fontSize: 12 }}>Status</Text>
-                <div>
-                  <Button
-                    type="link"
-                    size="small"
-                    onClick={() => setProgressModalOpen(true)}
-                    style={{ padding: 0, height: 'auto', fontWeight: 600, textDecoration: 'underline' }}
-                  >
-                    <span style={{
-                      color: statusLower === 'approved' ? token.colorSuccess
-                             : statusLower === 'rejected' ? token.colorError
-                             : statusLower === 'appeal_pending' ? token.colorWarning
-                             : statusLower === 'needs_revision' ? token.colorWarning
-                             : token.colorInfo
-                    }}>
-                      {statusLower === 'submitted' ? 'Waiting for Assignment'
-                       : statusLower === 'under_review' ? 'Under Review'
-                       : statusLower === 'needs_revision' ? 'Revision Required'
-                       : statusLower === 'approved' ? 'Approved'
-                       : statusLower === 'rejected' ? 'Rejected'
-                       : statusLower === 'appeal_pending' ? 'Appeal Pending'
-                       : getStatusLabel(statusLower)}
-                    </span>
-                  </Button>
-                </div>
-              </div>
-              <div>
-                <Text type="secondary" style={{ fontSize: 12 }}>Submitted</Text>
-                <div><Text strong>{formatDate(business.submittedAt)}</Text></div>
-              </div>
-              <div>
-                <Text type="secondary" style={{ fontSize: 12 }}>Last Reviewed</Text>
-                <div><Text strong>{business.reviewedAt ? formatDate(business.reviewedAt) : 'Not yet reviewed'}</Text></div>
-              </div>
-              <div>
-                <Text type="secondary" style={{ fontSize: 12 }}>Business Type</Text>
-                <div><Text strong>{business.registrationType === 'temporary' ? 'Temporary' : 'Regular'}</Text></div>
-              </div>
-              <div>
-                <Text type="secondary" style={{ fontSize: 12 }}>Reference Number</Text>
-                <div><Text strong>{business.applicationReferenceNumber || 'Pending'}</Text></div>
-              </div>
-              {!isDraft && (
-                <div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Payment Receipt</Text>
-                  <div>
-                    <Button
-                      type="link"
-                      size="small"
-                      onClick={handleViewReceipt}
-                      style={{ padding: 0, height: 'auto', fontWeight: 600, textDecoration: 'underline' }}
-                    >
-                      <span>
-                        View Receipt
-                      </span>
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </Card>
+        <ApplicationInfoCard
+          business={business}
+          onProgressClick={() => setProgressModalOpen(true)}
+          onViewReceipt={handleViewReceipt}
+          onViewAppealReceipt={handleViewAppealReceipt}
+          onViewAppealDetails={handleViewAppealDetails}
+          onAppealClick={() => setAppealModalOpen(true)}
+          loadingAppealDetails={loadingAppealDetails}
+          appealDetails={appealDetails}
+          onShowAppRejectionModal={() => setShowAppRejectionModal(true)}
+          onShowAppealRejectionModal={() => setShowAppealRejectionModal(true)}
+          onShowApprovalCommentModal={() => setShowApprovalCommentModal(true)}
+        />
 
         <Divider style={{ margin: '24px 0' }} />
 
@@ -239,101 +307,8 @@ export default function PendingApplicationView({ business, onEdit, onSubmit, onD
           <DynamicFaqSection slotId="business-owner-application-faq" hideWrapper hideHeader />
         </div>
 
-          {/* Decision Card - shows for rejected/needs_revision applications */}
-          {(isRejected || isNeedsRevision) && (
-            <Card title="Decision" size="small" style={{ marginBottom: 24 }}>
-              <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                <div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Result</Text>
-                  <div><Text strong>{isRejected 
-                    ? 'This application has been rejected.'
-                    : 'This application requires changes.'}</Text></div>
-                </div>
-                {business.rejectionReason && (
-                  <div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Rejection reason</Text>
-                    <div><Text strong>{REJECTION_REASON_OPTIONS.find(r => r.value === business.rejectionReason)?.label || business.rejectionReason}</Text></div>
-                  </div>
-                )}
-                {business.reviewComments && (
-                  <div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Comments</Text>
-                    <div><Text strong>{business.reviewComments}</Text></div>
-                  </div>
-                )}
-                {business.reviewedAt && (
-                  <div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Decision date</Text>
-                    <div><Text strong>{formatDate(business.reviewedAt)}</Text></div>
-                  </div>
-                )}
-              </Space>
-            </Card>
-          )}
-
-          {/* Appeal Card - shows for rejected applications */}
-          {isRejected && (
-            <Card title="Appeal" size="small" style={{ marginBottom: 24 }}>
-              {business.appealExhausted || latestAppeal?.status === 'rejected' ? (
-                <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                  <div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Status</Text>
-                    <div><Text strong style={{ color: token.colorError }}>Appeal Rejected</Text></div>
-                  </div>
-                  <div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Result</Text>
-                    <div><Text strong>No further appeals are allowed for this application.</Text></div>
-                  </div>
-                  {latestAppeal?.resolution && (
-                    <div>
-                      <Text type="secondary" style={{ fontSize: 12 }}>Resolution</Text>
-                      <div><Text strong>{latestAppeal.resolution}</Text></div>
-                    </div>
-                  )}
-                </Space>
-              ) : latestAppeal ? (
-                <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                  <div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Status</Text>
-                    <div><Text strong style={{ color: token.colorPrimary }}>{getAppealStatusLabel(latestAppeal.status)}</Text></div>
-                  </div>
-                  <div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Type</Text>
-                    <div><Text strong>
-                      {latestAppeal.appealType === 'rejection_appeal' ? 'Appeal Rejection Decision' 
-                        : latestAppeal.appealType === 'wrong_assessment' ? 'Wrong Assessment'
-                        : latestAppeal.appealType || 'Other'}
-                    </Text></div>
-                  </div>
-                  <div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Description</Text>
-                    <div><Text strong>{latestAppeal.description}</Text></div>
-                  </div>
-                  <div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Submitted</Text>
-                    <div><Text strong>{latestAppeal.createdAt ? formatDate(latestAppeal.createdAt) : 'N/A'}</Text></div>
-                  </div>
-                </Space>
-              ) : (
-                <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                  <div>
-                    <Text>You can file an appeal if you believe this decision was made in error.</Text>
-                    <div><Text type="secondary" style={{ fontSize: 12 }}>You have 30 days from the rejection date to file an appeal.</Text></div>
-                  </div>
-                  <Button 
-                    type="primary"
-                    onClick={handleOpenAppeal}
-                    icon={<ExclamationCircleOutlined />}
-                  >
-                    File Appeal
-                  </Button>
-                </Space>
-              )}
-            </Card>
-          )}
-
           {/* Issues Identified Card */}
-          {(isNeedsRevision || isResubmitted || isRejected) && rejectedFieldItems.length > 0 ? (
+          {(isNeedsRevision || isResubmitted) && rejectedFieldItems.length > 0 ? (
             <Card title="Issues Identified" size="small" style={{ marginBottom: 24 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
                 {rejectedFieldItems.map((item) => (
@@ -373,16 +348,6 @@ export default function PendingApplicationView({ business, onEdit, onSubmit, onD
                 Edit Application
               </Button>
             )}
-            {onSubmit && (
-              <Button 
-                type="primary" 
-                icon={<SendOutlined />}
-                onClick={() => onSubmit(business)}
-                loading={submitting}
-              >
-                Submit Application
-              </Button>
-            )}
             {onDelete && (
               <Button 
                 type="text" 
@@ -397,13 +362,6 @@ export default function PendingApplicationView({ business, onEdit, onSubmit, onD
         </Card>
       )}
 
-      <AppealModal
-        open={appealOpen}
-        onCancel={() => setAppealOpen(false)}
-        onSubmit={handleSubmitAppeal}
-        submitting={appealSubmitting}
-      />
-
       <PaymentReceiptModal
         visible={showReceiptModal}
         onClose={() => setShowReceiptModal(false)}
@@ -416,6 +374,204 @@ export default function PendingApplicationView({ business, onEdit, onSubmit, onD
         buttonText="Download Receipt"
       />
 
+      {screens.md ? (
+        <Modal
+          title="Appeal Rejection"
+          open={appealModalOpen}
+          onCancel={() => setAppealModalOpen(false)}
+          footer={null}
+          width={600}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <Typography.Text>
+              Filing an appeal requires a processing fee. You will be prompted to complete payment after submitting your appeal letter and supporting documents. Please provide a detailed explanation of why you believe the rejection was made in error, along with relevant evidence and documentation to support your case.
+            </Typography.Text>
+            <div>
+              <Input.TextArea
+                value={appealLetter}
+                onChange={(e) => setAppealLetter(e.target.value)}
+                placeholder="Write your appeal letter here..."
+                rows={6}
+              />
+            </div>
+            <div>
+              <Upload
+                listType="picture-card"
+                fileList={appealFiles}
+                onChange={({ fileList: fl }) => setAppealFiles(fl)}
+                beforeUpload={() => false}
+                multiple
+                maxCount={5}
+                onPreview={(file) => {
+                  const url = file.originFileObj ? URL.createObjectURL(file.originFileObj) : file.url || file.thumbUrl || null
+                  const lookup = `${url || ''} ${file.name || ''}`.toLowerCase()
+                  let fileType = 'other'
+                  if (lookup.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg|heic|heif)/i)) fileType = 'image'
+                  else if (lookup.match(/\.(pdf)/i)) fileType = 'pdf'
+                  setPreviewModal({ open: true, url, label: file.name, type: fileType })
+                }}
+                style={{ marginTop: 8 }}
+              >
+                {appealFiles.length < 5 && (
+                  <div>
+                    <UploadOutlined />
+                    <div style={{ marginTop: 8 }}>Upload</div>
+                  </div>
+                )}
+              </Upload>
+            </div>
+            <Divider />
+            <List
+              size="small"
+              bordered
+              dataSource={[
+                { label: 'Appeal Processing Fee', amount: 500 }
+              ]}
+              renderItem={(item) => (
+                <List.Item style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Text>{item.label}</Text>
+                  <Text strong>₱{item.amount.toFixed(2)}</Text>
+                </List.Item>
+              )}
+              footer={
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text strong>Total Amount</Text>
+                  <Text strong style={{ color: token.colorPrimary, fontSize: 16 }}>
+                    ₱500.00
+                  </Text>
+                </div>
+              }
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+              <Button type="primary" onClick={handleContinueToPayment} loading={submittingAppeal}>
+                Continue to Payment
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      ) : (
+        <Drawer
+          title="Appeal Rejection"
+          open={appealModalOpen}
+          onClose={() => setAppealModalOpen(false)}
+          placement="right"
+          width="100%"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <Typography.Text>
+              Filing an appeal requires a processing fee. You will be prompted to complete payment after submitting your appeal letter and supporting documents. Please provide a detailed explanation of why you believe the rejection was made in error, along with relevant evidence and documentation to support your case.
+            </Typography.Text>
+            <div>
+              <Input.TextArea
+                value={appealLetter}
+                onChange={(e) => setAppealLetter(e.target.value)}
+                placeholder="Write your appeal letter here..."
+                rows={6}
+              />
+            </div>
+            <div>
+              <Text style={{ display: 'block', fontSize: 13, fontWeight: 500 }}>
+                Supporting Documents <Text type="secondary" style={{ fontSize: 12 }}>(optional)</Text>
+              </Text>
+              <Upload
+                listType="picture-card"
+                fileList={appealFiles}
+                onChange={({ fileList: fl }) => setAppealFiles(fl)}
+                beforeUpload={() => false}
+                multiple
+                maxCount={5}
+                onPreview={(file) => {
+                  const url = file.originFileObj ? URL.createObjectURL(file.originFileObj) : file.url || file.thumbUrl || null
+                  const lookup = `${url || ''} ${file.name || ''}`.toLowerCase()
+                  let fileType = 'other'
+                  if (lookup.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg|heic|heif)/i)) fileType = 'image'
+                  else if (lookup.match(/\.(pdf)/i)) fileType = 'pdf'
+                  setPreviewModal({ open: true, url, label: file.name, type: fileType })
+                }}
+                style={{ marginTop: 0 }}
+              >
+               
+              </Upload>
+            </div>
+            <Divider />
+            <List
+              size="small"
+              bordered
+              dataSource={[
+                { label: 'Appeal Processing Fee', amount: 500 }
+              ]}
+              renderItem={(item) => (
+                <List.Item style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Text>{item.label}</Text>
+                  <Text strong>₱{item.amount.toFixed(2)}</Text>
+                </List.Item>
+              )}
+              footer={
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text strong>Total Amount</Text>
+                  <Text strong style={{ color: token.colorPrimary, fontSize: 16 }}>
+                    ₱500.00
+                  </Text>
+                </div>
+              }
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+              <Button type="primary" onClick={handleContinueToPayment} loading={submittingAppeal}>
+                Continue to Payment
+              </Button>
+            </div>
+          </div>
+        </Drawer>
+      )}
+
+      <Modal
+        title={previewModal.label}
+        open={previewModal.open}
+        onCancel={() => setPreviewModal({ open: false, url: null, label: '', type: 'other' })}
+        width={previewModal.type === 'image' ? 560 : 720}
+        footer={[
+          <Button
+            key="openTab"
+            type="primary"
+            icon={<EyeOutlined />}
+            onClick={() => previewModal.url && window.open(previewModal.url, '_blank')}
+          >
+            Open in new tab
+          </Button>,
+          ...(previewModal.url
+            ? [
+                <Button key="download" icon={<DownloadOutlined />} href={previewModal.url} download>
+                  Download
+                </Button>
+              ]
+            : []),
+        ]}
+      >
+        {previewModal.open && previewModal.url && (
+          <div style={{ minHeight: 200, display: 'flex', justifyContent: 'center', alignItems: 'stretch', overflow: 'auto', flexDirection: 'column', width: '100%' }}>
+            {previewModal.type === 'image' && (
+              <img
+                src={previewModal.url}
+                alt={previewModal.label}
+                style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain' }}
+              />
+            )}
+            {previewModal.type === 'pdf' && (
+              <iframe
+                title={previewModal.label}
+                src={previewModal.url}
+                style={{ width: '100%', height: '70vh', border: `1px solid ${token.colorBorderSecondary}`, borderRadius: token.borderRadius }}
+              />
+            )}
+            {previewModal.type === 'other' && (
+              <div style={{ padding: 24, textAlign: 'center' }}>
+                <Text type="secondary">Preview not available for this file type</Text>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
       <Modal
         title="Application Progress"
         open={progressModalOpen}
@@ -423,15 +579,133 @@ export default function PendingApplicationView({ business, onEdit, onSubmit, onD
         footer={null}
         width={600}
       >
-        
+
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <ApplicationProgressTimeline
             business={business}
             status={status}
             statusLower={statusLower}
-            latestAppeal={latestAppeal}
           />
         </div>
+      </Modal>
+
+      <MockPaymentModal
+        visible={showAppealPaymentModal}
+        onClose={() => setShowAppealPaymentModal(false)}
+        onSuccess={handleAppealPaymentSuccess}
+        onFail={handleAppealPaymentFail}
+        amount={500}
+        transactionName="Appeal Processing Fee"
+        fees={[{ label: 'Appeal Processing Fee', amount: 500 }]}
+      />
+
+      <Modal
+        title="Application Rejection Reason"
+        open={showAppRejectionModal}
+        onCancel={() => setShowAppRejectionModal(false)}
+        footer={null}
+        width={600}
+      >
+        <div style={{ padding: 16 }}>
+          <Text>{rejectionReason || 'No rejection reason provided.'}</Text>
+        </div>
+      </Modal>
+
+      <Modal
+        title="Appeal Rejection Reason"
+        open={showAppealRejectionModal}
+        onCancel={() => setShowAppealRejectionModal(false)}
+        footer={null}
+        width={600}
+      >
+        <div style={{ padding: 16 }}>
+          <Text>{appealDetails?.resolution || 'No appeal rejection reason provided.'}</Text>
+        </div>
+      </Modal>
+
+      <Modal
+        title="Approval Comment"
+        open={showApprovalCommentModal}
+        onCancel={() => setShowApprovalCommentModal(false)}
+        footer={null}
+        width={600}
+      >
+        <div style={{ padding: 16 }}>
+          <Text>{business?.reviewComments || 'No approval comment provided.'}</Text>
+        </div>
+      </Modal>
+
+      <Modal
+        title="Appeal Details"
+        open={showAppealDetailsModal}
+        onCancel={() => setShowAppealDetailsModal(false)}
+        footer={null}
+        width={600}
+      >
+        {appealDetails ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>Submitted On</Text>
+              <div style={{ marginTop: 4 }}>
+                <Text>{formatDate(appealDetails.createdAt)}</Text>
+              </div>
+            </div>
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>Appeal Letter</Text>
+              <div style={{ marginTop: 4, padding: 12, background: token.colorBgLayout, borderRadius: token.borderRadius }}>
+                <Text>{appealDetails.description || 'No description provided.'}</Text>
+              </div>
+            </div>
+            {appealDetails.evidence && appealDetails.evidence.length > 0 && (
+              <div>
+                <Text type="secondary" style={{ fontSize: 12 }}>Supporting Documents</Text>
+                <div style={{ marginTop: 4 }}>
+                  <Upload
+                    listType="picture-card"
+                    fileList={appealDetails.evidence.map((file, index) => {
+                      const rawUrl = typeof file === 'string' ? file : file.url
+                      const fileName = typeof file === 'string' ? `Document ${index + 1}` : file.name || `Document ${index + 1}`
+                      const resolvedUrl = resolveIpfsUrl(rawUrl) || rawUrl || ''
+                      return {
+                        uid: `evidence-${index}`,
+                        name: fileName,
+                        status: 'done',
+                        url: resolvedUrl,
+                      }
+                    })}
+                    onPreview={(file) => {
+                      const url = file.url
+                      const lookup = `${url} ${file.name}`.toLowerCase()
+                      let fileType = 'other'
+                      if (lookup.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg|heic|heif)/i)) {
+                        fileType = 'image'
+                      } else if (lookup.match(/\.(pdf)/i)) {
+                        fileType = 'pdf'
+                      } else {
+                        // IPFS/no-extension URLs default to image (most evidence is images)
+                        fileType = 'image'
+                      }
+                      setPreviewModal({ open: true, url, label: file.name, type: fileType })
+                    }}
+                    showUploadList={{ showRemoveIcon: false }}
+                  />
+                </div>
+              </div>
+            )}
+            {appealDetails.resolution && (
+              <div>
+                <Text type="secondary" style={{ fontSize: 12 }}>Resolution</Text>
+                <div style={{ marginTop: 4, padding: 12, background: token.colorBgLayout, borderRadius: token.borderRadius }}>
+                  <Text>{appealDetails.resolution}</Text>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: 24 }}>
+            <Text type="secondary">No appeal details available.</Text>
+          </div>
+        )}
       </Modal>
     </div>
     </>

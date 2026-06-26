@@ -108,29 +108,26 @@ async function start() {
 
     // Initialize blockchain service and related services
     try {
-      // Skip blockchain initialization for now to debug Atlas connection
-      logger.info("Skipping blockchain initialization temporarily");
-
-      // await blockchainService.initialize();
+      await blockchainService.initialize();
 
       // Initialize additional blockchain services
-      // const accessControlService = require('./lib/accessControlService');
-      // const userRegistryService = require('./lib/userRegistryService');
-      // const documentStorageService = require('./lib/documentStorageService');
+      const accessControlService = require('./lib/accessControlService');
+      const userRegistryService = require('./lib/userRegistryService');
+      const documentStorageService = require('./lib/documentStorageService');
 
-      // await Promise.all([
-      //   accessControlService.initialize().catch(err => {
-      //     logger.warn('AccessControl service initialization failed', { error: err.message });
-      //   }),
-      //   userRegistryService.initialize().catch(err => {
-      //     logger.warn('UserRegistry service initialization failed', { error: err.message });
-      //   }),
-      //   documentStorageService.initialize().catch(err => {
-      //     logger.warn('DocumentStorage service initialization failed', { error: err.message });
-      //   }),
-      // ]);
+      await Promise.all([
+        accessControlService.initialize().catch(err => {
+          logger.warn('AccessControl service initialization failed', { error: err.message });
+        }),
+        userRegistryService.initialize().catch(err => {
+          logger.warn('UserRegistry service initialization failed', { error: err.message });
+        }),
+        documentStorageService.initialize().catch(err => {
+          logger.warn('DocumentStorage service initialization failed', { error: err.message });
+        }),
+      ]);
 
-      logger.info("Blockchain services skipped (temporarily disabled)");
+      logger.info("Blockchain services initialized successfully");
     } catch (error) {
       logger.warn(
         "Blockchain service initialization failed (continuing without blockchain)",

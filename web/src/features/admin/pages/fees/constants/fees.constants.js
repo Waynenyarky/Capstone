@@ -2,6 +2,7 @@ export const FEE_TYPES = [
   { value: 'fee_groups', label: 'Fee Groups' },
   { value: 'fees', label: 'Fee Library' },
   { value: 'penalty_rules', label: 'Penalty Rules' },
+  { value: 'appeal_fees', label: 'Appeal Fees' },
 ]
 
 export const STATUS_OPTIONS = [

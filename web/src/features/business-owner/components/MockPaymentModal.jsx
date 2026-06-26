@@ -1,4 +1,4 @@
-import { Modal, Typography, Button, Space, Divider, List, theme, Alert } from 'antd'
+import { Modal, Typography, Button, Space, List, theme } from 'antd'
 
 const { Title, Text, Paragraph } = Typography
 const { useToken } = theme
@@ -33,13 +33,6 @@ export default function MockPaymentModal({
       width={520}
     >
       <div style={{ padding: '16px 0' }}>
-        <Alert
-          message="Data Authorization"
-          description="By proceeding with payment and submission, you authorize the LGU to use your personal and business information for permit processing and verification."
-          type="info"
-          showIcon
-          style={{ marginBottom: 24 }}
-        />
         <div style={{ marginBottom: 24 }}>
           <List
             size="small"

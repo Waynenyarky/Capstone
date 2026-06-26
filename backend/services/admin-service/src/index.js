@@ -165,7 +165,6 @@ app.get("/api/health", (req, res) => {
 require("./models/Role");
 require("./models/User");
 require("./models/BusinessProfile");
-require("./models/AuditLog");
 require("./models/LGU");
 require("./models/FormGroup");
 require("./models/FormDefinition");
@@ -222,7 +221,7 @@ app.use("/api/admin/cms", cmsAdminRouter);
 app.use("/api/lgu-officer/permit-applications", lguOfficerPermitRouter);
 
 // Staff personal activity endpoint
-const AuditLog = require("./models/AuditLog");
+const axios = require("axios");
 const {
   requireJwt: requireJwtForActivity,
   requireRole: requireRoleForActivity,
@@ -234,7 +233,6 @@ app.get(
   requireRoleForActivity([
     "staff",
     "lgu_officer",
-    "lgu_manager",
     "inspector",
     "admin",
   ]),
@@ -244,18 +242,33 @@ app.get(
       const userId = req.user?._id || req._userId;
       const dateFilter =
         period === "week"
-          ? { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+          ? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
           : period === "month"
-            ? { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
-            : {};
+            ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+            : null;
 
-      const query = { performedBy: userId };
-      if (dateFilter.$gte) query.createdAt = dateFilter;
+      // Query audit-service for logs
+      const auditServiceUrl = process.env.AUDIT_SERVICE_URL || "http://localhost:3004";
+      const headers = { "Content-Type": "application/json" };
+      if (process.env.AUDIT_SERVICE_API_KEY)
+        headers["X-API-Key"] = process.env.AUDIT_SERVICE_API_KEY;
 
-      const auditLogs = await AuditLog.find(query)
-        .sort({ createdAt: -1 })
-        .limit(100)
-        .lean();
+      const params = {
+        userId,
+        limit: 100,
+        sort: "createdAt:-1",
+      };
+
+      if (dateFilter) {
+        params.startDate = dateFilter.toISOString();
+      }
+
+      const response = await axios.get(`${auditServiceUrl}/api/audit/logs`, {
+        headers,
+        params,
+      });
+
+      const auditLogs = response.data.logs || [];
       const approved = auditLogs.filter((l) =>
         (l.eventType || l.action || "").includes("approved"),
       ).length;

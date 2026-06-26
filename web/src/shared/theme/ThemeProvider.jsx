@@ -34,6 +34,14 @@ const themeConfig = {
         colorError: BRAND_COLORS.red,
         colorWarning: BRAND_COLORS.yellow,
         colorBorder: 'rgb(240, 240, 240)',
+        // Ant Design preset colors
+        colorPurple: '#722ed1',
+        colorVolcano: '#fa541c',
+        colorMagenta: '#eb2f96',
+        colorCyan: '#13c2c2',
+        colorGold: '#faad14',
+        colorLime: '#a0d911',
+        colorGeekblue: '#2f54eb',
       },
     },
   },
@@ -49,6 +57,14 @@ const themeConfig = {
         colorBgLayout: '#000000', // Deep black for layout background
         colorTextBase: 'rgba(255, 255, 255, 0.85)', // High readability but not harsh
         colorBorder: '#303030',
+        // Ant Design preset colors (lighter versions for dark theme)
+        colorPurple: '#9254de',
+        colorVolcano: '#ff7a45',
+        colorMagenta: '#f759ab',
+        colorCyan: '#13c2c2',
+        colorGold: '#faad14',
+        colorLime: '#a0d911',
+        colorGeekblue: '#2f54eb',
       },
       components: {
         Layout: {
@@ -79,6 +95,14 @@ const themeConfig = {
         colorBgContainer: '#ffffff',
         borderRadius: 0, // Sharp edges for document feel
         wireframe: true, // clearer borders
+        // Ant Design preset colors
+        colorPurple: '#722ed1',
+        colorVolcano: '#fa541c',
+        colorMagenta: '#eb2f96',
+        colorCyan: '#13c2c2',
+        colorGold: '#faad14',
+        colorLime: '#a0d911',
+        colorGeekblue: '#2f54eb',
       },
       components: {
         Layout: {
@@ -99,6 +123,14 @@ const themeConfig = {
         colorBgContainer: '#ffffff',
         colorLink: '#eb2f96',
         borderRadius: 8, // Softer edges
+        // Ant Design preset colors
+        colorPurple: '#722ed1',
+        colorVolcano: '#fa541c',
+        colorMagenta: '#eb2f96',
+        colorCyan: '#13c2c2',
+        colorGold: '#faad14',
+        colorLime: '#a0d911',
+        colorGeekblue: '#2f54eb',
       },
       components: {
         Layout: {
@@ -118,6 +150,14 @@ const themeConfig = {
         colorBgContainer: '#ffffff',
         colorLink: '#fa541c',
         borderRadius: 6,
+        // Ant Design preset colors
+        colorPurple: '#722ed1',
+        colorVolcano: '#fa541c',
+        colorMagenta: '#eb2f96',
+        colorCyan: '#13c2c2',
+        colorGold: '#faad14',
+        colorLime: '#a0d911',
+        colorGeekblue: '#2f54eb',
       },
       components: {
         Layout: {
@@ -138,6 +178,14 @@ const themeConfig = {
         colorBgContainer: '#ffffff',
         colorLink: '#722ed1',
         borderRadius: 12,
+        // Ant Design preset colors
+        colorPurple: '#722ed1',
+        colorVolcano: '#fa541c',
+        colorMagenta: '#eb2f96',
+        colorCyan: '#13c2c2',
+        colorGold: '#faad14',
+        colorLime: '#a0d911',
+        colorGeekblue: '#2f54eb',
       },
       components: {
         Layout: {

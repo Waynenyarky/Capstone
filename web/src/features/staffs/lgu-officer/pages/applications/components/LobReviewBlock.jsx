@@ -94,28 +94,29 @@ export default function LobReviewBlock({
   return (
     <Space direction="vertical" size={0} style={{ width: '100%' }}>
       {/* Business description - read-only */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
         padding: '12px 0',
-        gap: 16
+        gap: 8
       }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Business description</Text>
           <Text strong>{desc || '—'}</Text>
         </div>
-        {onFieldDecision && (
-          <FieldDecisionControl
-            fieldKey="businessDescriptionText"
-            decision={fieldReviewDecisions["businessDescriptionText"]}
-            onAccept={handleAccept}
-            onReject={handleReject}
-            _token={_token}
-            disabled={reviewLocked}
-            hideRequest={true}
-            isFinalState={isFinalState}
-          />
+        {(onFieldDecision || reviewLocked) && (
+          <div style={{ width: 'auto', alignSelf: 'flex-start' }}>
+            <FieldDecisionControl
+              fieldKey="businessDescriptionText"
+              decision={fieldReviewDecisions["businessDescriptionText"]}
+              onAccept={handleAccept}
+              onReject={handleReject}
+              _token={_token}
+              disabled={reviewLocked}
+              hideRequest={true}
+              isFinalState={isFinalState}
+            />
+          </div>
         )}
       </div>
       <Divider style={{ margin: 0 }} />
@@ -137,12 +138,11 @@ export default function LobReviewBlock({
         <>
           {localActivities.map((row, i) => (
             <div key={i}>
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
                 padding: '12px 0',
-                gap: 16
+                gap: 8
               }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
@@ -180,25 +180,29 @@ export default function LobReviewBlock({
                     />
                   </Space>
                 </div>
-                {onFieldDecision && (
-                  <Space.Compact>
-                    <FieldDecisionControl
-                      fieldKey={`businessActivities.${i}`}
-                      decision={fieldReviewDecisions[`businessActivities.${i}`]}
-                      onAccept={handleAccept}
-                      onReject={handleReject}
-                      _token={_token}
-                      disabled={reviewLocked}
-                      hideRequest={true}
-                      isFinalState={isFinalState}
-                    />
-                    <Button
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={() => removeRow(i)}
-                      disabled={reviewLocked}
-                    />
-                  </Space.Compact>
+                {(onFieldDecision || reviewLocked) && (
+                  <div style={{ width: 'auto', alignSelf: 'flex-start' }}>
+                    <Space.Compact>
+                      <FieldDecisionControl
+                        fieldKey={`businessActivities.${i}`}
+                        decision={fieldReviewDecisions[`businessActivities.${i}`]}
+                        onAccept={handleAccept}
+                        onReject={handleReject}
+                        _token={_token}
+                        disabled={reviewLocked}
+                        hideRequest={true}
+                        isFinalState={isFinalState}
+                      />
+                      {!reviewLocked && (
+                        <Button
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={() => removeRow(i)}
+                          disabled={reviewLocked}
+                        />
+                      )}
+                    </Space.Compact>
+                  </div>
                 )}
               </div>
               {i < localActivities.length - 1 && <Divider style={{ margin: 0 }} />}

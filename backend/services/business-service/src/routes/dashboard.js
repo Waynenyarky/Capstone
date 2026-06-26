@@ -87,7 +87,7 @@ router.get("/owner-stats", requireJwt, async (req, res) => {
 
 /**
  * GET /api/business/dashboard/manager-stats
- * Dashboard stats for LGU manager
+ * Dashboard stats for Admin
  */
 router.get(
   "/manager-stats",

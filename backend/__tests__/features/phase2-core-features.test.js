@@ -233,9 +233,7 @@ describe("Phase 2: Core Features", () => {
   describe("2. Role Helpers", () => {
     it("should identify staff roles correctly", () => {
       expect(isStaffRole("lgu_officer")).toBe(true);
-      expect(isStaffRole("lgu_manager")).toBe(true);
       expect(isStaffRole("inspector")).toBe(true);
-      expect(isStaffRole("cso")).toBe(true);
       expect(isStaffRole("business_owner")).toBe(false);
       expect(isStaffRole("admin")).toBe(false);
     });
@@ -243,10 +241,8 @@ describe("Phase 2: Core Features", () => {
     it("should get all staff roles", () => {
       const roles = getStaffRoles();
       expect(roles).toContain("lgu_officer");
-      expect(roles).toContain("lgu_manager");
       expect(roles).toContain("inspector");
-      expect(roles).toContain("cso");
-      expect(roles.length).toBe(4);
+      expect(roles.length).toBe(2);
     });
 
     it("should identify restricted fields for staff", () => {

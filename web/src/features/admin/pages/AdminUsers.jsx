@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Button, Grid, Typography } from 'antd'
-import { InfoCircleOutlined, ReloadOutlined, TeamOutlined } from '@ant-design/icons'
+import { Grid, Typography } from 'antd'
 import AdminLayout from '../components/AdminLayout'
 import { useAuthSession } from '@/features/authentication'
 import { useAdminUsersPage } from './users/useAdminUsersPage'

@@ -544,10 +544,8 @@ router.get(
   requireJwt,
   requireRole([
     "lgu_officer",
-    "lgu_manager",
     "staff",
     "inspector",
-    "cso",
     "admin",
   ]),
   async (req, res) => {
@@ -1288,7 +1286,7 @@ router.get(
 router.get(
   "/users/search",
   requireJwt,
-  requireRole(["admin", "staff", "lgu_officer", "lgu_manager"]),
+  requireRole(["admin", "staff", "lgu_officer"]),
   async (req, res) => {
     try {
       const { q, role } = req.query;

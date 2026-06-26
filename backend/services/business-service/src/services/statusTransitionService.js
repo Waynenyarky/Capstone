@@ -3,14 +3,14 @@
  * Handles business status transition validation and logging
  */
 
-const BusinessProfile = require("../models/BusinessProfile");
+const Application = require("../models/Application");
 const logger = require("../lib/logger");
 
 class StatusTransitionService {
   /**
    * Validate status transition for a business
    * @param {string} userId - User ID
-   * @param {string} businessId - Business ID
+   * @param {string} businessId - Business ID (applicationId for draft applications)
    * @param {string} newStatus - New status to transition to
    * @param {string} reason - Reason for transition (optional)
    * @param {string} actorId - ID of user making the change
@@ -23,66 +23,63 @@ class StatusTransitionService {
     actorId = null,
   ) {
     try {
-      // Get user's business profile
-      const profile = await BusinessProfile.findOne({ userId });
-      if (!profile) {
-        throw new Error("Business profile not found");
-      }
+      // First try to find in Application collection (draft applications)
+      const application = await Application.findOne({
+        applicationId: businessId,
+        userId,
+      });
 
-      // Find the specific business
-      const business = profile.businesses.find(
-        (b) => b.businessId === businessId || String(b._id) === businessId,
-      );
-      if (!business) {
-        throw new Error(`Business with ID ${businessId} not found`);
-      }
+      if (application) {
+        const currentStatus = application.applicationStatus;
 
-      const currentStatus = business.applicationStatus;
+        // Validate the transition
+        const isValidTransition = this.validateTransition(
+          currentStatus,
+          newStatus,
+        );
+        if (!isValidTransition) {
+          const validTransitions = this.getValidTransitions(currentStatus);
 
-      // Validate the transition
-      const isValidTransition = BusinessProfile.validateStatusTransition(
-        currentStatus,
-        newStatus,
-      );
-      if (!isValidTransition) {
-        const validTransitions =
-          BusinessProfile.getValidTransitions(currentStatus);
+          // Log invalid transition attempt
+          logger.warn("Invalid status transition attempted", {
+            userId,
+            businessId,
+            currentStatus,
+            attemptedStatus: newStatus,
+            validTransitions,
+            actorId,
+            timestamp: new Date().toISOString(),
+          });
 
-        // Log invalid transition attempt
-        logger.warn("Invalid status transition attempted", {
+          throw new Error(
+            `Invalid status transition from "${currentStatus}" to "${newStatus}". ` +
+              `Valid transitions from "${currentStatus}" are: ${validTransitions.join(", ")}`,
+          );
+        }
+
+        // Log successful validation
+        logger.info("Status transition validated", {
           userId,
           businessId,
-          currentStatus,
-          attemptedStatus: newStatus,
-          validTransitions,
+          fromStatus: currentStatus,
+          toStatus: newStatus,
+          reason,
           actorId,
           timestamp: new Date().toISOString(),
         });
 
-        throw new Error(
-          `Invalid status transition from "${currentStatus}" to "${newStatus}". ` +
-            `Valid transitions from "${currentStatus}" are: ${validTransitions.join(", ")}`,
-        );
+        return {
+          valid: true,
+          fromStatus: currentStatus,
+          toStatus: newStatus,
+          businessId,
+          validTransitions: this.getValidTransitions(newStatus),
+        };
       }
 
-      // Log successful validation
-      logger.info("Status transition validated", {
-        userId,
-        businessId,
-        fromStatus: currentStatus,
-        toStatus: newStatus,
-        reason,
-        actorId,
-        timestamp: new Date().toISOString(),
-      });
-
-      return {
-        valid: true,
-        fromStatus: currentStatus,
-        toStatus: newStatus,
-        businessId,
-        validTransitions: BusinessProfile.getValidTransitions(newStatus),
-      };
+      // If not found in Application, it might be an approved Business
+      // For now, throw error - Business status transitions can be added later
+      throw new Error(`Application/Business with ID ${businessId} not found`);
     } catch (error) {
       logger.error("Status transition validation error", {
         error: error.message,
@@ -93,6 +90,53 @@ class StatusTransitionService {
       });
       throw error;
     }
+  }
+
+  /**
+   * Validate if a status transition is valid
+   */
+  static validateTransition(currentStatus, newStatus) {
+    const validTransitions = {
+      draft: ["requirements_viewed", "form_completed", "submitted"],
+      requirements_viewed: ["form_completed", "submitted"],
+      form_completed: ["documents_uploaded", "submitted"],
+      documents_uploaded: ["bir_registered", "submitted"],
+      bir_registered: ["agencies_registered", "submitted"],
+      agencies_registered: ["submitted"],
+      submitted: ["under_review", "rejected"],
+      under_review: ["approved", "rejected", "needs_revision"],
+      needs_revision: ["resubmit", "rejected"],
+      resubmit: ["under_review", "rejected"],
+      rejected: ["appeal_pending"],
+      appeal_pending: ["approved", "rejected"],
+      approved: [], // Terminal state
+    };
+
+    const allowed = validTransitions[currentStatus] || [];
+    return allowed.includes(newStatus);
+  }
+
+  /**
+   * Get valid transitions for a given status
+   */
+  static getValidTransitions(currentStatus) {
+    const validTransitions = {
+      draft: ["requirements_viewed", "form_completed", "submitted"],
+      requirements_viewed: ["form_completed", "submitted"],
+      form_completed: ["documents_uploaded", "submitted"],
+      documents_uploaded: ["bir_registered", "submitted"],
+      bir_registered: ["agencies_registered", "submitted"],
+      agencies_registered: ["submitted"],
+      submitted: ["under_review", "rejected"],
+      under_review: ["approved", "rejected", "needs_revision"],
+      needs_revision: ["resubmit", "rejected"],
+      resubmit: ["under_review", "rejected"],
+      rejected: ["appeal_pending"],
+      appeal_pending: ["approved", "rejected"],
+      approved: [],
+    };
+
+    return validTransitions[currentStatus] || [];
   }
 
   /**

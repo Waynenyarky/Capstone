@@ -6,7 +6,7 @@ import UserDetailPanel from './UserDetailPanel.jsx'
 
 const PAGE_SIZE = 20
 
-const STAFF_ROLES = ['lgu_officer', 'lgu_manager', 'inspector', 'cso']
+const STAFF_ROLES = ['lgu_officer', 'inspector']
 const ADMIN_ROLE = 'admin'
 
 const ROLE_OPTIONS = [
@@ -100,9 +100,7 @@ export default function UsersTable() {
       business_owner: 'Business Owner',
       user: 'User',
       lgu_officer: 'LGU Officer',
-      lgu_manager: 'LGU Manager',
       inspector: 'LGU Inspector',
-      cso: 'CSO',
     }
     if (map[key]) return map[key]
 

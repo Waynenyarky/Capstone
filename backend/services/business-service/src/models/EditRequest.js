@@ -12,8 +12,14 @@ const FieldChangeSchema = new mongoose.Schema(
 const EditRequestSchema = new mongoose.Schema(
   {
     businessId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Business",
       required: true,
+    },
+    applicationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Application",
+      default: null,
     },
     requestedBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -86,7 +92,7 @@ const EditRequestSchema = new mongoose.Schema(
 const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 EditRequestSchema.plugin(encryptionPlugin, {
   fields: ["reason", "reviewNotes", "comment"],
-  deterministicFields: ["businessId", "fieldName"],
+  deterministicFields: ["fieldName"],
   nestedPaths: [],
   arrayPaths: ["fieldsToChange", "supportingDocuments"],
   mixedPaths: ["currentValue", "requestedValue"],

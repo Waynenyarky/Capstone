@@ -1,4 +1,3 @@
-import React from 'react'
 import { Card, Typography, Space, Button, Skeleton, theme } from 'antd'
 import { useNavigate } from 'react-router-dom'
 
@@ -25,7 +24,9 @@ export default function CompactListCard({
           border: `1px solid ${token.colorBorder}`,
           borderRadius: token.borderRadiusLG,
         }}
-        bodyStyle={{ padding: 16, paddingTop: 96 }}
+        styles={{
+          body: { padding: 16, paddingTop: 96 }
+        }}
       >
         <Skeleton active paragraph={{ rows: 2 }} />
       </Card>
@@ -42,7 +43,9 @@ export default function CompactListCard({
         border: `1px solid ${token.colorBorder}`,
         borderRadius: token.borderRadiusLG,
       }}
-      bodyStyle={{ padding: 16, paddingTop: 96 }}
+      styles={{
+        body: { padding: 16, paddingTop: 96 }
+      }}
     >
       {/* Card Header */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>

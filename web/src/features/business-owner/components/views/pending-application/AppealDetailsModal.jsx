@@ -1,0 +1,83 @@
+import { Modal, Typography } from 'antd'
+import DocumentViewer from './DocumentViewer'
+
+const { Text } = Typography
+
+export default function AppealDetailsModal({ open, onCancel, appealDetails }) {
+  if (!appealDetails) {
+    return (
+      <Modal
+        title="Appeal Details"
+        open={open}
+        onCancel={onCancel}
+        footer={null}
+        width={600}
+      >
+        <div style={{ textAlign: 'center', padding: 24 }}>
+          <Text type="secondary">No appeal details available.</Text>
+        </div>
+      </Modal>
+    )
+  }
+
+  const formatDate = (date) => {
+    if (!date) return 'N/A'
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+  }
+
+  return (
+    <Modal
+      title="Appeal Details"
+      open={open}
+      onCancel={onCancel}
+      footer={null}
+      width={600}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div>
+          <Text type="secondary" style={{ fontSize: 12 }}>Submitted On</Text>
+          <div style={{ marginTop: 4 }}>
+            <Text>{formatDate(appealDetails.createdAt)}</Text>
+          </div>
+        </div>
+        <div>
+          <Text type="secondary" style={{ fontSize: 12 }}>Appeal Letter</Text>
+          <div style={{ marginTop: 4, padding: 12, background: '#f5f5f5', borderRadius: 8 }}>
+            <Text>{appealDetails.description || 'No description provided.'}</Text>
+          </div>
+        </div>
+        {appealDetails.evidence && appealDetails.evidence.length > 0 && (
+          <div>
+            <Text type="secondary" style={{ fontSize: 12 }}>Supporting Documents</Text>
+            <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {appealDetails.evidence.map((file, index) => {
+                const rawUrl = typeof file === 'string' ? file : file.url
+                const fileName = typeof file === 'string' ? `Document ${index + 1}` : file.name || `Document ${index + 1}`
+                return (
+                  <div key={index}>
+                    <Text style={{ fontSize: 13 }}>{fileName}</Text>
+                    <div style={{ marginTop: 2 }}>
+                      <DocumentViewer url={rawUrl} label={fileName} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+        {appealDetails.resolution && (
+          <div>
+            <Text type="secondary" style={{ fontSize: 12 }}>Resolution</Text>
+            <div style={{ marginTop: 4, padding: 12, background: '#f5f5f5', borderRadius: 8 }}>
+              <Text>{appealDetails.resolution}</Text>
+            </div>
+          </div>
+        )}
+      </div>
+    </Modal>
+  )
+}

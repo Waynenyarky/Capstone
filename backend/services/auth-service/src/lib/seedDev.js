@@ -23,7 +23,6 @@ async function seedDevDataIfEmpty() {
     const roles = [
       { name: "Admin", slug: "admin", isStaffRole: false },
       { name: "Business Owner", slug: "business_owner", isStaffRole: false },
-      { name: "LGU Manager", slug: "lgu_manager", isStaffRole: true },
       { name: "LGU Officer", slug: "lgu_officer", isStaffRole: true },
       { name: "LGU Inspector", slug: "inspector", isStaffRole: true },
       { name: "CSO", slug: "cso", isStaffRole: true },
@@ -347,7 +346,6 @@ async function seedDevDataIfEmpty() {
     );
     await ensureUser(
       devEmails.manager,
-      "lgu_manager",
       "Mary",
       "Manager",
       "+1-555-0404",
@@ -373,19 +371,6 @@ async function seedDevDataIfEmpty() {
         isStaff: true,
         office: "BFP",
         overwriteSensitiveFields: true,
-      },
-    );
-    await ensureUser(
-      devEmails.cso,
-      "cso",
-      "Charlie",
-      "Support",
-      "+1-555-0606",
-      {
-        mustChangeCredentials: true,
-        mustSetupMfa: true,
-        isStaff: true,
-        office: "OSBC",
       },
     );
 

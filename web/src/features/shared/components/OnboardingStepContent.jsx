@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Form } from '@/shared/components/AppForm'
-import { Input, Button, Typography, Alert, theme, Steps } from 'antd'
+import { Input, Button, Typography, theme, Steps } from 'antd'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import { CheckCircleOutlined, RocketOutlined, LockOutlined } from '@ant-design/icons'
 import { passwordRules, confirmPasswordRules } from '@/features/authentication/utils/validations/changePasswordRules.js'

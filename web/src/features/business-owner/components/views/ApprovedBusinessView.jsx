@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { Card, Tag, Button, theme, Descriptions, Alert, Space, Collapse } from 'antd'
 import {
-  SafetyCertificateOutlined, DollarOutlined, FileTextOutlined, StopOutlined, EditOutlined, FileDoneOutlined,
+  SafetyCertificateOutlined, DollarOutlined, FileTextOutlined, EditOutlined, FileDoneOutlined,
   SolutionOutlined, InfoCircleOutlined,
 } from '@ant-design/icons'
 import { getEditRequests } from '../../services/editRequestsService'
@@ -11,7 +11,6 @@ import ApplicationFormTab from './approved-business/ApplicationFormTab.jsx'
 import PaymentsTab from './approved-business/PaymentsTab.jsx'
 import ComplianceTab from './approved-business/ComplianceTab.jsx'
 import PostRequirementsTab from './approved-business/PostRequirementsTab.jsx'
-import RetirementModal from './approved-business/RetirementModal.jsx'
 import EditRequestDrawer from './approved-business/EditRequestDrawer.jsx'
 import AppealDrawer from './approved-business/AppealDrawer.jsx'
 import ProgressStepper from './approved-business/ProgressStepper.jsx'
@@ -23,7 +22,6 @@ function PermitsTab({ _businessId, _businessName, _onPermitDownloaded }) {
 
 export default function ApprovedBusinessView({ business, onRefresh }) {
   const { token } = theme.useToken()
-  const [retireOpen, setRetireOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [appealOpen, setAppealOpen] = useState(false)
   const [permitDownloaded, setPermitDownloaded] = useState(false)
@@ -79,10 +77,6 @@ export default function ApprovedBusinessView({ business, onRefresh }) {
   } = usePermitProgress(business, businessId, permitDownloaded)
 
   const hasPendingEditRequest = pendingEditRequests.length > 0
-
-  const retirementStatus = business?.retirementStatus || (business?.businessStatus === 'closed' ? 'confirmed' : '')
-  const retirementPending = retirementStatus === 'requested'
-  const retirementActive = ['requested', 'inspector_verified', 'pending_tax_payment'].includes(retirementStatus)
 
   const collapseItems = [
     {
@@ -199,29 +193,15 @@ export default function ApprovedBusinessView({ business, onRefresh }) {
             )}
             
             {!loading && <ActiveActionCard nextAction={nextAction} token={token} style={{ marginBottom: 16 }} />}
-            
+
             <Space wrap size="small" style={{ paddingTop: 12 }}>
-              {!retirementActive && (
-                <Button
-                  icon={<EditOutlined />}
-                  onClick={() => setEditOpen(true)}
-                  disabled={hasPendingEditRequest || pendingPayments.length > 0}
-                >
-                  {pendingPayments.length > 0 ? 'Clear Payments First' : hasPendingEditRequest ? 'Edit Request Pending' : 'Request Edits'}
-                </Button>
-              )}
-              
-              {!retirementPending && (
-                <Button
-                  icon={<StopOutlined />}
-                  danger
-                  onClick={() => setRetireOpen(true)}
-                  disabled={pendingPayments.length > 0}
-                  title={pendingPayments.length > 0 ? 'Clear all pending payments before retiring' : undefined}
-                >
-                  {pendingPayments.length > 0 ? 'Clear Payments First' : 'Retire Business'}
-                </Button>
-              )}
+              <Button
+                icon={<EditOutlined />}
+                onClick={() => setEditOpen(true)}
+                disabled={hasPendingEditRequest || pendingPayments.length > 0}
+              >
+                {pendingPayments.length > 0 ? 'Clear Payments First' : hasPendingEditRequest ? 'Edit Request Pending' : 'Request Edits'}
+              </Button>
             </Space>
           </Card>
 
@@ -273,12 +253,6 @@ export default function ApprovedBusinessView({ business, onRefresh }) {
         </div>
       </div>
 
-      <RetirementModal
-        open={retireOpen}
-        onClose={() => setRetireOpen(false)}
-        business={business}
-        onSuccess={onRefresh}
-      />
       <EditRequestDrawer
         open={editOpen}
         onClose={() => setEditOpen(false)}

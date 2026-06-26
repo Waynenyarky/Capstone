@@ -80,14 +80,16 @@ export default function FaqSection() {
                 boxShadow: screens.lg && hoveredCard === 'help' ? token.boxShadowCard : 'none',
                 transform: screens.lg && hoveredCard === 'help' ? 'scale(1.02)' : 'scale(1)',
               }}
-              bodyStyle={{
-                padding: screens.lg ? 16 : 12,
-                height: '100%',
-                display: 'flex',
-                paddingTop: screens.lg ? 90 : 48,
-                flexDirection: 'column',
-                justifyContent: 'flex-end',
-                alignItems: 'flex-start',
+              styles={{
+                body: {
+                  padding: screens.lg ? 16 : 12,
+                  height: '100%',
+                  display: 'flex',
+                  paddingTop: screens.lg ? 90 : 48,
+                  flexDirection: 'column',
+                  justifyContent: 'flex-end',
+                  alignItems: 'flex-start',
+                }
               }}
               onMouseEnter={screens.lg ? () => setHoveredCard('help') : undefined}
               onMouseLeave={screens.lg ? () => setHoveredCard(null) : undefined}

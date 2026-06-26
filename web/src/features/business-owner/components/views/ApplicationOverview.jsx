@@ -111,14 +111,16 @@ export default function ApplicationOverview({ visibleSections, sectionCompleteMa
               }}
               onMouseEnter={screens.md && card.isButton ? () => setHoveredCard(card.key) : undefined}
               onMouseLeave={screens.md && card.isButton ? () => setHoveredCard(null) : undefined}
-              bodyStyle={{
-                padding: screens.md ? '16px 20px' : '12px',
-                paddingTop: screens.md ? 90 : 48,
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'flex-end',
-                alignItems: 'flex-start',
+              styles={{
+                body: {
+                  padding: screens.md ? '16px 20px' : '12px',
+                  paddingTop: screens.md ? 90 : 48,
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-end',
+                  alignItems: 'flex-start',
+                }
               }}
               onClick={card.isButton ? card.onClick : undefined}
             >

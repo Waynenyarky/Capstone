@@ -1,16 +1,13 @@
 import { useState, useCallback } from 'react'
 import { App } from 'antd'
-import { PermitApplicationService } from '@/features/lgu-officer/infrastructure/services'
+import { PermitApplicationService } from '@/features/staffs/lgu-officer/infrastructure/services/permitApplicationService'
 import { initiateClearance } from '@/features/business-owner/services/clearanceService'
-import { generatePaymentsForApprovedBusiness, hasPaymentsGenerated } from '@/features/business-owner/services/paymentGenerationService'
-import { COMMENT_OTHER_CODE, COMMENT_OPTIONS, REQUEST_OTHER_CODE, REQUEST_OPTIONS } from '../../../../constants/rejectionReasons'
 
 export function useApplicationHandlers(application, setApplication, onReview, onReviewStarted, initialApplication) {
   const { message } = App.useApp()
   const [reviewing, setReviewing] = useState(false)
   const [startingReview, setStartingReview] = useState(false)
   const [savingLob, setSavingLob] = useState(false)
-  const [retryingPayments, setRetryingPayments] = useState(false)
   const permitService = new PermitApplicationService()
 
   const loadApplicationDetails = useCallback(async () => {
@@ -93,23 +90,6 @@ export function useApplicationHandlers(application, setApplication, onReview, on
     }
   }, [application, permitService, setApplication, message])
 
-  const handleRetryPaymentGeneration = useCallback(async () => {
-    if (!application?.businessId) return
-    setRetryingPayments(true)
-    try {
-      const result = await generatePaymentsForApprovedBusiness(application.businessId, application)
-      if (result.success) {
-        message.success(`Successfully generated ${result.payments.length} payment(s)`)
-      } else {
-        message.error(`Payment generation failed: ${result.errors.join(', ')}`)
-      }
-    } catch (error) {
-      console.error('Failed to retry payment generation:', error)
-      message.error('Failed to retry payment generation')
-    } finally {
-      setRetryingPayments(false)
-    }
-  }, [application, message])
 
   const handleReview = useCallback(async (values, decision, canReview, allFieldKeys, allFieldsReviewed, decidedCount) => {
     if (!decision) {
@@ -123,23 +103,15 @@ export function useApplicationHandlers(application, setApplication, onReview, on
     }
 
     if (decision === 'reject') {
-      if (!values.rejectionReasonCode) {
+      if (!values.rejectionReason?.trim()) {
         message.error('Rejection reason is required when rejecting an application')
-        return
-      }
-      if (values.rejectionReasonCode === 'other' && !values.rejectionReasonOther?.trim()) {
-        message.error('Please specify the reason when selecting "Other"')
         return
       }
     }
 
     if (decision === 'request_changes') {
-      if (!values.requestsCode) {
-        message.error('Requests are required when requesting changes')
-        return
-      }
-      if (values.requestsCode === REQUEST_OTHER_CODE && !values.requestsOther?.trim()) {
-        message.error('Please specify what needs to be corrected')
+      if (!values.requestChanges?.trim()) {
+        message.error('Request details are required when requesting changes')
         return
       }
     }
@@ -149,25 +121,20 @@ export function useApplicationHandlers(application, setApplication, onReview, on
       let reviewComments = ''
       
       if (decision === 'approve') {
-        reviewComments = values.commentsCode === COMMENT_OTHER_CODE 
-          ? values.commentsOther?.trim() || ''
-          : COMMENT_OPTIONS.find(opt => opt.value === values.commentsCode)?.label || ''
+        reviewComments = values.comments?.trim() || ''
       } else if (decision === 'request_changes') {
-        reviewComments = values.requestsCode === REQUEST_OTHER_CODE 
-          ? values.requestsOther?.trim() || ''
-          : REQUEST_OPTIONS.find(opt => opt.value === values.requestsCode)?.label || ''
+        reviewComments = values.requestChanges?.trim() || ''
       }
 
-      const result = await onReview({
+      await onReview({
         applicationId: application.applicationId,
         decision,
         comments: reviewComments,
-        rejectionReason: values.rejectionReasonCode,
-        rejectionReasonOther: values.rejectionReasonOther,
+        rejectionReason: values.rejectionReason?.trim() || '',
         businessId: application.businessId
       })
 
-      // If approved, initiate clearance process and generate payments
+      // If approved, initiate clearance process
       if (decision === 'approve' && application?.businessId) {
         try {
           // Check if clearance already exists before initiating
@@ -183,24 +150,7 @@ export function useApplicationHandlers(application, setApplication, onReview, on
             message.warning('Application approved but clearance initiation failed. Please initiate manually.')
           }
         }
-
-        // Generate payment records for the approved business
-        try {
-          const alreadyGenerated = await hasPaymentsGenerated(application.businessId)
-          if (!alreadyGenerated) {
-            const paymentResult = await generatePaymentsForApprovedBusiness(application.businessId, application)
-            if (paymentResult.success) {
-              message.success(`Application approved — ${paymentResult.payments.length} payment record(s) generated for the business owner.`)
-            } else {
-              message.warning(`Application approved but payment generation failed: ${paymentResult.errors.join(', ')}`)
-            }
-          } else {
-            message.success('Application approved successfully.')
-          }
-        } catch (paymentError) {
-          console.error('Failed to generate payments:', paymentError)
-          message.warning('Application approved but payment generation failed. Please generate payments manually.')
-        }
+        message.success('Application approved successfully.')
       } else {
         message.success('Review submitted successfully')
       }
@@ -216,12 +166,10 @@ export function useApplicationHandlers(application, setApplication, onReview, on
     reviewing,
     startingReview,
     savingLob,
-    retryingPayments,
     loadApplicationDetails,
     handleStartReview,
     handleFieldDecision,
     handleSaveLob,
-    handleRetryPaymentGeneration,
     handleReview,
   }
 }

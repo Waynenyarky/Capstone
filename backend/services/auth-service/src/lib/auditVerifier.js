@@ -1,5 +1,4 @@
 const axios = require("axios");
-const AuditLog = require("../models/AuditLog");
 
 /**
  * Audit Verifier for Auth Service
@@ -52,25 +51,28 @@ class AuditVerifier {
 
   /**
    * Get verification statistics
-   * Returns basic stats from local AuditLog collection
+   * Makes HTTP call to audit service
    * @returns {Promise<{total: number, verified: number, unverified: number, notLogged: number}>}
    */
   async getVerificationStats() {
     try {
-      const [total, verified, notLogged] = await Promise.all([
-        AuditLog.countDocuments(),
-        AuditLog.countDocuments({ verified: true }),
-        AuditLog.countDocuments({ txHash: "" }),
-      ]);
+      const auditServiceUrl =
+        process.env.AUDIT_SERVICE_URL || "http://localhost:3004";
+      const response = await axios.get(
+        `${auditServiceUrl}/api/audit/stats`,
+      );
 
-      const unverified = total - verified - notLogged;
-
-      return {
-        total,
-        verified,
-        unverified,
-        notLogged,
-      };
+      if (response.data && response.data.success) {
+        return response.data.stats;
+      } else {
+        return {
+          total: 0,
+          verified: 0,
+          unverified: 0,
+          notLogged: 0,
+          error: "Failed to get stats",
+        };
+      }
     } catch (error) {
       console.error("Error getting verification stats:", error);
       return {

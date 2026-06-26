@@ -370,7 +370,7 @@ router.post("/", requireJwt, async (req, res) => {
 router.put(
   "/:id",
   requireJwt,
-  requireRole(["lgu_officer", "staff", "lgu_manager", "admin"]),
+  requireRole(["lgu_officer", "staff", "admin"]),
   async (req, res) => {
     try {
       const editRequest = await EditRequest.findById(req.params.id);
@@ -382,7 +382,7 @@ router.put(
 
       const userRole = req._userRole;
       const isManagerOrAdmin =
-        userRole === "lgu_manager" || userRole === "admin";
+        userRole === "admin";
       if (
         editRequest.reviewedBy &&
         String(editRequest.reviewedBy) !== String(req._userId) &&
@@ -486,7 +486,7 @@ router.put(
 router.put(
   "/:id/claim",
   requireJwt,
-  requireRole(["lgu_officer", "staff", "lgu_manager", "admin"]),
+  requireRole(["lgu_officer", "staff", "admin"]),
   async (req, res) => {
     try {
       const editRequest = await EditRequest.findById(req.params.id);
@@ -543,7 +543,7 @@ router.put(
 router.put(
   "/:id/release",
   requireJwt,
-  requireRole(["lgu_officer", "staff", "lgu_manager", "admin"]),
+  requireRole(["lgu_officer", "staff", "admin"]),
   async (req, res) => {
     try {
       const editRequest = await EditRequest.findById(req.params.id);
@@ -555,7 +555,7 @@ router.put(
 
       const userRole = req._userRole;
       const isManagerOrAdmin =
-        userRole === "lgu_manager" || userRole === "admin";
+        userRole === "admin";
       if (
         editRequest.reviewedBy &&
         String(editRequest.reviewedBy) !== String(req._userId) &&
@@ -599,7 +599,7 @@ router.put(
 router.put(
   "/:id/transfer",
   requireJwt,
-  requireRole(["lgu_officer", "staff", "lgu_manager", "admin"]),
+  requireRole(["lgu_officer", "staff", "admin"]),
   async (req, res) => {
     try {
       const { targetOfficerId } = req.body;
@@ -621,7 +621,7 @@ router.put(
 
       const userRole = req._userRole;
       const isManagerOrAdmin =
-        userRole === "lgu_manager" || userRole === "admin";
+        userRole === "admin";
       if (
         editRequest.reviewedBy &&
         String(editRequest.reviewedBy) !== String(req._userId) &&

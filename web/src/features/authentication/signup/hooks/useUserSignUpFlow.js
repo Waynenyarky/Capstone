@@ -57,7 +57,7 @@ export function useUserSignUpFlow() {
       navigate('/admin/dashboard', { replace: true })
       return
     }
-    const staffRoles = ['staff', 'lgu_manager', 'lgu_officer', 'inspector', 'cso']
+    const staffRoles = ['staff', 'lgu_officer', 'inspector']
     if (staffRoles.includes(role)) {
       navigate(withToken?.mustChangeCredentials || withToken?.mustSetupMfa ? '/staff/onboarding' : '/staff', { replace: true })
       return

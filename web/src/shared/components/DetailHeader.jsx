@@ -15,7 +15,7 @@ export default function DetailHeader({
   const { token } = theme.useToken()
 
   return (
-    <div style={{ padding: '16px 20px', borderBottom: `1px solid ${token.colorBorderSecondary}`, background: token.colorBgContainer }}>
+    <div style={{ padding: '16px 16px', borderBottom: `1px solid ${token.colorBorderSecondary}`, background: token.colorBgContainer }}>
       {desktopOnly && screens.md && (
         <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Text strong style={{ fontSize: 16 }}>
@@ -64,26 +64,54 @@ export default function DetailHeader({
             </Form.Item>
           ))}
           {actionButtons.length > 0 && (
-            <Space.Compact style={{ width: screens.md ? 'auto' : '100%' }}>
-              {actionButtons.map((btn, idx) => (
-                <Tooltip key={idx} title={btn.tooltip}>
-                  <Button
-                    type={btn.type || 'default'}
-                    onClick={btn.disabled && btn.onDisabledClick ? btn.onDisabledClick : btn.onClick}
-                    loading={btn.loading}
-                    disabled={btn.disabled && !btn.onDisabledClick}
-                    danger={btn.danger}
-                    icon={btn.icon}
-                    style={{ 
-                      flex: screens.xs ? 1 : 'auto',
-                      color: btn.disabled ? token.colorTextDisabled : undefined,
-                    }}
-                  >
-                    {btn.text}
-                  </Button>
-                </Tooltip>
-              ))}
-            </Space.Compact>
+            <>
+              {actionButtons.map((btn, idx) => {
+                if (btn.fullWidthOnMobile && !screens.md) {
+                  return (
+                    <Tooltip key={idx} title={btn.tooltip}>
+                      <Button
+                        type={btn.type || 'default'}
+                        onClick={btn.disabled && btn.onDisabledClick ? btn.onDisabledClick : btn.onClick}
+                        loading={btn.loading}
+                        disabled={btn.disabled && !btn.onDisabledClick}
+                        danger={btn.danger}
+                        icon={btn.icon}
+                        style={{ 
+                          width: '100%',
+                          color: btn.disabled ? token.colorTextDisabled : undefined,
+                        }}
+                      >
+                        {btn.text}
+                      </Button>
+                    </Tooltip>
+                  )
+                }
+                return null
+              })}
+              <Space.Compact style={{ width: screens.md ? 'auto' : '100%' }}>
+                {actionButtons.map((btn, idx) => {
+                  if (btn.fullWidthOnMobile && !screens.md) return null
+                  return (
+                    <Tooltip key={idx} title={btn.tooltip}>
+                      <Button
+                        type={btn.type || 'default'}
+                        onClick={btn.disabled && btn.onDisabledClick ? btn.onDisabledClick : btn.onClick}
+                        loading={btn.loading}
+                        disabled={btn.disabled && !btn.onDisabledClick}
+                        danger={btn.danger}
+                        icon={btn.icon}
+                        style={{ 
+                          flex: screens.xs ? 1 : 'auto',
+                          color: btn.disabled ? token.colorTextDisabled : undefined,
+                        }}
+                      >
+                        {btn.text}
+                      </Button>
+                    </Tooltip>
+                  )
+                })}
+              </Space.Compact>
+            </>
           )}
         </div>
       </div>

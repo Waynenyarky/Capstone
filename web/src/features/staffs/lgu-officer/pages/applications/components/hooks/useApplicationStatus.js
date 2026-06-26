@@ -2,7 +2,7 @@ export function useApplicationStatus(application, currentUser) {
   const status = application?.status || application?.applicationStatus
   const reviewableStatuses = ['submitted', 'resubmit', 'under_review', 'pending_review', 'appeal_pending']
   const canReview = reviewableStatuses.includes(status)
-  const isFinalDecision = status === 'approved' || status === 'rejected' || status === 'needs_revision'
+  const isFinalDecision = status === 'approved' || status === 'rejected' || status === 'needs_revision' || status === 'appeal_rejected'
   const isWaitingForApplicant = status === 'needs_revision'
   const isDraft = ['draft', 'requirements_viewed', 'form_completed', 'documents_uploaded', 'bir_registered', 'agencies_registered'].includes(status)
 

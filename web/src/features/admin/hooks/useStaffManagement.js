@@ -51,9 +51,7 @@ export const officeGroups = [
 
 export const roleOptions = [
   { value: 'lgu_officer', label: 'LGU Officer' },
-  { value: 'lgu_manager', label: 'LGU Manager' },
   { value: 'inspector', label: 'LGU Inspector' },
-  { value: 'cso', label: 'Customer Support Officer' },
 ]
 
 const defaultOffices = officeGroups.flatMap((group) =>
@@ -79,9 +77,7 @@ export function roleLabel(role, options = roleOptions) {
   if (fromOptions?.label) return fromOptions.label
   const map = {
     lgu_officer: 'LGU Officer',
-    lgu_manager: 'LGU Manager',
     inspector: 'LGU Inspector',
-    cso: 'Customer Support Officer',
   }
   return map[key] || key
 }

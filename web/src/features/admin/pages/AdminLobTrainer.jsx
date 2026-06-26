@@ -3,9 +3,8 @@ import {
   Button, Table, Modal, Form, Input, Select, Space, Tag, Typography,
   Card, Statistic, Row, Col, Popconfirm, Alert, Grid, App, Tooltip,
 } from 'antd'
-import {
-  ExperimentOutlined, PlusOutlined, ReloadOutlined, DeleteOutlined,
-  EditOutlined, ThunderboltOutlined, SearchOutlined, BarChartOutlined,
+import { PlusOutlined, ReloadOutlined, DeleteOutlined,
+  EditOutlined, SearchOutlined, BarChartOutlined,
   LineChartOutlined, BulbOutlined, ApiOutlined, PlayCircleOutlined,
   DownloadOutlined, UploadOutlined,
 } from '@ant-design/icons'

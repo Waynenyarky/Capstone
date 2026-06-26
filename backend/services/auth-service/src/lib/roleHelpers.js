@@ -6,7 +6,7 @@
 /**
  * Staff role slugs (defaults, can be refreshed from DB)
  */
-const DEFAULT_STAFF_ROLES = ["lgu_officer", "lgu_manager", "inspector", "cso"];
+const DEFAULT_STAFF_ROLES = ["lgu_officer", "inspector"];
 let staffRoleCache = [...DEFAULT_STAFF_ROLES];
 
 async function refreshStaffRoleCache() {

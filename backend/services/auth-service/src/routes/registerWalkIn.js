@@ -18,7 +18,7 @@ const router = express.Router();
 router.post(
   "/register-walk-in",
   requireJwt,
-  requireRole(["lgu_officer", "lgu_manager", "admin"]),
+  requireRole(["lgu_officer", "admin"]),
   async (req, res) => {
     try {
       const { firstName, lastName, email, phone } = req.body;

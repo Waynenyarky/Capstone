@@ -18,7 +18,7 @@ function redirectByRole(navigate, user) {
     navigate('/owner')
     return
   }
-  const staffRoles = ['staff', 'lgu_manager', 'lgu_officer', 'inspector', 'cso']
+  const staffRoles = ['staff', 'lgu_officer', 'inspector']
   if (staffRoles.includes(role)) {
     if (user?.mustChangeCredentials || user?.mustSetupMfa) {
       navigate('/staff/onboarding')

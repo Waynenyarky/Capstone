@@ -12,6 +12,7 @@ export default function PendingView({
   onOpenForm,
   onToggleForm,
   onSubmitApplication,
+  onRefresh,
   token,
   isMobile = false
 }) {
@@ -39,6 +40,7 @@ export default function PendingView({
           business={business}
           onEdit={canEditRevision ? onEdit : undefined}
           onOpenForm={isResubmitted ? onOpenForm : undefined}
+          onRefresh={onRefresh}
         />
       </div>
       {isMobile && (

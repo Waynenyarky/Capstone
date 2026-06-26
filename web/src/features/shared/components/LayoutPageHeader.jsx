@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Grid, Space, Typography, Button, Dropdown, Badge, theme } from 'antd'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
@@ -397,41 +397,59 @@ export default function LayoutPageHeader({
                 }
               }}
               loading={refreshing}
-              showRefreshButton={true}
+              showRefreshButton={false}
               showSocketStatus={socketConnected !== undefined}
             />
           )}
-          {infoSlotId && (
-            <Button
-              icon={<InfoCircleOutlined />}
-              onClick={() => setInfoOpen(true)}
-            />
-          )}
-          {currentUser && !hideNotifications && (
-            <Dropdown
-              open={notificationsOpen}
-              onOpenChange={handleNotificationsOpenChange}
-              trigger={['click']}
-              placement="bottomRight"
-              popupRender={() => notificationPanelContent}
-            >
-              <Badge count={unreadCount} size="small" offset={[-2, 2]}>
-                <Button icon={<BellOutlined style={{ fontSize: 18 }} />} aria-label="Notifications" />
-              </Badge>
-            </Dropdown>
-          )}
-          {currentUser && (
-            <Dropdown
-              menu={{ items: profileMenuItems }}
-              trigger={['click']}
-              placement="bottomRight"
-            >
+          <Space.Compact>
+            {!isMobile && onRefresh && (
               <Button
-                icon={<MenuOutlined />}
-                aria-label="Profile menu"
+                icon={<ReloadOutlined />}
+                onClick={async () => {
+                  setRefreshing(true)
+                  try {
+                    await onRefresh()
+                  } finally {
+                    setRefreshing(false)
+                  }
+                }}
+                loading={refreshing}
+                aria-label="Refresh"
               />
-            </Dropdown>
-          )}
+            )}
+            {infoSlotId && (
+              <Button
+                icon={<InfoCircleOutlined />}
+                onClick={() => setInfoOpen(true)}
+                aria-label="Info"
+              />
+            )}
+            {currentUser && !hideNotifications && (
+              <Dropdown
+                open={notificationsOpen}
+                onOpenChange={handleNotificationsOpenChange}
+                trigger={['click']}
+                placement="bottomRight"
+                popupRender={() => notificationPanelContent}
+              >
+                <Badge count={unreadCount} size="small" offset={[-5, 5]} style={{ zIndex: 10 }}>
+                  <Button icon={<BellOutlined style={{ fontSize: 18 }} />} aria-label="Notifications" />
+                </Badge>
+              </Dropdown>
+            )}
+            {currentUser && (
+              <Dropdown
+                menu={{ items: profileMenuItems }}
+                trigger={['click']}
+                placement="bottomRight"
+              >
+                <Button
+                  icon={<MenuOutlined />}
+                  aria-label="Profile menu"
+                />
+              </Dropdown>
+            )}
+          </Space.Compact>
         </Space>
       </div>
       <ConfirmLogoutModal

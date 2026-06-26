@@ -1,4 +1,5 @@
 import { Alert, Typography, Grid } from 'antd'
+import { useNavigate } from 'react-router-dom'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import ApplicationDetailHeader from './ApplicationDetailHeader'
 import FormNavigation from './FormNavigation'
@@ -11,14 +12,10 @@ export default function ApplicationDetailPanelContent({
   startingReview,
   setActiveTab,
   application,
-  isFinalDecision,
   _isWaitingForApplicant,
   _ownerIdentity,
   _businessReg,
   _ownerName,
-  _paymentGenStatus,
-  _handleRetryPaymentGeneration,
-  _retryingPayments,
   _rejectedFields,
   _fieldReviewDecisions,
   _sections,
@@ -45,6 +42,14 @@ export default function ApplicationDetailPanelContent({
 }) {
   const screens = useBreakpoint()
   const isMobile = !screens.lg
+  const navigate = useNavigate()
+
+  const handleGoToBusiness = () => {
+    const businessId = application?.businessId || application?._id
+    if (businessId) {
+      navigate(`/staff/businesses/${businessId}`)
+    }
+  }
 
   return (
     <div className="application-detail-panel-root" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }}>
@@ -96,8 +101,9 @@ export default function ApplicationDetailPanelContent({
           actionButtons={actionButtons}
           isBookmarked={isBookmarked}
           onBookmarkToggle={onBookmarkToggle}
-          isFinalDecision={isFinalDecision}
           hasPendingAction={hasPendingAction}
+          onGoToBusiness={handleGoToBusiness}
+          applicationStatus={application?.status || application?.applicationStatus}
         />
 
         {/* Content */}

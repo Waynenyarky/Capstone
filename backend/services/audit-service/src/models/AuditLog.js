@@ -39,6 +39,19 @@ const AuditLogSchema = new mongoose.Schema(
         "session",
         "recovery",
         "maintenance",
+        "applicationStatus",
+        "businessName",
+        "businessType",
+        "location",
+        "permit",
+        "inspection",
+        "violation",
+        "payment",
+        "appeal",
+        "editRequest",
+        "renewal",
+        "amendment",
+        "closure",
       ],
     },
     oldValue: {
@@ -74,6 +87,17 @@ const AuditLogSchema = new mongoose.Schema(
       type: String,
       required: true,
       // Role of the user who made the change
+    },
+    entityType: {
+      type: String,
+      default: "",
+      // Type of entity affected (e.g., Application, Business, User)
+    },
+    entityId: {
+      type: String,
+      default: "",
+      index: true,
+      // ID of the entity affected
     },
     metadata: {
       type: mongoose.Schema.Types.Mixed,
@@ -161,7 +185,7 @@ AuditLogSchema.plugin(encryptionPlugin, {
   deterministicFields: ["hash"],
   nestedPaths: [],
   arrayPaths: [],
-  mixedPaths: ["metadata"],
+  mixedPaths: [], // Don't encrypt metadata - it needs to be readable for audit display
 });
 
 module.exports =

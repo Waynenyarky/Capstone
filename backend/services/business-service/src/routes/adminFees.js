@@ -1,6 +1,6 @@
 const express = require("express");
 const Fee = require("../models/Fee");
-const AuditLog = require("../models/AuditLog");
+const axios = require("axios");
 const {
   requireJwt,
   requireRole,
@@ -80,15 +80,30 @@ router.get("/:id/audit", requireJwt, requireRole(["admin"]), async (req, res) =>
       entityId: id,
     };
 
-    const [logs, total] = await Promise.all([
-      AuditLog.find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(parseInt(limit))
-        .lean(),
-      AuditLog.countDocuments(filter),
-    ]);
+    // Query audit-service for logs
+    const auditServiceUrl = process.env.AUDIT_SERVICE_URL || "http://localhost:3004";
+    const headers = { "Content-Type": "application/json" };
+    if (process.env.AUDIT_SERVICE_API_KEY)
+      headers["X-API-Key"] = process.env.AUDIT_SERVICE_API_KEY;
 
+    const params = {
+      skip,
+      limit: parseInt(limit),
+      sort: "createdAt:-1",
+    };
+
+    // Handle complex query objects
+    if (filter.eventType && Array.isArray(filter.eventType.$in)) {
+      params.eventType = filter.eventType.$in[0];
+    }
+
+    const response = await axios.get(`${auditServiceUrl}/api/audit/logs`, {
+      headers,
+      params,
+    });
+
+    const logs = response.data.logs || [];
+    const total = response.data.total || 0;
     const totalPages = Math.ceil(total / parseInt(limit));
 
     return res.json({

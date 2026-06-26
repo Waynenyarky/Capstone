@@ -114,7 +114,7 @@ function initializeSocket(httpServer, options = {}) {
       socket.join(`role:${userRole}`);
 
       // Officers and managers also join the staff room
-      if (["lgu_officer", "lgu_manager", "staff", "admin"].includes(userRole)) {
+      if (["lgu_officer", "staff", "admin"].includes(userRole)) {
         socket.join("role:staff");
       }
     }
@@ -137,7 +137,7 @@ function initializeSocket(httpServer, options = {}) {
 
     socket.on("subscribe:applications", () => {
       // Only staff can subscribe to all applications
-      if (["lgu_officer", "lgu_manager", "staff", "admin"].includes(userRole)) {
+      if (["lgu_officer", "staff", "admin"].includes(userRole)) {
         socket.join("applications:all");
         console.log(`[Socket] ${socket.id} subscribed to applications:all`);
       }

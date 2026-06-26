@@ -73,9 +73,11 @@ export default function OfficeLocationSection() {
               boxShadow: screens.lg && hoveredCard === 'map' ? token.boxShadowCard : 'none',
               transform: screens.lg && hoveredCard === 'map' ? 'scale(1.02)' : 'scale(1)',
             }}
-            bodyStyle={{
-              padding: 0,
-              height: '100%',
+            styles={{
+              body: {
+                padding: 0,
+                height: '100%',
+              }
             }}
             onMouseEnter={screens.lg ? () => setHoveredCard('map') : undefined}
             onMouseLeave={screens.lg ? () => setHoveredCard(null) : undefined}
@@ -107,14 +109,16 @@ export default function OfficeLocationSection() {
               boxShadow: screens.lg && hoveredCard === 'address' ? token.boxShadowCard : 'none',
               transform: screens.lg && hoveredCard === 'address' ? 'scale(1.02)' : 'scale(1)',
             }}
-            bodyStyle={{
-              padding: screens.lg ? '16px 20px' : '12px',
-              paddingTop: screens.lg ? 90 : 48,
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'flex-end',
-              alignItems: 'flex-start',
+            styles={{
+              body: {
+                padding: screens.lg ? '16px 20px' : '12px',
+                paddingTop: screens.lg ? 90 : 48,
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+                alignItems: 'flex-start',
+              }
             }}
             onMouseEnter={screens.lg ? () => setHoveredCard('address') : undefined}
             onMouseLeave={screens.lg ? () => setHoveredCard(null) : undefined}
@@ -148,14 +152,16 @@ export default function OfficeLocationSection() {
               boxShadow: screens.lg && hoveredCard === 'contact' ? token.boxShadowCard : 'none',
               transform: screens.lg && hoveredCard === 'contact' ? 'scale(1.02)' : 'scale(1)',
             }}
-            bodyStyle={{
-              padding: screens.lg ? '16px 20px' : '12px',
-              paddingTop: screens.lg ? 90 : 48,
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'flex-end',
-              alignItems: 'flex-start',
+            styles={{
+              body: {
+                padding: screens.lg ? '16px 20px' : '12px',
+                paddingTop: screens.lg ? 90 : 48,
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+                alignItems: 'flex-start',
+              }
             }}
             onMouseEnter={screens.lg ? () => setHoveredCard('contact') : undefined}
             onMouseLeave={screens.lg ? () => setHoveredCard(null) : undefined}
@@ -189,14 +195,16 @@ export default function OfficeLocationSection() {
               boxShadow: screens.lg && hoveredCard === 'hours' ? token.boxShadowCard : 'none',
               transform: screens.lg && hoveredCard === 'hours' ? 'scale(1.02)' : 'scale(1)',
             }}
-            bodyStyle={{
-              padding: screens.lg ? '16px 20px' : '12px',
-              paddingTop: screens.lg ? 90 : 48,
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'flex-end',
-              alignItems: 'flex-start',
+            styles={{
+              body: {
+                padding: screens.lg ? '16px 20px' : '12px',
+                paddingTop: screens.lg ? 90 : 48,
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+                alignItems: 'flex-start',
+              }
             }}
             onMouseEnter={screens.lg ? () => setHoveredCard('hours') : undefined}
             onMouseLeave={screens.lg ? () => setHoveredCard(null) : undefined}

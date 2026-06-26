@@ -1,5 +1,4 @@
 const User = require("../models/User");
-const AuditLog = require("../models/AuditLog");
 const MaintenanceWindow = require("../models/MaintenanceWindow");
 const { addToPasswordHistory } = require("./passwordHistory");
 const { decryptWithHash, encryptWithHash } = require("./secretCipher");

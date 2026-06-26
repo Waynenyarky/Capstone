@@ -105,6 +105,18 @@ export default function AdminFeesMobileView() {
           isMobile={true}
         />
       )}
+      {selectedType === 'appeal_fees' && selectedItem && (
+        <FeeDetailPanel
+          feeId={selectedItemId}
+          fee={selectedItemId === 'new' ? null : selectedItem}
+          onSave={refresh}
+          onDelete={() => {
+            onDelete(selectedItemId)
+            setSelectedItemId(null)
+          }}
+          isMobile={true}
+        />
+      )}
     </>
   ) : null
 
@@ -218,11 +230,13 @@ export default function AdminFeesMobileView() {
                   if (selectedType === 'fee_groups') return 'New Fee Group'
                   if (selectedType === 'fees') return 'New Fee'
                   if (selectedType === 'penalty_rules') return 'New Penalty Rule'
+                  if (selectedType === 'appeal_fees') return 'New Appeal Fee'
                   return 'New'
                 }
                 if (selectedType === 'fee_groups') return 'Fee Group Detail'
                 if (selectedType === 'fees') return 'Fee Detail'
                 if (selectedType === 'penalty_rules') return 'Penalty Rule Detail'
+                if (selectedType === 'appeal_fees') return 'Appeal Fee Detail'
                 return 'Detail'
               })()}
             </span>
@@ -238,7 +252,9 @@ export default function AdminFeesMobileView() {
         }
         placement="right"
         width="100%"
-        bodyStyle={{ padding: 0 }}
+        styles={{
+          body: { padding: 0 }
+        }}
       >
         {rightPanelContent}
       </Drawer>

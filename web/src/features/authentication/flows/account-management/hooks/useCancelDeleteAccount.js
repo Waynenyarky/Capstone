@@ -30,7 +30,7 @@ export function useCancelDeleteAccount({ onSubmit } = {}) {
           const oldRoleStr = String(previousRole?.slug || previousRole || '')
           
           // If new role looks invalid/raw-ID but old one was valid, keep the old one
-          const knownRoles = ['admin', 'business_owner', 'staff', 'lgu_manager', 'lgu_officer', 'inspector', 'cso']
+          const knownRoles = ['admin', 'business_owner', 'staff', 'lgu_officer', 'inspector']
           const isNewValid = knownRoles.includes(newRoleStr.toLowerCase())
           const isOldValid = knownRoles.includes(oldRoleStr.toLowerCase())
           
@@ -52,7 +52,7 @@ export function useCancelDeleteAccount({ onSubmit } = {}) {
       // Explicitly navigate to the correct dashboard based on role
       // This is more reliable than waiting for ProtectedRoute to react
       const roleKey = String(user?.role?.slug || user?.role || '').toLowerCase()
-      const staffRoles = ['staff', 'lgu_manager', 'lgu_officer', 'inspector', 'cso']
+      const staffRoles = ['staff', 'lgu_officer', 'inspector']
       
       let target = '/dashboard'
       if (roleKey === 'admin') target = '/admin/dashboard'

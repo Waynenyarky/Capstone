@@ -1,67 +1,44 @@
-import { Card, Typography, Space, theme } from 'antd'
+import PanelCard from '@/shared/components/PanelCard'
 
-const { Text } = Typography
+export default function ApplicationAuditCard({ audit, selected, onSelect }) {
+  const metadata = audit.metadata || {}
 
-export default function ApplicationAuditCard({ audit, selected, onSelect, token: tokenProp }) {
-  const { token } = theme.useToken()
-  const t = tokenProp ?? token
-
-  // Get officer name from metadata based on event type
-  const getOfficerName = () => {
-    const metadata = audit.metadata || {}
-    if (audit.eventType === 'application_submitted') {
-      return `Submitted by ${metadata.submittedByName || 'Unknown'}`
-    }
-    if (audit.eventType === 'application_rejected') {
-      return `Rejected by ${metadata.rejectedByName || 'Unknown'}`
-    }
-    if (audit.eventType === 'claim') {
-      return `Claimed by ${metadata.claimedByName || 'Unknown'}`
-    }
-    if (audit.eventType === 'release') {
-      return `Released by ${metadata.releasedByName || 'Unknown'}`
-    }
-    if (audit.eventType === 'field_review') {
-      return `Reviewed by ${metadata.reviewedByName || 'Unknown'}`
-    }
-    return 'Unknown'
+  // Get officer/user name
+  const getUserName = () => {
+    return metadata.officerName || metadata.claimedByName || metadata.releasedByName || 
+           metadata.reviewedByName || metadata.submittedByName || metadata.rejectedByName || 
+           metadata.returnedByName || metadata.inspectorName || metadata.registeredByName || 
+           metadata.updatedByName || metadata.deletedByName || 'Unknown'
   }
 
   // Get event type label
   const getEventTypeLabel = () => {
     if (audit.eventType === 'application_submitted') return 'Application Submitted'
     if (audit.eventType === 'application_rejected') return 'Application Rejected'
-    if (audit.eventType === 'claim') return 'Claimed'
-    if (audit.eventType === 'release') return 'Released'
-    if (audit.eventType === 'field_review') return 'Field Reviewed'
+    if (audit.eventType === 'claim' || audit.eventType === 'application_claimed') return 'Application Claimed'
+    if (audit.eventType === 'release' || audit.eventType === 'application_released') return 'Application Released'
+    if (audit.eventType === 'field_review' || audit.eventType === 'field_decisions_updated') return 'Field Decisions Updated'
     if (audit.eventType === 'appeal_submitted') return 'Appeal Submitted'
     if (audit.eventType === 'appeal_resolved') return 'Appeal Resolved'
     if (audit.eventType === 'appeal_rejected') return 'Appeal Rejected'
     if (audit.eventType === 'completed_review') return 'Review Completed'
     if (audit.eventType === 'application_returned') return 'Application Returned'
+    if (audit.eventType === 'pending_action_created') return 'Pending Action Created'
+    if (audit.eventType === 'pending_action_cancelled') return 'Pending Action Cancelled'
     return audit.eventType
   }
 
+  const metaInfo = [
+    { label: 'User', value: getUserName() },
+    { label: 'Timestamp', value: new Date(audit.createdAt).toLocaleString() },
+  ]
+
   return (
-    <Card
-      size="small"
+    <PanelCard
       title={getEventTypeLabel()}
-      hoverable
+      metaInfo={metaInfo}
+      selected={selected}
       onClick={() => onSelect?.(audit)}
-      style={{
-        cursor: 'pointer',
-        border: selected ? `1px solid ${t.colorPrimary}` : undefined,
-        background: selected ? t.colorBgLayout : undefined,
-      }}
-    >
-      <Space direction="vertical" size={4} style={{ width: '100%' }}>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {getOfficerName()}
-        </Text>
-        <Text type="secondary" style={{ fontSize: 11 }}>
-          {new Date(audit.createdAt).toLocaleString()}
-        </Text>
-      </Space>
-    </Card>
+    />
   )
 }

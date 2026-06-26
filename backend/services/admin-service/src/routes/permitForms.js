@@ -7,7 +7,7 @@ const PermitFormsSection = require("../models/PermitFormsSection");
 const PermitTypeFormGroup = require("../models/PermitTypeFormGroup");
 const { createAuditLog } = require("../lib/auditLogger");
 const ipfsService = require("../lib/ipfsService");
-const AuditLog = require("../models/AuditLog");
+const axios = require("axios");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -326,16 +326,24 @@ router.get("/audit", requireJwt, requireRole(["admin"]), async (req, res) => {
     );
     const skip = (page - 1) * limit;
 
-    const filter = { eventType: { $regex: /^permit_forms_/ } };
-    const [logs, total] = await Promise.all([
-      AuditLog.find(filter)
-        .populate("userId", "firstName lastName username")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      AuditLog.countDocuments(filter),
-    ]);
+    // Query audit-service for logs
+    const auditServiceUrl = process.env.AUDIT_SERVICE_URL || "http://localhost:3004";
+    const headers = { "Content-Type": "application/json" };
+    if (process.env.AUDIT_SERVICE_API_KEY)
+      headers["X-API-Key"] = process.env.AUDIT_SERVICE_API_KEY;
+
+    const response = await axios.get(`${auditServiceUrl}/api/audit/logs`, {
+      headers,
+      params: {
+        eventType: JSON.stringify({ $regex: "^permit_forms_" }),
+        skip,
+        limit,
+        sort: "createdAt:-1",
+      },
+    });
+
+    const logs = response.data.logs || [];
+    const total = response.data.total || 0;
 
     return respond.success(res, 200, {
       logs,

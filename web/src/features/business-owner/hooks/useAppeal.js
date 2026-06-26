@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { App } from 'antd'
 import { submitAppeal, getAppeals } from '../services/appealsService'
-import { isRejectedStatus } from '../utils/statusUtils'
 
 export function useAppeal(businessId, isRejected) {
   const { message } = App.useApp()

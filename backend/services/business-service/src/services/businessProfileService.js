@@ -1,6 +1,5 @@
 const BusinessProfile = require("../models/BusinessProfile");
 const User = require("../models/User");
-const AuditLog = require("../models/AuditLog");
 // Register Role model to enable populate('role')
 require("../models/Role");
 const crypto = require("crypto");
@@ -13,6 +12,33 @@ const {
 } = require("../lib/businessValidation");
 const mongoose = require("mongoose");
 const { decrypt, isEncrypted } = require("../../../../shared/lib/fieldCipher");
+
+/**
+ * Helper function to create audit logs via centralized audit-service
+ * Replaces direct AuditLog.create() calls
+ */
+async function createAuditLog(userId, eventType, fieldChanged, oldValue, newValue, metadata = {}) {
+  try {
+    const user = await User.findById(userId).populate("role").lean();
+    const roleSlug = user && user.role && user.role.slug ? user.role.slug : "business_owner";
+
+    await logAuditEvent(
+      eventType,
+      userId,
+      "BusinessProfile",
+      metadata.businessId || metadata.entityId || userId,
+      {
+        ...metadata,
+        role: roleSlug,
+        fieldChanged,
+        oldValue,
+        newValue,
+      },
+    );
+  } catch (err) {
+    console.error(`[createAuditLog] Failed to log ${eventType}:`, err);
+  }
+}
 
 let cachedAuthUserModel;
 let cachedAuthRoleModel;
@@ -225,45 +251,22 @@ class BusinessProfileService {
         : "";
       const newValue = JSON.stringify(data);
 
-      // Use auditLogger helper to ensure hash is calculated
-      const { createAuditLog } = require("../lib/auditLogger");
-      const auditLog = await createAuditLog(
-        userId,
+      // Use centralized audit-service
+      await logAuditEvent(
         "profile_update",
-        stepName,
-        oldValue,
-        newValue,
-        roleSlug,
+        userId,
+        "BusinessProfile",
+        userId,
         {
-          ...metadata,
           step,
+          stepName,
+          oldValue,
+          newValue,
+          role: roleSlug,
           profileType: "business",
+          ...metadata,
         },
       );
-
-      // Log hash to blockchain (non-blocking)
-      if (blockchainService.isAvailable()) {
-        // Use blockchain queue for non-blocking operations
-        const blockchainQueue = require("../lib/blockchainQueue");
-        blockchainQueue
-          .queueBlockchainOperation(
-            "logAuditHash",
-            [auditLog.hash, "profile_update"],
-            String(auditLog._id),
-          )
-          .then((result) => {
-            if (result.success) {
-              auditLog.txHash = result.txHash;
-              auditLog.blockNumber = result.blockNumber;
-              auditLog.save().catch((err) => {
-                console.error("Failed to update audit log with txHash:", err);
-              });
-            }
-          })
-          .catch((err) => {
-            console.error("Error logging to blockchain:", err);
-          });
-      }
     } catch (error) {
       // Don't throw - audit logging failure shouldn't break profile updates
       console.error("Error creating audit log for business profile:", error);
@@ -584,36 +587,13 @@ class BusinessProfileService {
       }
     }
 
-    // Audit log
-    try {
-      const user = await User.findById(userId).populate("role").lean();
-      const roleSlug =
-        user && user.role && user.role.slug ? user.role.slug : "business_owner";
-
-      await AuditLog.create({
-        userId,
-        eventType: "business_added",
-        fieldChanged: "businesses",
-        oldValue: "",
-        newValue: JSON.stringify(newBusiness),
-        role: roleSlug,
-        hash: crypto.randomUUID(),
-        metadata: {
-          businessId,
-          businessName: businessData.businessName,
-          isPrimary,
-        },
-      });
-    } catch (error) {
-      console.error("Error creating audit log for business add:", error);
-    }
-
-    logAuditEvent(
+    // Audit log via centralized audit-service
+    await logAuditEvent(
       "business_registered",
       userId,
       "BusinessProfile",
       profile._id.toString(),
-      { businessId, businessName: businessData.businessName },
+      { businessId, businessName: businessData.businessName, isPrimary },
     );
 
     return { profile, businessId };
@@ -825,6 +805,21 @@ class BusinessProfileService {
       updatedBusiness.submittedAt = new Date();
       updatedBusiness.submittedToLguOfficer = true;
       updatedBusiness.isSubmitted = true;
+
+      // Log audit event for application resubmission
+      await logAuditEvent(
+        "application_submitted",
+        profile.userId,
+        "BusinessProfile",
+        businessId,
+        {
+          businessName: updatedBusiness.businessName,
+          applicationReferenceNumber: updatedBusiness.applicationReferenceNumber,
+          submittedAt: updatedBusiness.submittedAt,
+          isResubmit: true,
+          role: "business_owner",
+        }
+      );
     }
 
     // When transitioning to 'submitted' from draft, set reference number and submittedAt if missing
@@ -844,6 +839,20 @@ class BusinessProfileService {
         const randomSeq = Math.floor(1000 + Math.random() * 9000);
         updatedBusiness.applicationReferenceNumber = `APP-${dateStr}-${randomSeq}`;
       }
+
+      // Log audit event for application submission
+      await logAuditEvent(
+        "application_submitted",
+        profile.userId,
+        "BusinessProfile",
+        businessId,
+        {
+          businessName: updatedBusiness.businessName,
+          applicationReferenceNumber: updatedBusiness.applicationReferenceNumber,
+          submittedAt: updatedBusiness.submittedAt,
+          role: "business_owner",
+        }
+      );
     }
     // Also ensure any submitted application has a reference number (e.g. old records or edge cases)
     if (
@@ -934,27 +943,17 @@ class BusinessProfileService {
     }
 
     // Audit log
-    try {
-      const user = await User.findById(userId).populate("role").lean();
-      const roleSlug =
-        user && user.role && user.role.slug ? user.role.slug : "business_owner";
-
-      await AuditLog.create({
-        userId,
-        eventType: "business_updated",
-        fieldChanged: "businesses",
-        oldValue: JSON.stringify(existingBusiness),
-        newValue: JSON.stringify(updatedBusiness),
-        role: roleSlug,
-        hash: crypto.randomUUID(),
-        metadata: {
-          businessId,
-          businessName: updatedBusiness.businessName,
-        },
-      });
-    } catch (error) {
-      console.error("Error creating audit log for business update:", error);
-    }
+    await createAuditLog(
+      userId,
+      "business_updated",
+      "businesses",
+      JSON.stringify(existingBusiness),
+      JSON.stringify(updatedBusiness),
+      {
+        businessId,
+        businessName: updatedBusiness.businessName,
+      },
+    );
 
     return profile;
   }
@@ -1028,28 +1027,17 @@ class BusinessProfileService {
     if (profile.businesses.length === 0) {
       try {
         // Create audit log before deleting profile
-        const user = await User.findById(userId).populate("role").lean();
-        const roleSlug =
-          user && user.role && user.role.slug
-            ? user.role.slug
-            : "business_owner";
-
-        await AuditLog.create({
+        await logAuditEvent(
+          "profile_deleted",
           userId,
-          eventType: "profile_deleted",
-          fieldChanged: "businessProfile",
-          oldValue: JSON.stringify({
-            profileId: profile._id,
-            lastBusiness: businessToDelete.businessName,
-          }),
-          newValue: "",
-          role: roleSlug,
-          metadata: {
+          "BusinessProfile",
+          profile._id.toString(),
+          {
             profileId: profile._id,
             reason: "No businesses remaining after draft deletion",
             deletedBusinessName: businessToDelete.businessName,
           },
-        });
+        );
 
         // Delete the empty profile
         await BusinessProfile.deleteOne({ _id: profile._id });
@@ -1080,14 +1068,12 @@ class BusinessProfileService {
       const roleSlug =
         user && user.role && user.role.slug ? user.role.slug : "business_owner";
 
-      await AuditLog.create({
+      await logAuditEvent(
+        "business_deleted",
         userId,
-        eventType: "business_deleted",
-        fieldChanged: "businesses",
-        oldValue: JSON.stringify(businessToDelete),
-        newValue: "",
-        role: roleSlug,
-        metadata: {
+        "BusinessProfile",
+        businessId,
+        {
           businessId,
           businessName: businessToDelete.businessName,
           wasPrimary,
@@ -1096,7 +1082,7 @@ class BusinessProfileService {
               ? profile.businesses[0].businessId
               : null,
         },
-      });
+      );
     } catch (error) {
       console.error("Error creating audit log for business delete:", error);
     }
@@ -1143,29 +1129,17 @@ class BusinessProfileService {
     await profile.save();
 
     // Audit log
-    try {
-      const user = await User.findById(userId).populate("role").lean();
-      const roleSlug =
-        user && user.role && user.role.slug ? user.role.slug : "business_owner";
-
-      await AuditLog.create({
-        userId,
-        eventType: "primary_business_changed",
-        fieldChanged: "businesses",
-        oldValue: "",
-        newValue: JSON.stringify(business),
-        role: roleSlug,
-        metadata: {
-          businessId,
-          businessName: business.businessName,
-        },
-      });
-    } catch (error) {
-      console.error(
-        "Error creating audit log for primary business change:",
-        error,
-      );
-    }
+    await createAuditLog(
+      userId,
+      "primary_business_changed",
+      "businesses",
+      "",
+      JSON.stringify(business),
+      {
+        businessId,
+        businessName: business.businessName,
+      },
+    );
 
     return profile;
   }
@@ -1219,27 +1193,18 @@ class BusinessProfileService {
     await profile.save();
 
     // Audit log
-    try {
-      const user = await User.findById(userId).populate("role").lean();
-      const roleSlug =
-        user && user.role && user.role.slug ? user.role.slug : "business_owner";
-
-      await AuditLog.create({
-        userId,
-        eventType: "risk_profile_updated",
-        fieldChanged: "riskProfile",
-        oldValue: JSON.stringify(business.riskProfile),
-        newValue: JSON.stringify(business.riskProfile),
-        role: roleSlug,
-        metadata: {
-          businessId,
-          businessName: business.businessName,
-          riskLevel,
-        },
-      });
-    } catch (error) {
-      console.error("Error creating audit log for risk profile update:", error);
-    }
+    await createAuditLog(
+      userId,
+      "risk_profile_updated",
+      "riskProfile",
+      JSON.stringify(business.riskProfile),
+      JSON.stringify(business.riskProfile),
+      {
+        businessId,
+        businessName: business.businessName,
+        riskLevel,
+      },
+    );
 
     return profile;
   }
@@ -1548,6 +1513,20 @@ class BusinessProfileService {
 
     profile.markModified("businesses");
     await profile.save();
+
+    // Log audit event for application submission
+    await logAuditEvent(
+      "application_submitted",
+      profile.userId,
+      "BusinessProfile",
+      businessId,
+      {
+        businessName: business.businessName,
+        applicationReferenceNumber: referenceNumber,
+        submittedAt: business.submittedAt,
+        role: "business_owner",
+      }
+    );
 
     // Create notifications for LGU Officers when business owner submits documents
     try {
@@ -2738,23 +2717,18 @@ class BusinessProfileService {
     // Audit log
     try {
       const user = await User.findById(userId).populate("role").lean();
-      const roleSlug =
-        user && user.role && user.role.slug ? user.role.slug : "business_owner";
-
-      await AuditLog.create({
+      await logAuditEvent(
+        "renewal_payment_processed",
         userId,
-        eventType: "renewal_payment_processed",
-        fieldChanged: "payment.status",
-        oldValue: "pending",
-        newValue: paymentData.status || "paid",
-        role: roleSlug,
-        metadata: {
+        "BusinessProfile",
+        businessId,
+        {
           businessId,
           renewalId,
           amount: paymentAmount,
           paymentMethod: paymentData.paymentMethod,
         },
-      });
+      );
     } catch (error) {
       console.error("Error creating audit log for renewal payment:", error);
     }
@@ -2863,20 +2837,18 @@ class BusinessProfileService {
       const roleSlug =
         user && user.role && user.role.slug ? user.role.slug : "business_owner";
 
-      await AuditLog.create({
+      await logAuditEvent(
+        "renewal_submitted",
         userId,
-        eventType: "renewal_submitted",
-        fieldChanged: "renewalStatus",
-        oldValue: "draft",
-        newValue: "submitted",
-        role: roleSlug,
-        metadata: {
+        "BusinessProfile",
+        businessId,
+        {
           businessId,
           renewalId,
           renewalYear: renewal.renewalYear,
           referenceNumber,
         },
-      });
+      );
     } catch (error) {
       console.error("Error creating audit log for renewal submission:", error);
     }
@@ -2969,28 +2941,18 @@ class BusinessProfileService {
 
     // Create audit log before deletion
     try {
-      const user = await User.findById(userId).populate("role").lean();
-      const roleSlug =
-        user && user.role && user.role.slug ? user.role.slug : "business_owner";
-
-      await AuditLog.create({
+      await logAuditEvent(
+        "profile_deleted",
         userId,
-        eventType: "profile_deleted",
-        fieldChanged: "businessProfile",
-        oldValue: JSON.stringify({
-          profileId: profile._id,
-          businessCount: profile.businesses.length,
-          businessNames: profile.businesses.map((b) => b.businessName),
-        }),
-        newValue: "",
-        role: roleSlug,
-        metadata: {
+        "BusinessProfile",
+        profile._id.toString(),
+        {
           profileId: profile._id,
           reason: "User initiated profile deletion",
           businessCount: profile.businesses.length,
           ipfsCidsCollected: ipfsCids.length,
         },
-      });
+      );
     } catch (auditError) {
       console.error(
         "Error creating audit log for profile deletion:",

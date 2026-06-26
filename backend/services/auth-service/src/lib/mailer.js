@@ -3,7 +3,7 @@ const logger = require("./logger");
 
 let buildOtpEmailBody, buildNotificationEmailBody, buildInfoBox, buildWarningBox, buildButton, buildEmailHtml, EMAIL_COLORS;
 try {
-  const builder = require("/shared/lib/emailTemplateBuilder");
+  const builder = require("/backend/shared/lib/emailTemplateBuilder");
   buildOtpEmailBody = builder.buildOtpEmailBody;
   buildNotificationEmailBody = builder.buildNotificationEmailBody;
   buildInfoBox = builder.buildInfoBox;

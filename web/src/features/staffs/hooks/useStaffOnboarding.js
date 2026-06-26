@@ -18,7 +18,7 @@ export function useStaffOnboarding(opts = {}) {
   const [submitting, setSubmitting] = useState(false)
 
   const roleKey = String(role?.slug || role || '').toLowerCase()
-  const isStaffRole = ['lgu_officer', 'lgu_manager', 'inspector', 'cso', 'staff'].includes(roleKey)
+  const isStaffRole = ['lgu_officer', 'inspector', 'staff'].includes(roleKey)
   const mustChange = !!currentUser?.mustChangeCredentials
   const mustMfa = !!currentUser?.mustSetupMfa
   const homePath = '/staff'

@@ -27,7 +27,9 @@ export default function DetailCard({
         boxShadow: screens.lg && hovered ? token.boxShadowCard : 'none',
         transform: screens.lg && hovered ? 'scale(1.02)' : 'scale(1)',
       }}
-      bodyStyle={{ padding: 0, display: 'flex', flexDirection: screens.md ? 'row' : 'column' }}
+      styles={{
+        body: { padding: 0, display: 'flex', flexDirection: screens.md ? 'row' : 'column' }
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={onClick}

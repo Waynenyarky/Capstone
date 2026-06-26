@@ -1,5 +1,4 @@
 import { Layout, Button, Typography, Space, Grid, theme } from 'antd'
-import { useState, useEffect } from 'react'
 import AnimatedBrandLogo from '@/shared/components/AnimatedBrandLogo.jsx'
 
 const { Header } = Layout

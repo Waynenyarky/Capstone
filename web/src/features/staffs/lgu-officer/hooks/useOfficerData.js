@@ -16,7 +16,6 @@ const PENDING_APPLICATION_STATUSES = new Set([
 
 const PENDING_APPEAL_STATUSES = new Set(['pending', 'submitted'])
 const PENDING_RENEWAL_STATUSES = new Set(['pending_renewal', 'renewal_submitted'])
-const PENDING_CESSATION_STATUSES = new Set(['requested', 'inspector_verified', 'pending_tax_payment'])
 
 const normalizeEditRequestStatus = (status) => {
   if (!status || status === 'submitted') return 'pending'
@@ -58,19 +57,18 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     renewals: [],
     appeals: [],
     editRequests: [],
-    cessation: [],
     inspections: [],
   })
   const [applications, setApplications] = useState([])
   const [appeals, setAppeals] = useState([])
   const [editRequests, setEditRequests] = useState([])
   const [renewals, setRenewals] = useState([])
-  const [cessations, setCessations] = useState([])
   const [inspections, setInspections] = useState([])
   const [owners, setOwners] = useState([])
   const [drafts, setDrafts] = useState([])
-  const [helpRequests, setHelpRequests] = useState([])
   const [logs, setLogs] = useState([])
+  const [businesses, setBusinesses] = useState([])
+  const [helpRequests, setHelpRequests] = useState([])
 
   // Loading states
   const [loadingMap, setLoadingMap] = useState({})
@@ -97,11 +95,10 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     if (!officerId) return
     setTabLoading('toReview', true)
     try {
-      const [applicationsRes, editRequestsRes, appealsRes, cessationsRes, inspectionsRes] = await Promise.allSettled([
+      const [applicationsRes, editRequestsRes, appealsRes, inspectionsRes] = await Promise.allSettled([
         get(`/api/lgu-officer/permit-applications?reviewedBy=${officerId}&limit=200`, { skipAutoLogout: true }),
         get('/api/business/edit-requests?role=staff&limit=200', { skipAutoLogout: true }),
         get('/api/business/appeals?role=staff&limit=200', { skipAutoLogout: true }),
-        get('/api/business/retirements?role=staff', { skipAutoLogout: true }),
         get('/api/lgu-officer/inspections?limit=200', { skipAutoLogout: true }),
       ])
 
@@ -141,11 +138,7 @@ export default function useOfficerData(activeTab, refreshTrigger) {
         .filter((appeal) => !isClaimedByOfficer(appeal, officerId) && ACTIVE_APPEAL_STATUSES.includes(appeal.status))
         .map((appeal) => ({ ...appeal, _itemType: 'appeals' }))
 
-      const claimedCessations = cessationsRes.status === 'fulfilled'
-        ? ((cessationsRes.value?.data || cessationsRes.value?.retirements || []))
-          .filter((cessation) => isClaimedByOfficer(cessation, officerId))
-          .map((cessation) => ({ ...cessation, _itemType: 'cessation' }))
-        : []
+      const claimedCessations = []
 
       const claimedInspections = inspectionsRes.status === 'fulfilled'
         ? (inspectionsRes.value?.data || inspectionsRes.value?.inspections || [])
@@ -221,7 +214,7 @@ export default function useOfficerData(activeTab, refreshTrigger) {
             businessId: bizId,
             businessName: item.businessName || item.registeredBusinessName || 'Unknown Business',
             _itemType: 'business',
-            _requests: { application: null, editRequests: [], appeals: [], cessation: null, inspections: [] },
+            _requests: { application: null, editRequests: [], appeals: [], inspections: [] },
             createdAt: item.createdAt || item.updatedAt || item.submittedAt || new Date().toISOString(),
           })
         }
@@ -249,9 +242,6 @@ export default function useOfficerData(activeTab, refreshTrigger) {
             break
           case 'appeals':
             group._requests.appeals.push(item)
-            break
-          case 'cessation':
-            group._requests.cessation = item
             break
           case 'inspections':
             group._requests.inspections.push(item)
@@ -377,21 +367,6 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     finally { setTabLoading('renewals', false) }
   }, [])
 
-  const fetchCessations = useCallback(async () => {
-    setTabLoading('cessation', true)
-    try {
-      const res = await get('/api/business/retirements?role=staff', { skipAutoLogout: true })
-      const list = res?.data || res?.retirements || []
-      const pending = list.filter(c => PENDING_CESSATION_STATUSES.has(c.retirementStatus))
-      setCessations(pending)
-      setCounts(prev => ({ ...prev, cessation: pending.length }))
-    } catch {
-      setCessations([])
-      setCounts(prev => ({ ...prev, cessation: 0 }))
-    }
-    finally { setTabLoading('cessation', false) }
-  }, [])
-
   const fetchOwners = useCallback(async (q = '') => {
     setTabLoading('owners', true)
     try {
@@ -436,21 +411,6 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     finally { setTabLoading('inspections', false) }
   }, [])
 
-  const fetchHelpRequests = useCallback(async () => {
-    setTabLoading('helpRequests', true)
-    try {
-      const res = await get('/api/help-requests', { skipAutoLogout: true })
-      const list = res?.data || []
-      const openCount = res?.openCount || 0
-      setHelpRequests(list)
-      setCounts(prev => ({ ...prev, helpRequests: openCount }))
-    } catch {
-      setHelpRequests([])
-      setCounts(prev => ({ ...prev, helpRequests: 0 }))
-    }
-    finally { setTabLoading('helpRequests', false) }
-  }, [])
-
   const fetchLogs = useCallback(async () => {
     setTabLoading('logs', true)
     try {
@@ -462,6 +422,30 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     finally { setTabLoading('logs', false) }
   }, [])
 
+  const fetchBusinesses = useCallback(async () => {
+    setTabLoading('businesses', true)
+    try {
+      const res = await get('/api/lgu-officer/businesses?limit=200', { skipAutoLogout: true })
+      const list = res?.businesses || []
+      setBusinesses(list)
+    } catch {
+      setBusinesses([])
+    }
+    finally { setTabLoading('businesses', false) }
+  }, [])
+
+  const fetchHelpRequests = useCallback(async () => {
+    setTabLoading('helpRequests', true)
+    try {
+      const res = await get('/api/help-requests?limit=200', { skipAutoLogout: true })
+      const list = res?.data || res?.helpRequests || []
+      setHelpRequests(list)
+    } catch {
+      setHelpRequests([])
+    }
+    finally { setTabLoading('helpRequests', false) }
+  }, [])
+
   // Fetch active tab data
   const fetchActiveTabData = useCallback(() => {
     switch (activeTab) {
@@ -470,14 +454,14 @@ export default function useOfficerData(activeTab, refreshTrigger) {
       case 'appeals': return fetchAppeals()
       case 'editRequests': return fetchEditRequests()
       case 'renewals': return fetchRenewals()
-      case 'cessation': return fetchCessations()
       case 'inspections': return fetchInspections()
       case 'owners': return fetchOwners(ownerSearch)
-      case 'helpRequests': return fetchHelpRequests()
       case 'drafts': return fetchDrafts()
       case 'logs': return fetchLogs()
+      case 'businesses': return fetchBusinesses()
+      case 'helpRequests': return fetchHelpRequests()
     }
-  }, [activeTab, fetchToReview, fetchApplications, fetchAppeals, fetchEditRequests, fetchRenewals, fetchCessations, fetchInspections, fetchOwners, fetchHelpRequests, fetchDrafts, fetchLogs, ownerSearch])
+  }, [activeTab, fetchToReview, fetchApplications, fetchAppeals, fetchEditRequests, fetchRenewals, fetchInspections, fetchOwners, fetchDrafts, fetchLogs, fetchBusinesses, fetchHelpRequests, ownerSearch])
 
   // Fetch on tab change
   useEffect(() => {
@@ -491,10 +475,9 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     fetchAppeals()
     fetchEditRequests()
     fetchRenewals()
-    fetchCessations()
     fetchInspections()
-    fetchHelpRequests()
     fetchDrafts()
+    fetchBusinesses()
   }, [currentUser?.id])
 
   // Owner search with debounce
@@ -515,21 +498,21 @@ export default function useOfficerData(activeTab, refreshTrigger) {
 
   // Get current list for active tab
   const getCurrentList = useCallback(() => {
-    const lists = { 
+    const lists = {
       toReview,
-      applications, 
-      appeals, 
-      editRequests, 
-      renewals, 
-      cessation: cessations,
+      applications,
+      appeals,
+      editRequests,
+      renewals,
       inspections,
+      owners,
+      drafts,
+      logs,
+      businesses,
       helpRequests,
-      owners, 
-      drafts, 
-      logs 
     }
     return lists[activeTab] || []
-  }, [activeTab, toReview, applications, appeals, editRequests, renewals, cessations, inspections, owners, drafts, logs])
+  }, [activeTab, toReview, applications, appeals, editRequests, renewals, inspections, owners, drafts, logs, businesses, helpRequests])
 
   // Refresh all application-related tabs (for claim/release/transfer)
   const refreshApplicationTabs = useCallback(() => {
@@ -545,12 +528,12 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     appeals,
     editRequests,
     renewals,
-    cessations,
     inspections,
-    helpRequests,
     owners,
     drafts,
     logs,
+    businesses,
+    helpRequests,
     // Counts
     counts,
     // Loading
@@ -565,7 +548,6 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     refreshToReview: fetchToReview,
     refreshApplicationTabs,
     refreshEditRequests: fetchEditRequests,
-    refreshCessations: fetchCessations,
     refreshInspections: fetchInspections,
     refreshHelpRequests: fetchHelpRequests,
   }

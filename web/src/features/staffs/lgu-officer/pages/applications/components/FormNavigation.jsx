@@ -1,4 +1,4 @@
-import { Typography, Button, Select } from 'antd'
+import { Typography, Button, Select, Form } from 'antd'
 import { CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import { theme } from 'antd'
 
@@ -13,30 +13,32 @@ export default function FormNavigation({ mainNavItems, formNavItems, activeTab, 
   if (isMobile) {
     return (
       <div style={{ padding: 16, borderBottom: `1px solid ${token.colorBorderSecondary}`, flexShrink: 0 }}>
-        <Select
-          value={activeTab}
-          onChange={onTabChange}
-          style={{ width: '100%' }}
-          options={allNavItems.map((item) => {
-            let labelText = ''
-            if (typeof item.label === 'string') {
-              labelText = item.label
-            } else if (item.label?.props?.children) {
-              // Handle JSX labels like <Space><Icon /><span>Text</span></Space>
-              const children = item.label.props.children
-              if (Array.isArray(children)) {
-                // Find the text content (usually the second child after icon)
-                labelText = children.find(c => c?.props?.children)?.props?.children || String(item.key)
-              } else if (children?.props?.children) {
-                labelText = children.props.children
+        <Form.Item label="Section" style={{ marginBottom: 0 }}>
+          <Select
+            value={activeTab}
+            onChange={onTabChange}
+            style={{ width: '100%' }}
+            options={allNavItems.map((item) => {
+              let labelText = ''
+              if (typeof item.label === 'string') {
+                labelText = item.label
+              } else if (item.label?.props?.children) {
+                // Handle JSX labels like <Space><Icon /><span>Text</span></Space>
+                const children = item.label.props.children
+                if (Array.isArray(children)) {
+                  // Find the text content (usually the second child after icon)
+                  labelText = children.find(c => c?.props?.children)?.props?.children || String(item.key)
+                } else if (children?.props?.children) {
+                  labelText = children.props.children
+                }
               }
-            }
-            return {
-              value: item.key,
-              label: labelText || String(item.key),
-            }
-          })}
-        />
+              return {
+                value: item.key,
+                label: labelText || String(item.key),
+              }
+            })}
+          />
+        </Form.Item>
       </div>
     )
   }

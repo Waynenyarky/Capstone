@@ -84,7 +84,6 @@ export default function OverviewTab({ staff = [] }) {
     ).length
     const totalInspectors = list.filter((s) => getRoleSlug(s) === 'inspector').length
     const totalOfficers = list.filter((s) => getRoleSlug(s) === 'lgu_officer').length
-    const totalManagers = list.filter((s) => getRoleSlug(s) === 'lgu_manager').length
     const totalAdmins = (users || []).filter((u) => u?.role === 'admin').length
     return {
       totalActive: active,
@@ -96,7 +95,6 @@ export default function OverviewTab({ staff = [] }) {
       recentlyRegisteredBO,
       totalInspectors,
       totalOfficers,
-      totalManagers,
       totalAdmins,
     }
   }, [staff, businessOwners, users])

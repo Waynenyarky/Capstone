@@ -1,22 +1,32 @@
-import { Typography, Card, Divider, Grid, Button, Modal, List, Drawer } from 'antd'
+import { Typography, Card, Divider, Grid, Button, Modal, List, Tag, Descriptions, theme } from 'antd'
 import { useState, useEffect, useMemo } from 'react'
 import { get } from '@/lib/http'
 import { formatDate } from './utils/formatters'
-import ApplicationProgressTimeline from '@/features/business-owner/components/views/pending-application/ApplicationProgressTimeline.jsx'
-import OwnerInfoReadOnlyView from '../../../components/OwnerInfoReadOnlyView'
+import { getStatusLabel } from '@/shared/utils/statusUtils'
+import PermitTypesModal from '@/shared/components/PermitTypesModal'
+import DocumentPreviewModal from '@/shared/components/DocumentPreviewModal'
+import ApplicationProgressModal from './modals/ApplicationProgressModal'
+import OwnerDetailsModal from './modals/OwnerDetailsModal'
 
 const { Text } = Typography
 const { useBreakpoint } = Grid
 
-export default function ApplicationInfoCard({ application, ownerName, token, ownerIdentity, businessReg, decidedCount, allFieldKeys, fieldReviewDecisions = {}, sections = [] }) {
+export default function ApplicationInfoCard({ application, ownerName, token, ownerIdentity, businessReg, decidedCount, allFieldKeys, fieldReviewDecisions = {}, sections = [], latestAppeal: propLatestAppeal, onShowAppRejectionModal, onShowAppealRejectionModal, onShowAppealLetterModal, onShowApprovalCommentModal }) {
   const screens = useBreakpoint()
+  const { token: themeToken } = theme.useToken()
   const [progressModalOpen, setProgressModalOpen] = useState(false)
   const [ownerModalOpen, setOwnerModalOpen] = useState(false)
   const [changesModalOpen, setChangesModalOpen] = useState(false)
   const [pendingFieldsModalOpen, setPendingFieldsModalOpen] = useState(false)
   const [audits, setAudits] = useState([])
+  const [latestAppeal, setLatestAppeal] = useState(propLatestAppeal || null)
+  const [previewModal, setPreviewModal] = useState({ open: false, url: null, label: '', type: 'other' })
+  const [permitModalOpen, setPermitModalOpen] = useState(false)
 
   const applicationId = application?.applicationId || application?._id || application?.businessId
+  const businessId = application?.businessId || application?.applicationId
+  const isAppealPending = application?.status === 'appeal_pending' || application?.applicationStatus === 'appeal_pending'
+  const isAppealRejected = application?.status === 'appeal_rejected' || application?.applicationStatus === 'appeal_rejected'
 
   useEffect(() => {
     if (!applicationId) return
@@ -42,6 +52,35 @@ export default function ApplicationInfoCard({ application, ownerName, token, own
     fetchAudits()
   }, [applicationId])
 
+  // Fetch appeal data when status is appeal_pending or appeal_rejected
+  useEffect(() => {
+    // If prop is provided, use it instead of fetching
+    if (propLatestAppeal) {
+      setLatestAppeal(propLatestAppeal)
+      return
+    }
+
+    if (!businessId || (!isAppealPending && !isAppealRejected)) {
+      setLatestAppeal(null)
+      return
+    }
+
+    const fetchAppeal = async () => {
+      try {
+        const res = await get(`/api/business/appeals/by-business/${businessId}`)
+        const appeals = res?.data || []
+        // Get the latest appeal (any status for appeal_pending or appeal_rejected applications)
+        const activeAppeal = appeals[0] || null
+        setLatestAppeal(activeAppeal)
+      } catch (err) {
+        console.error('Failed to fetch appeal:', err)
+        setLatestAppeal(null)
+      }
+    }
+
+    fetchAppeal()
+  }, [businessId, isAppealPending, isAppealRejected, propLatestAppeal])
+
   // Extract unique reviewer names from field_review events
   const reviewers = useMemo(() => {
     const reviewerSet = new Set()
@@ -52,6 +91,12 @@ export default function ApplicationInfoCard({ application, ownerName, token, own
     })
     return Array.from(reviewerSet)
   }, [audits])
+
+  // Read rejection reason directly from application object
+  const rejectionReason = application?.rejectionReason || application?.formData?.rejectionReason || null
+
+  // Read approval comment directly from application object
+  const approvalComment = application?.reviewComments || application?.formData?.reviewComments || null
 
   // Helper to get section and field name from fieldKey
   const getFieldDisplayName = (fieldKey) => {
@@ -87,19 +132,28 @@ export default function ApplicationInfoCard({ application, ownerName, token, own
       displayName: getFieldDisplayName(fieldKey)
     }))
 
-  const statusColor = (application?.status === 'approved' || application?.applicationStatus === 'approved') ? token.colorSuccess
-                   : (application?.status === 'rejected' || application?.applicationStatus === 'rejected') ? token.colorError
-                   : (application?.status === 'needs_revision' || application?.applicationStatus === 'needs_revision') ? token.colorWarning
-                   : token.colorInfo
+  const statusLower = (application?.status || application?.applicationStatus)?.toLowerCase() || 'unknown'
+
+  const statusColor = statusLower === 'approved' ? themeToken.colorSuccess
+                   : statusLower === 'rejected' ? themeToken.colorError
+                   : statusLower === 'appeal_pending' ? themeToken.colorPurple
+                   : statusLower === 'appeal_rejected' ? themeToken.colorError
+                   : statusLower === 'needs_revision' ? themeToken.colorVolcano
+                   : statusLower === 'resubmit' ? themeToken.colorCyan
+                   : statusLower === 'suspended' ? themeToken.colorMagenta
+                   : themeToken.colorInfo
 
   const isApproved = application?.status === 'approved' || application?.applicationStatus === 'approved'
 
-  const statusLabel = (application?.status === 'submitted' || application?.applicationStatus === 'submitted') ? 'Waiting for Assignment'
-                   : (application?.status === 'under_review' || application?.applicationStatus === 'under_review') ? 'Under Review'
-                   : (application?.status === 'needs_revision' || application?.applicationStatus === 'needs_revision') ? 'Revision Required'
-                   : (application?.status === 'approved' || application?.applicationStatus === 'approved') ? 'Approved'
-                   : (application?.status === 'rejected' || application?.applicationStatus === 'rejected') ? 'Rejected'
-                   : application?.status || application?.applicationStatus || 'Unknown'
+  const statusLabel = statusLower === 'submitted' ? 'Waiting for Assignment'
+                   : statusLower === 'under_review' ? 'Under Review'
+                   : statusLower === 'needs_revision' ? 'Revision Required'
+                   : statusLower === 'resubmit' ? 'Resubmitted'
+                   : statusLower === 'approved' ? 'Approved'
+                   : statusLower === 'rejected' ? 'Rejected'
+                   : statusLower === 'appeal_pending' ? 'Appeal Pending'
+                   : statusLower === 'appeal_rejected' ? 'Appeal Rejected'
+                   : getStatusLabel(application?.status || application?.applicationStatus)
 
   const businessTypeLabel = application?.businessRegistration?.businessType === 'temporary' ||
                            application?.organizationType === 'temporary' ? 'Temporary' : 'Regular'
@@ -110,8 +164,6 @@ export default function ApplicationInfoCard({ application, ownerName, token, own
       : application?.reviewedBy?.name) ||
     'LGU Officer'
 
-  const statusLower = (application?.status || application?.applicationStatus)?.toLowerCase() || 'unknown'
-
   return (
     <>
     <Card
@@ -121,7 +173,9 @@ export default function ApplicationInfoCard({ application, ownerName, token, own
         borderRadius: 8,
         background: token.colorBgContainer,
       }}
-      bodyStyle={{ padding: 0, display: 'flex', flexDirection: screens.md ? 'row' : 'column' }}
+      styles={{
+        body: { padding: 0, display: 'flex', flexDirection: screens.md ? 'row' : 'column', alignItems: 'stretch' }
+      }}
     >
       {/* Left Panel - Key Information */}
       <div style={{ flex: screens.md ? '0 0 50%' : 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: screens.md ? '20px 16px' : '96px 24px 16px' }}>
@@ -143,10 +197,131 @@ export default function ApplicationInfoCard({ application, ownerName, token, own
             </Button>
           </div>
         </div>
+        {statusLower === 'rejected' && rejectionReason && (
+          <>
+            <Divider style={{ margin: '16px 0' }} />
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>Application Rejection Reason</Text>
+              <div style={{ marginTop: 4 }}>
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={onShowAppRejectionModal}
+                  style={{ padding: 0, height: 'auto', fontWeight: 600, textDecoration: 'underline' }}
+                >
+                  View Details
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+        {statusLower === 'appeal_pending' && (rejectionReason || latestAppeal?.description) && (
+          <>
+            <Divider style={{ margin: '16px 0' }} />
+            {rejectionReason && (
+              <div style={{ marginBottom: 8 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>Application Rejection Reason</Text>
+                <div style={{ marginTop: 4 }}>
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={onShowAppRejectionModal}
+                    style={{ padding: 0, height: 'auto', fontWeight: 600, textDecoration: 'underline' }}
+                  >
+                    View Details
+                  </Button>
+                </div>
+              </div>
+            )}
+            {latestAppeal?.description && (
+              <div>
+                <Text type="secondary" style={{ fontSize: 12 }}>Appeal Letter</Text>
+                <div style={{ marginTop: 4 }}>
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={onShowAppealLetterModal}
+                    style={{ padding: 0, height: 'auto', fontWeight: 600, textDecoration: 'underline' }}
+                  >
+                    View Details
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+        {statusLower === 'appeal_rejected' && (
+          <>
+            <Divider style={{ margin: '16px 0' }} />
+            {rejectionReason && (
+              <div style={{ marginBottom: 8 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>Application Rejection Reason</Text>
+                <div style={{ marginTop: 4 }}>
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={onShowAppRejectionModal}
+                    style={{ padding: 0, height: 'auto', fontWeight: 600, textDecoration: 'underline' }}
+                  >
+                    View Details
+                  </Button>
+                </div>
+              </div>
+            )}
+            {latestAppeal?.resolution && (
+              <div style={{ marginBottom: 8 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>Appeal Rejection Reason</Text>
+                <div style={{ marginTop: 4 }}>
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={onShowAppealRejectionModal}
+                    style={{ padding: 0, height: 'auto', fontWeight: 600, textDecoration: 'underline' }}
+                  >
+                    View Details
+                  </Button>
+                </div>
+              </div>
+            )}
+            {latestAppeal?.description && (
+              <div>
+                <Text type="secondary" style={{ fontSize: 12 }}>Appeal Letter</Text>
+                <div style={{ marginTop: 4 }}>
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={onShowAppealLetterModal}
+                    style={{ padding: 0, height: 'auto', fontWeight: 600, textDecoration: 'underline' }}
+                  >
+                    View Details
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+        {statusLower === 'approved' && approvalComment && (
+          <>
+            <Divider style={{ margin: '16px 0' }} />
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>Approval Comment</Text>
+              <div style={{ marginTop: 4 }}>
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={onShowApprovalCommentModal}
+                  style={{ padding: 0, height: 'auto', fontWeight: 600, textDecoration: 'underline' }}
+                >
+                  View Details
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Right Panel - Details Grid */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: screens.md ? '24px' : '16px 24px 24px', borderLeft: screens.md ? `1px solid ${token.colorBorder}` : 'none', borderTop: screens.md ? 'none' : `1px solid ${token.colorBorder}` }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: screens.md ? '24px' : '16px 24px 24px', borderLeft: screens.md ? `1px solid ${token.colorBorderSecondary}` : 'none', borderTop: screens.md ? 'none' : `1px solid ${token.colorBorderSecondary}` }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
           <div style={{ minWidth: '100px', flex: '1 1 150px' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>Status</Text>
@@ -169,7 +344,16 @@ export default function ApplicationInfoCard({ application, ownerName, token, own
           </div>
           <div style={{ minWidth: '100px', flex: '1 1 150px' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>Business Type</Text>
-            <div><Text strong>{businessTypeLabel}</Text></div>
+            <div>
+              <Button
+                type="link"
+                size="small"
+                onClick={() => setPermitModalOpen(true)}
+                style={{ padding: 0, height: 'auto', fontWeight: 600, textDecoration: 'underline' }}
+              >
+                {businessTypeLabel}
+              </Button>
+            </div>
           </div>
           <div style={{ minWidth: '100px', flex: '1 1 150px' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>Submitted On</Text>
@@ -179,6 +363,12 @@ export default function ApplicationInfoCard({ application, ownerName, token, own
             <Text type="secondary" style={{ fontSize: 12 }}>Last Reviewed</Text>
             <div><Text strong>{application?.reviewedAt ? formatDate(application.reviewedAt) : 'Not yet reviewed'}</Text></div>
           </div>
+          {latestAppeal && (isAppealPending || isAppealRejected) && (
+            <div style={{ minWidth: '100px', flex: '1 1 150px' }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>Appeal Submitted On</Text>
+              <div><Text strong>{latestAppeal.createdAt ? formatDate(latestAppeal.createdAt) : 'Unknown'}</Text></div>
+            </div>
+          )}
           {!isApproved && (
             <div style={{ minWidth: '100px', flex: '1 1 150px' }}>
               <Text type="secondary" style={{ fontSize: 12 }}>Review Progress</Text>
@@ -231,58 +421,32 @@ export default function ApplicationInfoCard({ application, ownerName, token, own
       </div>
     </Card>
 
-    {screens.md ? (
-      <Modal
-        title="Application Progress"
-        open={progressModalOpen}
-        onCancel={() => setProgressModalOpen(false)}
-        footer={null}
-        width={600}
-      >
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <ApplicationProgressTimeline
-            business={application}
-            status={application?.status}
-            statusLower={statusLower}
-            latestAppeal={application?.latestAppeal}
-          />
-        </div>
-      </Modal>
-    ) : (
-      <Drawer
-        title="Application Progress"
-        open={progressModalOpen}
-        onClose={() => setProgressModalOpen(false)}
-        placement="right"
-        width="75%"
-      >
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <ApplicationProgressTimeline
-            business={application}
-            status={application?.status}
-            statusLower={statusLower}
-            latestAppeal={application?.latestAppeal}
-          />
-        </div>
-      </Drawer>
-    )}
+    <ApplicationProgressModal
+      open={progressModalOpen}
+      onClose={() => setProgressModalOpen(false)}
+      application={application}
+      status={application?.status}
+      statusLower={statusLower}
+      latestAppeal={application?.latestAppeal}
+      isMobile={!screens.md}
+    />
 
-    <Modal
-      title="Owner Details"
+    <OwnerDetailsModal
       open={ownerModalOpen}
-      onCancel={() => setOwnerModalOpen(false)}
-      footer={null}
-      width={800}
-    >
-      <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-        <OwnerInfoReadOnlyView
-          application={application}
-          ownerIdentity={ownerIdentity}
-          businessReg={businessReg}
-          ownerName={ownerName}
-        />
-      </div>
-    </Modal>
+      onClose={() => setOwnerModalOpen(false)}
+      application={application}
+      ownerIdentity={ownerIdentity}
+      businessReg={businessReg}
+      ownerName={ownerName}
+    />
+
+    <DocumentPreviewModal
+      open={previewModal.open}
+      onClose={() => setPreviewModal({ open: false, url: null, label: '', type: 'other' })}
+      url={previewModal.url}
+      label={previewModal.label}
+      type={previewModal.type}
+    />
 
     <Modal
       title="Requested Changes"
@@ -309,27 +473,62 @@ export default function ApplicationInfoCard({ application, ownerName, token, own
     </Modal>
 
     <Modal
-      title="Pending Review Fields"
+      title={`Pending Review Fields (${pendingFields.length})`}
       open={pendingFieldsModalOpen}
       onCancel={() => setPendingFieldsModalOpen(false)}
       footer={null}
       width={600}
     >
       {pendingFields.length > 0 ? (
-        <List
-          dataSource={pendingFields}
-          renderItem={(item) => (
-            <List.Item>
-              <List.Item.Meta
-                title={<Text strong>{item.displayName}</Text>}
-              />
-            </List.Item>
-          )}
-        />
+        (() => {
+          // Group fields by section
+          const groupedBySection = pendingFields.reduce((acc, item) => {
+            const sectionMatch = item.displayName.match(/^Section \d+ - /)
+            const sectionName = sectionMatch ? item.displayName.split(' - ')[0] : 'Other'
+            const fieldName = sectionMatch ? item.displayName.replace(sectionMatch[0], '') : item.displayName
+            if (!acc[sectionName]) {
+              acc[sectionName] = []
+            }
+            acc[sectionName].push(fieldName)
+            return acc
+          }, {})
+
+          return (
+            <div>
+              {Object.entries(groupedBySection).map(([sectionName, fields]) => (
+                <div key={sectionName} style={{ marginBottom: 24 }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    marginBottom: 12,
+                  }}>
+                    <Text strong style={{ fontSize: 14, color: themeToken.colorPrimary }}>
+                      {sectionName}
+                    </Text>
+                    <Tag style={{ marginLeft: 8, marginBottom: 0 }}>{fields.length}</Tag>
+                  </div>
+                  <Descriptions column={1} size="small" bordered>
+                    {fields.map((fieldName, idx) => (
+                      <Descriptions.Item key={idx} label="">
+                        <Text type="secondary">{fieldName}</Text>
+                      </Descriptions.Item>
+                    ))}
+                  </Descriptions>
+                </div>
+              ))}
+            </div>
+          )
+        })()
       ) : (
-        <Text type="secondary">All fields have been reviewed</Text>
+        <Text type="secondary">No pending fields</Text>
       )}
     </Modal>
+
+    <PermitTypesModal 
+      open={permitModalOpen} 
+      onCancel={() => setPermitModalOpen(false)}
+      selectedPermitType={application?.businessRegistration?.businessType === 'temporary' ? (application?.category || application?.formData?.category || 'other') : 'regular'}
+    />
   </>
   )
 }

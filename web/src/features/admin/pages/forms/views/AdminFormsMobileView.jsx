@@ -83,7 +83,9 @@ export default function AdminFormsMobileView() {
         }
         placement="right"
         width="100%"
-        bodyStyle={{ padding: 0 }}
+        styles={{
+          body: { padding: 0 }
+        }}
       >
         {rightPanelContent}
       </Drawer>

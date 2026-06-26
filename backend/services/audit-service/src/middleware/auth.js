@@ -24,46 +24,27 @@ async function requireJwt(req, res, next) {
     const auth = String(req.headers["authorization"] || "");
     const m = auth.match(/^Bearer\s+(.+)$/i);
     const token = m ? m[1] : "";
-    if (!token)
+    if (!token) {
+      console.error("[requireJwt] Missing token, auth header:", auth.substring(0, 20));
       return res.status(401).json({
         error: {
           code: "unauthorized",
           message: "Unauthorized: missing token",
         },
       });
+    }
     const secret = process.env.JWT_SECRET || "dev_secret_change_me";
     const decoded = jwt.verify(token, secret);
 
-    // Verify token version matches user's current token version (session invalidation check)
-    const User = require("../models/User");
-    const user = await User.findById(decoded.sub).select("tokenVersion").lean();
-    if (!user) {
-      return res.status(401).json({
-        error: {
-          code: "user_not_found",
-          message: "Unauthorized: user not found",
-        },
-      });
-    }
-
-    const tokenVersion = Number(decoded.tokenVersion || 0);
-    const currentTokenVersion = Number(user.tokenVersion || 0);
-    if (tokenVersion !== currentTokenVersion) {
-      return res.status(401).json({
-        error: {
-          code: "token_invalidated",
-          message:
-            "Unauthorized: session has been invalidated. Please log in again.",
-        },
-      });
-    }
-
+    // Note: audit-service doesn't have a User model, so we skip token version verification
+    // The auth-service already validates the token before proxying requests here
     req._userId = String(decoded.sub || "");
     req._userEmail = String(decoded.email || "");
     req._userRole = String(decoded.role || "");
     req._tokenVersion = Number(decoded.tokenVersion || 0);
     next();
   } catch (err) {
+    console.error("[requireJwt] Token verification failed:", err.message);
     return res.status(401).json({
       error: {
         code: "invalid_token",

@@ -36,13 +36,17 @@ const InspectionSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
-    businessProfileId: {
+    businessId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "BusinessProfile",
+      ref: "Business",
       required: true,
       index: true,
     },
-    businessId: { type: String, required: true },
+    applicationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Application",
+      default: null,
+    },
     permitType: {
       type: String,
       enum: ["initial", "renewal"],
@@ -171,7 +175,7 @@ InspectionSchema.plugin(encryptionPlugin, {
     "gpsMismatchReason",
     "blockchainHash",
   ],
-  deterministicFields: ["businessId"],
+  deterministicFields: [],
   nestedPaths: [
     "gpsAtStart",
     "inspectorSignature",

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef, forwardRef, useImperativeHandle, 
 import { Form } from '@/shared/components/AppForm'
 import { Typography, Button, Space, Result, Grid, theme, App, Empty } from 'antd'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
-import { BugOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
+import { BugOutlined } from '@ant-design/icons'
 import { addBusiness } from '../../services/businessProfileService'
 import { getFeeGroupForForm } from '../../services/feeService'
 import { post } from '@/lib/http'
@@ -314,6 +314,25 @@ export default forwardRef(function PermitApplicationForm({
   useEffect(() => {
     onAutosaveStatusChange?.({ isAutosaving, hasUnsavedChanges })
   }, [isAutosaving, hasUnsavedChanges, onAutosaveStatusChange])
+
+  // Auto-save when switching sections
+  useEffect(() => {
+    if (activeSectionIndex === -1) return // Don't save when going back to overview
+    if (!restorationComplete) return // Don't save during restoration
+    if (!draftBusinessId && !isEditing) return // No draft to save to
+    if (!hasUnsavedChanges) return // Nothing to save
+
+    // Save immediately when section changes
+    const saveOnSectionChange = async () => {
+      try {
+        await handleAutosave(formValues)
+      } catch (err) {
+        console.error('Save on section change failed:', err)
+      }
+    }
+
+    saveOnSectionChange()
+  }, [activeSectionIndex, restorationComplete, draftBusinessId, isEditing, hasUnsavedChanges, formValues, handleAutosave])
 
 
   const handleTypeSelect = useCallback(async (type) => {

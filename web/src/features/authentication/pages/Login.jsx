@@ -64,7 +64,7 @@ export default function Login() {
       return
     }
 
-    const staffRoles = ['staff', 'lgu_manager', 'lgu_officer', 'cso']
+    const staffRoles = ['staff', 'lgu_officer']
     if (staffRoles.includes(role)) {
       if (user?.mustChangeCredentials || user?.mustSetupMfa) {
         navigate('/staff/onboarding', { state: { notification: loginSuccessNotification }, replace: true })

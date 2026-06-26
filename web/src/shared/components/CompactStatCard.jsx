@@ -19,7 +19,9 @@ export default function CompactStatCard({
         borderRadius: token.borderRadiusLG,
         cursor: onClick ? 'pointer' : 'default',
       }}
-      bodyStyle={{ padding: 16, paddingTop: 96 }}
+      styles={{
+        body: { padding: 16, paddingTop: 96 }
+      }}
       onClick={onClick}
     >
       {/* Icon */}

@@ -2,7 +2,7 @@ import { Typography, Space, Divider, Descriptions, Grid } from 'antd'
 import { getFileUrlFromFormValue } from './utils/applicationDetail.utils'
 import FieldDecisionControl from './FieldDecisionControl'
 import DocumentViewer from './DocumentViewer'
-import { getFieldKey } from '../../../constants/rejectionReasons'
+import { getFieldKey } from '@/features/staffs/lgu-officer/utils/fieldKeyUtils'
 
 const { Text } = Typography
 const { useBreakpoint } = Grid
@@ -121,7 +121,7 @@ export default function SectionReadOnlyContent({
       rendered = formatCurrency(value)
     } else if (item.type === 'multiline_text') {
       rendered = value || '—'
-    } else if (item.type === 'address' || key === 'businessAddress' || key === 'lessorAddress') {
+    } else if (item.type === 'address' || key === 'businessAddress' || key === 'lessorAddress' || key === 'locationOfActivity' || key === 'location') {
       // Handle address objects
       if (value && typeof value === 'object') {
         const parts = [
@@ -134,6 +134,22 @@ export default function SectionReadOnlyContent({
         rendered = parts.length > 0 ? parts.join(', ') : '—'
       } else {
         rendered = value || '—'
+      }
+    } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+      // Handle any other object that might be address-like
+      const parts = [
+        value.streetAddress || value.street,
+        value.barangayName || value.barangay,
+        value.city,
+        value.province,
+        value.postalCode || value.zipCode,
+        value.address,
+        value.fullAddress
+      ].filter(Boolean)
+      if (parts.length > 0) {
+        rendered = parts.join(', ')
+      } else {
+        rendered = JSON.stringify(value)
       }
     } else {
       rendered = value != null && value !== '' ? String(value) : '—'
@@ -167,7 +183,7 @@ export default function SectionReadOnlyContent({
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>{record.field}</Text>
               <Text strong>{record.value}</Text>
             </div>
-            {onFieldDecision && (
+            {(onFieldDecision || reviewLocked) && (
               <div style={{ width: isMobile ? '100%' : 'auto', alignSelf: 'flex-start' }}>
                 <FieldDecisionControl
                   fieldKey={record.fieldKey}

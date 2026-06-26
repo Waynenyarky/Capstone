@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { List, Typography, Card, Tag, Space, Button, theme, Empty, Divider, message, Select, Grid } from 'antd'
 import { ArrowLeftOutlined, CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, InfoCircleOutlined, DeleteOutlined, DollarOutlined, CalendarOutlined, WarningOutlined, FileTextOutlined, SolutionOutlined, EditOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import { getNotifications, markAsRead, markAllAsRead, deleteNotification, deleteAllNotifications } from '../services/notificationService'
+import { getNotifications, markAsRead, deleteNotification } from '../services/notificationService'
 import dayjs from 'dayjs'
 import { useAuthSession } from '@/features/authentication'
 import AdminLayout from '@/features/admin/components/AdminLayout'
@@ -142,7 +142,7 @@ export default function NotificationHistoryPage() {
     const slug = (role?.slug ?? role ?? '').toLowerCase()
     if (slug === 'business_owner') return '/owner'
     if (slug === 'admin') return '/admin/dashboard'
-    if (['staff', 'lgu_officer', 'lgu_manager', 'inspector', 'cso'].includes(slug)) return '/staff'
+    if (['staff', 'lgu_officer', 'inspector'].includes(slug)) return '/staff'
     return '/dashboard'
   })()
   const showBackToDashboard = (() => {
@@ -311,7 +311,7 @@ export default function NotificationHistoryPage() {
                   {(() => {
                     const entityType = selectedNotification.relatedEntityType
                     const roleSlug = (role?.slug ?? role ?? '').toLowerCase()
-                    const isStaff = ['staff', 'lgu_officer', 'lgu_manager', 'inspector', 'cso'].includes(roleSlug)
+                    const isStaff = ['staff', 'lgu_officer', 'inspector'].includes(roleSlug)
                     const linkMap = {
                       business_application: { label: 'View Permits', path: isStaff ? '/staff/applications' : '/owner' },
                       inspection: { label: 'View Inspections', path: isStaff ? '/staff/inspections' : '/owner' },

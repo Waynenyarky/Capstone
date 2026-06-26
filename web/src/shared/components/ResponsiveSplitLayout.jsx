@@ -97,11 +97,7 @@ export default function ResponsiveSplitLayout({
         defaultSize={detailDefaultSize} 
         style={{ overflow: 'hidden' }}
       >
-        {detailContent || (
-          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            Select an item to view details
-          </div>
-        )}
+        {detailContent}
       </Splitter.Panel>
     </Splitter>
   )

@@ -16,11 +16,10 @@ import {
   Card,
   Divider,
   theme,
-  message,
+  App,
 } from 'antd'
 import {
   UploadOutlined,
-  EyeOutlined,
 } from '@ant-design/icons'
 import PhilippineAddressFields from '@/shared/components/PhilippineAddressFields'
 import AlaminosAddressFields from '@/shared/components/AlaminosAddressFields'
@@ -37,12 +36,13 @@ import {
 } from '../../utils/formUtils.js'
 import { DownloadOutlined } from '@ant-design/icons'
 import RepeatableGroupField from './RepeatableGroupField.jsx'
-import DocumentPreviewModal from './DocumentPreviewModal.jsx'
+import DocumentPreviewModal from '@/shared/components/DocumentPreviewModal'
 
 const { Text, Title } = Typography
 
 
 function DynamicField({ field, form, token, readOnly, businessId, onDocumentCid, onSaveDraft, formDataKey, documents = {}, revisionFieldKeys }) {
+  const { message } = App.useApp()
   const fieldName = field.key || field.label
   const rules = buildValidationRules(field)
   const [previewModal, setPreviewModal] = useState({ open: false, url: null, label: '', type: 'other', isBlob: false })

@@ -320,6 +320,8 @@ export default defineConfig({
       '/api/lgu-officer/inspections': createProxyConfig('/api/lgu-officer/inspections', `http://localhost:${MICROSERVICES.business}`),
       '/api/lgu-officer/payments': createProxyConfig('/api/lgu-officer/payments', `http://localhost:${MICROSERVICES.business}`),
       '/api/lgu-officer/owner-profile': createProxyConfig('/api/lgu-officer/owner-profile', `http://localhost:${MICROSERVICES.business}`),
+      '/api/lgu-officer/businesses': createProxyConfig('/api/lgu-officer/businesses', `http://localhost:${MICROSERVICES.business}`),
+      '/api/lgu-officer/permit-applications': createProxyConfig('/api/lgu-officer/permit-applications', `http://localhost:${MICROSERVICES.business}`),
 
       // LGU Officer endpoints -> Admin Service (port 3003) since permit applications are admin functions
       '/api/lgu-officer': createProxyConfig('/api/lgu-officer', `http://localhost:${MICROSERVICES.admin}`),

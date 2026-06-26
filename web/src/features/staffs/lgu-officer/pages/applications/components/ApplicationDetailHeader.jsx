@@ -13,23 +13,40 @@ export default function ApplicationDetailHeader({
   actionButtons = [],
   isBookmarked = false,
   onBookmarkToggle,
-  isFinalDecision = false,
   hasPendingAction = false,
+  onGoToBusiness,
+  applicationStatus,
 }) {
+  // Only disable release button when pending action is 'complete_review' (approval pending)
+  const isApprovalPending = hasPendingAction?.actionType === 'complete_review';
+  const isApproved = applicationStatus === 'approved';
+  const isRejected = applicationStatus === 'rejected' || applicationStatus === 'appeal_rejected';
+  const isReturned = applicationStatus === 'returned' || applicationStatus === 'needs_revision';
+
   const getPrimaryButton = () => {
-    // Show "Go To Business" button when application has a final decision
-    if (isFinalDecision) {
+    // Hide buttons for final decision states (rejected, returned)
+    if (isRejected || isReturned) {
+      return null;
+    }
+    // Show "Go To Business" button only when application is approved
+    if (isApproved) {
       return {
         text: 'Go To Business',
         icon: <ShopOutlined />,
-        onClick: () => {},
+        onClick: onGoToBusiness || (() => {}),
         type: 'primary',
       }
     }
-    // Hide claim/release button when application has a pending action
-    if (hasPendingAction) {
-      return null
+    // When approval is pending AND is claimed by me, show disabled release button
+    if (isApprovalPending && isClaimedByMe) {
+      return {
+        text: 'Release',
+        icon: <CloseOutlined />,
+        onClick: onRelease,
+        disabled: true,
+      }
     }
+    // Otherwise, show normal claim/release buttons
     if (!isClaimed) {
       return {
         text: 'Claim',

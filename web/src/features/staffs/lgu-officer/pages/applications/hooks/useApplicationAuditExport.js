@@ -6,7 +6,6 @@ const EVENT_TYPE_LABELS = {
   release: 'Released',
   status_update: 'Status Changed',
   field_review: 'Field Reviewed',
-  payment_generated: 'Payment Generated',
   appeal_submitted: 'Appeal Submitted',
   appeal_resolved: 'Appeal Resolved',
   clearance_initiated: 'Clearance Initiated',
@@ -42,29 +41,24 @@ export function useApplicationAuditExport(audits, onClose) {
     const filtered = filteredAuditsByRange()
     if (filtered.length === 0) return
 
-    const headers = ['Timestamp', 'User ID', 'Event Type', 'Details']
+    const headers = [
+      'Timestamp',
+      'User ID',
+      'Event Type',
+      'Officer/User',
+      'Application ID',
+      'Application Status',
+      'Status Change',
+      'Field Key',
+      'Decision',
+      'Action Type',
+      'Reason',
+      'Comments',
+      'Override',
+    ]
+
     const rows = filtered.map((audit) => {
       const metadata = audit.metadata || {}
-      let details = ''
-
-      if (metadata.claimedByName) {
-        details += `Claimed by: ${metadata.claimedByName}`
-      }
-      if (metadata.releasedByName) {
-        details += `Released by: ${metadata.releasedByName}`
-      }
-      if (metadata.override) {
-        details += `Overrode: ${metadata.override.fromName || metadata.override.from}`
-      }
-      if (metadata.status) {
-        details += `Status: ${STATUS_LABELS[metadata.status.from] || metadata.status.from} → ${STATUS_LABELS[metadata.status.to] || metadata.status.to}`
-      }
-      if (metadata.fieldKey) {
-        details += `Field: ${metadata.fieldKey} - ${metadata.decision || 'reviewed'}`
-      }
-      if (metadata.paymentCount) {
-        details += `Generated ${metadata.paymentCount} payment line items`
-      }
 
       const escapeCsv = (val) => {
         if (!val) return ''
@@ -75,11 +69,37 @@ export function useApplicationAuditExport(audits, onClose) {
         return str
       }
 
+      const formatStatusChange = () => {
+        if (!metadata.status) return ''
+        const from = STATUS_LABELS[metadata.status.from] || metadata.status.from
+        const to = STATUS_LABELS[metadata.status.to] || metadata.status.to
+        return `${from} → ${to}`
+      }
+
+      const formatOverride = () => {
+        if (!metadata.override) return ''
+        return `Overrode: ${metadata.override.fromName || metadata.override.from}`
+      }
+
+      const formatDecisions = () => {
+        if (!metadata.decisions || !Array.isArray(metadata.decisions)) return ''
+        return metadata.decisions.map(d => `${d.fieldKey}: ${d.status}`).join('; ')
+      }
+
       return [
-        dayjs(audit.timestamp).format('YYYY-MM-DD HH:mm:ss'),
+        dayjs(audit.createdAt).format('YYYY-MM-DD HH:mm:ss'),
         audit.userId || 'Unknown',
         EVENT_TYPE_LABELS[audit.eventType] || audit.eventType,
-        escapeCsv(details),
+        escapeCsv(metadata.officerName || metadata.claimedByName || metadata.releasedByName || metadata.reviewedByName || metadata.submittedByName || ''),
+        escapeCsv(metadata.applicationId || ''),
+        escapeCsv(STATUS_LABELS[metadata.applicationStatus] || metadata.applicationStatus || ''),
+        escapeCsv(formatStatusChange()),
+        escapeCsv(metadata.fieldKey || ''),
+        escapeCsv(metadata.decision || formatDecisions()),
+        escapeCsv(metadata.actionType || ''),
+        escapeCsv(metadata.reasonCode || metadata.requestCode || ''),
+        escapeCsv(metadata.reasonOther || metadata.requestOther || metadata.comments || ''),
+        escapeCsv(formatOverride()),
       ]
     })
 

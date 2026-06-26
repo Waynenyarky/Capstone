@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Button, Grid, Tabs, Typography, Alert } from 'antd'
-import { SafetyCertificateOutlined, ReloadOutlined, InfoCircleOutlined, DownloadOutlined } from '@ant-design/icons'
 import AdminLayout from '../components/AdminLayout'
 import ExportLogsModal from '../components/ExportLogsModal'
 import { fetchTamperStats } from '@/features/admin/services/tamperService'

@@ -266,6 +266,7 @@ export default function BusinessOwnerDashboardDesktopView({
                         onOpenForm={dashboardState.openReadOnlyApplicationForm}
                         onToggleForm={() => dashboardState.setShowAddForm(prev => !prev)}
                         onSubmitApplication={() => formRef.current?.submitApplication?.()}
+                        onRefresh={onFetchBusinesses}
                         token={token}
                       />
                     )
@@ -281,6 +282,7 @@ export default function BusinessOwnerDashboardDesktopView({
                       onOpenForm={dashboardState.openReadOnlyApplicationForm}
                       onToggleForm={() => dashboardState.setShowAddForm(prev => !prev)}
                       onSubmitApplication={() => formRef.current?.submitApplication?.()}
+                      onRefresh={onFetchBusinesses}
                       token={token}
                     />
                   )}

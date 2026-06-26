@@ -40,9 +40,7 @@ export default function LoginForm({ onSubmit } = {}) {
     prefillUser,
     prefillLguOfficer,
     prefillLguOfficer2,
-    prefillLguManager,
     prefillInspector,
-    prefillCso,
     prefillInvalid,
     verificationProps,
     serverLockedUntil,
@@ -79,8 +77,8 @@ export default function LoginForm({ onSubmit } = {}) {
   })
   useDevPrefill({
     prefillAdmin, prefillAdmin2, prefillAdmin3,
-    prefillUser, prefillLguOfficer, prefillLguOfficer2, prefillLguManager,
-    prefillInspector, prefillCso, prefillInvalid,
+    prefillUser, prefillLguOfficer, prefillLguOfficer2,
+    prefillInspector, prefillInvalid,
     setFieldsReadOnly,
   })
 
@@ -319,7 +317,6 @@ export default function LoginForm({ onSubmit } = {}) {
                       else if (key === 'admin3') prefillAdmin3()
                       else if (key === 'officer') prefillLguOfficer()
                       else if (key === 'officer2') prefillLguOfficer2()
-                      else if (key === 'manager') prefillLguManager()
                       else if (key === 'inspector') prefillInspector()
                       else if (key === 'invalid') prefillInvalid()
                     },

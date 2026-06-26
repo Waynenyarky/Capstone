@@ -8,7 +8,7 @@ const clearanceService = require("../services/clearanceService");
 router.get(
   "/:businessId",
   requireJwt,
-  requireRole(["business_owner", "lgu_officer", "lgu_manager", "admin"]),
+  requireRole(["business_owner", "lgu_officer", "admin"]),
   async (req, res) => {
     try {
       const { businessId } = req.params;
@@ -31,7 +31,7 @@ router.get(
 router.post(
   "/:businessId/initiate",
   requireJwt,
-  requireRole(["lgu_officer", "lgu_manager", "admin"]),
+  requireRole(["lgu_officer", "admin"]),
   async (req, res) => {
     try {
       const { businessId } = req.params;
@@ -72,7 +72,7 @@ router.post(
 router.get(
   "/:businessId/status",
   requireJwt,
-  requireRole(["business_owner", "lgu_officer", "lgu_manager", "admin"]),
+  requireRole(["business_owner", "lgu_officer", "admin"]),
   async (req, res) => {
     try {
       const { businessId } = req.params;
@@ -97,7 +97,7 @@ router.get(
 router.post(
   "/:businessId/:agency/submit",
   requireJwt,
-  requireRole(["lgu_officer", "lgu_manager"]),
+  requireRole(["lgu_officer"]),
   async (req, res) => {
     try {
       const { businessId, agency } = req.params;
@@ -129,7 +129,7 @@ router.post(
 router.post(
   "/agency/:agency/review",
   requireJwt,
-  requireRole(["lgu_officer", "lgu_manager", "agency_reviewer"]),
+  requireRole(["lgu_officer", "agency_reviewer"]),
   async (req, res) => {
     try {
       const { agency } = req.params;
@@ -158,7 +158,7 @@ router.post(
 router.post(
   "/agency/:agency/approve",
   requireJwt,
-  requireRole(["lgu_officer", "lgu_manager", "agency_reviewer"]),
+  requireRole(["lgu_officer", "agency_reviewer"]),
   async (req, res) => {
     try {
       const { agency } = req.params;
@@ -191,7 +191,7 @@ router.post(
 router.post(
   "/agency/:agency/reject",
   requireJwt,
-  requireRole(["lgu_officer", "lgu_manager", "agency_reviewer"]),
+  requireRole(["lgu_officer", "agency_reviewer"]),
   async (req, res) => {
     try {
       const { agency } = req.params;
@@ -232,7 +232,7 @@ router.post(
 router.post(
   "/agency/:agency/deficiency",
   requireJwt,
-  requireRole(["lgu_officer", "lgu_manager", "agency_reviewer"]),
+  requireRole(["lgu_officer", "agency_reviewer"]),
   async (req, res) => {
     try {
       const { agency } = req.params;
@@ -275,7 +275,7 @@ router.post(
 router.post(
   "/agency/:agency/resolve-deficiency",
   requireJwt,
-  requireRole(["business_owner", "lgu_officer", "lgu_manager"]),
+  requireRole(["business_owner", "lgu_officer"]),
   async (req, res) => {
     try {
       const { agency } = req.params;
@@ -315,7 +315,7 @@ router.post(
 router.get(
   "/agency/:agency/queue",
   requireJwt,
-  requireRole(["lgu_officer", "lgu_manager", "agency_reviewer"]),
+  requireRole(["lgu_officer", "agency_reviewer"]),
   async (req, res) => {
     try {
       const { agency } = req.params;
@@ -343,7 +343,7 @@ router.get(
 router.get(
   "/:businessId/timeline",
   requireJwt,
-  requireRole(["business_owner", "lgu_officer", "lgu_manager"]),
+  requireRole(["business_owner", "lgu_officer"]),
   async (req, res) => {
     try {
       const { businessId } = req.params;
@@ -368,7 +368,7 @@ router.get(
 router.get(
   "/:businessId/next-agency",
   requireJwt,
-  requireRole(["business_owner", "lgu_officer", "lgu_manager"]),
+  requireRole(["business_owner", "lgu_officer"]),
   async (req, res) => {
     try {
       const { businessId } = req.params;
@@ -394,7 +394,7 @@ router.get(
 router.post(
   "/:businessId/notify",
   requireJwt,
-  requireRole(["lgu_officer", "lgu_manager"]),
+  requireRole(["lgu_officer"]),
   async (req, res) => {
     try {
       const { businessId } = req.params;

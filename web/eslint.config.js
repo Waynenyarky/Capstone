@@ -13,7 +13,7 @@ import importPlugin from 'eslint-plugin-import'
 import unusedImports from 'eslint-plugin-unused-imports'
 
 export default defineConfig([
-  globalIgnores(['dist', 'coverage']),
+  globalIgnores(['dist', 'coverage', 'node_modules', '*.min.js', '*.config.js']),
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
     extends: [
@@ -92,7 +92,7 @@ export default defineConfig([
   },
   // Test files with Vitest globals
   {
-    files: ['**/__tests__/**/*.{js,jsx}', '**/*.test.{js,jsx}'],
+    files: ['**/__tests__/**/*.{js,jsx}', '**/*.test.{js,jsx}', 'tests/**/*.{js,jsx}'],
     languageOptions: {
       globals: {
         ...globals.browser,

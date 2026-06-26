@@ -18,7 +18,7 @@ export function useProfileSettings() {
   const [settingsInfoOpen, setSettingsInfoOpen] = useState(false)
 
   const roleSlug = String(role?.slug || role || '').toLowerCase()
-  const isStaffRole = ['lgu_officer', 'lgu_manager', 'inspector', 'cso', 'staff'].includes(roleSlug)
+  const isStaffRole = ['lgu_officer', 'inspector', 'staff'].includes(roleSlug)
   const isAdmin = roleSlug === 'admin'
   const isBusinessOwner = roleSlug === 'business_owner'
 

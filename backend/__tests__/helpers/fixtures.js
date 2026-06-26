@@ -36,9 +36,7 @@ async function createTestRole(slug) {
       business_owner: "Business Owner",
       admin: "Admin",
       lgu_officer: "LGU Officer",
-      lgu_manager: "LGU Manager",
       inspector: "LGU Inspector",
-      cso: "Customer Support Officer",
     };
     role = await Role.create({
       name: roleNames[slug] || slug,

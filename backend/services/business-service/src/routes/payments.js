@@ -569,21 +569,14 @@ router.post("/mock", requireJwt, async (req, res) => {
       profile = await BusinessProfile.findOne({ userId: req._userId });
     }
 
+    // If no profile exists, create one for the user (for draft applications)
     if (!profile) {
-      return res.status(404).json({
-        error: {
-          code: "PROFILE_NOT_FOUND",
-          message: "Business profile not found",
-        },
-      });
+      profile = await BusinessProfile.create({ userId: req._userId });
     }
 
     const business = findBusinessInProfile(profile, businessId);
-    if (!business) {
-      return res.status(404).json({
-        error: { code: "BUSINESS_NOT_FOUND", message: "Business not found" },
-      });
-    }
+    // For draft applications, business may not exist yet - that's okay
+    // We'll create the payment record without a business reference
 
     const paymentId = await generatePaymentId();
     const receiptNumber = `RCP-${Date.now()}`;

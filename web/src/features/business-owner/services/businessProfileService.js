@@ -1,6 +1,6 @@
 import { get, post, put, patch, del, fetchWithFallback } from '@/lib/http.js'
 
-const BASE_PATH = '/api/business'
+const BASE_PATH = '/api/business-owner'
 
 /**
  * Get the current user's business profile

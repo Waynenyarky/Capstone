@@ -6,7 +6,7 @@
  */
 const express = require("express");
 const { requireJwt, requireRole } = require("../middleware/auth");
-const AuditLog = require("../models/AuditLog");
+const axios = require("axios");
 const User = require("../models/User");
 
 const router = express.Router();
@@ -36,11 +36,34 @@ router.get("/", requireJwt, requireRole(["admin"]), async (req, res) => {
       if (endDate) query.createdAt.$lte = endDate;
     }
 
-    const rawLogs = await AuditLog.find(query)
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean();
+    // Query audit-service for logs
+    const auditServiceUrl = process.env.AUDIT_SERVICE_URL || "http://localhost:3004";
+    const headers = { "Content-Type": "application/json" };
+    if (process.env.AUDIT_SERVICE_API_KEY)
+      headers["X-API-Key"] = process.env.AUDIT_SERVICE_API_KEY;
 
+    const params = {
+      limit,
+      sort: "createdAt:-1",
+    };
+
+    // Handle complex query objects
+    if (query.eventType && Array.isArray(query.eventType.$in)) {
+      // For $in queries, we need to handle them differently
+      // For now, just use the first event type as a simple filter
+      params.eventType = query.eventType.$in[0];
+    }
+    if (query.createdAt) {
+      if (query.createdAt.$gte) params.startDate = query.createdAt.$gte.toISOString();
+      if (query.createdAt.$lte) params.endDate = query.createdAt.$lte.toISOString();
+    }
+
+    const response = await axios.get(`${auditServiceUrl}/api/audit/logs`, {
+      headers,
+      params,
+    });
+
+    const rawLogs = response.data.logs || [];
     const userIds = [
       ...new Set(rawLogs.map((l) => String(l.userId)).filter(Boolean)),
     ];

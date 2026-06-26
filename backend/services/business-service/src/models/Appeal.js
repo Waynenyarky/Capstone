@@ -3,12 +3,14 @@ const mongoose = require("mongoose");
 const AppealSchema = new mongoose.Schema(
   {
     businessId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Business",
       required: true,
     },
     applicationId: {
-      type: String,
-      default: "",
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Application",
+      default: null,
     },
     appealType: {
       type: String,
@@ -70,8 +72,6 @@ const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 AppealSchema.plugin(encryptionPlugin, {
   fields: ["description", "resolution"],
   deterministicFields: [
-    "businessId",
-    "applicationId",
     "violationId",
     "inspectionId",
   ],

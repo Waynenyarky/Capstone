@@ -191,7 +191,9 @@ app.use("/uploads", express.static(uploadsDir));
 
 // Business routes
 const businessRouter = require("./routes/profile");
+const applicationsRouter = require("./routes/applications");
 app.use("/api/business", businessRouter);
+app.use("/api/business", applicationsRouter);
 
 // Phase 2 routes
 const feeConfigurationRouter = require("./routes/feeConfiguration");
@@ -201,8 +203,6 @@ const occupationalPermitsRouter = require("./routes/occupationalPermits");
 const appealsRouter = require("./routes/appeals");
 const editRequestsRouter = require("./routes/editRequests");
 const postRequirementsRouter = require("./routes/postRequirements");
-const walkInRouter = require("./routes/walkIn");
-const retirementRouter = require("./routes/retirement");
 const dashboardRouter = require("./routes/dashboard");
 const paymentsRouter = require("./routes/payments");
 const ownerInspectionsRouter = require("./routes/ownerInspections");
@@ -223,9 +223,6 @@ app.use("/api/business/occupational-permits", occupationalPermitsRouter);
 app.use("/api/business/appeals", appealsRouter);
 app.use("/api/business/edit-requests", editRequestsRouter);
 app.use("/api/business/post-requirements", postRequirementsRouter);
-app.use("/api/business/walk-in", walkInRouter);
-app.use("/api/business/retirements", retirementRouter);
-app.use("/api/business", retirementRouter); // Also mount at /api/business/:businessId/retire
 app.use("/api/business/dashboard", dashboardRouter);
 app.use("/api/business/payments", paymentsRouter);
 app.use("/api/business/inspections", ownerInspectionsRouter);
@@ -267,9 +264,15 @@ app.use("/api/inspector", inspectorRouter);
 const inspectionAssignmentsRouter = require("./routes/lgu-officer/inspectionAssignments");
 app.use("/api/lgu-officer", inspectionAssignmentsRouter);
 
-// LGU Manager routes
-const lguManagerRouter = require("./routes/lguManager");
-app.use("/api/lgu-manager", lguManagerRouter);
+// LGU Officer businesses routes
+const businessesRouter = require("./routes/lgu-officer/businesses");
+const permitApplicationsRouter = require("./routes/lgu-officer/permitApplications");
+app.use("/api/lgu-officer", businessesRouter);
+app.use("/api/lgu-officer", permitApplicationsRouter);
+
+// Business Owner routes
+const businessOwnerRouter = require("./routes/businessOwner");
+app.use("/api/business-owner", businessOwnerRouter);
 
 // Global Error Handler (must be last middleware)
 app.use(errorHandlerMiddleware);

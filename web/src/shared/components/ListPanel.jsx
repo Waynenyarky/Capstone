@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { Typography, Input, Empty, theme, Grid, Button, Tooltip, Pagination } from 'antd'
+import { Typography, Input, Empty, theme, Grid, Button, Tooltip, Pagination, Skeleton } from 'antd'
 import { SearchOutlined, FilterOutlined } from '@ant-design/icons'
 import FilterDropdown from './FilterDropdown'
 
@@ -152,9 +152,37 @@ export default function ListPanel({
 
       {/* List */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 12px 12px 12px' }}>
-        {filteredItems.length === 0 ? (
+        {isLoading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[...Array(5)].map((_, i) => (
+              <div key={i} style={{ 
+                padding: '16px', 
+                border: `1px solid ${token.colorBorderSecondary}`, 
+                borderRadius: '8px',
+                backgroundColor: token.colorBgContainer
+              }}>
+                {/* Title with bookmark space */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <Skeleton.Input active style={{ width: '60%' }} />
+                  <Skeleton.Button active size="small" style={{ width: 16, height: 16 }} />
+                </div>
+                {/* Description */}
+                <Skeleton.Input active size="small" style={{ width: '100%', marginBottom: 8 }} />
+                <Skeleton.Input active size="small" style={{ width: '100%', marginBottom: 12 }} />
+                {/* Meta info */}
+                <Skeleton.Input active size="small" style={{ width: '50%', marginBottom: 12 }} />
+                {/* Tags with separator */}
+                <div style={{ paddingTop: 12, borderTop: `1px solid ${token.colorBorderSecondary}`, display: 'flex', gap: 8 }}>
+                  <Skeleton.Button active size="small" style={{ width: 60 }} />
+                  <Skeleton.Button active size="small" style={{ width: 50 }} />
+                  <Skeleton.Button active size="small" style={{ width: 70 }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredItems.length === 0 ? (
           <Empty
-            description={isLoading ? 'Loading...' : 'No items found'}
+            description="No items found"
             style={{ marginTop: 48 }}
           />
         ) : (

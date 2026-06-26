@@ -147,11 +147,13 @@ export default function ApplicationProcessSection() {
                     boxShadow: screens.lg && hoveredCard === app.id ? token.boxShadowCard : 'none',
                     transform: screens.lg && hoveredCard === app.id ? 'scale(1.02)' : 'scale(1)',
                   }}
-                  bodyStyle={{
-                    padding: 0,
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'row',
+                  styles={{
+                    body: {
+                      padding: 0,
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'row',
+                    }
                   }}
                   onMouseEnter={screens.lg ? () => setHoveredCard(app.id) : undefined}
                   onMouseLeave={screens.lg ? () => setHoveredCard(null) : undefined}

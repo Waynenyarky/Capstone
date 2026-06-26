@@ -49,28 +49,12 @@ const StaffOnboarding = lazy(() => import("@/features/staffs").then(m => ({ defa
 const OfficerDashboard = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerDashboard.jsx"))
 const OfficerDashboardPage = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerDashboardPage.jsx"))
 const OfficerApplications = lazy(() => import("@/features/staffs/lgu-officer/pages/applications/index.jsx"))
-const OfficerAppeals = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerAppeals.jsx"))
-const OfficerEditRequests = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerEditRequests.jsx"))
-const OfficerRenewals = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerRenewals.jsx"))
-const OfficerCessation = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerCessation.jsx"))
-const OfficerInspections = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerInspections.jsx"))
 const OfficerHelpRequests = lazy(() => import("@/features/staffs/lgu-officer/pages/help-requests/index.jsx"))
-const OfficerDrafts = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerDrafts.jsx"))
-const OfficerOwners = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerOwners.jsx"))
 const OfficerLedger = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerLedger.jsx"))
-const OfficerLogs = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerLogs.jsx"))
-const OfficerToReview = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerToReview.jsx"))
 const OfficerBookmarks = lazy(() => import("@/features/staffs/lgu-officer/pages/bookmarks/index.jsx"))
+const OfficerBusinesses = lazy(() => import("@/features/staffs/lgu-officer/pages/businesses/index.jsx"))
 const PlaceholderPage = lazy(() => import("@/features/shared/pages/PlaceholderPage.jsx"))
-const AgencyDashboard = lazy(() => import("@/features/staffs/lgu-officer/pages/AgencyDashboard.jsx"))
 const TreasuryDashboard = lazy(() => import("@/features/treasury/components/TreasuryDashboard.jsx"))
-const ReportsAnalyticsPage = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.ReportsAnalyticsPage })))
-const LGUManagerDashboard = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.LGUManagerDashboard })))
-const PermitApplicationsOverviewPage = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.PermitApplicationsOverviewPage })))
-const CessationOverviewPage = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.CessationOverviewPage })))
-const ViolationsInspectionsOverviewPage = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.ViolationsInspectionsOverviewPage })))
-const AssignInspectionPage = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.AssignInspectionPage })))
-const AppealsOverviewPage = lazy(() => import("@/features/lgu-manager").then(m => ({ default: m.AppealsOverviewPage })))
 
 function PageFallback() {
   return (
@@ -150,33 +134,15 @@ function App() {
       {/* <Route path="/inspections/schedule" element={<ProtectedRoute allowedRoles={['business_owner']}><InspectionCalendar /></ProtectedRoute>} /> */}
       
       {/* Staff Routes */}
-      <Route path="/staff" element={<ProtectedRoute allowedRoles={['staff', 'lgu_officer', 'lgu_manager', 'inspector', 'cso']}><OfficerDashboard /></ProtectedRoute>}>
+      <Route path="/staff" element={<ProtectedRoute allowedRoles={['staff', 'lgu_officer', 'inspector']}><OfficerDashboard /></ProtectedRoute>}>
         <Route index element={<OfficerDashboardPage />} />
         <Route path="applications" element={<OfficerApplications />} />
-        <Route path="appeals" element={<OfficerAppeals />} />
-        <Route path="edit-requests" element={<OfficerEditRequests />} />
-        <Route path="renewals" element={<OfficerRenewals />} />
-        <Route path="cessation" element={<OfficerCessation />} />
-        <Route path="inspections" element={<OfficerInspections />} />
+        <Route path="businesses" element={<OfficerBusinesses />} />
+        <Route path="businesses/:businessId" element={<OfficerBusinesses />} />
         <Route path="help-requests" element={<OfficerHelpRequests />} />
-        <Route path="drafts" element={<OfficerDrafts />} />
-        <Route path="owners" element={<OfficerOwners />} />
         <Route path="ledger" element={<OfficerLedger />} />
-        <Route path="logs" element={<OfficerLogs />} />
         <Route path="bookmarks" element={<OfficerBookmarks />} />
-        <Route path="agency/:agency" element={<AgencyDashboard />} />
         <Route path="treasury" element={<TreasuryDashboard />} />
-      </Route>
-
-      {/* LGU Manager Routes */}
-      <Route path="/lgu-manager" element={<ProtectedRoute allowedRoles={['lgu_manager']}><Outlet /></ProtectedRoute>}>
-        <Route index element={<LGUManagerDashboard />} />
-        <Route path="reports" element={<ReportsAnalyticsPage />} />
-        <Route path="permit-applications" element={<PermitApplicationsOverviewPage />} />
-        <Route path="cessation" element={<CessationOverviewPage />} />
-        <Route path="violations-inspections" element={<ViolationsInspectionsOverviewPage />} />
-        <Route path="assign-inspection" element={<AssignInspectionPage />} />
-        <Route path="appeals" element={<AppealsOverviewPage />} />
       </Route>
 
       {/* Generic/Public Routes */}

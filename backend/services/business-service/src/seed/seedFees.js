@@ -71,6 +71,12 @@ const FEES_SEED_DATA = [
     amount: 200,
     category: "regulatory",
   },
+  {
+    name: "Application Appeal Fee",
+    description: "Fee for filing an appeal against application decisions",
+    amount: 500,
+    category: "appeal",
+  },
 ];
 
 // Basic fee group examples

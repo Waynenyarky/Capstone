@@ -15,7 +15,9 @@ export default function HelpRequestInfoCard({ detail, statusLockInfo, formatDate
         borderRadius: 8,
         background: token.colorBgContainer,
       }}
-      bodyStyle={{ padding: 0, display: 'flex', flexDirection: screens.md ? 'row' : 'column' }}
+      styles={{
+        body: { padding: 0, display: 'flex', flexDirection: screens.md ? 'row' : 'column' }
+      }}
     >
       {/* Left Panel - Icon and Title */}
       <div style={{ flex: screens.md ? '0 0 50%' : 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: screens.md ? '20px 16px' : '96px 24px 16px' }}>

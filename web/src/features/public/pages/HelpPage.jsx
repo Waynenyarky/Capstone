@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Typography, Input, Button, theme, Grid, Layout, Upload, message, Alert, Modal } from 'antd'
-import { UploadOutlined, CheckCircleOutlined, EyeOutlined, DownloadOutlined } from '@ant-design/icons'
+import { Typography, Input, Button, theme, Grid, Layout, Upload, message, Alert } from 'antd'
+import { UploadOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import HomeHeader from '../components/HomeHeader'
 import ZipperReveal from '@/shared/components/MosaicArt.jsx'
 import PanAnimation from '@/shared/components/PanAnimation.jsx'
 import BlurFade from '@/shared/components/BlurFade.jsx'
+import DocumentPreviewModal from '@/shared/components/DocumentPreviewModal'
 
 const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
@@ -278,53 +279,14 @@ export default function HelpPage() {
           )}
         </div>
 
-        <Modal
-          title={previewModal.label}
+        <DocumentPreviewModal
           open={previewModal.open}
-          onCancel={() => setPreviewModal({ open: false, url: null, label: '', type: 'other' })}
-          width={previewModal.type === 'image' ? 560 : 720}
-          footer={[
-            <Button
-              key="openTab"
-              type="primary"
-              icon={<EyeOutlined />}
-              onClick={() => previewModal.url && window.open(previewModal.url, '_blank')}
-            >
-              Open in new tab
-            </Button>,
-            ...(previewModal.url
-              ? [
-                  <Button key="download" icon={<DownloadOutlined />} href={previewModal.url} download>
-                    Download
-                  </Button>
-                ]
-              : []),
-          ]}
-        >
-          {previewModal.open && previewModal.url && (
-            <div style={{ minHeight: 200, display: 'flex', justifyContent: 'center', alignItems: 'stretch', overflow: 'auto', flexDirection: 'column', width: '100%' }}>
-              {previewModal.type === 'image' && (
-                <img
-                  src={previewModal.url}
-                  alt={previewModal.label}
-                  style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain' }}
-                />
-              )}
-              {previewModal.type === 'pdf' && (
-                <iframe
-                  title={previewModal.label}
-                  src={previewModal.url}
-                  style={{ width: '100%', height: '70vh', border: `1px solid ${token.colorBorderSecondary}`, borderRadius: token.borderRadius }}
-                />
-              )}
-              {previewModal.type === 'other' && (
-                <div style={{ padding: 24, textAlign: 'center' }}>
-                  <Text type="secondary">Preview not available for this file type</Text>
-                </div>
-              )}
-            </div>
-          )}
-        </Modal>
+          onClose={() => setPreviewModal({ open: false, url: null, label: '', type: 'other' })}
+          url={previewModal.url}
+          label={previewModal.label}
+          type={previewModal.type}
+          isBlob={previewModal.url?.startsWith('blob:')}
+        />
 
       </Content>
     </Layout>

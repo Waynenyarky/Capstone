@@ -5,8 +5,8 @@ import React from 'react'
  */
 export function useDevPrefill({
   prefillAdmin, prefillAdmin2, prefillAdmin3,
-  prefillUser, prefillLguOfficer, prefillLguOfficer2, prefillLguManager,
-  prefillInspector, prefillCso, prefillInvalid,
+  prefillUser, prefillLguOfficer, prefillLguOfficer2,
+  prefillInspector, prefillInvalid,
   setFieldsReadOnly,
 }) {
   React.useEffect(() => {
@@ -20,9 +20,7 @@ export function useDevPrefill({
         business: prefillUser,
         officer: prefillLguOfficer,
         officer2: prefillLguOfficer2,
-        manager: prefillLguManager,
         inspector: prefillInspector,
-        cso: prefillCso,
         invalid: prefillInvalid,
       }
       const fn = map[preset]
@@ -33,5 +31,5 @@ export function useDevPrefill({
     }
     window.addEventListener('devtools:login-prefill', handler)
     return () => window.removeEventListener('devtools:login-prefill', handler)
-  }, [prefillAdmin, prefillAdmin2, prefillAdmin3, prefillUser, prefillLguOfficer, prefillLguOfficer2, prefillLguManager, prefillInspector, prefillCso, prefillInvalid, setFieldsReadOnly])
+  }, [prefillAdmin, prefillAdmin2, prefillAdmin3, prefillUser, prefillLguOfficer, prefillLguOfficer2, prefillInspector, prefillInvalid, setFieldsReadOnly])
 }

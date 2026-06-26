@@ -91,13 +91,6 @@ export function getDevActions({ pathname, navigate, emitEvent, notify }) {
       run: () => fireLoginPrefill('admin'),
     })
     addAction({
-      id: 'login-prefill-manager',
-      category: 'Authentication',
-      label: 'Prefill LGU Manager Login',
-      description: 'Fill LGU manager credentials into login form',
-      run: () => fireLoginPrefill('manager'),
-    })
-    addAction({
       id: 'login-prefill-officer',
       category: 'Authentication',
       label: 'Prefill LGU Officer Login',

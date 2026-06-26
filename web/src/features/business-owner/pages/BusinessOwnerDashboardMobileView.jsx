@@ -254,6 +254,7 @@ export default function BusinessOwnerDashboardMobileView({
                 onOpenForm={dashboardState.openReadOnlyApplicationForm}
                 onToggleForm={() => dashboardState.setShowAddForm(prev => !prev)}
                 onSubmitApplication={() => formRef.current?.submitApplication?.()}
+                onRefresh={onFetchBusinesses}
                 token={token}
                 isMobile={true}
               />
@@ -270,6 +271,7 @@ export default function BusinessOwnerDashboardMobileView({
               onOpenForm={dashboardState.openReadOnlyApplicationForm}
               onToggleForm={() => dashboardState.setShowAddForm(prev => !prev)}
               onSubmitApplication={() => formRef.current?.submitApplication?.()}
+              onRefresh={onFetchBusinesses}
               token={token}
               isMobile={true}
             />

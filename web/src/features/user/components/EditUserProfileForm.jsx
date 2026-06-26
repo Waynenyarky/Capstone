@@ -63,7 +63,7 @@ export default function EditUserProfileForm({ embedded = false, simpleLayout = f
   const { role } = useAuthSession()
 
   const roleKey = String(role?.slug || role || '').toLowerCase()
-  const isStaffRole = ['lgu_officer', 'lgu_manager', 'inspector', 'cso', 'staff'].includes(roleKey)
+  const isStaffRole = ['lgu_officer', 'inspector', 'staff'].includes(roleKey)
   const isBusinessOwner = roleKey === 'business_owner'
 
   const [activeSectionIndex, setActiveSectionIndex] = useState(0)

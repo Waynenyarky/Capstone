@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react'
-import { Row, Col, Card, Tabs, Button } from 'antd'
-import { PlusOutlined, DownloadOutlined } from '@ant-design/icons'
+import { Row, Col, Card, Tabs } from 'antd'
 import UserManagementDesktopView from './UserManagementDesktopView'
 import ExportLogsModal from '../../components/ExportLogsModal'
 import StaffAccountsTab from './StaffAccountsTab'

@@ -3,7 +3,7 @@ import { Card, Button, Space, Spin, Empty, theme, Grid, Typography } from 'antd'
 import { StarOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import BookmarkService from '../infrastructure/services/bookmarkService'
-import { PermitApplicationService } from '@/features/lgu-officer/infrastructure/services'
+import { PermitApplicationService } from '@/features/staffs/lgu-officer/infrastructure/services/permitApplicationService'
 import { get } from '@/lib/http'
 
 const { Title } = Typography
@@ -93,7 +93,9 @@ export default function RecentBookmarksCard() {
         border: `1px solid ${token.colorBorder}`,
         borderRadius: token.borderRadiusLG,
       }}
-      bodyStyle={{ padding: screens.lg ? '16px 16px 16px 16px' : '12px', paddingTop: screens.lg ? 90 : 48 }}
+      styles={{
+        body: { padding: screens.lg ? '16px 16px 16px 16px' : '12px', paddingTop: screens.lg ? 90 : 48 }
+      }}
     >
       {/* Card Header */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>

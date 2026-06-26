@@ -1,10 +1,8 @@
 /**
  * Audit Logger Utility for Auth Service
- * Creates audit logs and calls Audit Service for blockchain logging
+ * Creates audit logs via centralized audit-service
  */
 
-const crypto = require("crypto");
-const AuditLog = require("../models/AuditLog");
 const axios = require("axios");
 const logger = require("./logger");
 
@@ -38,6 +36,7 @@ function calculateAuditHash(
 /**
  * Create audit log and log to blockchain via Audit Service
  * Non-blocking - operation succeeds even if blockchain logging fails
+ * Now uses centralized audit-service ingestion endpoint
  */
 async function createAuditLog(
   userId,
@@ -56,57 +55,39 @@ async function createAuditLog(
       userAgent: metadata.userAgent || "unknown",
     };
 
-    // Calculate hash before creating document (to avoid validation issues)
-    const timestamp = new Date().toISOString();
-    const hash = calculateAuditHash(
-      userId,
-      eventType,
-      fieldChanged,
-      oldValue || "",
-      newValue || "",
-      role,
-      fullMetadata,
-      timestamp,
-    );
-
-    // Create audit log entry with hash already calculated
-    const auditLog = await AuditLog.create({
-      userId,
-      eventType,
-      fieldChanged,
-      oldValue: oldValue || "",
-      newValue: newValue || "",
-      role,
-      metadata: fullMetadata,
-      hash, // Set hash directly
-    });
-
-    // Queue blockchain operation via Audit Service (non-blocking)
+    // Send to audit-service ingestion endpoint
     const auditServiceUrl =
       process.env.AUDIT_SERVICE_URL || "http://localhost:3004";
     const headers = { "Content-Type": "application/json" };
     if (process.env.AUDIT_SERVICE_API_KEY)
       headers["X-API-Key"] = process.env.AUDIT_SERVICE_API_KEY;
-    axios
-      .post(
-        `${auditServiceUrl}/api/audit/log`,
-        {
-          operation: "logAuditHash",
-          params: [auditLog.hash, eventType],
-          auditLogId: String(auditLog._id),
-        },
-        { headers },
-      )
-      .catch((err) => {
-        logger.warn("Failed to log to blockchain via Audit Service", {
-          error: err.message,
-        });
-      });
 
-    return auditLog;
+    const response = await axios.post(
+      `${auditServiceUrl}/api/audit/ingest`,
+      {
+        userId,
+        eventType,
+        entityType: "User",
+        entityId: userId,
+        fieldChanged,
+        oldValue: oldValue || "",
+        newValue: newValue || "",
+        role,
+        metadata: fullMetadata,
+      },
+      { headers },
+    );
+
+    logger.info("Audit log sent to audit-service", {
+      auditLogId: response.data?.auditLogId,
+      eventType,
+    });
+
+    return response.data;
   } catch (error) {
-    // Don't throw - audit logging failure shouldn't break operations
-    logger.error("Error creating audit log", { error });
+    logger.error("Failed to send audit log to audit-service", {
+      error: error.message,
+    });
     return null;
   }
 }

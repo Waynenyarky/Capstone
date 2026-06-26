@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Typography, Tag, Space, Input, Modal, Drawer, Button, Tooltip, Grid } from 'antd'
+import { Typography, Space, Input, Modal, Drawer, Button, Tooltip, Grid } from 'antd'
 import { CheckOutlined, CloseOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons'
 
 const { Text } = Typography
@@ -43,27 +43,27 @@ export default function FieldDecisionControl({ fieldKey, decision, onAccept, onR
   if (disabled) {
     if (!decision) {
       return (
-        <Tag color="default" style={{ fontSize: 12, padding: '2px 8px' }}>
-          Pending Review
-        </Tag>
+        <Text type="secondary" style={{ fontSize: 11 }}>Pending Review</Text>
       )
     }
 
     const isAccepted = decision.status === 'accepted'
     const isRequestChange = decision.status === 'request_changes'
-    const reasonText = isRequestChange
-      ? (decision.requestOther || decision.requestCode || 'Request Changes')
-      : ''
+    const authorText = getDecisionAuthorText()
 
-    return isAccepted ? (
-      <Tag color="success" icon={<CheckOutlined />} style={{ fontSize: 12, padding: '2px 8px' }}>
-        Accepted
-      </Tag>
-    ) : isRequestChange ? (
-      <Tag color="warning" icon={<EditOutlined />} style={{ fontSize: 12, padding: '2px 8px' }}>
-        {reasonText ? `Changes: ${reasonText}` : 'Request Changes'}
-      </Tag>
-    ) : null
+    if (isAccepted) {
+      return authorText ? (
+        <Text type="secondary" style={{ fontSize: 11 }}>{authorText}</Text>
+      ) : null
+    }
+
+    if (isRequestChange) {
+      return authorText ? (
+        <Text type="secondary" style={{ fontSize: 11 }}>{authorText}</Text>
+      ) : null
+    }
+
+    return null
   }
 
   const requestContent = (

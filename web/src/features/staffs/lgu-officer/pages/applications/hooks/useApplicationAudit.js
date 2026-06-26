@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react'
 import { get } from '@/lib/http.js'
 
-export function useApplicationAudit(applicationId) {
+export function useApplicationAudit(applicationId, enabled = true) {
   const [audits, setAudits] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 })
 
   useEffect(() => {
-    if (!applicationId) return
+    if (!applicationId || !enabled) return
 
     const fetchAudits = async () => {
       try {
         setLoading(true)
         setError(null)
-        const res = await get(`/api/lgu-officer/permit-applications/${applicationId}/audit?page=${pagination.page}&limit=${pagination.limit}`)
+        const res = await get(`/api/auth/audit/application/${applicationId}?page=${pagination.page}&limit=${pagination.limit}`)
         setAudits(res.logs || [])
         setPagination((prev) => res.pagination || prev)
       } catch (err) {
@@ -26,7 +26,7 @@ export function useApplicationAudit(applicationId) {
     }
 
     fetchAudits()
-  }, [applicationId, pagination.page, pagination.limit])
+  }, [applicationId, pagination.page, pagination.limit, enabled])
 
   const refetch = () => {
     if (applicationId) {

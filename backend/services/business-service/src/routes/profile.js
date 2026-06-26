@@ -302,470 +302,106 @@ router.post(
   },
 );
 
-// GET /api/business/businesses - Get all businesses (with pagination and filtering)
-router.get(
-  "/businesses",
-  requireJwt,
-  requireRole(["business_owner"]),
-  async (req, res) => {
-    try {
-      const {
-        page = 1,
-        limit = 10,
-        search = "",
-        status = "",
-        sort = "updatedAt",
-        order = "desc",
-      } = req.query;
+// GET /api/business/businesses - DISABLED: Now uses /api/lgu-officer/businesses (Business collection)
+// Old route depended on businesses[] array which no longer exists in BusinessProfile
+// router.get(
+//   "/businesses",
+//   requireJwt,
+//   requireRole(["business_owner"]),
+//   async (req, res) => {
+//     // ... old implementation removed
+//   },
+// );
 
-      const profile = await businessProfileService.getProfile(req._userId);
-      let businesses = profile.businesses || [];
+// GET /api/business/businesses/:businessId - DISABLED: Now uses /api/lgu-officer/businesses/:id (Business collection)
+// router.get(
+//   "/businesses/:businessId",
+//   requireJwt,
+//   requireRole(["business_owner", "lgu_officer"]),
+//   async (req, res) => {
+//     // ... old implementation removed
+//   },
+// );
 
-      // Hide walk-in drafts created by officers (only while still in draft status)
-      // Also catch legacy walk-in drafts (before createdByOfficer flag) via WI- reference prefix
-      businesses = businesses.filter((business) => {
-        const isDraft =
-          (business.applicationStatus || "").toLowerCase() === "draft";
-        if (!isDraft) return true;
-        if (business.createdByOfficer) return false;
-        if ((business.applicationReferenceNumber || "").startsWith("WI-"))
-          return false;
-        return true;
-      });
+// PUT /api/business/businesses/:businessId/payment-generation-status - DISABLED: Old route depended on businesses[] array
+// router.put(
+//   "/businesses/:businessId/payment-generation-status",
+//   requireJwt,
+//   requireRole(["business_owner", "lgu_officer"]),
+//   async (req, res) => {
+//     // ... old implementation removed
+//   },
+// );
 
-      // Apply search filter
-      if (search) {
-        const searchLower = search.toLowerCase();
-        businesses = businesses.filter(
-          (business) =>
-            (business.businessName &&
-              business.businessName.toLowerCase().includes(searchLower)) ||
-            (business.tradeName &&
-              business.tradeName.toLowerCase().includes(searchLower)) ||
-            (business.primaryLineOfBusiness &&
-              business.primaryLineOfBusiness
-                .toLowerCase()
-                .includes(searchLower)) ||
-            (business.lineOfBusiness &&
-              business.lineOfBusiness.toLowerCase().includes(searchLower)),
-        );
-      }
+// GET /api/business/businesses/:businessId/payment-generation-status - DISABLED: Old route depended on businesses[] array
+// router.get(
+//   "/businesses/:businessId/payment-generation-status",
+//   requireJwt,
+//   requireRole(["business_owner", "lgu_officer"]),
+//   async (req, res) => {
+//     // ... old implementation removed
+//   },
+// );
 
-      // Apply status filter
-      if (status) {
-        businesses = businesses.filter((business) => {
-          const businessStatus = (
-            business.applicationStatus ||
-            business.permitStatus ||
-            ""
-          ).toLowerCase();
-          return businessStatus === status.toLowerCase();
-        });
-      }
+// GET /api/business/businesses/primary - DISABLED: Old route depended on businesses[] array
+// router.get(
+//   "/businesses/primary",
+//   requireJwt,
+//   requireRole(["business_owner"]),
+//   async (req, res) => {
+//     // ... old implementation removed
+//   },
+// );
 
-      // Apply sorting
-      businesses.sort((a, b) => {
-        let aValue, bValue;
+// POST /api/business/businesses - DISABLED: Old route depended on businesses[] array
+// router.post(
+//   "/businesses",
+//   requireJwt,
+//   requireRole(["business_owner"]),
+//   async (req, res) => {
+//     // ... old implementation removed
+//   },
+// );
 
-        switch (sort) {
-          case "businessName":
-            aValue = a.businessName || a.tradeName || "";
-            bValue = b.businessName || b.tradeName || "";
-            break;
-          case "createdAt":
-            aValue = a.createdAt || new Date(0);
-            bValue = b.createdAt || new Date(0);
-            break;
-          case "applicationStatus":
-            aValue = a.applicationStatus || a.permitStatus || "";
-            bValue = b.applicationStatus || b.permitStatus || "";
-            break;
-          case "updatedAt":
-          default:
-            aValue = a.updatedAt || new Date(0);
-            bValue = b.updatedAt || new Date(0);
-            break;
-        }
+// PUT /api/business/businesses/:businessId - DISABLED: Old route depended on businesses[] array
+// router.put(
+//   "/businesses/:businessId",
+//   requireJwt,
+//   requireRole(["business_owner"]),
+//   async (req, res) => {
+//     // ... old implementation removed
+//   },
+// );
 
-        if (typeof aValue === "string") {
-          return order === "desc"
-            ? bValue.localeCompare(aValue)
-            : aValue.localeCompare(bValue);
-        } else {
-          return order === "desc"
-            ? new Date(bValue) - new Date(aValue)
-            : new Date(aValue) - new Date(bValue);
-        }
-      });
+// PATCH /api/business/businesses/:businessId - DISABLED: Old route depended on businesses[] array (active/inactive/closed) only
+// router.patch(
+//   "/businesses/:businessId",
+//   requireJwt,
+//   requireRole(["business_owner"]),
+//   async (req, res) => {
+//     // ... old implementation removed
+//   },
+// );
 
-      // Calculate pagination
-      const totalItems = businesses.length;
-      const totalPages = Math.ceil(totalItems / parseInt(limit));
-      const startIndex = (parseInt(page) - 1) * parseInt(limit);
-      const endIndex = startIndex + parseInt(limit);
-      const paginatedBusinesses = businesses.slice(startIndex, endIndex);
+// DELETE /api/business/businesses/:businessId - DISABLED: Old route depended on businesses[] array
+// router.delete(
+//   "/businesses/:businessId",
+//   requireJwt,
+//   requireRole(["business_owner"]),
+//   async (req, res) => {
+//     // ... old implementation removed
+//   },
+// );
 
-      res.json({
-        businesses: paginatedBusinesses,
-        pagination: {
-          currentPage: parseInt(page),
-          totalPages,
-          totalItems,
-          hasNext: parseInt(page) < totalPages,
-          hasPrev: parseInt(page) > 1,
-        },
-      });
-    } catch (err) {
-      console.error("GET /api/business/businesses error:", err);
-      return respond.error(
-        res,
-        500,
-        "fetch_error",
-        "Failed to fetch businesses",
-      );
-    }
-  },
-);
-
-// GET /api/business/businesses/:businessId - Get specific business by ID
-router.get(
-  "/businesses/:businessId",
-  requireJwt,
-  requireRole(["business_owner", "lgu_officer", "lgu_manager"]),
-  async (req, res) => {
-    try {
-      const { businessId } = req.params;
-      const userId = req._userId;
-      const mongoose = require("mongoose");
-
-      // Find business profile containing the requested business (by businessId OR subdoc _id)
-      let profile = await BusinessProfile.findOne({
-        "businesses.businessId": businessId,
-      }).lean();
-
-      // Fallback: try matching by subdocument _id if businessId didn't match
-      if (!profile && mongoose.Types.ObjectId.isValid(businessId)) {
-        profile = await BusinessProfile.findOne({
-          "businesses._id": new mongoose.Types.ObjectId(businessId),
-        }).lean();
-      }
-
-      if (!profile) {
-        return respond.error(
-          res,
-          404,
-          "not_found",
-          "Business profile not found",
-        );
-      }
-
-      // Find the specific business (by businessId OR subdoc _id)
-      const business = profile.businesses.find(
-        (b) => b.businessId === businessId || String(b._id) === businessId,
-      );
-      if (!business) {
-        return respond.error(res, 404, "not_found", "Business not found");
-      }
-
-      // Return the business with profile context
-      return respond.success(res, 200, {
-        business,
-        profile: {
-          userId: profile.userId,
-          ownerName: profile.ownerName,
-          firstName: profile.firstName,
-          lastName: profile.lastName,
-        },
-      });
-    } catch (err) {
-      console.error("GET /api/business/businesses/:businessId error:", err);
-      return respond.error(
-        res,
-        500,
-        "fetch_error",
-        err.message || "Failed to fetch business",
-      );
-    }
-  },
-);
-
-// PUT /api/business/businesses/:businessId/payment-generation-status - Update payment generation status
-router.put(
-  "/businesses/:businessId/payment-generation-status",
-  requireJwt,
-  requireRole(["business_owner", "lgu_officer", "lgu_manager"]),
-  async (req, res) => {
-    try {
-      const { businessId } = req.params;
-      const statusData = req.body;
-      const mongoose = require("mongoose");
-
-      // Find business profile containing the requested business (by businessId OR subdoc _id)
-      let profile = await BusinessProfile.findOne({
-        "businesses.businessId": businessId,
-      });
-
-      // Fallback: try matching by subdocument _id if businessId didn't match
-      if (!profile && mongoose.Types.ObjectId.isValid(businessId)) {
-        profile = await BusinessProfile.findOne({
-          "businesses._id": new mongoose.Types.ObjectId(businessId),
-        });
-      }
-
-      if (!profile) {
-        return respond.error(
-          res,
-          404,
-          "not_found",
-          "Business profile not found",
-        );
-      }
-
-      // Find the specific business and update payment generation status (by businessId OR subdoc _id)
-      const businessIndex = profile.businesses.findIndex(
-        (b) => b.businessId === businessId || String(b._id) === businessId,
-      );
-      if (businessIndex === -1) {
-        return respond.error(res, 404, "not_found", "Business not found");
-      }
-
-      // Update payment generation status
-      profile.businesses[businessIndex].paymentGenerationStatus = {
-        ...profile.businesses[businessIndex].paymentGenerationStatus,
-        ...statusData,
-        updatedAt: new Date(),
-      };
-
-      await profile.save();
-
-      return respond.success(res, 200, {
-        message: "Payment generation status updated successfully",
-        paymentGenerationStatus:
-          profile.businesses[businessIndex].paymentGenerationStatus,
-      });
-    } catch (err) {
-      console.error(
-        "PUT /api/business/businesses/:businessId/payment-generation-status error:",
-        err,
-      );
-      return respond.error(
-        res,
-        500,
-        "update_error",
-        err.message || "Failed to update payment generation status",
-      );
-    }
-  },
-);
-
-// GET /api/business/businesses/:businessId/payment-generation-status - Get payment generation status
-router.get(
-  "/businesses/:businessId/payment-generation-status",
-  requireJwt,
-  requireRole(["business_owner", "lgu_officer", "lgu_manager"]),
-  async (req, res) => {
-    try {
-      const { businessId } = req.params;
-      const mongoose = require("mongoose");
-
-      // Find business profile containing the requested business (by businessId OR subdoc _id)
-      let profile = await BusinessProfile.findOne({
-        "businesses.businessId": businessId,
-      }).lean();
-
-      // Fallback: try matching by subdocument _id if businessId didn't match
-      if (!profile && mongoose.Types.ObjectId.isValid(businessId)) {
-        profile = await BusinessProfile.findOne({
-          "businesses._id": new mongoose.Types.ObjectId(businessId),
-        }).lean();
-      }
-
-      if (!profile) {
-        return respond.error(
-          res,
-          404,
-          "not_found",
-          "Business profile not found",
-        );
-      }
-
-      // Find the specific business (by businessId OR subdoc _id)
-      const business = profile.businesses.find(
-        (b) => b.businessId === businessId || String(b._id) === businessId,
-      );
-      if (!business) {
-        return respond.error(res, 404, "not_found", "Business not found");
-      }
-
-      return respond.success(
-        res,
-        200,
-        business.paymentGenerationStatus || { enabled: false },
-      );
-    } catch (err) {
-      console.error(
-        "GET /api/business/businesses/:businessId/payment-generation-status error:",
-        err,
-      );
-      return respond.error(
-        res,
-        500,
-        "fetch_error",
-        err.message || "Failed to fetch payment generation status",
-      );
-    }
-  },
-);
-
-// GET /api/business/businesses/primary - Get primary business
-router.get(
-  "/businesses/primary",
-  requireJwt,
-  requireRole(["business_owner"]),
-  async (req, res) => {
-    try {
-      const profile = await businessProfileService.getProfile(req._userId);
-      const primaryBusiness =
-        profile.businesses?.find((b) => b.isPrimary) || null;
-      res.json({ business: primaryBusiness });
-    } catch (err) {
-      console.error("GET /api/business/businesses/primary error:", err);
-      return respond.error(
-        res,
-        500,
-        "fetch_error",
-        "Failed to fetch primary business",
-      );
-    }
-  },
-);
-
-// POST /api/business/businesses - Add new business
-router.post(
-  "/businesses",
-  requireJwt,
-  requireRole(["business_owner"]),
-  async (req, res) => {
-    try {
-      const userId = req._userId;
-      const businessData = req.body;
-
-      const result = await businessProfileService.addBusiness(
-        userId,
-        businessData,
-      );
-      const profileObj =
-        result.profile && typeof result.profile.toObject === "function"
-          ? result.profile.toObject()
-          : result.profile;
-      res.json({ ...profileObj, businessId: result.businessId });
-    } catch (err) {
-      console.error("POST /api/business/businesses error:", err);
-      return respond.error(
-        res,
-        400,
-        "add_error",
-        err.message || "Failed to add business",
-      );
-    }
-  },
-);
-
-// PUT /api/business/businesses/:businessId - Update business
-router.put(
-  "/businesses/:businessId",
-  requireJwt,
-  requireRole(["business_owner"]),
-  async (req, res) => {
-    try {
-      const userId = req._userId;
-      const { businessId } = req.params;
-      const businessData = req.body;
-
-      const profile = await businessProfileService.updateBusiness(
-        userId,
-        businessId,
-        businessData,
-      );
-      res.json(profile);
-    } catch (err) {
-      console.error("PUT /api/business/businesses/:businessId error:", err);
-      return respond.error(
-        res,
-        400,
-        "update_error",
-        err.message || "Failed to update business",
-      );
-    }
-  },
-);
-
-// PATCH /api/business/businesses/:businessId - Update business status (active/inactive/closed) only
-router.patch(
-  "/businesses/:businessId",
-  requireJwt,
-  requireRole(["business_owner"]),
-  async (req, res) => {
-    try {
-      const userId = req._userId;
-      const { businessId } = req.params;
-      const { businessStatus } = req.body || {};
-
-      const profile = await businessProfileService.updateBusinessStatus(
-        userId,
-        businessId,
-        { businessStatus },
-      );
-      res.json(profile);
-    } catch (err) {
-      console.error("PATCH /api/business/businesses/:businessId error:", err);
-      return respond.error(
-        res,
-        400,
-        "update_error",
-        err.message || "Failed to update business status",
-      );
-    }
-  },
-);
-
-// DELETE /api/business/businesses/:businessId - Delete business
-router.delete(
-  "/businesses/:businessId",
-  requireJwt,
-  requireRole(["business_owner"]),
-  async (req, res) => {
-    try {
-      const userId = req._userId;
-      const { businessId } = req.params;
-
-      const result = await businessProfileService.deleteBusiness(
-        userId,
-        businessId,
-      );
-
-      // If profile was deleted, return different response
-      if (result && result.deleted) {
-        return res.json({
-          success: true,
-          profileDeleted: true,
-          message: result.message,
-          deletedProfileId: result.deletedProfileId,
-        });
-      }
-
-      res.json({ success: true });
-    } catch (err) {
-      console.error("DELETE /api/business/businesses/:businessId error:", err);
-      return respond.error(
-        res,
-        400,
-        "delete_error",
-        err.message || "Failed to delete business",
-      );
-    }
-  },
-);
+// POST /api/business/businesses/:businessId/primary - Set primary business - DISABLED
+// router.post(
+//   "/businesses/:businessId/primary",
+//   requireJwt,
+//   requireRole(["business_owner"]),
+//   async (req, res) => {
+//     // ... old implementation removed
+//   },
+// );
 
 // DELETE /api/business/profile - Delete entire business profile
 router.delete(
@@ -794,7 +430,7 @@ router.delete(
 router.get(
   "/businesses/:businessId/status/transitions",
   requireJwt,
-  requireRole(["business_owner", "lgu_officer", "lgu_manager"]),
+  requireRole(["business_owner", "lgu_officer"]),
   async (req, res) => {
     try {
       const userId = req._userId;
@@ -824,7 +460,7 @@ router.get(
 router.post(
   "/businesses/:businessId/status/validate",
   requireJwt,
-  requireRole(["business_owner", "lgu_officer", "lgu_manager"]),
+  requireRole(["business_owner", "lgu_officer"]),
   async (req, res) => {
     try {
       const userId = req._userId;
@@ -868,7 +504,7 @@ router.post(
 router.post(
   "/businesses/:businessId/status/transition",
   requireJwt,
-  requireRole(["lgu_officer", "lgu_manager"]),
+  requireRole(["lgu_officer"]),
   async (req, res) => {
     try {
       const userId = req._userId;
@@ -1951,7 +1587,7 @@ router.get(
 router.post(
   "/staff/walk-in",
   requireJwt,
-  requireRole(["staff", "lgu_officer", "lgu_manager"]),
+  requireRole(["staff", "lgu_officer"]),
   async (req, res) => {
     try {
       const { ownerId, businessData } = req.body;
@@ -2006,24 +1642,26 @@ router.get(
         return respond.error(res, 404, "not_found", "Application not found");
       }
 
-      // Query AuditLog directly from database (consistent with other services)
-      const AuditLog = require("../models/AuditLog");
-      const skip = (parseInt(page) - 1) * parseInt(limit);
+      // Query audit-service for application audit logs
+      const axios = require("axios");
+      const auditServiceUrl = process.env.AUDIT_SERVICE_URL || "http://localhost:3004";
+      const headers = { "Content-Type": "application/json" };
+      if (process.env.AUDIT_SERVICE_API_KEY)
+        headers["X-API-Key"] = process.env.AUDIT_SERVICE_API_KEY;
 
-      const filter = {
-        entityType: "application",
-        entityId: applicationId,
-      };
+      const response = await axios.get(
+        `${auditServiceUrl}/api/audit/application/${applicationId}`,
+        {
+          headers,
+          params: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+          },
+        },
+      );
 
-      const [logs, total] = await Promise.all([
-        AuditLog.find(filter)
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(parseInt(limit))
-          .lean(),
-        AuditLog.countDocuments(filter),
-      ]);
-
+      const logs = response.data.logs || [];
+      const total = response.data.total || 0;
       const totalPages = Math.ceil(total / parseInt(limit));
 
       return res.json({

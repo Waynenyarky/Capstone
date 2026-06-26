@@ -225,6 +225,17 @@ export default function AdminFeesDesktopView() {
           }}
         />
       )}
+      {selectedType === 'appeal_fees' && (
+        <FeeDetailPanel
+          feeId={selectedItemId}
+          fee={selectedItemId === 'new' ? null : selectedItem}
+          onSave={refresh}
+          onDelete={() => {
+            onDelete(selectedItemId)
+            setSelectedItemId(null)
+          }}
+        />
+      )}
     </>
   ) : (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>

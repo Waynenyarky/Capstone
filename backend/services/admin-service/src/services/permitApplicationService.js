@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const BusinessProfile = require("../models/BusinessProfile");
 const User = require("../models/User");
-const AuditLog = require("../models/AuditLog");
 const Role = require("../models/Role"); // Ensure Role model is registered
 const blockchainService = require("../lib/blockchainService");
 const { logAuditEvent } = require("../lib/auditClient");
@@ -122,7 +121,7 @@ async function verifyOfficerRole(officerId) {
   if (!officer) throw new Error("Officer not found");
   const rawSlug = officer.role?.slug || "";
   const roleSlug = decrypt(rawSlug) || rawSlug;
-  if (!["lgu_officer", "staff", "lgu_manager"].includes(roleSlug)) {
+  if (!["lgu_officer", "staff"].includes(roleSlug)) {
     throw new Error("Unauthorized: Only LGU officers can review applications");
   }
   return { officer, roleSlug };
@@ -865,6 +864,21 @@ class PermitApplicationService {
       await BusinessProfile.updateOne({ _id: profile._id }, updateQuery);
       console.log(`[startReview] Profile updated successfully`);
 
+      // Log audit event for claim
+      await logAuditEvent(
+        "claim",
+        officerId,
+        "BusinessProfile",
+        businessId || applicationId,
+        {
+          claimedByName: officerName,
+          applicationStatus: oldStatus,
+          businessName: business.businessName,
+          applicationReferenceNumber: business.applicationReferenceNumber,
+          role: roleSlug,
+        }
+      );
+
       // Create notification for business owner
       try {
         const notificationService = require("./notificationService");
@@ -934,15 +948,13 @@ class PermitApplicationService {
       `[startReview] Status verified successfully: 'under_review' saved for business ${businessId || applicationId}, userId: ${profile.userId}`,
     );
 
-    // Create audit log
-    const auditData = {
-      userId: profile.userId,
-      eventType: "permit_review_started",
-      fieldChanged: "applicationStatus",
-      oldValue: oldStatus,
-      newValue: "under_review",
-      role: roleSlug,
-      metadata: {
+    // Create audit log via centralized audit-service
+    logAuditEvent(
+      "permit_review_started",
+      profile.userId,
+      "BusinessProfile",
+      businessId || applicationId,
+      {
         applicationId: businessId || applicationId,
         businessId: businessId || applicationId,
         officerId,
@@ -950,50 +962,11 @@ class PermitApplicationService {
         applicationReferenceNumber:
           business.applicationReferenceNumber ||
           `APP-${(businessId || applicationId).slice(-8)}`,
+        role: roleSlug,
       },
-    };
-
-    // Generate hash
-    const hashableData = {
-      userId: String(auditData.userId),
-      eventType: auditData.eventType,
-      fieldChanged: auditData.fieldChanged,
-      oldValue: auditData.oldValue,
-      newValue: auditData.newValue,
-      timestamp: new Date().toISOString(),
-      role: auditData.role,
-      metadata: JSON.stringify(auditData.metadata || {}),
-    };
-    const dataString = JSON.stringify(hashableData);
-    const hash = crypto.createHash("sha256").update(dataString).digest("hex");
-
-    auditData.hash = hash;
-
-    // Create audit log
-    const auditLog = await AuditLog.create(auditData);
-
-    // Log to blockchain (non-blocking)
-    if (blockchainService.isAvailable()) {
-      const blockchainQueue = require("../lib/blockchainQueue");
-      blockchainQueue
-        .queueBlockchainOperation(
-          "logAuditHash",
-          [hash, "permit_review_started"],
-          String(auditLog._id),
-        )
-        .then((result) => {
-          if (result.success) {
-            auditLog.txHash = result.txHash;
-            auditLog.blockNumber = result.blockNumber;
-            auditLog.save().catch((err) => {
-              console.error("Failed to update audit log with txHash:", err);
-            });
-          }
-        })
-        .catch((err) => {
-          console.error("Error logging to blockchain:", err);
-        });
-    }
+    ).catch((err) => {
+      console.error("[startReview] Failed to create audit log:", err);
+    });
 
     // Return updated application
     return this.getApplicationById(applicationId, businessId);
@@ -1061,6 +1034,7 @@ class PermitApplicationService {
         "rejected",
         "needs_revision",
         "under_review",
+        "appeal_rejected",
       ],
       needs_revision: ["resubmit", "under_review"],
     };
@@ -1177,6 +1151,25 @@ class PermitApplicationService {
       { _id: profile._id },
       { $set: updateFields },
     );
+
+    // Log audit event for application rejection
+    if (newStatus === "rejected") {
+      await logAuditEvent(
+        "application_rejected",
+        officerId,
+        "BusinessProfile",
+        businessId || applicationId,
+        {
+          rejectedByName: officerName,
+          rejectionReason: rejectionReason || null,
+          oldStatus,
+          newStatus,
+          businessName: business.businessName,
+          applicationReferenceNumber: business.applicationReferenceNumber,
+          role: roleSlug,
+        }
+      );
+    }
 
     // Create notification for business owner
     try {
@@ -1360,9 +1353,6 @@ class PermitApplicationService {
 
     auditData.hash = hash;
 
-    // Create audit log
-    const auditLog = await AuditLog.create(auditData);
-
     // Send to central audit-service for blockchain anchoring
     const auditEventType =
       newStatus === "approved"
@@ -1377,29 +1367,6 @@ class PermitApplicationService {
       profile._id.toString(),
       { businessId: businessId || applicationId, decision, newStatus },
     );
-
-    // Log to blockchain (non-blocking)
-    if (blockchainService.isAvailable()) {
-      const blockchainQueue = require("../lib/blockchainQueue");
-      blockchainQueue
-        .queueBlockchainOperation(
-          "logAuditHash",
-          [hash, "permit_review"],
-          String(auditLog._id),
-        )
-        .then((result) => {
-          if (result.success) {
-            auditLog.txHash = result.txHash;
-            auditLog.blockNumber = result.blockNumber;
-            auditLog.save().catch((err) => {
-              console.error("Failed to update audit log with txHash:", err);
-            });
-          }
-        })
-        .catch((err) => {
-          console.error("Error logging to blockchain:", err);
-        });
-    }
 
     // Send notification email
     try {
@@ -1424,6 +1391,109 @@ class PermitApplicationService {
 
     // Return updated application
     return this.getApplicationById(applicationId, businessId);
+  }
+
+  /**
+   * Reject an appeal
+   * @param {string} applicationId - Application ID
+   * @param {string} businessId - Business ID
+   * @param {string} officerId - Officer ID
+   * @param {string} appealId - Appeal ID
+   * @param {string} rejectionReason - Rejection reason
+   * @returns {Promise<object>} Updated application
+   */
+  async rejectAppeal(
+    applicationId,
+    businessId,
+    officerId,
+    appealId,
+    rejectionReason
+  ) {
+    if (!appealId) {
+      throw new Error("Appeal ID is required");
+    }
+    if (!rejectionReason) {
+      throw new Error("Rejection reason is required when rejecting an appeal");
+    }
+
+    const { officer, roleSlug } = await verifyOfficerRole(officerId);
+
+    const targetId = businessId || applicationId;
+    const profile = await findProfileByBusinessId(targetId);
+    if (!profile) throw new Error("Application not found");
+
+    const businessIndex = findBusinessIndex(profile, targetId);
+    if (businessIndex === -1) throw new Error("Application not found");
+
+    const business = profile.businesses[businessIndex];
+
+    // Reject the appeal via the appeals endpoint
+    const Appeal = require("../../business-service/src/models/Appeal");
+    const appeal = await Appeal.findById(appealId);
+    if (!appeal) {
+      throw new Error("Appeal not found");
+    }
+
+    // Update appeal status to rejected
+    appeal.status = "rejected";
+    appeal.resolution = rejectionReason;
+    appeal.reviewedBy = officerId;
+    appeal.reviewedAt = new Date();
+    await appeal.save();
+
+    // Update application status to appeal_rejected
+    const updateFields = {
+      [`businesses.${businessIndex}.applicationStatus`]: "appeal_rejected",
+      [`businesses.${businessIndex}.updatedAt`]: new Date(),
+    };
+    await BusinessProfile.updateOne(
+      { _id: profile._id },
+      { $set: updateFields }
+    );
+
+    // Log audit event for appeal rejection
+    await logAuditEvent(
+      "appeal_rejected",
+      officerId,
+      "Appeal",
+      appealId,
+      {
+        rejectedByName: officer.name,
+        rejectionReason: rejectionReason,
+        oldStatus: appeal.status,
+        newStatus: "rejected",
+        businessName: business.businessName,
+        applicationReferenceNumber: business.applicationReferenceNumber,
+        role: roleSlug,
+      }
+    );
+
+    // Create notification for business owner
+    try {
+      const notificationService = require("./notificationService");
+      await notificationService.createNotification(
+        profile.userId,
+        "appeal_rejected",
+        "Appeal Rejected",
+        `Your appeal for "${business.businessName}" has been rejected. Reason: ${rejectionReason}`,
+        "appeal",
+        appealId,
+        {
+          rejectionReason: rejectionReason,
+        }
+      );
+    } catch (notifError) {
+      console.error(
+        `[rejectAppeal] Failed to create notification:`,
+        notifError
+      );
+    }
+
+    return {
+      _id: business._id,
+      businessId: business.businessId,
+      applicationStatus: "appeal_rejected",
+    };
   }
 
   /**
@@ -1821,6 +1891,15 @@ class PermitApplicationService {
           officerId,
           "request_changes",
           payload.requestOther || payload.requestType || ""
+        );
+        break;
+      case "reject_appeal":
+        updated = await this.rejectAppeal(
+          applicationId,
+          businessId,
+          officerId,
+          payload.appealId,
+          payload.rejectionReason || ""
         );
         break;
       default:

@@ -14,7 +14,7 @@ export function useHelpRequestAudit(requestId) {
       try {
         setLoading(true)
         setError(null)
-        const res = await get(`/api/help-requests/${requestId}/audit?page=${pagination.page}&limit=${pagination.limit}`)
+        const res = await get(`/api/auth/audit/help-request/${requestId}?page=${pagination.page}&limit=${pagination.limit}`)
         setAudits(res.logs || [])
         setPagination((prev) => res.pagination || prev)
       } catch (err) {
