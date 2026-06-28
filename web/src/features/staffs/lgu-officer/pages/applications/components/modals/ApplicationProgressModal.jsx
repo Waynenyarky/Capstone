@@ -1,28 +1,7 @@
-import { Modal, Drawer } from 'antd'
-import ApplicationProgressTimeline from '@/features/business-owner/components/views/pending-application/ApplicationProgressTimeline'
+import { Modal } from 'antd'
+import ApplicationProgressTimeline from '@/features/business-owner/pages/applications/components/ApplicationProgressTimeline'
 
-export default function ApplicationProgressModal({ open, onClose, application, status, statusLower, latestAppeal, isMobile }) {
-  if (isMobile) {
-    return (
-      <Drawer
-        title="Application Progress"
-        open={open}
-        onClose={onClose}
-        placement="right"
-        width="75%"
-      >
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <ApplicationProgressTimeline
-            business={application}
-            status={status}
-            statusLower={statusLower}
-            latestAppeal={latestAppeal}
-          />
-        </div>
-      </Drawer>
-    )
-  }
-
+export default function ApplicationProgressModal({ open, onClose, application, status, statusLower, latestAppeal }) {
   return (
     <Modal
       title="Application Progress"
@@ -31,7 +10,7 @@ export default function ApplicationProgressModal({ open, onClose, application, s
       footer={null}
       width={600}
     >
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <div style={{ padding: 16, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <ApplicationProgressTimeline
           business={application}
           status={status}

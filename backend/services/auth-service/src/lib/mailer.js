@@ -169,7 +169,21 @@ async function sendEmailViaAPI({
     } else {
       logger.error("Email API error", { error: err.message });
     }
-    // Do not fall back to mock on API errors: the user would see "verification sent"
+
+    // In development mode, fall back to mock sender on quota errors (429)
+    // This allows continued testing when email provider limits are hit
+    const isDev = process.env.NODE_ENV !== "production";
+    const isQuotaError = err.response?.status === 429;
+    if (isDev && isQuotaError) {
+      logger.warn("Email: quota exceeded, falling back to mock sender (dev mode)", {
+        provider,
+        status: err.response.status,
+      });
+      const mockSender = createMockEmailSender();
+      return await mockSender({ to: actualTo, subject, text, html });
+    }
+
+    // Do not fall back to mock on other API errors: the user would see "verification sent"
     // but receive no email. Let the error propagate so the client gets a clear failure
     // (e.g. "Failed to send verification email") and can fix config (e.g. verify sender in SendGrid).
     throw err;

@@ -4,6 +4,7 @@ const Appeal = require("../models/Appeal");
 const BusinessProfile = require("../models/BusinessProfile");
 const Application = require("../models/Application");
 const Violation = require("../models/Violation");
+const Payment = require("../models/Payment");
 const { requireJwt, requireRole } = require("../middleware/auth");
 const { logAuditEvent } = require("../lib/auditClient");
 const { crossClaimForBusiness } = require("../lib/crossClaimService");
@@ -66,6 +67,14 @@ function findBusinessIndexInProfile(profile, identifier) {
   return profile.businesses.findIndex(
     (b) => b.businessId === target || String(b._id) === target,
   );
+}
+
+// Helper: generate payment ID
+async function generatePaymentId() {
+  const year = new Date().getFullYear();
+  const ts = Date.now().toString(36).toUpperCase();
+  const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return `PAY-${year}-${ts}-${rand}`;
 }
 
 async function findProfileForAppeal(appeal) {
@@ -370,6 +379,41 @@ router.post("/", requireJwt, async (req, res) => {
       ...(claimingOfficerId ? { reviewedBy: claimingOfficerId } : {}),
     });
 
+    // Create appeal fee payment record (auto-paid for demo)
+    try {
+      const appealFeeAmount = 500; // Default appeal fee amount
+      const paymentId = await generatePaymentId();
+      const payment = await Payment.create({
+        paymentId,
+        userId: req._userId,
+        businessId,
+        paymentType: "appeal_fee",
+        description: "Appeal Fee",
+        amount: appealFeeAmount,
+        relatedEntityType: "other",
+        relatedEntityId: appeal._id.toString(),
+        feeBreakdown: [
+          {
+            label: "Appeal Fee",
+            amount: appealFeeAmount,
+            type: "appeal_fee",
+          },
+        ],
+        status: "paid",
+        paymentMethod: "demo_auto",
+        paidAt: new Date(),
+        breakdown: { baseFee: appealFeeAmount, surcharge: 0, penalty: 0, discount: 0, tax: 0 },
+        metadata: {
+          isMockPayment: true,
+          appealId: appeal._id.toString(),
+        },
+      });
+      console.log(`Appeal payment created and auto-paid: ${payment.paymentId}`);
+    } catch (paymentErr) {
+      console.error("Failed to create appeal payment record:", paymentErr);
+      // Don't fail the appeal submission if payment creation fails
+    }
+
     // Update application to mark that an appeal is active and change status to appeal_pending
     try {
       await Application.updateOne(buildApplicationLookupQuery(businessId), {
@@ -456,12 +500,18 @@ router.put("/:id", requireJwt, async (req, res) => {
             application.appealId = "";
 
             if (normalizedStatus === "approved") {
+              // Preserve original rejection reason before clearing
+              if (!application.originalRejectionReason) {
+                application.originalRejectionReason = application.rejectionReason;
+              }
+              application.hadAppealGranted = true;
+
               application.applicationStatus = "under_review";
               application.appealExhausted = false;
               application.rejectionReason = "";
               application.reviewComments = "";
               console.log(
-                `[Appeal Approved] Application ${businessId} reset to under_review for re-review`,
+                `[Appeal Granted] Application ${businessId} reset to under_review for re-review`,
               );
             } else {
               application.appealExhausted = true;
@@ -472,6 +522,30 @@ router.put("/:id", requireJwt, async (req, res) => {
             }
 
             await application.save();
+
+            // Also update BusinessProfile businesses subdoc for officer view
+            const profile = await BusinessProfile.findOne(
+              buildBusinessLookupQuery(businessId),
+            );
+            if (profile) {
+              const biz = findBusinessInProfile(profile, businessId);
+              if (biz) {
+                if (normalizedStatus === "approved") {
+                  if (!biz.originalRejectionReason) {
+                    biz.originalRejectionReason = biz.rejectionReason;
+                  }
+                  biz.hadAppealGranted = true;
+                  biz.applicationStatus = "under_review";
+                  biz.appealExhausted = false;
+                  biz.rejectionReason = "";
+                  biz.reviewComments = "";
+                } else {
+                  biz.appealExhausted = true;
+                  biz.applicationStatus = "rejected";
+                }
+                await profile.save();
+              }
+            }
           } else {
             console.warn(
               `[Appeal Resolution] No matching application found for appeal businessId=${businessId}`,

@@ -218,21 +218,32 @@ router.post(
         }
       }
 
+      // Generate reference number for submitted applications
+      let applicationReferenceNumber = businessData.applicationReferenceNumber || "";
+      const isSubmitted = businessData.applicationStatus === "submitted";
+      if (isSubmitted && (!applicationReferenceNumber || applicationReferenceNumber.trim() === "")) {
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+        const randomSeq = Math.floor(1000 + Math.random() * 9000);
+        applicationReferenceNumber = `APP-${dateStr}-${randomSeq}`;
+      }
+
       const application = await Application.create({
         applicationId,
         businessId: applicationId, // Set businessId to applicationId for frontend compatibility
         userId,
         applicationType: businessData.applicationType || "new",
         applicationStatus: businessData.applicationStatus || "draft",
-        applicationReferenceNumber: businessData.applicationReferenceNumber || "",
+        applicationReferenceNumber,
         formType: businessData.formType || "",
         category: businessData.category || "",
         formDefinitionId: businessData.formDefinitionId || null,
         formData: businessData.formData || {},
         lguDocuments: lguDocuments,
-        submittedAt: businessData.submittedAt ? new Date(businessData.submittedAt) : null,
-        submittedToLguOfficer: businessData.applicationStatus === "submitted",
-        isSubmitted: businessData.applicationStatus === "submitted",
+        submittedAt: businessData.submittedAt ? new Date(businessData.submittedAt) : (isSubmitted ? new Date() : null),
+        submittedToLguOfficer: isSubmitted,
+        isSubmitted,
+        // Store businessName at top level for display (extracted from various possible field keys)
+        businessName: businessData.businessName || businessData.formData?.businessName || businessData.formData?.registeredBusinessName || businessData.formData?.activityName || businessData.formData?.['Business / trade name'] || businessData.formData?.businessTradeName || "",
         // Map business data to application fields
         organizationType: businessData.organizationType || "",
         businessPlateNo: businessData.businessPlateNo || "",
@@ -293,22 +304,15 @@ router.get(
 
       const userId = req._userId || req.user?.id;
 
-      // Get draft/submitted applications from Application collection
-      const applications = await Application.find({ userId }).lean();
+      // Get draft/submitted applications from Application collection (no lean() to allow decryption)
+      const applications = await Application.find({ userId });
 
-      // Get approved businesses from Business collection
-      const approvedBusinesses = await Business.find({ userId }).lean();
-
-      // Merge both sources
+      // Merge only applications (convert to plain objects)
       let businesses = [
         ...applications.map((a) => ({
-          ...a,
+          ...a.toObject(),
           businessId: a.applicationId, // Map applicationId to businessId for frontend compatibility
           _source: "application",
-        })),
-        ...approvedBusinesses.map((b) => ({
-          ...b,
-          _source: "business",
         })),
       ];
 
@@ -348,20 +352,16 @@ router.get(
       });
 
       const total = businesses.length;
-      const startIndex = (parseInt(page) - 1) * parseInt(limit);
-      const paginatedBusinesses = businesses.slice(
-        startIndex,
-        startIndex + parseInt(limit)
-      );
-
+      
+      // Return all businesses without pagination
       return respond.success(res, 200, {
-        businesses: paginatedBusinesses,
+        businesses: businesses,
         pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(total / parseInt(limit)),
+          currentPage: 1,
+          totalPages: 1,
           totalItems: total,
-          hasNext: startIndex + parseInt(limit) < total,
-          hasPrev: parseInt(page) > 1,
+          hasNext: false,
+          hasPrev: false,
         },
       });
     } catch (err) {
@@ -477,8 +477,9 @@ router.put(
       const mongoose = require("mongoose");
 
       // Map documentCids to lguDocuments format for Application updates
+      // Only update lguDocuments if documentCids is non-empty to avoid overwriting existing files
       const updateData = { ...businessData };
-      if (businessData.documentCids) {
+      if (businessData.documentCids && Object.keys(businessData.documentCids).length > 0) {
         const lguDocuments = {};
         for (const [key, cid] of Object.entries(businessData.documentCids)) {
           lguDocuments[key] = cid;
@@ -487,16 +488,51 @@ router.put(
         updateData.lguDocuments = lguDocuments;
       }
 
+      // Update businessName at top level for display (extracted from various possible field keys)
+      updateData.businessName = businessData.businessName || businessData.formData?.businessName || businessData.formData?.registeredBusinessName || businessData.formData?.activityName || businessData.formData?.['Business / trade name'] || businessData.formData?.businessTradeName || "";
+
+      // Generate reference number if submitting and missing
+      const isSubmitting = businessData.applicationStatus === "submitted";
+      const isResubmitting = businessData.applicationStatus === "resubmit";
+      if (isSubmitting && (!businessData.applicationReferenceNumber || businessData.applicationReferenceNumber.trim() === "")) {
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+        const randomSeq = Math.floor(1000 + Math.random() * 9000);
+        updateData.applicationReferenceNumber = `APP-${dateStr}-${randomSeq}`;
+        updateData.submittedAt = new Date();
+        updateData.submittedToLguOfficer = true;
+        updateData.isSubmitted = true;
+      }
+
+      // Reset return flags when resubmitting
+      if (isResubmitting) {
+        updateData.returnCount = 0;
+        updateData.returnExhausted = false;
+      }
+
       // First, try to update in Application collection (for draft applications)
-      const application = await Application.findOneAndUpdate(
+      // Try both applicationId and _id to handle different ID types
+      let application = await Application.findOneAndUpdate(
         { applicationId: id, userId },
         { $set: updateData },
         { new: true, runValidators: true }
       );
 
-      if (application) {
-        return respond.success(res, 200, { business: application });
+      // If not found by applicationId, try by _id
+      if (!application && mongoose.Types.ObjectId.isValid(id)) {
+        console.log(`Application not found by applicationId ${id}, trying by _id`);
+        application = await Application.findOneAndUpdate(
+          { _id: id, userId },
+          { $set: updateData },
+          { new: true, runValidators: true }
+        );
       }
+
+      if (application) {
+        console.log(`Successfully updated Application with applicationId: ${application.applicationId}, status: ${application.applicationStatus}`);
+        return respond.success(res, 200, { businesses: [application] });
+      }
+
+      console.log(`Application not found with id: ${id}, userId: ${userId}, trying Business collection`);
 
       // If not found in Application, try Business collection (for approved businesses)
       const filter = { userId };
@@ -515,10 +551,12 @@ router.put(
       );
 
       if (!business) {
+        console.log(`Business not found with id: ${id}, userId: ${userId}`);
         return respond.error(res, 404, "not_found", "Business not found");
       }
 
-      return respond.success(res, 200, { business });
+      console.log(`Successfully updated Business with businessId: ${business.businessId}, status: ${business.applicationStatus}`);
+      return respond.success(res, 200, { businesses: [business] });
     } catch (err) {
       console.error("PUT /api/business-owner/businesses/:id error:", err);
       return respond.error(res, 400, "update_error", err.message || "Failed to update business");

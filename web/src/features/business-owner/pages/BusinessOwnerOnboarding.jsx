@@ -8,7 +8,7 @@ import { mfaStatus } from '@/features/authentication/services/mfaService'
 import { firstLoginChangeCredentials, getProfile } from '@/features/authentication/services/authService'
 import { useNotifier } from '@/shared/notifications'
 import BusinessOwnerLayout from '../components/shared/BusinessOwnerLayout'
-import { OnboardingStepContent } from '@/features/shared'
+import OnboardingStepContent from '@/shared/components/OnboardingStepContent'
 
 export default function BusinessOwnerOnboarding() {
   const { currentUser, login } = useAuthSession()

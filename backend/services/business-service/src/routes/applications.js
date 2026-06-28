@@ -139,6 +139,56 @@ router.get(
         return respond.error(res, 404, "not_found", "Application not found");
       }
 
+      // Map lguDocuments to documents for frontend compatibility
+      // Frontend reads application.documents, but Application model uses lguDocuments
+      if (!application.lguDocuments) {
+        application.lguDocuments = {};
+      }
+
+      // Try to extract document CIDs from formData if lguDocuments is empty
+      // Form fields might store CIDs directly in formData
+      if (Object.keys(application.lguDocuments).length === 0 && application.formData) {
+        const docFields = ['ownerGovernmentId', 'barangayClearance', 'dtiSecCdaCertificate', 'leaseContractOrTitle', 'ctcCedula', 'occupancyPermit'];
+        for (const field of docFields) {
+          if (application.formData[field]) {
+            application.lguDocuments[`${field}IpfsCid`] = application.formData[field];
+          }
+        }
+      }
+
+      if (application.lguDocuments && !application.documents) {
+        application.documents = application.lguDocuments;
+      }
+
+      // Also map lguDocuments fields to match form definition keys
+      // Form definition uses keys like 'ctc', 'barangayClearance', etc.
+      // lguDocuments uses 'ctcIpfsCid', 'barangayClearanceIpfsCid', etc.
+      // Add the base keys to documents for easier lookup
+      if (application.lguDocuments) {
+        const keyMapping = {
+          ownerGovernmentIdIpfsCid: 'ownerGovernmentId',
+          barangayClearanceIpfsCid: 'barangayClearance',
+          dtiSecCdaCertificateIpfsCid: 'dtiSecCdaCertificate',
+          leaseContractOrTitleIpfsCid: 'leaseContractOrTitle',
+          ctcCedulaIpfsCid: 'ctcCedula',
+          occupancyPermitIpfsCid: 'occupancyPermit',
+          // General permit form fields
+          ctcIpfsCid: 'ctc',
+          cdaRegistrationIpfsCid: 'cdaRegistration',
+          cityCooperativesComplianceIpfsCid: 'cityCooperativesCompliance',
+          spaOrAuthLetterIpfsCid: 'spaOrAuthLetter',
+          leaseAndLessorPermitIpfsCid: 'leaseAndLessorPermit',
+          rptClearanceIpfsCid: 'rptClearance',
+          accountClearanceIpfsCid: 'accountClearance',
+          secDoleRegistrationIpfsCid: 'secDoleRegistration',
+        };
+        for (const [ipfsKey, baseKey] of Object.entries(keyMapping)) {
+          if (application.lguDocuments[ipfsKey] && !application.documents[baseKey]) {
+            application.documents[baseKey] = application.lguDocuments[ipfsKey];
+          }
+        }
+      }
+
       return respond.success(res, 200, { application });
     } catch (err) {
       console.error("GET /api/business/applications/:id error:", err);
@@ -296,24 +346,32 @@ router.put(
       }
 
       // Create Business from approved application
+      // Extract business name from various possible field keys (different form types use different keys)
+      const businessName = application.formData?.businessName ||
+                         application.formData?.registeredBusinessName ||
+                         application.formData?.activityName ||
+                         application.formData?.['Business / trade name'] ||
+                         application.formData?.businessTradeName ||
+                         "Unnamed Business";
+
       const business = await Business.create({
         businessId,
         userId: application.userId,
         ownerProfileId: businessProfile._id,
         approvedApplicationId: application._id,
-        businessName: application.formData?.businessName || application.formData?.registeredBusinessName || "Unnamed Business",
+        businessName,
         registeredBusinessName: application.formData?.registeredBusinessName || "",
         businessStatus: "active",
         registrationStatus: "proposed",
         location: application.formData?.location || {},
-        businessType: application.formData?.businessType,
-        registrationAgency: application.formData?.registrationAgency,
-        businessRegistrationNumber: application.formData?.businessRegistrationNumber || "",
+        businessType: application.formData?.businessType || "g",
+        registrationAgency: application.formData?.registrationAgency || "LGU",
+        businessRegistrationNumber: application.formData?.businessRegistrationNumber || application.formData?.tin || `APP-${application._id.toString().slice(-8).toUpperCase()}`,
         businessStartDate: application.formData?.businessStartDate,
         numberOfBranches: application.formData?.numberOfBranches || 0,
         industryClassification: application.formData?.industryClassification || "",
         taxIdentificationNumber: application.formData?.taxIdentificationNumber || "",
-        contactNumber: application.formData?.contactNumber || "",
+        contactNumber: application.formData?.contactNumber || application.formData?.businessPhone || "",
         riskProfile: application.formData?.riskProfile || {},
       });
 
@@ -358,6 +416,9 @@ router.put(
 
       application.applicationStatus = "rejected";
       application.rejectionReason = rejectionReason || "";
+      if (!application.originalRejectionReason) {
+        application.originalRejectionReason = rejectionReason || "";
+      }
       application.reviewedAt = new Date();
       await application.save();
 
@@ -394,9 +455,16 @@ router.put(
         return respond.error(res, 403, "forbidden", "You can only return your own claimed applications");
       }
 
+      // Check if return is exhausted (already returned once)
+      if (application.returnExhausted) {
+        return respond.error(res, 400, "return_exhausted", "This application has already been returned once. No further returns are allowed.");
+      }
+
       application.applicationStatus = "needs_revision";
       application.reviewComments = reviewComments || "";
       application.reviewedAt = new Date();
+      application.returnCount = (application.returnCount || 0) + 1;
+      application.returnExhausted = true; // Only allow one return
       await application.save();
 
       return respond.success(res, 200, { application });

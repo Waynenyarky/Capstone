@@ -19,7 +19,7 @@ function createMockFile(fieldName) {
   }
 }
 
-function formDataWithDayjs(formData, definition) {
+function formDataWithDayjs(formData, definition, documents = {}) {
   if (!formData || typeof formData !== 'object') return formData
   const dateKeys = new Set()
   const fileKeys = new Set()
@@ -53,9 +53,12 @@ function formDataWithDayjs(formData, definition) {
   // Convert file field CID strings back to Upload component format
   fileKeys.forEach((k) => {
     const v = out[k]
+    // First try to get CID from formData
+    let cid = null
+    let url = null
+
     if (typeof v === 'string' && v.trim()) {
       const trimmed = v.trim()
-      let cid, url
       // Check if it's a CID string (Qm... or bafy...)
       if (trimmed.startsWith('Qm') || trimmed.startsWith('bafy')) {
         cid = trimmed
@@ -74,7 +77,47 @@ function formDataWithDayjs(formData, definition) {
         cid = trimmed
         url = resolveIpfsUrl(trimmed) || trimmed
       }
-      // Convert to Upload format with url and thumbUrl for preview
+    } else if (Array.isArray(v) && v.length > 0) {
+      // Handle array of Upload objects that might be missing url field
+      if (typeof v[0] === 'object' && v[0] !== null) {
+        const first = v[0]
+        cid = first?.cid || first?.ipfsCid
+        if (cid) {
+          url = resolveIpfsUrl(cid) || cid
+        } else if (first?.url) {
+          url = first.url
+        }
+      } else if (typeof v[0] === 'string') {
+        // Array of CID strings or URLs
+        const trimmed = v[0].trim()
+        if (trimmed.startsWith('Qm') || trimmed.startsWith('bafy')) {
+          cid = trimmed
+          url = resolveIpfsUrl(cid) || cid
+        } else if (trimmed.includes('/ipfs/')) {
+          const match = trimmed.match(/\/ipfs\/([a-zA-Z0-9]+)/)
+          if (match) {
+            cid = match[1]
+            url = trimmed
+          } else {
+            url = trimmed
+          }
+        } else {
+          url = trimmed
+        }
+      }
+    }
+
+    // If still no CID, try to get from documents/lguDocuments
+    if (!cid && documents) {
+      const docCid = documents[k] || documents[`${k}IpfsCid`]
+      if (docCid && typeof docCid === 'string' && docCid.trim()) {
+        cid = docCid.trim()
+        url = resolveIpfsUrl(cid) || cid
+      }
+    }
+
+    // Convert to Upload format if we have a CID or URL
+    if (cid || url) {
       out[k] = [{
         uid: `file-${k}`,
         name: k.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim(),

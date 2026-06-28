@@ -14,6 +14,7 @@ export const STATUS_LABELS = {
   approved: 'Active',
   active: 'Active',
   needs_revision: 'Action Required',
+  returned: 'Returned',
   resubmit: 'Resubmitted',
   rejected: 'Rejected',
   expired: 'Expired',
@@ -34,6 +35,7 @@ export const STATUS_COLORS = {
   approved: 'green',
   active: 'green',
   needs_revision: 'volcano',
+  returned: 'volcano',
   resubmit: 'cyan',
   rejected: 'red',
   expired: 'red',
@@ -136,6 +138,16 @@ export function isResubmittedStatus(status) {
 }
 
 /**
+ * Check if status is returned
+ * @param {string} status - Raw status from API
+ * @returns {boolean}
+ */
+export function isReturnedStatus(status) {
+  const normalized = normalizeStatus(status)
+  return normalized === 'returned'
+}
+
+/**
  * Check if status is rejected
  * @param {string} status - Raw status from API
  * @returns {boolean}
@@ -143,6 +155,26 @@ export function isResubmittedStatus(status) {
 export function isRejectedStatus(status) {
   const normalized = normalizeStatus(status)
   return normalized === 'rejected' || normalized === 'appeal_pending'
+}
+
+/**
+ * Check if status is appeal pending
+ * @param {string} status - Raw status from API
+ * @returns {boolean}
+ */
+export function isAppealPendingStatus(status) {
+  const normalized = normalizeStatus(status)
+  return normalized === 'appeal_pending'
+}
+
+/**
+ * Check if status is appeal rejected
+ * @param {string} status - Raw status from API
+ * @returns {boolean}
+ */
+export function isAppealRejectedStatus(status) {
+  const normalized = normalizeStatus(status)
+  return normalized === 'appeal_rejected'
 }
 
 /**

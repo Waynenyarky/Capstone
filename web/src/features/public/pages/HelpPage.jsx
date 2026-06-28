@@ -185,11 +185,8 @@ export default function HelpPage() {
                         maxCount={5}
                         onPreview={(file) => {
                           const url = file.originFileObj ? URL.createObjectURL(file.originFileObj) : file.url || file.thumbUrl || null
-                          const lookup = `${url || ''} ${file.name || ''}`.toLowerCase()
-                          let fileType = 'other'
-                          if (lookup.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg|heic|heif)/i)) fileType = 'image'
-                          else if (lookup.match(/\.(pdf)/i)) fileType = 'pdf'
-                          setPreviewModal({ open: true, url, label: file.name, type: fileType })
+                          const isBlob = url?.startsWith('blob:')
+                          setPreviewModal({ open: true, url, label: file.name, type: 'other', isBlob })
                         }}
                       >
                         {fileList.length < 5 && (

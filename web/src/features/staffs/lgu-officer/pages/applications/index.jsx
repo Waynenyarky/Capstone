@@ -5,34 +5,9 @@ import PanelCard from '@/shared/components/PanelCard'
 import ResponsiveSplitLayout from '@/shared/components/ResponsiveSplitLayout'
 import useOfficerData from '../../hooks/useOfficerData'
 import { useOfficerDataContext } from '../../contexts/OfficerDataContext'
-import BookmarkService from '../../infrastructure/services/bookmarkService'
+import BookmarkService from '../../services/bookmarkService'
 import dayjs from 'dayjs'
-
-const STATUS_FILTER_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'draft', label: 'Draft' },
-  { value: 'submitted', label: 'Pending Review' },
-  { value: 'under_review', label: 'Under Review' },
-  { value: 'resubmit', label: 'Resubmitted' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'rejected', label: 'Rejected' },
-  { value: 'returned', label: 'Returned' },
-  { value: 'appeal_pending', label: 'Appeal Pending' },
-  { value: 'appeal_rejected', label: 'Appeal Rejected' },
-]
-
-const STATUS_CONFIG = {
-  submitted: { color: 'blue', label: 'Pending Review' },
-  under_review: { color: 'gold', label: 'Under Review' },
-  resubmit: { color: 'cyan', label: 'Resubmitted' },
-  approved: { color: 'green', label: 'Approved' },
-  rejected: { color: 'red', label: 'Rejected' },
-  returned: { color: 'warning', label: 'Returned' },
-  needs_revision: { color: 'volcano', label: 'Needs Revision' },
-  appeal_pending: { color: 'purple', label: 'Appeal Pending' },
-  appeal_rejected: { color: 'red', label: 'Appeal Rejected' },
-  draft: { color: 'default', label: 'Draft' },
-}
+import { STATUS_CONFIG, STATUS_FILTER_OPTIONS } from './constants'
 
 export default function OfficerApplications() {
   const [selectedItem, setSelectedItem] = useState(null)
@@ -138,7 +113,7 @@ export default function OfficerApplications() {
         item={app}
         selected={currentSelectedId === getItemId(app)}
         onClick={() => onSelect(app)}
-        title={app.businessName || app.formData?.businessName || 'Unnamed Business'}
+        title={app.businessName || app.formData?.businessName || app.formData?.registeredBusinessName || app.formData?.activityName || app.formData?.['Business / trade name'] || app.formData?.businessTradeName || 'Unnamed Business'}
         description=''
         metaInfo={[
           ...(date ? [{ label: 'Submitted on', value: date }] : []),

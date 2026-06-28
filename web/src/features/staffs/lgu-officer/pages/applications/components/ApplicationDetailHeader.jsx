@@ -21,13 +21,9 @@ export default function ApplicationDetailHeader({
   const isApprovalPending = hasPendingAction?.actionType === 'complete_review';
   const isApproved = applicationStatus === 'approved';
   const isRejected = applicationStatus === 'rejected' || applicationStatus === 'appeal_rejected';
-  const isReturned = applicationStatus === 'returned' || applicationStatus === 'needs_revision';
+  const isReturned = applicationStatus === 'needs_revision' || applicationStatus === 'returned';
 
   const getPrimaryButton = () => {
-    // Hide buttons for final decision states (rejected, returned)
-    if (isRejected || isReturned) {
-      return null;
-    }
     // Show "Go To Business" button only when application is approved
     if (isApproved) {
       return {
@@ -35,6 +31,56 @@ export default function ApplicationDetailHeader({
         icon: <ShopOutlined />,
         onClick: onGoToBusiness || (() => {}),
         type: 'primary',
+      }
+    }
+    // When there's a pending action, show disabled claim/release buttons
+    if (hasPendingAction) {
+      if (!isClaimed) {
+        return {
+          text: 'Claim',
+          icon: <CheckOutlined />,
+          onClick: onClaim,
+          disabled: true,
+        }
+      }
+      if (isClaimedByMe) {
+        return {
+          text: 'Release',
+          icon: <CloseOutlined />,
+          onClick: onRelease,
+          disabled: true,
+        }
+      }
+      return {
+        text: 'Claimed by another officer',
+        icon: null,
+        onClick: onClaim,
+        disabled: true,
+      }
+    }
+    // When in final decision states (rejected, returned), show disabled claim/release buttons
+    if (isRejected || isReturned) {
+      if (!isClaimed) {
+        return {
+          text: 'Claim',
+          icon: <CheckOutlined />,
+          onClick: onClaim,
+          disabled: true,
+        }
+      }
+      if (isClaimedByMe) {
+        return {
+          text: 'Release',
+          icon: <CloseOutlined />,
+          onClick: onRelease,
+          disabled: true,
+        }
+      }
+      return {
+        text: 'Claimed by another officer',
+        icon: null,
+        onClick: onClaim,
+        disabled: true,
       }
     }
     // When approval is pending AND is claimed by me, show disabled release button
@@ -71,6 +117,9 @@ export default function ApplicationDetailHeader({
     }
   }
 
+  // Hide action buttons only when there's NO pending action AND in final decision states
+  const effectiveActionButtons = !hasPendingAction && (isRejected || isReturned) ? [] : actionButtons;
+
   return (
     <DetailHeader
       title="Application Details"
@@ -81,7 +130,7 @@ export default function ApplicationDetailHeader({
         { icon: <BookOutlined />, onClick: onManualClick, title: 'Manual' },
         { icon: <InfoCircleOutlined />, onClick: onInfoClick, title: 'Info' },
       ]}
-      actionButtons={actionButtons}
+      actionButtons={effectiveActionButtons}
       desktopOnly={true}
     />
   )

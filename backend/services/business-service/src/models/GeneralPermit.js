@@ -51,6 +51,23 @@ const GeneralPermitSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    businessId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Business",
+      default: null,
+    },
+    // Pending action with undo window (for complete_review, reject, return)
+    pendingAction: {
+      actionType: {
+        type: String,
+        enum: ["complete_review", "reject", "return"],
+        default: null,
+      },
+      scheduledAt: { type: Date, default: null },
+      payload: { type: mongoose.Schema.Types.Mixed, default: null },
+      expiresAt: { type: Date, default: null },
+      createdAt: { type: Date, default: null },
+    },
   },
   { timestamps: true },
 );

@@ -30,7 +30,7 @@ const AppealSchema = new mongoose.Schema(
       required: true,
     },
     evidence: {
-      type: [String],
+      type: [mongoose.Schema.Types.Mixed],
       default: [],
     },
     requestedBy: {

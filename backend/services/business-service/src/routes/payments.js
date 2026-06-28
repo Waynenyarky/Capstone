@@ -225,6 +225,7 @@ router.post("/", requireJwt, async (req, res) => {
       relatedEntityType,
       relatedEntityId,
       breakdown,
+      feeBreakdown,
       metadata,
     } = req.body;
 
@@ -285,6 +286,7 @@ router.post("/", requireJwt, async (req, res) => {
       relatedEntityType: relatedEntityType || null,
       relatedEntityId: relatedEntityId || "",
       breakdown: breakdown || {},
+      feeBreakdown: feeBreakdown || [],
       metadata: metadata || {},
       status: "pending",
     });
@@ -539,6 +541,7 @@ router.post("/mock", requireJwt, async (req, res) => {
       amount,
       fees = [],
       transactionName = "Business Permit Application",
+      paymentType = "registration_fee",
     } = req.body;
 
     if (!businessId || !amount) {
@@ -593,7 +596,7 @@ router.post("/mock", requireJwt, async (req, res) => {
       userId: profile.userId,
       businessId,
       businessProfileId: profile._id,
-      paymentType: "permit_application",
+      paymentType,
       description: transactionName,
       amount,
       status: "paid",

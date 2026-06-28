@@ -13,7 +13,7 @@ export default function HelpRequestAuditExportModal({ open, onCancel, onOk, expo
       okText="Download CSV"
       okButtonProps={{ disabled: rowCount === 0 }}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Text type="secondary">Select start and end date for exported records (based on audit timestamp).</Text>
         <RangePicker
           value={exportRange}

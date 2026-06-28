@@ -76,6 +76,7 @@ export default function useSidebar() {
         { key: 'to-review', label: 'To Review', to: '/staff', icon: <EyeOutlined /> },
         { key: 'applications', label: 'Applications', to: '/staff/applications', icon: <FileTextOutlined /> },
         { key: 'businesses', label: 'Businesses', to: '/staff/businesses', icon: <ShopOutlined /> },
+        { key: 'business-owners', label: 'Business Owners', to: '/staff/business-owners', icon: <TeamOutlined /> },
         { key: 'help-requests', label: 'Help Requests', to: '/staff/help-requests', icon: <QuestionCircleOutlined /> },
         { key: 'ledger', label: 'Ledger', to: '/staff/ledger', icon: <DollarOutlined /> },
         { key: 'bookmarks', label: 'Bookmarks', to: '/staff/bookmarks', icon: <StarOutlined /> },

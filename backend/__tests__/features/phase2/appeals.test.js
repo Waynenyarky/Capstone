@@ -33,6 +33,7 @@ afterAll(async () => {
 
 const Appeal = require("../../../services/business-service/src/models/Appeal");
 const BusinessProfile = require("../../../services/business-service/src/models/BusinessProfile");
+const Application = require("../../../services/business-service/src/models/Application");
 const User = require("../../../services/business-service/src/models/User");
 const Role = require("../../../services/business-service/src/models/Role");
 const {
@@ -94,6 +95,7 @@ describe("Appeals (2K)", () => {
   beforeEach(async () => {
     await Appeal.deleteMany({});
     await BusinessProfile.deleteMany({});
+    await Application.deleteMany({});
   });
 
   // ── Happy Paths ──
@@ -278,6 +280,53 @@ describe("Appeals (2K)", () => {
       expect(business.appealExhausted).toBe(false);
       expect(business.rejectionReason).toBe("");
       expect(business.reviewComments).toBe("");
+    });
+
+    it("should preserve original rejection reason and set hadAppealGranted when appeal is granted", async () => {
+      await Application.create({
+        applicationId: "APP-001",
+        userId: ownerId,
+        businessId: "BIZ-001",
+        applicationStatus: "rejected",
+        rejectionReason: "Missing required documents",
+        reviewComments: "Please upload ID picture and CTC",
+        reviewedAt: new Date(),
+        hasActiveAppeal: true,
+        appealId: "test-appeal-id",
+      });
+
+      const appeal = await Appeal.create({
+        businessId: "BIZ-001",
+        applicationId: "APP-001",
+        appealType: "rejection_appeal",
+        description: "I have uploaded all required documents",
+        requestedBy: ownerId,
+        status: "submitted",
+      });
+
+      const res = await request(app)
+        .put(`/api/business/appeals/${appeal._id}`)
+        .set("Authorization", `Bearer ${managerToken}`)
+        .send({
+          status: "approved",
+          resolution: "Appeal granted - return for re-review",
+        });
+
+      expect(res.status).toBe(200);
+
+      const updatedApplication = await Application.findOne({
+        applicationId: "APP-001",
+      }).lean();
+
+      expect(updatedApplication.hadAppealGranted).toBe(true);
+      expect(updatedApplication.originalRejectionReason).toBe(
+        "Missing required documents",
+      );
+      expect(updatedApplication.rejectionReason).toBe("");
+      expect(updatedApplication.reviewComments).toBe("");
+      expect(updatedApplication.applicationStatus).toBe("under_review");
+      expect(updatedApplication.hasActiveAppeal).toBe(false);
+      expect(updatedApplication.appealId).toBe("");
     });
   });
 

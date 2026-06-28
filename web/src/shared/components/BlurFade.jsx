@@ -84,7 +84,7 @@ export default function BlurFade({
   }, [delay, duration, direction, effectiveBlur, onViewport, rootMargin])
 
   return (
-    <div ref={ref} className={className} style={{ height: fullHeight ? '100%' : 'auto', width: '100%' }}>
+    <div ref={ref} className={className} style={{ height: fullHeight ? '100%' : 'auto', width: '100%', maxWidth: 'none' }}>
       {children}
     </div>
   )

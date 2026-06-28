@@ -8,7 +8,7 @@ import { mfaStatus } from '@/features/authentication/services/mfaService'
 import { firstLoginChangeCredentials, getProfile } from '@/features/authentication/services/authService'
 import { useNotifier } from '@/shared/notifications'
 import AdminLayout from '../components/AdminLayout'
-import { OnboardingStepContent } from '@/features/shared'
+import OnboardingStepContent from '@/shared/components/OnboardingStepContent'
 
 // MFA always required for admin when backend sets mustSetupMfa (no dev bypass)
 const bypassMfaDev = false

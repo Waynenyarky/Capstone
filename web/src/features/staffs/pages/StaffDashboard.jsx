@@ -1,7 +1,7 @@
 import { useAuthSession } from '@/features/authentication'
 import { Navigate } from 'react-router-dom'
 import OfficerDashboard from '../lgu-officer/pages/OfficerDashboard'
-import PlaceholderPage from '@/features/shared/pages/PlaceholderPage.jsx'
+import PlaceholderPage from '@/shared/pages/PlaceholderPage'
 
 export default function StaffDashboard() {
   const { role, currentUser } = useAuthSession()

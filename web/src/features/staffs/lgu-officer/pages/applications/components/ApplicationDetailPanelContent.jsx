@@ -2,7 +2,7 @@ import { Alert, Typography, Grid } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
 import ApplicationDetailHeader from './ApplicationDetailHeader'
-import FormNavigation from './FormNavigation'
+import FormNavigation from './ApplicationFormNavigation'
 
 const { Text } = Typography
 const { useBreakpoint } = Grid

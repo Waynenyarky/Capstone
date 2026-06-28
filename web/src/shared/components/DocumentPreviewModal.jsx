@@ -13,9 +13,6 @@ export default function DocumentPreviewModal({ open, onClose, url, label, type, 
       onCancel={onClose}
       width={type === 'image' ? 560 : 720}
       footer={[
-        <Button key="close" onClick={onClose}>
-          Close
-        </Button>,
         <Button
           key="openTab"
           type="primary"

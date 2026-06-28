@@ -36,6 +36,7 @@ const PaymentSchema = new mongoose.Schema(
         "occupational_permit_fee",
         "cessation_tax",
         "permit_application",
+        "appeal_fee",
         "other",
       ],
       required: true,

@@ -570,6 +570,7 @@ class PermitApplicationService {
       business._id && String(business._id) !== "undefined"
         ? String(business._id)
         : business.businessId || business._id;
+
     return {
       applicationId: resolvedBusinessId,
       businessId: resolvedBusinessId,
@@ -578,7 +579,7 @@ class PermitApplicationService {
       ownerName: ownerFullName,
       applicationReferenceNumber:
         business.applicationReferenceNumber ||
-        `APP-${String(business.businessId).slice(-8)}`,
+        `APP-${String(resolvedBusinessId).slice(-8)}`,
       status: business.applicationStatus || "draft",
       applicationType: business.applicationStatus
         ? "new_registration"

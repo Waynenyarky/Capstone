@@ -13,7 +13,6 @@ const TermsOfService = lazy(() => import("@/features/public").then(m => ({ defau
 const PrivacyPolicy = lazy(() => import("@/features/public").then(m => ({ default: m.PrivacyPolicy })))
 const BizClearManual = lazy(() => import("@/features/public").then(m => ({ default: m.BizClearManual })))
 const Maintenance = lazy(() => import("@/features/public").then(m => ({ default: m.Maintenance })))
-const VerifyPermitPage = lazy(() => import("@/features/public/pages/VerifyPermitPage.jsx"))
 const ApplicationTracker = lazy(() => import("@/features/public/pages/ApplicationTracker.jsx"))
 const HelpPage = lazy(() => import("@/features/public/pages/HelpPage.jsx"))
 const BusinessSearch = lazy(() => import("@/features/public/pages/BusinessSearch.jsx"))
@@ -39,8 +38,9 @@ const AdminLobTrainer = lazy(() => import("@/features/admin").then(m => ({ defau
 const AdminFeeConfiguration = lazy(() => import("@/features/admin/pages/AdminFeeConfiguration.jsx"))
 const AdminFees = lazy(() => import("@/features/admin/pages/AdminFees.jsx"))
 const BusinessOwnerDashboard = lazy(() => import("@/features/business-owner").then(m => ({ default: m.BusinessOwnerDashboard })))
+const BusinessOwnerApplications = lazy(() => import("@/features/business-owner/pages/applications/index.jsx"))
+const BusinessOwnerBusinesses = lazy(() => import("@/features/business-owner/pages/businesses/index.jsx"))
 
-const ApplicationNewPage = lazy(() => import("@/features/business-owner/pages/ApplicationNewPage.jsx"))
 // const ClearanceTracker = lazy(() => import("@/features/business-owner/components/clearance/ClearanceTracker.jsx"))
 // const InspectionCalendar = lazy(() => import("@/features/business-owner/components/inspections/InspectionCalendar.jsx"))
 
@@ -53,8 +53,8 @@ const OfficerHelpRequests = lazy(() => import("@/features/staffs/lgu-officer/pag
 const OfficerLedger = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerLedger.jsx"))
 const OfficerBookmarks = lazy(() => import("@/features/staffs/lgu-officer/pages/bookmarks/index.jsx"))
 const OfficerBusinesses = lazy(() => import("@/features/staffs/lgu-officer/pages/businesses/index.jsx"))
-const PlaceholderPage = lazy(() => import("@/features/shared/pages/PlaceholderPage.jsx"))
-const TreasuryDashboard = lazy(() => import("@/features/treasury/components/TreasuryDashboard.jsx"))
+const OfficerBusinessOwners = lazy(() => import("@/features/staffs/lgu-officer/pages/business-owners/index.jsx"))
+const PlaceholderPage = lazy(() => import("@/shared/pages/PlaceholderPage"))
 
 function PageFallback() {
   return (
@@ -88,7 +88,6 @@ function App() {
       <Route path="/privacy" element={<PublicRoute><PrivacyPolicy /></PublicRoute>} />
       <Route path="/manual" element={<PublicRoute><BizClearManual /></PublicRoute>} />
       <Route path="/maintenance" element={<PublicRoute><Maintenance /></PublicRoute>} />
-      <Route path="/verify-permit/:permitNumber" element={<VerifyPermitPage />} />
       <Route path="/application-tracker" element={<PublicRoute><ApplicationTracker /></PublicRoute>} />
       <Route path="/help" element={<PublicRoute><HelpPage /></PublicRoute>} />
       <Route path="/business-search" element={<PublicRoute><BusinessSearch /></PublicRoute>} />
@@ -100,7 +99,8 @@ function App() {
       <Route path="/deletion-pending" element={<ProtectedRoute><DeletionPendingScreen /></ProtectedRoute>} />
       <Route path="/account/security" element={<ProtectedRoute><MfaSetup /></ProtectedRoute>} />
       <Route path="/admin/onboarding" element={<ProtectedRoute allowedRoles={['admin']}><AdminOnboarding /></ProtectedRoute>} />
-      
+      <Route path="/staff/onboarding" element={<ProtectedRoute allowedRoles={['staff', 'lgu_officer', 'inspector']}><StaffOnboarding /></ProtectedRoute>} />
+
       {/* Admin Routes */}
       <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><Outlet /></ProtectedRoute>}>
         <Route index element={<Navigate to="dashboard" replace />} />
@@ -126,9 +126,12 @@ function App() {
 
       {/* Business Owner Routes */}
       <Route path="/owner" element={<ProtectedRoute allowedRoles={['business_owner']}><BusinessOwnerDashboard /></ProtectedRoute>} />
+      <Route path="/business-owner" element={<ProtectedRoute allowedRoles={['business_owner']}><BusinessOwnerDashboard /></ProtectedRoute>} />
+      <Route path="/business-owner/applications" element={<ProtectedRoute allowedRoles={['business_owner']}><BusinessOwnerApplications /></ProtectedRoute>} />
+      <Route path="/business-owner/businesses" element={<ProtectedRoute allowedRoles={['business_owner']}><BusinessOwnerBusinesses /></ProtectedRoute>} />
       <Route path="/owner/notifications" element={<Navigate to="/notifications" replace />} />
       
-      <Route path="/application/new" element={<ProtectedRoute allowedRoles={['business_owner']}><ApplicationNewPage /></ProtectedRoute>} />
+      <Route path="/application/new" element={<ProtectedRoute allowedRoles={['business_owner']}><Navigate to="/business-owner/applications" replace /></ProtectedRoute>} />
       <Route path="/applications" element={<ProtectedRoute allowedRoles={['business_owner']}><Navigate to="/owner" replace /></ProtectedRoute>} />
       {/* <Route path="/clearance" element={<ProtectedRoute allowedRoles={['business_owner']}><ClearanceTracker /></ProtectedRoute>} /> */}
       {/* <Route path="/inspections/schedule" element={<ProtectedRoute allowedRoles={['business_owner']}><InspectionCalendar /></ProtectedRoute>} /> */}
@@ -139,10 +142,10 @@ function App() {
         <Route path="applications" element={<OfficerApplications />} />
         <Route path="businesses" element={<OfficerBusinesses />} />
         <Route path="businesses/:businessId" element={<OfficerBusinesses />} />
+        <Route path="business-owners" element={<OfficerBusinessOwners />} />
         <Route path="help-requests" element={<OfficerHelpRequests />} />
         <Route path="ledger" element={<OfficerLedger />} />
         <Route path="bookmarks" element={<OfficerBookmarks />} />
-        <Route path="treasury" element={<TreasuryDashboard />} />
       </Route>
 
       {/* Generic/Public Routes */}

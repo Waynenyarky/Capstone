@@ -1,6 +1,6 @@
 import { Layout, Typography, theme } from 'antd'
-import { LayoutPageHeader } from '@/features/shared'
-import { usePageRefresh } from '@/hooks/usePageRefresh'
+import LayoutPageHeader from '@/shared/components/LayoutPageHeader'
+import { usePageRefresh } from '@/shared/hooks/usePageRefresh'
 
 const { Content } = Layout
 const { Title } = Typography
@@ -43,7 +43,7 @@ export default function BusinessOwnerLayout({
         showBrandLogo={showBrandLogo}
         brandLogoClickable={brandLogoClickable}
       />
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: token.colorBgContainer }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: token.colorBgContainer, width: '100%' }}>
         {showBusinessSidebar ? (
           <>
             {/* Business Sidebar */}

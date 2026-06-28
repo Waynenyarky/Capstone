@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 FROM node:18-alpine
 
 # Build from backend root so we can include shared/
@@ -13,6 +12,9 @@ RUN npm cache clean --force && \
 
 # Copy service code
 COPY services/business-service/ ./
+
+# Copy scripts
+COPY services/business-service/scripts/ ./scripts/
 
 # Copy shared constants (required by BusinessProfile.js: ../../../../shared/constants)
 COPY shared/ /backend/shared/

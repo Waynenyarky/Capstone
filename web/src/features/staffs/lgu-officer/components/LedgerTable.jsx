@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react'
 import { Table, Tag, Input, Select, Typography, theme, Button, Card } from 'antd'
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { get } from '@/lib/http.js'
+import { getPayments } from '../services/paymentService'
 
 const { Text } = Typography
 
@@ -41,7 +41,7 @@ export default function LedgerTable({ loading = false, onRefresh }) {
       if (statusFilter) params.append('status', statusFilter)
       if (typeFilter) params.append('paymentType', typeFilter)
 
-      const response = await get(`/api/lgu-officer/payments?${params.toString()}`)
+      const response = await getPayments({ page, pageSize, search, status: statusFilter, type: typeFilter })
       setPayments(response.data || [])
       setPagination(prev => ({
         ...prev,

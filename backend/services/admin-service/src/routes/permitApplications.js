@@ -818,6 +818,7 @@ router.put(
           applicationId,
           businessName:
             business.businessName || business.registeredBusinessName,
+          officerName,
           role: req._userRole || req.user?.role?.slug || "lgu_officer",
         },
       ).catch((err) => {

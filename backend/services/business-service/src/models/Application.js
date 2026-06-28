@@ -18,6 +18,10 @@ const ApplicationSchema = new mongoose.Schema(
       ref: "Business",
       default: null,
     },
+    businessName: {
+      type: String,
+      default: "",
+    },
 
     // Application workflow
     applicationType: {
@@ -61,6 +65,15 @@ const ApplicationSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    reviewers: [{
+      officerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      officerName: {
+        type: String,
+      },
+    }],
     reviewComments: {
       type: String,
       default: "",
@@ -78,6 +91,22 @@ const ApplicationSchema = new mongoose.Schema(
       default: "",
     },
     appealExhausted: {
+      type: Boolean,
+      default: false,
+    },
+    hadAppealGranted: {
+      type: Boolean,
+      default: false,
+    },
+    originalRejectionReason: {
+      type: String,
+      default: "",
+    },
+    returnCount: {
+      type: Number,
+      default: 0,
+    },
+    returnExhausted: {
       type: Boolean,
       default: false,
     },
@@ -293,10 +322,13 @@ const ApplicationSchema = new mongoose.Schema(
 const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 ApplicationSchema.plugin(encryptionPlugin, {
   fields: [],
-  deterministicFields: ["applicationReferenceNumber", "reviewedByName"],
+  deterministicFields: ["applicationReferenceNumber", "reviewedByName", "applicationStatus"],
   nestedPaths: ["ownerAddress", "lessorInfo", "emergencyContact", "birRegistration", "otherAgencyRegistrations"],
   arrayPaths: ["businessActivities", "capital.mev"],
-  mixedPaths: ["fieldReviewDecisions"], // formData and lguDocuments removed - need to be readable
+  arrayPathsExclude: {
+    "reviewers": ["officerId", "officerName"]
+  },
+  // fieldReviewDecisions removed from mixedPaths - needs to be readable for frontend status checks
 });
 
 module.exports = mongoose.model("Application", ApplicationSchema);

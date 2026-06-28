@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Layout, Typography, Grid } from 'antd'
 import { theme } from 'antd'
-import { LayoutPageHeader } from '@/features/shared'
+import LayoutPageHeader from '@/shared/components/LayoutPageHeader'
 import { useLottie } from 'lottie-react'
 import { DeletionScheduledBanner } from '@/features/authentication'
 

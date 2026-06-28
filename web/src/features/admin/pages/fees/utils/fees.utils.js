@@ -26,9 +26,6 @@ export function filterItemsByStatus(items, statusFilter) {
 /**
  * Get add button label by fee type
  */
-    case 'fees':
-      return 'Add Fee'
-    case 'penalty_rules':
 export function getAddButtonLabel(_feeType) {
   return 'Add'
 }

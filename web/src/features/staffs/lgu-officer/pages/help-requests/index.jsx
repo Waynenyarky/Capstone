@@ -4,7 +4,7 @@ import HelpRequestDetailPanel from './components/HelpRequestDetailPanel'
 import SplitLayout from '@/shared/components/SplitLayout'
 import useOfficerData from '../../hooks/useOfficerData'
 import { useOfficerDataContext } from '../../contexts/OfficerDataContext'
-import BookmarkService from '../../infrastructure/services/bookmarkService'
+import BookmarkService from '../../services/bookmarkService'
 
 export default function OfficerHelpRequests() {
   const [selectedItem, setSelectedItem] = useState(null)

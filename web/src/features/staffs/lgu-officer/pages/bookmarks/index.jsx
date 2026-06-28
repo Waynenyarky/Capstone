@@ -4,29 +4,14 @@ import { useSearchParams } from 'react-router-dom'
 import ListPanel from '@/shared/components/ListPanel'
 import PanelCard from '@/shared/components/PanelCard'
 import SplitLayout from '@/shared/components/SplitLayout'
-import BookmarkService from '../../infrastructure/services/bookmarkService'
-import { PermitApplicationService } from '@/features/staffs/lgu-officer/infrastructure/services/permitApplicationService'
-import { get } from '@/lib/http'
+import BookmarkService from '../../services/bookmarkService'
+import { PermitApplicationService } from '@/features/staffs/lgu-officer/services/permitApplicationService'
+import { getHelpRequestById } from '../../services/helpRequestService'
 import ApplicationDetailPanel from '../applications/components/ApplicationDetailPanel'
 import HelpRequestDetailPanel from '../help-requests/components/HelpRequestDetailPanel'
 import dayjs from 'dayjs'
-
-const STATUS_CONFIG = {
-  submitted: { color: 'blue', label: 'Pending Review' },
-  under_review: { color: 'gold', label: 'Under Review' },
-  resubmit: { color: 'cyan', label: 'Resubmitted' },
-  approved: { color: 'green', label: 'Approved' },
-  rejected: { color: 'red', label: 'Rejected' },
-  returned: { color: 'warning', label: 'Returned' },
-  draft: { color: 'default', label: 'Draft' },
-}
-
-const HELP_REQUEST_STATUS_CONFIG = {
-  open: { color: 'blue', label: 'Open' },
-  in_progress: { color: 'gold', label: 'In Progress' },
-  resolved: { color: 'green', label: 'Resolved' },
-  closed: { color: 'default', label: 'Closed' },
-}
+import { STATUS_CONFIG } from '../applications/constants'
+import { HELP_REQUEST_STATUS_CONFIG } from '../help-requests/constants'
 
 export default function OfficerBookmarks() {
   const [searchParams] = useSearchParams()
@@ -53,7 +38,7 @@ export default function OfficerBookmarks() {
               const app = await permitService.getApplicationById(bookmark.itemId, bookmark.itemId)
               return { ...bookmark, itemData: app }
             } else if (bookmark.itemType === 'help_request') {
-              const res = await get(`/api/help-requests/${bookmark.itemId}`, { skipAutoLogout: true })
+              const res = await getHelpRequestById(bookmark.itemId)
               return { ...bookmark, itemData: res?.data || res }
             }
             return bookmark

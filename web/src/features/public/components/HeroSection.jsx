@@ -1,11 +1,13 @@
 import React, { useState } from 'react'
-import { Typography, Grid, theme, Card, Button, Modal, Collapse, Space, Drawer } from 'antd'
+import { Typography, Grid, theme, Card } from 'antd'
 import { NotificationOutlined, WarningOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import BizClearLogo from '@/shared/components/BizClearLogo.jsx'
 import BlurFade from '@/shared/components/BlurFade.jsx'
 import ZipperReveal from '@/shared/components/MosaicArt.jsx'
 import PanAnimation from '@/shared/components/PanAnimation.jsx'
+import ListCard from '@/shared/components/ListCard.jsx'
+import AnnouncementsModal from '@/features/business-owner/pages/applications/components/modals/AnnouncementsModal.jsx'
 import { BENTO_CARDS } from '@/features/public/constants/landing.constants.js'
 import dayjs from 'dayjs'
 
@@ -89,6 +91,7 @@ export default function HeroSection({
           gridAutoRows: screens.lg ? '140px' : '120px',
           gap: screens.lg ? 12 : 8,
           paddingTop: screens.lg ? 0 : 0,
+          marginBottom: screens.lg ? 12 : 8,
         }}>
           {visibleBentoCards.map((card, index) => (
             <div
@@ -249,127 +252,42 @@ export default function HeroSection({
         {/* Announcements Card */}
         {hasAnnouncementPanel && (
           <BlurFade delay={(visibleBentoCards.length + (maintenanceStatus?.active ? 1 : 0)) * 0.1} duration={0.5} fullHeight={false}>
-            <Card
-              size="small"
-              style={{
-                width: '100%',
-                marginTop: screens.lg ? 12 : 8,
-                background: token.colorBgContainer,
-                border: `1px solid ${token.colorBorder}`,
-                borderRadius: token.borderRadiusLG,
-              }}
-              styles={{
-                body: { padding: screens.lg ? '16px 16px 16px 16px' : '12px', paddingTop: screens.lg ? 90 : 48 }
-              }}
-            >
-              {/* Card Header */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
-                <NotificationOutlined style={{ fontSize: 20, color: token.colorTextSecondary }} />
-                <Title level={5} style={{ margin: 0, fontSize: 16 }}>
-                  Announcements
-                </Title>
-              </div>
-
-              {announcementItems.length > 0 && (
-                <Space.Compact direction="vertical" style={{ width: '100%' }}>
-                  {announcements.slice(0, 2).map((ann, idx) => (
-                    <Button
-                      key={`announcement-btn-${idx}`}
-                      type="default"
-                      size="small"
-                      onClick={() => setAnnouncementsModalOpen(true)}
-                      style={{
-                        textAlign: 'left',
-                        height: 'auto',
-                        padding: '8px 12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        justifyContent: 'flex-start',
-                      }}
-                    >
-                      <span style={{
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        maxWidth: '100%',
-                        display: 'block',
-                      }}>
-                        {ann.title}
-                      </span>
-                    </Button>
-                  ))}
-                  <Button
-                    type="default"
-                    size="small"
-                    onClick={() => setAnnouncementsModalOpen(true)}
-                    style={{
-                      textAlign: 'left',
-                      height: 'auto',
-                      padding: '8px 12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      justifyContent: 'flex-start',
-                    }}
-                  >
-                    <span style={{
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      maxWidth: '100%',
-                      display: 'block',
-                    }}>
-                      View all {announcementItems.length} announcements →
-                    </span>
-                  </Button>
-                </Space.Compact>
+            <ListCard
+              icon={<NotificationOutlined />}
+              title="Announcements"
+              items={announcements}
+              renderItem={(ann) => (
+                <span style={{
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: '100%',
+                  display: 'block',
+                }}>
+                  {ann.title}
+                </span>
               )}
-            </Card>
+              onItemClick={() => setAnnouncementsModalOpen(true)}
+              onViewAll={() => setAnnouncementsModalOpen(true)}
+              viewAllText="View all"
+              itemTypeText="announcements"
+              emptyText="No announcements"
+            />
           </BlurFade>
         )}
       </div>
 
       {/* All Announcements Modal/Drawer */}
-      {screens.lg ? (
-        <Modal
-          title="All Announcements"
-          open={announcementsModalOpen}
-          onCancel={() => setAnnouncementsModalOpen(false)}
-          footer={null}
-          width={600}
-          styles={{ body: { maxHeight: '70vh', overflowY: 'auto' } }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {announcementItems.length > 0 && (
-              <Collapse
-                items={announcementItems}
-                defaultActiveKey={defaultOpenKey}
-                style={{ background: token.colorBgContainer }}
-              />
-            )}
-          </div>
-        </Modal>
-      ) : (
-        <Drawer
-          title="All Announcements"
-          placement="bottom"
-          open={announcementsModalOpen}
-          onClose={() => setAnnouncementsModalOpen(false)}
-          height="100%"
-          styles={{ body: { paddingTop: 12 } }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {announcementItems.length > 0 && (
-              <Collapse
-                items={announcementItems}
-                defaultActiveKey={defaultOpenKey}
-                style={{ background: token.colorBgContainer }}
-              />
-            )}
-          </div>
-        </Drawer>
-      )}
+      <AnnouncementsModal
+        open={announcementsModalOpen}
+        onCancel={() => setAnnouncementsModalOpen(false)}
+        announcementItems={announcementItems}
+        readAnnouncements={{}}
+        defaultOpenKey={defaultOpenKey}
+        handleCollapseChange={() => {}}
+        token={token}
+        screens={screens}
+      />
     </div>
   )
 }

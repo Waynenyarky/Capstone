@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { get } from '@/lib/http.js'
 import { useAuthSession } from '@/features/authentication'
+import { getAppealsForReview } from '../services/appealsService'
 
 const EDIT_REQUESTS_POLL_INTERVAL_MS = 30 * 1000
 
@@ -98,7 +99,7 @@ export default function useOfficerData(activeTab, refreshTrigger) {
       const [applicationsRes, editRequestsRes, appealsRes, inspectionsRes] = await Promise.allSettled([
         get(`/api/lgu-officer/permit-applications?reviewedBy=${officerId}&limit=200`, { skipAutoLogout: true }),
         get('/api/business/edit-requests?role=staff&limit=200', { skipAutoLogout: true }),
-        get('/api/business/appeals?role=staff&limit=200', { skipAutoLogout: true }),
+        getAppealsForReview({ limit: 200 }),
         get('/api/lgu-officer/inspections?limit=200', { skipAutoLogout: true }),
       ])
 
@@ -319,7 +320,7 @@ export default function useOfficerData(activeTab, refreshTrigger) {
   const fetchAppeals = useCallback(async () => {
     setTabLoading('appeals', true)
     try {
-      const res = await get('/api/business/appeals?role=staff', { skipAutoLogout: true })
+      const res = await getAppealsForReview({ role: 'staff' })
       const list = res?.data || res?.appeals || []
       const pending = list.filter(a => PENDING_APPEAL_STATUSES.has(a.status))
       setAppeals(pending)

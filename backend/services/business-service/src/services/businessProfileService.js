@@ -854,9 +854,10 @@ class BusinessProfileService {
         }
       );
     }
-    // Also ensure any submitted application has a reference number (e.g. old records or edge cases)
+    // Ensure ANY submitted application has a reference number (catches edge cases and direct submissions)
+    // This runs for all submitted applications, not just those transitioning to submitted
     if (
-      isNowSubmitted &&
+      (updatedBusiness.applicationStatus || "").toLowerCase() === "submitted" &&
       (!updatedBusiness.applicationReferenceNumber ||
         String(updatedBusiness.applicationReferenceNumber).trim() === "")
     ) {

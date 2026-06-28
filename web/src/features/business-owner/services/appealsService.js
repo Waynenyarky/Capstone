@@ -43,6 +43,14 @@ export async function updateAppeal(appealId, updateData) {
   return put(`${BASE_PATH}/${appealId}`, updateData)
 }
 
+/**
+ * Get a specific appeal by ID
+ * @param {string} appealId - Appeal ID
+ */
+export async function getAppealById(appealId) {
+  return get(`${BASE_PATH}/${appealId}`)
+}
+
 export const APPEAL_TYPES = {
   wrong_fees: 'Wrong Fees',
   wrong_violations: 'Wrong Violations',

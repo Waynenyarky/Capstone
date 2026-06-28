@@ -1,5 +1,7 @@
 const express = require("express");
 const GeneralPermit = require("../models/GeneralPermit");
+const Business = require("../models/Business");
+const BusinessProfile = require("../models/BusinessProfile");
 const { requireJwt, requireRole } = require("../middleware/auth");
 const {
   GENERAL_PERMIT_CATEGORY_VALUES,
@@ -114,6 +116,48 @@ router.put("/:id", requireJwt, async (req, res) => {
       if (status === "approved") {
         permit.approvedBy = req._userId;
         permit.issuedAt = new Date();
+
+        // Create Business object for approved temporary permit
+        const generatedBusinessId = `BIZ-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`.toUpperCase();
+
+        // Get BusinessProfile
+        const businessProfile = await BusinessProfile.findOne({ userId: permit.applicantId });
+        if (!businessProfile) {
+          return res.status(404).json({
+            error: { code: "PROFILE_NOT_FOUND", message: "Business profile not found" },
+          });
+        }
+
+        // Create Business from approved permit
+        const business = await Business.create({
+          businessId: generatedBusinessId,
+          userId: permit.applicantId,
+          ownerProfileId: businessProfile._id,
+          approvedGeneralPermitId: permit._id,
+          businessName: permit.permitCategory || "Temporary Permit",
+          registeredBusinessName: "",
+          businessStatus: "active",
+          registrationStatus: "not_yet_registered",
+          applicationStatus: "approved",
+          applicationReferenceNumber: `GP-${permit._id.toString().slice(-8).toUpperCase()}`,
+          formType: "general_permit",
+          category: permit.permitCategory || "",
+          formData: {
+            permitCategory: permit.permitCategory,
+            businessPlateNo: permit.businessPlateNo,
+            requirements: permit.requirements,
+          },
+          submittedAt: permit.createdAt,
+          reviewedBy: req._userId,
+          location: {},
+          businessType: "g",
+          registrationAgency: "LGU",
+          businessRegistrationNumber: `TEMP-${permit._id.toString().slice(-8).toUpperCase()}`,
+          contactNumber: "",
+        });
+
+        // Update permit with business reference
+        permit.businessId = business._id;
       }
     }
     await permit.save();

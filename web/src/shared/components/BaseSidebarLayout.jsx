@@ -1,7 +1,7 @@
 import { Layout, theme } from 'antd'
-import { LayoutPageHeader } from '@/features/shared'
+import LayoutPageHeader from '@/shared/components/LayoutPageHeader'
 import { useSidebar } from '@/features/authentication'
-import { usePageRefresh } from '@/hooks/usePageRefresh'
+import { usePageRefresh } from '@/shared/hooks/usePageRefresh'
 
 const { Content } = Layout
 

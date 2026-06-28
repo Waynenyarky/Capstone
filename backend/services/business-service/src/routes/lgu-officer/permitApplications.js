@@ -32,14 +32,37 @@ router.post(
         return respond.error(res, 400, "already_claimed", "Application already claimed");
       }
 
+      // Fetch officer name
+      const officer = await User.findById(officerId)
+        .select("firstName lastName");
+      const officerName = officer
+        ? `${officer.firstName} ${officer.lastName}`.trim()
+        : "Officer";
+
       application.reviewedBy = officerId;
+      application.reviewedByName = officerName;
       application.applicationStatus = "under_review";
       application.reviewedAt = new Date();
+
+      // Add to reviewers array if not already present
+      if (!application.reviewers) {
+        application.reviewers = [];
+      }
+      const alreadyInReviewers = application.reviewers.some(
+        r => String(r.officerId) === String(officerId)
+      );
+      if (!alreadyInReviewers) {
+        application.reviewers.push({
+          officerId: officerId,
+          officerName: officerName,
+        });
+      }
+
       await application.save();
 
-      return respond.success(res, 200, { 
+      return respond.success(res, 200, {
         application,
-        lockedByOfficer: true 
+        lockedByOfficer: true
       });
     } catch (err) {
       console.error("POST /api/lgu-officer/permit-applications/:id/start-review error:", err);
@@ -83,12 +106,20 @@ router.post(
         }
 
         // Create Business from approved application
+        // Extract business name from various possible field keys (different form types use different keys)
+        const businessName = application.formData?.businessName ||
+                           application.formData?.registeredBusinessName ||
+                           application.formData?.activityName ||
+                           application.formData?.['Business / trade name'] ||
+                           application.formData?.businessTradeName ||
+                           "Unnamed Business";
+
         const business = await Business.create({
           businessId: generatedBusinessId,
           userId: application.userId,
           ownerProfileId: businessProfile._id,
           approvedApplicationId: application._id,
-          businessName: application.formData?.businessName || application.formData?.registeredBusinessName || "Unnamed Business",
+          businessName,
           registeredBusinessName: application.formData?.registeredBusinessName || "",
           businessStatus: "active",
           registrationStatus: "proposed",
@@ -115,6 +146,9 @@ router.post(
       } else if (decision === "reject") {
         application.applicationStatus = "rejected";
         application.rejectionReason = rejectionReason;
+        if (!application.originalRejectionReason) {
+          application.originalRejectionReason = rejectionReason;
+        }
         application.reviewComments = comments;
         application.reviewedAt = new Date();
         await application.save();
@@ -139,7 +173,7 @@ router.post(
 
 /**
  * GET /api/lgu-officer/permit-applications
- * Get permit applications with filters
+ * Get permit applications with filters (includes both Application and GeneralPermit)
  */
 router.get(
   "/permit-applications",
@@ -170,13 +204,47 @@ router.get(
 
       const total = await Application.countDocuments(filter);
 
+      // Also get GeneralPermit documents (temporary permits)
+      const GeneralPermit = require("../../models/GeneralPermit");
+      const permitFilter = {};
+      if (status) {
+        const statuses = status.split(",").map((s) => s.trim()).filter(Boolean);
+        permitFilter.status = statuses.length > 1 ? { $in: statuses } : statuses[0];
+      } else {
+        permitFilter.status = { $ne: "draft" };
+      }
+
+      const generalPermits = await GeneralPermit.find(permitFilter)
+        .sort({ createdAt: -1 })
+        .limit(parseInt(limit))
+        .skip((parseInt(page) - 1) * parseInt(limit));
+
+      const permitTotal = await GeneralPermit.countDocuments(permitFilter);
+
+      // Merge results and add formType to distinguish
+      const mergedApplications = [
+        ...applications.map(app => ({ ...app.toObject(), formType: app.formType || "permit" })),
+        ...generalPermits.map(permit => ({
+          ...permit.toObject(),
+          formType: "general_permit",
+          applicationStatus: permit.status,
+          userId: permit.applicantId,
+          businessName: permit.permitCategory,
+          formData: {
+            permitCategory: permit.permitCategory,
+            businessPlateNo: permit.businessPlateNo,
+            requirements: permit.requirements,
+          },
+        }))
+      ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
       return respond.success(res, 200, {
-        applications,
+        applications: mergedApplications,
         meta: {
-          total,
+          total: total + permitTotal,
           page: parseInt(page),
           limit: parseInt(limit),
-          totalPages: Math.ceil(total / parseInt(limit)),
+          totalPages: Math.ceil((total + permitTotal) / parseInt(limit)),
         },
       });
     } catch (err) {
@@ -188,7 +256,7 @@ router.get(
 
 /**
  * GET /api/lgu-officer/permit-applications/:id
- * Get single application by ID
+ * Get single application by ID (includes GeneralPermit)
  */
 router.get(
   "/permit-applications/:id",
@@ -208,6 +276,12 @@ router.get(
         });
       }
 
+      // If not found in Business, check GeneralPermit collection (for temporary permits)
+      if (!doc) {
+        const GeneralPermit = require("../../models/GeneralPermit");
+        doc = await GeneralPermit.findOne({ _id: req.params.id });
+      }
+
       if (!doc) {
         return respond.error(res, 404, "not_found", "Application not found");
       }
@@ -215,8 +289,22 @@ router.get(
       // Convert to plain object so we can enrich with ownerName
       const application = doc.toObject ? doc.toObject() : doc;
 
+      // Handle GeneralPermit-specific field mapping
+      if (doc.constructor.modelName === "GeneralPermit") {
+        application.formType = "general_permit";
+        application.applicationStatus = application.status;
+        application.userId = application.applicantId;
+        application.businessName = application.permitCategory;
+        application.category = application.permitCategory;
+        application.formData = {
+          permitCategory: application.permitCategory,
+          businessPlateNo: application.businessPlateNo,
+          requirements: application.requirements,
+        };
+      }
+
       // Enrich with owner's full name (frontend reads application.ownerName)
-      const ownerId = application.userId || application.ownerId;
+      const ownerId = application.userId || application.ownerId || application.applicantId;
       if (ownerId) {
         try {
           const owner = await User.findById(ownerId)
@@ -320,18 +408,8 @@ router.put(
         return respond.error(res, 404, "not_found", "Application not found");
       }
 
-      // Check if already claimed by someone else
-      if (
-        application.reviewedBy &&
-        String(application.reviewedBy) !== String(officerId)
-      ) {
-        return respond.error(
-          res,
-          409,
-          "already_claimed",
-          "Application is already claimed by another officer",
-        );
-      }
+      // Allow override: if already claimed by someone else, transfer to current officer
+      // No 409 check - officers can claim any application to reassign
 
       // Fetch officer name for reviewedByName (don't use lean() to allow decryption)
       const officer = await User.findById(officerId)
@@ -340,7 +418,8 @@ router.put(
         ? `${officer.firstName} ${officer.lastName}`.trim()
         : req._userEmail || "Officer";
 
-      // Set reviewer and transition to under_review if currently submitted/resubmit
+      // Set reviewer and transition to under_review if currently submitted
+      // Keep resubmit status as is to distinguish from first-time submissions
       const updateData = {
         reviewedBy: officerId,
         reviewedByName: officerName,
@@ -348,7 +427,7 @@ router.put(
         updatedAt: new Date(),
       };
 
-      if (["submitted", "resubmit"].includes(application.applicationStatus)) {
+      if (application.applicationStatus === "submitted") {
         updateData.applicationStatus = "under_review";
       }
 
@@ -356,10 +435,21 @@ router.put(
       if (application.constructor.modelName === "Application") {
         await Application.updateOne(
           { _id: application._id },
-          { $set: updateData }
+          {
+            $set: updateData,
+            $addToSet: {
+              reviewers: {
+                officerId: officerId,
+                officerName: officerName,
+              }
+            }
+          }
         );
       } else {
-        await Business.updateOne({ _id: application._id }, { $set: updateData });
+        await Business.updateOne(
+          { _id: application._id },
+          { $set: updateData }
+        );
       }
 
       // Log audit event
@@ -767,6 +857,12 @@ router.post(
         });
       }
 
+      // If not found in Business, check GeneralPermit collection (for temporary permits)
+      if (!doc) {
+        const GeneralPermit = require("../../models/GeneralPermit");
+        doc = await GeneralPermit.findOne({ _id: id });
+      }
+
       if (!doc) {
         return respond.error(res, 404, "not_found", "Application not found");
       }
@@ -793,6 +889,8 @@ router.post(
       // Update based on collection type
       if (doc.constructor.modelName === "Application") {
         await Application.updateOne({ _id: doc._id }, { $set: updateData });
+      } else if (doc.constructor.modelName === "GeneralPermit") {
+        await require("../../models/GeneralPermit").updateOne({ _id: doc._id }, { $set: updateData });
       } else {
         await Business.updateOne({ _id: doc._id }, { $set: updateData });
       }
@@ -813,7 +911,9 @@ router.post(
       // Re-fetch and return the updated application
       const updatedApplication = await (doc.constructor.modelName === "Application"
         ? Application.findById(doc._id)
-        : Business.findById(doc._id)
+        : doc.constructor.modelName === "GeneralPermit"
+          ? require("../../models/GeneralPermit").findById(doc._id)
+          : Business.findById(doc._id)
       );
 
       // Enrich with ownerName and map lguDocuments to documents (same as GET /:id)
@@ -888,6 +988,12 @@ router.delete(
         });
       }
 
+      // If not found in Business, check GeneralPermit collection (for temporary permits)
+      if (!doc) {
+        const GeneralPermit = require("../../models/GeneralPermit");
+        doc = await GeneralPermit.findOne({ _id: id });
+      }
+
       if (!doc) {
         return respond.error(res, 404, "not_found", "Application not found");
       }
@@ -900,6 +1006,8 @@ router.delete(
       // Update based on collection type
       if (doc.constructor.modelName === "Application") {
         await Application.updateOne({ _id: doc._id }, { $set: updateData });
+      } else if (doc.constructor.modelName === "GeneralPermit") {
+        await require("../../models/GeneralPermit").updateOne({ _id: doc._id }, { $set: updateData });
       } else {
         await Business.updateOne({ _id: doc._id }, { $set: updateData });
       }
@@ -1026,6 +1134,12 @@ router.put(
         });
       }
 
+      // If not found in Business, check GeneralPermit collection (for temporary permits)
+      if (!doc) {
+        const GeneralPermit = require("../../models/GeneralPermit");
+        doc = await GeneralPermit.findOne({ _id: id });
+      }
+
       if (!doc) {
         return respond.error(res, 404, "not_found", "Application not found");
       }
@@ -1036,7 +1150,7 @@ router.put(
       }
 
       // Execute the action based on type
-      let newStatus = doc.applicationStatus;
+      let newStatus = doc.applicationStatus || doc.status;
       if (pendingAction.actionType === "complete_review") {
         newStatus = "approved";
       } else if (pendingAction.actionType === "reject") {
@@ -1048,10 +1162,15 @@ router.put(
       }
 
       const updateData = {
-        applicationStatus: newStatus,
         pendingAction: null,
         updatedAt: new Date(),
       };
+      // Use appropriate status field based on model type
+      if (doc.constructor.modelName === "GeneralPermit") {
+        updateData.status = newStatus;
+      } else {
+        updateData.applicationStatus = newStatus;
+      }
 
       // Store rejection reason or comments on the document when rejecting
       if (pendingAction.actionType === "reject") {
@@ -1086,36 +1205,88 @@ router.put(
 
         // If approving an Application, create a corresponding Business record
         if (newStatus === "approved") {
-          const businessId = `BIZ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-          const business = await Business.create({
-            businessId,
-            userId: doc.userId,
-            ownerProfileId: doc.userId, // Will need to find actual BusinessProfile
-            approvedApplicationId: doc._id,
-            businessName: doc.formData?.businessName || "Unknown Business",
-            businessStatus: "active",
-            registrationStatus: "not_yet_registered",
-            applicationStatus: "approved",
-            applicationReferenceNumber: doc.applicationReferenceNumber,
-            formType: doc.formType || "permit",
-            category: doc.category || "",
-            formData: doc.formData || {},
-            submittedAt: doc.submittedAt,
-            reviewedBy: doc.reviewedBy,
-            location: {
-              street: doc.formData?.businessAddress?.streetAddress || "",
-              barangay: doc.formData?.businessAddress?.barangayName || "",
-              city: "",
-              municipality: "",
-              province: "",
-              zipCode: doc.formData?.businessAddress?.postalCode || "",
-            },
-            businessType: "g", // Default to retail trade (Wholesale and retail trade) - can be mapped from LOB later
-            registrationAgency: "LGU",
-            businessRegistrationNumber: doc.formData?.tin || "",
-            contactNumber: doc.formData?.businessPhone || "",
-          });
-          console.log('[execute-pending-action] Created Business record:', businessId, 'for Application:', doc.applicationId);
+          const BusinessProfile = require("../../models/BusinessProfile");
+          const businessProfile = await BusinessProfile.findOne({ userId: doc.userId });
+          if (!businessProfile) {
+            console.error('[execute-pending-action] BusinessProfile not found for Application applicant:', doc.userId);
+          } else {
+            const businessId = `BIZ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+            // For general_permit formType, use activityName as business name (the actual name submitted by user)
+            const businessName = doc.formType === "general_permit"
+              ? (doc.formData?.activityName || doc.formData?.businessName || "Temporary Permit")
+              : (doc.formData?.businessName || "Unknown Business");
+            const business = await Business.create({
+              businessId,
+              userId: doc.userId,
+              ownerProfileId: businessProfile._id,
+              approvedApplicationId: doc._id,
+              businessName,
+              businessStatus: "active",
+              registrationStatus: "not_yet_registered",
+              applicationStatus: "approved",
+              applicationReferenceNumber: doc.applicationReferenceNumber,
+              formType: doc.formType || "permit",
+              category: doc.formType === "general_permit" ? (doc.formData?.generalPermitCategory || doc.category || "") : (doc.category || ""),
+              formData: doc.formData || {},
+              submittedAt: doc.submittedAt,
+              reviewedBy: doc.reviewedBy,
+              location: {
+                street: doc.formData?.businessAddress?.streetAddress || "",
+                barangay: doc.formData?.businessAddress?.barangayName || "",
+                city: "",
+                municipality: "",
+                province: "",
+                zipCode: doc.formData?.businessAddress?.postalCode || "",
+              },
+              businessType: "g", // Default to retail trade (Wholesale and retail trade) - can be mapped from LOB later
+              registrationAgency: "LGU",
+              businessRegistrationNumber: doc.formData?.tin || `APP-${doc._id.toString().slice(-8).toUpperCase()}`,
+              contactNumber: doc.formData?.businessPhone || "",
+            });
+            console.log('[execute-pending-action] Created Business record:', businessId, 'for Application:', doc.applicationId);
+          }
+        }
+      } else if (doc.constructor.modelName === "GeneralPermit") {
+        await require("../../models/GeneralPermit").updateOne({ _id: doc._id }, { $set: updateData });
+
+        // If approving a GeneralPermit, create a corresponding Business record
+        if (newStatus === "approved") {
+          const BusinessProfile = require("../../models/BusinessProfile");
+          const businessProfile = await BusinessProfile.findOne({ userId: doc.applicantId });
+          if (!businessProfile) {
+            console.error('[execute-pending-action] BusinessProfile not found for GeneralPermit applicant:', doc.applicantId);
+          } else {
+            const businessId = `BIZ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+            const business = await Business.create({
+              businessId,
+              userId: doc.applicantId,
+              ownerProfileId: businessProfile._id,
+              approvedGeneralPermitId: doc._id,
+              businessName: doc.permitCategory || "Temporary Permit",
+              registeredBusinessName: "",
+              businessStatus: "active",
+              registrationStatus: "not_yet_registered",
+              applicationStatus: "approved",
+              applicationReferenceNumber: `GP-${doc._id.toString().slice(-8).toUpperCase()}`,
+              formType: "general_permit",
+              category: doc.permitCategory || "",
+              formData: {
+                permitCategory: doc.permitCategory,
+                businessPlateNo: doc.businessPlateNo,
+                requirements: doc.requirements,
+              },
+              submittedAt: doc.createdAt,
+              reviewedBy: req._userId,
+              location: {},
+              businessType: "g",
+              registrationAgency: "LGU",
+              businessRegistrationNumber: `TEMP-${doc._id.toString().slice(-8).toUpperCase()}`,
+              contactNumber: "",
+            });
+            // Update permit with business reference
+            await require("../../models/GeneralPermit").updateOne({ _id: doc._id }, { $set: { businessId: business._id } });
+            console.log('[execute-pending-action] Created Business record:', businessId, 'for GeneralPermit:', doc._id);
+          }
         }
       } else {
         await Business.updateOne({ _id: doc._id }, { $set: updateData });

@@ -26,7 +26,7 @@ export default function ApplicationTypeSelector({ onSelect, title = 'Choose Appl
   }
 
   return (
-    <div style={{ padding: '24px', maxWidth: 600, margin: '0 auto' }}>
+    <div style={{ padding: '24px', maxWidth: 600, margin: '0 auto', width: 'fit-content' }}>
       <Title level={4} style={{ marginBottom: 24, textAlign: 'center' }}>
         {title}
       </Title>

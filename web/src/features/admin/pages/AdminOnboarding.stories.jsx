@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Row, Col, theme } from 'antd'
 import { Form } from '@/shared/components/AppForm'
-import { OnboardingStepContent } from '@/features/shared'
+import OnboardingStepContent from '@/shared/components/OnboardingStepContent'
 
 export default {
   title: 'Admin/AdminOnboarding',

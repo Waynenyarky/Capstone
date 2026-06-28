@@ -18,7 +18,6 @@ const { useBreakpoint } = Grid
  * @param {number} props.listMinWidth - Minimum width for list panel on desktop (default: 300)
  * @param {number} props.listMaxWidth - Maximum width for list panel on desktop (default: 400)
  * @param {string} props.listDefaultSize - Default size for list panel on desktop (default: '25%')
- * @param {string} props.detailDefaultSize - Default size for detail panel on desktop (default: '75%')
  * @param {number} props.mobileBreakpoint - Breakpoint for mobile view (default: 'lg')
  */
 export default function ResponsiveSplitLayout({
@@ -30,7 +29,6 @@ export default function ResponsiveSplitLayout({
   listMinWidth = 300,
   listMaxWidth = 400,
   listDefaultSize = '25%',
-  detailDefaultSize = '75%',
   mobileBreakpoint = 'lg',
 }) {
   const screens = useBreakpoint()
@@ -67,7 +65,7 @@ export default function ResponsiveSplitLayout({
 
     return (
       <>
-        <div style={{ height: '100%', overflow: 'hidden' }}>
+        <div style={{ height: '100%', overflow: 'hidden', width: '100%', maxWidth: 'none' }}>
           {listContent}
         </div>
         <Drawer {...drawerProps}>
@@ -79,23 +77,18 @@ export default function ResponsiveSplitLayout({
 
   // Desktop view: split panel
   return (
-    <Splitter style={{ height: '100%' }}>
+    <Splitter style={{ height: '100%', width: '100%' }}>
       <Splitter.Panel 
         min={listMinWidth} 
         max={listMaxWidth} 
-        defaultSize={listDefaultSize} 
-        style={{ 
-          overflow: 'hidden', 
-          minWidth: `${listMinWidth}px`, 
-          maxWidth: `${listMaxWidth}px` 
-        }}
+        defaultSize={listDefaultSize}
+        style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
       >
         {listContent}
       </Splitter.Panel>
       <Splitter.Panel 
-        min="50%" 
-        defaultSize={detailDefaultSize} 
-        style={{ overflow: 'hidden' }}
+        min="50%"
+        style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
       >
         {detailContent}
       </Splitter.Panel>

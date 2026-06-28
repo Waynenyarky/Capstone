@@ -16,7 +16,7 @@ export default function DetailHeader({
 
   return (
     <div style={{ padding: '16px 16px', borderBottom: `1px solid ${token.colorBorderSecondary}`, background: token.colorBgContainer }}>
-      {desktopOnly && screens.md && (
+      {desktopOnly && screens.lg && (
         <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Text strong style={{ fontSize: 16 }}>
             {title}

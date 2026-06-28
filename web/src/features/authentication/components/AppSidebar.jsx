@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Sidebar } from '@/features/shared'
+import Sidebar from '@/shared/components/Sidebar'
 import useSidebar from '../hooks/useSidebar'
 import { useAuthSession } from '../hooks'
 import ConfirmLogoutModal from './ConfirmLogoutModal.jsx'

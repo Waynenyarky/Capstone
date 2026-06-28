@@ -1,8 +1,16 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Typography, Modal, Empty, message, theme, Grid, App } from 'antd'
-import { get, put, post } from '@/lib/http.js'
 import { useAuthSession } from '@/features/authentication'
-import BookmarkService from '@/features/staffs/lgu-officer/infrastructure/services/bookmarkService'
+import BookmarkService from '@/features/staffs/lgu-officer/services/bookmarkService'
+import {
+  getHelpRequestById,
+  claimHelpRequest,
+  releaseHelpRequest,
+  updateHelpRequestStatus,
+  updateHelpRequestPriority,
+  addHelpRequestMessage,
+  addHelpRequestInternalNote
+} from '@/features/staffs/lgu-officer/services/helpRequestService'
 import HelpRequestAuditHistoryModal from './HelpRequestAuditHistoryModal'
 import HelpRequestDetailHeader from './HelpRequestDetailHeader'
 import HelpRequestInfoCard from './HelpRequestInfoCard'
@@ -53,7 +61,7 @@ export default function HelpRequestDetailPanel({ request, onRefresh, onReviewCom
     if (!request?.requestId) return
     setLoading(true)
     try {
-      const res = await get(`/api/help-requests/${request.requestId}`, { skipAutoLogout: true })
+      const res = await getHelpRequestById(request.requestId)
       setDetail(res?.data || null)
 
       // Check if bookmarked
@@ -162,7 +170,7 @@ export default function HelpRequestDetailPanel({ request, onRefresh, onReviewCom
         onOk: async () => {
           setClaiming(true)
           try {
-            await put(`/api/help-requests/${request.requestId}/claim`)
+            await claimHelpRequest(request.requestId)
             message.success('Request claimed')
             fetchDetail()
             onRefresh?.()
@@ -183,7 +191,7 @@ export default function HelpRequestDetailPanel({ request, onRefresh, onReviewCom
         onOk: async () => {
           setClaiming(true)
           try {
-            await put(`/api/help-requests/${request.requestId}/claim`)
+            await claimHelpRequest(request.requestId)
             message.success('Request claimed')
             fetchDetail()
             onRefresh?.()
@@ -207,7 +215,7 @@ export default function HelpRequestDetailPanel({ request, onRefresh, onReviewCom
       onOk: async () => {
         setClaiming(true)
         try {
-          await put(`/api/help-requests/${request.requestId}/release`)
+          await releaseHelpRequest(request.requestId)
           message.success('Request released')
           fetchDetail()
           onRefresh?.()
@@ -251,7 +259,7 @@ export default function HelpRequestDetailPanel({ request, onRefresh, onReviewCom
       onOk: async () => {
         setUpdatingStatus(true)
         try {
-          await put(`/api/help-requests/${request.requestId}/status`, { status })
+          await updateHelpRequestStatus(request.requestId, status)
           message.success(`Status updated to ${newStatusLabel}`)
           fetchDetail()
           onRefresh?.()
@@ -289,7 +297,7 @@ export default function HelpRequestDetailPanel({ request, onRefresh, onReviewCom
       onOk: async () => {
         setUpdatingPriority(true)
         try {
-          await put(`/api/help-requests/${request.requestId}/priority`, { priority })
+          await updateHelpRequestPriority(request.requestId, priority)
           message.success(`Priority updated to ${newPriorityLabel}`)
           fetchDetail()
           onRefresh?.()
@@ -311,7 +319,7 @@ export default function HelpRequestDetailPanel({ request, onRefresh, onReviewCom
     setReplyConfirmOpen(false)
     setSending(true)
     try {
-      await post(`/api/help-requests/${request.requestId}/messages`, {
+      await addHelpRequestMessage(request.requestId, {
         content: replyContent.trim(),
         attachments: [],
       })
@@ -335,7 +343,7 @@ export default function HelpRequestDetailPanel({ request, onRefresh, onReviewCom
     setNoteConfirmOpen(false)
     setAddingNote(true)
     try {
-      await post(`/api/help-requests/${request.requestId}/internal-notes`, {
+      await addHelpRequestInternalNote(request.requestId, {
         content: noteContent.trim(),
       })
       message.success('Internal note added')

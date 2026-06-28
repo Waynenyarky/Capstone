@@ -1,1 +1,1 @@
-export { default as BusinessOwnerDashboard } from './pages/BusinessOwnerDashboard'
+export { default as BusinessOwnerDashboard } from './pages/index'
