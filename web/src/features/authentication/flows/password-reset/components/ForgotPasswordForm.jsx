@@ -1,5 +1,5 @@
 import { Form } from '@/shared/components/AppForm'
-import { Input, Button, Typography, Grid } from 'antd'
+import { Input, Button, Typography, Grid, theme } from 'antd'
 import { useForgotPasswordForm } from "@/features/authentication/hooks"
 import { forgotPasswordEmailRules } from "@/features/authentication/utils/validations"
 import { useNavigate } from 'react-router-dom'
@@ -8,11 +8,13 @@ import TurnstileWidget from '@/features/authentication/components/TurnstileWidge
 
 const { Title, Text } = Typography
 const { useBreakpoint } = Grid
+const { useToken } = theme
 
 export default function ForgotPasswordForm({ onSubmit } = {}) {
   const { form, handleFinish, isSubmitting } = useForgotPasswordForm({ onSubmit })
   const navigate = useNavigate()
   const screens = useBreakpoint()
+  const { token } = useToken()
   const isMobile = !screens.md
   const turnstileRef = React.useRef(null)
   const turnstileSiteKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_TURNSTILE_SITE_KEY) || ''
@@ -46,7 +48,7 @@ export default function ForgotPasswordForm({ onSubmit } = {}) {
 
         {turnstileSiteKey ? (
           <Form.Item style={{ marginBottom: 16 }}>
-            <TurnstileWidget ref={turnstileRef} siteKey={turnstileSiteKey} />
+            <TurnstileWidget ref={turnstileRef} siteKey={turnstileSiteKey} token={token} />
           </Form.Item>
         ) : null}
 

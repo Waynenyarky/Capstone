@@ -89,7 +89,7 @@ export function useBusinessDashboard({
     }
   }, [currentUser, roleSlug, initialFetchDone, fetchBusinesses])
 
-  // Re-fetch when filters change
+  // Re-fetch when filters change (not on currentUser/roleSlug changes - handled by initial fetch)
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false
@@ -98,7 +98,8 @@ export function useBusinessDashboard({
     if (currentUser && roleSlug === 'business_owner') {
       fetchBusinesses()
     }
-  }, [currentPage, pageSize, searchTerm, statusFilter, sortBy, sortOrder, isFirstRender, currentUser, roleSlug, fetchBusinesses])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, pageSize, searchTerm, statusFilter, sortBy, sortOrder, isFirstRender, fetchBusinesses])
 
   // Socket: application status updates
   useSocketEvent('application:updated', useCallback((data) => {

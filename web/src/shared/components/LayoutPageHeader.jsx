@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Grid, Space, Typography, Button, Dropdown, Badge, theme } from 'antd'
 import LottieSpinner from '@/shared/components/LottieSpinner.jsx'
@@ -14,6 +14,7 @@ import {
   MoonOutlined,
   ReloadOutlined,
   MenuOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -21,7 +22,6 @@ import { useAuthSession } from '@/features/authentication'
 import { useConfirmLogoutModal } from '@/features/authentication/hooks/useConfirmLogoutModal'
 import ConfirmLogoutModal from '@/features/authentication/components/ConfirmLogoutModal'
 import { getNotifications, getUnreadCount, markAsRead } from '@/features/user/services/notificationService'
-import { useNotificationStream } from '@/features/user/hooks/useNotificationStream'
 import { useAppTheme, THEMES } from '@/shared/theme/ThemeProvider'
 import { logoutApi } from '@/features/authentication/services/authService'
 import { setIsLoggingOut, setLogoutNotification } from '@/features/authentication/lib/authEvents.js'
@@ -92,6 +92,8 @@ export default function LayoutPageHeader({
   infoSlotId,
   infoModalTitle,
   statusText,
+  _mobileOpen,
+  setMobileOpen,
 }) {
   const { currentUser, logout } = useAuthSession()
   const { currentTheme, setTheme } = useAppTheme()
@@ -106,6 +108,11 @@ export default function LayoutPageHeader({
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const initialFetchDone = useRef(false)
+  const lastUserId = useRef(null)
+  const isFetchingRef = useRef(false)
+  const lastFetchTime = useRef(0)
+  const FETCH_DEBOUNCE_MS = 2000
 
   const { open, show, hide, confirming, handleConfirm } = useConfirmLogoutModal({
     onConfirm: async () => {
@@ -148,6 +155,7 @@ export default function LayoutPageHeader({
                 navigate('/settings-profile')
               }
             },
+            style: { fontSize: 16, padding: '10px 16px' },
           },
         ]),
     {
@@ -155,17 +163,28 @@ export default function LayoutPageHeader({
       icon: isDarkMode ? <SunOutlined /> : <MoonOutlined />,
       label: isDarkMode ? 'Light mode' : 'Dark mode',
       onClick: handleThemeToggle,
+      style: { fontSize: 16, padding: '10px 16px' },
     },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
       label: 'Logout',
       onClick: show,
+      style: { fontSize: 16, padding: '10px 16px' },
     },
   ].filter(Boolean)
 
   const fetchNotifications = useCallback(async () => {
-    if (!currentUser || hideNotifications) return
+    if (!currentUser || hideNotifications || isFetchingRef.current) return
+    
+    // Debounce: don't fetch if we fetched recently
+    const now = Date.now()
+    if (now - lastFetchTime.current < FETCH_DEBOUNCE_MS) {
+      return
+    }
+    
+    isFetchingRef.current = true
+    lastFetchTime.current = now
     setLoadingNotifications(true)
     try {
       const [notificationsResponse, count] = await Promise.all([
@@ -181,20 +200,29 @@ export default function LayoutPageHeader({
       setUnreadCount(0)
     } finally {
       setLoadingNotifications(false)
+      isFetchingRef.current = false
     }
-  }, [currentUser, hideNotifications])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  useNotificationStream({
-    enabled: !!currentUser && !hideNotifications,
-    onNewNotification: fetchNotifications,
-  })
+  // Temporarily disable SSE stream to prevent excessive API calls
+  // useNotificationStream({
+  //   enabled: !!currentUser && !hideNotifications,
+  //   onNewNotification: fetchNotifications,
+  // })
 
   useEffect(() => {
     if (!currentUser || hideNotifications) return
-    fetchNotifications()
-    const interval = setInterval(fetchNotifications, NOTIFICATIONS_POLL_MS)
-    return () => clearInterval(interval)
-  }, [currentUser, hideNotifications]) // eslint-disable-line react-hooks/exhaustive-deps
+    const currentUserId = currentUser?._id || currentUser?.id
+    // Only fetch if user changed or first time
+    if (!initialFetchDone.current || lastUserId.current !== currentUserId) {
+      initialFetchDone.current = true
+      lastUserId.current = currentUserId
+      fetchNotifications()
+    }
+    // No polling interval - rely on SSE stream for real-time updates
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleNotificationClick = async (notification) => {
     try {
@@ -323,11 +351,30 @@ export default function LayoutPageHeader({
           gap: 12,
           borderBottom: `1px solid ${token.colorBorder}`,
           background: token.colorBgElevated, // Use proper theme token for elevated surfaces
+          ...(isMobile ? {
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 1000,
+          } : {}),
         }}
       >
         {leftContent || showBrandLogo ? (
           <Space size={10} align="center">
             {showBrandLogo && <AnimatedBrandLogo onClick={brandLogoClickable ? () => navigate('/') : undefined} />}
+            {!showBrandLogo && isMobile && setMobileOpen && (
+              <Button
+                icon={<AppstoreOutlined />}
+                onClick={() => setMobileOpen(true)}
+                style={{
+                  padding: 6,
+                  height: 32,
+                  width: 32,
+                  borderRadius: 8,
+                }}
+              />
+            )}
             {!showBrandLogo && pageIcon && (
               <span
                 style={{
@@ -338,7 +385,7 @@ export default function LayoutPageHeader({
                   height: 32,
                   width: 32,
                   borderRadius: 8,
-                  display: 'inline-flex',
+                  display: isMobile ? 'none' : 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
@@ -354,6 +401,18 @@ export default function LayoutPageHeader({
           </Space>
         ) : (
           <Space size={10} align="center">
+            {isMobile && setMobileOpen && (
+              <Button
+                icon={<AppstoreOutlined />}
+                onClick={() => setMobileOpen(true)}
+                style={{
+                  padding: 6,
+                  height: 32,
+                  width: 32,
+                  borderRadius: 8,
+                }}
+              />
+            )}
             {pageIcon && (
               <span
                 style={{
@@ -364,7 +423,7 @@ export default function LayoutPageHeader({
                   height: 32,
                   width: 32,
                   borderRadius: 8,
-                  display: 'inline-flex',
+                  display: isMobile ? 'none' : 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
@@ -439,13 +498,14 @@ export default function LayoutPageHeader({
             )}
             {currentUser && (
               <Dropdown
-                menu={{ items: profileMenuItems }}
+                menu={{ items: profileMenuItems, style: { minWidth: 100 } }}
                 trigger={['click']}
                 placement="bottomRight"
               >
                 <Button
                   icon={<MenuOutlined />}
                   aria-label="Profile menu"
+                  
                 />
               </Dropdown>
             )}

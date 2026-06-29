@@ -40,15 +40,6 @@ export function useUserSignUpFlow() {
     notifyUserSignedUp(created)
     const role = String(withToken?.role?.slug ?? withToken?.role ?? '').toLowerCase()
 
-    if (role === 'business_owner') {
-      // Do NOT call login() here — we are still on /sign-up which is wrapped
-      // by PublicRoute. If we set the user in auth state, PublicRoute re-renders
-      // and redirects to /owner before our navigate() takes effect.
-      // Pass the token via route state; the MFA page will call login() on mount.
-      navigate('/signup/mfa-setup', { replace: true, state: { pendingUser: withToken } })
-      return
-    }
-
     try {
       login(withToken, { remember: false })
     } catch { /* ignore */ }
@@ -60,6 +51,11 @@ export function useUserSignUpFlow() {
     const staffRoles = ['staff', 'lgu_officer', 'inspector']
     if (staffRoles.includes(role)) {
       navigate(withToken?.mustChangeCredentials || withToken?.mustSetupMfa ? '/staff/onboarding' : '/staff', { replace: true })
+      return
+    }
+    if (role === 'business_owner') {
+      // New business owners go through onboarding (MFA setup with skip option)
+      navigate(withToken?.mustSetupMfa || withToken?.mustChangeCredentials ? '/business-owner/onboarding' : '/owner', { replace: true })
       return
     }
     navigate('/owner', { replace: true })

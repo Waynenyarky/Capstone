@@ -300,7 +300,7 @@ export default function UserSignUpForm({ extraContent }) {
             <Row gutter={16}>
               <Col xs={24} style={{ marginTop: isMobile ? 20 : 24, marginBottom: 0, display: 'flex', justifyContent: 'center', width: '100%' }}>
                 <Form.Item style={{ marginBottom: 0 }}>
-                  <TurnstileWidget ref={turnstileRef} siteKey={turnstileSiteKey} />
+                  <TurnstileWidget ref={turnstileRef} siteKey={turnstileSiteKey} token={token} />
                 </Form.Item>
               </Col>
             </Row>

@@ -96,17 +96,6 @@ export function useApplicationAppeals(application) {
     const appealId = application?.appealId
     const businessId = application?.businessId || application?.applicationId
 
-    console.log('[useApplicationAppeals] Fetching appeal data:', {
-      status,
-      isAppealPending,
-      isAppealRejected,
-      hadAppealGranted,
-      hasActiveAppeal,
-      appealId,
-      businessId,
-      shouldFetch: !businessId || (!isAppealPending && !isAppealRejected && !hadAppealGranted && !hasActiveAppeal && !appealId)
-    })
-
     if (!businessId || (!isAppealPending && !isAppealRejected && !hadAppealGranted && !hasActiveAppeal && !appealId)) {
       setLatestAppeal(null)
       return
@@ -114,11 +103,9 @@ export function useApplicationAppeals(application) {
 
     const fetchAppeal = async () => {
       try {
-        console.log('[useApplicationAppeals] Calling getAppealsByBusiness with:', businessId)
         const res = await getAppealsByBusiness(businessId)
         const appeals = res?.data || []
         const activeAppeal = appeals[0] || null
-        console.log('[useApplicationAppeals] Fetched appeals:', { appeals, activeAppeal })
         setLatestAppeal(activeAppeal)
       } catch (err) {
         console.error('Failed to fetch appeal:', err)

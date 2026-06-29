@@ -1,7 +1,13 @@
 import { useState, useCallback, useEffect } from 'react'
-import { get } from '@/lib/http.js'
 import { useAuthSession } from '@/features/authentication'
 import { getAppealsForReview } from '../services/appealsService'
+import { getEditRequests } from '../services/editRequestService'
+import { getHelpRequests } from '../services/helpRequestService'
+import { getMyActions } from '../services/auditService'
+import { searchUsers } from '../services/userService'
+import { getBusinesses } from '../services/businessService'
+import { PermitApplicationService } from '../services/permitApplicationService'
+import { InspectionService } from '../services/inspectionService'
 
 const EDIT_REQUESTS_POLL_INTERVAL_MS = 30 * 1000
 
@@ -45,6 +51,123 @@ const resolveApplicationItemType = (application) => {
   }
 
   return 'applications'
+}
+
+// Priority scoring helpers for To Review tab
+const getHoursInStatus = (item) => {
+  if (!item) return 0
+  const statusChangedAt = item.statusChangedAt || item.createdAt || item.updatedAt || item.submittedAt
+  if (!statusChangedAt) return 0
+  const hours = (new Date() - new Date(statusChangedAt)) / (1000 * 60 * 60)
+  return Math.max(0, hours)
+}
+
+// Stale detection helpers for Part 5
+const STALE_THRESHOLD_HOURS = 48
+
+const ACTIVE_APPLICATION_STATUSES = new Set(['submitted', 'under_review', 'resubmit'])
+const TERMINAL_APPLICATION_STATUSES = new Set(['approved', 'rejected', 'returned', 'cancelled'])
+const ACTIVE_HELP_REQUEST_STATUSES = new Set(['open', 'in_progress'])
+const TERMINAL_HELP_REQUEST_STATUSES = new Set(['resolved', 'closed'])
+
+const isStale = (item) => {
+  if (!item) return false
+
+  const itemType = item._itemType
+  const status = String(item.status || item.applicationStatus || '').toLowerCase()
+
+  // Applications: check if claimed and in active status with stale reviewedAt
+  if (itemType === 'applications' || itemType === 'renewals' || item.applicationId) {
+    if (!item.reviewedBy) return false
+    if (ACTIVE_APPLICATION_STATUSES.has(status) || !TERMINAL_APPLICATION_STATUSES.has(status)) {
+      const reviewedAt = item.reviewedAt
+      if (!reviewedAt) return false
+      const hoursSinceReview = (new Date() - new Date(reviewedAt)) / (1000 * 60 * 60)
+      return hoursSinceReview > STALE_THRESHOLD_HOURS
+    }
+  }
+
+  // Help requests: check if claimed and in active status with stale claimedAt
+  if (itemType === 'helpRequests' || item.requestId) {
+    if (!item.claimedBy) return false
+    if (ACTIVE_HELP_REQUEST_STATUSES.has(status) || !TERMINAL_HELP_REQUEST_STATUSES.has(status)) {
+      const claimedAt = item.claimedAt
+      if (!claimedAt) return false
+      const hoursSinceClaim = (new Date() - new Date(claimedAt)) / (1000 * 60 * 60)
+      return hoursSinceClaim > STALE_THRESHOLD_HOURS
+    }
+  }
+
+  return false
+}
+
+const getStaleDuration = (item) => {
+  if (!item) return null
+
+  const timestamp = item.reviewedAt || item.claimedAt
+  if (!timestamp) return null
+
+  const hoursSince = (new Date() - new Date(timestamp)) / (1000 * 60 * 60)
+  if (hoursSince <= 0) return null
+
+  const days = Math.floor(hoursSince / 24)
+  const hours = Math.floor(hoursSince % 24)
+
+  if (days > 0 && hours > 0) {
+    return `${days} days ${hours} hours`
+  } else if (days > 0) {
+    return `${days} days`
+  } else {
+    return `${hours} hours`
+  }
+}
+
+export const calculatePriorityScore = (card) => {
+  let score = 0
+
+  // Base priority by item type
+  const primaryItem = card._requests?.application
+  const itemType = primaryItem?._itemType || card._itemType
+
+  if (itemType === 'help_request' || itemType === 'helpRequests') {
+    score += 100
+  } else if (itemType === 'renewals') {
+    score += 20
+  } else if (itemType === 'application' || itemType === 'applications') {
+    // Status-based priority tier (determines the tier, time determines position within tier)
+    const status = String(primaryItem?.status || primaryItem?.applicationStatus || '').toLowerCase()
+    if (status === 'appeal_pending') {
+      score += 100  // Highest tier
+    } else if (status === 'resubmit') {
+      score += 90   // Next tier
+    } else if (status === 'submitted') {
+      score += 85   // New submissions
+    } else if (status === 'under_review') {
+      score += 80   // In progress
+    } else if (status === 'returned') {
+      score += 60   // Lowest tier (user's turn)
+    } else {
+      score += 50   // Default/other statuses
+    }
+  }
+
+  // Claim status bonus (only for unclaimed items in Applications tab)
+  const isUnclaimed = !primaryItem?.reviewedBy && !primaryItem?.claimedBy
+  if (isUnclaimed) {
+    score += 50
+  }
+
+  // Stale multiplier (1.5x for items claimed >48 hours ago - boosts within tier)
+  if (isStale(primaryItem)) {
+    score = Math.floor(score * 1.5)
+  }
+
+  // Time in status bonus (tiebreaker within tier, capped at +20)
+  const hoursInStatus = getHoursInStatus(primaryItem)
+  const timeBonus = Math.min(hoursInStatus * 0.5, 20)
+  score += timeBonus
+
+  return score
 }
 
 export default function useOfficerData(activeTab, refreshTrigger) {
@@ -96,11 +219,20 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     if (!officerId) return
     setTabLoading('toReview', true)
     try {
+      const permitApplicationService = new PermitApplicationService()
+      const inspectionService = new InspectionService()
+
       const [applicationsRes, editRequestsRes, appealsRes, inspectionsRes] = await Promise.allSettled([
-        get(`/api/lgu-officer/permit-applications?reviewedBy=${officerId}&limit=200`, { skipAutoLogout: true }),
-        get('/api/business/edit-requests?role=staff&limit=200', { skipAutoLogout: true }),
+        permitApplicationService.getApplications({
+          filters: { reviewedBy: officerId },
+          pagination: { limit: 200 }
+        }),
+        getEditRequests({ role: 'staff', limit: 200 }),
         getAppealsForReview({ limit: 200 }),
-        get('/api/lgu-officer/inspections?limit=200', { skipAutoLogout: true }),
+        inspectionService.getInspections({
+          filters: {},
+          pagination: { limit: 200 }
+        }),
       ])
 
       const claimedApplications = applicationsRes.status === 'fulfilled'
@@ -284,11 +416,24 @@ export default function useOfficerData(activeTab, refreshTrigger) {
       claimedByType.appeals = mergeUnclaimedIntoByType(claimedAppeals, unclaimedAppeals)
       setToReviewByType(claimedByType)
 
-      const consolidatedItems = Array.from(businessMap.values()).sort((a, b) => {
-        const da = new Date(a.createdAt || 0).getTime()
-        const db = new Date(b.createdAt || 0).getTime()
-        return db - da
-      })
+      const consolidatedItems = Array.from(businessMap.values())
+        .map(card => {
+          const primaryItem = card._requests?.application
+          return {
+            ...card,
+            _priorityScore: calculatePriorityScore(card),
+            _isStale: isStale(primaryItem),
+            _staleDuration: getStaleDuration(primaryItem),
+          }
+        })
+        .sort((a, b) => {
+          // Primary: priority score (descending)
+          if (a._priorityScore !== b._priorityScore) {
+            return b._priorityScore - a._priorityScore
+          }
+          // Secondary: business name (alphabetical)
+          return a.businessName.localeCompare(b.businessName)
+        })
 
       setToReview(consolidatedItems)
       setCounts(prev => ({ ...prev, toReview: consolidatedItems.length }))
@@ -303,7 +448,12 @@ export default function useOfficerData(activeTab, refreshTrigger) {
   const fetchApplications = useCallback(async () => {
     setTabLoading('applications', true)
     try {
-      const res = await get('/api/lgu-officer/permit-applications?limit=200', { skipAutoLogout: true })
+      const permitApplicationService = new PermitApplicationService()
+      const res = await permitApplicationService.getApplications({
+        filters: {},
+        pagination: { limit: 200 },
+        options: { skipAutoLogout: true }
+      })
       const apps = res?.data?.applications || res?.applications || []
       const pendingCount = apps.filter(app =>
         PENDING_APPLICATION_STATUSES.has(app.status || app.applicationStatus)
@@ -335,7 +485,7 @@ export default function useOfficerData(activeTab, refreshTrigger) {
   const fetchEditRequests = useCallback(async () => {
     setTabLoading('editRequests', true)
     try {
-      const res = await get('/api/business/edit-requests?role=staff', { skipAutoLogout: true })
+      const res = await getEditRequests({ role: 'staff', options: { skipAutoLogout: true } })
       const list = Array.isArray(res?.data) ? res.data : []
       const normalized = list.map((request) => {
         return { ...request, status: normalizeEditRequestStatus(request?.status) }
@@ -354,7 +504,12 @@ export default function useOfficerData(activeTab, refreshTrigger) {
   const fetchRenewals = useCallback(async () => {
     setTabLoading('renewals', true)
     try {
-      const res = await get('/api/lgu-officer/permit-applications?status=pending_renewal,renewal_submitted&limit=100', { skipAutoLogout: true })
+      const permitApplicationService = new PermitApplicationService()
+      const res = await permitApplicationService.getApplications({
+        filters: { status: 'pending_renewal,renewal_submitted' },
+        pagination: { limit: 100 },
+        options: { skipAutoLogout: true }
+      })
       const apps = res?.data?.applications || res?.applications || []
       const pendingCount = apps.filter(app =>
         PENDING_RENEWAL_STATUSES.has(app.status || app.applicationStatus)
@@ -372,10 +527,11 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     setTabLoading('owners', true)
     try {
       const query = q.trim()
-      const url = query 
-        ? `/api/auth/users/search?q=${encodeURIComponent(query)}&role=business_owner`
-        : `/api/auth/users/search?role=business_owner`
-      const res = await get(url, { skipAutoLogout: true })
+      const res = await searchUsers({ 
+        q: query || undefined, 
+        role: 'business_owner', 
+        options: { skipAutoLogout: true } 
+      })
       const list = Array.isArray(res) ? res : res?.data || []
       setOwners(list)
     } catch { setOwners([]) }
@@ -385,7 +541,12 @@ export default function useOfficerData(activeTab, refreshTrigger) {
   const fetchDrafts = useCallback(async () => {
     setTabLoading('drafts', true)
     try {
-      const res = await get('/api/lgu-officer/permit-applications?status=draft&limit=100', { skipAutoLogout: true })
+      const permitApplicationService = new PermitApplicationService()
+      const res = await permitApplicationService.getApplications({
+        filters: { status: 'draft' },
+        pagination: { limit: 100 },
+        options: { skipAutoLogout: true }
+      })
       const apps = res?.data?.applications || res?.applications || []
       const draftCount = apps.filter(app => (app.status || app.applicationStatus) === 'draft').length
       setDrafts(apps)
@@ -400,7 +561,12 @@ export default function useOfficerData(activeTab, refreshTrigger) {
   const fetchInspections = useCallback(async () => {
     setTabLoading('inspections', true)
     try {
-      const res = await get('/api/lgu-officer/inspections?limit=200', { skipAutoLogout: true })
+      const inspectionService = new InspectionService()
+      const res = await inspectionService.getInspections({
+        filters: {},
+        pagination: { limit: 200 },
+        options: { skipAutoLogout: true }
+      })
       const list = res?.data || res?.inspections || []
       const pendingCount = list.filter(i => i.status === 'pending_assignment' || i.status === 'pending').length
       setInspections(list)
@@ -416,7 +582,7 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     setTabLoading('logs', true)
     try {
       // Fetch personal action history (own userId OR metadata.officerId matches current user)
-      const res = await get('/api/auth/audit/my-actions?limit=200', { skipAutoLogout: true })
+      const res = await getMyActions({ limit: 200, options: { skipAutoLogout: true } })
       const logs = res?.logs || res?.data || []
       setLogs(logs)
     } catch { setLogs([]) }
@@ -426,7 +592,7 @@ export default function useOfficerData(activeTab, refreshTrigger) {
   const fetchBusinesses = useCallback(async () => {
     setTabLoading('businesses', true)
     try {
-      const res = await get('/api/lgu-officer/businesses?limit=200', { skipAutoLogout: true })
+      const res = await getBusinesses({ limit: 200, options: { skipAutoLogout: true } })
       const list = res?.businesses || []
       setBusinesses(list)
     } catch {
@@ -438,7 +604,7 @@ export default function useOfficerData(activeTab, refreshTrigger) {
   const fetchHelpRequests = useCallback(async () => {
     setTabLoading('helpRequests', true)
     try {
-      const res = await get('/api/help-requests?limit=200', { skipAutoLogout: true })
+      const res = await getHelpRequests({ limit: 200, options: { skipAutoLogout: true } })
       const list = res?.data || res?.helpRequests || []
       setHelpRequests(list)
     } catch {
@@ -463,6 +629,7 @@ export default function useOfficerData(activeTab, refreshTrigger) {
       case 'helpRequests': return fetchHelpRequests()
     }
   }, [activeTab, fetchToReview, fetchApplications, fetchAppeals, fetchEditRequests, fetchRenewals, fetchInspections, fetchOwners, fetchDrafts, fetchLogs, fetchBusinesses, fetchHelpRequests, ownerSearch])
+
 
   // Fetch on tab change
   useEffect(() => {
@@ -496,6 +663,15 @@ export default function useOfficerData(activeTab, refreshTrigger) {
     }, EDIT_REQUESTS_POLL_INTERVAL_MS)
     return () => clearInterval(intervalId)
   }, [activeTab, fetchEditRequests])
+
+  // Poll toReview while tab is active so officer list stays fresh
+  useEffect(() => {
+    if (activeTab !== 'toReview') return
+    const intervalId = setInterval(() => {
+      fetchToReview()
+    }, EDIT_REQUESTS_POLL_INTERVAL_MS)
+    return () => clearInterval(intervalId)
+  }, [activeTab, fetchToReview])
 
   // Get current list for active tab
   const getCurrentList = useCallback(() => {

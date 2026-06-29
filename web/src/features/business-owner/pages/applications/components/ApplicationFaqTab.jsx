@@ -1,8 +1,5 @@
-import { Typography, Empty } from 'antd'
 import DynamicFaqSection from '@/shared/components/DynamicFaqSection'
 import { isReturnedStatus, isDraftStatus, isPendingStatus, isApprovedStatus, isRejectedStatus, isNeedsRevisionStatus, isAppealPendingStatus, isAppealRejectedStatus } from '../utils/statusUtils'
-
-const { Title } = Typography
 
 export default function ApplicationFaqTab({ business }) {
   const appStatus = business?.applicationStatus || ''
@@ -31,16 +28,10 @@ export default function ApplicationFaqTab({ business }) {
 
   return (
     <div>
-      <DynamicFaqSection 
-        slotId={getFaqSlotId()} 
-        hideWrapper 
+      <DynamicFaqSection
+        slotId={getFaqSlotId()}
+        hideWrapper
         hideHeader
-        fallback={
-          <Empty
-            description="No FAQ content available for this application status"
-            style={{ marginTop: 32 }}
-          />
-        }
       />
     </div>
   )

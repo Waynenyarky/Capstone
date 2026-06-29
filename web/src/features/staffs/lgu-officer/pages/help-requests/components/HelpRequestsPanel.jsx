@@ -28,7 +28,7 @@ const STATUS_OPTIONS = [
   { value: 'invalid', label: 'Invalid' },
 ]
 
-export default function HelpRequestsPanel({ helpRequests = [], onSelectRequest, isLoading, selectedId, bookmarkedIds = new Set() }) {
+export default function HelpRequestsPanel({ helpRequests = [], onSelectRequest, isLoading, selectedId, bookmarkedIds = new Set(), onRefresh, showRefresh = false }) {
   const formatDate = (dateStr) => {
     if (!dateStr) return ''
     const d = new Date(dateStr)
@@ -81,6 +81,8 @@ export default function HelpRequestsPanel({ helpRequests = [], onSelectRequest, 
       searchPlaceholder="Search requests..."
       filterConfig={filterConfig}
       pageSize={20}
+      onRefresh={onRefresh}
+      showRefresh={showRefresh}
     />
   )
 }

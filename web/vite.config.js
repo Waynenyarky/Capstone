@@ -242,8 +242,14 @@ const CSP_CONNECT_SRC = [
   "http://127.0.0.1:3002",
   "http://127.0.0.1:3003",
   "http://127.0.0.1:3004",
+  "https://192.168.18.12:3000",
+  "https://192.168.18.12:3001",
+  "https://192.168.18.12:3002",
+  "https://192.168.18.12:3003",
+  "https://192.168.18.12:3004",
   "ws://localhost:5173",
   "ws://127.0.0.1:5173",
+  "wss://192.168.18.12:5173",
   "ws://localhost:5174",
   "ws://127.0.0.1:5174",
   "ws://localhost:3002",
@@ -293,6 +299,10 @@ export default defineConfig({
     hmr: true, // Hot Module Replacement (default: true) — ensures dev server pushes updates
     allowedHosts: [
       '.trycloudflare.com', // Allow Cloudflare tunnel URLs for HTTPS mobile access
+      '.ngrok-free.dev', // Allow ngrok URLs
+      'localhost',
+      '127.0.0.1',
+      '192.168.18.12',
     ],
     headers: SECURITY_HEADERS,
     proxy: USE_MICROSERVICES ? {

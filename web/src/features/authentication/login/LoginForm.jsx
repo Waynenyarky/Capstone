@@ -262,7 +262,7 @@ export default function LoginForm({ onSubmit } = {}) {
 
           {turnstileSiteKey ? (
             <Form.Item style={{ marginBottom: isMobile ? 20 : 24 }}>
-              <TurnstileWidget ref={turnstileRef} siteKey={turnstileSiteKey} />
+              <TurnstileWidget ref={turnstileRef} siteKey={turnstileSiteKey} token={token} />
             </Form.Item>
           ) : null}
 

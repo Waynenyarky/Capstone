@@ -38,6 +38,7 @@ const AdminLobTrainer = lazy(() => import("@/features/admin").then(m => ({ defau
 const AdminFeeConfiguration = lazy(() => import("@/features/admin/pages/AdminFeeConfiguration.jsx"))
 const AdminFees = lazy(() => import("@/features/admin/pages/AdminFees.jsx"))
 const BusinessOwnerDashboard = lazy(() => import("@/features/business-owner").then(m => ({ default: m.BusinessOwnerDashboard })))
+const BusinessOwnerOnboarding = lazy(() => import("@/features/business-owner/pages/BusinessOwnerOnboarding.jsx"))
 const BusinessOwnerApplications = lazy(() => import("@/features/business-owner/pages/applications/index.jsx"))
 const BusinessOwnerBusinesses = lazy(() => import("@/features/business-owner/pages/businesses/index.jsx"))
 
@@ -52,6 +53,7 @@ const OfficerApplications = lazy(() => import("@/features/staffs/lgu-officer/pag
 const OfficerHelpRequests = lazy(() => import("@/features/staffs/lgu-officer/pages/help-requests/index.jsx"))
 const OfficerLedger = lazy(() => import("@/features/staffs/lgu-officer/pages/OfficerLedger.jsx"))
 const OfficerBookmarks = lazy(() => import("@/features/staffs/lgu-officer/pages/bookmarks/index.jsx"))
+const OfficerToReview = lazy(() => import("@/features/staffs/lgu-officer/pages/to-review/index.jsx"))
 const OfficerBusinesses = lazy(() => import("@/features/staffs/lgu-officer/pages/businesses/index.jsx"))
 const OfficerBusinessOwners = lazy(() => import("@/features/staffs/lgu-officer/pages/business-owners/index.jsx"))
 const PlaceholderPage = lazy(() => import("@/shared/pages/PlaceholderPage"))
@@ -97,9 +99,9 @@ function App() {
       <Route path="/signup/mfa-setup" element={<SignUpMfaSetup />} />
       <Route path="/auth/passkey-mobile" element={<PublicRoute><PasskeyMobileAuth /></PublicRoute>} />
       <Route path="/deletion-pending" element={<ProtectedRoute><DeletionPendingScreen /></ProtectedRoute>} />
-      <Route path="/account/security" element={<ProtectedRoute><MfaSetup /></ProtectedRoute>} />
       <Route path="/admin/onboarding" element={<ProtectedRoute allowedRoles={['admin']}><AdminOnboarding /></ProtectedRoute>} />
       <Route path="/staff/onboarding" element={<ProtectedRoute allowedRoles={['staff', 'lgu_officer', 'inspector']}><StaffOnboarding /></ProtectedRoute>} />
+      <Route path="/business-owner/onboarding" element={<ProtectedRoute allowedRoles={['business_owner']}><BusinessOwnerOnboarding /></ProtectedRoute>} />
 
       {/* Admin Routes */}
       <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><Outlet /></ProtectedRoute>}>
@@ -139,6 +141,7 @@ function App() {
       {/* Staff Routes */}
       <Route path="/staff" element={<ProtectedRoute allowedRoles={['staff', 'lgu_officer', 'inspector']}><OfficerDashboard /></ProtectedRoute>}>
         <Route index element={<OfficerDashboardPage />} />
+        <Route path="to-review" element={<OfficerToReview />} />
         <Route path="applications" element={<OfficerApplications />} />
         <Route path="businesses" element={<OfficerBusinesses />} />
         <Route path="businesses/:businessId" element={<OfficerBusinesses />} />

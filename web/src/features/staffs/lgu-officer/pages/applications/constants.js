@@ -23,3 +23,11 @@ export const STATUS_FILTER_OPTIONS = [
   { value: 'appeal_pending', label: 'Appeal Pending' },
   { value: 'appeal_rejected', label: 'Appeal Rejected' },
 ]
+
+export const CLAIM_STATUS_FILTER_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'needs_attention', label: 'Needs Attention' },
+  { value: 'unclaimed', label: 'Unclaimed' },
+  { value: 'claimed_by_me', label: 'Claimed by me' },
+  { value: 'claimed_by_others', label: 'Claimed by others' },
+]

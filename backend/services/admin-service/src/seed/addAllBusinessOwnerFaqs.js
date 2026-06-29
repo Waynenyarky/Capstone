@@ -5,18 +5,30 @@
 
 const dotenv = require("dotenv");
 const path = require("path");
+
+// Load environment variables FIRST before importing connectDB
+// When running in Docker, MONGO_URI is already set by docker-compose
+// When running locally, load from .env
+if (!process.env.MONGO_URI) {
+  dotenv.config();
+  const projectRootEnv = path.join(__dirname, "..", "..", "..", "..", ".env");
+  try {
+    require("dotenv").config({ path: projectRootEnv });
+  } catch (_) {
+    /* optional */
+  }
+
+  // If MONGO_URI is still not set, construct it from individual variables (for Docker local MongoDB)
+  if (!process.env.MONGO_URI && process.env.MONGO_APP_USER && process.env.MONGO_APP_PASSWORD) {
+    const host = process.env.MONGO_HOST || 'mongodb';
+    process.env.MONGO_URI = `mongodb://${process.env.MONGO_APP_USER}:${process.env.MONGO_APP_PASSWORD}@${host}:27017/capstone_project?authSource=admin`;
+  }
+}
+
+
 const connectDB = require("../config/db");
 const FaqSection = require("../models/FaqSection");
 const logger = require("../lib/logger");
-
-// Load environment variables
-dotenv.config();
-const projectRootEnv = path.join(__dirname, "..", "..", "..", "..", ".env");
-try {
-  require("dotenv").config({ path: projectRootEnv });
-} catch (_) {
-  /* optional */
-}
 
 const faqData = {
   'business-owner-draft-faq': {
@@ -221,7 +233,7 @@ async function addAllBusinessOwnerFaqs() {
 if (require.main === module) {
   (async () => {
     try {
-      await connectDB();
+      await connectDB(process.env.MONGO_URI);
       const result = await addAllBusinessOwnerFaqs();
       console.log("Result:", result);
       process.exit(0);

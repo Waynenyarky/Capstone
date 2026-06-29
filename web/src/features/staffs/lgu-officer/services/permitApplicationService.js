@@ -73,11 +73,12 @@ export class PermitApplicationService {
    * @param {object} params - Query parameters
    * @param {object} params.filters - Filter criteria
    * @param {object} params.pagination - Pagination options
+   * @param {object} params.options - Additional options (e.g., skipAutoLogout)
    * @returns {Promise<object>} Applications list with pagination
    */
-  async getApplications({ filters = {}, pagination = {} }) {
+  async getApplications({ filters = {}, pagination = {}, options = {} }) {
     const params = new URLSearchParams()
-    
+
     // Add filters
     if (filters.status) params.append('status', filters.status)
     if (filters.businessName) params.append('businessName', filters.businessName)
@@ -85,12 +86,13 @@ export class PermitApplicationService {
     if (filters.dateFrom) params.append('dateFrom', filters.dateFrom)
     if (filters.dateTo) params.append('dateTo', filters.dateTo)
     if (filters.applicationReferenceNumber) params.append('applicationReferenceNumber', filters.applicationReferenceNumber)
-    
+    if (filters.reviewedBy) params.append('reviewedBy', filters.reviewedBy)
+
     // Add pagination
     params.append('page', pagination.page || 1)
     params.append('limit', pagination.limit || 10)
 
-    const response = await fetchJsonWithFallback(`/api/lgu-officer/permit-applications?${params}`)
+    const response = await fetchJsonWithFallback(`/api/lgu-officer/permit-applications?${params}`, options)
     return response
   }
 

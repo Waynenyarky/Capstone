@@ -5,13 +5,13 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { ShopOutlined } from '@ant-design/icons'
 import { useAuthSession } from '@/features/authentication'
 import { mfaStatus } from '@/features/authentication/services/mfaService'
-import { firstLoginChangeCredentials, getProfile } from '@/features/authentication/services/authService'
+import { firstLoginChangeCredentials } from '@/features/authentication/services/authService'
 import { useNotifier } from '@/shared/notifications'
 import BusinessOwnerLayout from '../components/shared/BusinessOwnerLayout'
 import OnboardingStepContent from '@/shared/components/OnboardingStepContent'
 
 export default function BusinessOwnerOnboarding() {
-  const { currentUser, login } = useAuthSession()
+  const { currentUser } = useAuthSession()
   const { success, error } = useNotifier()
   const location = useLocation()
   const navigate = useNavigate()
@@ -29,7 +29,6 @@ export default function BusinessOwnerOnboarding() {
   const [mfaEnabled, setMfaEnabled] = useState(false)
   const [checkingMfa, setCheckingMfa] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [completingOnboarding, setCompletingOnboarding] = useState(false)
 
   useEffect(() => {
     const checkMfaStatus = async () => {
@@ -89,11 +88,6 @@ export default function BusinessOwnerOnboarding() {
         newPassword: values.password,
         newUsername: currentUser?.username || (currentUser?.email ? currentUser.email.split('@')[0] : 'businessowner'),
       })
-      const fresh = await getProfile()
-      const raw = localStorage.getItem('auth__currentUser')
-      const remember = !!raw
-      const merged = { ...currentUser, ...fresh, token: currentUser?.token }
-      login(merged, { remember })
       success('Password changed successfully')
       if (mustMfa) setCurrentStep(2)
       else setCurrentStep(3)
@@ -106,33 +100,16 @@ export default function BusinessOwnerOnboarding() {
   }
 
   const handleComplete = async () => {
-    setCompletingOnboarding(true)
-    try {
-      // Fetch fresh profile to ensure mustChangeCredentials and mustSetupMfa are cleared
-      const fresh = await getProfile()
-      const merged = { ...currentUser, ...fresh, token: currentUser?.token }
-      const remember = !!localStorage.getItem('auth__currentUser')
-      login(merged, { remember })
-    } catch (e) {
-      console.error('[BusinessOwnerOnboarding] Failed to refresh profile before dashboard', e)
-      // Fallback: navigate anyway to avoid being stuck
-      setCompletingOnboarding(false)
-      navigate('/business-owner/dashboard', { replace: true })
-    }
+    // For business owners, navigate directly to dashboard
+    // MFA is optional, so no need to wait for mustSetupMfa to be cleared
+    navigate('/owner', { replace: true })
   }
 
   const handleMfaSkip = () => {
-    // Skip MFA and go to complete step
-    setCurrentStep(1)
+    // MFA is optional for business owners. Skipping navigates directly to dashboard.
+    // (mustSetupMfa remains set but is not enforced by ProtectedRoute for business owners.)
+    navigate('/owner', { replace: true })
   }
-
-  // Navigate after auth context has updated with cleared flags
-  useEffect(() => {
-    if (completingOnboarding && currentUser && !currentUser.mustChangeCredentials && !currentUser.mustSetupMfa) {
-      // Auth context has been updated with cleared flags, safe to navigate
-      navigate('/business-owner/dashboard', { replace: true })
-    }
-  }, [completingOnboarding, currentUser, navigate])
 
   return (
     <BusinessOwnerLayout hideSidebar pageTitle="Onboarding" pageIcon={<ShopOutlined />}>
@@ -149,7 +126,7 @@ export default function BusinessOwnerOnboarding() {
         <Row justify="center" align="middle" style={{ flex: 1 }}>
           <Col xs={24} sm={24} md={20} lg={18} xl={16}>
             <OnboardingStepContent
-              variant="staff"
+              variant="business_owner"
               currentStep={currentStep}
               setCurrentStep={setCurrentStep}
               mustChange={mustChange}

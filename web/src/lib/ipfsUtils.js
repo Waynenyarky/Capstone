@@ -24,20 +24,21 @@ export function resolveIpfsUrl(url) {
   const ipfsCidPattern = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|baf[a-z0-9]+)$/
   
   if (ipfsCidPattern.test(trimmedUrl)) {
-    // It's an IPFS CID, prepend gateway URL
-    const gatewayUrl = import.meta.env.VITE_IPFS_GATEWAY_URL || 'http://localhost:8080/ipfs/'
-    // Ensure gateway URL ends with / if it doesn't already
-    const cleanGateway = gatewayUrl.endsWith('/') ? gatewayUrl : `${gatewayUrl}/`
-    return `${cleanGateway}${trimmedUrl}`
+    // It's an IPFS CID, use backend proxy
+    // Use window.location.origin for ngrok access, fallback to VITE_BACKEND_ORIGIN
+    const backendOrigin = typeof window !== 'undefined' 
+      ? window.location.origin 
+      : (import.meta.env.VITE_BACKEND_ORIGIN || 'http://localhost:3001')
+    return `${backendOrigin}/api/ipfs/${trimmedUrl}`
   }
   
-  // If relative path starting with /ipfs/, assume it's already formatted
+  // If relative path starting with /ipfs/, extract CID and use backend proxy
   if (trimmedUrl.startsWith('/ipfs/')) {
-    const gatewayUrl = import.meta.env.VITE_IPFS_GATEWAY_URL || 'http://localhost:8080'
-    // Remove leading /ipfs/ from trimmedUrl and construct full URL
     const cid = trimmedUrl.replace(/^\/ipfs\//, '')
-    const cleanGateway = gatewayUrl.endsWith('/') ? gatewayUrl.replace(/\/$/, '') : gatewayUrl
-    return `${cleanGateway}/ipfs/${cid}`
+    const backendOrigin = typeof window !== 'undefined' 
+      ? window.location.origin 
+      : (import.meta.env.VITE_BACKEND_ORIGIN || 'http://localhost:3001')
+    return `${backendOrigin}/api/ipfs/${cid}`
   }
   
   // For other relative paths or unrecognized formats, return as-is

@@ -80,6 +80,8 @@ export default function OfficerHelpRequests() {
       selectedId={selectedItem?._itemId}
       onSelectRequest={handleSelectRequest}
       bookmarkedIds={bookmarkedIds}
+      onRefresh={officerData.refresh}
+      showRefresh={true}
     />
   )
 

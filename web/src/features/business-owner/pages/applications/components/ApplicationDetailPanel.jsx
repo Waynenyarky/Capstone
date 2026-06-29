@@ -283,6 +283,7 @@ export default function ApplicationDetailPanel({
           onFillTestData={() => {
             formRef?.current?.fillTestData?.()
           }}
+          allSectionsComplete={allSectionsComplete}
           token={themeToken}
           hasUnsavedChanges={false}
           isFooter={true}

@@ -14,6 +14,12 @@ const MAX_RECONNECT_ATTEMPTS = 5
  * @param {string} token - JWT token for authentication
  */
 export function initializeSocket(token) {
+  // Check if socket is disabled via environment variable
+  if (import.meta.env.VITE_DISABLE_SOCKET === 'true') {
+    console.log('[socketService] Socket disabled via VITE_DISABLE_SOCKET')
+    return null
+  }
+
   // Reuse an existing socket when initialize is called repeatedly with the same token
   // (common in React StrictMode remounts and shared hooks)
   if (socket && socketToken === token) {
@@ -41,6 +47,12 @@ export function initializeSocket(token) {
                     import.meta.env.VITE_BUSINESS_API_URL ||
                     'http://localhost:3002'
 
+  // Only connect if we have a valid socket URL (not default localhost in production)
+  if (!socketUrl || socketUrl === 'http://localhost:3002') {
+    console.log('[socketService] No valid socket URL configured, skipping socket connection')
+    return null
+  }
+
   socket = io(socketUrl, {
     auth: { token },
     transports: ['websocket', 'polling'],
@@ -49,6 +61,8 @@ export function initializeSocket(token) {
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
     timeout: 10000,
+    // Suppress console errors when socket server is not available
+    forceNew: false,
   })
   socketToken = token
 

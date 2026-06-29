@@ -172,6 +172,10 @@ if (process.env.NODE_ENV === "test") {
 const internalRouter = require("./routes/internal");
 app.use("/api/internal", internalRouter);
 
+// IPFS proxy route (for accessing local IPFS content via backend)
+const ipfsProxyRouter = require("./routes/ipfsProxy");
+app.use("/api/ipfs", ipfsProxyRouter);
+
 // Global Error Handler (must be last middleware)
 app.use(errorHandlerMiddleware);
 

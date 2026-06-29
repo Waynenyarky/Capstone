@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Sidebar from '@/shared/components/Sidebar'
 import useSidebar from '../hooks/useSidebar'
@@ -12,6 +12,7 @@ export default function AppSidebar({ hiddenKeys = [], renamedKeys = {}, itemOver
   const { logout } = useAuthSession()
   const navigate = useNavigate()
   const location = useLocation()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   // Double safety check: ensure items is always an array
   // Also filter out hidden keys and apply renamed labels
@@ -116,11 +117,13 @@ export default function AppSidebar({ hiddenKeys = [], renamedKeys = {}, itemOver
 
   return (
     <>
-      <Sidebar 
-        items={items} 
-        activeKey={activeKey} 
-        onItemClick={handleItemClick} 
+      <Sidebar
+        items={items}
+        activeKey={activeKey}
+        onItemClick={handleItemClick}
         headerContent={headerContent}
+        mobileOpen={mobileOpen}
+        setMobileOpen={setMobileOpen}
         {...siderProps}
       />
       <ConfirmLogoutModal open={open} onConfirm={handleConfirm} onCancel={hide} confirmLoading={confirming} />

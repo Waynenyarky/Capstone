@@ -1,12 +1,23 @@
 import { useState, useCallback, useMemo } from 'react'
+import { PlusOutlined } from '@ant-design/icons'
 import BusinessOwnerDetailPanel from './components/BusinessOwnerDetailPanel'
+import RegisterBusinessOwnerModal from './components/RegisterBusinessOwnerModal'
 import ListPanel from '@/shared/components/ListPanel'
 import PanelCard from '@/shared/components/PanelCard'
 import ResponsiveSplitLayout from '@/shared/components/ResponsiveSplitLayout'
 import dayjs from 'dayjs'
 
+const OWNER_STATUS_FILTER_OPTIONS = [
+  { label: 'All', value: 'all' },
+  { label: 'Active', value: 'active' },
+  { label: 'Inactive', value: 'inactive' },
+  { label: 'Pending Deletion', value: 'pending_deletion' },
+]
+
 export default function OfficerBusinessOwners() {
   const [selectedItem, setSelectedItem] = useState(null)
+  const [activeFilters, setActiveFilters] = useState({ status: 'all' })
+  const [registerModalOpen, setRegisterModalOpen] = useState(false)
 
   // Mock data - TODO: Replace with actual data fetch
   const businessOwners = useMemo(() => [
@@ -201,12 +212,25 @@ export default function OfficerBusinessOwners() {
   }, [])
 
   const filteredList = useMemo(() => {
-    return [...businessOwners].sort((a, b) => {
+    const list = [...businessOwners]
+
+    const filtered = list.filter(owner => {
+      // Status filter
+      if (activeFilters.status && activeFilters.status !== 'all') {
+        if (activeFilters.status === 'active' && (!owner.isActive || owner.deletionPending)) return false
+        if (activeFilters.status === 'inactive' && owner.isActive) return false
+        if (activeFilters.status === 'pending_deletion' && !owner.deletionPending) return false
+      }
+
+      return true
+    })
+
+    return filtered.sort((a, b) => {
       const da = new Date(a.createdAt || 0).getTime()
       const db = new Date(b.createdAt || 0).getTime()
       return db - da
     })
-  }, [businessOwners])
+  }, [businessOwners, activeFilters])
 
   const renderCard = (owner, currentSelectedId, onSelect) => {
     const ownerId = getItemId(owner)
@@ -221,14 +245,21 @@ export default function OfficerBusinessOwners() {
       statusColor = 'orange'
     } else if (!owner.isActive) {
       statusLabel = 'Inactive'
-      statusColor = 'default'
+      statusColor = 'red'
     }
 
     const tags = [
       { label: statusLabel, color: statusColor },
     ]
+    if (owner.email) {
+      tags.push({ label: owner.email, color: 'default' })
+    }
     if (owner.businessCount !== undefined) {
       tags.push({ label: `${owner.businessCount} business${owner.businessCount !== 1 ? 'es' : ''}`, color: 'default' })
+    }
+    const applicationCount = owner.applications?.length || 0
+    if (applicationCount > 0) {
+      tags.push({ label: `${applicationCount} application${applicationCount !== 1 ? 's' : ''}`, color: 'default' })
     }
 
     const metaInfo = []
@@ -261,7 +292,25 @@ export default function OfficerBusinessOwners() {
       onSelectItem={handleSelectBusinessOwner}
       renderCard={renderCard}
       searchPlaceholder="Search business owners..."
-      filterConfig={[]}
+      filterConfig={[
+        {
+          key: 'status',
+          label: 'Status',
+          type: 'select',
+          options: OWNER_STATUS_FILTER_OPTIONS,
+          value: activeFilters.status === 'all' ? null : activeFilters.status,
+        },
+      ]}
+      onFilterChange={(key, value) => setActiveFilters(prev => ({ ...prev, [key]: value === null ? 'all' : value }))}
+      onClearFilters={() => setActiveFilters({ status: 'all' })}
+      onRefresh={() => {}}
+      showRefresh={true}
+      customFilter={true}
+      primaryButton={{
+        label: 'Register',
+        icon: <PlusOutlined />,
+        onClick: () => setRegisterModalOpen(true),
+      }}
     />
   )
 
@@ -273,12 +322,18 @@ export default function OfficerBusinessOwners() {
   ) : null
 
   return (
-    <ResponsiveSplitLayout
-      listContent={listContent}
-      detailContent={detailContent}
-      drawerTitle="Business Owner details"
-      onDrawerClose={handleDrawerClose}
-      mobileDrawerPlacement="bottom"
-    />
+    <>
+      <ResponsiveSplitLayout
+        listContent={listContent}
+        detailContent={detailContent}
+        drawerTitle="Business Owner details"
+        onDrawerClose={handleDrawerClose}
+        mobileDrawerPlacement="bottom"
+      />
+      <RegisterBusinessOwnerModal
+        open={registerModalOpen}
+        onClose={() => setRegisterModalOpen(false)}
+      />
+    </>
   )
 }

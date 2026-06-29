@@ -8,12 +8,11 @@
 # - Sets NODE_ENV=development
 # - Uses global .env file from project root
 
-version: '3.8'
-
 services:
   # Auth Service - Development Mode (nodemon for hot-reload)
   auth-service:
     environment:
+      - NODE_ENV=development
       - SEED_DEV=true
       - EMAIL_DEV_REDIRECT_TO=${EMAIL_DEV_REDIRECT_TO:-}
     volumes:

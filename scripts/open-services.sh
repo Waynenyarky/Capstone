@@ -15,8 +15,10 @@ set -e
 
 # Optional: only open the web app tab (no IPFS, API health, Dozzle, MongoDB info)
 # GANACHE_GUI=1: blockchain is Ganache GUI on host port 7545 (no capstone-ganache container)
+# USE_NGROK=1: use ngrok URL instead of localhost for web app
 OPEN_WEB_ONLY=0
 GANACHE_GUI=0
+USE_NGROK=0
 for a in "$@"; do
   case "$a" in
     --web-only) OPEN_WEB_ONLY=1 ;;
@@ -24,6 +26,7 @@ for a in "$@"; do
 done
 [ "${OPEN_WEB_ONLY:-0}" = "1" ] && OPEN_WEB_ONLY=1
 [ "${GANACHE_GUI:-0}" = "1" ] && GANACHE_GUI=1
+[ "${USE_NGROK:-0}" = "1" ] && USE_NGROK=1
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -331,6 +334,13 @@ if [ "${PRODUCTION_DEMO:-0}" = "1" ] && [ "$WEB_APP_PORT" = "5173" ]; then
     WEB_APP_PORT=4173
 fi
 
+# Use ngrok URL if USE_NGROK is set (for HTTPS/WebAuthn access)
+WEB_APP_URL="http://localhost:$WEB_APP_PORT"
+if [ "$USE_NGROK" = "1" ] && [ -n "${NGROK_URL:-}" ]; then
+  WEB_APP_URL="$NGROK_URL"
+  echo -e "${CYAN}   Using ngrok URL: $WEB_APP_URL${NC}"
+fi
+
 # Check if web server is running on the chosen port
 WEB_RUNNING=false
 if command -v nc >/dev/null 2>&1 && nc -z localhost "$WEB_APP_PORT" 2>/dev/null; then
@@ -342,7 +352,7 @@ elif command -v timeout >/dev/null 2>&1 && timeout 1 bash -c "echo > /dev/tcp/lo
 fi
 
 if [ "$WEB_RUNNING" = true ]; then
-    open_browser "http://localhost:$WEB_APP_PORT" "Web App"
+    open_browser "$WEB_APP_URL" "Web App"
     sleep 0.5
 else
     echo -e "${YELLOW}   ℹ️  Web frontend not running on port $WEB_APP_PORT, but opening anyway...${NC}"
@@ -351,7 +361,7 @@ else
     else
         echo -e "${YELLOW}   (Start it with: cd web && npm run dev)${NC}"
     fi
-    open_browser "http://localhost:$WEB_APP_PORT" "Web App (Not Running)"
+    open_browser "$WEB_APP_URL" "Web App (Not Running)"
 fi
 
 echo -e "\n${GREEN}✅ Done! Browser tabs should be open.${NC}\n"

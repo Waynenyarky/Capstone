@@ -61,3 +61,16 @@ export async function addHelpRequestMessage(requestId, messageData) {
 export async function addHelpRequestInternalNote(requestId, noteData) {
   return post(`${BASE_PATH}/${requestId}/internal-notes`, noteData)
 }
+
+/**
+ * Get help requests with filters
+ * @param {object} params - Query parameters
+ * @param {number} [params.limit] - Items per page
+ * @param {object} [params.options] - Additional options (e.g., skipAutoLogout)
+ */
+export async function getHelpRequests({ limit, options = {} } = {}) {
+  const qs = new URLSearchParams()
+  if (limit) qs.set('limit', String(limit))
+
+  return get(`${BASE_PATH}?${qs.toString()}`, { skipAutoLogout: true, ...options })
+}

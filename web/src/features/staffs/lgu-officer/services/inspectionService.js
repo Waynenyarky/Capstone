@@ -1,12 +1,10 @@
 /**
  * Infrastructure Service: InspectionService
- * Implements InspectionRepository interface
  * Handles API calls for inspections
  */
-import { InspectionRepository } from '../../application/repositories/InspectionRepository'
 import { fetchJsonWithFallback } from '@/lib/http.js'
 
-export class InspectionService extends InspectionRepository {
+export class InspectionService {
   async conduct({ inspectionId, findings, notes, conductedDate }) {
     const response = await fetchJsonWithFallback(`/api/lgu-officer/inspections/${inspectionId}/conduct`, {
       method: 'POST',
@@ -16,13 +14,13 @@ export class InspectionService extends InspectionRepository {
     return response
   }
 
-  async getInspections({ filters, pagination }) {
+  async getInspections({ filters, pagination, options = {} }) {
     const params = new URLSearchParams({
       ...filters,
       page: pagination?.page || 1,
       limit: pagination?.limit || 10
     })
-    const response = await fetchJsonWithFallback(`/api/lgu-officer/inspections?${params}`)
+    const response = await fetchJsonWithFallback(`/api/lgu-officer/inspections?${params}`, options)
     return response
   }
 

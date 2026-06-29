@@ -22,6 +22,12 @@ const LABELS = {
     completeMessage: 'Your account is ready. You can now access the staff dashboard.',
     completeButton: 'Go to Staff Dashboard',
   },
+  business_owner: {
+    welcomeTitle: (firstName) => `Welcome, ${firstName || 'Business Owner'}`,
+    welcomeMessage: 'To keep your account secure, we\'ll guide you through a quick setup. You can enable two-factor authentication (MFA) to protect your business account.',
+    completeMessage: 'Your account is ready. You can now access your dashboard.',
+    completeButton: 'Go to Dashboard',
+  },
 }
 
 /**
@@ -39,7 +45,7 @@ export default function OnboardingStepContent({
   checkingMfa,
   mfaEnabled,
   onComplete,
-  passwordExpired = false,
+  passwordExpired: _passwordExpired = false,
   onBack,
   currentUser,
   mode = 'onboarding', // 'onboarding' | 'password-expired' | 'mfa-only'

@@ -1,9 +1,11 @@
-import { Layout, theme } from 'antd'
+import { Layout, theme, Grid } from 'antd'
+import React, { useState } from 'react'
 import LayoutPageHeader from '@/shared/components/LayoutPageHeader'
 import { useSidebar } from '@/features/authentication'
 import { usePageRefresh } from '@/shared/hooks/usePageRefresh'
 
 const { Content } = Layout
+const { useBreakpoint } = Grid
 
 export default function BaseSidebarLayout({
   children,
@@ -30,6 +32,9 @@ export default function BaseSidebarLayout({
   const { pageTitle: sidebarTitle, pageIcon: sidebarIcon } = getPageInfo
   const pageTitle = pageTitleProp || sidebarTitle
   const pageIcon = pageIconProp || sidebarIcon
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
 
   // Use centralized refresh hook by default, but allow override via props
   const pageRefresh = usePageRefresh({ onRefresh })
@@ -37,9 +42,15 @@ export default function BaseSidebarLayout({
   const finalLastUpdated = lastUpdated || pageRefresh.lastUpdated
   const finalSocketConnected = socketConnected !== undefined ? socketConnected : pageRefresh.socketConnected
 
+  // Clone sidebar to pass mobileOpen state
+  const sidebarWithMobileState = sidebar ? React.cloneElement(sidebar, {
+    mobileOpen,
+    setMobileOpen,
+  }) : null
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      {sidebar}
+      {sidebarWithMobileState}
       <Layout>
         <Content
           style={{
@@ -74,12 +85,15 @@ export default function BaseSidebarLayout({
               infoSlotId={infoSlotId}
               infoModalTitle={infoModalTitle}
               statusText={statusText}
+              _mobileOpen={mobileOpen}
+              setMobileOpen={setMobileOpen}
             />
             <div
               style={{
                 flex: 1,
                 minHeight: 0,
                 padding: contentPadding,
+                paddingTop: isMobile ? contentPadding + 65 : contentPadding,
                 overflow: 'auto',
                 display: 'flex',
                 flexDirection: 'column',

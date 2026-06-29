@@ -240,7 +240,7 @@ export default function VerificationForm({
             </Flex>
           )}
 
-          {devCodeDisplay && import.meta.env.VITE_DEMO_UI !== 'true' && (
+          {devCodeDisplay && import.meta.env.DEV && (
             <Button type="dashed" onClick={handlePrefillCode} block>
               Prefill Code (Dev: {devCodeDisplay})
             </Button>

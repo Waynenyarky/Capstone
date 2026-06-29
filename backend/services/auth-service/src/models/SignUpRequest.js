@@ -12,7 +12,7 @@ const SignUpRequestSchema = new mongoose.Schema(
 
 const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 SignUpRequestSchema.plugin(encryptionPlugin, {
-  fields: ["code"],
+  fields: [], // Don't encrypt code - we need to compare plain text
   deterministicFields: ["email"],
   nestedPaths: [],
   arrayPaths: [],

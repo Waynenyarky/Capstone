@@ -274,6 +274,10 @@ app.use("/api/lgu-officer", permitApplicationsRouter);
 const businessOwnerRouter = require("./routes/businessOwner");
 app.use("/api/business-owner", businessOwnerRouter);
 
+// IPFS proxy route (for accessing local IPFS content via backend)
+const ipfsProxyRouter = require("./routes/ipfsProxy");
+app.use("/api/ipfs", ipfsProxyRouter);
+
 // Global Error Handler (must be last middleware)
 app.use(errorHandlerMiddleware);
 

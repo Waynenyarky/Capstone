@@ -24,7 +24,7 @@ function loadScript() {
   })
 }
 
-const TurnstileWidget = forwardRef(function TurnstileWidget({ siteKey }, ref) {
+const TurnstileWidget = forwardRef(function TurnstileWidget({ siteKey, token }, ref) {
   const containerRef = useRef(null)
   const widgetIdRef = useRef(null)
 
@@ -80,7 +80,7 @@ const TurnstileWidget = forwardRef(function TurnstileWidget({ siteKey }, ref) {
       ref={containerRef}
       className="turnstile-widget"
       aria-label="Verification"
-      style={{ width: '100%', maxWidth: '100%' }}
+      style={{ width: '100%', maxWidth: '100%', height: 65, backgroundColor: token?.colorBgLayout || '#f5f5f5' }}
     />
   )
 })

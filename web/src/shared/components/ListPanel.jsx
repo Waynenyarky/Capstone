@@ -1,6 +1,6 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { Typography, Input, Empty, theme, Grid, Button, Tooltip, Pagination, Skeleton } from 'antd'
-import { SearchOutlined, FilterOutlined } from '@ant-design/icons'
+import { SearchOutlined, FilterOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons'
 import FilterDropdown from './FilterDropdown'
 
 const { Text } = Typography
@@ -18,6 +18,13 @@ export default function ListPanel({
   searchPlaceholder = 'Search...',
   filterConfig = [],
   pageSize = DEFAULT_PAGE_SIZE,
+  onRefresh,
+  showRefresh = false,
+  customFilter,
+  onFilterChange,
+  onClearFilters,
+  showStaleInfo = true,
+  primaryButton,
 }) {
   const { token } = theme.useToken()
   const screens = useBreakpoint()
@@ -26,6 +33,14 @@ export default function ListPanel({
   const [filterPosition, setFilterPosition] = useState({ top: 0, right: 0 })
   const filterButtonRef = useRef(null)
   const [page, setPage] = useState(1)
+  const [showStale, setShowStale] = useState(false)
+  const [refreshDisabled, setRefreshDisabled] = useState(false)
+
+  // Show stale message after 10 seconds
+  useEffect(() => {
+    const timeout = setTimeout(() => setShowStale(true), 10000)
+    return () => clearTimeout(timeout)
+  }, [])
 
   // Initialize filter values from config
   const filterValues = useMemo(() => {
@@ -53,6 +68,11 @@ export default function ListPanel({
   }, [activeFilters])
 
   const filteredItems = useMemo(() => {
+    // If customFilter is true, skip internal filtering and use items as-is
+    if (customFilter) {
+      return items
+    }
+
     let list = [...items]
 
     // Apply filters
@@ -79,7 +99,7 @@ export default function ListPanel({
     }
 
     return list
-  }, [items, activeFilters, search, filterConfig])
+  }, [items, activeFilters, search, filterConfig, customFilter])
 
   const paginatedItems = useMemo(() => {
     const start = (page - 1) * pageSize
@@ -93,6 +113,9 @@ export default function ListPanel({
   }, [activeFilters, search])
 
   const handleFilterChange = (key, value) => {
+    if (onFilterChange) {
+      onFilterChange(key, value)
+    }
     setActiveFilters((prev) => ({ ...prev, [key]: value }))
   }
 
@@ -102,7 +125,25 @@ export default function ListPanel({
       cleared[field.key] = null
     })
     setActiveFilters(cleared)
+    if (onClearFilters) {
+      onClearFilters()
+    }
   }
+
+  const handleRefresh = useCallback(async () => {
+    if (refreshDisabled) return
+    setRefreshDisabled(true)
+    await onRefresh?.()
+    setShowStale(false)
+    setTimeout(() => setShowStale(true), 10000)
+    setTimeout(() => setRefreshDisabled(false), 5000)
+  }, [onRefresh, refreshDisabled])
+
+  const staleInfo = useMemo(() => {
+    if (!showStaleInfo) return null
+    if (!showStale) return null
+    return 'List is stale, please refresh'
+  }, [showStale, showStaleInfo])
 
   const filterFields = filterConfig.map((field) => ({
     key: field.key,
@@ -116,18 +157,18 @@ export default function ListPanel({
 
   const listContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {/* Filters */}
-      <div style={{ padding: '12px 12px 0 12px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {/* Filters - always stays in one row */}
+      <div style={{ padding: '12px 12px 0 12px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'nowrap' }}>
         <Input
-          placeholder={searchPlaceholder}
+          placeholder={staleInfo || searchPlaceholder}
           prefix={<SearchOutlined style={{ color: token.colorTextQuaternary }} />}
           allowClear
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ flex: 1, minWidth: 160 }}
+          style={{ flex: 1, minWidth: 0 }}
         />
         {filterConfig.length > 0 && (
-          <div style={{ position: 'relative' }}>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
             <Tooltip title="Filter">
               <Button
                 ref={filterButtonRef}
@@ -148,7 +189,31 @@ export default function ListPanel({
             />
           </div>
         )}
+        {showRefresh && onRefresh && (
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={handleRefresh}
+            disabled={refreshDisabled}
+            loading={isLoading}
+            style={{ flexShrink: 0 }}
+          />
+        )}
       </div>
+
+      {/* Primary Button */}
+      {primaryButton && (
+        <div style={{ padding: '8px 12px 0 12px' }}>
+          <Button
+            icon={primaryButton.icon || <PlusOutlined />}
+            onClick={primaryButton.onClick}
+            loading={primaryButton.loading}
+            disabled={primaryButton.disabled}
+            style={{ width: '100%' }}
+          >
+            {primaryButton.label}
+          </Button>
+        </div>
+      )}
 
       {/* List */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 12px 12px 12px' }}>

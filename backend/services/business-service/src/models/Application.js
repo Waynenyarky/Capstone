@@ -322,7 +322,8 @@ const ApplicationSchema = new mongoose.Schema(
 const { encryptionPlugin } = require("../../../../shared/lib/encryptionPlugin");
 ApplicationSchema.plugin(encryptionPlugin, {
   fields: [],
-  deterministicFields: ["applicationReferenceNumber", "reviewedByName", "applicationStatus"],
+  deterministicFields: ["applicationReferenceNumber", "reviewedByName"],
+  // applicationStatus excluded from encryption - needed for filtering queries
   nestedPaths: ["ownerAddress", "lessorInfo", "emergencyContact", "birRegistration", "otherAgencyRegistrations"],
   arrayPaths: ["businessActivities", "capital.mev"],
   arrayPathsExclude: {

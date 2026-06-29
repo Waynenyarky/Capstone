@@ -73,7 +73,7 @@ export default function useSidebar() {
       ],
       lgu_officer: [
         { key: 'dashboard', label: 'Dashboard', to: '/staff', icon: <DashboardOutlined /> },
-        { key: 'to-review', label: 'To Review', to: '/staff', icon: <EyeOutlined /> },
+        { key: 'to-review', label: 'To Review', to: '/staff/to-review', icon: <EyeOutlined /> },
         { key: 'applications', label: 'Applications', to: '/staff/applications', icon: <FileTextOutlined /> },
         { key: 'businesses', label: 'Businesses', to: '/staff/businesses', icon: <ShopOutlined /> },
         { key: 'business-owners', label: 'Business Owners', to: '/staff/business-owners', icon: <TeamOutlined /> },

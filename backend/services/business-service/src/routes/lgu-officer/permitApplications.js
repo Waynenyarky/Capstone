@@ -408,9 +408,6 @@ router.put(
         return respond.error(res, 404, "not_found", "Application not found");
       }
 
-      // Allow override: if already claimed by someone else, transfer to current officer
-      // No 409 check - officers can claim any application to reassign
-
       // Fetch officer name for reviewedByName (don't use lean() to allow decryption)
       const officer = await User.findById(officerId)
         .select("firstName lastName");
@@ -431,10 +428,17 @@ router.put(
         updateData.applicationStatus = "under_review";
       }
 
-      // Update based on collection type
+      // Update based on collection type with atomic condition to prevent race condition
+      let updated;
       if (application.constructor.modelName === "Application") {
-        await Application.updateOne(
-          { _id: application._id },
+        updated = await Application.findOneAndUpdate(
+          {
+            _id: application._id,
+            $or: [
+              { reviewedBy: null },
+              { reviewedBy: officerId }
+            ]
+          },
           {
             $set: updateData,
             $addToSet: {
@@ -443,14 +447,33 @@ router.put(
                 officerName: officerName,
               }
             }
-          }
+          },
+          { new: true }
         );
       } else {
-        await Business.updateOne(
-          { _id: application._id },
-          { $set: updateData }
+        updated = await Business.findOneAndUpdate(
+          {
+            _id: application._id,
+            $or: [
+              { reviewedBy: null },
+              { reviewedBy: officerId }
+            ]
+          },
+          { $set: updateData },
+          { new: true }
         );
       }
+
+      if (!updated) {
+        return respond.error(res, 409, "conflict", "Application already claimed by another officer");
+      }
+
+      // Emit real-time event to all officers
+      req.io?.to('lgu-officers').emit('application:claimed', {
+        applicationId: application.applicationId || application.businessId || application._id.toString(),
+        claimedBy: officerId,
+        claimedByName: officerName,
+      });
 
       // Log audit event
       await logAuditEvent(

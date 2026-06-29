@@ -327,7 +327,7 @@ router.post(
 
       // Use frontend URL for origin validation - support multiple dev ports
       // Vite may use 5173, 5174, 5175, 5176, etc. depending on availability
-      const defaultOrigin = `http://localhost:${process.env.FRONTEND_PORT || 5173}`;
+      const defaultOrigin = `https://localhost:${process.env.FRONTEND_PORT || 5173}`;
       const expectedOrigin =
         process.env.WEBAUTHN_ORIGIN ||
         process.env.FRONTEND_URL ||
@@ -346,6 +346,14 @@ router.post(
         "http://localhost:5178",
         "http://localhost:5179",
         "http://localhost:5180",
+        "https://localhost:5173",
+        "https://localhost:5174",
+        "https://localhost:5175",
+        "https://localhost:5176",
+        "https://localhost:5177",
+        "https://localhost:5178",
+        "https://localhost:5179",
+        "https://localhost:5180",
       ].filter(Boolean);
 
       // Validate origin flexibly in dev mode
@@ -353,7 +361,8 @@ router.post(
         allowedOrigins.includes(requestOrigin) ||
         allowedOrigins.some((origin) => requestOrigin?.startsWith(origin)) ||
         (process.env.NODE_ENV === "development" &&
-          requestOrigin?.includes("localhost:517"));
+          (requestOrigin?.includes("localhost:517") ||
+           requestOrigin?.includes("192.168.18.12:517")));
       const expectedRPID = process.env.WEBAUTHN_RPID || "localhost";
 
       console.log("[WebAuthn] Register complete:", {
@@ -2619,7 +2628,7 @@ router.post(
           sessionOrigin ||
           process.env.WEBAUTHN_ORIGIN ||
           process.env.FRONTEND_URL ||
-          `http://localhost:${process.env.FRONTEND_PORT || 5173}`;
+          `https://localhost:${process.env.FRONTEND_PORT || 5173}`;
 
         // Extract RPID from origin (remove protocol and port)
         let expectedRPID = process.env.WEBAUTHN_RPID;

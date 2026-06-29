@@ -76,6 +76,7 @@ export function useAuthSession() {
   const [isLoading, setIsLoading] = useState(true)
   const validationIntervalRef = useRef(null)
   const currentUserRef = useRef(null)
+  const initialValidationDone = useRef(false)
 
   // Update ref when currentUser changes
   useEffect(() => {
@@ -161,8 +162,11 @@ export function useAuthSession() {
   }, [validateToken])
 
   useEffect(() => {
-    // Validate token on app load with fail-safe timeout
+    // Validate token on app load with fail-safe timeout (only once)
     const initialValidation = async () => {
+      if (initialValidationDone.current) return
+      initialValidationDone.current = true
+      
       const user = currentUserRef.current || readStored()
       if (user?.token) {
         // Fail-safe: if validation takes too long, render with the stored user
@@ -194,7 +198,8 @@ export function useAuthSession() {
         clearInterval(validationIntervalRef.current)
       }
     }
-  }, [checkTokenExpiration, validateToken])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const login = useCallback((user, options = {}) => {
     const remember = options.remember === true

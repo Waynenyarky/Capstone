@@ -595,8 +595,9 @@ router.post(
         );
       }
 
-      // Calculate hash
-      const timestamp = new Date().toISOString();
+      // Calculate hash - use one timestamp for both hash and createdAt so verification passes
+      const timestamp = new Date();
+      const timestampISO = timestamp.toISOString();
       const hashableData = {
         userId: String(userId),
         eventType,
@@ -605,12 +606,12 @@ router.post(
         newValue: newValue || "",
         role: role || "system",
         metadata: JSON.stringify(metadata || {}),
-        timestamp,
+        timestamp: timestampISO,
       };
       const dataString = JSON.stringify(hashableData);
       const hash = crypto.createHash("sha256").update(dataString).digest("hex");
 
-      // Create audit log in audit-service database
+      // Create audit log in audit-service database with explicit createdAt to match hash timestamp
       const auditLog = await AuditLog.create({
         userId,
         eventType,
@@ -622,6 +623,8 @@ router.post(
         entityType,
         entityId,
         hash,
+        createdAt: timestamp,
+        updatedAt: timestamp,
       });
 
       logger.info("Audit log ingested", {

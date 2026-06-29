@@ -6,13 +6,50 @@ import ResponsiveSplitLayout from '@/shared/components/ResponsiveSplitLayout'
 import useOfficerData from '../../hooks/useOfficerData'
 import { useOfficerDataContext } from '../../contexts/OfficerDataContext'
 import BookmarkService from '../../services/bookmarkService'
+import { useApplicationEvents } from '@/shared/hooks/useSocket'
 import dayjs from 'dayjs'
-import { STATUS_CONFIG, STATUS_FILTER_OPTIONS } from './constants'
+import { STATUS_CONFIG, STATUS_FILTER_OPTIONS, CLAIM_STATUS_FILTER_OPTIONS } from './constants'
+
+// Stale detection helpers (copied from useOfficerData for use in renderCard)
+const STALE_THRESHOLD_HOURS = 48
+const ACTIVE_APPLICATION_STATUSES = new Set(['submitted', 'under_review', 'resubmit'])
+const TERMINAL_APPLICATION_STATUSES = new Set(['approved', 'rejected', 'returned', 'cancelled'])
+
+const isStale = (item) => {
+  if (!item) return false
+  const status = String(item.status || item.applicationStatus || '').toLowerCase()
+  if (!item.reviewedBy) return false
+  if (ACTIVE_APPLICATION_STATUSES.has(status) || !TERMINAL_APPLICATION_STATUSES.has(status)) {
+    const reviewedAt = item.reviewedAt
+    if (!reviewedAt) return false
+    const hoursSinceReview = (new Date() - new Date(reviewedAt)) / (1000 * 60 * 60)
+    return hoursSinceReview > STALE_THRESHOLD_HOURS
+  }
+  return false
+}
+
+const getStaleDuration = (item) => {
+  if (!item) return null
+  const timestamp = item.reviewedAt
+  if (!timestamp) return null
+  const hoursSince = (new Date() - new Date(timestamp)) / (1000 * 60 * 60)
+  if (hoursSince <= 0) return null
+  const days = Math.floor(hoursSince / 24)
+  const hours = Math.floor(hoursSince % 24)
+  if (days > 0 && hours > 0) {
+    return `${days} days ${hours} hours`
+  } else if (days > 0) {
+    return `${days} days`
+  } else {
+    return `${hours} hours`
+  }
+}
 
 export default function OfficerApplications() {
   const [selectedItem, setSelectedItem] = useState(null)
   const [bookmarkedIds, setBookmarkedIds] = useState(new Set())
-  const { refreshTrigger } = useOfficerDataContext()
+  const [activeFilters, setActiveFilters] = useState({ status: 'all', claimStatus: 'needs_attention' })
+  const { refreshTrigger, currentUser } = useOfficerDataContext()
   const officerData = useOfficerData('applications', refreshTrigger)
   const bookmarkService = useMemo(() => new BookmarkService(), [])
 
@@ -73,12 +110,50 @@ export default function OfficerApplications() {
 
   const filteredList = useMemo(() => {
     const list = officerData?.applications || []
-    return [...list].sort((a, b) => {
+
+    const filtered = list.filter(app => {
+      // Status filter
+      if (activeFilters.status && activeFilters.status !== 'all') {
+        const appStatus = app.status || app.applicationStatus
+        if (appStatus !== activeFilters.status) return false
+      }
+
+      // Claim status filter
+      if (activeFilters.claimStatus && activeFilters.claimStatus !== 'all') {
+        const isClaimed = Boolean(app.reviewedBy)
+        const reviewerId = app.reviewedBy?._id || app.reviewedBy
+        const stale = isStale(app)
+
+        if (activeFilters.claimStatus === 'needs_attention') {
+          // Needs Attention: unclaimed OR stale (claimed or unclaimed)
+          if (!isClaimed) return true
+          if (stale) return true
+          return false
+        } else if (activeFilters.claimStatus === 'unclaimed') {
+          if (isClaimed) return false
+        } else if (activeFilters.claimStatus === 'claimed_by_me') {
+          if (!isClaimed || String(reviewerId) !== String(currentUser?.id || currentUser?._id)) return false
+        } else if (activeFilters.claimStatus === 'claimed_by_others') {
+          if (!isClaimed || String(reviewerId) === String(currentUser?.id || currentUser?._id)) return false
+        }
+      }
+
+      return true
+    })
+
+    return filtered.sort((a, b) => {
+      // Primary: unclaimed vs claimed
+      const aClaimed = Boolean(a.reviewedBy)
+      const bClaimed = Boolean(b.reviewedBy)
+      if (!aClaimed && bClaimed) return -1
+      if (aClaimed && !bClaimed) return 1
+
+      // Secondary: time in status (oldest unclaimed first)
       const da = new Date(a.createdAt || a.updatedAt || 0).getTime()
       const db = new Date(b.createdAt || b.updatedAt || 0).getTime()
-      return db - da
+      return da - db
     })
-  }, [officerData?.applications])
+  }, [officerData?.applications, activeFilters, currentUser?.id, currentUser?._id])
 
   const handleReviewComplete = useCallback(() => {
     officerData.refreshApplicationTabs?.()
@@ -89,6 +164,14 @@ export default function OfficerApplications() {
     refreshBookmarkStatus()
   }, [refreshBookmarkStatus])
 
+  // WebSocket listener for application claim events
+  useApplicationEvents({
+    onApplicationClaimed: () => {
+      // Refresh list to show updated claim status
+      officerData.refresh?.()
+    },
+  })
+
   const renderCard = (app, currentSelectedId, onSelect) => {
     const statusConf = STATUS_CONFIG[app.status] || STATUS_CONFIG[app.applicationStatus] || { color: 'default', label: app.status || app.applicationStatus }
     const permitType = app.formType === 'general_permit' ? (app.formData?.generalPermitCategory || 'General') : 'Regular'
@@ -96,10 +179,15 @@ export default function OfficerApplications() {
     const date = submittedDate ? dayjs(submittedDate).format('MMMM D, YYYY') : null
     const appId = app.businessId || app.applicationId || app._id
     const isBookmarked = bookmarkedIds.has(appId)
+    const stale = isStale(app)
+    const staleDuration = getStaleDuration(app)
 
     const tags = [
       { label: statusConf.label, color: statusConf.color },
     ]
+    if (stale && staleDuration) {
+      tags.push({ label: `Stale for ${staleDuration}`, color: 'warning' })
+    }
     if (permitType) {
       tags.push({ label: permitType, color: 'default' })
     }
@@ -138,8 +226,21 @@ export default function OfficerApplications() {
           label: 'Status',
           type: 'select',
           options: STATUS_FILTER_OPTIONS,
+          value: activeFilters.status === 'all' ? null : activeFilters.status,
+        },
+        {
+          key: 'claimStatus',
+          label: 'Claim Status',
+          type: 'select',
+          options: CLAIM_STATUS_FILTER_OPTIONS,
+          value: activeFilters.claimStatus === 'all' ? null : activeFilters.claimStatus,
         },
       ]}
+      onFilterChange={(key, value) => setActiveFilters(prev => ({ ...prev, [key]: value === null ? 'all' : value }))}
+      onClearFilters={() => setActiveFilters({ status: 'all', claimStatus: 'all' })}
+      onRefresh={officerData.refresh}
+      showRefresh={true}
+      customFilter={true}
     />
   )
 

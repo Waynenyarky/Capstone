@@ -1,6 +1,6 @@
   import React, { useState } from 'react'
-  import { Layout, Menu, Typography, Grid, Drawer, Button, theme, ConfigProvider } from 'antd'
-  import { MenuOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons'
+  import { Layout, Menu, Typography, Grid, Drawer, theme, ConfigProvider } from 'antd'
+  import { LeftOutlined, RightOutlined } from '@ant-design/icons'
   import AnimatedBrandLogo from '@/shared/components/AnimatedBrandLogo.jsx'
 
   const { Sider } = Layout
@@ -314,17 +314,16 @@
    * @param {function} onItemClick - Callback when item is clicked
    * @param {object} siderProps - Props passed to Antd Sider
    */
-  export default function Sidebar({ items = [], activeKey, onItemClick, headerContent, ...siderProps }) {
+  export default function Sidebar({ items = [], activeKey, onItemClick, headerContent, mobileOpen, setMobileOpen, ...siderProps }) {
     const [collapsed, setCollapsed] = useState(false)
-    const [mobileOpen, setMobileOpen] = useState(false)
     const screens = useBreakpoint()
     const { token } = theme.useToken();
-    
+
     // Determine if we are on a mobile screen (md breakpoint = 768px)
     const isMobile = (screens.md === false)
 
     const handleMobileClick = (item) => {
-      setMobileOpen(false)
+      if (setMobileOpen) setMobileOpen(false)
       if (onItemClick) onItemClick(item)
     }
 
@@ -333,38 +332,23 @@
     return (
       <>
         {isMobile ? (
-          <>
-            <Button 
-              icon={<MenuOutlined />} 
-              type="text"
-              onClick={() => setMobileOpen(true)}
-              style={{ 
-                position: 'fixed', 
-                top: 16, 
-                left: 16, 
-                zIndex: 1000,
-                background: token.colorBgContainer,
-                boxShadow: token.boxShadow
-              }} 
+          <Drawer
+            placement="left"
+            open={mobileOpen}
+            onClose={() => setMobileOpen && setMobileOpen(false)}
+            width={260}
+            styles={{ body: { padding: 0, background: siderBg } }}
+            closable={false}
+          >
+            <SidebarContent
+              collapsed={false}
+              items={items}
+              activeKey={activeKey}
+              handleItemClick={handleMobileClick}
+              backgroundColor={siderBg}
+              headerContent={headerContent}
             />
-            <Drawer
-              placement="left"
-              open={mobileOpen}
-              onClose={() => setMobileOpen(false)}
-              width={260}
-              styles={{ body: { padding: 0, background: siderBg } }}
-              closable={false}
-            >
-              <SidebarContent 
-                collapsed={false}
-                items={items}
-                activeKey={activeKey}
-                handleItemClick={handleMobileClick}
-                backgroundColor={siderBg}
-                headerContent={headerContent}
-              />
-            </Drawer>
-          </>
+          </Drawer>
         ) : (
           <Sider
             width={260}

@@ -24,6 +24,7 @@ const sessionRouter = require("./session");
 const adminUsersRouter = require("./adminUsers");
 const registerWalkInRouter = require("./registerWalkIn");
 const lguOfficerUsersRouter = require("./lguOfficerUsers");
+const signupRouter = require("./signup");
 
 const router = express.Router();
 
@@ -70,5 +71,6 @@ router.use("/", sessionRouter);
 router.use("/", adminUsersRouter);
 router.use("/", registerWalkInRouter);
 router.use("/", lguOfficerUsersRouter);
+router.use("/signup", signupRouter);
 
 module.exports = router;

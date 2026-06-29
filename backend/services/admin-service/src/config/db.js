@@ -72,7 +72,9 @@ async function connectDB(uri) {
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      await mongoose.connect(uri);
+      await mongoose.connect(uri, {
+        serverSelectionTimeoutMS: 30000, // 30 seconds instead of default 10
+      });
       try {
         const dbName = mongoose.connection?.name || "<unknown-db>";
         const host = mongoose.connection?.host || "<unknown-host>";

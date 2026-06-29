@@ -24,6 +24,7 @@
 #   ./start.sh --atlas      # Use MongoDB Atlas instead of local MongoDB (set MONGO_URI in .env)
 #   ./start.sh --web-only   # Only open the web app tab (default; use --all-tabs to override)
 #   ./start.sh --ganache-gui   # Use Ganache GUI on port 7545 instead of Docker Ganache
+#   ./start.sh --ngrok      # Start ngrok tunnel for HTTPS/WebAuthn access (for mobile testing)
 #   ./start.sh --iphone     # Run mobile app on iOS iPhone simulator (no Docker/web)
 #   ./start.sh --android    # Run mobile app on Android emulator/device (no Docker/web)
 #
@@ -50,71 +51,91 @@ NC='\033[0m' # No Color
 # Environment Setup (Auto-populate .env files)
 # ================================
 setup_env_files() {
-  echo ""
-  echo -e "${CYAN}🔧 Checking environment configuration...${NC}"
-  
   local PROJECT_ROOT
   PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || pwd)"
   local ENV_CREATED=false
+  local HAS_ERRORS=false
   
   # Root .env
   if [ ! -f "$PROJECT_ROOT/.env" ]; then
     if [ -f "$PROJECT_ROOT/.env.development" ]; then
       cp "$PROJECT_ROOT/.env.development" "$PROJECT_ROOT/.env"
-      echo -e "${GREEN}   ✅ Created .env from .env.development${NC}"
       ENV_CREATED=true
     else
-      echo -e "${YELLOW}   ⚠️  No .env or .env.development found in root${NC}"
+      HAS_ERRORS=true
     fi
-  else
-    echo -e "${GREEN}   ✅ Root .env exists${NC}"
   fi
   
   # Backend .env
   if [ ! -f "$PROJECT_ROOT/backend/.env" ]; then
     if [ -f "$PROJECT_ROOT/backend/.env.development" ]; then
       cp "$PROJECT_ROOT/backend/.env.development" "$PROJECT_ROOT/backend/.env"
-      echo -e "${GREEN}   ✅ Created backend/.env from backend/.env.development${NC}"
       ENV_CREATED=true
     else
-      echo -e "${YELLOW}   ⚠️  No backend/.env or backend/.env.development found${NC}"
+      HAS_ERRORS=true
     fi
-  else
-    echo -e "${GREEN}   ✅ backend/.env exists${NC}"
   fi
   
   # Web .env
   if [ ! -f "$PROJECT_ROOT/web/.env" ]; then
     if [ -f "$PROJECT_ROOT/web/.env.development" ]; then
       cp "$PROJECT_ROOT/web/.env.development" "$PROJECT_ROOT/web/.env"
-      echo -e "${GREEN}   ✅ Created web/.env from web/.env.development${NC}"
       ENV_CREATED=true
     else
-      echo -e "${YELLOW}   ⚠️  No web/.env or web/.env.development found${NC}"
+      HAS_ERRORS=true
     fi
-  else
-    echo -e "${GREEN}   ✅ web/.env exists${NC}"
   fi
   
   # Mobile .env
   if [ ! -f "$PROJECT_ROOT/mobile/app/.env" ]; then
     if [ -f "$PROJECT_ROOT/mobile/app/.env.development" ]; then
       cp "$PROJECT_ROOT/mobile/app/.env.development" "$PROJECT_ROOT/mobile/app/.env"
-      echo -e "${GREEN}   ✅ Created mobile/app/.env from mobile/app/.env.development${NC}"
       ENV_CREATED=true
     else
-      echo -e "${YELLOW}   ⚠️  No mobile/app/.env or mobile/app/.env.development found${NC}"
+      HAS_ERRORS=true
     fi
-  else
-    echo -e "${GREEN}   ✅ mobile/app/.env exists${NC}"
   fi
   
-  if [ "$ENV_CREATED" = true ]; then
-    echo -e "${CYAN}   ℹ️  Environment files created from development templates.${NC}"
-    echo -e "${CYAN}      These use shared development credentials (free tier APIs).${NC}"
-    echo -e "${CYAN}      For production, edit .env files with your own secrets.${NC}"
+  # Only show output if there are errors or files were created
+  if [ "$HAS_ERRORS" = true ] || [ "$ENV_CREATED" = true ]; then
+    echo ""
+    echo -e "${CYAN}🔧 Checking environment configuration...${NC}"
+    
+    # Root .env
+    if [ ! -f "$PROJECT_ROOT/.env" ]; then
+      echo -e "${YELLOW}   ⚠️  No .env or .env.development found in root${NC}"
+    elif [ "$ENV_CREATED" = true ]; then
+      echo -e "${GREEN}   ✅ Created .env from .env.development${NC}"
+    fi
+    
+    # Backend .env
+    if [ ! -f "$PROJECT_ROOT/backend/.env" ]; then
+      echo -e "${YELLOW}   ⚠️  No backend/.env or backend/.env.development found${NC}"
+    elif [ "$ENV_CREATED" = true ]; then
+      echo -e "${GREEN}   ✅ Created backend/.env from backend/.env.development${NC}"
+    fi
+    
+    # Web .env
+    if [ ! -f "$PROJECT_ROOT/web/.env" ]; then
+      echo -e "${YELLOW}   ⚠️  No web/.env or web/.env.development found${NC}"
+    elif [ "$ENV_CREATED" = true ]; then
+      echo -e "${GREEN}   ✅ Created web/.env from web/.env.development${NC}"
+    fi
+    
+    # Mobile .env
+    if [ ! -f "$PROJECT_ROOT/mobile/app/.env" ]; then
+      echo -e "${YELLOW}   ⚠️  No mobile/app/.env or mobile/app/.env.development found${NC}"
+    elif [ "$ENV_CREATED" = true ]; then
+      echo -e "${GREEN}   ✅ Created mobile/app/.env from mobile/app/.env.development${NC}"
+    fi
+    
+    if [ "$ENV_CREATED" = true ]; then
+      echo -e "${CYAN}   ℹ️  Environment files created from development templates.${NC}"
+      echo -e "${CYAN}      These use shared development credentials (free tier APIs).${NC}"
+      echo -e "${CYAN}      For production, edit .env files with your own secrets.${NC}"
+    fi
+    echo ""
   fi
-  echo ""
 }
 
 # Run env setup immediately
@@ -313,6 +334,7 @@ SKIP_EMAIL_CHECK=false
 MOBILE_IPHONE=false
 MOBILE_ANDROID=false
 REBUILD_IMAGES=false
+NGROK_MODE=false
 
 for arg in "$@"; do
   case $arg in
@@ -380,6 +402,9 @@ for arg in "$@"; do
       ;;
     --android)
       MOBILE_ANDROID=true
+      ;;
+    --ngrok)
+      NGROK_MODE=true
       ;;
   esac
 done
@@ -1243,6 +1268,151 @@ echo ""
 echo -e "${CYAN}⏳ Waiting a bit more for everything to be ready...${NC}"
 sleep $WAIT_BEFORE_BROWSER
 
+# ================================
+# Auto-detect or start ngrok tunnel
+# ================================
+NGROK_URL=""
+USE_NGROK=false
+
+# Check if ngrok is already running
+if pgrep -f "ngrok" > /dev/null 2>&1; then
+  echo -e "${CYAN}🌐 ngrok is already running, detecting URL...${NC}"
+  # Try to get URL from ngrok API
+  NGROK_URL=$(curl -s http://localhost:4040/api/tunnels 2>/dev/null | grep -o "https://[a-zA-Z0-9.-]*\.ngrok-free\.dev" | head -n 1)
+  if [ -n "$NGROK_URL" ]; then
+    echo -e "${GREEN}   ✅ Detected ngrok URL: $NGROK_URL${NC}"
+    USE_NGROK=true
+  fi
+fi
+
+# Start ngrok if --ngrok flag is used or if not detected but we want to start it
+if [ "$NGROK_MODE" = true ] && [ "$USE_NGROK" = false ]; then
+  echo ""
+  echo -e "${CYAN}🌐 Starting ngrok tunnel for HTTPS/WebAuthn access...${NC}"
+  
+  # Check if ngrok is installed
+  if ! command -v ngrok >/dev/null 2>&1; then
+    echo -e "${RED}   ❌ ngrok not found. Install it from https://ngrok.com/download${NC}"
+    echo -e "${YELLOW}   💡 Or remove --ngrok flag to use localhost${NC}"
+    exit 1
+  fi
+  
+  # Retry ngrok startup up to 3 times for unstable connections
+  NGROK_ATTEMPT=1
+  MAX_NGROK_ATTEMPTS=3
+  while [ $NGROK_ATTEMPT -le $MAX_NGROK_ATTEMPTS ]; do
+    # Kill any existing ngrok processes
+    pkill -f "ngrok" 2>/dev/null || true
+    sleep 1
+    
+    # Start ngrok in background
+    echo -e "${CYAN}   Starting ngrok on port 5173 (attempt $NGROK_ATTEMPT/$MAX_NGROK_ATTEMPTS)...${NC}"
+    (ngrok http 5173 > /tmp/ngrok.log 2>&1) &
+    NGROK_PID=$!
+    echo $NGROK_PID > /tmp/ngrok.pid
+    
+    # Wait for ngrok to start and get the URL
+    echo -e "${CYAN}   Waiting for ngrok to start...${NC}"
+    sleep 5
+    
+    # Extract ngrok URL from log
+    for i in {1..10}; do
+      NGROK_URL=$(grep -o "https://[a-zA-Z0-9.-]*\.ngrok-free\.dev" /tmp/ngrok.log 2>/dev/null | head -n 1)
+      if [ -n "$NGROK_URL" ]; then
+        break
+      fi
+      sleep 1
+    done
+    
+    if [ -n "$NGROK_URL" ]; then
+      # Success - break out of retry loop
+      break
+    else
+      # Failed - retry if not at max attempts
+      if [ $NGROK_ATTEMPT -lt $MAX_NGROK_ATTEMPTS ]; then
+        echo -e "${YELLOW}   ⚠️  Failed to get ngrok URL (attempt $NGROK_ATTEMPT/$MAX_NGROK_ATTEMPTS). Retrying...${NC}"
+        NGROK_ATTEMPT=$((NGROK_ATTEMPT + 1))
+        sleep 2
+      else
+        echo -e "${YELLOW}   ⚠️  Failed to get ngrok URL after $MAX_NGROK_ATTEMPTS attempts. Continuing with localhost.${NC}"
+        echo -e "${YELLOW}   💡 Check: tail /tmp/ngrok.log${NC}"
+        USE_NGROK=false
+        NGROK_URL=""
+      fi
+    fi
+  done
+  
+  if [ "$USE_NGROK" = true ] && [ -n "$NGROK_URL" ]; then
+    echo -e "${GREEN}   ✅ ngrok tunnel started: $NGROK_URL${NC}"
+  fi
+fi
+
+# Update web/.env and root .env based on detected/started ngrok or localhost
+if [ "$USE_NGROK" = true ] && [ -n "$NGROK_URL" ]; then
+  # Extract domain from ngrok URL (remove https://)
+  NGROK_DOMAIN=$(echo "$NGROK_URL" | sed 's|https://||')
+  
+  # Update web/.env
+  if [ -f "web/.env" ]; then
+    # Update or add VITE_WEBAUTHN_ORIGIN (macOS sed compatibility: use -i '')
+    if grep -q "^VITE_WEBAUTHN_ORIGIN=" web/.env; then
+      sed -i '' "s|^VITE_WEBAUTHN_ORIGIN=.*|VITE_WEBAUTHN_ORIGIN=$NGROK_URL|" web/.env
+    else
+      echo "VITE_WEBAUTHN_ORIGIN=$NGROK_URL" >> web/.env
+    fi
+    echo -e "${GREEN}   ✅ Updated web/.env with ngrok URL${NC}"
+  fi
+  
+  # Update root .env for backend WebAuthn
+  if [ -f ".env" ]; then
+    # Update or add WEBAUTHN_RPID
+    if grep -q "^WEBAUTHN_RPID=" .env; then
+      sed -i '' "s|^WEBAUTHN_RPID=.*|WEBAUTHN_RPID=$NGROK_DOMAIN|" .env
+    else
+      echo "WEBAUTHN_RPID=$NGROK_DOMAIN" >> .env
+    fi
+    # Update or add WEBAUTHN_ORIGIN
+    if grep -q "^WEBAUTHN_ORIGIN=" .env; then
+      sed -i '' "s|^WEBAUTHN_ORIGIN=.*|WEBAUTHN_ORIGIN=$NGROK_URL|" .env
+    else
+      echo "WEBAUTHN_ORIGIN=$NGROK_URL" >> .env
+    fi
+    echo -e "${GREEN}   ✅ Updated root .env with ngrok WebAuthn config${NC}"
+  fi
+  
+  export NGROK_URL="$NGROK_URL"
+  export USE_NGROK=true
+else
+  # Use localhost
+  if [ -f "web/.env" ]; then
+    if grep -q "^VITE_WEBAUTHN_ORIGIN=" web/.env; then
+      sed -i '' "s|^VITE_WEBAUTHN_ORIGIN=.*|VITE_WEBAUTHN_ORIGIN=http://localhost:5173|" web/.env
+    else
+      echo "VITE_WEBAUTHN_ORIGIN=http://localhost:5173" >> web/.env
+    fi
+    echo -e "${GREEN}   ✅ Updated web/.env with localhost${NC}"
+  fi
+  
+  # Update root .env for backend WebAuthn
+  if [ -f ".env" ]; then
+    # Update or add WEBAUTHN_RPID
+    if grep -q "^WEBAUTHN_RPID=" .env; then
+      sed -i '' "s|^WEBAUTHN_RPID=.*|WEBAUTHN_RPID=localhost|" .env
+    else
+      echo "WEBAUTHN_RPID=localhost" >> .env
+    fi
+    # Update or add WEBAUTHN_ORIGIN
+    if grep -q "^WEBAUTHN_ORIGIN=" .env; then
+      sed -i '' "s|^WEBAUTHN_ORIGIN=.*|WEBAUTHN_ORIGIN=http://localhost:5173|" .env
+    else
+      echo "WEBAUTHN_ORIGIN=http://localhost:5173" >> .env
+    fi
+    echo -e "${GREEN}   ✅ Updated root .env with localhost WebAuthn config${NC}"
+  fi
+  
+  export USE_NGROK=false
+fi
+
 echo ""
 echo -e "${CYAN}🌐 Opening browser tabs...${NC}"
 if [ "$DEMO_MODE" = true ]; then
@@ -1307,6 +1477,13 @@ fi
 if [ -n "$WEB_PORT" ]; then
   echo ""
   print_lan_web_urls "$WEB_PORT"
+fi
+
+# Show ngrok URL if active
+if [ "$USE_NGROK" = true ] && [ -n "$NGROK_URL" ]; then
+  echo ""
+  echo -e "${CYAN}🌐 Ngrok tunnel (HTTPS/WebAuthn):${NC}"
+  echo -e "   • $NGROK_URL"
 fi
 echo ""
 echo -e "${CYAN}To stop:${NC}"
